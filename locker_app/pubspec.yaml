@@ -13,6 +13,8 @@ dependencies:
   provider: ^6.1.2
   go_router: ^14.8.0
   shared_preferences: ^2.5.2
+  http: ^1.1.0
+  flutter_secure_storage: ^9.0.0
 
   openapi_generator: ^6.1.0
   openapi_generator_annotations: ^6.1.0

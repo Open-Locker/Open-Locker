@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:locker_app/screens/home.dart';
+import 'package:locker_app/screens/instance_selection.dart';
 import 'package:locker_app/screens/item_details.dart';
 import 'package:locker_app/screens/items.dart';
 import 'package:locker_app/screens/login.dart';
@@ -21,6 +22,10 @@ GoRouter router() {
       GoRoute(
         path: SplashScreen.route,
         builder: (context, state) => const SplashScreen(),
+      ),
+      GoRoute(
+        path: InstanceSelectionScreen.route,
+        builder: (context, state) => const InstanceSelectionScreen(),
       ),
       GoRoute(
         path: LoginScreen.route,
@@ -100,16 +105,40 @@ GoRouter router() {
         return null;
       }
 
-      // Wenn wir bereits auf der Login-Route sind und nicht authentifiziert sind,
+      // Wenn wir auf dem Instance Selection Screen sind und keine Instanz ausgewählt ist,
+      // bleiben wir dort
+      if (state.matchedLocation == InstanceSelectionScreen.route &&
+          userService.instanceUrl.isEmpty) {
+        return null;
+      }
+
+      // Wenn wir auf dem Instance Selection Screen sind und eine Instanz ausgewählt ist,
+      // gehen wir zum Login
+      if (state.matchedLocation == InstanceSelectionScreen.route &&
+          userService.instanceUrl.isNotEmpty) {
+        return LoginScreen.route;
+      }
+
+      // Wenn wir auf dem Login-Screen sind und nicht authentifiziert sind,
       // bleiben wir dort
       if (state.matchedLocation == LoginScreen.route &&
           !userService.isAuthenticated) {
         return null;
       }
 
-      // Wenn wir nicht authentifiziert sind und nicht auf der Login-Route sind,
+      // Wenn wir nicht authentifiziert sind und keine Instanz ausgewählt ist,
+      // gehen wir zur Instanz-Auswahl
+      if (!userService.isAuthenticated &&
+          userService.instanceUrl.isEmpty &&
+          state.matchedLocation != InstanceSelectionScreen.route) {
+        return InstanceSelectionScreen.route;
+      }
+
+      // Wenn wir nicht authentifiziert sind und eine Instanz ausgewählt ist,
       // gehen wir zum Login
-      if (!userService.isAuthenticated) {
+      if (!userService.isAuthenticated &&
+          userService.instanceUrl.isNotEmpty &&
+          state.matchedLocation != LoginScreen.route) {
         return LoginScreen.route;
       }
 

@@ -29,11 +29,13 @@ class _LoginFormState extends State<LoginForm> {
     return Form(
       key: _formKey,
       child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
           TextFormField(
             controller: _emailController,
             decoration: const InputDecoration(
               labelText: 'Email',
+              border: OutlineInputBorder(),
             ),
             keyboardType: TextInputType.emailAddress,
             onFieldSubmitted: (_) {
@@ -41,15 +43,17 @@ class _LoginFormState extends State<LoginForm> {
             },
             validator: (value) {
               if (value == null || value.isEmpty) {
-                return 'Please enter your email';
+                return 'Bitte geben Sie eine Email ein';
               }
               return null;
             },
           ),
+          const SizedBox(height: 16),
           TextFormField(
             controller: _passwordController,
             decoration: const InputDecoration(
-              labelText: 'Password',
+              labelText: 'Passwort',
+              border: OutlineInputBorder(),
             ),
             obscureText: true,
             onFieldSubmitted: (_) {
@@ -57,14 +61,21 @@ class _LoginFormState extends State<LoginForm> {
             },
             validator: (value) {
               if (value == null || value.isEmpty) {
-                return 'Please enter your password';
+                return 'Bitte geben Sie ein Passwort ein';
               }
               return null;
             },
           ),
-          ElevatedButton(
-            onPressed: _submitForm,
-            child: const Text('Login'),
+          const SizedBox(height: 24),
+          SizedBox(
+            width: double.infinity,
+            child: FilledButton(
+              onPressed: _submitForm,
+              style: FilledButton.styleFrom(
+                padding: const EdgeInsets.symmetric(vertical: 16),
+              ),
+              child: const Text('Login'),
+            ),
           ),
         ],
       ),

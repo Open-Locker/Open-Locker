@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:locker_app/screens/home.dart';
+import 'package:locker_app/screens/instance_selection.dart';
 import 'package:locker_app/screens/login.dart';
 import 'package:locker_app/services/user_service.dart';
 import 'package:provider/provider.dart';
@@ -29,6 +30,8 @@ class _SplashScreenState extends State<SplashScreen> {
     if (mounted) {
       if (userService.isAuthenticated) {
         context.go(HomeScreen.route);
+      } else if (userService.instanceUrl.isEmpty) {
+        context.go(InstanceSelectionScreen.route);
       } else {
         context.go(LoginScreen.route);
       }
