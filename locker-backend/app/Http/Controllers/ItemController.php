@@ -6,7 +6,7 @@ use App\Http\Resources\ItemLoanResource;
 use App\Http\Resources\ItemResource;
 use App\Models\Item;
 use App\Models\ItemLoan;
-use App\Services\LockerServiceInterface;
+use App\Services\LockerService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
@@ -41,7 +41,7 @@ class ItemController extends Controller
     /**
      * Borrow a Item
      */
-    public function borrowItem(Item $item, Request $request, LockerServiceInterface $lockerService): JsonResponse
+    public function borrowItem(Item $item, Request $request, LockerService $lockerService): JsonResponse
     {
         // Prüfe ob das Item bereits ausgeliehen ist
         if ($item->activeLoan()->exists()) {
@@ -59,7 +59,7 @@ class ItemController extends Controller
                 'borrowed_at' => now(),
             ]);
 
-            $lockerService->openLocker($item->locker_id);
+            $lockerService->openLocker($item->locker);
         });
 
         return response()->json([
@@ -71,7 +71,7 @@ class ItemController extends Controller
     /**
      * Returns a Item
      */
-    public function returnItem(Item $item, Request $request, LockerServiceInterface $lockerService): JsonResponse
+    public function returnItem(Item $item, Request $request, LockerService $lockerService): JsonResponse
     {
         $activeLoan = $item->activeLoan;
 
@@ -87,7 +87,7 @@ class ItemController extends Controller
                 'returned_at' => now(),
             ]);
 
-            $lockerService->openLocker($item->locker_id);
+            $lockerService->openLocker($item->locker);
         });
 
         return response()->json([

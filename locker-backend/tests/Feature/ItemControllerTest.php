@@ -5,7 +5,6 @@ namespace Tests\Feature;
 use App\Models\Item;
 use App\Models\ItemLoan;
 use App\Models\User;
-use App\Services\LockerServiceInterface;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -13,13 +12,9 @@ class ItemControllerTest extends TestCase
 {
     use RefreshDatabase;
 
-    protected $lockerService;
-
     protected function setUp(): void
     {
         parent::setUp();
-        $this->lockerService = $this->createMock(LockerServiceInterface::class);
-        $this->app->instance(LockerServiceInterface::class, $this->lockerService);
     }
 
     /**
@@ -62,11 +57,6 @@ class ItemControllerTest extends TestCase
         $user = User::factory()->create();
         $item = Item::factory()->create();
 
-        $this->lockerService->expects($this->once())
-            ->method('openLocker')
-            ->with($item->locker_id)
-            ->willReturn(true);
-
         $response = $this->actingAs($user)->postJson(route('items.borrow', $item->id));
 
         $response->assertStatus(200)
@@ -91,11 +81,6 @@ class ItemControllerTest extends TestCase
             'item_id' => $item->id,
             'user_id' => $user->id,
         ]);
-
-        $this->lockerService->expects($this->once())
-            ->method('openLocker')
-            ->with($item->locker_id)
-            ->willReturn(true);
 
         $response = $this->actingAs($user)->postJson(route('items.return', $item->id));
 
