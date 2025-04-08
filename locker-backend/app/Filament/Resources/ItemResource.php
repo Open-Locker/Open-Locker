@@ -27,7 +27,7 @@ class ItemResource extends Resource
                 Forms\Components\FileUpload::make('image_path')
                     ->image()->visibility('public')
                     ->required(),
-                Forms\Components\TextInput::make('locker_id')
+                Forms\Components\Select::make('locker_id')->relationship('locker', 'name')
                     ->required(),
             ]);
     }
@@ -36,6 +36,15 @@ class ItemResource extends Resource
     {
         return $table
             ->columns([
+                Tables\Columns\ImageColumn::make('image_path')
+                    ->disk('public')->label('image'),
+                Tables\Columns\TextColumn::make('name')
+                    ->searchable(),
+                Tables\Columns\TextColumn::make('description')
+                    ->searchable(),
+
+                Tables\Columns\TextColumn::make('locker.name')
+                    ->searchable(),
                 Tables\Columns\TextColumn::make('created_at')
                     ->dateTime()
                     ->sortable()
@@ -44,14 +53,6 @@ class ItemResource extends Resource
                     ->dateTime()
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),
-                Tables\Columns\TextColumn::make('name')
-                    ->searchable(),
-                Tables\Columns\TextColumn::make('description')
-                    ->searchable(),
-                Tables\Columns\ImageColumn::make('image_path')
-                    ->disk('public'),
-                Tables\Columns\TextColumn::make('locker_id')
-                    ->searchable(),
             ])
             ->filters([
                 //

@@ -24,16 +24,18 @@ class ItemResource extends JsonResource
     {
         $activeLoan = $this->resource->activeLoan;
 
-        return [
+        $array = [
             'id' => $this->resource->id,
             'name' => $this->resource->name,
             'description' => $this->resource->description,
             'image_url' => config('app.url').Storage::url($this->resource->image_path),
             'locker_id' => $this->resource->locker_id,
-            /** @var CarbonImmutable|null */
-            'borrowed_at' => $activeLoan !== null ? $activeLoan->borrowed_at : null,
             'created_at' => $this->resource->created_at,
             'updated_at' => $this->resource->updated_at,
+            /** @var CarbonImmutable | null */
+            'borrowed_at' => $activeLoan?->borrowed_at,
         ];
+
+        return $array;
     }
 }

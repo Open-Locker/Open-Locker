@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class Locker extends Model
 {
@@ -16,4 +17,9 @@ class Locker extends Model
         'coil_register',
         'status_register',
     ];
+
+    public function item(): HasOne
+    {
+        return $this->hasOne(Item::class, 'locker_id', 'id');
+    }
 }

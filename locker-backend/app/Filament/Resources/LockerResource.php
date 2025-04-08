@@ -45,10 +45,12 @@ class LockerResource extends Resource
                 Tables\Columns\TextColumn::make('name')
                     ->searchable(),
                 Tables\Columns\TextColumn::make('modbus_address')
-                    ->searchable(),
+                    ->searchable()->toggleable(isToggledHiddenByDefault: true),
                 Tables\Columns\TextColumn::make('coil_register')
-                    ->searchable(),
+                    ->searchable()->toggleable(isToggledHiddenByDefault: true),
                 Tables\Columns\TextColumn::make('status_register')
+                    ->searchable()->toggleable(isToggledHiddenByDefault: true),
+                Tables\Columns\TextColumn::make('item.name')
                     ->searchable(),
             ])
             ->filters([

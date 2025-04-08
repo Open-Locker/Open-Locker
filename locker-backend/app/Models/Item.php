@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -9,6 +10,9 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Relations\HasOneThrough;
 
 /**
+ * @property-read  CarbonImmutable $created_at
+ * @property-read  CarbonImmutable $updated_at
+ *
  * @uses \Database\Factories\ItemFactory
  */
 class Item extends Model
