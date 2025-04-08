@@ -11,7 +11,8 @@ class InstanceSelectionScreen extends StatefulWidget {
   static const route = '/instance-selection';
 
   @override
-  State<InstanceSelectionScreen> createState() => _InstanceSelectionScreenState();
+  State<InstanceSelectionScreen> createState() =>
+      _InstanceSelectionScreenState();
 }
 
 class _InstanceSelectionScreenState extends State<InstanceSelectionScreen> {
@@ -41,16 +42,17 @@ class _InstanceSelectionScreenState extends State<InstanceSelectionScreen> {
       if (response.statusCode == 200) {
         final instanceInfo = json.decode(response.body);
         final userService = context.read<UserService>();
-        
+
         await userService.setInstanceUrl(url);
         await userService.setInstanceInfo(InstanceInfo.fromJson(instanceInfo));
-        
+
         if (mounted) {
           context.go(LoginScreen.route);
         }
       } else {
         setState(() {
-          _errorMessage = 'Server nicht erreichbar oder keine gültige Open-Locker-Instanz';
+          _errorMessage =
+              'Server nicht erreichbar oder keine gültige Open-Locker-Instanz';
         });
       }
     } on FormatException {
@@ -125,14 +127,16 @@ class _InstanceSelectionScreenState extends State<InstanceSelectionScreen> {
                           padding: const EdgeInsets.only(top: 8.0),
                           child: Text(
                             _errorMessage!,
-                            style: TextStyle(color: Theme.of(context).colorScheme.error),
+                            style: TextStyle(
+                                color: Theme.of(context).colorScheme.error),
                           ),
                         ),
                       const SizedBox(height: 24),
                       SizedBox(
                         width: double.infinity,
                         child: FilledButton(
-                          onPressed: _isLoading ? null : _validateAndSaveInstance,
+                          onPressed:
+                              _isLoading ? null : _validateAndSaveInstance,
                           style: FilledButton.styleFrom(
                             padding: const EdgeInsets.symmetric(vertical: 16),
                           ),
@@ -140,7 +144,8 @@ class _InstanceSelectionScreenState extends State<InstanceSelectionScreen> {
                               ? const SizedBox(
                                   width: 20,
                                   height: 20,
-                                  child: CircularProgressIndicator(strokeWidth: 2),
+                                  child:
+                                      CircularProgressIndicator(strokeWidth: 2),
                                 )
                               : const Text('Weiter'),
                         ),
@@ -155,4 +160,4 @@ class _InstanceSelectionScreenState extends State<InstanceSelectionScreen> {
       ),
     );
   }
-} 
+}

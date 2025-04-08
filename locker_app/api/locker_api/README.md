@@ -68,6 +68,7 @@ Class | Method | HTTP request | Description
 *AdminApi* | [**adminUsersIndex**](doc//AdminApi.md#adminusersindex) | **GET** /admin/users | List of alle users
 *AdminApi* | [**adminUsersMakeAdmin**](doc//AdminApi.md#adminusersmakeadmin) | **POST** /admin/users/{user}/make-admin | Macht einen Benutzer zum Administrator
 *AdminApi* | [**adminUsersRemoveAdmin**](doc//AdminApi.md#adminusersremoveadmin) | **POST** /admin/users/{user}/remove-admin | Removes administrator rights from a user
+*AppInfoApi* | [**identify**](doc//AppInfoApi.md#identify) | **GET** /identify | Returns information for identifying the application
 *AuthApi* | [**adminUsersRegister**](doc//AuthApi.md#adminusersregister) | **POST** /admin/users/register | Register
 *AuthApi* | [**authLogin**](doc//AuthApi.md#authlogin) | **POST** /login | Login
 *AuthApi* | [**authLogout**](doc//AuthApi.md#authlogout) | **POST** /logout | Logout
@@ -82,7 +83,7 @@ Class | Method | HTTP request | Description
 *ItemApi* | [**itemsLoanHistory**](doc//ItemApi.md#itemsloanhistory) | **GET** /items/loan-history | Get loan history for the current user
 *ItemApi* | [**itemsReturn**](doc//ItemApi.md#itemsreturn) | **POST** /items/{item}/return | Returns a Item
 *LockerApi* | [**adminLockersIndex**](doc//LockerApi.md#adminlockersindex) | **GET** /admin/lockers | Returns a list of all available lockers
-*LockerApi* | [**adminLockersOpen**](doc//LockerApi.md#adminlockersopen) | **POST** /admin/lockers/{lockerId}/open | Manually opens a locker
+*LockerApi* | [**adminLockersOpen**](doc//LockerApi.md#adminlockersopen) | **POST** /admin/lockers/{locker}/open | Manually opens a locker
 
 
 ## Documentation For Models
@@ -93,6 +94,7 @@ Class | Method | HTTP request | Description
  - [AdminUsersMakeAdmin400Response](doc//AdminUsersMakeAdmin400Response.md)
  - [AdminUsersRegisterRequest](doc//AdminUsersRegisterRequest.md)
  - [AuthLoginRequest](doc//AuthLoginRequest.md)
+ - [Identify200Response](doc//Identify200Response.md)
  - [Item](doc//Item.md)
  - [ItemLoan](doc//ItemLoan.md)
  - [ItemsBorrow200Response](doc//ItemsBorrow200Response.md)

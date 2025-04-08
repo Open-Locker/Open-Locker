@@ -241,6 +241,8 @@ class ApiClient {
           return AdminUsersRegisterRequest.fromJson(value);
         case 'AuthLoginRequest':
           return AuthLoginRequest.fromJson(value);
+        case 'Identify200Response':
+          return Identify200Response.fromJson(value);
         case 'Item':
           return Item.fromJson(value);
         case 'ItemLoan':

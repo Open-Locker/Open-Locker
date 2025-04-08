@@ -26,7 +26,7 @@ class ItemLoan {
 
   int userId;
 
-  Object borrowedAt;
+  DateTime borrowedAt;
 
   DateTime? returnedAt;
 
@@ -58,7 +58,7 @@ class ItemLoan {
     json[r'id'] = this.id;
     json[r'item'] = this.item;
     json[r'user_id'] = this.userId;
-    json[r'borrowed_at'] = this.borrowedAt;
+    json[r'borrowed_at'] = this.borrowedAt.toUtc().toIso8601String();
     if (this.returnedAt != null) {
       json[r'returned_at'] = this.returnedAt!.toUtc().toIso8601String();
     } else {
@@ -91,7 +91,7 @@ class ItemLoan {
         id: mapValueOfType<int>(json, r'id')!,
         item: Item.fromJson(json[r'item'])!,
         userId: mapValueOfType<int>(json, r'user_id')!,
-        borrowedAt: mapValueOfType<Object>(json, r'borrowed_at')!,
+        borrowedAt: mapDateTime(json, r'borrowed_at', r'')!,
         returnedAt: mapDateTime(json, r'returned_at', r''),
       );
     }

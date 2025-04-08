@@ -19,8 +19,7 @@ class ItemList extends StatelessWidget {
         return ListTile(
           leading: Hero(
             tag: 'item-${item.id}',
-            child: Image.network(
-                'https://developers.elementor.com/docs/assets/img/elementor-placeholder-image.png'),
+            child: Image.network(item.imageUrl),
           ),
           title: Text(item.name),
           subtitle: Text(item.description),

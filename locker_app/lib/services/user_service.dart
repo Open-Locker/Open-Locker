@@ -69,14 +69,14 @@ class UserService {
     final prefs = await SharedPreferences.getInstance();
     final savedInstanceUrl = prefs.getString('instance_url') ?? '';
     final savedInstanceInfo = prefs.getString('instance_info');
-    
+
     if (savedInstanceUrl.isNotEmpty) {
       _instanceUrl = savedInstanceUrl;
       if (savedInstanceInfo != null) {
         _instanceInfo = InstanceInfo.fromJson(json.decode(savedInstanceInfo));
       }
     }
-    
+
     final savedToken = await _secureStorage.read(key: 'token');
     if (savedToken != null) {
       await setToken(savedToken);
@@ -151,14 +151,16 @@ class UserService {
   Future<void> _persistInstanceInfo() async {
     if (_instanceInfo != null) {
       final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('instance_info', json.encode({
-        'name': _instanceInfo!.name,
-        'type': _instanceInfo!.type,
-        'api_version': _instanceInfo!.apiVersion,
-        'identifier': _instanceInfo!.identifier,
-        'environment': _instanceInfo!.environment,
-        'timestamp': _instanceInfo!.timestamp,
-      }));
+      await prefs.setString(
+          'instance_info',
+          json.encode({
+            'name': _instanceInfo!.name,
+            'type': _instanceInfo!.type,
+            'api_version': _instanceInfo!.apiVersion,
+            'identifier': _instanceInfo!.identifier,
+            'environment': _instanceInfo!.environment,
+            'timestamp': _instanceInfo!.timestamp,
+          }));
     }
   }
 

@@ -16,9 +16,9 @@ class Item {
     required this.id,
     required this.name,
     required this.description,
-    required this.imagePath,
+    required this.imageUrl,
     required this.lockerId,
-    required this.borrowed,
+    this.borrowedAt,
     required this.createdAt,
     required this.updatedAt,
   });
@@ -29,11 +29,11 @@ class Item {
 
   String description;
 
-  String imagePath;
+  String imageUrl;
 
-  String lockerId;
+  int? lockerId;
 
-  bool borrowed;
+  DateTime? borrowedAt;
 
   DateTime? createdAt;
 
@@ -46,9 +46,9 @@ class Item {
           other.id == id &&
           other.name == name &&
           other.description == description &&
-          other.imagePath == imagePath &&
+          other.imageUrl == imageUrl &&
           other.lockerId == lockerId &&
-          other.borrowed == borrowed &&
+          other.borrowedAt == borrowedAt &&
           other.createdAt == createdAt &&
           other.updatedAt == updatedAt;
 
@@ -58,24 +58,32 @@ class Item {
       (id.hashCode) +
       (name.hashCode) +
       (description.hashCode) +
-      (imagePath.hashCode) +
-      (lockerId.hashCode) +
-      (borrowed.hashCode) +
+      (imageUrl.hashCode) +
+      (lockerId == null ? 0 : lockerId!.hashCode) +
+      (borrowedAt == null ? 0 : borrowedAt!.hashCode) +
       (createdAt == null ? 0 : createdAt!.hashCode) +
       (updatedAt == null ? 0 : updatedAt!.hashCode);
 
   @override
   String toString() =>
-      'Item[id=$id, name=$name, description=$description, imagePath=$imagePath, lockerId=$lockerId, borrowed=$borrowed, createdAt=$createdAt, updatedAt=$updatedAt]';
+      'Item[id=$id, name=$name, description=$description, imageUrl=$imageUrl, lockerId=$lockerId, borrowedAt=$borrowedAt, createdAt=$createdAt, updatedAt=$updatedAt]';
 
   Map<String, dynamic> toJson() {
     final json = <String, dynamic>{};
     json[r'id'] = this.id;
     json[r'name'] = this.name;
     json[r'description'] = this.description;
-    json[r'image_path'] = this.imagePath;
-    json[r'locker_id'] = this.lockerId;
-    json[r'borrowed'] = this.borrowed;
+    json[r'image_url'] = this.imageUrl;
+    if (this.lockerId != null) {
+      json[r'locker_id'] = this.lockerId;
+    } else {
+      json[r'locker_id'] = null;
+    }
+    if (this.borrowedAt != null) {
+      json[r'borrowed_at'] = this.borrowedAt!.toUtc().toIso8601String();
+    } else {
+      json[r'borrowed_at'] = null;
+    }
     if (this.createdAt != null) {
       json[r'created_at'] = this.createdAt!.toUtc().toIso8601String();
     } else {
@@ -113,9 +121,11 @@ class Item {
         id: mapValueOfType<int>(json, r'id')!,
         name: mapValueOfType<String>(json, r'name')!,
         description: mapValueOfType<String>(json, r'description')!,
-        imagePath: mapValueOfType<String>(json, r'image_path')!,
-        lockerId: mapValueOfType<String>(json, r'locker_id')!,
-        borrowed: mapValueOfType<bool>(json, r'borrowed')!,
+        imageUrl: mapValueOfType<String>(json, r'image_url')!,
+        lockerId: mapValueOfType<int>(json, r'locker_id'),
+        borrowedAt: json[r'borrowed_at'] == null
+            ? null
+            : mapDateTime(json, r'borrowed_at', r''),
         createdAt: mapDateTime(json, r'created_at', r''),
         updatedAt: mapDateTime(json, r'updated_at', r''),
       );
@@ -177,9 +187,8 @@ class Item {
     'id',
     'name',
     'description',
-    'image_path',
+    'image_url',
     'locker_id',
-    'borrowed',
     'created_at',
     'updated_at',
   };

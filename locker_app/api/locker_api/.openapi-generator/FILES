@@ -1,5 +1,4 @@
 .gitignore
-.openapi-generator-ignore
 .travis.yml
 README.md
 analysis_options.yaml
@@ -9,8 +8,10 @@ doc/AdminStatistics200ResponseStatistics.md
 doc/AdminUsersMakeAdmin200Response.md
 doc/AdminUsersMakeAdmin400Response.md
 doc/AdminUsersRegisterRequest.md
+doc/AppInfoApi.md
 doc/AuthApi.md
 doc/AuthLoginRequest.md
+doc/Identify200Response.md
 doc/Item.md
 doc/ItemApi.md
 doc/ItemLoan.md
@@ -24,6 +25,7 @@ doc/User.md
 git_push.sh
 lib/api.dart
 lib/api/admin_api.dart
+lib/api/app_info_api.dart
 lib/api/auth_api.dart
 lib/api/item_api.dart
 lib/api/locker_api.dart
@@ -41,6 +43,7 @@ lib/model/admin_users_make_admin200_response.dart
 lib/model/admin_users_make_admin400_response.dart
 lib/model/admin_users_register_request.dart
 lib/model/auth_login_request.dart
+lib/model/identify200_response.dart
 lib/model/item.dart
 lib/model/item_loan.dart
 lib/model/items_borrow200_response.dart
@@ -50,21 +53,5 @@ lib/model/password_store_request.dart
 lib/model/token_response.dart
 lib/model/user.dart
 pubspec.yaml
-test/admin_api_test.dart
-test/admin_statistics200_response_statistics_test.dart
-test/admin_statistics200_response_test.dart
-test/admin_users_make_admin200_response_test.dart
-test/admin_users_make_admin400_response_test.dart
-test/admin_users_register_request_test.dart
-test/auth_api_test.dart
-test/auth_login_request_test.dart
-test/item_api_test.dart
-test/item_loan_test.dart
-test/item_test.dart
-test/items_borrow200_response_test.dart
-test/locker_api_test.dart
-test/locker_test.dart
-test/password_email_request_test.dart
-test/password_store_request_test.dart
-test/token_response_test.dart
-test/user_test.dart
+test/app_info_api_test.dart
+test/identify200_response_test.dart

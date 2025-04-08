@@ -68,13 +68,14 @@ class LockerApi {
   ///
   /// Parameters:
   ///
-  /// * [String] lockerId (required):
+  /// * [int] locker (required):
+  ///   The locker ID
   Future<Response> adminLockersOpenWithHttpInfo(
-    String lockerId,
+    int locker,
   ) async {
     // ignore: prefer_const_declarations
-    final path =
-        r'/admin/lockers/{lockerId}/open'.replaceAll('{lockerId}', lockerId);
+    final path = r'/admin/lockers/{locker}/open'
+        .replaceAll('{locker}', locker.toString());
 
     // ignore: prefer_final_locals
     Object? postBody;
@@ -100,12 +101,13 @@ class LockerApi {
   ///
   /// Parameters:
   ///
-  /// * [String] lockerId (required):
+  /// * [int] locker (required):
+  ///   The locker ID
   Future<ItemsBorrow200Response?> adminLockersOpen(
-    String lockerId,
+    int locker,
   ) async {
     final response = await adminLockersOpenWithHttpInfo(
-      lockerId,
+      locker,
     );
     if (response.statusCode >= HttpStatus.badRequest) {
       throw ApiException(response.statusCode, await _decodeBodyBytes(response));

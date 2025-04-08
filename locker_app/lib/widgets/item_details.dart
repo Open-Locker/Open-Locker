@@ -66,14 +66,14 @@ class ItemCard extends StatelessWidget {
                       children: [
                         ElevatedButton(
                           onPressed: () async {
-                            if (item.borrowed) {
+                            if (item.borrowedAt != null) {
                               await service.returnItem(item.id);
                             } else {
                               await service.borrowItem(item.id);
                             }
                             context.go(HomeScreen.route);
                           },
-                          child: item.borrowed
+                          child: item.borrowedAt != null
                               ? Text('Zurückgeben')
                               : Text('Ausleihen'),
                         ),

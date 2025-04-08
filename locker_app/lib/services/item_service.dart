@@ -6,15 +6,20 @@ class ItemService {
 
   final UserService _userService;
 
+  ApiClient _createClient() {
+    return ApiClient(
+      basePath: '${_userService.instanceUrl}/api',
+      authentication: HttpBearerAuth()..accessToken = _userService.token,
+    );
+  }
+
   Future<List<Item>> getBorrowedItems() async {
-    final client = ApiClient(
-        authentication: HttpBearerAuth()..accessToken = _userService.token);
+    final client = _createClient();
     return await ItemApi(client).itemsBorrowed() ?? [];
   }
 
   Future<List<Item>> getItems() async {
-    final client = ApiClient(
-        authentication: HttpBearerAuth()..accessToken = _userService.token);
+    final client = _createClient();
     return await ItemApi(client).itemsIndex() ?? [];
   }
 
@@ -24,14 +29,12 @@ class ItemService {
   }
 
   Future<void> borrowItem(int id) async {
-    final client = ApiClient(
-        authentication: HttpBearerAuth()..accessToken = _userService.token);
+    final client = _createClient();
     await ItemApi(client).itemsBorrow(id);
   }
 
   Future<void> returnItem(int id) async {
-    final client = ApiClient(
-        authentication: HttpBearerAuth()..accessToken = _userService.token);
+    final client = _createClient();
     await ItemApi(client).itemsReturn(id);
   }
 }

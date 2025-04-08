@@ -74,12 +74,6 @@ Login
 ### Example
 ```dart
 import 'package:locker_api/api.dart';
-// TODO Configure HTTP Bearer authorization: http
-// Case 1. Use String Token
-//defaultApiClient.getAuthentication<HttpBearerAuth>('http').setAccessToken('YOUR_ACCESS_TOKEN');
-// Case 2. Use Function which generate token.
-// String yourTokenGeneratorFunction() { ... }
-//defaultApiClient.getAuthentication<HttpBearerAuth>('http').setAccessToken(yourTokenGeneratorFunction);
 
 final api_instance = AuthApi();
 final authLoginRequest = AuthLoginRequest(); // AuthLoginRequest | 
@@ -104,7 +98,7 @@ Name | Type | Description  | Notes
 
 ### Authorization
 
-[http](../README.md#http)
+No authorization required
 
 ### HTTP request headers
 

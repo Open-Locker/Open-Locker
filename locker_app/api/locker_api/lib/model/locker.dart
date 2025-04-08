@@ -14,29 +14,36 @@ class Locker {
   /// Returns a new [Locker] instance.
   Locker({
     required this.id,
+    required this.name,
     required this.isOpen,
   });
 
-  String id;
+  int id;
 
-  String isOpen;
+  String name;
+
+  bool isOpen;
 
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-      other is Locker && other.id == id && other.isOpen == isOpen;
+      other is Locker &&
+          other.id == id &&
+          other.name == name &&
+          other.isOpen == isOpen;
 
   @override
   int get hashCode =>
       // ignore: unnecessary_parenthesis
-      (id.hashCode) + (isOpen.hashCode);
+      (id.hashCode) + (name.hashCode) + (isOpen.hashCode);
 
   @override
-  String toString() => 'Locker[id=$id, isOpen=$isOpen]';
+  String toString() => 'Locker[id=$id, name=$name, isOpen=$isOpen]';
 
   Map<String, dynamic> toJson() {
     final json = <String, dynamic>{};
     json[r'id'] = this.id;
+    json[r'name'] = this.name;
     json[r'is_open'] = this.isOpen;
     return json;
   }
@@ -62,8 +69,9 @@ class Locker {
       }());
 
       return Locker(
-        id: mapValueOfType<String>(json, r'id')!,
-        isOpen: mapValueOfType<String>(json, r'is_open')!,
+        id: mapValueOfType<int>(json, r'id')!,
+        name: mapValueOfType<String>(json, r'name')!,
+        isOpen: mapValueOfType<bool>(json, r'is_open')!,
       );
     }
     return null;
@@ -121,6 +129,7 @@ class Locker {
   /// The list of required keys that must be present in a JSON.
   static const requiredKeys = <String>{
     'id',
+    'name',
     'is_open',
   };
 }
