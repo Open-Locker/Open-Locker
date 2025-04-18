@@ -4,6 +4,7 @@ namespace App\Filament\Resources;
 
 use App\Filament\Resources\LockerResource\Pages;
 use App\Models\Locker;
+use App\Services\LockerService;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
@@ -58,6 +59,12 @@ class LockerResource extends Resource
             ])
             ->actions([
                 Tables\Actions\EditAction::make(),
+                Tables\Actions\Action::make('openLocker')->label('Open')
+                    ->action(function (Locker $record, LockerService $lockerService) {
+                        $lockerService->openLocker($record);
+                    })
+                    ->button()
+                    ->icon('heroicon-o-lock-open'),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
