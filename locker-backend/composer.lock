@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "61b3c8e8de0ab3b4fb0e7c775628631c",
+    "content-hash": "09b48548d3d1cb453db13ac2caec42e1",
     "packages": [
         {
             "name": "anourvalar/eloquent-serialize",
@@ -3908,6 +3908,38 @@
                 }
             ],
             "time": "2024-11-21T10:39:51+00:00"
+        },
+        {
+            "name": "open-locker/php-modbus-ffi",
+            "version": "dev-main",
+            "dist": {
+                "type": "path",
+                "url": "packages/OpenLocker/php-modbus-ffi",
+                "reference": "a3c22b463d1a02d246c4bae5218dcad4736c7ad5"
+            },
+            "require": {
+                "ext-ffi": "*",
+                "php": "^8.0"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "OpenLocker\\PhpModbusFfi\\": "src/"
+                }
+            },
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Merlin Hofmann",
+                    "email": "merlin@merona.de"
+                }
+            ],
+            "description": "A PHP library to interact with Modbus devices (TCP & RTU) using FFI and libmodbus.",
+            "transport-options": {
+                "relative": true
+            }
         },
         {
             "name": "openspout/openspout",
@@ -10326,7 +10358,9 @@
     ],
     "aliases": [],
     "minimum-stability": "stable",
-    "stability-flags": {},
+    "stability-flags": {
+        "open-locker/php-modbus-ffi": 20
+    },
     "prefer-stable": true,
     "prefer-lowest": false,
     "platform": {

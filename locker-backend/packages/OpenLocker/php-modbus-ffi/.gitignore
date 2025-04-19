@@ -1,0 +1,36 @@
+# Datei: packages/MyVendor/php-modbus-ffi/.gitignore
+# Beschreibung: Ignoriert Dateien für das lokale PHP Modbus FFI Composer-Paket.
+
+# Composer Abhängigkeiten und Lock-Datei
+# Normalerweise werden Abhängigkeiten vom Hauptprojekt verwaltet, aber zur Sicherheit ignorieren.
+/vendor/
+composer.lock
+
+# IDE / Editor Konfigurationsverzeichnisse
+.idea/
+.vscode/
+*.sublime-project
+*.sublime-workspace
+
+# Betriebssystem-generierte Dateien
+.DS_Store
+Thumbs.db
+ehthumbs.db
+
+# Build-Artefakte / Logs / Testausgaben (ggf. spezifische hinzufügen)
+/build/
+/coverage/
+*.log
+
+# Cache-Dateien von statischen Analysewerkzeugen (falls verwendet)
+.phpstan_cache/
+.psalm_cache/
+/cache/
+
+# PHPUnit Cache (falls verwendet)
+.phpunit.result.cache
+
+# Lokale Konfigurationsdateien (falls Sie welche erstellen)
+# z.B. .env oder ähnliches nur für Paket-Tests
+/.env
+

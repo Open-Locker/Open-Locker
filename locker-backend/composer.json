@@ -3,15 +3,25 @@
     "name": "laravel/laravel",
     "type": "project",
     "description": "The skeleton application for the Laravel framework.",
-    "keywords": ["laravel", "framework"],
+    "keywords": [
+        "laravel",
+        "framework"
+    ],
     "license": "MIT",
+    "repositories": [
+        {
+            "type": "path",
+            "url": "packages/OpenLocker/php-modbus-ffi"
+        }
+    ],
     "require": {
         "php": "^8.2",
         "dedoc/scramble": "^0.12.6",
         "filament/filament": "^3.3",
         "laravel/framework": "^11.31",
         "laravel/sanctum": "^4.0",
-        "laravel/tinker": "^2.9"
+        "laravel/tinker": "^2.9",
+        "open-locker/php-modbus-ffi": "@dev"
     },
     "require-dev": {
         "brianium/paratest": "^7.8",

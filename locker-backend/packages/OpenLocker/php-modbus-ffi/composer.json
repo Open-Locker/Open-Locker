@@ -1,0 +1,22 @@
+{
+    "name": "open-locker/php-modbus-ffi",
+    "description": "A PHP library to interact with Modbus devices (TCP & RTU) using FFI and libmodbus.",
+    "type": "library",
+    "require": {
+        "php": "^8.2",
+        "ext-ffi": "*"
+    },
+    "license": "MIT",
+    "autoload": {
+        "psr-4": {
+            "OpenLocker\\PhpModbusFfi\\": "src/"
+        }
+    },
+    "authors": [
+        {
+            "name": "Merlin Hofmann",
+            "email": "merlin@merona.de"
+        }
+    ],
+    "minimum-stability": "dev"
+}
