@@ -27,8 +27,8 @@ return [
         'tcp' => [
             'ip' => env('MODBUS_TCP_IP', '127.0.0.1'),
             'port' => env('MODBUS_TCP_PORT', 502),
-            'library_path' => env('MODBUS_LIB_PATH', 'libmodbus.so.5'),
-            // 'default_slave' => env('MODBUS_TCP_SLAVE', 1), // Optional: Default Slave ID
+            'library_path' => env('MODBUS_LIB_PATH', '/lib/aarch64-linux-gnu/libmodbus.so.5'),
+            'default_slave' => env('MODBUS_TCP_SLAVE', 1), // Optional: Default Slave ID
         ],
 
         'rtu' => [
@@ -37,8 +37,8 @@ return [
             'parity' => env('MODBUS_RTU_PARITY', 'N'), // N, E, O
             'data_bits' => env('MODBUS_RTU_DATA_BITS', 8), // 7 or 8
             'stop_bits' => env('MODBUS_RTU_STOP_BITS', 1), // 1 or 2
-            'library_path' => env('MODBUS_LIB_PATH', 'libmodbus.so.5'),
-            // 'default_slave' => env('MODBUS_RTU_SLAVE', 1), // Optional: Default Slave ID
+            'library_path' => env('MODBUS_LIB_PATH', '/lib/aarch64-linux-gnu/libmodbus.so.5'),
+            'default_slave' => env('MODBUS_RTU_SLAVE', 1), // Optional: Default Slave ID
         ],
     ],
 
