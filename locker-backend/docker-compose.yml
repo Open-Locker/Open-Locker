@@ -24,6 +24,19 @@ services:
         depends_on:
             - mailpit
             - selenium
+    queue-worker:
+        image: 'sail-8.4/app'
+        restart: unless-stopped
+        environment:
+            WWWUSER: '${WWWUSER}'
+            LARAVEL_SAIL: 1
+        command: php artisan queue:work --tries=3 --timeout=90
+        volumes:
+            - '.:/var/www/html'
+        networks:
+            - sail
+        depends_on:
+            - laravel.test
     mailpit:
         image: 'axllent/mailpit:latest'
         ports:

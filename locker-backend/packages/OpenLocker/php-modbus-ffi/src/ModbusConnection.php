@@ -3,7 +3,6 @@
 namespace OpenLocker\PhpModbusFfi;
 
 use FFI;
-use Illuminate\Support\Facades\Log;
 use LogicException;
 use OpenLocker\PhpModbusFfi\Contracts\ModbusClient;
 use OpenLocker\PhpModbusFfi\Exceptions\ModbusConfigurationException;
@@ -13,9 +12,9 @@ use OpenLocker\PhpModbusFfi\Exceptions\ModbusIOException;
 
 abstract class ModbusConnection implements ModbusClient
 {
-    protected FFI $ffi;
+    protected \FFI $ffi;
 
-    protected ?FFI\CData $ctx = null; // Pointer to modbus_t*
+    protected ?\FFI\CData $ctx = null; // Pointer to modbus_t*
 
     protected bool $isConnected = false;
 
@@ -98,12 +97,10 @@ extern int errno;
             $this->libraryNameOrPath = $libraryPath;
         }
 
-        Log::debug("Attempting FFI initialization with library: '".$this->libraryNameOrPath."'");
-
         try {
             // Define C functions and load the library
-            $this->ffi = FFI::cdef($this->getCombinedCDef(), $this->libraryNameOrPath);
-        } catch (FFI\Exception $e) {
+            $this->ffi = \FFI::cdef($this->getCombinedCDef(), $this->libraryNameOrPath);
+        } catch (\FFI\Exception $e) {
             throw new ModbusConfigurationException("FFI Error: Failed to load library '{$this->libraryNameOrPath}' or parse definitions: ".$e->getMessage(), 0, $e);
         }
 
@@ -197,7 +194,7 @@ extern int errno;
         $usec = $this->ffi->new('uint32_t');
         // Note: modbus_get_response_timeout doesn't return error status directly in older versions.
         // We assume it works if context is valid. Newer versions might return int. Check your libmodbus doc.
-        $this->ffi->modbus_get_response_timeout($this->ctx, FFI::addr($sec), FFI::addr($usec));
+        $this->ffi->modbus_get_response_timeout($this->ctx, \FFI::addr($sec), \FFI::addr($usec));
 
         return ['seconds' => $sec->cdata, 'microseconds' => $usec->cdata];
     }
@@ -261,7 +258,7 @@ extern int errno;
      */
     public function close(): void
     {
-        if ($this->isConnected && ! FFI::isNull($this->ctx)) {
+        if ($this->isConnected && ! \FFI::isNull($this->ctx)) {
             $this->ffi->modbus_close($this->ctx);
             $this->isConnected = false;
         }
@@ -273,7 +270,7 @@ extern int errno;
     public function __destruct()
     {
         $this->close(); // Attempt to close gracefully
-        if (! FFI::isNull($this->ctx)) {
+        if (! \FFI::isNull($this->ctx)) {
             $this->ffi->modbus_free($this->ctx);
             $this->ctx = null; // Prevent double free
         }
@@ -520,7 +517,7 @@ extern int errno;
     /** Checks if the Modbus context is initialized. */
     protected function checkContext(): void
     {
-        if (FFI::isNull($this->ctx)) {
+        if (\FFI::isNull($this->ctx)) {
             throw new LogicException('Modbus context is not initialized. Call constructor of concrete class (ModbusTcpConnection or ModbusRtuConnection).');
         }
     }
@@ -534,29 +531,64 @@ extern int errno;
         }
     }
 
-    /** Throws an exception based on the last FFI/libmodbus error. */
     protected function throwLastError(string $messagePrefix): void
     {
-        $errno = $this->ffi->errno; // Read errno immediately
-        $errorMsg = 'Unknown error';
-        if ($errno !== 0) {
-            // Check if modbus_strerror returns a valid pointer before dereferencing
-            $cErrorString = $this->ffi->modbus_strerror($errno);
-            if (! FFI::isNull($cErrorString)) {
-                $errorMsg = FFI::string($cErrorString);
-            } else {
-                $errorMsg = 'System error or unknown libmodbus error code';
-            }
+        if (! isset($this->ffi) || ! $this->ffi instanceof \FFI) {
+            throw new \LogicException('FFI object is not initialized before calling throwLastError.');
         }
 
-        // Determine exception type based on context
-        $exceptionClass = ModbusIOException::class; // Default to I/O error
+        $errno = $this->ffi->errno; // Read errno immediately
+
+        if ($errno !== 0) {
+            $returnValue = null; // Variable für den Rückgabewert
+
+            try {
+                // Rufen Sie die C-Funktion auf
+                $returnValue = $this->ffi->modbus_strerror($errno);
+
+                // --- NEUE PRÜFUNG: Typ des Rückgabewertes ---
+                $returnValueType = gettype($returnValue);
+                if (is_string($returnValue)) {
+                    $errorMsg = $returnValue;
+                    // Zusätzliche Prüfung auf leeren String, falls das vorkommt
+                    if (empty(trim($errorMsg))) {
+                        $errorMsg = 'System error or unknown libmodbus error code (modbus_strerror returned empty string)';
+                    }
+                }
+                // Fall 2: Erwartetes FFI\CData-Objekt (C-Pointer) erhalten
+                elseif ($returnValue instanceof \FFI\CData) {
+                    $isNull = \FFI::isNull($returnValue); // Prüfen, ob der Pointer NULL ist
+
+                    if (! $isNull) {
+                        try {
+                            $errorMsg = \FFI::string($returnValue);
+                        } catch (\Throwable $e) {
+                            $errorMsg = 'Error converting error string from CData.';
+                        }
+                    } else {
+                        $errorMsg = 'System error or unknown libmodbus error code (modbus_strerror returned NULL pointer)';
+                    }
+                }
+                // Fall 3: Etwas völlig anderes oder NULL zurückbekommen
+                else {
+                    $errorMsg = "Internal library error: Unexpected return type ({$returnValueType}) from modbus_strerror.";
+                }
+
+            } catch (\Throwable $e) {
+                $errorMsg = 'Error retrieving error string from libmodbus.';
+            }
+
+        } else {
+            $errorMsg = 'Error handler called unexpectedly with errno 0.';
+        }
+
+        // Bestimme die Exception-Klasse basierend auf dem Verbindungsstatus
+        $exceptionClass = ModbusIOException::class;
         if (! $this->isConnected) {
-            // Errors before or during connection are likely connection errors
             $exceptionClass = ModbusConnectionException::class;
         }
-        // Could add more logic here based on specific errno values if needed
 
+        // Werfe die Exception mit der ermittelten Nachricht und Klasse
         throw new $exceptionClass("{$messagePrefix}: {$errorMsg} (errno {$errno})");
     }
 }

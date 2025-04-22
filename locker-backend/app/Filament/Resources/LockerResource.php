@@ -23,11 +23,11 @@ class LockerResource extends Resource
             ->schema([
                 Forms\Components\TextInput::make('name')
                     ->required(),
-                Forms\Components\TextInput::make('modbus_address')
+                Forms\Components\TextInput::make('unit_id')
                     ->required(),
-                Forms\Components\TextInput::make('coil_register')
+                Forms\Components\TextInput::make('coil_address')
                     ->required(),
-                Forms\Components\TextInput::make('status_register'),
+                Forms\Components\TextInput::make('input_address'),
             ]);
     }
 
@@ -45,11 +45,11 @@ class LockerResource extends Resource
                     ->toggleable(isToggledHiddenByDefault: true),
                 Tables\Columns\TextColumn::make('name')
                     ->searchable(),
-                Tables\Columns\TextColumn::make('modbus_address')
+                Tables\Columns\TextColumn::make('unit_id')
                     ->searchable()->toggleable(isToggledHiddenByDefault: true),
-                Tables\Columns\TextColumn::make('coil_register')
+                Tables\Columns\TextColumn::make('coil_address')
                     ->searchable()->toggleable(isToggledHiddenByDefault: true),
-                Tables\Columns\TextColumn::make('status_register')
+                Tables\Columns\TextColumn::make('input_address')
                     ->searchable()->toggleable(isToggledHiddenByDefault: true),
                 Tables\Columns\TextColumn::make('item.name')
                     ->searchable(),

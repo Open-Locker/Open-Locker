@@ -15,9 +15,10 @@ return new class extends Migration
             $table->id();
             $table->timestamps();
             $table->string('name');
-            $table->string('modbus_address');
-            $table->string('coil_register');
-            $table->string('status_register')->nullable();
+            $table->unsignedInteger('unit_id');
+            $table->unsignedInteger('coil_address');
+            $table->unsignedInteger('input_address');
+
         });
 
         Schema::table('items', function (Blueprint $table) {

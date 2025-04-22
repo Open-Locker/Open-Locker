@@ -18,9 +18,9 @@ class LockerFactory extends Factory
     {
         return [
             'name' => $this->faker->randomLetter().' '.$this->faker->randomNumber(3),
-            'modbus_address' => $this->faker->numberBetween(1, 10),
-            'coil_register' => $this->faker->numberBetween(1, 100),
-            'status_register' => $this->faker->numberBetween(1, 1000),
+            'unit_id' => 1,
+            'coil_address' => $this->faker->numberBetween(1, 8),
+            'input_address' => $this->faker->numberBetween(1, 8),
         ];
     }
 }

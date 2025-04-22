@@ -71,7 +71,7 @@ class ModbusRtuConnection extends ModbusConnection
             $this->stopBits
         );
 
-        if (FFI::isNull($this->ctx)) {
+        if (\FFI::isNull($this->ctx)) {
             // modbus_new_rtu might not set errno reliably on failure.
             // Check permissions for the serial device!
             throw new ModbusConnectionException("Failed to create Modbus RTU context for device '{$this->device}'. Check device path, permissions, and parameters.");

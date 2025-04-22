@@ -21,7 +21,8 @@
         "laravel/framework": "^11.31",
         "laravel/sanctum": "^4.0",
         "laravel/tinker": "^2.9",
-        "open-locker/php-modbus-ffi": "@dev"
+        "open-locker/php-modbus-ffi": "@dev",
+        "ext-ffi": "*"
     },
     "require-dev": {
         "brianium/paratest": "^7.8",
