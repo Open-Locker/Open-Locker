@@ -23,7 +23,7 @@ services:
             - sail
         depends_on:
             - mailpit
-            - selenium
+            # - selenium
     queue-worker:
         image: 'sail-8.4/app'
         restart: unless-stopped
@@ -44,15 +44,14 @@ services:
             - '${FORWARD_MAILPIT_DASHBOARD_PORT:-8025}:8025'
         networks:
             - sail
-    selenium:
-        image: selenium/standalone-chromium
-        extra_hosts:
-            - 'host.docker.internal:host-gateway'
-        volumes:
-            - '/dev/shm:/dev/shm'
-        networks:
-            - sail
+    # selenium:
+    #     image: selenium/standalone-chromium
+    #     extra_hosts:
+    #         - 'host.docker.internal:host-gateway'
+    #     volumes:
+    #         - '/dev/shm:/dev/shm'
+    #     networks:
+    #         - sail
 networks:
     sail:
-        external: true
         driver: bridge
