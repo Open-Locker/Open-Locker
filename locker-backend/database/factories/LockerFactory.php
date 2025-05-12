@@ -16,8 +16,9 @@ class LockerFactory extends Factory
      */
     public function definition(): array
     {
-        $locker_number = $this->faker->unique()->numberBetween(1,16);
-        $lockerName = "Locker-".$locker_number;
+        $locker_number = $this->faker->unique()->numberBetween(1, 16);
+        $lockerName = 'Locker-'.$locker_number;
+
         return [
             'name' => $lockerName,
             'unit_id' => 1,

@@ -6,7 +6,6 @@ use App\Models\Item;
 use App\Models\ItemLoan;
 use App\Models\Locker;
 use App\Models\User;
-use Database\Factories\ItemFactory;
 use Illuminate\Database\Seeder;
 
 class DatabaseSeeder extends Seeder
@@ -29,7 +28,7 @@ class DatabaseSeeder extends Seeder
         $item_and_locker_count = 9;
         $locker_with_item_count = 2;
 
-        $items =Item::factory()->count($item_and_locker_count)->create();
+        $items = Item::factory()->count($item_and_locker_count)->create();
 
         Locker::factory()->count($locker_with_item_count)->create();
 

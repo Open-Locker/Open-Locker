@@ -21,7 +21,7 @@ class ItemFactory extends Factory
         'Backpack', 'Laptop', 'Textbook', 'Gym Bag', 'Jacket', 'Umbrella',
         'Lunch Box', 'Notebook', 'Calculator', 'Headphones', 'Water Bottle',
         'Sports Equipment', 'School Supplies', 'Running Shoes',
-        'Tablet', 'Phone Charger', 'Safety Helmet', 'Mini PC', 'Tool Box'
+        'Tablet', 'Phone Charger', 'Safety Helmet', 'Mini PC', 'Tool Box',
     ];
 
     // Relative path within the public disk where images will be stored
@@ -68,20 +68,20 @@ class ItemFactory extends Factory
         // --- Simplified Search: Assume slugified filename + .jpg extension ---
         $baseName = $item->name; // e.g., "Phone Charger"
         $expectedSlugBase = Str::slug($baseName); // e.g., "phone-charger"
-        $expectedSourcePath = $sourceDir . '/' . $expectedSlugBase . '.jpg';
+        $expectedSourcePath = $sourceDir.'/'.$expectedSlugBase.'.jpg';
 
         // Check if the specific .jpg file exists (case-insensitive check for robustness)
         // Note: File::exists might be case-sensitive on some systems. A more robust check:
         $foundPath = null;
         if (File::isDirectory($sourceDir)) {
-            $files = glob($sourceDir . '/' . $expectedSlugBase . '.{jpg,JPG}', GLOB_BRACE | GLOB_NOSORT);
-            if (!empty($files)) {
+            $files = glob($sourceDir.'/'.$expectedSlugBase.'.{jpg,JPG}', GLOB_BRACE | GLOB_NOSORT);
+            if (! empty($files)) {
                 // Filter potential results from glob to ensure it's the exact base name case-insensitively
                 foreach ($files as $file) {
-                     if (File::isFile($file) && strcasecmp(pathinfo($file, PATHINFO_FILENAME), $expectedSlugBase) === 0) {
-                          $foundPath = $file;
-                          break;
-                     }
+                    if (File::isFile($file) && strcasecmp(pathinfo($file, PATHINFO_FILENAME), $expectedSlugBase) === 0) {
+                        $foundPath = $file;
+                        break;
+                    }
                 }
             }
         }
@@ -90,54 +90,58 @@ class ItemFactory extends Factory
             $sourceFile = $foundPath;
         } else {
             Log::warning("Source image not found for item '{$item->name}'. Expected: '{$expectedSourcePath}'");
+
             return; // No image found for this item
         }
         // --- End of search ---
 
-        if (!$sourceFile) { // This check is technically redundant now but kept for clarity
+        if (! $sourceFile) { // This check is technically redundant now but kept for clarity
             // Log::warning already happened above
-            return; 
+            return;
         }
 
         // Determine target filename (slug + .jpg)
-        $targetFilename = $expectedSlugBase . '.jpg';
-        $relativeTargetPath = $this->publicImageDir . '/' . $targetFilename;
+        $targetFilename = $expectedSlugBase.'.jpg';
+        $relativeTargetPath = $this->publicImageDir.'/'.$targetFilename;
 
         try {
             // Ensure the target directory exists
-            if (!$targetDisk->exists($this->publicImageDir)) {
+            if (! $targetDisk->exists($this->publicImageDir)) {
                 $targetDisk->makeDirectory($this->publicImageDir);
             }
 
             // Copy the file only if it doesn't already exist in the public directory
-            if (!$targetDisk->exists($relativeTargetPath)) {
-                 // Check read permissions before copying
-                 if (!is_readable($sourceFile)) {
-                     Log::error("Source image file is not readable: {$sourceFile}");
-                     return;
-                 }
+            if (! $targetDisk->exists($relativeTargetPath)) {
+                // Check read permissions before copying
+                if (! is_readable($sourceFile)) {
+                    Log::error("Source image file is not readable: {$sourceFile}");
+
+                    return;
+                }
                 $fileContent = file_get_contents($sourceFile);
                 if ($fileContent === false) {
                     Log::error("Could not read source image file: {$sourceFile}");
+
                     return;
                 }
-                if (!$targetDisk->put($relativeTargetPath, $fileContent)) {
-                     Log::error("Failed to copy image to public storage: {$relativeTargetPath}");
-                     return; // Stop if copy fails
+                if (! $targetDisk->put($relativeTargetPath, $fileContent)) {
+                    Log::error("Failed to copy image to public storage: {$relativeTargetPath}");
+
+                    return; // Stop if copy fails
                 }
                 Log::info("Copied image for item '{$item->name}' to {$relativeTargetPath}");
             }
 
             // Update the item's image path if the file exists (either copied or previously existing)
-             if ($targetDisk->exists($relativeTargetPath)) {
+            if ($targetDisk->exists($relativeTargetPath)) {
                 $item->image_path = $relativeTargetPath;
                 $item->save();
             } else {
-                 Log::error("Target image file does not exist after potential copy operation: {$relativeTargetPath}");
+                Log::error("Target image file does not exist after potential copy operation: {$relativeTargetPath}");
             }
 
         } catch (\Throwable $e) {
-            Log::error("Error processing image for item '{$item->name}': " . $e->getMessage(), ['exception' => $e]);
+            Log::error("Error processing image for item '{$item->name}': ".$e->getMessage(), ['exception' => $e]);
         }
     }
 }
