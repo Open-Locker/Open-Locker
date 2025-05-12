@@ -16,7 +16,7 @@ return new class extends Migration
             $table->timestamps();
             $table->string('name');
             $table->string('description');
-            $table->string('image_path');
+            $table->string('image_path')->nullable();
             $table->foreignId('borrower_id')->nullable()->constrained('users');
         });
     }

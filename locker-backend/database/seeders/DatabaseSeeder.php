@@ -19,24 +19,22 @@ class DatabaseSeeder extends Seeder
         // User::factory(10)->create();
 
         $admin = User::factory()->create([
-            'name' => 'Test User',
+            'name' => 'Admin User',
             'email' => 'user@example.com',
             'password' => bcrypt('string'),
         ]);
 
         $admin->makeAdmin();
 
-        $locker_list = Locker::factory()->count(5)->create();
+        $item_and_locker_count = 9;
+        $locker_with_item_count = 2;
 
-        ItemFactory::new()->count(count($locker_list))->create([
-            'locker_id' => $locker_list->random()->id,
-        ]);
+        $items =Item::factory()->count($item_and_locker_count)->create();
+
+        Locker::factory()->count($locker_with_item_count)->create();
 
         // Erstelle einige Benutzer
         $users = User::factory()->count(5)->create();
-
-        // Erstelle einige Items
-        $items = Item::factory()->count(10)->create();
 
         // Erstelle einige aktive Ausleihen
         foreach ($items->take(5) as $item) {

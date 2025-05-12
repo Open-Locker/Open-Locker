@@ -16,11 +16,13 @@ class LockerFactory extends Factory
      */
     public function definition(): array
     {
+        $locker_number = $this->faker->unique()->numberBetween(1,16);
+        $lockerName = "Locker-".$locker_number;
         return [
-            'name' => $this->faker->randomLetter().' '.$this->faker->randomNumber(3),
+            'name' => $lockerName,
             'unit_id' => 1,
-            'coil_address' => $this->faker->numberBetween(1, 8),
-            'input_address' => $this->faker->numberBetween(1, 8),
+            'coil_address' => $locker_number,
+            'input_address' => $locker_number,
         ];
     }
 }
