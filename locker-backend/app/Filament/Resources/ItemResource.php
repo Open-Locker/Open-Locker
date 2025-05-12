@@ -37,13 +37,16 @@ class ItemResource extends Resource
         return $table
             ->columns([
                 Tables\Columns\ImageColumn::make('image_path')
-                    ->disk('public')->label('image'),
+                    ->disk('public')->label('image')->circular()->size(64),
                 Tables\Columns\TextColumn::make('name')
                     ->searchable(),
                 Tables\Columns\TextColumn::make('description')
                     ->searchable(),
-
+            
                 Tables\Columns\TextColumn::make('locker.name')
+                    ->searchable(),
+                Tables\Columns\TextColumn::make('currentBorrower.name')
+                    ->label('Borrowed By')
                     ->searchable(),
                 Tables\Columns\TextColumn::make('created_at')
                     ->dateTime()
