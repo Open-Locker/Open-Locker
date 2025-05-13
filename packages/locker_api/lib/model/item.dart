@@ -16,11 +16,11 @@ class Item {
     required this.id,
     required this.name,
     required this.description,
-    required this.imageUrl,
-    required this.lockerId,
-    required this.createdAt,
-    required this.updatedAt,
-    required this.borrowedAt,
+    this.imageUrl,
+    this.lockerId,
+    this.createdAt,
+    this.updatedAt,
+    this.borrowedAt,
   });
 
   int id;
@@ -175,11 +175,6 @@ class Item {
     'id',
     'name',
     'description',
-    'image_url',
-    'locker_id',
-    'created_at',
-    'updated_at',
-    'borrowed_at',
   };
 }
 

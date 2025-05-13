@@ -13,24 +13,48 @@ part of openapi.api;
 class User {
   /// Returns a new [User] instance.
   User({
-    required this.id,
-    required this.name,
-    required this.email,
-    required this.emailVerifiedAt,
-    required this.isAdmin,
-    required this.createdAt,
-    required this.updatedAt,
+    this.id,
+    this.name,
+    this.email,
+    this.emailVerifiedAt,
+    this.isAdmin,
+    this.createdAt,
+    this.updatedAt,
   });
 
-  int id;
+  ///
+  /// Please note: This property should have been non-nullable! Since the specification file
+  /// does not include a default value (using the "default:" property), however, the generated
+  /// source code must fall back to having a nullable type.
+  /// Consider adding a "default:" property in the specification file to hide this note.
+  ///
+  int? id;
 
-  String name;
+  ///
+  /// Please note: This property should have been non-nullable! Since the specification file
+  /// does not include a default value (using the "default:" property), however, the generated
+  /// source code must fall back to having a nullable type.
+  /// Consider adding a "default:" property in the specification file to hide this note.
+  ///
+  String? name;
 
-  String email;
+  ///
+  /// Please note: This property should have been non-nullable! Since the specification file
+  /// does not include a default value (using the "default:" property), however, the generated
+  /// source code must fall back to having a nullable type.
+  /// Consider adding a "default:" property in the specification file to hide this note.
+  ///
+  String? email;
 
   DateTime? emailVerifiedAt;
 
-  bool isAdmin;
+  ///
+  /// Please note: This property should have been non-nullable! Since the specification file
+  /// does not include a default value (using the "default:" property), however, the generated
+  /// source code must fall back to having a nullable type.
+  /// Consider adding a "default:" property in the specification file to hide this note.
+  ///
+  bool? isAdmin;
 
   DateTime? createdAt;
 
@@ -49,11 +73,11 @@ class User {
   @override
   int get hashCode =>
     // ignore: unnecessary_parenthesis
-    (id.hashCode) +
-    (name.hashCode) +
-    (email.hashCode) +
+    (id == null ? 0 : id!.hashCode) +
+    (name == null ? 0 : name!.hashCode) +
+    (email == null ? 0 : email!.hashCode) +
     (emailVerifiedAt == null ? 0 : emailVerifiedAt!.hashCode) +
-    (isAdmin.hashCode) +
+    (isAdmin == null ? 0 : isAdmin!.hashCode) +
     (createdAt == null ? 0 : createdAt!.hashCode) +
     (updatedAt == null ? 0 : updatedAt!.hashCode);
 
@@ -62,15 +86,31 @@ class User {
 
   Map<String, dynamic> toJson() {
     final json = <String, dynamic>{};
+    if (this.id != null) {
       json[r'id'] = this.id;
+    } else {
+      json[r'id'] = null;
+    }
+    if (this.name != null) {
       json[r'name'] = this.name;
+    } else {
+      json[r'name'] = null;
+    }
+    if (this.email != null) {
       json[r'email'] = this.email;
+    } else {
+      json[r'email'] = null;
+    }
     if (this.emailVerifiedAt != null) {
       json[r'email_verified_at'] = this.emailVerifiedAt!.toUtc().toIso8601String();
     } else {
       json[r'email_verified_at'] = null;
     }
+    if (this.isAdmin != null) {
       json[r'is_admin'] = this.isAdmin;
+    } else {
+      json[r'is_admin'] = null;
+    }
     if (this.createdAt != null) {
       json[r'created_at'] = this.createdAt!.toUtc().toIso8601String();
     } else {
@@ -103,11 +143,11 @@ class User {
       }());
 
       return User(
-        id: mapValueOfType<int>(json, r'id')!,
-        name: mapValueOfType<String>(json, r'name')!,
-        email: mapValueOfType<String>(json, r'email')!,
+        id: mapValueOfType<int>(json, r'id'),
+        name: mapValueOfType<String>(json, r'name'),
+        email: mapValueOfType<String>(json, r'email'),
         emailVerifiedAt: mapDateTime(json, r'email_verified_at', r''),
-        isAdmin: mapValueOfType<bool>(json, r'is_admin')!,
+        isAdmin: mapValueOfType<bool>(json, r'is_admin'),
         createdAt: mapDateTime(json, r'created_at', r''),
         updatedAt: mapDateTime(json, r'updated_at', r''),
       );
@@ -157,13 +197,6 @@ class User {
 
   /// The list of required keys that must be present in a JSON.
   static const requiredKeys = <String>{
-    'id',
-    'name',
-    'email',
-    'email_verified_at',
-    'is_admin',
-    'created_at',
-    'updated_at',
   };
 }
 

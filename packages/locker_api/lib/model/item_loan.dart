@@ -17,7 +17,7 @@ class ItemLoan {
     required this.item,
     required this.userId,
     required this.borrowedAt,
-    required this.returnedAt,
+    this.returnedAt,
   });
 
   int id;
@@ -139,7 +139,6 @@ class ItemLoan {
     'item',
     'user_id',
     'borrowed_at',
-    'returned_at',
   };
 }
 

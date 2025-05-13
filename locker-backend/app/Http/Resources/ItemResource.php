@@ -22,7 +22,9 @@ class ItemResource extends JsonResource
      */
     public function toArray(Request $request): array
     {
-        $activeLoan = $this->resource->activeLoan;
+
+
+
 
         $array = [
             'id' => $this->resource->id,
@@ -32,9 +34,10 @@ class ItemResource extends JsonResource
             'locker_id' => $this->resource->locker_id,
             'created_at' => $this->resource->created_at,
             'updated_at' => $this->resource->updated_at,
-            /** @var CarbonImmutable | null */
-            'borrowed_at' => $activeLoan?->borrowed_at,
+            /** @var ?Carbon | null */
+            'borrowed_at' => $this->resource->activeLoan?->borrowed_at ? $this->resource->activeLoan->borrowed_at : null,
         ];
+
 
         return $array;
     }

@@ -970,12 +970,7 @@
                 "required": [
                     "id",
                     "name",
-                    "description",
-                    "image_url",
-                    "locker_id",
-                    "created_at",
-                    "updated_at",
-                    "borrowed_at"
+                    "description"
                 ],
                 "title": "Item"
             },
@@ -1007,8 +1002,7 @@
                     "id",
                     "item",
                     "user_id",
-                    "borrowed_at",
-                    "returned_at"
+                    "borrowed_at"
                 ],
                 "title": "ItemLoan"
             },
@@ -1089,15 +1083,12 @@
                         "format": "date-time"
                     }
                 },
-                "required": [
-                    "id",
-                    "name",
-                    "email",
-                    "email_verified_at",
-                    "is_admin",
-                    "created_at",
-                    "updated_at"
-                ],
+                "required": {
+                    "0": "id",
+                    "1": "name",
+                    "2": "email",
+                    "4": "is_admin"
+                },
                 "title": "User"
             }
         },
