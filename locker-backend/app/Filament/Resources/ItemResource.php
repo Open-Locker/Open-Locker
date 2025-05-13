@@ -42,7 +42,7 @@ class ItemResource extends Resource
                     ->searchable(),
                 Tables\Columns\TextColumn::make('description')
                     ->searchable(),
-            
+
                 Tables\Columns\TextColumn::make('locker.name')
                     ->searchable(),
                 Tables\Columns\TextColumn::make('currentBorrower.name')

@@ -3,7 +3,6 @@
 namespace App\Http\Resources;
 
 use App\Models\Item;
-use Carbon\CarbonImmutable;
 use Dedoc\Scramble\Attributes\SchemaName;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
@@ -23,9 +22,6 @@ class ItemResource extends JsonResource
     public function toArray(Request $request): array
     {
 
-
-
-
         $array = [
             'id' => $this->resource->id,
             'name' => $this->resource->name,
@@ -37,7 +33,6 @@ class ItemResource extends JsonResource
             /** @var ?Carbon | null */
             'borrowed_at' => $this->resource->activeLoan?->borrowed_at ? $this->resource->activeLoan->borrowed_at : null,
         ];
-
 
         return $array;
     }
