@@ -16,14 +16,10 @@ dependencies:
   http: ^1.1.0
   flutter_secure_storage: ^9.0.0
 
-  openapi_generator: ^6.1.0
-  openapi_generator_annotations: ^6.1.0
-  build_runner: ^2.4.15
-
   intl: ^0.20.2
 
   locker_api:
-    path: ./api/locker_api
+    path: ../packages/locker_api
 
 dev_dependencies:
   flutter_test:

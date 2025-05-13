@@ -51,6 +51,10 @@
         "format": "./vendor/bin/pint",
         "format-check": "./vendor/bin/pint --test",
         "export:api": "php artisan scramble:export",
+        "generate:api-client": [
+            "@export:api",
+            "docker run --rm -v \"${PWD}/..:/local\" openapitools/openapi-generator-cli:v7.7.0 generate -i /local/locker-backend/api.json -g dart -o /local/packages/locker_api -p pubName=locker_api,pubAuthor=\"Open Locker\" --skip-validate-spec"
+        ],
         "post-autoload-dump": [
             "Illuminate\\Foundation\\ComposerScripts::postAutoloadDump",
             "@php artisan package:discover --ansi",
