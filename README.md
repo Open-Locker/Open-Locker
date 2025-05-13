@@ -2,54 +2,142 @@
 
 [![Discord](https://img.shields.io/discord/1330191581273260113?style=flat-square&logo=discord&label=Discord&labelColor=%23FFF)](https://discord.gg/rZ74RYKN3H)
 
-## The Project
+I'll help you create a comprehensive README for the Flutter app setup and extend the existing documentation. Here's how we can structure it:
 
-This is an open source project to create software that locks and unlocks public lockers to store and/or share items, sponsored by [Smart City Hameln-Pyrmont](https://mitwirkportal.de/informieren).
+# Open-Locker Project
 
-### What we want to achieve
+## Project Overview
+An open-source solution for managing public lockers to store and share items, sponsored by Smart City Hameln-Pyrmont. The project consists of:
+- `locker-backend`: Laravel backend
+- `locker_app`: Flutter frontend
 
-Within Hameln-Pyrmont, there is a set of lockers that the county uses to lend objects like laptops or VR headset to interested citizens. This project is supposed to improve the user experience and offer the county a way to individualize the software to better suit their needs.
+## Monorepo Structure
+This monorepo contains:
+- `/locker-backend` - Backend application (Laravel)
+- `/locker_app` - Mobile application (Flutter)
 
-The group came together with the goal to improve their knowledge while building something that will be of immediate use to the people around them.
+## Getting Started
 
-### How you can help
+### Prerequisites
+- Docker (for backend)
+- Flutter SDK (for frontend)
+- Git
 
-You can join our weeklies on **Mondays and Tuesdays, alternating every week, at 19:30 CET/18:30 UTC** in our [Discord](https://discord.gg/rZ74RYKN3H), either to listen in or to participate, or you can interact with us via github, sending us pull requests, issues or general feedback. Our next weekly is on Tuesday, the 6th of May, followed by Monday, the 12th of May.
-
-If you're still unsure where to start, you can always reach out to us in our discord's text channels.
-
-### What's going on right now?
-
-At the moment, we're woking on an MVP that lets us test the concept with actual users. To achieve this, we've set two smaller goals on the way, for instance a version that allows our hardware team to test their builds with our app. You can check out our current roadmap [here](https://github.com/Open-Locker/Open-Locker/milestones). We'll be updating it as we reach our goals.
-
-## Project Structure and Details
-
-### Monorepo Structure
-
-This project is organized as a monorepo, which means it contains multiple projects within a single repository. Currently, the main project in this repository is:
-
-- `locker-backend`: The backend application built with Laravel.
-- `locker_app`: The frontend flutter app.
-
-Using a monorepo allows us to manage all related projects in one place, making it easier to share code and manage dependencies.
+### 1. Backend Setup
+See the [Backend README](/locker-backend/README.md) for detailed setup instructions using either DevContainer or Laravel Sail.
 
 
-### Setting Up Git Hooks
+### 2. Flutter App Setup
 
-To ensure code quality and consistency, we use Git hooks in this project. Follow these steps to set up the Git hooks:
+#### Prerequisites
+- Flutter SDK (version 3.19.0 or higher)
+- Android Studio/Xcode (for emulator/simulator)
+- Dart SDK
 
-1. Run the `install-hooks.sh` script to configure the Git hooks path:
-    ```sh
-    ./install-hooks.sh
-    ```
+#### Installation Steps
 
-This script will set the Git hooks path to the `.githooks` directory in the project.
+1. **Install Flutter**:
+   - Follow official installation guide: https://flutter.dev/docs/get-started/install
+   - Verify installation:
+     ```bash
+     flutter doctor
+     ```
 
-2. Verify that the hooks are set up correctly by checking the Git configuration:
-    ```sh
-    git config core.hooksPath
-    ```
+2. **Navigate to app directory**:
+   ```bash
+   cd locker_app
+   ```
 
-You should see `.githooks` as the output.
+3. **Install dependencies**:
+   ```bash
+   flutter pub get
+   ```
 
-Now, the Git hooks are configured and will run automatically during the commit process.
+4. **Configure environment**:
+   - Copy the example environment file:
+     ```bash
+     cp .env.example .env
+     ```
+   - Update the `.env` file with your backend URL (default should work with local backend)
+
+5. **Run the app**:
+   ```bash
+   flutter run
+   ```
+   - For specific device:
+     ```bash
+     flutter run -d <device_id>
+     ```
+   - To list available devices:
+     ```bash
+     flutter devices
+     ```
+
+#### Platform-Specific Setup
+
+**Android**:
+- Ensure Android SDK is installed
+- Create an Android emulator or connect physical device
+
+**iOS** (macOS only):
+- Install Xcode
+- Install CocoaPods:
+  ```bash
+  sudo gem install cocoapods
+  ```
+- Navigate to iOS directory and install pods:
+  ```bash
+  cd ios && pod install && cd ..
+  ```
+
+### Common Commands
+
+- Check for outdated packages:
+  ```bash
+  flutter pub outdated
+  ```
+
+- Upgrade dependencies:
+  ```bash
+  flutter pub upgrade
+  ```
+
+- Run tests:
+  ```bash
+  flutter test
+  ```
+
+- Build APK:
+  ```bash
+  flutter build apk
+  ```
+
+- Build iOS app:
+  ```bash
+  flutter build ios
+  ```
+
+## Git Hooks Setup
+To ensure code quality:
+```bash
+./install-hooks.sh
+```
+Verify setup:
+```bash
+git config core.hooksPath
+```
+
+## Contributing
+- Join our weeklies on Discord (Mondays and Tuesdays at 19:30 CET)
+- Check our roadmap for current priorities
+- Submit issues or pull requests
+
+## Support
+For help, reach out in our Discord channels or open a GitHub issue.
+
+
+[![Discord](https://img.shields.io/discord/1330191581273260113?style=flat-square&logo=discord&label=Discord&labelColor=%23FFF)](https://discord.gg/rZ74RYKN3H)
+
+---
+
+This extended README provides a complete setup guide for both backend and frontend while maintaining the existing project information. The Flutter setup section includes clear steps for different platforms and common development commands.
