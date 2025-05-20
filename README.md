@@ -20,7 +20,7 @@ If you're still unsure where to start, you can always reach out to us in our dis
 
 ### What's going on right now?
 
-At the moment, we're woking on an MVP that lets us test the concept with actual users. To achieve this, we've set two smaller goals on the way, for instance a version that allows our hardware team to test their builds with our app. You can check out our current roadmap [here](https://github.com/Open-Locker/Open-Locker/milestones). We'll be updating it as we reach our goals.
+At the moment, we're working on an MVP that lets us test the concept with actual users. To achieve this, we've set two smaller goals on the way, for instance a version that allows our hardware team to test their builds with our app. You can check out our current roadmap [here](https://github.com/Open-Locker/Open-Locker/milestones). We'll be updating it as we reach our goals.
 
 ## Project Structure and Details
 
