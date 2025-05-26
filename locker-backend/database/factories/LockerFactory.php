@@ -19,7 +19,7 @@ class LockerFactory extends Factory
     public function definition(): array
     {
         $locker_number = self::$sequence;
-        $lockerName = 'Locker-'.$locker_number;
+        $lockerName = 'Locker-'.($locker_number + 1);
         self::$sequence++;
 
         return [
