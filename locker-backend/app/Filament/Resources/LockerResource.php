@@ -23,11 +23,10 @@ class LockerResource extends Resource
             ->schema([
                 Forms\Components\TextInput::make('name')
                     ->required(),
-                Forms\Components\TextInput::make('unit_id')
+                Forms\Components\TextInput::make('unit_id')->numeric()
                     ->required(),
-                Forms\Components\TextInput::make('coil_address')
-                    ->required(),
-                Forms\Components\TextInput::make('input_address'),
+                Forms\Components\TextInput::make('coil_address')->numeric()->integer()->required(),
+                Forms\Components\TextInput::make('input_address')->numeric()->integer()->required(),
             ]);
     }
 
@@ -44,15 +43,17 @@ class LockerResource extends Resource
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),
                 Tables\Columns\TextColumn::make('name')
-                    ->searchable(),
-                Tables\Columns\TextColumn::make('unit_id')
+                    ->searchable()->sortable(),
+                Tables\Columns\TextColumn::make('status')->sortable(),
+                Tables\Columns\TextColumn::make('unit_id')->numeric()
                     ->searchable()->toggleable(isToggledHiddenByDefault: true),
-                Tables\Columns\TextColumn::make('coil_address')
+                Tables\Columns\TextColumn::make('coil_address')->numeric()->sortable()
                     ->searchable()->toggleable(isToggledHiddenByDefault: true),
-                Tables\Columns\TextColumn::make('input_address')
+                Tables\Columns\TextColumn::make('input_address')->numeric()->sortable()
                     ->searchable()->toggleable(isToggledHiddenByDefault: true),
                 Tables\Columns\TextColumn::make('item.name')
                     ->searchable(),
+
             ])
             ->filters([
                 //
