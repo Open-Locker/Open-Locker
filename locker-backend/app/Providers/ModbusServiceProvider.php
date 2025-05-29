@@ -3,6 +3,7 @@
 namespace App\Providers;
 
 use Illuminate\Support\ServiceProvider;
+use InvalidArgumentException;
 use OpenLocker\PhpModbusFfi\Contracts\ModbusClient;
 use OpenLocker\PhpModbusFfi\Exceptions\ModbusConfigurationException;
 use OpenLocker\PhpModbusFfi\ModbusRtuConnection;
