@@ -9,6 +9,8 @@ use Illuminate\Database\Eloquent\Factories\Factory;
  */
 class LockerFactory extends Factory
 {
+    private static int $sequence = 0;
+
     /**
      * Define the model's default state.
      *
@@ -16,8 +18,9 @@ class LockerFactory extends Factory
      */
     public function definition(): array
     {
-        $locker_number = $this->faker->unique()->numberBetween(1, 16);
-        $lockerName = 'Locker-'.$locker_number;
+        $locker_number = self::$sequence;
+        $lockerName = 'Locker-'.($locker_number + 1);
+        self::$sequence++;
 
         return [
             'name' => $lockerName,

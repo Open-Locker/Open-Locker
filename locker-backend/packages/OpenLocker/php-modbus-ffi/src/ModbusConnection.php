@@ -591,4 +591,9 @@ extern int errno;
         // Werfe die Exception mit der ermittelten Nachricht und Klasse
         throw new $exceptionClass("{$messagePrefix}: {$errorMsg} (errno {$errno})");
     }
+
+    public function isCurrentlyConnected(): bool
+    {
+        return $this->isConnected;
+    }
 }

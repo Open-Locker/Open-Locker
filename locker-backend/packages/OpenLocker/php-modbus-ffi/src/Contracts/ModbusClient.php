@@ -173,6 +173,13 @@ interface ModbusClient
      */
     public function writeMultipleRegisters(int $address, array $values): void;
 
+    /**
+     * Checks if the client is currently connected to a Modbus slave/server.
+     *
+     * @return bool True if connected, false otherwise.
+     */
+    public function isCurrentlyConnected(): bool;
+
     // Fügen Sie hier alle öffentlichen Methoden hinzu,
     // die von außen aufgerufen werden sollen.
 }

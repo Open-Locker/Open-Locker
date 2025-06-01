@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\LockerStatus;
 use Carbon\CarbonImmutable;
 use Database\Factories\LockerFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -29,10 +30,23 @@ class Locker extends Model
         'unit_id',
         'coil_address',
         'input_address',
+        'status',
     ];
 
     public function item(): HasOne
     {
         return $this->hasOne(Item::class, 'locker_id', 'id');
+    }
+
+    /**
+     * Get the attributes that should be cast.
+     *
+     * @return array<string, string>
+     */
+    protected function casts(): array
+    {
+        return [
+            'status' => LockerStatus::class,
+        ];
     }
 }
