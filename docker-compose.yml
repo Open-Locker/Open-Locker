@@ -7,7 +7,7 @@ services:
       - '${APP_PORT:-80}:80'
       - '${VITE_PORT:-5173}:${VITE_PORT:-5173}'
     environment:
-      WWWUSER: '${WWWUSER}'
+      WWWUSER: '1000'
     volumes:
       - storage_data:/var/www/html/storage/app
     networks:
@@ -16,7 +16,7 @@ services:
     image: 'ghcr.io/open-locker/locker-backend:latest'
     restart: unless-stopped
     environment:
-      WWWUSER: '${WWWUSER}'
+      WWWUSER: '1000'
     command: php artisan queue:work --tries=3 --timeout=90
     volumes:
       - storage_data:/var/www/html/storage/app
@@ -28,7 +28,7 @@ services:
     image: 'ghcr.io/open-locker/locker-backend:latest'
     restart: unless-stopped
     environment:
-      WWWUSER: '${WWWUSER}'
+      WWWUSER: '1000'
     command: php artisan locker:poll-status --verbose
     volumes:
       - storage_data:/var/www/html/storage/app
