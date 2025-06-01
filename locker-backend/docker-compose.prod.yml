@@ -1,0 +1,46 @@
+services:
+  locker-app:
+    image: 'ghcr.io/open-locker/locker-backend:latest'
+    extra_hosts:
+      - 'host.docker.internal:host-gateway'
+    ports:
+      - '${APP_PORT:-80}:80'
+      - '${VITE_PORT:-5173}:${VITE_PORT:-5173}'
+    environment:
+      WWWUSER: '${WWWUSER}'
+    volumes:
+      - storage_data:/var/www/html/storage/app
+    networks:
+      - open-locker
+  locker-worker:
+    image: 'ghcr.io/open-locker/locker-backend:latest'
+    restart: unless-stopped
+    environment:
+      WWWUSER: '${WWWUSER}'
+    command: php artisan queue:work --tries=3 --timeout=90
+    volumes:
+      - storage_data:/var/www/html/storage/app
+    networks:
+      - open-locker
+    depends_on:
+      - locker-app
+  locker-poller:
+    image: 'ghcr.io/open-locker/locker-backend:latest'
+    restart: unless-stopped
+    environment:
+      WWWUSER: '${WWWUSER}'
+    command: php artisan locker:poll-status --verbose
+    volumes:
+      - storage_data:/var/www/html/storage/app
+    networks:
+      - open-locker
+    depends_on:
+      - locker-app
+networks:
+  open-locker:
+    driver: bridge
+
+volumes:
+  storage_data:
+    driver: local
+

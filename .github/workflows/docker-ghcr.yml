@@ -36,4 +36,10 @@ jobs:
           context: ./locker-backend
           file: ./locker-backend/Dockerfile
           push: true
-          tags: ghcr.io/open-locker/locker-backend:latest
+          tags: |
+            ghcr.io/open-locker/locker-backend:latest
+            ghcr.io/open-locker/locker-backend:${{ github.sha }}
+          
+
+          platforms: linux/amd64,linux/arm64
+
