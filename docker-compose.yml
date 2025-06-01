@@ -1,36 +1,37 @@
 services:
-  locker-app:
+  app:
     image: 'ghcr.io/open-locker/locker-backend:latest'
     restart: unless-stopped
     extra_hosts:
       - 'host.docker.internal:host-gateway'
     ports:
-      - '${APP_PORT:-80}:80'
+      - '${APP_PORT:-80}:8080'
     env_file:
       - .env.prod
     environment:
       WWWUSER: '1000'
+      AUTORUN_ENABLED: true
     volumes:
-      - storage_data:/var/www/html/storage
+      - storage_data:/var/www/html/storage/app
     networks:
       - open-locker
 
-  locker-worker:
+  worker:
     image: 'ghcr.io/open-locker/locker-backend:latest'
     restart: unless-stopped
     env_file:
       - .env.prod
     environment:
       WWWUSER: '1000'
-    command: php artisan queue:work --tries=3 --timeout=90 --sleep=3 --max-jobs=1000
+    command: php artisan queue:work --tries=3 --timeout=90
     volumes:
-      - storage_data:/var/www/html/storage
+      - storage_data:/var/www/html/storage/app
     networks:
       - open-locker
     depends_on:
-      - locker-app
+      - app
 
-  locker-poller:
+  poller:
     image: 'ghcr.io/open-locker/locker-backend:latest'
     restart: unless-stopped
     env_file:
@@ -39,11 +40,11 @@ services:
       WWWUSER: '1000'
     command: php artisan locker:poll-status --verbose
     volumes:
-      - storage_data:/var/www/html/storage
+      - storage_data:/var/www/html/storage/app
     networks:
       - open-locker
     depends_on:
-     - locker-app
+     - app
 
 networks:
   open-locker:
