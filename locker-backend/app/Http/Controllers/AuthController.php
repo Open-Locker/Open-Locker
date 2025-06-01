@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Resources\TokenResponseResource;
 use App\Http\Resources\UserResource;
 use App\Models\User;
+use App\Services\AuthService;
 use Illuminate\Auth\Events\PasswordReset;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Auth\Events\Verified;
@@ -20,6 +21,11 @@ use Symfony\Component\HttpFoundation\JsonResponse;
 
 class AuthController extends Controller
 {
+
+    public function __construct(readonly AuthService $authService) {
+
+    }
+
     /**
      * Register
      *
@@ -135,9 +141,7 @@ class AuthController extends Controller
     {
         $request->validate(['email' => 'required|email']);
 
-        $status = Password::sendResetLink(
-            $request->only('email')
-        );
+        $status = $this->authService->sendResetLink($request->input('email'));
 
         if ($status == Password::RESET_LINK_SENT) {
             return response()->json([
