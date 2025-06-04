@@ -2,6 +2,7 @@
 
 namespace App\Providers\Filament;
 
+use App\Models\User;
 use Filament\Http\Middleware\Authenticate;
 use Filament\Http\Middleware\AuthenticateSession;
 use Filament\Http\Middleware\DisableBladeIconComponents;
@@ -22,11 +23,15 @@ class AdminPanelProvider extends PanelProvider
 {
     public function panel(Panel $panel): Panel
     {
+        if (User::count() === 0) {
+            $panel->registration();
+        }
         return $panel
             ->default()
             ->id('admin')
             ->path('admin')
             ->login()
+            ->emailVerification()
             ->passwordReset()
             ->colors([
                 'primary' => '#afca0b',
