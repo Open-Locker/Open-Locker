@@ -2,6 +2,7 @@
 
 - [Installation](#installation)
   - [Raspberry Pi](#raspberry-pi)
+    - [Modbus Configuration](#modbus-configuration)
 
 The Open Locker System is split up into multiple components. We try to use standard parts and software to make the installation process as easy as possible.
 
@@ -29,11 +30,50 @@ To configure the application, you need to create a `.env.prod` file in the proje
 ```bash
 cp .env.prod.example .env.prod
 ```
+
 You can then edit the `.env.prod` file to set the necessary environment variables for your setup. The property `APP_KEY` is required and should be a random string. You can generate a random key using the following command:
 
 ```bash
 openssl rand -base64 32
 ```
+
+### Modbus Configuration
+
+Open Locker supports Modbus TCP and RTU.
+
+The driver is selected using the `MODBUS_DRIVER` environment variable in the `.env.prod` file. The available options are `tcp` for Modbus TCP and `rtu` for Modbus RTU.
+
+```bash
+MODBUS_DRIVER=tcp
+```
+
+TCP Settings
+
+You need to set the following environment variables in your `.env.prod` file for Modbus TCP:
+
+These are the default settings for Modbus TCP, you can change them according to your setup:
+
+```bash
+MODBUS_TCP_IP=127.0.0.1
+MODBUS_TCP_PORT=502
+MODBUS_LIB_PATH=/lib/aarch64-linux-gnu/libmodbus.so.5
+MODBUS_TCP_SLAVE=1
+```
+
+For Modbus RTU, you need to set the following environment variables in your `.env.prod` file:
+
+These are the default settings for Modbus RTU, you can change them according to your setup:
+
+```bash
+MODBUS_RTU_DEVICE=/dev/ttyUSB0
+MODBUS_RTU_BAUD=9600
+MODBUS_RTU_PARITY=N
+MODBUS_RTU_DATA_BITS=8
+MODBUS_RTU_STOP_BITS=1
+MODBUS_LIB_PATH=/lib/aarch64-linux-gnu/libmodbus.so.5
+MODBUS_RTU_SLAVE=1
+```
+
 Next, you can start the services using Docker Compose:
 
 ```bash
@@ -57,10 +97,4 @@ You can also check the logs of the services using:
 
 ```bash
 docker-compose logs -f
-```
-
-To ensure that the services start automatically on boot, you can enable the Docker service:
-
-```bash
-sudo systemctl enable docker
 ```
