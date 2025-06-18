@@ -12,6 +12,7 @@ use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
 
@@ -115,7 +116,20 @@ class UserResource extends Resource
             ])->actionsAlignment('left')
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
-                    Tables\Actions\DeleteBulkAction::make(),
+                    Tables\Actions\DeleteBulkAction::make()
+                        ->before(function (Tables\Actions\DeleteBulkAction $action, Collection $records) {
+                            $adminCount = User::whereNotNull('is_admin_since')->count();
+                            $deletedAdmins = $records->filter(fn(User $record) => $record->is_admin_since)->count();
+
+                            if ($adminCount - $deletedAdmins < 1) {
+                                Notification::make()
+                                    ->title('Aktion abgebrochen')
+                                    ->body('Der letzte Admin kann nicht gelöscht werden.')
+                                    ->danger()
+                                    ->send();
+                                $action->cancel();
+                            }
+                        })
                 ]),
             ]);
     }

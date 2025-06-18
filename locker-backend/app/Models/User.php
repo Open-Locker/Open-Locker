@@ -127,5 +127,11 @@ class User extends Authenticatable implements FilamentUser, MustVerifyEmail
                 $user->save();
             }
         });
+
+        static::deleting(function (User $user) {
+            if ($user->isAdmin() && User::whereNotNull('is_admin_since')->count() <= 1) {
+                return false;
+            }
+        });
     }
 }
