@@ -1,0 +1,23 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+### Project Architecture
+
+This project serves as an **API only**. It does **not** render a public-facing user interface. A separate frontend application will consume this API. This application's only UI is the Filament admin panel for administrative tasks.
+
+### Laravel Best Practices
+
+- **Service Pattern:** Prefer using the **Service Pattern** over the Action Pattern for encapsulating business logic.
+- **Form Requests:** Use Form Requests for all input validation in controller methods.
+- **JSON Resources:** Structure all API responses using `Illuminate\Http\Resources\Json\JsonResource`.
+- **Policies:** Use Policies to handle authorization logic for your models.
+- **CLI Tools:** Whenever possible, use `artisan make:*` commands to generate boilerplate for classes like controllers, models, services, policies, etc. even if you think it would be more efficient to generate those files yourself.
+- **Configuration:** Use `.env` for environment-specific variables and `config/*.php` files for application-level configuration. Do not commit `.env` files.
+- **Routing:** Group related routes in `routes/api.php`. Use route model binding.
+- **Controllers:** Keep controllers thin. They should primarily delegate to service classes.
+- **Models:** Use mass assignment protection (`$fillable` or `$guarded`). Define relationships clearly.
+- **Views:** Use Blade templates. Avoid putting PHP logic in views; use View Composers or pass data from the controller.
+- **Database:** Use migrations for schema changes and seeders/factories for test/initial data.
+- **Testing:** Use feature tests over unit tests.

@@ -1,0 +1,13 @@
+---
+description: Rules for filament-related code
+globs: 
+alwaysApply: false
+---
+### Filament 3.x Development
+
+- **Resources:** Filament Resources should map directly to an Eloquent model. Keep them focused on CRUD operations.
+- **Forms & Tables:** Use the builder classes (`Filament\Forms\Form`, `Filament\Tables\Table`) inside your Resource.
+- **Complex Logic:** For complex actions or logic within Filament, create custom Actions, or call out to Service/Action classes from your resource pages. Do not clutter the resource file with business logic.
+- **Customization:** Use custom pages, widgets, and info lists for non-CRUD interfaces.
+- **Theming:** Follow Filament's theming guide for customizations. Use Tailwind CSS utility classes where possible.
+- **Documentation:** If you are uncertain about any aspect of Filament development, please consult the [official documentation](mdc:https:/filamentphp.com/docs) at (https://filamentphp.com/docs) for confirmation or ask for the relevant documentation pages.
