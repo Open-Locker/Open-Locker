@@ -50,6 +50,16 @@
     "scripts": {
         "format": "./vendor/bin/pint",
         "format-check": "./vendor/bin/pint --test",
+        "test": "php artisan test",
+        "test:parallel": "php artisan test --parallel",
+        "test:coverage": "php artisan test --coverage",
+        "test:filter": "php artisan test --filter",
+        "analyse": "./vendor/bin/phpstan analyse",
+        "quality": [
+            "@format-check",
+            "@analyse",
+            "@test"
+        ],
         "export:api": "php artisan scramble:export",
         "generate:api-client": [
             "@export:api",
