@@ -29,87 +29,108 @@ pull requests, issues or general feedback. Our next weekly is on Tuesday, the
 If you're still unsure where to start, you can always reach out to us in our
 discord's text channels.
 
-### What's going on right now?
+## Architecture
 
-At the moment, we're working on an MVP that lets us test the concept with actual
-users. To achieve this, we've set two smaller goals on the way, for instance a
-version that allows our hardware team to test their builds with our app. You can
-check out our current roadmap
-[here](https://github.com/Open-Locker/Open-Locker/milestones). We'll be updating
-it as we reach our goals.
+This is a **monorepo** containing multiple components:
 
-## Project Structure and Details
+- **Backend** (`locker-backend/`): Laravel 11 API with Filament admin panel
+- **Mobile App** (`locker_app/`): Flutter app for end users
+- **API Client** (`packages/locker_api/`): Auto-generated Dart client
+- **Documentation** (`docs/`): Project architecture and guides
 
-### Monorepo Structure
+### System Overview
 
-This project is organized as a monorepo, which means it contains multiple
-projects within a single repository. Currently, the main project in this
-repository is:
+The system consists of:
 
-- `locker-backend`: The backend application built with Laravel.
-- `locker_app`: The frontend flutter app.
+- **IoT Hardware**: Raspberry Pi with Modbus communication to physical lockers
+- **API Backend**: Laravel application managing items, users, and hardware
+- **Mobile App**: Flutter app for borrowing and returning items
+- **Admin Panel**: Filament-based web interface for system management
 
-Using a monorepo allows us to manage all related projects in one place, making
-it easier to share code and manage dependencies.
+## Getting Started
 
-## Documentation
+For detailed installation and setup instructions, please see
+[`docs/Installation.md`](docs/Installation.md).
 
-### Project Documentation
+## Component Documentation
 
-- **[Architecture Overview](docs/Architecture.md)**: Complete system
-  architecture and component relationships
-- **[Installation Guide](docs/Installation.md)**: Setup instructions for
-  development and deployment
+### Backend (Laravel API)
 
-### API Documentation
+Comprehensive documentation available in
+[`locker-backend/README.md`](locker-backend/README.md):
 
-The backend automatically generates OpenAPI 3.1.0 documentation using
-[Scramble](https://scramble.dedoc.co/):
+- Development guidelines and coding standards
+- API endpoints and OpenAPI documentation
+- Hardware integration (Modbus) guidelines
+- Testing strategies and best practices
+- Deployment and production setup
 
-- **Live Documentation**: Available at `/docs/api` when running the backend
-- **OpenAPI Spec**: Exported to `locker-backend/api.json`
-- **Auto-generated Client**: Dart client for Flutter app in
-  `packages/locker_api/`
+### Mobile App (Flutter)
 
-### Development Guidelines
+Documentation available in [`locker_app/README.md`](locker_app/README.md):
 
-This project uses [Cursor Rules](https://docs.cursor.com/context/rules) for
-consistent development practices:
+- Flutter app architecture
+- State management and navigation
+- API integration patterns
+- Platform-specific builds
 
-- **Laravel Guidelines**:
-  `locker-backend/.cursor/rules/frameworks/laravel-guidelines.mdc`
-- **Filament Admin Panel**:
-  `locker-backend/.cursor/rules/frameworks/filament-guidelines.mdc`
-- **Scramble OpenAPI**:
-  `locker-backend/.cursor/rules/frameworks/scramble-openapi.mdc`
-- **Modbus Integration**:
-  `locker-backend/.cursor/rules/frameworks/modbus-integration.mdc`
-- **Domain Conventions**:
-  `locker-backend/.cursor/rules/general/open-locker-domain.mdc`
-- **Testing Guidelines**:
-  `locker-backend/.cursor/rules/general/testing-guidelines.mdc`
-- **Coding Style**: `locker-backend/.cursor/rules/general/coding-style.mdc`
-- **Tech Stack**: `locker-backend/.cursor/rules/general/tech-stack.mdc`
+### Project Architecture
 
-### Setting Up Git Hooks
+Detailed system architecture documentation in
+[`docs/Architecture.md`](docs/Architecture.md):
 
-To ensure code quality and consistency, we use Git hooks in this project. Follow
-these steps to set up the Git hooks:
+- Component interaction diagrams
+- Data flow and system boundaries
+- Technology stack overview
+- Hardware integration architecture
 
-1. Run the `install-hooks.sh` script to configure the Git hooks path:
-   ```sh
-   ./install-hooks.sh
-   ```
+## Technology Stack
 
-This script will set the Git hooks path to the `.githooks` directory in the
-project.
+- **Backend**: Laravel 11, Filament 3.x, Sanctum, SQLite
+- **Frontend**: Flutter, Dart, OpenAPI-generated client
+- **Hardware**: Modbus TCP/RTU, libmodbus, FFI
+- **Documentation**: Scramble OpenAPI, Mermaid diagrams
+- **Development**: Docker, Laravel Sail, Cursor Rules
 
-2. Verify that the hooks are set up correctly by checking the Git configuration:
-   ```sh
-   git config core.hooksPath
-   ```
+### Project Structure
 
-You should see `.githooks` as the output.
+```
+Open-Locker/
+├── locker-backend/     # Laravel API & Admin Panel
+├── locker_app/         # Flutter Mobile App
+├── packages/           # Shared packages
+│   └── locker_api/     # Auto-generated API client
+├── docs/               # Project documentation
+└── docker-compose.yml  # Development environment
+```
 
-Now, the Git hooks are configured and will run automatically during the commit
-process.
+## Community
+
+- **Discord**: [Join our Discord server](https://discord.gg/rZ74RYKN3H)
+- **Issues**: Report bugs and request features via GitHub Issues
+- **Contributing**: See component-specific documentation for guidelines
+
+## Sponsorship
+
+We welcome organizations interested in sponsoring this open source project.
+Open-Locker aims to provide digital infrastructure for community resource
+sharing and smart city initiatives. If your organization would like to support
+this project or explore collaboration opportunities, please reach out to us via
+[Discord](https://discord.gg/rZ74RYKN3H) or create an issue on GitHub.
+
+Current sponsors help us:
+
+- Develop and maintain the open source codebase
+- Support community engagement and documentation
+- Advance smart city digital infrastructure solutions
+- Enable broader adoption of locker-sharing systems
+
+## License
+
+This project is open source under the MIT License. See [LICENSE](LICENSE) for
+details.
+
+## Acknowledgments
+
+Sponsored by [Smart City Hameln-Pyrmont](https://mitwirkportal.de/informieren)
+as part of their digital innovation initiative.
