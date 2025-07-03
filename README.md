@@ -86,6 +86,8 @@ consistent development practices:
   `locker-backend/.cursor/rules/frameworks/modbus-integration.mdc`
 - **Domain Conventions**:
   `locker-backend/.cursor/rules/general/open-locker-domain.mdc`
+- **Testing Guidelines**:
+  `locker-backend/.cursor/rules/general/testing-guidelines.mdc`
 - **Coding Style**: `locker-backend/.cursor/rules/general/coding-style.mdc`
 - **Tech Stack**: `locker-backend/.cursor/rules/general/tech-stack.mdc`
 
