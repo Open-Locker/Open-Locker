@@ -58,13 +58,13 @@ export class MQTTService {
       throw new Error("MQTT client is not available");
     }
 
-    await this.subscribe(mqttConfig.topics.commands);
+    await this.subscribe(mqttConfig.topics.open);
 
     client.on("message", async (topic, message) => {
-      if (topic === mqttConfig.topics.commands) {
+      if (topic === mqttConfig.topics.open) {
         try {
-          const command = JSON.parse(message.toString());
-          await commandHandler.handleCommand(command);
+          const compartment = JSON.parse(message.toString());
+          await commandHandler.handleOpenCompartment(compartment);
         } catch (error) {
           logger.error("Failed to parse or handle command:", error);
         }

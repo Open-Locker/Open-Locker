@@ -11,7 +11,7 @@ export const mqttConfig = {
     `locker-client-${Math.random().toString(16).substr(2, 8)}`,
   topics: {
     registration: process.env.MQTT_TOPIC_REGISTRATION || "locker/registration",
-    status: process.env.MQTT_TOPIC_STATUS || "locker/status",
-    commands: process.env.MQTT_TOPIC_COMMANDS || "locker/commands",
+    status: process.env.MQTT_TOPIC_STATUS || "locker/simon/status",
+    open: process.env.MQTT_TOPIC_COMMANDS || "locker/simon/open",
   },
 };
