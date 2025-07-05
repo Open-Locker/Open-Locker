@@ -2,5 +2,9 @@
 	"name": "Node.js & TypeScript",
 	"image": "mcr.microsoft.com/devcontainers/typescript-node:1-22-bookworm",
 	"postCreateCommand": "yarn install",
-	"privileged": true
+	"privileged": true,
+	"remoteUser": "root",
+	"runArgs": [
+		"--device=/dev/ttyACM0:/dev/ttyACM0"
+	]
 }

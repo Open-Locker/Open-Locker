@@ -1,3 +1,7 @@
+import dotenv from "dotenv";
+
+dotenv.config();
+
 export const modbusConfig = {
   port: process.env.MODBUS_PORT || "/dev/ttyUSB0",
   baudRate: parseInt(process.env.MODBUS_BAUD_RATE || "9600"),

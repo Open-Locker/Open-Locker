@@ -1,100 +1,97 @@
-import { modbusConfig } from "../config/modbus";
 import { logger } from "../helper/logger";
 import { modbusService } from "../services/modbusService";
 import { mqttService } from "../services/mqttService";
 
-interface LockerCommand {
-  action: "unlock" | "lock" | "status";
-  lockerId?: string;
-  duration?: number; // Auto-lock duration in seconds
-}
-
 export class CommandHandler {
-  async handleCommand(command: LockerCommand): Promise<void> {
-    logger.info("Received command:", command);
+  private monitoringIntervals: Map<number, NodeJS.Timeout> = new Map();
+  private readonly MONITORING_INTERVAL = 500; // 500ms polling interval
+  private readonly COMPARTMENT_OPEN_DURATION = 200; // Duration to keep compartment open
+
+  async handleOpenCompartment(compartmentID: number): Promise<void> {
+    logger.info("Opening compartment:", compartmentID);
 
     try {
-      switch (command.action) {
-        case "unlock":
-          await this.unlockLocker(command.duration);
-          break;
-        case "lock":
-          await this.lockLocker();
-          break;
-        case "status":
-          await this.getLockerStatus();
-          break;
-        default:
-          logger.warn("Unknown command action:", command.action);
-      }
+      await this.openCompartment(compartmentID);
+      await this.startCoilMonitoring(compartmentID);
     } catch (error) {
       logger.error("Failed to execute command:", error);
       await this.reportError(error);
     }
   }
 
-  private async unlockLocker(duration?: number): Promise<void> {
-    logger.info("Unlocking locker...");
+  private async openCompartment(compartmentID: number) {
+    await modbusService.writeCoil(compartmentID, true);
+    setTimeout(() => modbusService.writeCoil(compartmentID, false), this.COMPARTMENT_OPEN_DURATION);
+  }
 
-    // Write to Modbus coil to unlock
-    await modbusService.writeCoil(modbusConfig.addresses.lockControl, true);
+  private async startCoilMonitoring(compartmentID: number): Promise<void> {
+    // Stop any existing monitoring for this compartment
+    this.stopCoilMonitoring(compartmentID);
 
-    // Report status change
-    await mqttService.publishStatus({
-      status: "unlocked",
-      timestamp: new Date().toISOString(),
-      action: "unlock",
-    });
+    logger.info(`Starting coil monitoring for compartment ${compartmentID}`);
+    
+    const monitorCoil = async () => {
+      try {
+        const coilStatus = await modbusService.readCoils(compartmentID, 1);
+        const isOpen = coilStatus[0];
+        
+        logger.debug(`Compartment ${compartmentID} coil status: ${isOpen ? 'OPEN' : 'CLOSED'}`);
+        
+        // Publish status via MQTT
+        await mqttService.publishStatus({
+          status: "monitoring",
+          compartmentID: compartmentID,
+          coilStatus: isOpen ? 'OPEN' : 'CLOSED',
+          timestamp: new Date().toISOString(),
+          action: "coil_monitoring",
+        });
 
-    // Auto-lock after duration if specified
-    if (duration && duration > 0) {
-      logger.info(`Auto-lock scheduled in ${duration} seconds`);
-      setTimeout(async () => {
-        try {
-          await this.lockLocker();
-        } catch (error) {
-          logger.error("Auto-lock failed:", error);
+        // If compartment is closed, stop monitoring
+        if (!isOpen) {
+          logger.info(`Compartment ${compartmentID} is now closed. Stopping monitoring.`);
+          this.stopCoilMonitoring(compartmentID);
+          
+          // Publish final status
+          await mqttService.publishStatus({
+            status: "closed",
+            compartmentID: compartmentID,
+            timestamp: new Date().toISOString(),
+            action: "compartment_closed",
+          });
         }
-      }, duration * 1000);
+      } catch (error) {
+        logger.error(`Error monitoring compartment ${compartmentID}:`, error);
+        this.stopCoilMonitoring(compartmentID);
+        await this.reportError(error);
+      }
+    };
+
+    // Start monitoring immediately
+    await monitorCoil();
+    
+    // Continue monitoring at regular intervals if compartment is still open
+    if (!this.monitoringIntervals.has(compartmentID)) {
+      const interval = setInterval(monitorCoil, this.MONITORING_INTERVAL);
+      this.monitoringIntervals.set(compartmentID, interval);
     }
   }
 
-  private async lockLocker(): Promise<void> {
-    logger.info("Locking locker...");
-
-    // Write to Modbus coil to lock
-    await modbusService.writeCoil(modbusConfig.addresses.lockControl, false);
-
-    // Report status change
-    await mqttService.publishStatus({
-      status: "locked",
-      timestamp: new Date().toISOString(),
-      action: "lock",
-    });
+  private stopCoilMonitoring(compartmentID: number): void {
+    const interval = this.monitoringIntervals.get(compartmentID);
+    if (interval) {
+      clearInterval(interval);
+      this.monitoringIntervals.delete(compartmentID);
+      logger.info(`Stopped coil monitoring for compartment ${compartmentID}`);
+    }
   }
 
-  private async getLockerStatus(): Promise<void> {
-    logger.info("Reading locker status...");
-
-    // Read lock status and door sensor
-    const lockStatus = await modbusService.readCoils(
-      modbusConfig.addresses.lockStatus,
-      1
-    );
-    const doorStatus = await modbusService.readCoils(
-      modbusConfig.addresses.doorSensor,
-      1
-    );
-
-    const status = {
-      lockStatus: lockStatus[0] ? "locked" : "unlocked",
-      doorStatus: doorStatus[0] ? "closed" : "open",
-      timestamp: new Date().toISOString(),
-      action: "status_check",
-    };
-
-    await mqttService.publishStatus(status);
-    logger.info("Status reported:", status);
+  public stopAllMonitoring(): void {
+    logger.info("Stopping all compartment monitoring");
+    this.monitoringIntervals.forEach((interval, compartmentID) => {
+      clearInterval(interval);
+      logger.info(`Stopped monitoring for compartment ${compartmentID}`);
+    });
+    this.monitoringIntervals.clear();
   }
 
   private async reportError(error: any): Promise<void> {
