@@ -1,0 +1,20 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+- All PHP code must adhere to the **PSR-12** coding standard.
+- Use `declare(strict_types=1);` at the top of every PHP file.
+- Use full class imports instead of FQCNs in docblocks.
+- Prefer early returns over nested if-statements.
+- All public, protected, and private methods must have docblocks explaining their purpose, parameters, and return values.
+
+### Functions and Methods
+
+- A function should serve a **singular purpose**. If a function does multiple things, break it up into smaller, more focused functions.
+- Function names should be descriptive and clearly communicate their purpose. It should be possible to understand what a function does from its name alone.
+- While function names should be self-documenting, **always add docblocks** to explain parameters and return values to ensure clarity.
+
+### Code Quality
+
+- After any meaningful change, run `sail artisan pint` and `sail artisan stan` to check for code style violations and perform static analysis. Please fix any reported issues.
