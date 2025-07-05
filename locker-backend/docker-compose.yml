@@ -1,5 +1,5 @@
 services:
-    laravel.test:
+    app:
         build:
             context: './docker/8.4'
             dockerfile: Dockerfile
@@ -23,33 +23,34 @@ services:
             - sail
         depends_on:
             - mailpit
-            # - selenium
-#    queue-worker:
-#        image: 'sail-8.4/app'
-#        restart: unless-stopped
-#        environment:
-#            WWWUSER: '${WWWUSER}'
-#            LARAVEL_SAIL: 1
-#        command: php artisan queue:work --tries=3 --timeout=90
-#        volumes:
-#            - '.:/var/www/html'
-#        networks:
-#            - sail
-#        depends_on:
-#            - laravel.test
-    locker-poller:
+            - mosquitto
+    queue-worker:
+       image: 'sail-8.4/app'
+       restart: unless-stopped
+       environment:
+           WWWUSER: '${WWWUSER}'
+           LARAVEL_SAIL: 1
+       command: php artisan queue:work --tries=3 --timeout=90
+       volumes:
+           - '.:/var/www/html'
+       networks:
+           - sail
+       depends_on:
+           - app
+    mqtt-listener:
          image: 'sail-8.4/app'
          restart: unless-stopped
          environment:
              WWWUSER: '${WWWUSER}'
              LARAVEL_SAIL: 1
-         command: php artisan locker:poll-status --verbose
+         command: php artisan mqtt:listen
          volumes:
              - '.:/var/www/html'
          networks:
              - sail
          depends_on:
-             - laravel.test
+             - app
+             - mosquitto
     mailpit:
         image: 'axllent/mailpit:latest'
         ports:
@@ -57,14 +58,17 @@ services:
             - '${FORWARD_MAILPIT_DASHBOARD_PORT:-8025}:8025'
         networks:
             - sail
-    # selenium:
-    #     image: selenium/standalone-chromium
-    #     extra_hosts:
-    #         - 'host.docker.internal:host-gateway'
-    #     volumes:
-    #         - '/dev/shm:/dev/shm'
-    #     networks:
-    #         - sail
+    mosquitto:
+        image: eclipse-mosquitto:2.0
+        restart: unless-stopped
+        ports:
+            - "1883:1883"
+        volumes:
+            - ../docker/mosquitto/config:/mosquitto/config
+            - ../docker/mosquitto/data:/mosquitto/data
+            - ../docker/mosquitto/log:/mosquitto/log
+        networks:
+            - sail
 networks:
     sail:
         driver: bridge
