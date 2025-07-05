@@ -1,0 +1,208 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+# Modbus Hardware Integration Guidelines
+
+This project uses a custom **Modbus FFI package** (`OpenLocker/php-modbus-ffi`) to communicate with IoT hardware via libmodbus.
+
+## Architecture Overview
+
+### Communication Stack
+```
+Laravel LockerService
+    ↓
+ModbusClient Interface (FFI)
+    ↓
+libmodbus C Library
+    ↓
+TCP/RTU Protocol
+    ↓
+Raspberry Pi / IoT Gateway
+    ↓
+Physical Locker Hardware
+```
+
+## Configuration
+
+### Modbus Configuration
+- **Config file**: `config/modbus.php`
+- **Supported protocols**: TCP and RTU
+- **Default driver**: TCP (configurable via `MODBUS_DRIVER`)
+
+### Environment Variables
+```env
+# TCP Configuration
+MODBUS_DRIVER=tcp
+MODBUS_TCP_IP=127.0.0.1
+MODBUS_TCP_PORT=502
+MODBUS_TCP_SLAVE=1
+
+# RTU Configuration (alternative)
+MODBUS_DRIVER=rtu
+MODBUS_RTU_DEVICE=/dev/ttyUSB0
+MODBUS_RTU_BAUD=9600
+MODBUS_RTU_PARITY=N
+MODBUS_RTU_DATA_BITS=8
+MODBUS_RTU_STOP_BITS=1
+
+# Library Path
+MODBUS_LIB_PATH=/lib/aarch64-linux-gnu/libmodbus.so.5
+```
+
+## LockerService Guidelines
+
+### Lock Management
+- **Always use locks** when performing Modbus operations
+- **Lock key**: `LockerService::MODBUS_LOCK`
+- **Timeout calculation**: Based on Modbus response timeout + buffer
+- **Concurrent access**: Prevented through Laravel Cache locks
+
+```php
+// Good: Using the service method with automatic locking
+$this->executeModbusOperation($unitId, function (ModbusClient $modbusClient) {
+    $result = $modbusClient->readDiscreteInputs($address, 1);
+    return $result;
+});
+
+// Bad: Direct Modbus access without locking
+$this->modbus->readDiscreteInputs($address, 1); // DON'T DO THIS
+```
+
+### Error Handling
+- **Catch ModbusIOException** for Modbus-specific errors
+- **Handle InvalidAddressException** for addressing issues
+- **Log errors** with contextual information (Unit ID, Locker ID)
+- **Return LockerStatus::Unreachable** for communication failures
+
+```php
+try {
+    $status = $this->fetchLockerStatus($locker);
+} catch (InvalidAddressException $e) {
+    // Handle invalid Modbus addresses
+    Log::error("Invalid address for Locker {$locker->id}: " . $e->getMessage());
+    return LockerStatus::Unreachable;
+} catch (ModbusIOException $e) {
+    // Handle Modbus communication errors
+    Log::error("Modbus communication failed: " . $e->getMessage());
+    return LockerStatus::Unreachable;
+}
+```
+
+### Connection Management
+- **Automatic connection**: Service handles connect/disconnect
+- **Connection reuse**: Per unit ID within lock duration
+- **Cleanup**: Connections automatically closed in `finally` blocks
+- **Unit ID switching**: Service reconnects when unit changes
+
+## Locker Status Management
+
+### Status Enum Values
+```php
+enum LockerStatus: string
+{
+    case Open = 'open';
+    case Closed = 'closed';
+    case Unreachable = 'unreachable';
+    case Unknown = 'unknown';
+}
+```
+
+### Status Mapping
+- **Input value 0**: `LockerStatus::Open`
+- **Input value 1**: `LockerStatus::Closed`
+- **Communication error**: `LockerStatus::Unreachable`
+- **Unknown input**: `LockerStatus::Unknown`
+
+### Status Polling
+- **Command**: `artisan locker:poll-status`
+- **Frequency**: 0.5 seconds between polls
+- **Grouping**: Lockers grouped by Unit ID for efficiency
+- **Timeout calculation**: Per-unit based on locker count
+
+## Hardware Operations
+
+### Opening Lockers
+```php
+public function openLocker(Locker $locker): void
+{
+    $this->executeModbusOperation($locker->unit_id, function (ModbusClient $modbusClient) use ($locker) {
+        // Send pulse to open
+        $modbusClient->writeSingleCoil($locker->coil_address, true);
+        Sleep::sleep(0.2); // Short pulse duration
+        $modbusClient->writeSingleCoil($locker->coil_address, false);
+        
+        // Verify coil is off (safety check)
+        $status = $modbusClient->readCoils($locker->coil_address, 1);
+        if ($status[$locker->coil_address] === true) {
+            Log::critical("Failed to turn OFF coil {$locker->coil_address}");
+            throw new Exception("Critical: Coil still active after operation");
+        }
+    });
+}
+```
+
+### Address Management
+- **Coil Address**: Used for writing (opening) lockers
+- **Input Address**: Used for reading locker status
+- **Unit ID**: Groups multiple lockers on same Modbus unit
+- **Address validation**: Handled by ModbusClient with exceptions
+
+## Background Services
+
+### Polling Command
+- **Container**: Runs in separate Docker container (`locker-poller`)
+- **Restart policy**: `unless-stopped`
+- **Error handling**: Continues polling after errors with delay
+- **Output**: Verbose logging for status changes
+
+### Docker Configuration
+```yaml
+locker-poller:
+    image: 'sail-8.4/app'
+    restart: unless-stopped
+    command: php artisan locker:poll-status --verbose
+    depends_on:
+        - laravel.test
+```
+
+## Development & Testing
+
+### Local Development
+- **Mock hardware**: Use TCP connection to localhost
+- **Simulator**: Consider Modbus simulator for testing
+- **Unit tests**: Mock ModbusClient interface
+
+### Production Deployment
+- **FFI enabled**: PHP configuration includes `ffi.enable=1`
+- **Library access**: libmodbus.so.5 available in container
+- **Permissions**: Access to serial devices for RTU mode
+
+## Security Considerations
+
+### Network Security
+- **Isolated network**: Modbus communication on separate VLAN
+- **Firewall rules**: Restrict access to Modbus ports
+- **Authentication**: No built-in Modbus authentication (network-level security)
+
+### Hardware Safety
+- **Pulse duration**: Limited to prevent hardware damage
+- **Verification**: Always verify coil state after operations
+- **Emergency stop**: Manual override capabilities
+- **Monitoring**: Continuous status polling for anomaly detection
+
+## Troubleshooting
+
+### Common Issues
+1. **Connection timeouts**: Check network connectivity and Modbus device
+2. **Invalid addresses**: Verify coil/input addresses in database
+3. **FFI not available**: Ensure FFI extension is loaded
+4. **Library not found**: Check `MODBUS_LIB_PATH` setting
+5. **Permission denied**: Verify access to serial devices (RTU mode)
+
+### Debugging
+- **Enable Modbus debug**: `modbus_set_debug($ctx, true)`
+- **Increase timeout**: Adjust response timeout for slow devices
+- **Log communication**: Monitor Modbus protocol messages
+- **Test connectivity**: Use external Modbus tools for verification
