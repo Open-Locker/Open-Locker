@@ -1,6 +1,5 @@
 ---
-description: 
-globs: 
+description: Testing Guidelines for the Laravel Lackend
 alwaysApply: false
 ---
 # Testing Guidelines

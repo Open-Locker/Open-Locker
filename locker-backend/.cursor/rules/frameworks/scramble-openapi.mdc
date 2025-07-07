@@ -1,6 +1,5 @@
 ---
-description: 
-globs: 
+description: REST API OpenAPI Documentation Guidelines
 alwaysApply: false
 ---
 # Scramble OpenAPI Documentation Guidelines
