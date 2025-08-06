@@ -1,11 +1,11 @@
 services:
     app:
         build:
-            context: './docker/8.4'
+            context: ./docker/8.4
             dockerfile: Dockerfile
             args:
                 WWWGROUP: '${WWWGROUP}'
-        image: 'sail-8.4/app'
+        image: sail-8.4/app
         extra_hosts:
             - 'host.docker.internal:host-gateway'
         ports:
@@ -27,27 +27,27 @@ services:
             - mailpit
             - mosquitto
     queue-worker:
-       image: 'sail-8.4/app'
-       restart: unless-stopped
-       environment:
-           WWWUSER: '${WWWUSER}'
-           LARAVEL_SAIL: 1
-       command: php artisan queue:work --queue=default --tries=3 --timeout=90
-       volumes:
-           - '.:/var/www/html'
-           - '../docker/mosquitto/config:/mosquitto/config'
-       networks:
-           - sail
-       depends_on:
-           - app
-           - mysql
-    event-worker:
-        image: 'sail-8.4/app'
+        image: sail-8.4/app
         restart: unless-stopped
         environment:
             WWWUSER: '${WWWUSER}'
             LARAVEL_SAIL: 1
-        command: php artisan queue:work --queue=events --tries=3 --timeout=90
+        command: 'php artisan queue:work --queue=default --tries=3 --timeout=90'
+        volumes:
+            - '.:/var/www/html'
+            - '../docker/mosquitto/config:/mosquitto/config'
+        networks:
+            - sail
+        depends_on:
+            - app
+            - mysql
+    event-worker:
+        image: sail-8.4/app
+        restart: unless-stopped
+        environment:
+            WWWUSER: '${WWWUSER}'
+            LARAVEL_SAIL: 1
+        command: 'php artisan queue:work --queue=events --tries=3 --timeout=90'
         volumes:
             - '.:/var/www/html'
             - '../docker/mosquitto/config:/mosquitto/config'
@@ -57,21 +57,21 @@ services:
             - app
             - mysql
     mqtt-listener:
-         image: 'sail-8.4/app'
-         restart: unless-stopped
-         environment:
-             WWWUSER: '${WWWUSER}'
-             LARAVEL_SAIL: 1
-         command: php artisan mqtt:listen
-         volumes:
-             - '.:/var/www/html'
-             - '../docker/mosquitto/config:/mosquitto/config'
-         networks:
-             - sail
-         depends_on:
-             - app
-             - mysql
-             - mosquitto
+        image: sail-8.4/app
+        restart: unless-stopped
+        environment:
+            WWWUSER: '${WWWUSER}'
+            LARAVEL_SAIL: 1
+        command: 'php artisan mqtt:listen'
+        volumes:
+            - '.:/var/www/html'
+            - '../docker/mosquitto/config:/mosquitto/config'
+        networks:
+            - sail
+        depends_on:
+            - app
+            - mysql
+            - mosquitto
     mysql:
         image: 'mysql/mysql-server:8.0'
         ports:
@@ -104,19 +104,36 @@ services:
         networks:
             - sail
     mosquitto:
-        image: eclipse-mosquitto:2.0
+        image: 'eclipse-mosquitto:2.0'
         restart: unless-stopped
         ports:
-            - "1883:1883"
+            - '1883:1883'
         volumes:
-            - ../docker/mosquitto/config:/mosquitto/config
-            - ../docker/mosquitto/data:/mosquitto/data
-            - ../docker/mosquitto/log:/mosquitto/log
+            - '../docker/mosquitto/config:/mosquitto/config'
+            - '../docker/mosquitto/data:/mosquitto/data'
+            - '../docker/mosquitto/log:/mosquitto/log'
         networks:
             - sail
+    redis:
+        image: 'redis:alpine'
+        ports:
+            - '${FORWARD_REDIS_PORT:-6379}:6379'
+        volumes:
+            - 'sail-redis:/data'
+        networks:
+            - sail
+        healthcheck:
+            test:
+                - CMD
+                - redis-cli
+                - ping
+            retries: 3
+            timeout: 5s
 networks:
     sail:
         driver: bridge
 volumes:
     sail-mysql:
+        driver: local
+    sail-redis:
         driver: local
