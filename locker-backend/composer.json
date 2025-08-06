@@ -22,7 +22,6 @@
         "laravel/framework": "^11.31",
         "laravel/sanctum": "^4.0",
         "laravel/tinker": "^2.9",
-        "open-locker/php-modbus-ffi": "@dev",
         "php-mqtt/laravel-client": "^1.6",
         "spatie/laravel-event-sourcing": "^7.12"
     },
