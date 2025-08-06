@@ -2,9 +2,10 @@
 
 namespace Database\Seeders;
 
+use App\Models\Compartment;
 use App\Models\Item;
 use App\Models\ItemLoan;
-use App\Models\Locker;
+use App\Models\LockerBank;
 use App\Models\User;
 use Illuminate\Database\Seeder;
 
@@ -25,26 +26,30 @@ class DatabaseSeeder extends Seeder
 
         $admin->makeAdmin();
 
-        $item_and_locker_count = 9;
-        $locker_with_item_count = 2;
+        // Create one Locker Bank
+        $lockerBank = LockerBank::factory()->create(['name' => 'Main Locker Bank']);
 
-        $items = Item::factory()->count($item_and_locker_count)->create();
+        // Create compartments for the locker bank
+        $compartments = Compartment::factory()->count(10)->for($lockerBank)->create();
 
-        Locker::factory()->count($locker_with_item_count)->create();
+        // Create items and assign them to compartments
+        $compartments->each(function (Compartment $compartment) {
+            Item::factory()->create(['compartment_id' => $compartment->id]);
+        });
 
-        // Erstelle einige Benutzer
+        // Create some users
         $users = User::factory()->count(5)->create();
 
-        // Erstelle einige aktive Ausleihen
-        foreach ($items->take(5) as $item) {
+        // Create some active loans
+        foreach (Item::all()->take(5) as $item) {
             ItemLoan::factory()->create([
                 'item_id' => $item->id,
                 'user_id' => $users->random()->id,
             ]);
         }
 
-        // Erstelle einige zurückgegebene Ausleihen
-        foreach ($items->skip(5) as $item) {
+        // Create some returned loans
+        foreach (Item::all()->skip(5) as $item) {
             ItemLoan::factory()->returned()->create([
                 'item_id' => $item->id,
                 'user_id' => $users->random()->id,

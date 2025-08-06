@@ -24,7 +24,7 @@ class Item extends Model
         'name',
         'description',
         'image_path',
-        'locker_id',
+        'compartment_id',
     ];
 
     /**
@@ -40,12 +40,12 @@ class Item extends Model
     /**
      * Get the current active loan for this item
      *
-     * @return HasOne<Locker, Item>
+     * @return HasOne<Compartment, Item>
      */
-    public function locker(): HasOne
+    public function compartment(): HasOne
     {
 
-        return $this->hasOne(Locker::class, 'id', 'locker_id');
+        return $this->hasOne(Compartment::class, 'id', 'compartment_id');
     }
 
     /**

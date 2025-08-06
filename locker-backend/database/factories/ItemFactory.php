@@ -2,8 +2,8 @@
 
 namespace Database\Factories;
 
+use App\Models\Compartment;
 use App\Models\Item;
-use App\Models\Locker;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Support\Facades\File; // Use File facade for path manipulation
 use Illuminate\Support\Facades\Log;
@@ -41,7 +41,7 @@ class ItemFactory extends Factory
             'name' => $itemName,
             'description' => fake()->text(100), // Keep description concise
             'image_path' => null, // Will be set in afterCreating
-            'locker_id' => Locker::factory(), // Let Laravel handle creation or use existing
+            'compartment_id' => Compartment::factory(), // Let Laravel handle creation or use existing
         ];
     }
 

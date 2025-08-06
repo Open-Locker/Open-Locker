@@ -54,9 +54,9 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('users/register', [AuthController::class, 'register'])->name('users.register');
 
         // Locker routes for administrators
-        Route::controller(LockerController::class)->prefix('lockers')->name('lockers.')->group(function () {
-            Route::get('', 'index')->name('index');
-            Route::post('{locker}/open', 'openLocker')->name('open');
-        });
+        // Route::controller(LockerController::class)->prefix('lockers')->name('lockers.')->group(function () {
+        //     Route::get('', 'index')->name('index');
+        //     Route::post('{locker}/open', 'openLocker')->name('open');
+        // });
     });
 });
