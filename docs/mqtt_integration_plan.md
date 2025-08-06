@@ -93,9 +93,26 @@ nahtlose Integration.
    MQTT_PORT=1883
    MQTT_USER=laravel_backend
    MQTT_PASSWORD=ein_sicheres_passwort
+   MQTT_LAST_WILL_TOPIC=server/status
+   MQTT_LAST_WILL_MESSAGE={"status": "offline"}
    ```
 
 ### Implementierungsstrategie
+
+#### Zuverlässigkeit: QoS und "Last Will"
+
+- **Backend zu Client (Befehle):** Alle kritischen Befehle vom Backend an die
+  Clients werden mit **QoS Level 1** gesendet. Das stellt sicher, dass der
+  Broker die Nachricht speichert, falls ein Client offline ist.
+- **Client zu Backend (Status):** Wichtige Status-Updates von den Clients
+  sollten ebenfalls mit **QoS Level 1** gesendet werden.
+- **Client-Verbindungen:** Die IoT-Clients müssen sich mit der Einstellung
+  **`clean_session = false`** verbinden, damit der Broker ihre Abonnements und
+  verpassten Nachrichten speichert (persistente Session).
+- **Backend "Last Will"**: Der Laravel-Client (sowohl Listener als auch
+  Publisher) wird so konfiguriert, dass er einen "Last Will" auf dem Topic
+  `server/status` mit der Nachricht `{"status": "offline"}` setzt. Dies
+  informiert alle abonnierenden Clients, falls das Backend ausfällt.
 
 #### Nachrichten Senden (Publishing)
 
@@ -105,18 +122,21 @@ Laravel Queues, um die API-Antwortzeiten nicht zu beeinträchtigen.
 1. **Event/Trigger**: Ein API-Aufruf von der Mobile App (z.B.
    `POST /api/lockers/{id}/open`).
 2. **Job Dispatching**: Der Controller validiert die Anfrage und dispatcht einen
-   Job in die Queue. `OpenLockerDoor::dispatch($locker);`
+   Job in die Queue. `OpenCompartment::dispatch($locker);`
 3. **Job Handler**: Der Job Handler nutzt die `MQTT`-Facade, um die Nachricht zu
    publizieren.
 
    ```php
-   // App/Jobs/OpenLockerDoor.php
+   // App/Jobs/OpenCompartment.php
    use PhpMqtt\Client\Facades\MQTT;
 
    public function handle()
    {
-       $topic = "locker/{$this->locker->uuid}/command";
-       $payload = json_encode(['action' => 'open_door']);
+       $topic = "locker/{$this->lockerBank->id}/command";
+       $payload = json_encode([
+            'action' => 'open_compartment',
+            'data' => ['compartment' => $this->compartment->number]
+        ]);
        MQTT::publish($topic, $payload, 1); // QoS Level 1
    }
    ```
@@ -174,9 +194,9 @@ Ein Befehl enthält eine `action` und eine `transaction_id` zur Nachverfolgung.
   - Payload:
     ```json
     {
-        "action": "open_door",
-        "transaction_id": "xyz-789",
-        "data": { "door_number": 3 }
+       "action": "open_compartment",
+       "transaction_id": "xyz-789",
+       "data": { "compartment_number": 3 }
     }
     ```
 
@@ -190,11 +210,11 @@ Aktion oder meldet ein spontanes Ereignis.
   - Payload:
     ```json
     {
-        "event": "action_completed",
-        "action": "open_door",
-        "status": "success",
-        "transaction_id": "xyz-789",
-        "message": "Door 3 opened successfully."
+       "event": "action_completed",
+       "action": "open_compartment",
+       "status": "success",
+       "transaction_id": "xyz-789",
+       "message": "Compartment opened successfully."
     }
     ```
 
@@ -203,12 +223,12 @@ Aktion oder meldet ein spontanes Ereignis.
   - Payload:
     ```json
     {
-        "event": "action_failed",
-        "action": "open_door",
-        "status": "error",
-        "transaction_id": "xyz-789",
-        "error_code": "DOOR_JAMMED",
-        "message": "Could not open door 3, mechanism is jammed."
+       "event": "action_failed",
+       "action": "open_compartment",
+       "status": "error",
+       "transaction_id": "xyz-789",
+       "error_code": "DOOR_JAMMED",
+       "message": "Could not open compartment, mechanism is jammed."
     }
     ```
 
@@ -217,12 +237,12 @@ Aktion oder meldet ein spontanes Ereignis.
   - Payload:
     ```json
     {
-        "event": "door_state_changed",
-        "status": "closed",
-        "data": {
-            "door_number": 3,
-            "timestamp": "2023-10-27T10:00:00Z"
-        }
+       "event": "door_state_changed",
+       "status": "closed",
+       "data": {
+          "compartment_number": 3,
+          "timestamp": "2023-10-27T10:00:00Z"
+       }
     }
     ```
 
@@ -231,62 +251,85 @@ Aktion oder meldet ein spontanes Ereignis.
 Für regelmäßige "Heartbeats" oder Telemetriedaten.
 
 - **Regelmäßiger Heartbeat:**
-  - Topic: `locker/uuid-123/state`
+  - Topic: `locker/{uuid}/state`
   - Payload:
     ```json
     {
-        "event": "heartbeat",
-        "data": {
-            "timestamp": "2023-10-27T10:01:00Z",
-            "uptime_seconds": 86400
-        }
+       "event": "heartbeat",
+       "data": {
+          "timestamp": "2023-10-27T10:01:00Z",
+          "uptime_seconds": 86400
+       }
     }
     ```
 
-#### 4.4 Registrierungsprozess
+#### 4.4 "Last Will" - Client geht offline
 
-Ein neuer Locker muss sicher provisioniert werden, bevor er am normalen Betrieb
-teilnehmen kann. Dieser Prozess verhindert das Abhören von Zugangsdaten durch
-andere Geräte.
+Das "Last Will and Testament"-Feature von MQTT wird genutzt, um unerwartete
+Verbindungsabbrüche zu melden.
 
-1. **Admin generiert Token**: Ein Administrator generiert im Backend ein
-   einmaliges `provisioning_token`.
-2. **Client generiert Client-ID**: Beim ersten Start generiert der Locker-Client
-   eine **einzigartige, zufällige Client-ID** (z.B. `random-client-xyz789`).
-3. **Operator konfiguriert Client**: Der Techniker vor Ort gibt das
-   `provisioning_token` in den Client ein.
-4. **Client sendet Registrierungsanfrage**: Der Client verbindet sich als
-   `provisioning_client` (ein User mit minimalen Rechten) und seiner
-   einzigartigen Client-ID. Er sendet eine Nachricht, die seine Client-ID
-   enthält, an sein Registrierungs-Topic.
+- **Konfiguration**: Der Client setzt beim Verbindungsaufbau seinen "letzten
+  Willen" (siehe oben).
+- **Topic**: `locker/{locker_uuid}/state`
+- **Payload**:
+  ```json
+  {
+     "event": "connection_lost",
+     "status": "offline",
+     "timestamp": "..."
+  }
+  ```
+- **Funktionsweise**: Wenn der Broker erkennt, dass der Client die Verbindung
+  unplanmäßig verloren hat, publiziert der Broker diese Nachricht automatisch im
+  Namen des Clients auf das angegebene Topic. Das Backend kann darauf lauschen
+  und den Status des Schranks auf "unreachable" setzen.
+
+#### 4.5 Registrierungsprozess (Pre-Provisioning Workflow)
+
+Der Client wird im Backend vor-registriert ("pre-provisioned"), um maximale
+Sicherheit und Kontrolle zu gewährleisten.
+
+1. **Admin legt LockerBank an**: Ein Administrator erstellt im Filament-Backend
+   eine neue `LockerBank` und die zugehörigen `Compartment`s. Das System
+   generiert automatisch ein einmaliges `provisioning_token` für diese
+   `LockerBank`.
+2. **Operator erhält Token**: Der Admin gibt dieses Token an den Techniker
+   weiter, der den IoT-Client installiert.
+3. **Client startet**: Der Client startet, generiert eine einmalige Client-ID
+   und wird vom Techniker mit dem `provisioning_token` konfiguriert.
+4. **Client meldet sich**: Der Client verbindet sich als `provisioning_client`
+   und sendet seine `client_id` an das Registrierungs-Topic, das das Token
+   enthält.
    - Topic: `locker/register/das-ist-der-token-123`
-   - Payload:
-     ```json
-     {
-         "client_id": "random-client-xyz789"
-     }
-     ```
-   - Gleichzeitig lauscht der Client auf seinem **privaten Antwort-Topic**:
+   - Payload: `{"client_id": "random-client-xyz789"}`
+   - Gleichzeitig lauscht der Client auf seinem privaten Antwort-Topic:
      `locker/provisioning/reply/random-client-xyz789`.
-5. **Backend verarbeitet Anfrage**: Der MQTT-Listener im Backend empfängt die
-   Nachricht, validiert das Token, und kennt nun die Zuordnung von Token zu
-   `client_id`. Es generiert eine neue `locker_uuid` und permanente
-   MQTT-Zugangsdaten.
-6. **Backend sendet Credentials auf privatem Kanal**: Das Backend sendet die
-   neuen Zugangsdaten an das private Antwort-Topic des Clients.
-   - Topic: `locker/provisioning/reply/random-client-xyz789`
-   - Payload:
-     ```json
-     {
-         "locker_uuid": "neue-uuid-abc-456",
-         "mqtt_user": "neue-uuid-abc-456",
-         "mqtt_password": "super-geheimes-passwort"
-     }
-     ```
-7. **Client speichert Credentials**: Der Client empfängt die Nachricht,
-   speichert die Daten persistent, trennt die Verbindung und verbindet sich mit
-   seiner neuen, permanenten Identität neu. Das `provisioning_token` ist nun
-   verbraucht.
+5. **Backend verknüpft und provisioniert**:
+   - Der `MqttListen`-Befehl empfängt die Anfrage.
+   - Er sucht in der Datenbank nach der `LockerBank`, die zu dem
+     `provisioning_token` gehört.
+   - Er generiert permanente MQTT-Zugangsdaten (Username = `locker_bank_uuid`,
+     Passwort = sicheres, zufälliges Passwort).
+   - Er speichert den neuen MQTT-User im `password.conf` des Brokers.
+6. **Backend sendet Credentials (oder Ablehnung)**:
+   - **Bei Erfolg**: Das Backend sendet die neuen Zugangsdaten an den privaten
+     Antwortkanal des Clients.
+     - Topic: `locker/provisioning/reply/{unique_client_id}`
+     - Payload:
+       `{"status": "success", "data": {"mqtt_user": "...", "mqtt_password": "..."}}`
+   - **Bei Fehler** (z.B. Token ungültig): Das Backend sendet eine
+     Fehlermeldung.
+     - Topic: `locker/provisioning/reply/{unique_client_id}`
+     - Payload:
+       ```json
+       {
+          "status": "error",
+          "message": "Invalid or expired provisioning token."
+       }
+       ```
+7. **Client ist online**: Bei Erfolg speichert der Client die Zugangsdaten,
+   verbindet sich neu und ist einsatzbereit. Bei Fehler kann der Client eine
+   entsprechende Meldung anzeigen.
 
 ## 5. Datenpersistenz mit Event Sourcing
 
@@ -297,42 +340,34 @@ Nachverfolgung und Fehlersuche. Wir verwenden dafür das Paket
 
 ### Kernkonzepte
 
-- **Events**: Statt Zustände zu überschreiben, speichern wir eine Kette von
-  Ereignissen (z.B. `LockerRegistered`, `DoorOpened`, `ItemReturned`).
-- **Aggregate**: Ein Aggregat (z.B. `LockerAggregate`) ist ein
-  Geschäftslogik-Objekt, das Befehle entgegennimmt, Regeln validiert und als
-  Ergebnis neue Events aufzeichnet. Es repräsentiert eine einzelne
-  Locker-Instanz.
-- **Projectors**: Ein Projektor lauscht auf Events und baut daraus "Read Models"
-  (normale, denormalisierte Datenbanktabellen) auf. Z.B. eine `lockers` Tabelle
-  mit dem aktuellen Zustand für schnelle API-Abfragen.
-- **Reactors**: Ein Reactor lauscht ebenfalls auf Events und löst nebenläufige
-  Aktionen aus (Side Effects). Ein perfekter Anwendungsfall für uns: Ein
-  `DoorOpened` Event löst einen Reactor aus, der einen Job in die Queue stellt,
-  um den entsprechenden MQTT-Befehl zu senden.
+- **Events**: `LockerBankProvisioned`, `CompartmentOpeningRequested`,
+  `CompartmentOpened`
+- **Aggregate**: Das primäre Aggregat ist `LockerBankAggregate`. Es
+  repräsentiert einen ganzen Schrank.
+- **Projectors**: Ein `LockerBankProjector` erstellt und aktualisiert die
+  Lese-Modelle für `locker_banks` und `compartments`.
+- **Reactors**: Ein `MqttReactor` lauscht auf Events (z.B.
+  `CompartmentOpeningRequested`) und löst die MQTT-Kommunikation aus.
 
-### Beispielflow: "Tür öffnen" mit Event Sourcing
+### Beispielflow: "Fach öffnen" mit Event Sourcing
 
-1. **API-Request**: `POST /api/lockers/{id}/open` trifft im `LockerController`
-   ein.
-2. **Befehl an das Aggregat**: Der Controller ruft das Aggregat auf.
-   ```php
-   // LockerController.php
-   $lockerUuid = '...';
-   LockerAggregate::retrieve($lockerUuid)
-       ->openDoor($command->doorNumber, $command->transactionId)
-       ->persist();
-   ```
-3. **Event wird gespeichert**: Das `openDoor`-Methode im `LockerAggregate`
-   validiert die Geschäftsregeln (z.B. "Ist die Tür bereits offen?") und
-   zeichnet ein `DoorWasOpened`-Event auf. Das Spatie-Paket speichert dieses
-   Event in der `stored_events`-Tabelle.
-4. **Reaktion & Projektion**:
-   - Ein **`LockerReactor`** fängt das `DoorWasOpened`-Event ab und dispatcht
-     einen `SendMqttOpenDoorCommand`-Job. Dieser Job sendet dann die eigentliche
-     MQTT-Nachricht.
-   - Ein **`LockerProjector`** fängt dasselbe Event ab und aktualisiert die
-     `lockers`-Tabelle, z.B. `status` auf `opening`.
+1. **API-Request**: `POST /api/compartments/{id}/open` trifft ein.
+2. **Befehl an das Aggregat**: Der Controller lädt das zugehörige
+   `LockerBankAggregate` und sendet einen Befehl.
+
+```php
+// CompartmentController.php
+$compartment = Compartment::findOrFail($id);
+LockerBankAggregate::retrieve($compartment->lockerBank->id)
+    ->requestToOpenCompartment($compartment->uuid, $request->user()->id)
+    ->persist();
+```
+
+3. **Event wird gespeichert**: Das Aggregat validiert die Anfrage und zeichnet
+   ein `CompartmentOpeningRequested`-Event auf.
+4. **Reaktion**: Ein **`MqttReactor`** fängt das Event ab und dispatcht einen
+   Job, der den `open_compartment`-Befehl an die
+   `lockerbank/{uuid}/command`-Topic sendet.
 
 Dieser Ansatz entkoppelt die Annahme des Befehls sauber von der Ausführung der
 Nebenwirkungen (MQTT-Kommunikation) und der Aktualisierung der Lese-Modelle.
