@@ -2,11 +2,9 @@
 
 namespace App\Console\Commands;
 
-use App\Aggregates\LockerBankAggregate;
-use App\Models\LockerBank;
+use App\Mqtt\Handlers\RegistrationHandler;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Str;
 use PhpMqtt\Client\Facades\MQTT;
 
 class MqttListen extends Command
@@ -25,6 +23,11 @@ class MqttListen extends Command
      */
     protected $description = 'Starts a long-running process to listen for MQTT messages.';
 
+    public function __construct(private readonly RegistrationHandler $registrationHandler)
+    {
+        parent::__construct();
+    }
+
     /**
      * Execute the console command.
      */
@@ -35,31 +38,24 @@ class MqttListen extends Command
         try {
             $mqtt = MQTT::connection();
 
-            $this->info('Subscribing to registration topic: locker/register/+');
-
+            $this->info('Subscribing to: locker/register/+');
             $mqtt->subscribe('locker/register/+', function (string $topic, string $message) {
-                $this->info("Received message on topic: {$topic}");
-                Log::info("Received registration request on topic [{$topic}]: {$message}");
+                Log::info('MQTT message received', [
+                    'topic' => $topic,
+                    'message' => $message,
+                ]);
 
-                $provisioningToken = Str::after($topic, 'locker/register/');
-                $payload = json_decode($message, true);
-                $replyToTopic = 'locker/provisioning/reply/'.$payload['client_id'];
-
-                Log::info("Attempting to find LockerBank with token: [{$provisioningToken}]");
-
-                $lockerBank = LockerBank::where('provisioning_token', $provisioningToken)->first();
-
-                if (! $lockerBank) {
-                    Log::warning("No LockerBank found for provisioning token: {$provisioningToken}");
+                $payload = json_decode($message, true) ?? [];
+                if (! is_array($payload)) {
+                    Log::warning('Invalid JSON payload received', [
+                        'topic' => $topic,
+                        'raw' => $message,
+                    ]);
 
                     return;
                 }
 
-                Log::info("Found LockerBank with UUID: {$lockerBank->id}. Calling aggregate.");
-
-                LockerBankAggregate::retrieve($lockerBank->id)
-                    ->provision($lockerBank, $replyToTopic)
-                    ->persist();
+                $this->registrationHandler->handle($topic, $payload);
             }, 1);
 
             $mqtt->loop(true);
