@@ -4,6 +4,7 @@ namespace App\Reactors;
 
 use App\Services\MqttUserService;
 use App\StorableEvents\LockerProvisioningFailed;
+use App\StorableEvents\LockerProvisioningReplyFailed;
 use App\StorableEvents\LockerWasProvisioned;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Support\Facades\Log;
@@ -41,9 +42,17 @@ class MqttReactor extends Reactor implements ShouldQueue
             Log::error('[MqttReactor] Failed to provision MQTT user or send credentials.', [
                 'lockerBankUuid' => $event->lockerBankUuid,
                 'exception' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(), // Add full trace for more details
             ]);
-            // TODO: Dispatch a new event to record the failure after the initial success event.
+
+            // Record a failure event so we have a durable audit trail
+            event(new LockerProvisioningReplyFailed(
+                lockerBankUuid: $event->lockerBankUuid,
+                replyToTopic: $event->replyToTopic,
+                reason: $e->getMessage(),
+            ));
+
+            // Rethrow to trigger queue retry strategy
+            throw $e;
         }
     }
 
