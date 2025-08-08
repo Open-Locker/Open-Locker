@@ -19,3 +19,4 @@ Dies ist eine Übersicht der anstehenden Aufgaben für den Architektur-Umbau.
       aktualisieren.
 - [ ] Cursor-Regeln (.cursor/rules) an die neue MQTT- und
       Event-Sourcing-Architektur anpassen.
+- [ ] Startup script was die Mosquitto basis nutzer erstellt
