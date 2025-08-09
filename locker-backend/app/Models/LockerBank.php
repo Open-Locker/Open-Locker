@@ -13,7 +13,8 @@ use Illuminate\Support\Str;
  * @property-read string $name
  * @property-read string $location_description
  * @property-read string $provisioning_token
- * @property-read \Illuminate\Support\Carbon|null $provisioned_at
+ * @property-read \Illuminate\Support\CarbonImmutable|null $provisioned_at
+ * @property-read \Illuminate\Support\CarbonImmutable|null $last_heartbeat_at
  * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\Compartment> $compartments
  * @property-read int|null $compartments_count
  */
@@ -26,10 +27,12 @@ class LockerBank extends Model
         'location_description',
         'provisioning_token',
         'provisioned_at',
+        'last_heartbeat_at',
     ];
 
     protected $casts = [
         'provisioned_at' => 'datetime',
+        'last_heartbeat_at' => 'datetime',
     ];
 
     public static function booted(): void
