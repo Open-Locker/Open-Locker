@@ -104,14 +104,20 @@ services:
         networks:
             - sail
     mosquitto:
-        image: 'eclipse-mosquitto:2.0'
+        image: eclipse-mosquitto:2.0
         restart: unless-stopped
         ports:
             - '1883:1883'
         volumes:
-            - '../docker/mosquitto/config:/mosquitto/config'
-            - '../docker/mosquitto/data:/mosquitto/data'
-            - '../docker/mosquitto/log:/mosquitto/log'
+            - './docker/mosquitto/config:/mosquitto/config'
+            - './docker/mosquitto/data:/mosquitto/data'
+            - './docker/mosquitto/log:/mosquitto/log'
+        environment:
+            MQTT_USERNAME: '${MQTT_USERNAME}'
+            MQTT_PASSWORD: '${MQTT_PASSWORD}'
+            MQTT_PROVISIONING_USERNAME: '${MQTT_PROVISIONING_USERNAME}'
+            MQTT_PROVISIONING_PASSWORD: '${MQTT_PROVISIONING_PASSWORD}'
+        command: ['/bin/sh', '/mosquitto/config/start-with-dynsec.sh']
         networks:
             - sail
     redis:
