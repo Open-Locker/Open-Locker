@@ -59,6 +59,12 @@ services:
       - ./docker/mosquitto/config:/mosquitto/config
       - ./docker/mosquitto/data:/mosquitto/data
       - ./docker/mosquitto/log:/mosquitto/log
+    environment:
+      MQTT_USERNAME: ${MQTT_USERNAME:?set in .env}
+      MQTT_PASSWORD: ${MQTT_PASSWORD:?set in .env}
+      MQTT_PROVISIONING_USERNAME: ${MQTT_PROVISIONING_USERNAME}
+      MQTT_PROVISIONING_PASSWORD: ${MQTT_PROVISIONING_PASSWORD}
+    command: ["/bin/sh", "/mosquitto/config/start-with-dynsec.sh"]
     networks:
       - open-locker
 
