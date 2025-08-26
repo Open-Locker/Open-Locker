@@ -6,41 +6,18 @@ namespace App\Services;
 
 use Illuminate\Support\Facades\Log;
 use PhpMqtt\Client\Facades\MQTT;
-use Symfony\Component\Process\Exception\ProcessFailedException;
-use Symfony\Component\Process\Process;
 
 class MqttUserService
 {
     private const DEVICE_COMMON_ROLE = 'device-common';
 
     /**
-     * Driver to use for user management: 'password_file' or 'dynsec'.
-     */
-    private string $driver;
-
-    /**
-     * Path to mosquitto password file when using password_file driver.
-     */
-    private string $passwordFilePath;
-
-    public function __construct()
-    {
-        $this->driver = config('services.mqtt_auth.driver', env('MQTT_AUTH_DRIVER', 'password_file'));
-        $this->passwordFilePath = '/mosquitto/config/password.conf';
-    }
-
-    /**
      * Create a new MQTT user according to selected driver.
      */
     public function createUser(string $username, string $password): void
     {
-        if ($this->driver === 'dynsec') {
-            $this->dynsecCreateClient($username, $password);
 
-            return;
-        }
-
-        $this->passwordFileCreateUser($username, $password);
+        $this->dynsecCreateClient($username, $password);
     }
 
     /**
@@ -48,60 +25,7 @@ class MqttUserService
      */
     public function deleteUser(string $username): void
     {
-        if ($this->driver === 'dynsec') {
-            $this->dynsecDeleteClient($username);
-
-            return;
-        }
-
-        $this->passwordFileDeleteUser($username);
-    }
-
-    private function passwordFileCreateUser(string $username, string $password): void
-    {
-        $command = [
-            'mosquitto_passwd',
-            '-b',
-            $this->passwordFilePath,
-            $username,
-            $password,
-        ];
-
-        $process = new Process($command);
-        $process->run();
-
-        if (! $process->isSuccessful()) {
-            Log::error('Failed to create MQTT user.', [
-                'username' => $username,
-                'error' => $process->getErrorOutput(),
-            ]);
-            throw new ProcessFailedException($process);
-        }
-
-        Log::info('Successfully created MQTT user.', ['username' => $username]);
-    }
-
-    private function passwordFileDeleteUser(string $username): void
-    {
-        $command = [
-            'mosquitto_passwd',
-            '-D',
-            $this->passwordFilePath,
-            $username,
-        ];
-
-        $process = new Process($command);
-        $process->run();
-
-        if (! $process->isSuccessful()) {
-            Log::error('Failed to delete MQTT user.', [
-                'username' => $username,
-                'error' => $process->getErrorOutput(),
-            ]);
-            throw new ProcessFailedException($process);
-        }
-
-        Log::info('Successfully deleted MQTT user.', ['username' => $username]);
+        $this->dynsecDeleteClient($username);
     }
 
     private function dynsecCreateClient(string $username, string $password): void
