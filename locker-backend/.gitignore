@@ -24,3 +24,4 @@ yarn-error.log
 
 docker/mosquitto/log/mosquitto.log
 docker/mosquitto/data/dynamic-security.json
+docker/mosquitto/data/mosquitto.db
