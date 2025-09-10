@@ -19,13 +19,13 @@ services:
             IGNITION_LOCAL_SITES_PATH: '${PWD}'
         volumes:
             - '.:/var/www/html'
-            - '../docker/mosquitto/config:/mosquitto/config'
         networks:
             - sail
         depends_on:
             - mysql
             - mailpit
             - mosquitto
+            - redis
     queue-worker:
         image: sail-8.4/app
         restart: unless-stopped
@@ -35,12 +35,12 @@ services:
         command: 'php artisan queue:work --queue=default --tries=3 --timeout=90'
         volumes:
             - '.:/var/www/html'
-            - '../docker/mosquitto/config:/mosquitto/config'
         networks:
             - sail
         depends_on:
             - app
             - mysql
+            - redis
     event-worker:
         image: sail-8.4/app
         restart: unless-stopped
@@ -50,12 +50,12 @@ services:
         command: 'php artisan queue:work --queue=events --tries=3 --timeout=90'
         volumes:
             - '.:/var/www/html'
-            - '../docker/mosquitto/config:/mosquitto/config'
         networks:
             - sail
         depends_on:
             - app
             - mysql
+            - redis
     mqtt-listener:
         image: sail-8.4/app
         restart: unless-stopped
@@ -65,13 +65,13 @@ services:
         command: 'php artisan mqtt:listen'
         volumes:
             - '.:/var/www/html'
-            - '../docker/mosquitto/config:/mosquitto/config'
         networks:
             - sail
         depends_on:
             - app
             - mysql
             - mosquitto
+            - redis
     mysql:
         image: 'mysql/mysql-server:8.0'
         ports:
