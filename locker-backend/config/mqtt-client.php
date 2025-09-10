@@ -83,11 +83,29 @@ return [
             'log_channel' => env('MQTT_LOG_CHANNEL', 'stack'),
             'connection_settings' => [
                 'auth' => [
-                    'username' => env('MQTT_PROVISIONING_USERNAME'),
+                    'username' => env('MQTT_PROVISIONING_USERNAME', 'provisioning_client'),
                     'password' => env('MQTT_PROVISIONING_PASSWORD'),
                 ],
             ],
         ],
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | System Users (Backend & Provisioning)
+    |--------------------------------------------------------------------------
+    |
+    | Credentials used to provision the VerneMQ DB auth entries for the
+    | backend publisher/listener and the provisioning client. Loaded here so
+    | they are available from cached config at runtime.
+    |
+    */
+
+    'system' => [
+        'backend_username' => env('MQTT_USERNAME', 'laravel_backend'),
+        'backend_password' => env('MQTT_PASSWORD'),
+        'provisioning_username' => env('MQTT_PROVISIONING_USERNAME', 'provisioning_client'),
+        'provisioning_password' => env('MQTT_PROVISIONING_PASSWORD'),
     ],
 
 ];
