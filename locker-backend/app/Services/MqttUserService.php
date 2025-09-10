@@ -30,8 +30,8 @@ class MqttUserService
 
     private function dynsecCreateClient(string $username, string $password): void
     {
-        // Use default connection; configure it with admin credentials to run dynsec commands.
-        $client = MQTT::connection();
+        // Use dedicated dynsec connection (admin credentials)
+        $client = MQTT::connection('dynsec');
 
         $request = [
             'commands' => [
@@ -104,8 +104,8 @@ class MqttUserService
 
     private function dynsecDeleteClient(string $username): void
     {
-        // Use default connection; configure it with admin credentials to run dynsec commands.
-        $client = MQTT::connection();
+        // Use dedicated dynsec connection (admin credentials)
+        $client = MQTT::connection('dynsec');
 
         $request = [
             'commands' => [
