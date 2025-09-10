@@ -129,6 +129,8 @@ services:
             DOCKER_VERNEMQ_VMQ_DIVERSITY__MYSQL__PASSWORD_HASH_METHOD: 'sha256'
         networks:
             - sail
+        depends_on:
+            - mysql
     redis:
         image: 'redis:alpine'
         ports:
