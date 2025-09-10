@@ -106,12 +106,23 @@ class MqttTestProvisioningCommand extends Command
             $base->connect($settings);
             $this->info("[device] Connected with client_id: {$deviceClientId} as username: {$lockerUuid}");
 
-            $this->info(">>> Publishing heartbeat to [{$stateTopic}] (QoS 1)");
-            $base->publish($stateTopic, $heartbeatPayload, 1);
-            // Wait until QoS1 ack queues are cleared, then disconnect
-            $base->loop(true, true);
-            $base->disconnect();
-            $this->info('Heartbeat published and acknowledged (QoS 1).');
+            $this->info(">>> Publishing heartbeat to [{$stateTopic}] every 1s (QoS 1). Press CTRL+C to stop.");
+
+            // Continuous heartbeat loop
+            while (true) {
+                $heartbeatPayload = json_encode([
+                    'event' => 'heartbeat',
+                    'data' => [
+                        'timestamp' => now()->toIso8601String(),
+                    ],
+                ]);
+
+                $base->publish($stateTopic, $heartbeatPayload, 1);
+                $this->info(">>> Publishing heartbeat to [{$stateTopic}]");
+                // Process network traffic and wait for QoS1 PUBACKs
+                $base->loop(true, true);
+                sleep(1);
+            }
 
             return Command::SUCCESS;
         } catch (\Exception $e) {
