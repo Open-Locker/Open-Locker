@@ -50,6 +50,12 @@ class LockerBankResource extends Resource
                     ->dateTime()
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),
+                TextColumn::make('last_heartbeat_at')
+                    ->label('Last status update')
+                    ->since()
+                    ->tooltip(fn ($record) => optional($record->last_heartbeat_at)?->toDateTimeString())
+                    ->sortable()
+                    ->toggleable(isToggledHiddenByDefault: false),
                 TextColumn::make('created_at')
                     ->dateTime()
                     ->sortable()
