@@ -17,6 +17,7 @@ services:
             XDEBUG_MODE: '${SAIL_XDEBUG_MODE:-off}'
             XDEBUG_CONFIG: '${SAIL_XDEBUG_CONFIG:-client_host=host.docker.internal}'
             IGNITION_LOCAL_SITES_PATH: '${PWD}'
+            MQTT_HOST: 'vernemq'
         volumes:
             - '.:/var/www/html'
         networks:
@@ -24,7 +25,7 @@ services:
         depends_on:
             - mysql
             - mailpit
-            - mosquitto
+            - vernemq
             - redis
     queue-worker:
         image: sail-8.4/app
@@ -32,6 +33,7 @@ services:
         environment:
             WWWUSER: '${WWWUSER}'
             LARAVEL_SAIL: 1
+            MQTT_HOST: 'vernemq'
         command: 'php artisan queue:work --queue=default --tries=3 --timeout=90'
         volumes:
             - '.:/var/www/html'
@@ -47,6 +49,7 @@ services:
         environment:
             WWWUSER: '${WWWUSER}'
             LARAVEL_SAIL: 1
+            MQTT_HOST: 'vernemq'
         command: 'php artisan queue:work --queue=events --tries=3 --timeout=90'
         volumes:
             - '.:/var/www/html'
@@ -70,7 +73,7 @@ services:
         depends_on:
             - app
             - mysql
-            - mosquitto
+            - vernemq
             - redis
     mysql:
         image: 'mysql/mysql-server:8.0'
@@ -103,21 +106,30 @@ services:
             - '${FORWARD_MAILPIT_DASHBOARD_PORT:-8025}:8025'
         networks:
             - sail
-    mosquitto:
-        image: eclipse-mosquitto:2.0
+    vernemq:
+        image: vernemq/vernemq:2.0.0
         restart: unless-stopped
         ports:
             - '1883:1883'
-        volumes:
-            - './docker/mosquitto/config:/mosquitto/config'
-            - './docker/mosquitto/data:/mosquitto/data'
-            - './docker/mosquitto/log:/mosquitto/log'
         environment:
-            MQTT_USERNAME: '${MQTT_USERNAME}'
-            MQTT_PASSWORD: '${MQTT_PASSWORD}'
-            MQTT_PROVISIONING_USERNAME: '${MQTT_PROVISIONING_USERNAME}'
-            MQTT_PROVISIONING_PASSWORD: '${MQTT_PROVISIONING_PASSWORD}'
-        command: ['/bin/sh', '/mosquitto/config/start-with-dynsec.sh']
+            # General
+            DOCKER_VERNEMQ_ALLOW_ANONYMOUS: 'off'
+            DOCKER_VERNEMQ_LOG__CONSOLE__LEVEL: info
+            # Listeners
+            DOCKER_VERNEMQ_LISTENER__TCP__DEFAULT: '0.0.0.0:1883'
+            # Enable vmq_diversity and disable file-based auth
+            DOCKER_VERNEMQ_PLUGINS__VMQ_DIVERSITY: 'on'
+            DOCKER_VERNEMQ_PLUGINS__VMQ_PASSWD: 'off'
+            DOCKER_VERNEMQ_PLUGINS__VMQ_ACL: 'off'
+            # MySQL auth settings (reuse Laravel DB)
+            DOCKER_VERNEMQ_VMQ_DIVERSITY__AUTH_MYSQL__ENABLED: 'on'
+            DOCKER_VERNEMQ_VMQ_DIVERSITY__MYSQL__HOST: '${DB_HOST}'
+            DOCKER_VERNEMQ_VMQ_DIVERSITY__MYSQL__PORT: '${DB_PORT}'
+            DOCKER_VERNEMQ_VMQ_DIVERSITY__MYSQL__USER: '${DB_USERNAME}'
+            DOCKER_VERNEMQ_VMQ_DIVERSITY__MYSQL__PASSWORD: '${DB_PASSWORD}'
+            DOCKER_VERNEMQ_VMQ_DIVERSITY__MYSQL__DATABASE: '${DB_DATABASE}'
+            # Choose password hash method compatible with MySQL 8
+            DOCKER_VERNEMQ_VMQ_DIVERSITY__MYSQL__PASSWORD_HASH_METHOD: 'sha256'
         networks:
             - sail
     redis:

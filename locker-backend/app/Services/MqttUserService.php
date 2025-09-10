@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-use PhpMqtt\Client\Facades\MQTT;
 
 class MqttUserService
 {
@@ -16,8 +16,7 @@ class MqttUserService
      */
     public function createUser(string $username, string $password): void
     {
-
-        $this->dynsecCreateClient($username, $password);
+        $this->createDbUser($username, $password);
     }
 
     /**
@@ -25,114 +24,47 @@ class MqttUserService
      */
     public function deleteUser(string $username): void
     {
-        $this->dynsecDeleteClient($username);
+        $this->deleteDbUser($username);
     }
 
-    private function dynsecCreateClient(string $username, string $password): void
+    private function createDbUser(string $username, string $password): void
     {
-        // Use dedicated dynsec connection (admin credentials)
-        $client = MQTT::connection('dynsec');
+        // VerneMQ vmq_diversity MySQL with password_hash_method=sha256 expects an unsalted SHA-256 hex hash
+        $hash = hash('sha256', $password);
 
-        $request = [
-            'commands' => [
-                // Ensure client exists
-                [
-                    'command' => 'createClient',
-                    'username' => $username,
-                    'password' => $password,
-                ],
-                // Ensure a shared base role for all devices exists and assign it to the client
-                [
-                    'command' => 'createRole',
-                    'rolename' => self::DEVICE_COMMON_ROLE,
-                ],
-                [
-                    'command' => 'addRoleACL',
-                    'rolename' => self::DEVICE_COMMON_ROLE,
-                    'acls' => [
-                        [
-                            'acltype' => 'subscribeLiteral',
-                            'topic' => 'server/status',
-                            'allow' => true,
-                        ],
-                    ],
-                ],
-                [
-                    'command' => 'addClientRole',
-                    'username' => $username,
-                    'rolename' => self::DEVICE_COMMON_ROLE,
-                ],
-                // Create a minimal per-client role and assign it, so the device can publish its state.
-                [
-                    'command' => 'createRole',
-                    'rolename' => "device-{$username}",
-                ],
-                [
-                    'command' => 'addRoleACL',
-                    'rolename' => "device-{$username}",
-                    'acls' => [
-                        [
-                            'acltype' => 'publishClientSend',
-                            'topic' => "locker/{$username}/state",
-                            'allow' => true,
-                        ],
-                        [
-                            'acltype' => 'publishClientSend',
-                            'topic' => "locker/{$username}/status",
-                            'allow' => true,
-                        ],
-                        [
-                            'acltype' => 'subscribeLiteral',
-                            'topic' => "locker/{$username}/command",
-                            'allow' => true,
-                        ],
-                    ],
-                ],
-                [
-                    'command' => 'addClientRole',
-                    'username' => $username,
-                    'rolename' => "device-{$username}",
-                ],
+        $publishAcl = json_encode([
+            ['pattern' => 'locker/%u/state'],
+            ['pattern' => 'locker/%u/status'],
+        ]);
+
+        $subscribeAcl = json_encode([
+            ['pattern' => 'locker/%u/command'],
+        ]);
+
+        DB::table('vmq_auth_acl')->updateOrInsert(
+            [
+                'mountpoint' => '',
+                // Bind client_id to username to ensure strong coupling of device identity
+                'client_id' => $username,
+                'username' => $username,
             ],
-        ];
+            [
+                'password' => $hash,
+                'publish_acl' => $publishAcl,
+                'subscribe_acl' => $subscribeAcl,
+            ],
+        );
 
-        // Note: dynsec responses are published to $CONTROL/dynamic-security/v1/response
-        // We publish fire-and-forget here; callers can add verification if needed.
-        $client->publish('$CONTROL/dynamic-security/v1', json_encode($request), 0);
-        Log::info('Dynsec createClient published.', ['username' => $username]);
+        Log::info('VerneMQ DB user upserted.', ['username' => $username]);
     }
 
-    private function dynsecDeleteClient(string $username): void
+    private function deleteDbUser(string $username): void
     {
-        // Use dedicated dynsec connection (admin credentials)
-        $client = MQTT::connection('dynsec');
+        DB::table('vmq_auth_acl')
+            ->where('mountpoint', '')
+            ->where('username', $username)
+            ->delete();
 
-        $request = [
-            'commands' => [
-                // Best-effort: remove assigned roles first
-                [
-                    'command' => 'removeClientRole',
-                    'username' => $username,
-                    'rolename' => "device-{$username}",
-                ],
-                [
-                    'command' => 'removeClientRole',
-                    'username' => $username,
-                    'rolename' => self::DEVICE_COMMON_ROLE,
-                ],
-                [
-                    'command' => 'deleteClient',
-                    'username' => $username,
-                ],
-                // Cleanup the per-client role to avoid orphaned roles
-                [
-                    'command' => 'deleteRole',
-                    'rolename' => "device-{$username}",
-                ],
-            ],
-        ];
-
-        $client->publish('$CONTROL/dynamic-security/v1', json_encode($request), 0);
-        Log::info('Dynsec deleteClient published.', ['username' => $username]);
+        Log::info('VerneMQ DB user deleted.', ['username' => $username]);
     }
 }
