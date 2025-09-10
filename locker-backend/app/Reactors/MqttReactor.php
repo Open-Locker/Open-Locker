@@ -35,7 +35,7 @@ class MqttReactor extends Reactor implements ShouldQueue
             ]);
 
             Log::info("[MqttReactor] Attempting to publish credentials to topic: {$event->replyToTopic}");
-            MQTT::publish($event->replyToTopic, $payload, 1);
+            MQTT::connection('publisher')->publish($event->replyToTopic, $payload, 1);
             Log::info('[MqttReactor] Published credentials successfully.');
 
         } catch (\Exception $e) {

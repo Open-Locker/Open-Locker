@@ -16,7 +16,7 @@ return [
     |
     */
 
-    'default_connection' => env('MQTT_CONNECTION', 'default'),
+    'default_connection' => env('MQTT_CONNECTION', 'publisher'),
 
     /*
     |--------------------------------------------------------------------------
@@ -31,11 +31,12 @@ return [
 
     'connections' => [
 
-        'default' => [
+        // Listener connection
+        'listener' => [
             'host' => env('MQTT_HOST', '127.0.0.1'),
             'port' => env('MQTT_PORT', 1883),
             'protocol' => MqttClient::MQTT_3_1_1,
-            'client_id' => env('MQTT_CLIENT_ID', 'laravel_backend_client'),
+            'client_id' => env('MQTT_CLIENT_ID', 'laravel_backend_listener'),
             'clean_session' => false,
             'enable_logging' => env('MQTT_ENABLE_LOGGING', false),
             'log_channel' => env('MQTT_LOG_CHANNEL', 'stack'),
@@ -54,7 +55,24 @@ return [
                 // Other settings...
             ],
         ],
+        // Dedicated publisher connection to avoid ClientID clashes with the listener
+        'publisher' => [
+            'host' => env('MQTT_HOST', '127.0.0.1'),
+            'port' => env('MQTT_PORT', 1883),
+            'protocol' => MqttClient::MQTT_3_1_1,
+            'client_id' => env('MQTT_PUBLISHER_CLIENT_ID', null),
+            'clean_session' => false,
+            'enable_logging' => env('MQTT_ENABLE_LOGGING', false),
+            'log_channel' => env('MQTT_LOG_CHANNEL', 'stack'),
+            'connection_settings' => [
+                'auth' => [
+                    'username' => env('MQTT_USERNAME', 'laravel_backend'),
+                    'password' => env('MQTT_PASSWORD'),
+                ],
+            ],
+        ],
 
+        // Provisioning connection for testing
         'provisioning' => [
             'host' => env('MQTT_HOST', '127.0.0.1'),
             'port' => env('MQTT_PORT', 1883),
@@ -67,6 +85,23 @@ return [
                 'auth' => [
                     'username' => env('MQTT_PROVISIONING_USERNAME'),
                     'password' => env('MQTT_PROVISIONING_PASSWORD'),
+                ],
+            ],
+        ],
+
+        // Admin connection dedicated to Mosquitto dynsec control API ($CONTROL/dynamic-security/v1)
+        'dynsec' => [
+            'host' => env('MQTT_HOST', '127.0.0.1'),
+            'port' => env('MQTT_PORT', 1883),
+            'protocol' => MqttClient::MQTT_3_1_1,
+            'client_id' => env('MQTT_DYNSEC_CLIENT_ID', 'laravel_backend_dynsec'),
+            'clean_session' => false,
+            'enable_logging' => env('MQTT_ENABLE_LOGGING', false),
+            'log_channel' => env('MQTT_LOG_CHANNEL', 'stack'),
+            'connection_settings' => [
+                'auth' => [
+                    'username' => env('MQTT_DYNSEC_USERNAME', env('MQTT_USERNAME')),
+                    'password' => env('MQTT_DYNSEC_PASSWORD', env('MQTT_PASSWORD')),
                 ],
             ],
         ],

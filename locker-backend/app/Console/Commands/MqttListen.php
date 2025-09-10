@@ -28,10 +28,11 @@ class MqttListen extends Command
         $this->info('Starting MQTT listener...');
 
         try {
-            $mqtt = MQTT::connection();
+            $mqtt = MQTT::connection('listener');
 
             $this->info('Subscribing to: locker/register/+');
             $mqtt->subscribe('locker/register/+', function (string $topic, string $message) {
+                $this->info('MQTT message received', ['topic' => $topic, 'message' => $message]);
                 Log::info('MQTT message received', ['topic' => $topic, 'message' => $message]);
                 $payload = json_decode($message, true) ?? [];
                 if (! is_array($payload)) {
@@ -44,6 +45,7 @@ class MqttListen extends Command
 
             $this->info('Subscribing to: locker/+/state');
             $mqtt->subscribe('locker/+/state', function (string $topic, string $message) {
+                $this->info('MQTT state message received', ['topic' => $topic, 'message' => $message]);
                 Log::info('MQTT state message received', ['topic' => $topic, 'message' => $message]);
                 $payload = json_decode($message, true) ?? [];
                 if (! is_array($payload)) {
