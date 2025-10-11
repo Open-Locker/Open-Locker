@@ -33,7 +33,7 @@ return [
 
         // Listener connection
         'listener' => [
-            'host' => 'vernemq',
+            'host' => 'mqtt',
             'port' => 1883,
             'protocol' => MqttClient::MQTT_3_1_1,
             'client_id' => env('MQTT_CLIENT_ID', 'laravel_backend_listener'),
@@ -57,10 +57,10 @@ return [
         ],
         // Dedicated publisher connection to avoid ClientID clashes with the listener
         'publisher' => [
-            'host' => 'vernemq',
+            'host' => 'mqtt',
             'port' => 1883,
             'protocol' => MqttClient::MQTT_3_1_1,
-            'client_id' => env('MQTT_PUBLISHER_CLIENT_ID', null),
+            'client_id' => env('MQTT_PUBLISHER_CLIENT_ID', 'laravel_backend_publisher'),
             'clean_session' => false,
             'enable_logging' => env('MQTT_ENABLE_LOGGING', false),
             'log_channel' => env('MQTT_LOG_CHANNEL', 'stack'),
@@ -74,7 +74,7 @@ return [
 
         // Provisioning connection for testing
         'provisioning' => [
-            'host' => 'vernemq',
+            'host' => 'mqtt',
             'port' => 1883,
             'protocol' => MqttClient::MQTT_3_1_1,
             'client_id' => null, // This will be set dynamically by the test command.
