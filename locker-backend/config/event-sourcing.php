@@ -22,7 +22,7 @@ return [
      * Projectors can be registered in this array or a service provider.
      */
     'projectors' => [
-        // App\Projectors\YourProjector::class
+        App\Projectors\LockerBankProjector::class,
     ],
 
     /*
@@ -31,7 +31,7 @@ return [
      * Reactors can be registered in this array or a service provider.
      */
     'reactors' => [
-        // App\Reactors\YourReactor::class
+        App\Reactors\MqttReactor::class,
     ],
 
     /*

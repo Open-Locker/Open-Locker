@@ -5,7 +5,9 @@ use App\Http\Controllers\AppInfoController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\ItemController;
 use App\Http\Controllers\LockerController;
+use App\Http\Controllers\Mqtt\VmqWebhookController;
 use App\Http\Middleware\AdminMiddleware;
+use App\Http\Middleware\VerifyVmqWebhookAuth;
 use Illuminate\Support\Facades\Route;
 
 // Publicly accessible route for API identification
@@ -59,4 +61,14 @@ Route::middleware('auth:sanctum')->group(function () {
         //     Route::post('{locker}/open', 'openLocker')->name('open');
         // });
     });
+});
+
+// VerneMQ Webhook endpoints (secured via Basic Auth middleware)
+Route::prefix('vmq')->group(function () {
+    Route::post('auth_on_register', [VmqWebhookController::class, 'authOnRegister'])
+        ->middleware(VerifyVmqWebhookAuth::class);
+    Route::post('auth_on_subscribe', [VmqWebhookController::class, 'authOnSubscribe'])
+        ->middleware(VerifyVmqWebhookAuth::class);
+    Route::post('auth_on_publish', [VmqWebhookController::class, 'authOnPublish'])
+        ->middleware(VerifyVmqWebhookAuth::class);
 });

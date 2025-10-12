@@ -4,139 +4,130 @@ services:
             context: ./docker/8.4
             dockerfile: Dockerfile
             args:
-                WWWGROUP: '${WWWGROUP}'
+                WWWGROUP: "${WWWGROUP}"
         image: sail-8.4/app
         extra_hosts:
-            - 'host.docker.internal:host-gateway'
+            - "host.docker.internal:host-gateway"
         ports:
-            - '${APP_PORT:-80}:80'
-            - '${VITE_PORT:-5173}:${VITE_PORT:-5173}'
+            - "${APP_PORT:-80}:80"
+            - "${VITE_PORT:-5173}:${VITE_PORT:-5173}"
         environment:
-            WWWUSER: '${WWWUSER}'
+            WWWUSER: "${WWWUSER}"
             LARAVEL_SAIL: 1
-            XDEBUG_MODE: '${SAIL_XDEBUG_MODE:-off}'
-            XDEBUG_CONFIG: '${SAIL_XDEBUG_CONFIG:-client_host=host.docker.internal}'
-            IGNITION_LOCAL_SITES_PATH: '${PWD}'
+            XDEBUG_MODE: "${SAIL_XDEBUG_MODE:-off}"
+            XDEBUG_CONFIG: "${SAIL_XDEBUG_CONFIG:-client_host=host.docker.internal}"
+            IGNITION_LOCAL_SITES_PATH: "${PWD}"
         volumes:
-            - '.:/var/www/html'
+            - ".:/var/www/html"
         networks:
             - sail
         depends_on:
-            - mysql
-            - mailpit
-            - vernemq
-            - redis
+            pgsql:
+                condition: service_healthy
+            mailpit:
+                condition: service_started
+            redis:
+                condition: service_healthy
+        healthcheck:
+            test:
+                - CMD
+                - curl
+                - -f
+                - http://localhost
+            interval: 10s
+            timeout: 5s
+            retries: 5
+            start_period: 30s
     queue-worker:
         image: sail-8.4/app
         restart: unless-stopped
         environment:
-            WWWUSER: '${WWWUSER}'
+            WWWUSER: "${WWWUSER}"
             LARAVEL_SAIL: 1
-        command: 'php artisan queue:work --queue=default --tries=3 --timeout=90'
+        command: "php artisan queue:work --queue=default --tries=3 --timeout=90"
         volumes:
-            - '.:/var/www/html'
+            - ".:/var/www/html"
         networks:
             - sail
         depends_on:
-            - app
-            - mysql
+            - pgsql
             - redis
+            - mqtt
     event-worker:
         image: sail-8.4/app
         restart: unless-stopped
         environment:
-            WWWUSER: '${WWWUSER}'
+            WWWUSER: "${WWWUSER}"
             LARAVEL_SAIL: 1
-        command: 'php artisan queue:work --queue=events --tries=3 --timeout=90'
+        command: "php artisan queue:work --queue=events --tries=3 --timeout=90"
         volumes:
-            - '.:/var/www/html'
+            - ".:/var/www/html"
         networks:
             - sail
         depends_on:
-            - app
-            - mysql
+            - pgsql
             - redis
+            - mqtt
     mqtt-listener:
         image: sail-8.4/app
         restart: unless-stopped
         environment:
-            WWWUSER: '${WWWUSER}'
+            WWWUSER: "${WWWUSER}"
             LARAVEL_SAIL: 1
-        command: 'php artisan mqtt:listen'
+        command: "php artisan mqtt:listen"
         volumes:
-            - '.:/var/www/html'
+            - ".:/var/www/html"
         networks:
             - sail
         depends_on:
-            - app
-            - mysql
-            - vernemq
+            - pgsql
             - redis
-    mysql:
-        image: 'mysql/mysql-server:8.0'
-        ports:
-            - '${FORWARD_DB_PORT:-3306}:3306'
-        environment:
-            MYSQL_ROOT_PASSWORD: '${DB_PASSWORD}'
-            MYSQL_ROOT_HOST: '%'
-            MYSQL_DATABASE: '${DB_DATABASE}'
-            MYSQL_USER: '${DB_USERNAME}'
-            MYSQL_PASSWORD: '${DB_PASSWORD}'
-            MYSQL_ALLOW_EMPTY_PASSWORD: 1
-        volumes:
-            - 'sail-mysql:/var/lib/mysql'
-            - './vendor/laravel/sail/database/mysql/create-testing-database.sh:/docker-entrypoint-initdb.d/10-create-testing-database.sh'
-        networks:
-            - sail
-        healthcheck:
-            test:
-                - CMD
-                - mysqladmin
-                - ping
-                - '-p${DB_PASSWORD}'
-            retries: 3
-            timeout: 5s
+            - mqtt
     mailpit:
-        image: 'axllent/mailpit:latest'
+        image: "axllent/mailpit:latest"
         ports:
-            - '${FORWARD_MAILPIT_PORT:-1025}:1025'
-            - '${FORWARD_MAILPIT_DASHBOARD_PORT:-8025}:8025'
+            - "${FORWARD_MAILPIT_PORT:-1025}:1025"
+            - "${FORWARD_MAILPIT_DASHBOARD_PORT:-8025}:8025"
         networks:
             - sail
-    vernemq:
+    mqtt:
         image: vernemq/vernemq:2.0.0
         restart: unless-stopped
         ports:
-            - '1883:1883'
+            - "1883:1883"
         environment:
             # General
-            DOCKER_VERNEMQ_ALLOW_ANONYMOUS: 'off'
+            DOCKER_VERNEMQ_ACCEPT_EULA: "yes"
+            DOCKER_VERNEMQ_ALLOW_ANONYMOUS: "off"
             DOCKER_VERNEMQ_LOG__CONSOLE__LEVEL: info
             # Listeners
-            DOCKER_VERNEMQ_LISTENER__TCP__DEFAULT: '0.0.0.0:1883'
-            # Enable vmq_diversity and disable file-based auth
-            DOCKER_VERNEMQ_PLUGINS__VMQ_DIVERSITY: 'on'
-            DOCKER_VERNEMQ_PLUGINS__VMQ_PASSWD: 'off'
-            DOCKER_VERNEMQ_PLUGINS__VMQ_ACL: 'off'
-            # MySQL auth settings (reuse Laravel DB)
-            DOCKER_VERNEMQ_VMQ_DIVERSITY__AUTH_MYSQL__ENABLED: 'on'
-            DOCKER_VERNEMQ_VMQ_DIVERSITY__MYSQL__HOST: '${DB_HOST}'
-            DOCKER_VERNEMQ_VMQ_DIVERSITY__MYSQL__PORT: '${DB_PORT}'
-            DOCKER_VERNEMQ_VMQ_DIVERSITY__MYSQL__USER: '${DB_USERNAME}'
-            DOCKER_VERNEMQ_VMQ_DIVERSITY__MYSQL__PASSWORD: '${DB_PASSWORD}'
-            DOCKER_VERNEMQ_VMQ_DIVERSITY__MYSQL__DATABASE: '${DB_DATABASE}'
-            # Choose password hash method compatible with MySQL 8
-            DOCKER_VERNEMQ_VMQ_DIVERSITY__MYSQL__PASSWORD_HASH_METHOD: 'sha256'
+            DOCKER_VERNEMQ_LISTENER__TCP__DEFAULT: "0.0.0.0:1883"
+            DOCKER_VERNEMQ_LISTENER__TCP__LOCALHOST: "off"
+            # Enable webhooks; disable DB/file auth plugins
+            DOCKER_VERNEMQ_PLUGINS__VMQ_WEBHOOKS: "on"
+            DOCKER_VERNEMQ_PLUGINS__VMQ_DIVERSITY: "off"
+            DOCKER_VERNEMQ_PLUGINS__VMQ_PASSWD: "off"
+            DOCKER_VERNEMQ_PLUGINS__VMQ_ACL: "off"
+            # Webhook hooks (use named instances per docs)
+            DOCKER_VERNEMQ_VMQ_WEBHOOKS__WEBHOOK_REG__HOOK: "auth_on_register"
+            DOCKER_VERNEMQ_VMQ_WEBHOOKS__WEBHOOK_SUB__HOOK: "auth_on_subscribe"
+            DOCKER_VERNEMQ_VMQ_WEBHOOKS__WEBHOOK_PUB__HOOK: "auth_on_publish"
+            # Webhook endpoints (Basic Auth in URL)
+            DOCKER_VERNEMQ_VMQ_WEBHOOKS__WEBHOOK_REG__ENDPOINT: "http://${VMQ_WEBHOOK_USER}:${VMQ_WEBHOOK_PASS}@app/api/vmq/auth_on_register"
+            DOCKER_VERNEMQ_VMQ_WEBHOOKS__WEBHOOK_SUB__ENDPOINT: "http://${VMQ_WEBHOOK_USER}:${VMQ_WEBHOOK_PASS}@app/api/vmq/auth_on_subscribe"
+            DOCKER_VERNEMQ_VMQ_WEBHOOKS__WEBHOOK_PUB__ENDPOINT: "http://${VMQ_WEBHOOK_USER}:${VMQ_WEBHOOK_PASS}@app/api/vmq/auth_on_publish"
         networks:
             - sail
         depends_on:
-            - mysql
+            app:
+                condition: service_healthy
+
     redis:
-        image: 'redis:alpine'
+        image: "redis:alpine"
         ports:
-            - '${FORWARD_REDIS_PORT:-6379}:6379'
+            - "${FORWARD_REDIS_PORT:-6379}:6379"
         volumes:
-            - 'sail-redis:/data'
+            - "sail-redis:/data"
         networks:
             - sail
         healthcheck:
@@ -146,11 +137,37 @@ services:
                 - ping
             retries: 3
             timeout: 5s
+    pgsql:
+        image: "postgres:17"
+        ports:
+            - "${FORWARD_DB_PORT:-5432}:5432"
+        environment:
+            PGPASSWORD: "${DB_PASSWORD:-secret}"
+            POSTGRES_DB: "${DB_DATABASE}"
+            POSTGRES_USER: "${DB_USERNAME}"
+            POSTGRES_PASSWORD: "${DB_PASSWORD:-secret}"
+        volumes:
+            - "sail-pgsql:/var/lib/postgresql/data"
+            - "./vendor/laravel/sail/database/pgsql/create-testing-database.sql:/docker-entrypoint-initdb.d/10-create-testing-database.sql"
+            # Removed pgcrypto extension mount; not required anymore
+        networks:
+            - sail
+        healthcheck:
+            test:
+                - CMD
+                - pg_isready
+                - "-q"
+                - "-d"
+                - "${DB_DATABASE}"
+                - "-U"
+                - "${DB_USERNAME}"
+            retries: 3
+            timeout: 5s
 networks:
     sail:
         driver: bridge
 volumes:
-    sail-mysql:
-        driver: local
     sail-redis:
+        driver: local
+    sail-pgsql:
         driver: local
