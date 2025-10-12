@@ -42,10 +42,11 @@ return [
             'log_channel' => env('MQTT_LOG_CHANNEL', 'stack'),
             'repository' => \PhpMqtt\Client\Repositories\MemoryRepository::class,
             'connection_settings' => [
-                'auth' => [
-                    'username' => env('MQTT_USERNAME', 'laravel_backend'),
+                // Use auth only if provided, otherwise connect anonymously in dev
+                'auth' => env('MQTT_USERNAME') !== null ? [
+                    'username' => env('MQTT_USERNAME'),
                     'password' => env('MQTT_PASSWORD'),
-                ],
+                ] : null,
                 'last_will' => [
                     'topic' => 'server/status',
                     'message' => '{"status": "offline"}',
@@ -65,10 +66,10 @@ return [
             'enable_logging' => env('MQTT_ENABLE_LOGGING', false),
             'log_channel' => env('MQTT_LOG_CHANNEL', 'stack'),
             'connection_settings' => [
-                'auth' => [
-                    'username' => env('MQTT_USERNAME', 'laravel_backend'),
+                'auth' => env('MQTT_USERNAME') !== null ? [
+                    'username' => env('MQTT_USERNAME'),
                     'password' => env('MQTT_PASSWORD'),
-                ],
+                ] : null,
             ],
         ],
 
@@ -77,15 +78,15 @@ return [
             'host' => 'mqtt',
             'port' => 1883,
             'protocol' => MqttClient::MQTT_3_1_1,
-            'client_id' => null, // This will be set dynamically by the test command.
+            'client_id' => null, // Provisioning clients will use a randomized client ID per session.
             'clean_session' => false, // Use a persistent session to reliably receive the reply.
             'enable_logging' => env('MQTT_ENABLE_LOGGING', false),
             'log_channel' => env('MQTT_LOG_CHANNEL', 'stack'),
             'connection_settings' => [
-                'auth' => [
-                    'username' => env('MQTT_PROVISIONING_USERNAME', 'provisioning_client'),
+                'auth' => env('MQTT_PROVISIONING_USERNAME') !== null ? [
+                    'username' => env('MQTT_PROVISIONING_USERNAME'),
                     'password' => env('MQTT_PROVISIONING_PASSWORD'),
-                ],
+                ] : null,
             ],
         ],
     ],
@@ -106,6 +107,21 @@ return [
         'backend_password' => env('MQTT_PASSWORD'),
         'provisioning_username' => env('MQTT_PROVISIONING_USERNAME', 'provisioning_client'),
         'provisioning_password' => env('MQTT_PROVISIONING_PASSWORD'),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | VerneMQ Webhooks Auth
+    |--------------------------------------------------------------------------
+    |
+    | Credentials VerneMQ uses to call our webhook endpoints. Read via config
+    | (backed by env) instead of env() directly in code.
+    |
+    */
+
+    'webhooks' => [
+        'user' => env('VMQ_WEBHOOK_USER', 'vmq'),
+        'pass' => env('VMQ_WEBHOOK_PASS'),
     ],
 
 ];

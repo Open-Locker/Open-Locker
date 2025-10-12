@@ -23,7 +23,7 @@ class MqttReactor extends Reactor implements ShouldQueue
 
         try {
             Log::info('[MqttReactor] Attempting to create MQTT user...');
-            app(MqttUserService::class)->createUser($mqttUser, $mqttPassword);
+            app(MqttUserService::class)->createUser($mqttUser, $mqttPassword, $event->lockerBankUuid);
             Log::info('[MqttReactor] MQTT user created successfully.');
 
             $payload = json_encode([
