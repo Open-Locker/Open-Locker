@@ -34,10 +34,9 @@ services:
                 - curl
                 - -f
                 - http://localhost
-            interval: 10s
+            interval: 5s
             timeout: 5s
             retries: 5
-            start_period: 30s
     queue-worker:
         image: sail-8.4/app
         restart: unless-stopped
@@ -50,9 +49,12 @@ services:
         networks:
             - sail
         depends_on:
-            - pgsql
-            - redis
-            - mqtt
+            pgsql:
+                condition: service_healthy
+            redis:
+                condition: service_healthy
+            mqtt:
+                condition: service_healthy
     event-worker:
         image: sail-8.4/app
         restart: unless-stopped
@@ -65,9 +67,12 @@ services:
         networks:
             - sail
         depends_on:
-            - pgsql
-            - redis
-            - mqtt
+            pgsql:
+                condition: service_healthy
+            redis:
+                condition: service_healthy
+            mqtt:
+                condition: service_healthy
     mqtt-listener:
         image: sail-8.4/app
         restart: unless-stopped
@@ -80,9 +85,12 @@ services:
         networks:
             - sail
         depends_on:
-            - pgsql
-            - redis
-            - mqtt
+            pgsql:
+                condition: service_healthy
+            redis:
+                condition: service_healthy
+            mqtt:
+                condition: service_healthy
     mailpit:
         image: "axllent/mailpit:latest"
         ports:
@@ -91,7 +99,7 @@ services:
         networks:
             - sail
     mqtt:
-        image: vernemq/vernemq:2.0.0
+        image: vernemq/vernemq:2.1.1
         restart: unless-stopped
         ports:
             - "1883:1883"
@@ -102,7 +110,7 @@ services:
             DOCKER_VERNEMQ_LOG__CONSOLE__LEVEL: info
             # Listeners
             DOCKER_VERNEMQ_LISTENER__TCP__DEFAULT: "0.0.0.0:1883"
-            DOCKER_VERNEMQ_LISTENER__TCP__LOCALHOST: "off"
+            DOCKER_VERNEMQ_LISTENER__TCP__LOCALHOST: "127.0.0.1:0"
             # Enable webhooks; disable DB/file auth plugins
             DOCKER_VERNEMQ_PLUGINS__VMQ_WEBHOOKS: "on"
             DOCKER_VERNEMQ_PLUGINS__VMQ_DIVERSITY: "off"

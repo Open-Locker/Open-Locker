@@ -26,6 +26,7 @@ class MqttListen extends Command
     public function handle(): int
     {
         $this->info('Starting MQTT listener...');
+        Log::info('Starting MQTT listener...');
 
         try {
             $mqtt = MQTT::connection('listener');
@@ -56,6 +57,7 @@ class MqttListen extends Command
                 $this->heartbeatHandler->handle($topic, $payload);
             }, 1);
 
+            // Keep the client loop alive and allow internal sleep to avoid busy-waiting
             $mqtt->loop(true);
 
             return Command::SUCCESS;

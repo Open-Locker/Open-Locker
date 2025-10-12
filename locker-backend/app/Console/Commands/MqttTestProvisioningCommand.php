@@ -93,8 +93,9 @@ class MqttTestProvisioningCommand extends Command
                 ],
             ]);
 
-            $host = config('mqtt-client.connections.default.host', 'mosquitto');
-            $port = (int) config('mqtt-client.connections.default.port', 1883);
+            // Connect the simulated device to the same broker host/port as our listener
+            $host = (string) config('mqtt-client.connections.listener.host', 'mqtt');
+            $port = (int) config('mqtt-client.connections.listener.port', 1883);
 
             $settings = (new ConnectionSettings)
                 ->setUsername($lockerUuid)

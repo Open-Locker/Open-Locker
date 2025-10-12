@@ -11,6 +11,7 @@ use App\Http\Requests\Vmq\AuthOnSubscribeRequest;
 use App\Models\MqttUser;
 use App\Services\VmqAclService;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Facades\Log;
 
 class VmqWebhookController extends Controller
 {
@@ -21,6 +22,8 @@ class VmqWebhookController extends Controller
      */
     private function ok(array $modifiers = []): JsonResponse
     {
+        Log::info('Ok', ['modifiers' => $modifiers]);
+
         return empty($modifiers)
             ? response()->json(['result' => 'ok'])
             : response()->json(['modifiers' => $modifiers, 'result' => 'ok']);
@@ -31,6 +34,8 @@ class VmqWebhookController extends Controller
      */
     private function notAllowed(string $error = 'not_allowed'): JsonResponse
     {
+        Log::info('Not allowed', ['error' => $error]);
+
         return response()->json(['result' => 'error', 'error' => $error]);
     }
 
