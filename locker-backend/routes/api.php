@@ -4,10 +4,9 @@ use App\Http\Controllers\AdminController;
 use App\Http\Controllers\AppInfoController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\ItemController;
-use App\Http\Controllers\LockerController;
-use App\Http\Controllers\Mqtt\VmqWebhookController;
+use App\Http\Controllers\Mqtt\MosquittoAuthController;
 use App\Http\Middleware\AdminMiddleware;
-use App\Http\Middleware\VerifyVmqWebhookAuth;
+use App\Http\Middleware\VerifyMosqHttpAuth;
 use Illuminate\Support\Facades\Route;
 
 // Publicly accessible route for API identification
@@ -63,12 +62,12 @@ Route::middleware('auth:sanctum')->group(function () {
     });
 });
 
-// VerneMQ Webhook endpoints (secured via Basic Auth middleware)
-Route::prefix('vmq')->group(function () {
-    Route::post('auth_on_register', [VmqWebhookController::class, 'authOnRegister'])
-        ->middleware(VerifyVmqWebhookAuth::class);
-    Route::post('auth_on_subscribe', [VmqWebhookController::class, 'authOnSubscribe'])
-        ->middleware(VerifyVmqWebhookAuth::class);
-    Route::post('auth_on_publish', [VmqWebhookController::class, 'authOnPublish'])
-        ->middleware(VerifyVmqWebhookAuth::class);
+// Mosquitto HTTP auth endpoints (secured via Basic Auth middleware)
+Route::prefix('mosq')->group(function () {
+    Route::post('auth', [MosquittoAuthController::class, 'auth'])
+        ->middleware(VerifyMosqHttpAuth::class);
+    Route::post('superuser', [MosquittoAuthController::class, 'superuser'])
+        ->middleware(VerifyMosqHttpAuth::class);
+    Route::post('acl', [MosquittoAuthController::class, 'acl'])
+        ->middleware(VerifyMosqHttpAuth::class);
 });

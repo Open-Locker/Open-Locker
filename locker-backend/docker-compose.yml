@@ -17,6 +17,9 @@ services:
             XDEBUG_MODE: "${SAIL_XDEBUG_MODE:-off}"
             XDEBUG_CONFIG: "${SAIL_XDEBUG_CONFIG:-client_host=host.docker.internal}"
             IGNITION_LOCAL_SITES_PATH: "${PWD}"
+            DB_HOST: pgsql
+            REDIS_HOST: redis
+            MQTT_BROKER_HOST: mqtt
         volumes:
             - ".:/var/www/html"
         networks:
@@ -43,6 +46,9 @@ services:
         environment:
             WWWUSER: "${WWWUSER}"
             LARAVEL_SAIL: 1
+            DB_HOST: pgsql
+            REDIS_HOST: redis
+            MQTT_BROKER_HOST: mqtt
         command: "php artisan queue:work --queue=default --tries=3 --timeout=90"
         volumes:
             - ".:/var/www/html"
@@ -54,13 +60,16 @@ services:
             redis:
                 condition: service_healthy
             mqtt:
-                condition: service_healthy
+                condition: service_started
     event-worker:
         image: sail-8.4/app
         restart: unless-stopped
         environment:
             WWWUSER: "${WWWUSER}"
             LARAVEL_SAIL: 1
+            DB_HOST: pgsql
+            REDIS_HOST: redis
+            MQTT_BROKER_HOST: mqtt
         command: "php artisan queue:work --queue=events --tries=3 --timeout=90"
         volumes:
             - ".:/var/www/html"
@@ -72,13 +81,16 @@ services:
             redis:
                 condition: service_healthy
             mqtt:
-                condition: service_healthy
+                condition: service_started
     mqtt-listener:
         image: sail-8.4/app
         restart: unless-stopped
         environment:
             WWWUSER: "${WWWUSER}"
             LARAVEL_SAIL: 1
+            DB_HOST: pgsql
+            REDIS_HOST: redis
+            MQTT_BROKER_HOST: mqtt
         command: "php artisan mqtt:listen"
         volumes:
             - ".:/var/www/html"
@@ -90,7 +102,7 @@ services:
             redis:
                 condition: service_healthy
             mqtt:
-                condition: service_healthy
+                condition: service_started
     mailpit:
         image: "axllent/mailpit:latest"
         ports:
@@ -99,31 +111,16 @@ services:
         networks:
             - sail
     mqtt:
-        image: vernemq/vernemq:2.1.1
+        image: iegomez/mosquitto-go-auth:latest
         restart: unless-stopped
         ports:
             - "1883:1883"
+        volumes:
+            - "./mosquitto/mosquitto.conf:/etc/mosquitto/mosquitto.conf:ro"
         environment:
-            # General
-            DOCKER_VERNEMQ_ACCEPT_EULA: "yes"
-            DOCKER_VERNEMQ_ALLOW_ANONYMOUS: "off"
-            DOCKER_VERNEMQ_LOG__CONSOLE__LEVEL: info
-            # Listeners
-            DOCKER_VERNEMQ_LISTENER__TCP__DEFAULT: "0.0.0.0:1883"
-            DOCKER_VERNEMQ_LISTENER__TCP__LOCALHOST: "127.0.0.1:0"
-            # Enable webhooks; disable DB/file auth plugins
-            DOCKER_VERNEMQ_PLUGINS__VMQ_WEBHOOKS: "on"
-            DOCKER_VERNEMQ_PLUGINS__VMQ_DIVERSITY: "off"
-            DOCKER_VERNEMQ_PLUGINS__VMQ_PASSWD: "off"
-            DOCKER_VERNEMQ_PLUGINS__VMQ_ACL: "off"
-            # Webhook hooks (use named instances per docs)
-            DOCKER_VERNEMQ_VMQ_WEBHOOKS__WEBHOOK_REG__HOOK: "auth_on_register"
-            DOCKER_VERNEMQ_VMQ_WEBHOOKS__WEBHOOK_SUB__HOOK: "auth_on_subscribe"
-            DOCKER_VERNEMQ_VMQ_WEBHOOKS__WEBHOOK_PUB__HOOK: "auth_on_publish"
-            # Webhook endpoints (Basic Auth in URL)
-            DOCKER_VERNEMQ_VMQ_WEBHOOKS__WEBHOOK_REG__ENDPOINT: "http://${VMQ_WEBHOOK_USER}:${VMQ_WEBHOOK_PASS}@app/api/vmq/auth_on_register"
-            DOCKER_VERNEMQ_VMQ_WEBHOOKS__WEBHOOK_SUB__ENDPOINT: "http://${VMQ_WEBHOOK_USER}:${VMQ_WEBHOOK_PASS}@app/api/vmq/auth_on_subscribe"
-            DOCKER_VERNEMQ_VMQ_WEBHOOKS__WEBHOOK_PUB__ENDPOINT: "http://${VMQ_WEBHOOK_USER}:${VMQ_WEBHOOK_PASS}@app/api/vmq/auth_on_publish"
+            # mosquitto-go-auth plugin is loaded by mosquitto.conf in mounted config
+            # no envs required if using http backend via plugin options
+            TZ: UTC
         networks:
             - sail
         depends_on:

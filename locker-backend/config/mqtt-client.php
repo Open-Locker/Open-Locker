@@ -33,7 +33,7 @@ return [
 
         // Listener connection
         'listener' => [
-            'host' => 'mqtt',
+            'host' => env('MQTT_BROKER_HOST', 'mqtt'),
             'port' => 1883,
             'protocol' => MqttClient::MQTT_3_1_1,
             'client_id' => env('MQTT_CLIENT_ID', 'laravel_backend_listener'),
@@ -58,7 +58,7 @@ return [
         ],
         // Dedicated publisher connection to avoid ClientID clashes with the listener
         'publisher' => [
-            'host' => 'mqtt',
+            'host' => env('MQTT_BROKER_HOST', 'mqtt'),
             'port' => 1883,
             'protocol' => MqttClient::MQTT_3_1_1,
             'client_id' => env('MQTT_PUBLISHER_CLIENT_ID', 'laravel_backend_publisher'),
@@ -75,7 +75,7 @@ return [
 
         // Provisioning connection for testing
         'provisioning' => [
-            'host' => 'mqtt',
+            'host' => env('MQTT_BROKER_HOST', 'mqtt'),
             'port' => 1883,
             'protocol' => MqttClient::MQTT_3_1_1,
             'client_id' => null, // Provisioning clients will use a randomized client ID per session.
@@ -120,8 +120,8 @@ return [
     */
 
     'webhooks' => [
-        'user' => env('VMQ_WEBHOOK_USER', 'vmq'),
-        'pass' => env('VMQ_WEBHOOK_PASS'),
+        'user' => env('MOSQ_HTTP_USER'),
+        'pass' => env('MOSQ_HTTP_PASS'),
     ],
 
 ];
