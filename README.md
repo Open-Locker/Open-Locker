@@ -43,14 +43,23 @@ This is a **monorepo** containing multiple components:
 The system consists of:
 
 - **IoT Hardware**: Raspberry Pi with Modbus communication to physical lockers
+- **MQTT Broker**: Mosquitto with HTTP Authentication (via Laravel backend)
 - **API Backend**: Laravel application managing items, users, and hardware
 - **Mobile App**: Flutter app for borrowing and returning items
 - **Admin Panel**: Filament-based web interface for system management
 
 ## Getting Started
 
-For detailed installation and setup instructions, please see
-[`docs/Installation.md`](docs/Installation.md).
+### Prerequisites
+
+- Docker & Docker Compose
+- [Just](https://github.com/casey/just) (Task Runner) - *Optional, but recommended*
+
+### Installation
+
+For detailed installation and setup instructions, including Cloud Backend and Locker Client setup, please see:
+
+ **[`docs/Installation.md`](docs/Installation.md)**
 
 ## Component Documentation
 
@@ -88,9 +97,10 @@ Detailed system architecture documentation in
 
 - **Backend**: Laravel 11, Filament 3.x, Sanctum, SQLite
 - **Frontend**: Flutter, Dart, OpenAPI-generated client
+- **MQTT**: Mosquitto + mosquitto-go-auth (HTTP Backend)
 - **Hardware**: Modbus TCP/RTU, libmodbus, FFI
 - **Documentation**: Scramble OpenAPI, Mermaid diagrams
-- **Development**: Docker, Laravel Sail, Cursor Rules
+- **Development**: Docker, Laravel Sail, Cursor Rules, Just
 
 ### Project Structure
 
@@ -101,7 +111,8 @@ Open-Locker/
 ├── packages/           # Shared packages
 │   └── locker_api/     # Auto-generated API client
 ├── docs/               # Project documentation
-└── docker-compose.yml  # Development environment
+├── docker-compose.yml  # Development environment
+└── Justfile            # Task runner configuration
 ```
 
 ## Community

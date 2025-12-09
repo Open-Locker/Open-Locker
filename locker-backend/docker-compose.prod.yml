@@ -1,0 +1,159 @@
+services:
+  app:
+    build:
+      context: ./docker/8.4
+      dockerfile: Dockerfile
+      args:
+        WWWGROUP: "1000"
+    image: locker-backend-app:latest
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    ports:
+      - "${APP_PORT:-80}:80"
+    environment:
+      WWWUSER: "1000"
+      LARAVEL_SAIL: 0
+      APP_ENV: production
+      APP_DEBUG: false
+      DB_HOST: db
+      REDIS_HOST: redis
+      MQTT_BROKER_HOST: mqtt
+    volumes:
+      - ".:/var/www/html"
+    networks:
+      - locker-net
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test:
+        - CMD
+        - curl
+        - -f
+        - http://localhost
+      interval: 5s
+      timeout: 5s
+      retries: 5
+  queue-worker:
+    image: locker-backend-app:latest
+    restart: unless-stopped
+    environment:
+      WWWUSER: "1000"
+      APP_ENV: production
+      DB_HOST: db
+      REDIS_HOST: redis
+      MQTT_BROKER_HOST: mqtt
+    command: "php artisan queue:work --queue=default --tries=3 --timeout=90"
+    volumes:
+      - ".:/var/www/html"
+    networks:
+      - locker-net
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      mqtt:
+        condition: service_started
+  event-worker:
+    image: locker-backend-app:latest
+    restart: unless-stopped
+    environment:
+      WWWUSER: "1000"
+      APP_ENV: production
+      DB_HOST: db
+      REDIS_HOST: redis
+      MQTT_BROKER_HOST: mqtt
+    command: "php artisan queue:work --queue=events --tries=3 --timeout=90"
+    volumes:
+      - ".:/var/www/html"
+    networks:
+      - locker-net
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      mqtt:
+        condition: service_started
+  mqtt-listener:
+    image: locker-backend-app:latest
+    restart: unless-stopped
+    environment:
+      WWWUSER: "1000"
+      APP_ENV: production
+      DB_HOST: db
+      REDIS_HOST: redis
+      MQTT_BROKER_HOST: mqtt
+    command: "php artisan mqtt:listen"
+    volumes:
+      - ".:/var/www/html"
+    networks:
+      - locker-net
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      mqtt:
+        condition: service_started
+  mqtt:
+    image: iegomez/mosquitto-go-auth:latest
+    restart: unless-stopped
+    ports:
+      - "1883:1883"
+    volumes:
+      - "./mosquitto/mosquitto.conf:/etc/mosquitto/mosquitto.conf:ro"
+    environment:
+      TZ: UTC
+    networks:
+      - locker-net
+    depends_on:
+      app:
+        condition: service_healthy
+
+  redis:
+    image: "redis:alpine"
+    volumes:
+      - "locker-redis:/data"
+    networks:
+      - locker-net
+    healthcheck:
+      test:
+        - CMD
+        - redis-cli
+        - ping
+      retries: 3
+      timeout: 5s
+  db:
+    image: "postgres:17"
+    environment:
+      PGPASSWORD: "${DB_PASSWORD:-secret}"
+      POSTGRES_DB: "${DB_DATABASE}"
+      POSTGRES_USER: "${DB_USERNAME}"
+      POSTGRES_PASSWORD: "${DB_PASSWORD:-secret}"
+    volumes:
+      - "locker-pgsql:/var/lib/postgresql/data"
+    networks:
+      - locker-net
+    healthcheck:
+      test:
+        - CMD
+        - pg_isready
+        - "-q"
+        - "-d"
+        - "${DB_DATABASE}"
+        - "-U"
+        - "${DB_USERNAME}"
+      retries: 3
+      timeout: 5s
+networks:
+  locker-net:
+    driver: bridge
+volumes:
+  locker-redis:
+    driver: local
+  locker-pgsql:
+    driver: local

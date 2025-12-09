@@ -1,188 +1,161 @@
 # Installation
 
 - [Installation](#installation)
-  - [Raspberry Pi](#raspberry-pi)
-    - [Modbus Configuration](#modbus-configuration)
+  - [Architecture Overview](#architecture-overview)
+  - [Cloud Backend Setup](#cloud-backend-setup)
+  - [Locker Client Setup](#locker-client-setup)
 
-The Open Locker System is split up into multiple components. We try to use
-standard parts and software to make the installation process as easy as
-possible.
+The Open Locker System is split into multiple components. We use Docker to ensure a
+consistent and easy installation process.
 
-## Architecture Overview (New)
+## Architecture Overview
 
-The new architecture consists of two main parts:
+The system consists of two main parts:
 
-1. **Cloud Backend**: A central server running the Laravel application, a
-   database, and the MQTT broker. This is the single source of truth.
-2. **Locker Client**: A lightweight client running on an IoT device (like a
-   Raspberry Pi) at the physical locker location.
+1. **Cloud Backend**: A central server (VPS) running:
+   - Laravel Application (API + Admin Panel)
+   - PostgreSQL Database
+   - Mosquitto MQTT Broker (with HTTP Auth)
+   - Redis & Workers
 
-This guide is split into instructions for these two parts.
+2. **Locker Client**: An IoT device (Raspberry Pi) at the physical locker location
+   running:
+   - Dockerized client software
+   - Modbus communication to locker hardware
+
+This guide provides instructions for setting up both components.
 
 ## Cloud Backend Setup
 
-This setup should be done on a central server (e.g., a VPS).
+This setup is intended for a central server (e.g., VPS, Cloud Instance).
 
 ### 1. Initial Setup
 
-Clone the repository and prepare the environment file:
+Clone the repository and prepare the environment:
 
 ```bash
 git clone https://github.com/Open-Locker/Open-Locker.git
 cd Open-Locker
-cp .env.prod.example .env.prod
+cp locker-backend/.env.example locker-backend/.env
 ```
 
-Edit the `.env.prod` file and generate a new `APP_KEY`:
+Edit `locker-backend/.env` and configure:
+- `APP_URL`: Your server's domain/IP
+- `DB_PASSWORD`: Secure database password
+- `MOSQ_HTTP_USER` & `MOSQ_HTTP_PASS`: Credentials for MQTT Broker <-> Backend communication
+
+### 2. Configure MQTT Authentication
+
+We use `mosquitto-go-auth` to authenticate MQTT clients against the Laravel API.
+
+**Option A: Using `just` (Recommended)**
+
+Use the provided task runner to generate the configuration automatically:
 
 ```bash
-openssl rand -base64 32
+# Ensure you have 'just' installed
+just setup-mqtt
 ```
 
-### 2. Start Services
+**Option B: Manual Setup (No Shell Access/No Just)**
 
-Start all backend services using Docker Compose:
+If you cannot use `just`, you must manually configure the Auth Header:
+
+1. Generate the Base64 string of your credentials:
+   ```bash
+   echo -n "YOUR_USER:YOUR_PASS" | base64
+   ```
+2. Create `locker-backend/mosquitto/mosquitto.conf` by copying the example.
+3. Add/Update the following line at the end of `mosquitto.conf`:
+   ```conf
+   auth_opt_http_extra_headers Authorization: Basic YOUR_BASE64_STRING
+   ```
+4. Restart the Mosquitto container.
+
+### 3. Start Services
+
+Start the entire stack using Docker Compose:
 
 ```bash
-docker-compose up -d
+docker compose up -d
 ```
 
-This will start the Laravel application, the worker, and the Mosquitto MQTT
-broker.
+### 4. Create Admin User
 
-### 3. Mosquitto Production Configuration
+Once the services are running, create your first admin user:
 
-For security reasons, the default passwords in
-`docker/mosquitto/config/password.conf` must be changed and hashed for
-production use.
+```bash
+docker compose exec app php artisan filament:user
+```
 
-**How to create secure users:**
+You can now access the Admin Panel at `https://your-domain.com/admin`.
 
-1. Ensure the Mosquitto container is running (`docker-compose up -d mosquitto`).
-2. Use `docker-compose exec` to run the `mosquitto_passwd` utility inside the
-   container. This command will create a new password file and add the first
-   user.
-   ```bash
-   docker-compose exec mosquitto mosquitto_passwd -c /mosquitto/config/password.conf -b laravel_backend your_very_secure_password_for_laravel
-   ```
-3. Add the `provisioning_client` user to the existing file.
-   ```bash
-   docker-compose exec mosquitto mosquitto_passwd -b /mosquitto/config/password.conf provisioning_client your_secure_password_for_provisioning
-   ```
-4. The `password.conf` file on your host machine will now contain the usernames
-   with hashed passwords.
-5. You should also update the `MQTT_PASSWORD` variable in your `.env.prod` file
-   to match the password you set for the `laravel_backend` user.
+---
 
 ## Locker Client Setup (Raspberry Pi)
 
-The Open Locker System is designed to run on a Raspberry Pi, which serves as the
-central controller for the locker system. The software components are
-containerized using Docker, allowing for easy deployment and management of the
-services.
+> 🚧 **Work in Progress**: The dedicated Locker Client application is currently under development.
+> Detailed setup instructions and the client software package will follow in an upcoming release.
+>
+> Currently, the hardware integration logic resides within the backend codebase for testing purposes.
 
-To setup the Raspberry Pi use a Tool like
-[Raspberry Pi Imager](https://www.raspberrypi.com/software/) to install the
-latest version of Raspberry Pi OS Lite on a microSD card.
+The Raspberry Pi serves as the local controller for the lockers. It connects to
+the Cloud Backend via MQTT and controls the hardware via Modbus.
 
-After the installation, you can use SSH to connect to the Raspberry Pi. Make
-sure to enable SSH in the Raspberry Pi settings.
+### Prerequisites
 
-Install docker on the Raspberry Pi by following the instructions on the
-[Docker website](https://docs.docker.com/engine/install/debian/).
+- Raspberry Pi 3/4/5 or Zero 2 W
+- Raspberry Pi OS Lite (64-bit recommended)
+- Docker & Docker Compose installed
 
-After installing Docker, you can install Docker Compose by following the
-instructions on the
-[Docker Compose website](https://docs.docker.com/compose/install/).
+### 1. Setup
 
-Once Docker and Docker Compose are installed, you can clone the Open Locker
-System repository and navigate to the project directory:
+Clone the repository on the Pi:
 
 ```bash
 git clone https://github.com/Open-Locker/Open-Locker.git
-cd Open-Locker
+cd Open-Locker/locker-client  # (Assuming client code path)
 ```
 
-To configure the application, you need to create a `.env.prod` file in the
-project directory. You can use the provided `.env.prod.example` file as a
-template:
+*(Note: If you are using the mono-repo, navigate to the appropriate client directory)*
 
-```bash
-cp .env.prod.example .env.prod
+### 2. Configuration
+
+Create a `.env` file for the client:
+
+```env
+MQTT_BROKER_HOST=your-cloud-backend.com
+MQTT_BROKER_PORT=1883
+MQTT_USERNAME=provisioning_client  # Initial provisioning user
+MQTT_PASSWORD=your_provisioning_password
+LOCKER_ID=unique-locker-id
 ```
 
-You can then edit the `.env.prod` file to set the necessary environment
-variables for your setup. The property `APP_KEY` is required and should be a
-random string. You can generate a random key using the following command:
+### 3. Modbus Hardware Configuration
 
-```bash
-openssl rand -base64 32
-```
+Configure the hardware interface in `.env` depending on your connection type:
 
-### Modbus Configuration
-
-Open Locker supports Modbus TCP and RTU.
-
-The driver is selected using the `MODBUS_DRIVER` environment variable in the
-`.env.prod` file. The available options are `tcp` for Modbus TCP and `rtu` for
-Modbus RTU.
-
-```bash
+**Option A: Modbus TCP (Networked)**
+```env
 MODBUS_DRIVER=tcp
-```
-
-TCP Settings
-
-You need to set the following environment variables in your `.env.prod` file for
-Modbus TCP:
-
-These are the default settings for Modbus TCP, you can change them according to
-your setup:
-
-```bash
-MODBUS_TCP_IP=127.0.0.1
+MODBUS_TCP_IP=192.168.1.100
 MODBUS_TCP_PORT=502
-MODBUS_LIB_PATH=/lib/aarch64-linux-gnu/libmodbus.so.5
-MODBUS_TCP_SLAVE=1
 ```
 
-For Modbus RTU, you need to set the following environment variables in your
-`.env.prod` file:
-
-These are the default settings for Modbus RTU, you can change them according to
-your setup:
-
-```bash
+**Option B: Modbus RTU (USB/Serial)**
+```env
+MODBUS_DRIVER=rtu
 MODBUS_RTU_DEVICE=/dev/ttyUSB0
 MODBUS_RTU_BAUD=9600
 MODBUS_RTU_PARITY=N
 MODBUS_RTU_DATA_BITS=8
 MODBUS_RTU_STOP_BITS=1
-MODBUS_LIB_PATH=/lib/aarch64-linux-gnu/libmodbus.so.5
-MODBUS_RTU_SLAVE=1
 ```
 
-Next, you can start the services using Docker Compose:
+### 4. Start Client
 
 ```bash
-docker-compose up -d
+docker compose up -d
 ```
 
-This command will start all the services defined in the `docker-compose.yml`
-file in detached mode. You can check the status of the services using:
-
-```bash
-docker-compose ps
-```
-
-To stop the services, you can use:
-
-```bash
-docker-compose down
-```
-
-You can also check the logs of the services using:
-
-```bash
-docker-compose logs -f
-```
+The client will connect to the Cloud Backend, authenticate, and listen for commands.
