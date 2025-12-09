@@ -8,15 +8,8 @@
         "framework"
     ],
     "license": "MIT",
-    "repositories": [
-        {
-            "type": "path",
-            "url": "packages/OpenLocker/php-modbus-ffi"
-        }
-    ],
     "require": {
         "php": "^8.2",
-        "ext-ffi": "*",
         "dedoc/scramble": "^0.12.6",
         "filament/filament": "^3.3",
         "laravel/framework": "^11.31",
