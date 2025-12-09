@@ -134,6 +134,7 @@ services:
       - "1883:1883"
     volumes:
       - "./mosquitto/mosquitto.conf:/etc/mosquitto/mosquitto.conf:ro"
+      - "locker-mqtt-data:/mosquitto/data"
     environment:
       TZ: UTC
     networks:
@@ -186,4 +187,6 @@ volumes:
   locker-pgsql:
     driver: local
   locker-storage:
+    driver: local
+  locker-mqtt-data:
     driver: local

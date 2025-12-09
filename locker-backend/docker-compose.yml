@@ -142,6 +142,7 @@ services:
             - "1883:1883"
         volumes:
             - "./mosquitto/mosquitto.conf:/etc/mosquitto/mosquitto.conf:ro"
+            - "locker-mqtt-data:/mosquitto/data"
         environment:
             # mosquitto-go-auth plugin is loaded by mosquitto.conf in mounted config
             # no envs required if using http backend via plugin options
@@ -200,4 +201,6 @@ volumes:
     sail-redis:
         driver: local
     sail-pgsql:
+        driver: local
+    locker-mqtt-data:
         driver: local
