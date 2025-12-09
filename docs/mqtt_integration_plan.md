@@ -31,15 +31,15 @@ auth_opt_backends http
 
 auth_opt_http_host app
 auth_opt_http_port 8080
-auth_opt_http_getuser_uri /api/mosq/auth
-auth_opt_http_superuser_uri /api/mosq/superuser
-auth_opt_http_aclcheck_uri /api/mosq/acl
+auth_opt_http_getuser_uri /api/mosq/auth?mosq_secret=change_me_securely
+auth_opt_http_superuser_uri /api/mosq/superuser?mosq_secret=change_me_securely
+auth_opt_http_aclcheck_uri /api/mosq/acl?mosq_secret=change_me_securely
 auth_opt_http_with_tls false
 auth_opt_http_params_mode json
 ```
 
 Die HTTP-Endpunkte werden im Laravel Backend über den
-`MosquittoAuthController` bereitgestellt und prüfen:
+`MosquittoAuthController` bereitgestellt und prüfen das Secret (`mosq_secret`) sowie:
 
 - **Auth** (`/api/mosq/auth`) – Benutzername/Passwort
 - **Superuser** (`/api/mosq/superuser`) – Admin-Rechte für spezielle Clients

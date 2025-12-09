@@ -59,18 +59,17 @@ just setup-mqtt
 
 **Option B: Manual Setup (No Shell Access/No Just)**
 
-If you cannot use `just`, you must manually configure the Auth Header:
+If you cannot use `just`, you must manually configure the Auth Secret:
 
-1. Generate the Base64 string of your credentials:
-   ```bash
-   echo -n "YOUR_USER:YOUR_PASS" | base64
-   ```
-2. Create `locker-backend/mosquitto/mosquitto.conf` by copying the example.
-3. Add/Update the following line at the end of `mosquitto.conf`:
+1. Create `locker-backend/mosquitto/mosquitto.conf` by copying the example.
+2. Update the webhook URIs in `mosquitto.conf` to include your `MOSQ_HTTP_PASS` as a secret token:
    ```conf
-   auth_opt_http_extra_headers Authorization: Basic YOUR_BASE64_STRING
+   auth_opt_http_getuser_uri /api/mosq/auth?mosq_secret=YOUR_SECURE_PASSWORD
+   auth_opt_http_superuser_uri /api/mosq/superuser?mosq_secret=YOUR_SECURE_PASSWORD
+   auth_opt_http_aclcheck_uri /api/mosq/acl?mosq_secret=YOUR_SECURE_PASSWORD
    ```
-4. Restart the Mosquitto container.
+   *(Replace `YOUR_SECURE_PASSWORD` with the value of `MOSQ_HTTP_PASS` from your `.env`)*
+3. Restart the Mosquitto container.
 
 ### 3. Start Services
 
