@@ -23,6 +23,7 @@ services:
             DB_HOST: pgsql
             REDIS_HOST: redis
             MQTT_BROKER_HOST: mqtt
+            PHP_FPM_CLEAR_ENV: "no"
         volumes:
             - ".:/var/www/html"
         networks:

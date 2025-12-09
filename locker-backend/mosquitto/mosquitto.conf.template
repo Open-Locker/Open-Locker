@@ -10,19 +10,16 @@ auth_opt_backends http
 
 # HTTP Backend Config
 auth_opt_http_host app
-auth_opt_http_port 80
-auth_opt_http_getuser_uri /api/mosq/auth
-auth_opt_http_superuser_uri /api/mosq/superuser
-auth_opt_http_aclcheck_uri /api/mosq/acl
+auth_opt_http_port 8080
+auth_opt_http_getuser_uri /api/mosq/auth?mosq_secret=__AUTH_PASS__
+auth_opt_http_superuser_uri /api/mosq/superuser?mosq_secret=__AUTH_PASS__
+auth_opt_http_aclcheck_uri /api/mosq/acl?mosq_secret=__AUTH_PASS__
 auth_opt_http_with_tls false
 auth_opt_http_timeout 3
 auth_opt_http_params_mode json
 auth_opt_http_getuser_method post
 auth_opt_http_superuser_method post
 auth_opt_http_aclcheck_method post
-
-# Generated Auth Header
-auth_opt_http_extra_headers Authorization: Basic __AUTH_TOKEN__
 
 log_dest stdout
 log_type error warning notice information

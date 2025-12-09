@@ -11,19 +11,15 @@ setup-mqtt:
         export $(grep -v '^#' locker-backend/.env | xargs)
     fi
 
-    USER="${MOSQ_HTTP_USER:-admin}"
+
     PASS="${MOSQ_HTTP_PASS:-secret}"
 
-    if [ -z "$USER" ] || [ -z "$PASS" ]; then
-        echo "Error: MOSQ_HTTP_USER or MOSQ_HTTP_PASS not set in .env"
+    if [ -z "$PASS" ]; then
+        echo "Error: MOSQ_HTTP_PASS not set in .env"
         exit 1
     fi
 
-    # Generate Base64 string
-    # Mac/Linux compatible base64 (handling optional newline difference)
-    AUTH_TOKEN=$(printf "$USER:$PASS" | base64 | tr -d '\n')
-
-    echo "Generating Mosquitto config with Basic Auth for user: $USER"
+    echo "Generating Mosquitto config with Secret Token"
 
     # Path to config template and target
     TEMPLATE="locker-backend/mosquitto/mosquitto.conf.template"
@@ -35,8 +31,8 @@ setup-mqtt:
         exit 1
     fi
 
-    # Replace __AUTH_TOKEN__ in template and write to target
-    sed "s|__AUTH_TOKEN__|$AUTH_TOKEN|g" "$TEMPLATE" > "$TARGET"
+    # Replace __AUTH_PASS__ in template and write to target
+    sed "s|__AUTH_PASS__|$PASS|g" "$TEMPLATE" > "$TARGET"
 
     echo "Config generated at $TARGET"
     echo "Restarting MQTT container..."

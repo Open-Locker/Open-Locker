@@ -11,32 +11,40 @@ use Illuminate\Support\Facades\Log;
 class VerifyMosqHttpAuth
 {
     /**
-     * Ensure requests come from Mosquitto HTTP auth plugin using Basic Auth credentials.
+     * Ensure requests come from Mosquitto HTTP auth plugin using Secret Token.
      */
     public function handle(Request $request, Closure $next)
     {
-        $configUser = (string) config('mqtt-client.webhooks.user');
-        $configPass = (string) config('mqtt-client.webhooks.pass');
+        // We use the MOSQ_HTTP_PASS as the shared secret token
+        $expectedSecret = (string) config('mqtt-client.webhooks.pass');
 
-        // Safety check: If no credentials are configured in the backend, deny everything.
-        if ($configUser === '' || $configPass === '') {
-            Log::critical('Mosquitto Webhook Auth failed: No credentials configured in env (MOSQ_HTTP_USER/PASS).');
+        // Safety check
+        if ($expectedSecret === '') {
+            Log::critical('Mosquitto Webhook Auth failed: No credentials configured in env (MOSQ_HTTP_PASS).');
 
             return response()->json(['allow' => false, 'error' => 'Server misconfiguration'], 500);
         }
 
-        $requestUser = (string) $request->getUser();
-        $requestPass = (string) $request->getPassword();
+        // 1. Try Query Parameter (?mosq_secret=...)
+        $providedSecret = $request->query('mosq_secret');
 
-        if ($requestUser === '' || $requestPass === '') {
-            return response()->json(['allow' => false, 'error' => 'Unauthorized'], 401);
+        // 2. Fallback: Try Basic Auth Password (User is ignored)
+        if (! $providedSecret) {
+            $providedSecret = $request->getPassword();
+        }
+
+        if (! $providedSecret) {
+            // Only log warning if it's NOT a health check or internal call
+            Log::warning('Mosquitto Auth: No secret provided. URL: '.$request->fullUrl());
+
+            return response()->json(['allow' => false, 'error' => 'Unauthorized - No Secret'], 401);
         }
 
         // Use hash_equals to prevent timing attacks
-        if (! hash_equals($configUser, $requestUser) || ! hash_equals($configPass, $requestPass)) {
-            Log::warning("Mosquitto Webhook Auth failed: Invalid credentials for user '{$requestUser}'");
+        if (! hash_equals($expectedSecret, (string) $providedSecret)) {
+            Log::warning('Mosquitto Auth: Invalid secret provided.');
 
-            return response()->json(['allow' => false, 'error' => 'Unauthorized'], 401);
+            return response()->json(['allow' => false, 'error' => 'Unauthorized - Invalid Secret'], 401);
         }
 
         return $next($request);
