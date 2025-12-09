@@ -74,10 +74,16 @@ If you cannot use `just`, you must manually configure the Auth Header:
 
 ### 3. Start Services
 
-Start the entire stack using Docker Compose:
+Start the backend stack using Docker Compose from the `locker-backend` directory:
 
 ```bash
+cd locker-backend
+
+# Development (local)
 docker compose up -d
+
+# Production (on server)
+docker compose -f docker-compose.prod.yml up -d
 ```
 
 ### 4. Create Admin User

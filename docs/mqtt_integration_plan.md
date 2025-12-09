@@ -12,60 +12,57 @@ Open-Locker Backend, um eine verteilte Architektur zu ermöglichen.
 
 ## 2. MQTT Broker: Mosquitto Setup
 
-Wir werden Mosquitto als Docker-Container in unsere `docker-compose.yml`
-integrieren.
+Wir verwenden Mosquitto als Docker-Container in unserer `docker-compose.yml`
+und binden das Plugin **mosquitto-go-auth** ein, das die Authentifizierung und
+Autorisierung über das Laravel Backend per HTTP übernimmt.
 
 ### Konfiguration (`mosquitto.conf`)
 
-Die Konfiguration wird in einer separaten Datei gemountet und beinhaltet:
+Die Konfiguration wird in einer separaten Datei gemountet und beinhaltet u.a.:
 
 ```conf
-# Standard-Listener für MQTT ohne Verschlüsselung
-listener 1883
+per_listener_settings true
+listener 1883 0.0.0.0
 
-# Deaktiviert anonymen Zugriff, alle Clients müssen sich authentifizieren
 allow_anonymous false
 
-# Pfade zur Passwort- und ACL-Datei
-password_file /mosquitto/config/password.conf
-acl_file /mosquitto/config/acl.conf
+auth_plugin /mosquitto/go-auth.so
+auth_opt_backends http
+
+auth_opt_http_host app
+auth_opt_http_port 8080
+auth_opt_http_getuser_uri /api/mosq/auth
+auth_opt_http_superuser_uri /api/mosq/superuser
+auth_opt_http_aclcheck_uri /api/mosq/acl
+auth_opt_http_with_tls false
+auth_opt_http_params_mode json
 ```
 
-### Sicherheit: Authentifizierung & ACLs
+Die HTTP-Endpunkte werden im Laravel Backend über den
+`MosquittoAuthController` bereitgestellt und prüfen:
 
-Die Sicherheit ist entscheidend, um die Kommunikation zwischen Backend und den
-vielen Locker-Clients zu schützen.
+- **Auth** (`/api/mosq/auth`) – Benutzername/Passwort
+- **Superuser** (`/api/mosq/superuser`) – Admin-Rechte für spezielle Clients
+- **ACL** (`/api/mosq/acl`) – Lese-/Schreibrechte auf Topics
 
-**Authentifizierung (`password.conf`)**: Jeder Client (Backend, jeder einzelne
-Locker) erhält eigene Zugangsdaten. Die Passwörter werden gehasht mit
-`mosquitto_passwd` gespeichert.
+Damit bildet Laravel auch die frühere ACL-Logik ab:
 
-**Autorisierung (`acl.conf`)**: Wir nutzen das mächtige ACL-System von
-Mosquitto, um die Berechtigungen feingranular zu steuern.
+- **Backend (`laravel_backend` o.Ä.)**  
+  - Darf alle relevanten Topics lesen und schreiben, z.B. `locker/#`.  
+  - Kann Befehle an alle Locker senden und Status von allen empfangen.
 
-```conf
-# Das Laravel Backend hat uneingeschränkten Zugriff auf alle Topics.
-# Es muss Befehle an alle Locker senden und Status von allen empfangen können.
-user laravel_backend
-topic readwrite locker/#
+- **Einzelner Locker-Client**  
+  - Darf **nur seine eigenen Topics** verwenden, typischerweise:
+    - lesen: `locker/{locker_id}/command`
+    - schreiben: `locker/{locker_id}/status` und `locker/{locker_id}/state`  
+  - Der effektive Namensraum wird aus der in der Datenbank hinterlegten Locker-ID
+    bzw. dem MQTT-Benutzernamen abgeleitet.
 
-# Ein spezifischer Locker-Client kann nur auf seine eigenen, zugewiesenen Topics zugreifen.
-# Wir verwenden das '%u' Pattern, das Mosquitto automatisch durch den Benutzernamen des Clients ersetzt.
-# Dies ermöglicht eine skalierbare Konfiguration, ohne für jeden neuen Locker die Datei anpassen zu müssen.
-# Der Benutzername eines Locker-Clients entspricht seiner eindeutigen ID (z.B. UUID).
-pattern read locker/%u/command
-pattern write locker/%u/status
-pattern write locker/%u/state
-
-# --- NEU: Sicherere Regeln für den Provisioning-Client ---
-# Dieser User darf sich nur für die Registrierung melden und auf die Antwort lauschen.
-user provisioning_client
-# Darf eine Anfrage an irgendein register-Topic senden
-topic write locker/register/+
-# Darf NUR auf dem Antwort-Topic lauschen, das seine EIGENE Client-ID enthält.
-# Client "client-1" kann NICHT auf "locker/provisioning/reply/client-2" lauschen.
-topic read locker/provisioning/reply/%c
-```
+- **Provisioning-Client (`provisioning_client`)**  
+  - Darf Registrierungen senden, z.B. auf `locker/register/+`.  
+  - Darf nur auf sein eigenes Antwort-Topic hören,
+    z.B. `locker/provisioning/reply/{client_id}`.  
+  - So kann ein Client nicht die Antworten eines anderen Clients abonnieren.
 
 ## 3. Laravel Backend Integration
 

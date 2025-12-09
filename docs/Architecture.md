@@ -45,12 +45,11 @@ graph TB
     
     subgraph "Data Layer"
         Models["Eloquent Models<br/>(User, Item, Locker, ItemLoan)"]
-        SQLite["SQLite Database<br/>(locker.db)"]
+        PostgresDB["PostgreSQL Database<br/>(Docker)"]
     end
     
     subgraph "Hardware Communication"
-        ModbusFFI["Custom Modbus FFI Package<br/>(OpenLocker/php-modbus-ffi)"]
-        LibModbus["LibModbus Library<br/>(C Library)"]
+        MqttBridge["MQTT Bridge<br/>(Mosquitto + Locker Client)"]
     end
     
     subgraph "IoT Hardware"
@@ -88,12 +87,11 @@ graph TB
     ItemService --> Models
     LockerService --> Models
     AdminService --> Models
-    Models --> SQLite
+    Models --> PostgresDB
     
-    %% Hardware Communication
-    LockerService --> ModbusFFI
-    ModbusFFI --> LibModbus
-    LibModbus -->|TCP/RTU Protocol| RaspberryPi
+    %% Hardware Communication (via MQTT + Locker Client)
+    LockerService --> MqttBridge
+    MqttBridge --> RaspberryPi
     RaspberryPi --> ModbusUnits
     ModbusUnits --> PhysicalLockers
     
@@ -130,7 +128,7 @@ graph TB
 
 - **Framework**: Laravel 11 with PHP 8.4+
 - **Authentication**: Laravel Sanctum für API-Token-basierte Authentifizierung
-- **Database**: SQLite für Entwicklung, PostgreSQL/MySQL für Produktion möglich
+- **Database**: PostgreSQL (Docker) als Standard, SQLite für Tests/Kleininstallationen
 - **Admin Panel**: Filament 3.x für administrative Aufgaben
 
 #### Flutter Mobile App (locker_app/)
@@ -141,7 +139,7 @@ graph TB
 
 #### Hardware Integration
 
-- **Modbus Communication**: Custom FFI-Package für direkte C-Library-Bindung
+- **Modbus Communication**: Über einen dedizierten Locker Client, der per Modbus mit der Hardware spricht
 - **Protocols**: Sowohl Modbus TCP als auch RTU unterstützt
 - **Hardware**: Raspberry Pi als IoT Gateway zu physischen Schließfächern
 
