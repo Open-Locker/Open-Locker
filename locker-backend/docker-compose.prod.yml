@@ -1,11 +1,7 @@
 services:
   app:
-    build:
-      context: .
-      dockerfile: docker/8.4/Dockerfile
-      args:
-        WWWGROUP: "1000"
-    image: locker-backend-app:latest
+    # Use pre-built image from GitHub Container Registry in production
+    image: ghcr.io/open-locker/locker-backend:${BACKEND_IMAGE_TAG:-latest}
     extra_hosts:
       - "host.docker.internal:host-gateway"
     ports:
@@ -41,7 +37,7 @@ services:
       timeout: 5s
       retries: 5
   queue-worker:
-    image: locker-backend-app:latest
+    image: ghcr.io/open-locker/locker-backend:${BACKEND_IMAGE_TAG:-latest}
     restart: unless-stopped
     stop_signal: SIGTERM
     environment:
@@ -74,7 +70,7 @@ services:
       timeout: 10s
       retries: 3
   event-worker:
-    image: locker-backend-app:latest
+    image: ghcr.io/open-locker/locker-backend:${BACKEND_IMAGE_TAG:-latest}
     restart: unless-stopped
     stop_signal: SIGTERM
     environment:
@@ -106,7 +102,7 @@ services:
       timeout: 10s
       retries: 3
   mqtt-listener:
-    image: locker-backend-app:latest
+    image: ghcr.io/open-locker/locker-backend:${BACKEND_IMAGE_TAG:-latest}
     restart: unless-stopped
     stop_signal: SIGTERM
     environment:
