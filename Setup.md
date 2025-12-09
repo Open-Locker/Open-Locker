@@ -1,91 +1,163 @@
-# Project Setup Guide
+# Project Setup Guide (Dev)
 
-This guide describes the necessary steps to set up and run the project, particularly the backend, locally.
+This guide describes the steps to set up and run the project for **local development**.
+For production deployment, see [`docs/Installation.md`](docs/Installation.md).
 
 ## 1. Prerequisites
 
-Make sure the following tools are installed and running on your system:
+Make sure the following tools are installed on your system:
 
-*   **Docker** 
+- **Docker & Docker Compose**
+- **Git**
+- **Just** (Task runner, optional aber empfohlen):
+  - macOS (Homebrew): `brew install just`
+  - Linux: siehe [Just-Repository](https://github.com/casey/just)
 
-It is recommended to use Docker to handle dependencies like a specific PHP version.
+## 2. Repository klonen
 
-## 2. Getting Started
+```bash
+git clone https://github.com/Open-Locker/Open-Locker.git
+cd Open-Locker
+```
 
-1.  **Clone the repository** from GitHub.
-2.  **Navigate into the project directory**.
+Die Struktur:
 
-The project is structured as a mono-repo and contains directories for the **`backend`**, the **`app`**, and **`packages`** (currently only `locker-api`). The `locker-api` was generated from the OpenAPI specs provided by the backend.
+- `locker-backend/` – Laravel API + Admin Panel
+- `locker_app/` – Flutter App
+- `packages/locker_api/` – generierter Dart API-Client
 
-## 3. Backend Setup (Laravel)
+## 3. Backend Setup (Laravel, Dev mit Sail)
 
-The backend is based on **Laravel** . It is managed via a **`docker-compose.yml` file** that provides all necessary services for local development.
+### 3.1 .env anlegen
 
-1.  **Start the Docker services:**
-    *   Change into the backend directory (`locker-backend`).
-    *   Execute the command:
-        ```bash
-        docker compose up
-        ```
-    *   Make sure Docker is running. This command starts the services defined in `docker-compose.yml`. By default, these include at least **two workers** for the application (one for HTTP requests, one as a background worker) and **Mailpit**. A Selenium container for tests is also defined but might not be necessary depending on the repo version and needs.
+```bash
+cd locker-backend
+cp .env.example .env
+```
 
-2.  **Install Composer Dependencies:**
-    *   PHP dependencies are managed via Composer. Since you likely don't have a local PHP 8.4 instance, you should run Composer through Docker.
-    *   Open a **second terminal window**.
-    *   Run the Composer install command inside the Docker container. The service name for the Laravel backend is typically `laravel-test` (see `docker-compose.yml`).
-        ```bash
-        docker compose exec laravel-test composer install
-        ```
-    *   This might take a moment as dependencies are downloaded. You might need to pull the latest changes from the repository if you encounter issues or have an older version.
+Passe in `.env` mindestens an:
 
-3.  **Create the `.env` Environment File:**
-    *   The project requires a `.env` file for configuration.
-    *   Copy the provided example environment file:
-        ```bash
-        cp example.env .env
-        ```
-    *   Make sure the file is now named `.env` (remove the `.example` part).
-    *   This file contains important settings such as the application URL (defaulting to `localhost`), the app key, mail system configurations, etc. A correct `.env` is crucial to avoid errors (such as operating in production mode).
+- `APP_URL=http://localhost`
+- DB-Einstellungen (Standard ist PostgreSQL aus `docker-compose.yml`)
+- MQTT/HTTP-Auth:
+  - `MOSQ_HTTP_USER`
+  - `MOSQ_HTTP_PASS`
 
-4.  **Set up the Database:**
-    *   The system defaults to using an **SQLite database** for simplicity.
-    *   Create the SQLite file. It should be located in the `database` directory. The file name should be `database.sqlite`.
-        ```bash
-        touch database/database.sqlite
-        ```
-    *   Run the database migrations and populate the database with test data (Seeding). Laravel provides a script called **`sail`** as a wrapper for typical Docker commands, located in `vendor/bin`. You can use `sail` to execute commands within the Docker container. `sail` is an interface to communicate with your Laravel Docker containers.
-        *   Ensure your Docker containers are running with `docker compose up` or `sail up`.
-        *   Execute the migration and seeding command:
-            ```bash
-            sail artisan migrate:fresh --seed
-            ```
-        *   `migrate:fresh` resets the database and runs all migrations again. `--seed` runs the seeders to create demo data, which is especially helpful when working with the app.
+### 3.2 Abhängigkeiten installieren
 
-5.  **Link Storage for Images:**
-    *   Images won't work initially because a system link is missing.
-    *   Create this link using the following command:
-        ```bash
-        sail artisan storage:link
-        ```
-    *   After this, images should be displayed correctly in the app and the admin panel.
+**Variante A: Lokaler Composer (empfohlen, wenn vorhanden)**
 
-## 4. Accessing Running Services
+```bash
+composer install
+```
 
-Once all steps are completed, you should be able to access the different parts of the application:
+**Variante B: Composer im Container ohne Sail (kein lokaler PHP/Composer nötig)**
 
-*   **Laravel Default Page:** The application should be running on port **80**. If you open `localhost` in your browser, you should see the default Laravel welcome page (unless it has been removed).
-*   **Admin Panel:** The admin panel is available under the **`/admin` URL**.
-    *   You can log in with the default data created by the seeder.
-    *   The default username is **`user@example.com`**.
-    *   The default password is **`string`**. These credentials can be found in the seeder file (`database/seeders/DatabaseSeeder.php`).
-*   **API Documentation:** The API documentation is accessible under the **`/docs/api` URL**. Here you can explore and test the REST API endpoints. You can log in with the default user to obtain a token and test authenticated requests (e.g., fetching items).
-*   **Mailpit:** Mailpit intercepts all emails sent by the system (e.g., for user authentication or password resets). You can access the Mailpit interface to review these emails. Mailpit is a system to mock an email sending and receiving server.
+1. Stelle sicher, dass Docker läuft.
+2. Starte die Container einmalig:
 
-## 5. Notes and Troubleshooting
+   ```bash
+   docker compose up -d
+   ```
 
-*   If you encounter **500 errors**, check if the **`.env` file was created correctly**. The missing `.env` file can cause this issue.
-*   If there are issues starting the containers, **pull the latest changes from the repository**, as errors have been fixed and the configuration has been streamlined. You might have an old version and need to pull some changes.
+3. Führe Composer im `app`-Container aus:
 
-## 6. Optional Configuration
+   ```bash
+   docker compose exec app composer install
+   ```
 
-*   **Git Hooks:** The project supports Git hooks, particularly in the backend folder. There is a structure to instantiate hooks, e.g., to check code formatting before committing. While currently not used in the `locker-app`, they are used in the backend folder.
+   Damit werden alle PHP-Abhängigkeiten im Container installiert.
+
+**Variante C: Composer über Docker/Sail (nachdem Composer einmal gelaufen ist)**
+
+Falls du keinen lokalen PHP 8.4 / Composer installieren möchtest:
+
+1. Stelle sicher, dass Docker läuft.
+2. Starte die Container (mindestens einmal), damit Sail verfügbar ist:
+
+   ```bash
+   ./vendor/bin/sail up -d
+   ```
+
+3. Führe Composer im Container über Sail aus:
+
+   ```bash
+   ./vendor/bin/sail composer install
+   ```
+
+   Das installiert alle PHP-Abhängigkeiten innerhalb des Docker-Containers.
+
+### 3.3 Docker/Sail starten
+
+```bash
+./vendor/bin/sail up -d
+```
+
+Dies startet:
+
+- `app` (Laravel)
+- `pgsql` (PostgreSQL)
+- `redis`
+- `mqtt` (Mosquitto mit HTTP-Auth)
+- Worker-Container
+
+### 3.4 Datenbank migrieren & seeden
+
+```bash
+./vendor/bin/sail artisan migrate:fresh --seed
+```
+
+### 3.5 Storage-Link erstellen
+
+```bash
+./vendor/bin/sail artisan storage:link
+```
+
+## 4. MQTT / Mosquitto im Dev-Setup
+
+Für die HTTP-Authentifizierung von Mosquitto gegen das Laravel-Backend nutzen wir
+`mosquitto-go-auth` und eine generierte Config.
+
+### 4.1 Auth-Config mit Just erzeugen
+
+Aus dem Projekt-Root:
+
+```bash
+just setup-mqtt
+```
+
+Das Skript:
+
+- liest `MOSQ_HTTP_USER`/`MOSQ_HTTP_PASS` aus `locker-backend/.env`,
+- erstellt aus dem Template `locker-backend/mosquitto/mosquitto.conf.template`
+  die Datei `locker-backend/mosquitto/mosquitto.conf`,
+- setzt dort den `auth_opt_http_extra_headers`-Eintrag,
+- startet den `mqtt`-Container neu.
+
+## 5. Laufende Services aufrufen
+
+- **Backend (API/Admin)**: `http://localhost`
+- **Admin Panel**: `http://localhost/admin`
+  - Zugangsdaten aus Seeder (`database/seeders/DatabaseSeeder.php`).
+- **API-Doku**: `http://localhost/docs/api`
+- **Mailpit**: `http://localhost:8025`
+
+## 6. Notes und Troubleshooting
+
+- 500-Fehler → `.env` prüfen (APP_KEY, DB-Config, MQTT-Config).
+- Container starten nicht → `git pull` ausführen, dann erneut `./vendor/bin/sail up -d`.
+- MQTT/Auth-Probleme → `just setup-mqtt` erneut ausführen und Logs prüfen:
+  - `./vendor/bin/sail logs mqtt` (bzw. `docker compose logs mqtt` im Backend-Verzeichnis).
+
+## 7. Optionale Konfiguration
+
+- **Git Hooks**: Git Hooks im Projekt installieren:
+
+```bash
+just install-hooks
+```
+
+> TODO: Das komplette Dev-Setup (Sail-Start, Migrationen, Storage-Link, Tests)
+> perspektivisch ebenfalls über `just`-Targets kapseln (z. B. `just dev-up`,
+> `just dev-reset-db`), damit neue Entwickler noch weniger manuelle Schritte
+> benötigen.
