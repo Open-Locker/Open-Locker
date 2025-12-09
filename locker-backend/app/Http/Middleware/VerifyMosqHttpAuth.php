@@ -15,22 +15,28 @@ class VerifyMosqHttpAuth
      */
     public function handle(Request $request, Closure $next)
     {
-        return $next($request);
+        $configUser = (string) config('mqtt-client.webhooks.user');
+        $configPass = (string) config('mqtt-client.webhooks.pass');
 
-        $user = (string) config('mqtt-client.webhooks.user');
-        $pass = (string) config('mqtt-client.webhooks.pass');
+        // Safety check: If no credentials are configured in the backend, deny everything.
+        if ($configUser === '' || $configPass === '') {
+            Log::critical('Mosquitto Webhook Auth failed: No credentials configured in env (MOSQ_HTTP_USER/PASS).');
 
-        Log::info('User: '.$user.' Pass: '.$pass);
-        Log::info('Request: '.$request->headers);
-
-        // Strict mode: both env values must be set and must match incoming Basic Auth
-        if ($user === '' || $pass === '') {
-            return response()->json(['allow' => false, 'ok' => false], 401);
+            return response()->json(['allow' => false, 'error' => 'Server misconfiguration'], 500);
         }
 
-        $provided = $request->getUser() !== null || $request->getPassword() !== null;
-        if (! $provided || $request->getUser() !== $user || $request->getPassword() !== $pass) {
-            return response()->json(['allow' => false, 'ok' => false], 401);
+        $requestUser = (string) $request->getUser();
+        $requestPass = (string) $request->getPassword();
+
+        if ($requestUser === '' || $requestPass === '') {
+            return response()->json(['allow' => false, 'error' => 'Unauthorized'], 401);
+        }
+
+        // Use hash_equals to prevent timing attacks
+        if (! hash_equals($configUser, $requestUser) || ! hash_equals($configPass, $requestPass)) {
+            Log::warning("Mosquitto Webhook Auth failed: Invalid credentials for user '{$requestUser}'");
+
+            return response()->json(['allow' => false, 'error' => 'Unauthorized'], 401);
         }
 
         return $next($request);
