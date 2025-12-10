@@ -23,8 +23,6 @@ services:
       - "locker-storage:/var/www/html/storage/app/public"
       # Persist logs if needed
       # - "locker-logs:/var/www/html/storage/logs"
-    networks:
-      - locker-net
     depends_on:
       db:
         condition: service_healthy
@@ -52,8 +50,6 @@ services:
     # No code volume mount
     volumes:
       - "locker-storage:/var/www/html/storage/app/public"
-    networks:
-      - locker-net
     depends_on:
       app:
         condition: service_healthy
@@ -84,8 +80,6 @@ services:
     command: "php artisan queue:work --queue=events --tries=3 --timeout=90"
     volumes:
       - "locker-storage:/var/www/html/storage/app/public"
-    networks:
-      - locker-net
     depends_on:
       app:
         condition: service_healthy
@@ -116,8 +110,6 @@ services:
     command: "php artisan mqtt:listen"
     volumes:
       - "locker-storage:/var/www/html/storage/app/public"
-    networks:
-      - locker-net
     depends_on:
       app:
         condition: service_healthy
@@ -137,8 +129,6 @@ services:
       - "locker-mqtt-data:/mosquitto/data"
     environment:
       TZ: UTC
-    networks:
-      - locker-net
     depends_on:
       app:
         condition: service_healthy
@@ -147,8 +137,6 @@ services:
     image: "redis:alpine"
     volumes:
       - "locker-redis:/data"
-    networks:
-      - locker-net
     healthcheck:
       test:
         - CMD
@@ -165,8 +153,6 @@ services:
       POSTGRES_PASSWORD: "${DB_PASSWORD:-secret}"
     volumes:
       - "locker-pgsql:/var/lib/postgresql/data"
-    networks:
-      - locker-net
     healthcheck:
       test:
         - CMD
@@ -178,9 +164,6 @@ services:
         - "${DB_USERNAME}"
       retries: 3
       timeout: 5s
-networks:
-  locker-net:
-    driver: bridge
 volumes:
   locker-redis:
     driver: local
