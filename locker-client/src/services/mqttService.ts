@@ -50,35 +50,6 @@ export class MQTTService {
       });
     });
   }
-
-  async subscribeToCommands(): Promise<void> {
-    const client = mqttClientManager.getClient();
-
-    if (!client) {
-      throw new Error("MQTT client is not available");
-    }
-
-    await this.subscribe(mqttConfig.topics.open);
-
-    client.on("message", async (topic, message) => {
-      if (topic === mqttConfig.topics.open) {
-        try {
-          const compartment = JSON.parse(message.toString());
-          await commandHandler.handleOpenCompartment(compartment);
-        } catch (error) {
-          logger.error("Failed to parse or handle command:", error);
-        }
-      }
-    });
-  }
-
-  async publishStatus(status: any): Promise<void> {
-    await this.publish(mqttConfig.topics.status, status);
-  }
-
-  async publishRegistration(lockerData: any): Promise<void> {
-    await this.publish(mqttConfig.topics.registration, lockerData);
-  }
 }
 
 export const mqttService = new MQTTService();

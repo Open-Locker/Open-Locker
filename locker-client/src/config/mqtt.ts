@@ -45,9 +45,4 @@ export const mqttConfig = {
   username: process.env.MQTT_USERNAME,
   password: process.env.MQTT_PASSWORD,
   clientId: getOrGenerateClientId(),
-  topics: {
-    registration: process.env.MQTT_TOPIC_REGISTRATION || "locker/registration",
-    status: process.env.MQTT_TOPIC_STATUS || "locker/simon/status",
-    open: process.env.MQTT_TOPIC_COMMANDS || "locker/simon/open",
-  },
 };

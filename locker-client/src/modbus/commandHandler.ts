@@ -36,28 +36,11 @@ export class CommandHandler {
         const isOpen = coilStatus[0];
         
         logger.debug(`Compartment ${compartmentID} coil status: ${isOpen ? 'OPEN' : 'CLOSED'}`);
-        
-        // Publish status via MQTT
-        await mqttService.publishStatus({
-          status: "monitoring",
-          compartmentID: compartmentID,
-          coilStatus: isOpen ? 'OPEN' : 'CLOSED',
-          timestamp: new Date().toISOString(),
-          action: "coil_monitoring",
-        });
 
         // If compartment is closed, stop monitoring
         if (!isOpen) {
           logger.info(`Compartment ${compartmentID} is now closed. Stopping monitoring.`);
           this.stopCoilMonitoring(compartmentID);
-          
-          // Publish final status
-          await mqttService.publishStatus({
-            status: "closed",
-            compartmentID: compartmentID,
-            timestamp: new Date().toISOString(),
-            action: "compartment_closed",
-          });
         }
       } catch (error) {
         logger.error(`Error monitoring compartment ${compartmentID}:`, error);
@@ -95,12 +78,7 @@ export class CommandHandler {
   }
 
   private async reportError(error: any): Promise<void> {
-    await mqttService.publishStatus({
-      status: "error",
-      error: error.message,
-      timestamp: new Date().toISOString(),
-      action: "error_report",
-    });
+    logger.error("Error reported:", error.message);
   }
 }
 

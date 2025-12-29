@@ -3,7 +3,6 @@ import { logger } from "./helper/logger";
 import { commandHandler } from "./modbus/commandHandler";
 import { mqttClientManager } from "./mqtt/mqttClientManager";
 import { modbusService } from "./services/modbusService";
-import { mqttService } from "./services/mqttService";
 
 async function main() {
   logger.info("Starting the application...");
@@ -21,10 +20,6 @@ async function main() {
     });
 
     logger.info("MQTT connection established");
-
-    // Subscribe to command topic
-    await mqttService.subscribeToCommands();
-    logger.info("Subscribed to command topic");
 
     // Handle graceful shutdown
     process.on("SIGINT", gracefulShutdown);
