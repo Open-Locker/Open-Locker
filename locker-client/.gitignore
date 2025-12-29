@@ -37,3 +37,6 @@ coverage/
 Thumbs.db
 
 app.log
+
+# MQTT persistent client ID
+.mqtt-client-id
