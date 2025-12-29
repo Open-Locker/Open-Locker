@@ -13,10 +13,6 @@ async function main() {
     const isProvisioned = provisioningService.getProvisioningState();
     logger.info(`Locker provisioning status: ${isProvisioned ? "PROVISIONED" : "NOT PROVISIONED"}`);
 
-    // Initialize Modbus RTU connection
-    await modbusService.connect();
-    logger.info("Modbus RTU connection established");
-
     // Initialize MQTT connection
     await mqttClientManager.connect(mqttConfig.brokerUrl, {
       username: mqttConfig.username,
@@ -26,22 +22,30 @@ async function main() {
 
     logger.info("MQTT connection established");
 
+    // Only initialize Modbus if provisioned
+    if (isProvisioned) {
+      await modbusService.connect();
+      logger.info("Modbus RTU connection established");
+
+      // Start monitoring coils
+      setInterval(async () => {
+        try {
+          const coils = await modbusService.readCoils(0x0000, 1);
+          logger.debug("Initial coil status 0:", coils);
+        }
+        catch (error) {
+          logger.error("Error reading initial coil status:", error);
+        }
+      }, 5000); // Read every 5 seconds
+    } else {
+      logger.warn("Locker is not provisioned. Modbus connection skipped.");
+    }
+
     // Handle graceful shutdown
     process.on("SIGINT", gracefulShutdown);
     process.on("SIGTERM", gracefulShutdown);
 
-    logger.info("Application started successfully");
-
-    setInterval(async () => {
-      try {
-        // Read initial coil status
-        const coils = await modbusService.readCoils(0x0000, 1);
-        logger.debug("Initial coil status 0:", coils);
-      }
-      catch (error) {
-        logger.error("Error reading initial coil status:", error);
-      }
-    }, 5000); // Read every 5 seconds
+    logger.info("Application started successfully")
   } catch (error) {
     logger.error("Failed to start application:", error);
     process.exit(1);
