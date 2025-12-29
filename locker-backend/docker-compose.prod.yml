@@ -18,6 +18,7 @@ services:
       DB_HOST: db
       REDIS_HOST: redis
       MQTT_BROKER_HOST: mqtt
+      PHP_OPCACHE_ENABLE: 1
     volumes:
       # Mount storage for persistent file uploads
       - "locker-storage:/var/www/html/storage/app/public"
