@@ -3,11 +3,16 @@ import { logger } from "./helper/logger";
 import { commandHandler } from "./modbus/commandHandler";
 import { mqttClientManager } from "./mqtt/mqttClientManager";
 import { modbusService } from "./services/modbusService";
+import { provisioningService } from "./services/provisioningService";
 
 async function main() {
   logger.info("Starting the application...");
 
   try {
+    // Check provisioning state
+    const isProvisioned = provisioningService.getProvisioningState();
+    logger.info(`Locker provisioning status: ${isProvisioned ? "PROVISIONED" : "NOT PROVISIONED"}`);
+
     // Initialize Modbus RTU connection
     await modbusService.connect();
     logger.info("Modbus RTU connection established");
