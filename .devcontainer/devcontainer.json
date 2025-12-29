@@ -1,7 +1,7 @@
 {
 	"name": "Node.js & TypeScript",
-	"image": "mcr.microsoft.com/devcontainers/typescript-node:1-22-bookworm",
-	"postCreateCommand": "yarn install",
+	"image": "mcr.microsoft.com/devcontainers/typescript-node:24-trixie",
+	"postCreateCommand": "cd locker-client && yarn install",
 	"privileged": true,
 	"remoteUser": "root",
 	"runArgs": [
