@@ -2,6 +2,7 @@ import dotenv from "dotenv";
 import fs from "fs";
 import path from "path";
 import { randomBytes } from "crypto";
+import { credentialsService } from "../services/credentialsService";
 
 dotenv.config();
 
@@ -40,9 +41,25 @@ function getOrGenerateClientId(): string {
   return newClientId;
 }
 
+function getCredentials(): { username?: string; password?: string } {
+  // First try to load persisted credentials
+  const persisted = credentialsService.getCredentials();
+  if (persisted) {
+    return persisted;
+  }
+
+  // Fall back to environment variables
+  return {
+    username: process.env.MQTT_USERNAME,
+    password: process.env.MQTT_PASSWORD,
+  };
+}
+
 export const mqttConfig = {
   brokerUrl: process.env.MQTT_BROKER_URL || "mqtt://localhost:1883",
-  username: process.env.MQTT_USERNAME,
-  password: process.env.MQTT_PASSWORD,
+  defaultUsername: process.env.MQTT_DEFAULT_USERNAME || "default",
+  defaultPassword: process.env.MQTT_DEFAULT_PASSWORD || "default",
+  ...getCredentials(),
   clientId: getOrGenerateClientId(),
+  provisioningToken: process.env.PROVISIONING_TOKEN,
 };
