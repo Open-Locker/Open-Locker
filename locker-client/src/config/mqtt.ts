@@ -62,4 +62,5 @@ export const mqttConfig = {
   ...getCredentials(),
   clientId: getOrGenerateClientId(),
   provisioningToken: process.env.PROVISIONING_TOKEN,
+  heartbeatInterval: parseInt(process.env.HEARTBEAT_INTERVAL || "15", 10) * 1000, // Convert to milliseconds
 };

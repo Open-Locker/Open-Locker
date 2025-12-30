@@ -6,6 +6,7 @@ import { modbusService } from "./services/modbusService";
 import { provisioningService } from "./services/provisioningService";
 import { provisioningRegistrationService } from "./services/provisioningRegistrationService";
 import { credentialsService } from "./services/credentialsService";
+import { heartbeatService } from "./services/heartbeatService";
 
 async function main() {
   logger.info("Starting the application...");
@@ -66,6 +67,9 @@ async function main() {
           });
 
           logger.info("MQTT reconnected with provisioned credentials");
+          
+          // Start heartbeat service
+          heartbeatService.start();
         }
       } catch (error) {
         logger.error("Provisioning failed:", error);
@@ -80,6 +84,9 @@ async function main() {
       });
 
       logger.info("MQTT connection established");
+      
+      // Start heartbeat service
+      heartbeatService.start();
     }
 
     // Only initialize Modbus if provisioned
@@ -116,6 +123,9 @@ async function gracefulShutdown() {
   logger.info("Shutting down gracefully...");
 
   try {
+    // Stop heartbeat service
+    heartbeatService.stop();
+    
     // Stop all compartment monitoring
     commandHandler.stopAllMonitoring();
 
