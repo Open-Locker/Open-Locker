@@ -27,12 +27,12 @@ Dies ist eine Übersicht der anstehenden Aufgaben für den Architektur-Umbau.
 Nächste Schritte
 
 - [ ] Feature: „Fach öffnen“ (Start über Filament)
-  - [ ] Filament-Action (z.B. in `LockerBankResource` →
+  - [x] Filament-Action (z.B. in `LockerBankResource` →
         `CompartmentsRelationManager`): `open_compartment`
-  - [ ] Action triggert Aggregate-Event `CompartmentOpeningRequested`
-  - [ ] Reactor: Publish an `locker/{locker_bank_uuid}/command` (QoS 1)
+  - [x] Action triggert Aggregate-Event `CompartmentOpeningRequested`
+  - [x] Reactor: Publish an `locker/{locker_bank_uuid}/command` (QoS 1)
   - [ ] Projector/Read-Model-Update (optional)
-  - [ ] Tests (Feature + E2E via mosquitto CLI/Artisan)
+  - [x] Tests (Feature + E2E via `mqtt:client-simulator`/Artisan)
 - [ ] Heartbeat-Workflow implementieren (siehe `docs/mqtt_integration_plan.md`)
   - [ ] Listener für `locker/{uuid}/state` (Heartbeat/Telemetrie)
   - [x] Events/Projector: `HeartbeatReceived` → `last_seen`/`online_status`
