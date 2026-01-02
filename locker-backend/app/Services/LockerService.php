@@ -1,20 +1,33 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Services;
 
+use App\Aggregates\LockerBankAggregate;
 use App\Models\Compartment;
 use Illuminate\Support\Facades\Log;
 
 class LockerService
 {
     /**
-     * This method will be responsible for dispatching a command to open a compartment
-     * via MQTT. The actual implementation will be done using Event Sourcing Reactors.
+     * Request opening a compartment via Event Sourcing (Reactor will publish MQTT).
+     *
+     * This is the "simple function" developers can call without knowing the
+     * Event Sourcing / MQTT details.
      */
     public function openCompartment(Compartment $compartment): void
     {
-        Log::info("Dispatching command to open compartment: {$compartment->name} (UUID: {$compartment->uuid})");
-        // In the future, this will be handled by a reactor listening for a 'DoorOpeningRequested' event.
-        // For now, we just log the action.
+        $lockerBankUuid = (string) $compartment->locker_bank_id;
+
+        Log::info('LockerService::openCompartment requested', [
+            'lockerBankUuid' => $lockerBankUuid,
+            'compartmentUuid' => (string) $compartment->id,
+            'compartmentNumber' => (int) $compartment->number,
+        ]);
+
+        LockerBankAggregate::retrieve($lockerBankUuid)
+            ->requestCompartmentOpening($compartment)
+            ->persist();
     }
 }

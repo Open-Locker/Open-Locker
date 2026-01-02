@@ -1,11 +1,16 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Aggregates;
 
+use App\Models\Compartment;
 use App\Models\LockerBank;
+use App\StorableEvents\CompartmentOpeningRequested;
 use App\StorableEvents\LockerProvisioningFailed;
 use App\StorableEvents\LockerWasProvisioned;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 use Spatie\EventSourcing\AggregateRoots\AggregateRoot;
 
 class LockerBankAggregate extends AggregateRoot
@@ -37,6 +42,34 @@ class LockerBankAggregate extends AggregateRoot
             replyToTopic: $replyToTopic,
         ));
         Log::info("LockerWasProvisioned event recorded for: {$lockerBank->id}");
+
+        return $this;
+    }
+
+    /**
+     * Record a request to open a specific compartment within a locker bank.
+     * The actual side-effect (publishing an MQTT command) is handled by a Reactor.
+     */
+    public function requestCompartmentOpening(Compartment $compartment): self
+    {
+        $lockerBankUuid = (string) $compartment->locker_bank_id;
+        $compartmentUuid = (string) $compartment->id;
+        $compartmentNumber = (int) $compartment->number;
+        $commandId = (string) Str::uuid();
+
+        Log::info('Recording CompartmentOpeningRequested event', [
+            'lockerBankUuid' => $lockerBankUuid,
+            'compartmentUuid' => $compartmentUuid,
+            'compartmentNumber' => $compartmentNumber,
+            'commandId' => $commandId,
+        ]);
+
+        $this->recordThat(new CompartmentOpeningRequested(
+            lockerBankUuid: $lockerBankUuid,
+            compartmentUuid: $compartmentUuid,
+            compartmentNumber: $compartmentNumber,
+            commandId: $commandId,
+        ));
 
         return $this;
     }
