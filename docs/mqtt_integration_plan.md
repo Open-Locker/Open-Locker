@@ -99,13 +99,16 @@ nahtlose Integration.
 #### Zuverlässigkeit: QoS und "Last Will"
 
 - **Backend zu Client (Befehle):** Alle kritischen Befehle vom Backend an die
-  Clients werden mit **QoS Level 1** gesendet. Das stellt sicher, dass der
-  Broker die Nachricht speichert, falls ein Client offline ist.
-- **Client zu Backend (Status):** Wichtige Status-Updates von den Clients
-  sollten ebenfalls mit **QoS Level 1** gesendet werden.
-- **Client-Verbindungen:** Die IoT-Clients müssen sich mit der Einstellung
-  **`clean_session = false`** verbinden, damit der Broker ihre Abonnements und
-  verpassten Nachrichten speichert (persistente Session).
+  Clients werden mit **QoS Level 1** gesendet. QoS 1 bedeutet *at least once*:
+  Nachrichten können **dupliziert** zugestellt werden und müssen daher
+  **idempotent** verarbeitet werden.
+- **Client zu Backend (Responses/Events):** Wichtige Antworten und Events von
+  den Clients sollten ebenfalls mit **QoS Level 1** gesendet werden (ebenfalls
+  mit möglicher Duplikation).
+- **Client-Verbindungen (persistente Session):** Die IoT-Clients müssen sich
+  mit der Einstellung **`clean_session = false`** (MQTT v3.1.1) verbinden, damit
+  der Broker ihre Abonnements und ggf. QoS>0 Nachrichten **für die Session**
+  puffern kann, während der Client offline ist.
 - **Backend "Last Will"**: Der Laravel-Client (sowohl Listener als auch
   Publisher) wird so konfiguriert, dass er einen "Last Will" auf dem Topic
   `server/status` mit der Nachricht `{"status": "offline"}` setzt. Dies
@@ -146,12 +149,15 @@ laufenden Prozess.
 1. **Artisan Command**: Wir erstellen ein neues Command, z.B.
    `php artisan mqtt:listen`.
 2. **Subscriber-Logik**: Innerhalb des Commands wird eine Verbindung zum MQTT
-   Broker aufgebaut. Es abonniert die Wildcard-Topics für Status-Updates
-   (`locker/+/status`).
+   Broker aufgebaut. Es abonniert die Wildcard-Topics für Responses, Events und
+   State:
+   - `locker/+/response` (Command Responses, transaktionsgebunden)
+   - `locker/+/event` (spontane Events, nicht transaktionsgebunden)
+   - `locker/+/state` (Snapshot/Telemetry, retained)
    ```php
    // App/Console/Commands/MqttListen.php
    $mqtt = MQTT::connection();
-   $mqtt->subscribe('locker/+/status', function (string $topic, string $message) {
+   $mqtt->subscribe('locker/+/response', function (string $topic, string $message) {
        // Logik zur Verarbeitung der Nachricht:
        // 1. Locker-UUID aus Topic extrahieren.
        // 2. Status in der Datenbank aktualisieren.
@@ -176,15 +182,23 @@ der Payloads für die verschiedenen Topics.
 - **Registrierung (Backend → Client)**:
   `locker/provisioning/reply/{unique_client_id}`
 - **Befehle (Backend → Client)**: `locker/{locker_uuid}/command`
-- **Status (Client → Backend)**: `locker/{locker_uuid}/status`
-- **Zustandsdaten (Client → Backend)**: `locker/{locker_uuid}/state` (für
-  regelmäßige, nicht-kritische Daten wie Heartbeats)
+- **Responses (Client → Backend)**: `locker/{locker_uuid}/response`
+- **Events (Client → Backend)**: `locker/{locker_uuid}/event`
+- **State / Zustand (Client → Backend)**: `locker/{locker_uuid}/state`
+  (**retained**, für aktuelle Zustände/Telemetry/Heartbeats)
+
+> Hinweis (Migration): Falls bereits Clients/Backend auf `.../status` basieren,
+> kann das Backend vorübergehend **beide** Topics akzeptieren (`.../status` und
+> `.../response`) und `.../status` als deprecated markieren. Langfristig nutzen
+> wir nur noch `.../response`.
 
 ### Nachrichten-Payloads (JSON-Beispiele)
 
 #### 4.1 Befehle (Backend sendet)
 
-Ein Befehl enthält eine `action` und eine `transaction_id` zur Nachverfolgung.
+Ein Befehl enthält eine `action`, eine `transaction_id` zur Nachverfolgung und
+einen `timestamp` (ISO 8601). Der `timestamp` wird vom **Sender** gesetzt (hier:
+Backend).
 
 - **Tür öffnen:**
   - Topic: `locker/uuid-123/command`
@@ -193,66 +207,102 @@ Ein Befehl enthält eine `action` und eine `transaction_id` zur Nachverfolgung.
     {
        "action": "open_compartment",
        "transaction_id": "xyz-789",
+       "timestamp": "2023-10-27T10:00:00Z",
        "data": { "compartment_number": 3 }
     }
     ```
 
-#### 4.2 Status-Antworten (Client sendet)
+#### 4.2 Responses (Client sendet)
 
-Eine Status-Nachricht referenziert die `transaction_id` der ursprünglichen
-Aktion oder meldet ein spontanes Ereignis.
+Eine **Response** referenziert die `transaction_id` der ursprünglichen Aktion
+und enthält zusätzlich einen `timestamp` (ISO 8601), gesetzt vom **Sender**
+(hier: Client).
+
+Wichtig:
+- Responses sind **transaktionsgebunden** und haben **immer** `transaction_id`.
+- Spontane Ereignisse (z.B. "door_state_changed" oder "qr_scanned") werden **nicht**
+  als Response gesendet, sondern auf `.../event`.
 
 - **Antwort auf `open_door` (Erfolg):**
-  - Topic: `locker/uuid-123/status`
+  - Topic: `locker/uuid-123/response`
   - Payload:
     ```json
     {
-       "event": "action_completed",
+       "type": "command_response",
        "action": "open_compartment",
-       "status": "success",
+       "result": "success",
        "transaction_id": "xyz-789",
+       "timestamp": "2023-10-27T10:00:01Z",
        "message": "Compartment opened successfully."
     }
     ```
 
 - **Antwort auf `open_door` (Fehler):**
-  - Topic: `locker/uuid-123/status`
+  - Topic: `locker/uuid-123/response`
   - Payload:
     ```json
     {
-       "event": "action_failed",
+       "type": "command_response",
        "action": "open_compartment",
-       "status": "error",
+       "result": "error",
        "transaction_id": "xyz-789",
+       "timestamp": "2023-10-27T10:00:01Z",
        "error_code": "DOOR_JAMMED",
        "message": "Could not open compartment, mechanism is jammed."
     }
     ```
 
+#### 4.3 Events (Client sendet)
+
+Spontane Events sind **nicht** transaktionsgebunden (kein `transaction_id`),
+sondern repräsentieren etwas, das “passiert ist”. Da QoS 1 Duplikate zulässt,
+verwenden wir optional ein `event_id` (UUID) für Dedup.
+
 - **Spontanes Event (z.B. Tür wurde manuell geschlossen):**
-  - Topic: `locker/uuid-123/status`
+  - Topic: `locker/uuid-123/event`
   - Payload:
     ```json
     {
+       "type": "event",
        "event": "door_state_changed",
-       "status": "closed",
+       "event_id": "evt-111",
+       "timestamp": "2023-10-27T10:00:00Z",
        "data": {
           "compartment_number": 3,
-          "timestamp": "2023-10-27T10:00:00Z"
+          "state": "closed"
        }
     }
     ```
 
-#### 4.3 Zustand (Client sendet)
+- **Spontanes Event (Future: QR-Code am Locker gescannt):**
+  - Topic: `locker/uuid-123/event`
+  - Payload:
+    ```json
+    {
+       "type": "event",
+       "event": "qr_scanned",
+       "event_id": "evt-222",
+       "timestamp": "2023-10-27T10:02:00Z",
+       "data": {
+          "qr_payload": "....",
+          "scanner": "locker"
+       }
+    }
+    ```
 
-Für regelmäßige "Heartbeats" oder Telemetriedaten.
+#### 4.4 State / Zustand (Client sendet, retained)
+
+Für regelmäßige "Heartbeats", Telemetrie und **aktuelle Zustände**. Diese
+Nachrichten können **retained** sein, damit neue Subscriber sofort den letzten
+bekannten Zustand sehen.
 
 - **Regelmäßiger Heartbeat:**
   - Topic: `locker/{uuid}/state`
   - Payload:
     ```json
     {
-       "event": "heartbeat",
+       "type": "state",
+       "state": "heartbeat",
        "data": {
           "timestamp": "2023-10-27T10:01:00Z",
           "uptime_seconds": 86400
@@ -260,7 +310,7 @@ Für regelmäßige "Heartbeats" oder Telemetriedaten.
     }
     ```
 
-#### 4.4 "Last Will" - Client geht offline
+#### 4.5 "Last Will" - Client geht offline (State)
 
 Das "Last Will and Testament"-Feature von MQTT wird genutzt, um unerwartete
 Verbindungsabbrüche zu melden.
@@ -271,7 +321,8 @@ Verbindungsabbrüche zu melden.
 - **Payload**:
   ```json
   {
-     "event": "connection_lost",
+     "type": "state",
+     "state": "connection_lost",
      "status": "offline",
      "timestamp": "..."
   }
@@ -281,7 +332,7 @@ Verbindungsabbrüche zu melden.
   Namen des Clients auf das angegebene Topic. Das Backend kann darauf lauschen
   und den Status des Schranks auf "unreachable" setzen.
 
-#### 4.5 Registrierungsprozess (Pre-Provisioning Workflow)
+#### 4.6 Registrierungsprozess (Pre-Provisioning Workflow)
 
 Der Client wird im Backend vor-registriert ("pre-provisioned"), um maximale
 Sicherheit und Kontrolle zu gewährleisten.
@@ -368,3 +419,111 @@ LockerBankAggregate::retrieve($compartment->lockerBank->id)
 
 Dieser Ansatz entkoppelt die Annahme des Befehls sauber von der Ausführung der
 Nebenwirkungen (MQTT-Kommunikation) und der Aktualisierung der Lese-Modelle.
+
+## 6. Deduplication & Idempotency (Konzept)
+
+Da QoS 1 *at least once* ist, kann der Broker/Client Nachrichten erneut zustellen
+(z.B. bei Reconnect, fehlendem ACK). Deshalb müssen **Backend und IoT-Client**
+Duplikate sicher verarbeiten.
+
+### 6.1 Command-Dedup auf dem IoT-Client (Pflicht)
+
+- Commands auf `locker/{uuid}/command` sind **idempotent** zu behandeln:
+  - Key: `transaction_id`
+  - Regel: Ein `transaction_id` darf **nicht** zweimal ausgeführt werden.
+  - Der Client kann bei Duplikaten die **Response erneut senden**, aber die
+    eigentliche Hardware-Operation nur einmal ausführen.
+
+### 6.2 Response-Dedup im Backend (DB-gestützt, empfohlen)
+
+Für `locker/{uuid}/response` implementieren wir im Backend ein Inbox-/Tracker-
+Pattern (DB), das die Transaktionen eindeutig macht.
+
+- Unique Key: `locker_uuid + transaction_id`
+- State-Machine (Beispiel): `pending -> success|error|timeout`
+- Verarbeitung:
+  - Wenn `transaction_id` erstmals gesehen wird: verarbeiten und Domain-Event
+    erzeugen.
+  - Wenn bereits verarbeitet: als Duplicate ignorieren (optional: last_seen loggen).
+
+Damit verhindern wir doppelte Domain-Events im Event Store.
+
+### 6.3 Event-Dedup (optional)
+
+Für spontane Events auf `locker/{uuid}/event` empfehlen wir optional:
+- `event_id` (UUID) im Payload
+- Dedup im Backend per Redis TTL oder DB (je nach Kritikalität).
+
+## 7. Implementierungsplan (Umsetzung der Topic-Trennung + Dedup)
+
+> Ziel: `status` → `response` umbenennen, `event` einführen, `state` retained
+> nutzen und dedup robust implementieren (ohne doppelte Domain-Events).
+
+### 7.1 Broker/ACL (Mosquitto go-auth)
+
+- ACL für Device-User erweitern:
+  - publish erlauben: `locker/%u/state`, `locker/%u/response`, `locker/%u/event`
+  - subscribe erlauben: `locker/%u/command`
+- Migrationsphase (optional):
+  - publish erlauben zusätzlich: `locker/%u/status` (deprecated), bis alle Clients migriert sind.
+
+### 7.2 Laravel Listener (`mqtt:listen`)
+
+- Subscribe ergänzen:
+  - `locker/+/response` (und optional `locker/+/status` in Übergangszeit)
+  - `locker/+/event`
+  - `locker/+/state` bleibt
+- Handler aufsplitten:
+  - `CommandResponseHandler` (für `/response`)
+  - `DeviceEventHandler` (für `/event`)
+  - `HeartbeatHandler` bleibt (für `/state`)
+
+### 7.3 Dedup/Tracker im Backend
+
+- Datenmodell (Vorschlag):
+  - Tabelle `command_transactions`
+  - Unique Index (`locker_uuid`, `transaction_id`)
+  - Felder z.B.: `action`, `result`, `error_code`, `requested_at`, `completed_at`,
+    `payload_hash`, `last_seen_at`
+- Logik:
+  - Response wird nur beim **ersten** Auftreten verarbeitet
+  - Duplicates werden ignoriert (und/oder nur `last_seen_at` aktualisiert)
+
+### 7.4 Domain-Integration (Event Sourcing)
+
+- Der `MqttReactor` nutzt weiterhin `transaction_id = commandId` (bereits umgesetzt).
+- `CommandResponseHandler` erzeugt nur dann Domain-Events (z.B. `CompartmentOpened`
+  / `CommandFailed`), wenn die Response “first seen” ist (Tracker).
+
+### 7.5 IoT Client Anpassungen
+
+- Commands:
+  - Dedup nach `transaction_id` (persistenter Cache/DB)
+  - Hardware-Operation nur einmal pro `transaction_id`
+- Responses:
+  - Für jeden Command genau eine Response auf `.../response` (success/error)
+- Events:
+  - Spontane Events auf `.../event`, optional `event_id`
+- State:
+  - regelmäßige state/heartbeat Nachrichten auf `.../state` (retained)
+
+### 7.6 Future Features (QR Scan & Update Command)
+
+- **QR Scan**:
+  - IoT Client sendet `qr_scanned` auf `locker/{uuid}/event` (mit optional `event_id`)
+  - Backend validiert QR und entscheidet, ob es ein `open_compartment` Command
+    sendet (neue `transaction_id`).
+- **Update Command**:
+  - Backend sendet `action=update_firmware` (oder `apply_config`) auf `.../command`
+    mit `transaction_id`
+  - Client dedupt strikt und antwortet via `.../response`
+
+### 7.7 Tests & Rollout
+
+- Feature Tests:
+  - Doppelte `/response` Nachrichten erzeugen **keine** doppelten Domain-Events
+  - Dedup/Tracker verhält sich korrekt (first vs duplicate)
+- Rollout:
+  - Phase 1: Backend akzeptiert `status` + `response`, Clients schicken weiter `status`
+  - Phase 2: Clients migrieren auf `response` + `event`
+  - Phase 3: `status` ACL/Subscription entfernen (Breaking Change)
