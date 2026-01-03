@@ -1,105 +1,132 @@
 import ModbusRTU from "modbus-serial";
-import { modbusConfig } from "../config/modbus";
+import { modbusConfig, ModbusClientConfig } from "../config/modbus";
 import { logger } from "../helper/logger";
 
 class ModbusService {
-  private client: ModbusRTU;
-  private isConnected = false;
+  private clients: Map<string, ModbusRTU> = new Map();
+  private clientConfigs: Map<string, ModbusClientConfig> = new Map();
 
   constructor() {
-    this.client = new ModbusRTU();
+    // Store client configurations
+    modbusConfig.clients.forEach(config => {
+      this.clientConfigs.set(config.id, config);
+    });
   }
 
   async connect(): Promise<void> {
-    try {
-      await this.client.connectRTUBuffered(modbusConfig.port, {
-        baudRate: modbusConfig.baudRate,
-        dataBits: modbusConfig.dataBits,
-        stopBits: modbusConfig.stopBits,
-        parity: modbusConfig.parity,
-      });
+    const connectionPromises = Array.from(this.clientConfigs.entries()).map(
+      async ([id, config]) => {
+        try {
+          const client = new ModbusRTU();
+          
+          await client.connectRTUBuffered(config.port, {
+            baudRate: config.baudRate,
+            dataBits: config.dataBits,
+            stopBits: config.stopBits,
+            parity: config.parity,
+          });
 
-      this.client.setID(modbusConfig.slaveId);
-      this.client.setTimeout(modbusConfig.timeout);
+          client.setID(config.slaveId);
+          client.setTimeout(config.timeout);
 
-      this.isConnected = true;
-      logger.info("Modbus RTU connection established");
-    } catch (error) {
-      logger.error("Failed to connect to Modbus RTU:", error);
-      throw error;
-    }
+          this.clients.set(id, client);
+          logger.info(`Modbus RTU client '${id}' connected to ${config.port}`);
+        } catch (error) {
+          logger.error(`Failed to connect Modbus client '${id}':`, error);
+          throw error;
+        }
+      }
+    );
+
+    await Promise.all(connectionPromises);
+    logger.info(`All Modbus RTU connections established (${this.clients.size} clients)`);
   }
 
   async disconnect(): Promise<void> {
-    if (this.isConnected) {
-      this.client.close(() => {
-        this.isConnected = false;
-        logger.info("Modbus RTU connection closed");
-      });
-    }
+    const disconnectPromises = Array.from(this.clients.entries()).map(
+      ([id, client]) =>
+        new Promise<void>((resolve) => {
+          client.close(() => {
+            logger.info(`Modbus RTU client '${id}' connection closed`);
+            resolve();
+          });
+        })
+    );
+
+    await Promise.all(disconnectPromises);
+    this.clients.clear();
+    logger.info("All Modbus RTU connections closed");
   }
 
-  async writeCoil(address: number, value: boolean): Promise<void> {
-    if (!this.isConnected) {
-      throw new Error("Modbus client is not connected");
+  getClient(clientId: string = "default"): ModbusRTU {
+    const client = this.clients.get(clientId);
+    if (!client) {
+      throw new Error(`Modbus client '${clientId}' not found`);
     }
+    return client;
+  }
+
+  getClientIds(): string[] {
+    return Array.from(this.clients.keys());
+  }
+
+  async writeCoil(address: number, value: boolean, clientId: string = "default"): Promise<void> {
+    const client = this.getClient(clientId);
 
     try {
-      await this.client.writeCoil(address, value);
-      logger.debug(`Wrote coil ${address}: ${value}`);
+      await client.writeCoil(address, value);
+      logger.debug(`[${clientId}] Wrote coil ${address}: ${value}`);
     } catch (error) {
-      logger.error(`Failed to write coil ${address}:`, error);
+      logger.error(`[${clientId}] Failed to write coil ${address}:`, error);
       throw error;
     }
   }
 
-  async writeRegister(address: number, value: number): Promise<void> {
-    if (!this.isConnected) {
-      throw new Error("Modbus client is not connected");
-    }
+  async writeRegister(address: number, value: number, clientId: string = "default"): Promise<void> {
+    const client = this.getClient(clientId);
 
     try {
-      await this.client.writeRegister(address, value);
-      logger.debug(`Wrote register ${address}: ${value}`);
+      await client.writeRegister(address, value);
+      logger.debug(`[${clientId}] Wrote register ${address}: ${value}`);
     } catch (error) {
-      logger.error(`Failed to write register ${address}:`, error);
+      logger.error(`[${clientId}] Failed to write register ${address}:`, error);
       throw error;
     }
   }
 
-  async readCoils(address: number, length: number): Promise<boolean[]> {
-    if (!this.isConnected) {
-      throw new Error("Modbus client is not connected");
-    }
+  async readCoils(address: number, length: number, clientId: string = "default"): Promise<boolean[]> {
+    const client = this.getClient(clientId);
 
     try {
-      const result = await this.client.readCoils(address, length);
+      const result = await client.readCoils(address, length);
       return result.data;
     } catch (error) {
-      logger.error(`Failed to read coils from ${address}:`, error);
+      logger.error(`[${clientId}] Failed to read coils from ${address}:`, error);
       throw error;
     }
   }
 
   async readHoldingRegisters(
     address: number,
-    length: number
+    length: number,
+    clientId: string = "default"
   ): Promise<number[]> {
-    if (!this.isConnected) {
-      throw new Error("Modbus client is not connected");
-    }
+    const client = this.getClient(clientId);
 
     try {
-      const result = await this.client.readHoldingRegisters(address, length);
+      const result = await client.readHoldingRegisters(address, length);
       return result.data;
     } catch (error) {
-      logger.error(`Failed to read holding registers from ${address}:`, error);
+      logger.error(`[${clientId}] Failed to read holding registers from ${address}:`, error);
       throw error;
     }
   }
 
-  isModbusConnected(): boolean {
-    return this.isConnected;
+  isModbusConnected(clientId?: string): boolean {
+    if (clientId) {
+      return this.clients.has(clientId);
+    }
+    return this.clients.size > 0;
   }
 }
 

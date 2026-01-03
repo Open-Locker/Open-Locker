@@ -94,11 +94,15 @@ async function main() {
       await modbusService.connect();
       logger.info("Modbus RTU connection established");
 
+      // Get the first available client for monitoring
+      const clientIds = modbusService.getClientIds();
+      const primaryClient = clientIds[0] || "default";
+
       // Start monitoring coils
       setInterval(async () => {
         try {
-          const coils = await modbusService.readCoils(0x0000, 1);
-          logger.debug("Initial coil status 0:", coils);
+          const coils = await modbusService.readCoils(0x0000, 1, primaryClient);
+          logger.debug(`[${primaryClient}] Coil status 0:`, coils);
         }
         catch (error) {
           logger.error("Error reading initial coil status:", error);

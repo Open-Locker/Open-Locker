@@ -1,6 +1,5 @@
 import { logger } from "../helper/logger";
 import { modbusService } from "../services/modbusService";
-import { mqttService } from "../services/mqttService";
 
 export class CommandHandler {
   private monitoringIntervals: Map<number, NodeJS.Timeout> = new Map();
