@@ -2,6 +2,7 @@ import { mqttConfig } from "./config/mqtt";
 import { logger } from "./helper/logger";
 import { commandHandler } from "./modbus/commandHandler";
 import { mqttClientManager } from "./mqtt/mqttClientManager";
+import { mqttMessageHandler } from "./mqtt/mqttMessageHandler";
 import { modbusService } from "./services/modbusService";
 import { provisioningService } from "./services/provisioningService";
 import { provisioningRegistrationService } from "./services/provisioningRegistrationService";
@@ -69,6 +70,10 @@ async function main() {
 
           logger.info("MQTT reconnected with provisioned credentials");
           
+          // Initialize MQTT message handler
+          await mqttMessageHandler.initialize();
+          logger.info("MQTT message handler initialized");
+          
           // Start heartbeat service
           heartbeatService.start();
         }
@@ -85,6 +90,10 @@ async function main() {
       });
 
       logger.info("MQTT connection established");
+      
+      // Initialize MQTT message handler
+      await mqttMessageHandler.initialize();
+      logger.info("MQTT message handler initialized");
       
       // Start heartbeat service
       heartbeatService.start();
