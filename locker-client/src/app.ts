@@ -7,6 +7,7 @@ import { provisioningService } from "./services/provisioningService";
 import { provisioningRegistrationService } from "./services/provisioningRegistrationService";
 import { credentialsService } from "./services/credentialsService";
 import { heartbeatService } from "./services/heartbeatService";
+import { coilPollingService } from "./services/coilPollingService";
 
 async function main() {
   logger.info("Starting the application...");
@@ -94,20 +95,8 @@ async function main() {
       await modbusService.connect();
       logger.info("Modbus RTU connection established");
 
-      // Get the first available client for monitoring
-      const clientIds = modbusService.getClientIds();
-      const primaryClient = clientIds[0] || "default";
-
-      // Start monitoring coils
-      setInterval(async () => {
-        try {
-          const coils = await modbusService.readCoils(0x0000, 1, primaryClient);
-          logger.debug(`[${primaryClient}] Coil status 0:`, coils);
-        }
-        catch (error) {
-          logger.error("Error reading initial coil status:", error);
-        }
-      }, 5000); // Read every 5 seconds
+      // Start coil polling service
+      coilPollingService.start();
     } else {
       logger.warn("Locker is not provisioned. Modbus connection skipped.");
     }
@@ -129,6 +118,9 @@ async function gracefulShutdown() {
   try {
     // Stop heartbeat service
     heartbeatService.stop();
+    
+    // Stop coil polling service
+    coilPollingService.stop();
     
     // Stop all compartment monitoring
     commandHandler.stopAllMonitoring();
