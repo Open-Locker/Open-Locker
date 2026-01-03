@@ -1,5 +1,7 @@
 import { logger } from "../helper/logger";
 import { modbusService } from "../services/modbusService";
+import { mqttService } from "../services/mqttService";
+import { credentialsService } from "../services/credentialsService";
 
 export class CommandHandler {
   private monitoringIntervals: Map<number, NodeJS.Timeout> = new Map();
@@ -35,6 +37,9 @@ export class CommandHandler {
         const isOpen = coilStatus[0];
         
         logger.debug(`Compartment ${compartmentID} coil status: ${isOpen ? 'OPEN' : 'CLOSED'}`);
+
+        // Publish status to MQTT
+        await this.publishCoilStatus(compartmentID, isOpen);
 
         // If compartment is closed, stop monitoring
         if (!isOpen) {
@@ -74,6 +79,31 @@ export class CommandHandler {
       logger.info(`Stopped monitoring for compartment ${compartmentID}`);
     });
     this.monitoringIntervals.clear();
+  }
+
+  private async publishCoilStatus(compartmentID: number, isOpen: boolean): Promise<void> {
+    try {
+      const credentials = credentialsService.getCredentials();
+      if (!credentials || !credentials.username) {
+        logger.warn("No credentials available, skipping MQTT status publish");
+        return;
+      }
+
+      const lockerUuid = credentials.username;
+      const topic = `locker/${lockerUuid}/status`;
+      
+      const statusPayload = {
+        compartmentID,
+        status: isOpen ? 'OPEN' : 'CLOSED',
+        timestamp: new Date().toISOString()
+      };
+
+      await mqttService.publish(topic, statusPayload);
+      logger.debug(`Published coil status to ${topic}:`, statusPayload);
+    } catch (error) {
+      logger.error("Failed to publish coil status to MQTT:", error);
+      // Don't throw error - we don't want MQTT failures to stop monitoring
+    }
   }
 
   private async reportError(error: any): Promise<void> {
