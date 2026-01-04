@@ -1,0 +1,10 @@
+{
+	"name": "Node.js & TypeScript",
+	"image": "mcr.microsoft.com/devcontainers/typescript-node:24-trixie",
+	"postCreateCommand": "cd locker-client && yarn install",
+	"privileged": true,
+	"remoteUser": "root",
+	"runArgs": [
+		"--device=/dev/ttyACM0:/dev/ttyACM0"
+	]
+}

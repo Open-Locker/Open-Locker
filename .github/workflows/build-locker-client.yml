@@ -1,0 +1,35 @@
+name: Build Locker Client
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'locker-client/**'
+      - 'packages/locker_api/**'
+      - '.github/workflows/build-locker-client.yml'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Docker image (multi-platform)
+        uses: docker/build-push-action@v5
+        with:
+          context: ./locker-client
+          file: ./locker-client/Dockerfile
+          platforms: linux/amd64,linux/arm64
+          push: false
+          tags: locker-client:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
