@@ -17,6 +17,14 @@ use Spatie\EventSourcing\EventHandlers\Reactors\Reactor;
 
 class MqttReactor extends Reactor implements ShouldQueue
 {
+    /**
+     * Ensure queued reactor handlers run on the same queue as Spatie's stored event jobs.
+     *
+     * This avoids situations where the event worker is running, but the default queue
+     * worker is not, causing side-effects (like MQTT publishing) to never execute.
+     */
+    public string $queue = 'events';
+
     public function onCompartmentOpeningRequested(CompartmentOpeningRequested $event): void
     {
         $topic = "locker/{$event->lockerBankUuid}/command";
