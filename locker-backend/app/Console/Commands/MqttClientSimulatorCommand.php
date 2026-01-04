@@ -19,6 +19,8 @@ class MqttClientSimulatorCommand extends Command
      */
     protected $signature = 'mqtt:client-simulator
         {token : The registration token to use for the MQTT topic}
+        {--host= : Override the MQTT broker host (applies to provisioning + device simulation)}
+        {--port= : Override the MQTT broker port (applies to provisioning + device simulation)}
         {--no-heartbeat : Do not publish heartbeats}
         {--listen-seconds=60 : When --no-heartbeat is set, keep listening for commands for N seconds (0 = forever)}
         {--auto-status : Publish a simulated status response for open_compartment commands}
@@ -47,6 +49,26 @@ class MqttClientSimulatorCommand extends Command
         $noHeartbeat = (bool) $this->option('no-heartbeat');
         $listenSeconds = (int) $this->option('listen-seconds');
 
+        $overrideHost = $this->option('host');
+        $overridePort = $this->option('port');
+
+        if (is_string($overrideHost) && $overrideHost !== '') {
+            config([
+                'mqtt-client.connections.provisioning.host' => $overrideHost,
+                'mqtt-client.connections.listener.host' => $overrideHost,
+            ]);
+        }
+
+        if (is_string($overridePort) && $overridePort !== '' && is_numeric($overridePort)) {
+            $port = (int) $overridePort;
+            if ($port > 0) {
+                config([
+                    'mqtt-client.connections.provisioning.port' => $port,
+                    'mqtt-client.connections.listener.port' => $port,
+                ]);
+            }
+        }
+
         $autoStatus = (bool) $this->option('auto-status');
         $autoStatusResult = (string) $this->option('auto-status-result');
         $autoStatusDelayMs = max(0, (int) $this->option('auto-status-delay-ms'));
@@ -59,6 +81,7 @@ class MqttClientSimulatorCommand extends Command
             $mqtt = MQTT::connection('provisioning');
 
             $this->info("Connecting with unique Client ID: {$mqtt->getClientId()}");
+            $this->info('Broker: '.(string) config('mqtt-client.connections.provisioning.host').':'.(string) config('mqtt-client.connections.provisioning.port'));
             $this->info("Subscribing to reply topic: {$replyToTopic}");
 
             $mqtt->subscribe($replyToTopic, function (string $topic, string $message) use (&$provisionResult, $mqtt) {
@@ -116,6 +139,7 @@ class MqttClientSimulatorCommand extends Command
             $base = new BaseMqttClient($host, $port, $deviceClientId);
             $base->connect($settings);
             $this->info("[device] Connected with client_id: {$deviceClientId} as username: {$lockerUuid}");
+            $this->info("[device] Broker: {$host}:{$port}");
 
             $openCommandReceived = false;
             $seenTransactionIds = [];
