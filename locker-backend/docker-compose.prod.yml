@@ -18,6 +18,8 @@ services:
       DB_HOST: db
       REDIS_HOST: redis
       MQTT_BROKER_HOST: mqtt
+      # Ensure unique MQTT client ids per container to avoid session kicks
+      MQTT_PUBLISHER_CLIENT_ID: "laravel_backend_publisher_app"
       PHP_OPCACHE_ENABLE: 1
     volumes:
       # Mount storage for persistent file uploads
@@ -47,6 +49,7 @@ services:
       DB_HOST: db
       REDIS_HOST: redis
       MQTT_BROKER_HOST: mqtt
+      MQTT_PUBLISHER_CLIENT_ID: "laravel_backend_publisher_queue_worker"
     command: "php artisan queue:work --queue=default --tries=3 --timeout=90"
     # No code volume mount
     volumes:
@@ -78,6 +81,7 @@ services:
       DB_HOST: db
       REDIS_HOST: redis
       MQTT_BROKER_HOST: mqtt
+      MQTT_PUBLISHER_CLIENT_ID: "laravel_backend_publisher_event_worker"
     command: "php artisan queue:work --queue=events --tries=3 --timeout=90"
     volumes:
       - "locker-storage:/var/www/html/storage/app/public"
@@ -108,6 +112,9 @@ services:
       DB_HOST: db
       REDIS_HOST: redis
       MQTT_BROKER_HOST: mqtt
+      # mqtt-listener uses both listener + publisher connections
+      MQTT_LISTENER_CLIENT_ID: "laravel_backend_listener_mqtt_listener"
+      MQTT_PUBLISHER_CLIENT_ID: "laravel_backend_publisher_mqtt_listener"
     command: "php artisan mqtt:listen"
     volumes:
       - "locker-storage:/var/www/html/storage/app/public"

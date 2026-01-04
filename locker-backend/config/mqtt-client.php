@@ -36,7 +36,7 @@ return [
             'host' => env('MQTT_BROKER_HOST', 'mqtt'),
             'port' => 1883,
             'protocol' => MqttClient::MQTT_3_1_1,
-            'client_id' => env('MQTT_CLIENT_ID', 'laravel_backend_listener'),
+            'client_id' => env('MQTT_LISTENER_CLIENT_ID', 'laravel_backend_listener'), // Must be unique per container
             'clean_session' => false,
             'enable_logging' => env('MQTT_ENABLE_LOGGING', false),
             'log_channel' => env('MQTT_LOG_CHANNEL', 'stack'),
@@ -61,7 +61,7 @@ return [
             'host' => env('MQTT_BROKER_HOST', 'mqtt'),
             'port' => 1883,
             'protocol' => MqttClient::MQTT_3_1_1,
-            'client_id' => env('MQTT_PUBLISHER_CLIENT_ID', 'laravel_backend_publisher'),
+            'client_id' => env('MQTT_PUBLISHER_CLIENT_ID', 'laravel_backend_publisher'), // Must be unique per container
             'clean_session' => false,
             'enable_logging' => env('MQTT_ENABLE_LOGGING', false),
             'log_channel' => env('MQTT_LOG_CHANNEL', 'stack'),
