@@ -54,7 +54,7 @@ services:
             REDIS_HOST: redis
             MQTT_BROKER_HOST: mqtt
             MQTT_PUBLISHER_CLIENT_ID: "laravel_backend_publisher_queue_worker"
-        command: "php artisan queue:work --tries=3 --timeout=90"
+        command: "php artisan queue:work --queue=default --tries=3 --timeout=90"
         volumes:
             - ".:/var/www/html"
         networks:
@@ -102,7 +102,8 @@ services:
             mqtt:
                 condition: service_started
         healthcheck:
-            test: ["CMD-SHELL", "php artisan queue:monitor events || exit 1"]
+            test: ["CMD", "healthcheck-queue"]
+            start_period: 10s
             interval: 30s
             timeout: 10s
             retries: 3

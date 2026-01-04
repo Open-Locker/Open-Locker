@@ -50,7 +50,7 @@ services:
       REDIS_HOST: redis
       MQTT_BROKER_HOST: mqtt
       MQTT_PUBLISHER_CLIENT_ID: "laravel_backend_publisher_queue_worker"
-    command: "php artisan queue:work --tries=3 --timeout=90"
+    command: "php artisan queue:work --queue=default --tries=3 --timeout=90"
     # No code volume mount
     volumes:
       - "locker-storage:/var/www/html/storage/app/public"
