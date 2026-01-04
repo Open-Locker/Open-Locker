@@ -3,6 +3,7 @@ import fs from "fs";
 import path from "path";
 import { randomBytes } from "crypto";
 import { credentialsService } from "../services/credentialsService";
+import { logger } from "../helper/logger";
 
 dotenv.config();
 
@@ -64,3 +65,11 @@ export const mqttConfig = {
   provisioningToken: process.env.PROVISIONING_TOKEN,
   heartbeatInterval: parseInt(process.env.HEARTBEAT_INTERVAL || "15", 10) * 1000, // Convert to milliseconds
 };
+
+logger.debug("MQTT configuration loaded:", {
+  brokerUrl: mqttConfig.brokerUrl,
+  username: mqttConfig.username || "(not set)",
+  clientId: mqttConfig.clientId,
+  hasProvisioningToken: !!mqttConfig.provisioningToken,
+  heartbeatInterval: mqttConfig.heartbeatInterval,
+});

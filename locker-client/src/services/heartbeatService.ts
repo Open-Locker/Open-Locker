@@ -6,6 +6,7 @@ import { mqttService } from "./mqttService";
 class HeartbeatService {
   private intervalId: NodeJS.Timeout | null = null;
   private startTime: number = Date.now();
+  private lockerUuid: string | null = null;
 
   /**
    * Start sending heartbeat messages
@@ -15,6 +16,14 @@ class HeartbeatService {
       logger.warn("Heartbeat service is already running");
       return;
     }
+
+    // Load credentials once when starting
+    const credentials = credentialsService.getCredentials();
+    if (!credentials?.username) {
+      logger.error("Cannot start heartbeat service: No username available");
+      return;
+    }
+    this.lockerUuid = credentials.username;
 
     logger.info(`Starting heartbeat service with interval: ${mqttConfig.heartbeatInterval / 1000}s`);
     
@@ -37,6 +46,7 @@ class HeartbeatService {
     if (this.intervalId) {
       clearInterval(this.intervalId);
       this.intervalId = null;
+      this.lockerUuid = null;
       logger.info("Heartbeat service stopped");
     }
   }
@@ -46,15 +56,12 @@ class HeartbeatService {
    */
   private async sendHeartbeat(): Promise<void> {
     try {
-      const credentials = credentialsService.getCredentials();
-      
-      if (!credentials?.username) {
-        logger.error("Cannot send heartbeat: No username available");
+      if (!this.lockerUuid) {
+        logger.error("Cannot send heartbeat: No UUID available");
         return;
       }
 
-      const uuid = credentials.username;
-      const topic = `locker/${uuid}/state`;
+      const topic = `locker/${this.lockerUuid}/state`;
       
       const uptimeSeconds = Math.floor((Date.now() - this.startTime) / 1000);
       

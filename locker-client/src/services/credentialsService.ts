@@ -10,11 +10,19 @@ interface MqttCredentials {
 }
 
 export class CredentialsService {
+  private cachedCredentials: MqttCredentials | null = null;
+  
   public getCredentials(): MqttCredentials | null {
+    // Return cached credentials if already loaded
+    if (this.cachedCredentials) {
+      return this.cachedCredentials;
+    }
+    
     try {
       if (fs.existsSync(CREDENTIALS_FILE)) {
         const data = fs.readFileSync(CREDENTIALS_FILE, "utf-8");
         const credentials = JSON.parse(data);
+        this.cachedCredentials = credentials;
         logger.info("Loaded persisted MQTT credentials");
         return credentials;
       }
@@ -28,6 +36,7 @@ export class CredentialsService {
     try {
       const credentials: MqttCredentials = { username, password };
       fs.writeFileSync(CREDENTIALS_FILE, JSON.stringify(credentials, null, 2), "utf-8");
+      this.cachedCredentials = credentials;
       logger.info("MQTT credentials persisted successfully");
     } catch (error) {
       logger.error("Failed to persist credentials:", error);

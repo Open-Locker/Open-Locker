@@ -106,6 +106,18 @@ class ModbusService {
     }
   }
 
+  async readDiscreteInputs(address: number, length: number, clientId: string = "default"): Promise<boolean[]> {
+    const client = this.getClient(clientId);
+
+    try {
+      const result = await client.readDiscreteInputs(address, length);
+      return result.data;
+    } catch (error) {
+      logger.error(`[${clientId}] Failed to read discrete inputs from ${address}:`, error);
+      throw error;
+    }
+  }
+
   async readHoldingRegisters(
     address: number,
     length: number,

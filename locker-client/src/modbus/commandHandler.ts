@@ -6,49 +6,75 @@ import { credentialsService } from "../services/credentialsService";
 export class CommandHandler {
   private monitoringIntervals: Map<number, NodeJS.Timeout> = new Map();
   private readonly MONITORING_INTERVAL = 500; // 500ms polling interval
-  private readonly COMPARTMENT_OPEN_DURATION = 200; // Duration to keep compartment open
+  private readonly COMPARTMENT_OPEN_DURATION = 200; // 200ms to keep relay on (time for lock to release)
+  private readonly DEFAULT_CLIENT_ID = "locker2"; // Default Modbus client ID
 
-  async handleOpenCompartment(compartmentID: number): Promise<void> {
-    logger.info("Opening compartment:", compartmentID);
+  async handleOpenCompartment(compartmentID: number, clientId?: string): Promise<void> {
+    const modbusClientId = clientId || this.DEFAULT_CLIENT_ID;
+    logger.info(`Opening compartment ${compartmentID} on client ${modbusClientId}`);
 
     try {
-      await this.openCompartment(compartmentID);
-      await this.startCoilMonitoring(compartmentID);
+      await this.openCompartment(compartmentID, modbusClientId);
+      await this.startCoilMonitoring(compartmentID, modbusClientId);
     } catch (error) {
       logger.error("Failed to execute command:", error);
       await this.reportError(error);
+      throw error;
     }
   }
 
-  private async openCompartment(compartmentID: number) {
-    await modbusService.writeCoil(compartmentID, true);
-    setTimeout(() => modbusService.writeCoil(compartmentID, false), this.COMPARTMENT_OPEN_DURATION);
+  private async openCompartment(compartmentID: number, clientId: string) {
+    // Waveshare relay uses 0-based addressing (0-7 for 8 channels)
+    const relayAddress = compartmentID - 1; // Convert 1-based to 0-based
+    
+    if (relayAddress < 0 || relayAddress > 7) {
+      throw new Error(`Invalid compartment number: ${compartmentID}. Must be between 1 and 8.`);
+    }
+
+    logger.info(`Activating relay ${relayAddress} (compartment ${compartmentID})`);
+    
+    // Turn relay ON (release lock)
+    await modbusService.writeCoil(relayAddress, true, clientId);
+    
+    // Keep relay on for specified duration, then turn off
+    setTimeout(async () => {
+      try {
+        await modbusService.writeCoil(relayAddress, false, clientId);
+        logger.info(`Deactivated relay ${relayAddress} (compartment ${compartmentID})`);
+      } catch (error) {
+        logger.error(`Failed to deactivate relay ${relayAddress}:`, error);
+      }
+    }, this.COMPARTMENT_OPEN_DURATION);
   }
 
-  private async startCoilMonitoring(compartmentID: number): Promise<void> {
+  private async startCoilMonitoring(compartmentID: number, clientId: string): Promise<void> {
+    const relayAddress = compartmentID - 1; // Convert to 0-based
+    const monitorKey = compartmentID; // Use 1-based for monitoring map
+    
     // Stop any existing monitoring for this compartment
-    this.stopCoilMonitoring(compartmentID);
+    this.stopCoilMonitoring(monitorKey);
 
-    logger.info(`Starting coil monitoring for compartment ${compartmentID}`);
+    logger.info(`Starting relay monitoring for compartment ${compartmentID} (relay ${relayAddress})`);
     
     const monitorCoil = async () => {
       try {
-        const coilStatus = await modbusService.readCoils(compartmentID, 1);
-        const isOpen = coilStatus[0];
+        // Read relay status (function code 01)
+        const relayStatus = await modbusService.readCoils(relayAddress, 1, clientId);
+        const isRelayOn = relayStatus[0];
         
-        logger.debug(`Compartment ${compartmentID} coil status: ${isOpen ? 'OPEN' : 'CLOSED'}`);
+        logger.debug(`Compartment ${compartmentID} relay status: ${isRelayOn ? 'ON (unlocked)' : 'OFF (locked)'}`);
 
         // Publish status to MQTT
-        await this.publishCoilStatus(compartmentID, isOpen);
+        await this.publishCoilStatus(compartmentID, isRelayOn);
 
-        // If compartment is closed, stop monitoring
-        if (!isOpen) {
-          logger.info(`Compartment ${compartmentID} is now closed. Stopping monitoring.`);
-          this.stopCoilMonitoring(compartmentID);
+        // If relay is off (lock is engaged), stop monitoring
+        if (!isRelayOn) {
+          logger.info(`Compartment ${compartmentID} is now locked. Stopping monitoring.`);
+          this.stopCoilMonitoring(monitorKey);
         }
       } catch (error) {
         logger.error(`Error monitoring compartment ${compartmentID}:`, error);
-        this.stopCoilMonitoring(compartmentID);
+        this.stopCoilMonitoring(monitorKey);
         await this.reportError(error);
       }
     };
@@ -56,10 +82,10 @@ export class CommandHandler {
     // Start monitoring immediately
     await monitorCoil();
     
-    // Continue monitoring at regular intervals if compartment is still open
-    if (!this.monitoringIntervals.has(compartmentID)) {
+    // Continue monitoring at regular intervals if relay is still on
+    if (!this.monitoringIntervals.has(monitorKey)) {
       const interval = setInterval(monitorCoil, this.MONITORING_INTERVAL);
-      this.monitoringIntervals.set(compartmentID, interval);
+      this.monitoringIntervals.set(monitorKey, interval);
     }
   }
 
@@ -81,7 +107,7 @@ export class CommandHandler {
     this.monitoringIntervals.clear();
   }
 
-  private async publishCoilStatus(compartmentID: number, isOpen: boolean): Promise<void> {
+  private async publishCoilStatus(compartmentID: number, isRelayOn: boolean): Promise<void> {
     try {
       const credentials = credentialsService.getCredentials();
       if (!credentials || !credentials.username) {
@@ -93,15 +119,16 @@ export class CommandHandler {
       const topic = `locker/${lockerUuid}/status`;
       
       const statusPayload = {
-        compartmentID,
-        status: isOpen ? 'OPEN' : 'CLOSED',
+        compartment_id: compartmentID,
+        relay_state: isRelayOn ? 'ON' : 'OFF',
+        lock_state: isRelayOn ? 'UNLOCKED' : 'LOCKED',
         timestamp: new Date().toISOString()
       };
 
       await mqttService.publish(topic, statusPayload);
-      logger.debug(`Published coil status to ${topic}:`, statusPayload);
+      logger.debug(`Published relay status to ${topic}:`, statusPayload);
     } catch (error) {
-      logger.error("Failed to publish coil status to MQTT:", error);
+      logger.error("Failed to publish relay status to MQTT:", error);
       // Don't throw error - we don't want MQTT failures to stop monitoring
     }
   }

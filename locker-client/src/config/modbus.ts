@@ -1,4 +1,5 @@
 import dotenv from "dotenv";
+import { logger } from "../helper/logger";
 
 dotenv.config();
 
@@ -60,3 +61,9 @@ export const modbusConfig = {
     doorSensor: parseInt(process.env.MODBUS_DOOR_SENSOR_ADDR || "2"),
   },
 };
+
+logger.debug("Modbus configuration loaded:", {
+  clientCount: modbusConfig.clients.length,
+  clients: modbusConfig.clients,
+  addresses: modbusConfig.addresses,
+});
