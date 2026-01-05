@@ -10,8 +10,9 @@
 
 ## The Project
 
-This is an open source project to create software that locks and unlocks public
-lockers to store and/or share items, sponsored by
+This is an open source project to build both the software and the hardware
+blueprints/build guide (incl. a kit) for public lockers to store and/or share
+items, sponsored by
 [Smart City Hameln-Pyrmont](https://mitwirkportal.de/informieren).
 
 ### What we want to achieve
@@ -41,6 +42,7 @@ This is a **monorepo** containing multiple components:
 - **Backend** (`locker-backend/`): Laravel 11 API with Filament admin panel
 - **Mobile App** (`locker_app/`): Flutter app for end users
 - **API Client** (`packages/locker_api/`): Auto-generated Dart client
+- **Hardware** (`hardware/`): KiCad designs and build kit references
 - **Documentation** (`docs/`): Project architecture and guides
 
 ### System Overview
@@ -113,6 +115,7 @@ Detailed system architecture documentation in
 Open-Locker/
 ├── locker-backend/     # Laravel API & Admin Panel
 ├── locker_app/         # Flutter Mobile App
+├── hardware/           # Hardware designs (KiCad) and related files
 ├── packages/           # Shared packages
 │   └── locker_api/     # Auto-generated API client
 ├── docs/               # Project documentation
