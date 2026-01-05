@@ -1,0 +1,24 @@
+{
+  "name": "locker-client",
+  "version": "1.0.0",
+  "description": "Open Locker Client to control the an open locker via mqtt",
+  "license": "MIT",
+  "scripts": {
+    "dev": "ts-node src/app.ts",
+    "build": "tsc"
+  },
+  "dependencies": {
+    "dotenv": "^16.5.0",
+    "modbus-serial": "^8.0.21-no-serial-port",
+    "mqtt": "^5.13.1",
+    "serialport": "^13.0.0",
+    "typescript": "^5.8.3",
+    "uuid": "^11.1.0",
+    "winston": "^3.17.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.3",
+    "@types/winston": "^2.4.4",
+    "ts-node": "^10.9.2"
+  }
+}
