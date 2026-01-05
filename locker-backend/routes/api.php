@@ -4,8 +4,9 @@ use App\Http\Controllers\AdminController;
 use App\Http\Controllers\AppInfoController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\ItemController;
-use App\Http\Controllers\LockerController;
+use App\Http\Controllers\Mqtt\MosquittoAuthController;
 use App\Http\Middleware\AdminMiddleware;
+use App\Http\Middleware\VerifyMosqHttpAuth;
 use Illuminate\Support\Facades\Route;
 
 // Publicly accessible route for API identification
@@ -54,9 +55,19 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('users/register', [AuthController::class, 'register'])->name('users.register');
 
         // Locker routes for administrators
-        Route::controller(LockerController::class)->prefix('lockers')->name('lockers.')->group(function () {
-            Route::get('', 'index')->name('index');
-            Route::post('{locker}/open', 'openLocker')->name('open');
-        });
+        // Route::controller(LockerController::class)->prefix('lockers')->name('lockers.')->group(function () {
+        //     Route::get('', 'index')->name('index');
+        //     Route::post('{locker}/open', 'openLocker')->name('open');
+        // });
     });
+});
+
+// Mosquitto HTTP auth endpoints (secured via Basic Auth middleware)
+Route::prefix('mosq')->group(function () {
+    Route::post('auth', [MosquittoAuthController::class, 'auth'])
+        ->middleware(VerifyMosqHttpAuth::class);
+    Route::post('superuser', [MosquittoAuthController::class, 'superuser'])
+        ->middleware(VerifyMosqHttpAuth::class);
+    Route::post('acl', [MosquittoAuthController::class, 'acl'])
+        ->middleware(VerifyMosqHttpAuth::class);
 });

@@ -1,70 +1,214 @@
 services:
-    laravel.test:
+    app:
         build:
-            context: './docker/8.4'
-            dockerfile: Dockerfile
+            context: .
+            dockerfile: docker/8.4/Dockerfile
             args:
-                WWWGROUP: '${WWWGROUP}'
-        image: 'sail-8.4/app'
+                WWWGROUP: "${WWWGROUP}"
+        image: locker-backend-app:latest
         extra_hosts:
-            - 'host.docker.internal:host-gateway'
+            - "host.docker.internal:host-gateway"
         ports:
-            - '${APP_PORT:-80}:80'
-            - '${VITE_PORT:-5173}:${VITE_PORT:-5173}'
+            - "${APP_PORT:-80}:8080"
+            - "${VITE_PORT:-5173}:${VITE_PORT:-5173}"
         environment:
-            WWWUSER: '${WWWUSER}'
+            AUTORUN_ENABLED: "true"
+            AUTORUN_LARAVEL_MIGRATION_ISOLATION: "true"
+            PUID: "${WWWUSER}"
+            PGID: "${WWWGROUP}"
             LARAVEL_SAIL: 1
-            XDEBUG_MODE: '${SAIL_XDEBUG_MODE:-off}'
-            XDEBUG_CONFIG: '${SAIL_XDEBUG_CONFIG:-client_host=host.docker.internal}'
-            IGNITION_LOCAL_SITES_PATH: '${PWD}'
+            PHP_XDEBUG_MODE: "${SAIL_XDEBUG_MODE:-off}"
+            XDEBUG_CONFIG: "${SAIL_XDEBUG_CONFIG:-client_host=host.docker.internal}"
+            IGNITION_LOCAL_SITES_PATH: "${PWD}"
+            DB_HOST: pgsql
+            REDIS_HOST: redis
+            MQTT_BROKER_HOST: mqtt
+            # Ensure unique MQTT client ids per container to avoid session kicks
+            MQTT_PUBLISHER_CLIENT_ID: "laravel_backend_publisher_app"
         volumes:
-            - '.:/var/www/html'
+            - ".:/var/www/html"
         networks:
             - sail
         depends_on:
-            - mailpit
-            # - selenium
-#    queue-worker:
-#        image: 'sail-8.4/app'
-#        restart: unless-stopped
-#        environment:
-#            WWWUSER: '${WWWUSER}'
-#            LARAVEL_SAIL: 1
-#        command: php artisan queue:work --tries=3 --timeout=90
-#        volumes:
-#            - '.:/var/www/html'
-#        networks:
-#            - sail
-#        depends_on:
-#            - laravel.test
-    locker-poller:
-         image: 'sail-8.4/app'
-         restart: unless-stopped
-         environment:
-             WWWUSER: '${WWWUSER}'
-             LARAVEL_SAIL: 1
-         command: php artisan locker:poll-status --verbose
-         volumes:
-             - '.:/var/www/html'
-         networks:
-             - sail
-         depends_on:
-             - laravel.test
-    mailpit:
-        image: 'axllent/mailpit:latest'
-        ports:
-            - '${FORWARD_MAILPIT_PORT:-1025}:1025'
-            - '${FORWARD_MAILPIT_DASHBOARD_PORT:-8025}:8025'
+            pgsql:
+                condition: service_healthy
+            mailpit:
+                condition: service_started
+            redis:
+                condition: service_healthy
+        healthcheck:
+            test: ["CMD", "curl", "-f", "http://localhost:8080/up"]
+            interval: 5s
+            timeout: 5s
+            retries: 5
+    queue-worker:
+        image: locker-backend-app:latest
+        restart: unless-stopped
+        stop_signal: SIGTERM
+        environment:
+            AUTORUN_ENABLED: "false"
+            PUID: "${WWWUSER}"
+            PGID: "${WWWGROUP}"
+            LARAVEL_SAIL: 1
+            DB_HOST: pgsql
+            REDIS_HOST: redis
+            MQTT_BROKER_HOST: mqtt
+            MQTT_PUBLISHER_CLIENT_ID: "laravel_backend_publisher_queue_worker"
+        command: "php artisan queue:work --queue=default --tries=3 --timeout=90"
+        volumes:
+            - ".:/var/www/html"
         networks:
             - sail
-    # selenium:
-    #     image: selenium/standalone-chromium
-    #     extra_hosts:
-    #         - 'host.docker.internal:host-gateway'
-    #     volumes:
-    #         - '/dev/shm:/dev/shm'
-    #     networks:
-    #         - sail
+        depends_on:
+            app:
+                condition: service_healthy
+            pgsql:
+                condition: service_healthy
+            redis:
+                condition: service_healthy
+            mqtt:
+                condition: service_started
+        healthcheck:
+            test: ["CMD", "healthcheck-queue"]
+            start_period: 10s
+            interval: 30s
+            timeout: 10s
+            retries: 3
+    event-worker:
+        image: locker-backend-app:latest
+        restart: unless-stopped
+        stop_signal: SIGTERM
+        environment:
+            AUTORUN_ENABLED: "false"
+            PUID: "${WWWUSER}"
+            PGID: "${WWWGROUP}"
+            LARAVEL_SAIL: 1
+            DB_HOST: pgsql
+            REDIS_HOST: redis
+            MQTT_BROKER_HOST: mqtt
+            MQTT_PUBLISHER_CLIENT_ID: "laravel_backend_publisher_event_worker"
+        command: "php artisan queue:work --queue=events --tries=3 --timeout=90"
+        volumes:
+            - ".:/var/www/html"
+        networks:
+            - sail
+        depends_on:
+            app:
+                condition: service_healthy
+            pgsql:
+                condition: service_healthy
+            redis:
+                condition: service_healthy
+            mqtt:
+                condition: service_started
+        healthcheck:
+            test: ["CMD", "healthcheck-queue"]
+            start_period: 10s
+            interval: 30s
+            timeout: 10s
+            retries: 3
+    mqtt-listener:
+        image: locker-backend-app:latest
+        restart: unless-stopped
+        stop_signal: SIGTERM
+        environment:
+            AUTORUN_ENABLED: "false"
+            PUID: "${WWWUSER}"
+            PGID: "${WWWGROUP}"
+            LARAVEL_SAIL: 1
+            DB_HOST: pgsql
+            REDIS_HOST: redis
+            MQTT_BROKER_HOST: mqtt
+            MQTT_LISTENER_CLIENT_ID: "laravel_backend_listener_mqtt_listener"
+            MQTT_PUBLISHER_CLIENT_ID: "laravel_backend_publisher_mqtt_listener"
+        command: "php artisan mqtt:listen"
+        volumes:
+            - ".:/var/www/html"
+        networks:
+            - sail
+        depends_on:
+            app:
+                condition: service_healthy
+            pgsql:
+                condition: service_healthy
+            redis:
+                condition: service_healthy
+            mqtt:
+                condition: service_started
+    mailpit:
+        image: "axllent/mailpit:latest"
+        ports:
+            - "${FORWARD_MAILPIT_PORT:-1025}:1025"
+            - "${FORWARD_MAILPIT_DASHBOARD_PORT:-1025}:1025"
+            - "${FORWARD_MAILPIT_DASHBOARD_PORT:-8025}:8025"
+        networks:
+            - sail
+    mqtt:
+        image: iegomez/mosquitto-go-auth:latest
+        restart: unless-stopped
+        ports:
+            - "1883:1883"
+        volumes:
+            - "./mosquitto/mosquitto.conf:/etc/mosquitto/mosquitto.conf:ro"
+            - "locker-mqtt-data:/mosquitto/data"
+        environment:
+            # mosquitto-go-auth plugin is loaded by mosquitto.conf in mounted config
+            # no envs required if using http backend via plugin options
+            TZ: UTC
+        networks:
+            - sail
+        depends_on:
+            app:
+                condition: service_healthy
+
+    redis:
+        image: "redis:alpine"
+        ports:
+            - "${FORWARD_REDIS_PORT:-6379}:6379"
+        volumes:
+            - "sail-redis:/data"
+        networks:
+            - sail
+        healthcheck:
+            test:
+                - CMD
+                - redis-cli
+                - ping
+            retries: 3
+            timeout: 5s
+    pgsql:
+        image: "postgres:17"
+        ports:
+            - "${FORWARD_DB_PORT:-5432}:5432"
+        environment:
+            PGPASSWORD: "${DB_PASSWORD:-secret}"
+            POSTGRES_DB: "${DB_DATABASE}"
+            POSTGRES_USER: "${DB_USERNAME}"
+            POSTGRES_PASSWORD: "${DB_PASSWORD:-secret}"
+        volumes:
+            - "sail-pgsql:/var/lib/postgresql/data"
+            - "./vendor/laravel/sail/database/pgsql/create-testing-database.sql:/docker-entrypoint-initdb.d/10-create-testing-database.sql"
+            # Removed pgcrypto extension mount; not required anymore
+        networks:
+            - sail
+        healthcheck:
+            test:
+                - CMD
+                - pg_isready
+                - "-q"
+                - "-d"
+                - "${DB_DATABASE}"
+                - "-U"
+                - "${DB_USERNAME}"
+            retries: 3
+            timeout: 5s
 networks:
     sail:
         driver: bridge
+volumes:
+    sail-redis:
+        driver: local
+    sail-pgsql:
+        driver: local
+    locker-mqtt-data:
+        driver: local

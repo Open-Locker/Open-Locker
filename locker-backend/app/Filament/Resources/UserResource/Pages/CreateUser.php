@@ -22,6 +22,7 @@ class CreateUser extends CreateRecord
         $user->is_admin_since = now();
         $user->email_verified_at = now();
         $user->save();
+
         return $user;
     }
 

@@ -87,11 +87,6 @@ COPY --from=builder --chown=www-data:www-data /app/storage/framework/cache ./sto
 COPY --from=builder --chown=www-data:www-data /app/storage/framework/testing ./storage/framework/testing
 COPY --from=builder --chown=www-data:www-data /app/storage/framework/views ./storage/framework/views
 
-# Kopiere die Konfiguration für das ffi-Modul
-COPY --chown=www-data:www-data packages/OpenLocker/php-modbus-ffi ./packages/OpenLocker/php-modbus-ffi
-
-# Kopiere die PHP Konfiguration für den FPM-Container
-COPY ./99-locker.ini /usr/local/etc/php/conf.d/99-locker.ini
 
 RUN mkdir -p storage/framework/sessions storage/framework/views storage/framework/cache/data storage/los \
     && chown -R www-data:www-data storage bootstrap/cache \

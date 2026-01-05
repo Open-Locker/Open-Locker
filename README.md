@@ -4,52 +4,144 @@
 
 ## The Project
 
-This is an open source project to create software that locks and unlocks public lockers to store and/or share items, sponsored by [Smart City Hameln-Pyrmont](https://mitwirkportal.de/informieren).
+This is an open source project to create software that locks and unlocks public
+lockers to store and/or share items, sponsored by
+[Smart City Hameln-Pyrmont](https://mitwirkportal.de/informieren).
 
 ### What we want to achieve
 
-Within Hameln-Pyrmont, there is a set of lockers that the county uses to lend objects like laptops or VR headset to interested citizens. This project is supposed to improve the user experience and offer the county a way to individualize the software to better suit their needs.
+Within Hameln-Pyrmont, there is a set of lockers that the county uses to lend
+objects like laptops or VR headset to interested citizens. This project is
+supposed to improve the user experience and offer the county a way to
+individualize the software to better suit their needs.
 
-The group came together with the goal to improve their knowledge while building something that will be of immediate use to the people around them.
+The group came together with the goal to improve their knowledge while building
+something that will be of immediate use to the people around them.
 
 ### How you can help
 
-You can join our weeklies on **Mondays and Tuesdays, alternating every week, at 19:30 CET/18:30 UTC** in our [Discord](https://discord.gg/rZ74RYKN3H), either to listen in or to participate, or you can interact with us via github, sending us pull requests, issues or general feedback. Our next weekly is on Tuesday, the 6th of May, followed by Monday, the 12th of May.
+You can join our weeklies on **Mondays and Tuesdays, alternating every week, at
+19:30 CET/18:30 UTC** in our [Discord](https://discord.gg/rZ74RYKN3H), either to
+listen in or to participate, or you can interact with us via github, sending us
+pull requests, issues or general feedback. Our next weekly is on Tuesday, the
+6th of May, followed by Monday, the 12th of May.
 
-If you're still unsure where to start, you can always reach out to us in our discord's text channels.
+If you're still unsure where to start, you can always reach out to us in our
+discord's text channels.
 
-### What's going on right now?
+## Architecture
 
-At the moment, we're working on an MVP that lets us test the concept with actual users. To achieve this, we've set two smaller goals on the way, for instance a version that allows our hardware team to test their builds with our app. You can check out our current roadmap [here](https://github.com/Open-Locker/Open-Locker/milestones). We'll be updating it as we reach our goals.
+This is a **monorepo** containing multiple components:
 
-## Project Structure and Details
+- **Backend** (`locker-backend/`): Laravel 11 API with Filament admin panel
+- **Mobile App** (`locker_app/`): Flutter app for end users
+- **API Client** (`packages/locker_api/`): Auto-generated Dart client
+- **Documentation** (`docs/`): Project architecture and guides
 
-### Monorepo Structure
+### System Overview
 
-This project is organized as a monorepo, which means it contains multiple projects within a single repository. Currently, the main project in this repository is:
+The system consists of:
 
-- `locker-backend`: The backend application built with Laravel.
-- `locker_app`: The frontend flutter app.
+- **IoT Hardware**: Raspberry Pi with Modbus communication to physical lockers
+- **MQTT Broker**: Mosquitto with HTTP Authentication (via Laravel backend)
+- **API Backend**: Laravel application managing items, users, and hardware
+- **Mobile App**: Flutter app for borrowing and returning items
+- **Admin Panel**: Filament-based web interface for system management
 
-Using a monorepo allows us to manage all related projects in one place, making it easier to share code and manage dependencies.
+## Getting Started
 
+### Prerequisites
 
-### Setting Up Git Hooks
+- Docker & Docker Compose
+- [Just](https://github.com/casey/just) (Task Runner) - *Optional, but recommended*
 
-To ensure code quality and consistency, we use Git hooks in this project. Follow these steps to set up the Git hooks:
+### Installation
 
-1. Run the `install-hooks.sh` script to configure the Git hooks path:
-    ```sh
-    ./install-hooks.sh
-    ```
+For detailed installation and setup instructions, including Cloud Backend and Locker Client setup, please see:
 
-This script will set the Git hooks path to the `.githooks` directory in the project.
+ **[`docs/Installation.md`](docs/Installation.md)**
 
-2. Verify that the hooks are set up correctly by checking the Git configuration:
-    ```sh
-    git config core.hooksPath
-    ```
+## Component Documentation
 
-You should see `.githooks` as the output.
+### Backend (Laravel API)
 
-Now, the Git hooks are configured and will run automatically during the commit process.
+Comprehensive documentation available in
+[`locker-backend/README.md`](locker-backend/README.md):
+
+- Development guidelines and coding standards
+- API endpoints and OpenAPI documentation
+- Hardware integration (Modbus) guidelines
+- Testing strategies and best practices
+- Deployment and production setup
+
+### Mobile App (Flutter)
+
+Documentation available in [`locker_app/README.md`](locker_app/README.md):
+
+- Flutter app architecture
+- State management and navigation
+- API integration patterns
+- Platform-specific builds
+
+### Project Architecture
+
+Detailed system architecture documentation in
+[`docs/Architecture.md`](docs/Architecture.md):
+
+- Component interaction diagrams
+- Data flow and system boundaries
+- Technology stack overview
+- Hardware integration architecture
+
+## Technology Stack
+
+- **Backend**: Laravel 11, Filament 3.x, Sanctum, SQLite
+- **Frontend**: Flutter, Dart, OpenAPI-generated client
+- **MQTT**: Mosquitto + mosquitto-go-auth (HTTP Backend)
+- **Hardware**: Modbus TCP/RTU, libmodbus, FFI
+- **Documentation**: Scramble OpenAPI, Mermaid diagrams
+- **Development**: Docker, Laravel Sail, Cursor Rules, Just
+
+### Project Structure
+
+```
+Open-Locker/
+├── locker-backend/     # Laravel API & Admin Panel
+├── locker_app/         # Flutter Mobile App
+├── packages/           # Shared packages
+│   └── locker_api/     # Auto-generated API client
+├── docs/               # Project documentation
+├── docker-compose.yml  # Development environment
+└── Justfile            # Task runner configuration
+```
+
+## Community
+
+- **Discord**: [Join our Discord server](https://discord.gg/rZ74RYKN3H)
+- **Issues**: Report bugs and request features via GitHub Issues
+- **Contributing**: See component-specific documentation for guidelines
+
+## Sponsorship
+
+We welcome organizations interested in sponsoring this open source project.
+Open-Locker aims to provide digital infrastructure for community resource
+sharing and smart city initiatives. If your organization would like to support
+this project or explore collaboration opportunities, please reach out to us via
+[Discord](https://discord.gg/rZ74RYKN3H) or create an issue on GitHub.
+
+Current sponsors help us:
+
+- Develop and maintain the open source codebase
+- Support community engagement and documentation
+- Advance smart city digital infrastructure solutions
+- Enable broader adoption of locker-sharing systems
+
+## License
+
+This project is open source under the MIT License. See [LICENSE](LICENSE) for
+details.
+
+## Acknowledgments
+
+Sponsored by [Smart City Hameln-Pyrmont](https://mitwirkportal.de/informieren)
+as part of their digital innovation initiative.

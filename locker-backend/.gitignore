@@ -21,3 +21,8 @@ yarn-error.log
 /.nova
 /.vscode
 /.zed
+
+docker/mosquitto/log/mosquitto.log
+docker/mosquitto/data/dynamic-security.json
+docker/mosquitto/data/mosquitto.db
+mosquitto/mosquitto.conf

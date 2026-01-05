@@ -8,12 +8,6 @@
         "framework"
     ],
     "license": "MIT",
-    "repositories": [
-        {
-            "type": "path",
-            "url": "packages/OpenLocker/php-modbus-ffi"
-        }
-    ],
     "require": {
         "php": "^8.2",
         "dedoc/scramble": "^0.12.6",
@@ -21,8 +15,8 @@
         "laravel/framework": "^11.31",
         "laravel/sanctum": "^4.0",
         "laravel/tinker": "^2.9",
-        "open-locker/php-modbus-ffi": "@dev",
-        "ext-ffi": "*"
+        "php-mqtt/laravel-client": "^1.6",
+        "spatie/laravel-event-sourcing": "^7.12"
     },
     "require-dev": {
         "brianium/paratest": "^7.8",
@@ -50,6 +44,16 @@
     "scripts": {
         "format": "./vendor/bin/pint",
         "format-check": "./vendor/bin/pint --test",
+        "test": "php artisan test",
+        "test:parallel": "php artisan test --parallel",
+        "test:coverage": "php artisan test --coverage",
+        "test:filter": "php artisan test --filter",
+        "analyse": "./vendor/bin/phpstan analyse",
+        "quality": [
+            "@format-check",
+            "@analyse",
+            "@test"
+        ],
         "export:api": "php artisan scramble:export",
         "generate:api-client": [
             "@export:api",

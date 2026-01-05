@@ -16,6 +16,7 @@ use Illuminate\Cookie\Middleware\EncryptCookies;
 use Illuminate\Foundation\Http\Middleware\VerifyCsrfToken;
 use Illuminate\Routing\Middleware\SubstituteBindings;
 use Illuminate\Session\Middleware\StartSession;
+use Illuminate\Support\Facades\App;
 use Illuminate\View\Middleware\ShareErrorsFromSession;
 
 class AdminPanelProvider extends PanelProvider
@@ -28,13 +29,14 @@ class AdminPanelProvider extends PanelProvider
             ->path('admin')
             ->login()
             ->passwordReset()
+            ->profile()
             ->colors([
                 'primary' => '#afca0b',
             ])
             ->brandName('Open Locker')
-            ->brandLogo(asset('storage/assets/logo.svg'))
+            ->brandLogo(asset('storage/assets/logo.svg', App::isProduction()))
             ->brandLogoHeight('3rem')
-            ->favicon(asset('storage/assets/logo.svg'))
+            ->favicon(asset('storage/assets/logo.svg', App::isProduction()))
             ->maxContentWidth(MaxWidth::Full)
             ->sidebarCollapsibleOnDesktop()
             ->sidebarWidth(300)

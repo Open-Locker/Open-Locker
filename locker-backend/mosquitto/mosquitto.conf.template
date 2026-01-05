@@ -1,0 +1,25 @@
+per_listener_settings true
+listener 1883 0.0.0.0
+
+# Security options
+allow_anonymous false
+
+# Mosquitto Go Auth Plugin
+auth_plugin /mosquitto/go-auth.so
+auth_opt_backends http
+auth_opt_cache false
+auth_opt_log_level debug
+
+# HTTP Backend Config
+auth_opt_http_host app
+auth_opt_http_port 8080
+auth_opt_http_getuser_uri /api/mosq/auth?mosq_secret=__AUTH_PASS__
+auth_opt_http_aclcheck_uri /api/mosq/acl?mosq_secret=__AUTH_PASS__
+auth_opt_http_with_tls false
+auth_opt_http_timeout 3
+auth_opt_http_params_mode json
+auth_opt_http_getuser_method post
+auth_opt_http_aclcheck_method post
+
+log_dest stdout
+log_type error warning notice information

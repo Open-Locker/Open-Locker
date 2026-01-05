@@ -59,7 +59,7 @@ class ItemController extends Controller
                 'borrowed_at' => now(),
             ]);
 
-            $lockerService->openLocker($item->locker);
+            $lockerService->openCompartment($item->compartment);
         });
 
         return response()->json([

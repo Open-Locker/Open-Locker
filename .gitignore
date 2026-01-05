@@ -109,3 +109,10 @@ fabric.properties
 .ionide
 
 # End of https://www.toptal.com/developers/gitignore/api/visualstudiocode,jetbrains+all
+
+.env.prod
+.env
+docker/mosquitto/data/mosquitto.db
+docker/mosquitto/log/mosquitto.log
+docker/mosquitto/config/password.conf
+*.DS_Store

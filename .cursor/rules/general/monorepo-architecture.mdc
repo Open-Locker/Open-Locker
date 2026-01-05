@@ -1,0 +1,103 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# Open-Locker Monorepo Architecture
+
+This is a **monorepo** containing multiple interconnected components for the Open-Locker IoT system.
+
+## Repository Structure
+
+```
+Open-Locker/
+├── locker-backend/           # Laravel 11 API + Admin Panel
+├── locker_app/              # Flutter Mobile App  
+├── packages/locker_api/     # Generated Dart API Client
+├── docs/                    # Project Documentation
+├── docker-compose.yml       # Multi-service orchestration
+└── Justfile                 # Task runner configuration
+```
+
+## Component Overview
+
+### 🔧 **Backend** (`locker-backend/`)
+- **Technology**: Laravel 11 with Filament 3.x
+- **Purpose**: REST API for mobile app + Admin interface
+- **Features**: User management, item tracking, locker control
+- **Hardware**: Modbus integration for IoT communication
+- **Documentation**: Auto-generated OpenAPI via Scramble
+
+### 📱 **Mobile App** (`locker_app/`)
+- **Technology**: Flutter (cross-platform)
+- **Purpose**: End-user interface for borrowing items
+- **Features**: Authentication, item browsing, locker interaction
+- **API Client**: Uses generated Dart client from `packages/locker_api/`
+
+### 📦 **API Client** (`packages/locker_api/`)
+- **Technology**: Generated Dart package from OpenAPI
+- **Purpose**: Type-safe API communication for Flutter app
+- **Generation**: Automatically created from Laravel backend
+- **Updates**: Regenerated when API schema changes
+
+### 📡 **MQTT Broker** (Mosquitto)
+- **Technology**: Mosquitto with `mosquitto-go-auth` plugin
+- **Purpose**: Real-time communication for provisioning & status
+- **Auth**: HTTP Backend via Laravel API (`/api/mosq/*`)
+- **Setup**: Managed via `just setup-mqtt`
+
+### 📚 **Documentation** (`docs/`)
+- **Architecture**: System design and component interaction
+- **Installation**: Setup guides for development and production
+- **Service Definition**: Locker-as-a-Service business model
+
+## Architecture Principles
+
+### **API-First Design**
+- Backend serves as pure API (no web frontend except admin)
+- Mobile app consumes REST API via generated client
+- Admin panel uses Filament for internal management
+
+### **Hardware Abstraction**
+- Modbus communication abstracted via service layer
+- Configurable for TCP/RTU protocols
+- Deployable on Raspberry Pi or standard servers
+
+### **Code Generation**
+- OpenAPI spec auto-generated from Laravel code
+- Dart API client auto-generated from OpenAPI spec
+- Reduces manual synchronization between components
+
+## Development Workflow
+
+### **Task Runner (Just)**
+We use `just` to automate common development tasks.
+- `just setup-mqtt`: Configure Mosquitto authentication and restart services.
+- `just --list`: View all available commands.
+
+### **Cross-Component Changes**
+1. **Backend API changes** → Run Scramble to update OpenAPI
+2. **OpenAPI updates** → Regenerate Dart client package  
+3. **Client updates** → Update Flutter app dependencies
+4. **Testing** → Integration tests across all components
+
+### **Environment Coordination**
+- **Docker Compose** orchestrates all services in development
+- **Shared configuration** via environment variables
+- **Database seeding** provides consistent test data
+
+## Deployment Architecture
+
+```
+Internet → Flutter App → Laravel API → Modbus Gateway → Physical Lockers
+                      ↓
+                   Admin Panel (Filament)
+```
+
+### **Production Components**
+- **Mobile App**: Distributed via app stores
+- **Backend API**: Deployed on server
+- **Client**: Deployed on a RaspberryPi to communicat with the server via mqtt and the hardware via modbus.
+- **Database**: SQLite (small deployments) or PostgreSQL
+- **Hardware**: Connected via Modbus TCP/RTU
+- **MQTT**: Mosquitto broker for realtime events
