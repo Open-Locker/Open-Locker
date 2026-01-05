@@ -100,6 +100,38 @@ class User extends Authenticatable implements FilamentUser, MustVerifyEmail
 
     public function canAccessPanel(Panel $panel): bool
     {
+        if (request()->routeIs([
+            'filament.admin.auth.email-verification.*',
+            'filament.admin.pages.auth.email-verification.*',
+        ])) {
+            return true;
+        }
+
+        if ($this->is_admin_since && !$this->hasVerifiedEmail()) {
+            $currentRoute = request()->route()?->getName();
+
+            if (!str_contains($currentRoute ?? '', 'email-verification')) {
+                redirect()->to($panel->route('auth.email-verification.prompt'))->send();
+            }
+
+            return true;
+        }
         return $this->isAdmin() && $this->hasVerifiedEmail();
+    }
+
+    protected static function booted()
+    {
+        static::created(function (User $user) {
+            if (User::count() === 1) {
+                $user->is_admin_since = now();
+                $user->save();
+            }
+        });
+
+        static::deleting(function (User $user) {
+            if ($user->isAdmin() && User::whereNotNull('is_admin_since')->count() <= 1) {
+                return false;
+            }
+        });
     }
 }
