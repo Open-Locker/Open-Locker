@@ -5,6 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
 
     <title>{{ config('app.name', 'Open Locker') }}</title>
+    <link rel="icon" type="image/svg+xml" href="{{ asset('storage/assets/logo.svg') }}">
+    <link rel="apple-touch-icon" href="{{ asset('storage/assets/logo.svg') }}">
 
     <style>
         :root { color-scheme: light dark; }
@@ -62,6 +64,9 @@
         <p>Open-Source Projekt für ein IoT-basiertes Locker-/Schließfach-System (Software, Hardware-Bauanleitung &amp; Kit).</p>
         <p>
             GitHub: <a href="https://github.com/Open-Locker/Open-Locker" rel="noopener noreferrer" target="_blank">Open-Locker/Open-Locker</a>
+        </p>
+        <p style="opacity: 0.6; font-size: 12px; margin-top: 8px;">
+            Version: {{ config('app.version', 'dev') }}
         </p>
     </div>
 </main>

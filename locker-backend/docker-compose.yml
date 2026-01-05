@@ -23,6 +23,8 @@ services:
             DB_HOST: pgsql
             REDIS_HOST: redis
             MQTT_BROKER_HOST: mqtt
+            # Keep Laravel app version aligned with the deployed image tag
+            APP_VERSION: "${BACKEND_IMAGE_TAG:-dev}"
             # Ensure unique MQTT client ids per container to avoid session kicks
             MQTT_PUBLISHER_CLIENT_ID: "laravel_backend_publisher_app"
         volumes:
@@ -53,6 +55,7 @@ services:
             DB_HOST: pgsql
             REDIS_HOST: redis
             MQTT_BROKER_HOST: mqtt
+            APP_VERSION: "${BACKEND_IMAGE_TAG:-dev}"
             MQTT_PUBLISHER_CLIENT_ID: "laravel_backend_publisher_queue_worker"
         command: "php artisan queue:work --queue=default --tries=3 --timeout=90"
         volumes:
@@ -86,6 +89,7 @@ services:
             DB_HOST: pgsql
             REDIS_HOST: redis
             MQTT_BROKER_HOST: mqtt
+            APP_VERSION: "${BACKEND_IMAGE_TAG:-dev}"
             MQTT_PUBLISHER_CLIENT_ID: "laravel_backend_publisher_event_worker"
         command: "php artisan queue:work --queue=events --tries=3 --timeout=90"
         volumes:
@@ -119,6 +123,7 @@ services:
             DB_HOST: pgsql
             REDIS_HOST: redis
             MQTT_BROKER_HOST: mqtt
+            APP_VERSION: "${BACKEND_IMAGE_TAG:-dev}"
             MQTT_LISTENER_CLIENT_ID: "laravel_backend_listener_mqtt_listener"
             MQTT_PUBLISHER_CLIENT_ID: "laravel_backend_publisher_mqtt_listener"
         command: "php artisan mqtt:listen"

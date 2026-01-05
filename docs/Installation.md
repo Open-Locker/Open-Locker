@@ -109,6 +109,9 @@ docker compose -f docker-compose.prod.yml up -d --force-recreate
 Tip: put `BACKEND_IMAGE_TAG=<github_sha>` in `locker-backend/.env` so you don't need to export it
 in every shell session.
 
+If you use the provided `docker-compose.prod.yml`, the API will also expose this value via
+`GET /api/identify` as `version`, because the compose file sets `APP_VERSION` from `BACKEND_IMAGE_TAG`.
+
 ### 4. Create Admin User
 
 Once the services are running, create your first admin user:
