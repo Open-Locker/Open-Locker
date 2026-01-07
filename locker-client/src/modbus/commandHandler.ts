@@ -7,10 +7,19 @@ export class CommandHandler {
   private monitoringIntervals: Map<number, NodeJS.Timeout> = new Map();
   private readonly MONITORING_INTERVAL = 500; // 500ms polling interval
   private readonly COMPARTMENT_OPEN_DURATION = 200; // 200ms to keep relay on (time for lock to release)
-  private readonly DEFAULT_CLIENT_ID = "locker2"; // Default Modbus client ID
 
   async handleOpenCompartment(compartmentID: number, clientId?: string): Promise<void> {
-    const modbusClientId = clientId || this.DEFAULT_CLIENT_ID;
+    // Use provided clientId or default to the first available client
+    let modbusClientId = clientId;
+    if (!modbusClientId) {
+      const availableClients = modbusService.getClientIds();
+      if (availableClients.length === 0) {
+        throw new Error("No Modbus clients available");
+      }
+      modbusClientId = availableClients[0];
+      logger.debug(`No client ID specified, using first available: ${modbusClientId}`);
+    }
+    
     logger.info(`Opening compartment ${compartmentID} on client ${modbusClientId}`);
 
     try {
