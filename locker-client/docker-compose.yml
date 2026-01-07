@@ -12,12 +12,12 @@ services:
     # Mount configuration and data volumes
     volumes:
       # Configuration volume (read-only)
-      # Contains locker-config.yml and optionally provisioning-token
+      # Contains locker-config.yml
       - ./config:/config:ro
       
       # Data volume (read-write)
-      # Stores persistent data: .mqtt-client-id, .mqtt-credentials.json, .provisioning-state
-      - locker-data:/data
+      # Stores persistent data: .mqtt-client-id, .mqtt-credentials.json, .provisioning-state, provisioning-token
+      - ./data:/data
     
     # Restart policy
     restart: unless-stopped
@@ -33,8 +33,3 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
-
-# Named volume for persistent data
-volumes:
-  locker-data:
-    driver: local
