@@ -2,7 +2,7 @@ version: '3.8'
 
 services:
   locker-client:
-    build: .
+    image: ghcr.io/open-locker/locker-client:latest
     container_name: locker-client
     
     # Map the Modbus serial device
