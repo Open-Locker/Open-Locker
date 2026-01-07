@@ -65,6 +65,14 @@ class ConfigLoader {
 
       this.config = parsedConfig;
       logger.info("Configuration loaded successfully from " + CONFIG_FILE);
+      logger.info(`MQTT Broker: ${parsedConfig.mqtt.brokerUrl}`);
+      logger.info(`Modbus Port: ${parsedConfig.modbus.port}`);
+      logger.info(`Number of locker clients configured: ${parsedConfig.modbus.clients.length}`);
+      
+      // Log details for each locker client
+      parsedConfig.modbus.clients.forEach((client, index) => {
+        logger.info(`Locker ${index + 1}: ID=${client.id}, SlaveID=${client.slaveId}, BaudRate=${client.baudRate || 9600}`);
+      });
       
       return this.config;
     } catch (error) {
