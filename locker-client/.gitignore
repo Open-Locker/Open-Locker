@@ -46,3 +46,10 @@ app.log
 
 # Provisioning state
 .provisioning-state
+
+# Configuration and data directories
+config/
+data/
+
+# Keep example config
+!locker-config.yml.example

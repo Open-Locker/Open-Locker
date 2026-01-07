@@ -1,5 +1,6 @@
 import { mqttConfig } from "./config/mqtt";
 import { logger } from "./helper/logger";
+import { ensureDirectories } from "./helper/directories";
 import { commandHandler } from "./modbus/commandHandler";
 import { mqttClientManager } from "./mqtt/mqttClientManager";
 import { mqttMessageHandler } from "./mqtt/mqttMessageHandler";
@@ -9,20 +10,26 @@ import { provisioningRegistrationService } from "./services/provisioningRegistra
 import { credentialsService } from "./services/credentialsService";
 import { heartbeatService } from "./services/heartbeatService";
 import { coilPollingService } from "./services/coilPollingService";
+import { provisioningTokenService } from "./services/provisioningTokenService";
 
 async function main() {
   logger.info("Starting the application...");
 
   try {
+    // Ensure required directories exist
+    ensureDirectories();
     // Check provisioning state
     const isProvisioned = provisioningService.getProvisioningState();
     logger.info(`Locker provisioning status: ${isProvisioned ? "PROVISIONED" : "NOT PROVISIONED"}`);
 
     if (!isProvisioned) {
-      // Check if provisioning token is set
-      if (!mqttConfig.provisioningToken) {
-        logger.error("PROVISIONING_TOKEN environment variable is not set");
+      // Read and delete provisioning token from file
+      const provisioningToken = provisioningTokenService.readAndDeleteToken();
+      
+      if (!provisioningToken) {
+        logger.error("No provisioning token found");
         logger.error("Cannot start provisioning process without a token");
+        logger.error("Please provide a provisioning-token file in the /config directory");
         process.exit(1);
       }
 
@@ -40,7 +47,7 @@ async function main() {
       // Start provisioning registration
       try {
         const success = await provisioningRegistrationService.register(
-          mqttConfig.provisioningToken,
+          provisioningToken,
           mqttConfig.clientId
         );
 

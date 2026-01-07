@@ -1,13 +1,12 @@
-import dotenv from "dotenv";
 import fs from "fs";
 import path from "path";
 import { randomBytes } from "crypto";
 import { credentialsService } from "../services/credentialsService";
 import { logger } from "../helper/logger";
+import { configLoader } from "./configLoader";
+import { MQTT_CLIENT_ID_FILE } from "./paths";
 
-dotenv.config();
-
-const CLIENT_ID_FILE = path.join(process.cwd(), ".mqtt-client-id");
+const CLIENT_ID_FILE = MQTT_CLIENT_ID_FILE;
 
 function getOrGenerateClientId(): string {
   // First check if provided via environment variable
@@ -49,27 +48,29 @@ function getCredentials(): { username?: string; password?: string } {
     return persisted;
   }
 
-  // Fall back to environment variables
+  // No persisted credentials available
+  return {};
+}
+
+function getMqttConfig() {
+  const config = configLoader.loadConfig();
+  const credentials = getCredentials();
+
   return {
-    username: process.env.MQTT_USERNAME,
-    password: process.env.MQTT_PASSWORD,
+    brokerUrl: config.mqtt.brokerUrl,
+    defaultUsername: config.mqtt.defaultUsername,
+    defaultPassword: config.mqtt.defaultPassword,
+    ...credentials,
+    clientId: getOrGenerateClientId(),
+    heartbeatInterval: (config.mqtt.heartbeatInterval || 15) * 1000, // Convert to milliseconds
   };
 }
 
-export const mqttConfig = {
-  brokerUrl: process.env.MQTT_BROKER_URL || "mqtt://localhost:1883",
-  defaultUsername: process.env.MQTT_DEFAULT_USERNAME || "default",
-  defaultPassword: process.env.MQTT_DEFAULT_PASSWORD || "default",
-  ...getCredentials(),
-  clientId: getOrGenerateClientId(),
-  provisioningToken: process.env.PROVISIONING_TOKEN,
-  heartbeatInterval: parseInt(process.env.HEARTBEAT_INTERVAL || "15", 10) * 1000, // Convert to milliseconds
-};
+export const mqttConfig = getMqttConfig();
 
 logger.debug("MQTT configuration loaded:", {
   brokerUrl: mqttConfig.brokerUrl,
   username: mqttConfig.username || "(not set)",
   clientId: mqttConfig.clientId,
-  hasProvisioningToken: !!mqttConfig.provisioningToken,
   heartbeatInterval: mqttConfig.heartbeatInterval,
 });

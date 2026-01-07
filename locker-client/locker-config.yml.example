@@ -1,0 +1,49 @@
+# Locker Client Configuration File
+# This file should be mounted as a Docker volume at /config/locker-config.yml
+
+# MQTT Broker Configuration
+mqtt:
+  # MQTT broker URL (required)
+  brokerUrl: mqtt://open-locker.cloud
+  
+  # Default credentials for provisioning (required)
+  defaultUsername: provisioning_client
+  defaultPassword: a_public_password
+  
+  # Heartbeat interval in seconds (optional, default: 15)
+  heartbeatInterval: 15
+
+# Modbus RTU Configuration
+modbus:
+  # Serial port for Modbus communication (required)
+  # All Modbus clients will use this port
+  port: /dev/ttyACM0
+  
+  # List of Modbus clients (required)
+  # Note: Each client uses the same port but different slave IDs
+  clients:
+    - id: locker1
+      slaveId: 1
+      baudRate: 9600      # optional, default: 9600
+      dataBits: 8         # optional, default: 8
+      stopBits: 1         # optional, default: 1
+      parity: none        # optional, default: none (options: none, even, odd)
+      timeout: 1000       # optional, default: 1000 (milliseconds)
+    
+    - id: locker2
+      slaveId: 2
+      baudRate: 9600
+      dataBits: 8
+      stopBits: 1
+      parity: none
+      timeout: 1000
+  
+  # Modbus register addresses (optional)
+  addresses:
+    lockControl: 0      # Coil address for lock control (default: 0)
+    lockStatus: 1       # Coil address for lock status (default: 1)
+    doorSensor: 2       # Coil address for door sensor (default: 2)
+
+# Logging Configuration (optional)
+logging:
+  level: info  # Options: debug, info, warn, error

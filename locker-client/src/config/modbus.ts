@@ -1,7 +1,5 @@
-import dotenv from "dotenv";
 import { logger } from "../helper/logger";
-
-dotenv.config();
+import { configLoader } from "./configLoader";
 
 export interface ModbusClientConfig {
   id: string;
@@ -14,53 +12,39 @@ export interface ModbusClientConfig {
   timeout: number;
 }
 
-// Parse multiple Modbus clients from environment
+// Parse Modbus clients from configuration
 function parseModbusClients(): ModbusClientConfig[] {
-  const clientsJson = process.env.MODBUS_CLIENTS;
+  const config = configLoader.loadConfig();
+  const modbusPort = config.modbus.port;
   
-  if (clientsJson) {
-    try {
-      const clients = JSON.parse(clientsJson);
-      return clients.map((client: any) => ({
-        id: client.id,
-        port: client.port,
-        baudRate: client.baudRate || 9600,
-        dataBits: (client.dataBits || 8) as 7 | 8,
-        stopBits: (client.stopBits || 1) as 1 | 2,
-        parity: (client.parity || "none") as "none" | "even" | "odd",
-        slaveId: client.slaveId || 1,
-        timeout: client.timeout || 1000,
-      }));
-    } catch (error) {
-      console.error("Failed to parse MODBUS_CLIENTS:", error);
-    }
-  }
-  
-  // Fallback to single client configuration from individual env vars
-  return [
-    {
-      id: "default",
-      port: process.env.MODBUS_PORT || "/dev/ttyUSB0",
-      baudRate: parseInt(process.env.MODBUS_BAUD_RATE || "9600"),
-      dataBits: parseInt(process.env.MODBUS_DATA_BITS || "8") as 7 | 8,
-      stopBits: parseInt(process.env.MODBUS_STOP_BITS || "1") as 1 | 2,
-      parity: (process.env.MODBUS_PARITY || "none") as "none" | "even" | "odd",
-      slaveId: parseInt(process.env.MODBUS_SLAVE_ID || "1"),
-      timeout: parseInt(process.env.MODBUS_TIMEOUT || "1000"),
-    },
-  ];
+  return config.modbus.clients.map((client) => ({
+    id: client.id,
+    port: modbusPort, // Use the main MODBUS_PORT from config
+    baudRate: client.baudRate || 9600,
+    dataBits: (client.dataBits || 8) as 7 | 8,
+    stopBits: (client.stopBits || 1) as 1 | 2,
+    parity: (client.parity || "none") as "none" | "even" | "odd",
+    slaveId: client.slaveId,
+    timeout: client.timeout || 1000,
+  }));
 }
 
-export const modbusConfig = {
-  clients: parseModbusClients(),
+function getModbusConfig() {
+  const config = configLoader.loadConfig();
   
-  // Locker-specific addresses
-  addresses: {
-    lockControl: parseInt(process.env.MODBUS_LOCK_CONTROL_ADDR || "0"),
-    lockStatus: parseInt(process.env.MODBUS_LOCK_STATUS_ADDR || "1"),
-    doorSensor: parseInt(process.env.MODBUS_DOOR_SENSOR_ADDR || "2"),
-  },
-};
+  return {
+    clients: parseModbusClients(),
+    
+    // Locker-specific addresses
+    addresses: {
+      lockControl: config.modbus.addresses?.lockControl ?? 0,
+      lockStatus: config.modbus.addresses?.lockStatus ?? 1,
+      doorSensor: config.modbus.addresses?.doorSensor ?? 2,
+    },
+  };
+}
+
+export const modbusConfig = getModbusConfig();
 
 logger.debug("Modbus configuration loaded:", {
   clientCount: modbusConfig.clients.length,

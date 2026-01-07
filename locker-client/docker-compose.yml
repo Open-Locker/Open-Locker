@@ -1,0 +1,40 @@
+version: '3.8'
+
+services:
+  locker-client:
+    build: .
+    container_name: locker-client
+    
+    # Map the Modbus serial device
+    devices:
+      - /dev/ttyACM0:/dev/ttyACM0
+    
+    # Mount configuration and data volumes
+    volumes:
+      # Configuration volume (read-only)
+      # Contains locker-config.yml and optionally provisioning-token
+      - ./config:/config:ro
+      
+      # Data volume (read-write)
+      # Stores persistent data: .mqtt-client-id, .mqtt-credentials.json, .provisioning-state
+      - locker-data:/data
+    
+    # Restart policy
+    restart: unless-stopped
+    
+    # Optional: Override default paths
+    # environment:
+    #   - CONFIG_DIR=/config
+    #   - DATA_DIR=/data
+    
+    # Optional: Logging configuration
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+# Named volume for persistent data
+volumes:
+  locker-data:
+    driver: local

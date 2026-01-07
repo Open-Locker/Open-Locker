@@ -1,8 +1,9 @@
 import fs from "fs";
 import path from "path";
 import { logger } from "../helper/logger";
+import { MQTT_CREDENTIALS_FILE } from "../config/paths";
 
-const CREDENTIALS_FILE = path.join(process.cwd(), ".mqtt-credentials.json");
+const CREDENTIALS_FILE = MQTT_CREDENTIALS_FILE;
 
 interface MqttCredentials {
   username: string;

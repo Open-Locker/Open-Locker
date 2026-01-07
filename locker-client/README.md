@@ -4,50 +4,76 @@ Docker-based client for managing Open Locker hardware via Modbus and MQTT.
 
 ## Quick Start
 
-### Pull the Docker Image
+### Prerequisites
+
+1. Create a configuration directory with `locker-config.yml`
+2. Optionally add a `provisioning-token` file for new lockers
+
+See [docs/CONFIGURATION.md](docs/CONFIGURATION.md) for detailed setup instructions.
+
+### Run with Docker Compose (Recommended)
 
 ```bash
-docker pull ghcr.io/open-locker/locker-client:latest
+# 1. Copy the example configuration
+cp locker-config.yml.example config/locker-config.yml
+
+# 2. Edit config/locker-config.yml with your settings
+
+# 3. (Optional) Add provisioning token for new lockers
+echo "YOUR_TOKEN_HERE" > config/provisioning-token
+
+# 4. Start the container
+docker-compose up -d
 ```
 
-### Run the Container
+### Run with Docker
 
 ```bash
 docker run -d \
   --name locker-client \
   --device=/dev/ttyACM0:/dev/ttyACM0 \
-  --env-file .env \
+  -v $(pwd)/config:/config:ro \
+  -v locker-data:/data \
   --restart unless-stopped \
   ghcr.io/open-locker/locker-client:latest
 ```
 
 ## Configuration
 
-### Environment Variables
+Configuration is now managed via YAML files and Docker volumes instead of environment variables.
 
-Create a `.env` file with the following configuration:
+### Volume Structure
 
-```env
-# Modbus serial device
-MODBUS_PORT=/dev/ttyACM0
+- **`/config`** - Configuration files (mount read-only)
+  - `locker-config.yml` - Main configuration (required)
+  - `provisioning-token` - One-time provisioning token (optional, auto-deleted)
 
-# Multiple Modbus clients configuration (JSON array)
-MODBUS_CLIENTS=[{"id":"locker2","port":"/dev/ttyACM0","slaveId": 2}]
+- **`/data`** - Persistent runtime data (mount read-write)
+  - `.mqtt-client-id` - Generated client identifier
+  - `.mqtt-credentials.json` - Provisioned credentials
+  - `.provisioning-state` - Provisioning status
 
-# MQTT broker connection
-MQTT_BROKER_URL=mqtt://open-locker.cloud
-MQTT_DEFAULT_USERNAME=provisioning_client
-MQTT_DEFAULT_PASSWORD=a_public_password
+### Configuration File
 
-# Provisioning token (required for initial setup)
-PROVISIONING_TOKEN=your_provisioning_token_here
+Create a `locker-config.yml` file (see [locker-config.yml.example](locker-config.yml.example)):
 
-# Heartbeat interval in seconds (default: 15)
-HEARTBEAT_INTERVAL=15
+```yaml
+mqtt:
+  brokerUrl: mqtt://open-locker.cloud
+  defaultUsername: provisioning_client
+  defaultPassword: a_public_password
+  heartbeatInterval: 15
 
-# Optional: Enable debug logging
-# LOG_LEVEL=debug
+modbus:
+  port: /dev/ttyACM0
+  clients:
+    - id: locker1
+      slaveId: 1
+    - id: locker2
+      slaveId: 2
 ```
+
+**Note:** Modbus clients no longer have individual `port` properties. All clients use the port defined in `modbus.port`.
 
 ### Device Access
 
