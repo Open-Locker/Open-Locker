@@ -11,6 +11,21 @@ echo ""
 echo "Creating directories..."
 mkdir -p config data
 
+# Download docker-compose.yml if not present
+if [ ! -f docker-compose.yml ]; then
+    echo "Downloading docker-compose.yml from GitHub..."
+    wget -q https://raw.githubusercontent.com/Open-Locker/Open-Locker/main/locker-client/docker-compose.yml -O docker-compose.yml
+    if [ $? -ne 0 ]; then
+        echo "❌ Failed to download docker-compose.yml"
+        exit 1
+    fi
+    echo "✓ docker-compose.yml downloaded"
+else
+    echo "✓ docker-compose.yml already exists"
+fi
+
+echo ""
+
 # Copy example configuration
 if [ ! -f config/locker-config.yml ]; then
     echo "Creating config/locker-config.yml from example..."
