@@ -11,9 +11,9 @@ services:
     
     # Mount configuration and data volumes
     volumes:
-      # Configuration volume (read-only)
-      # Contains locker-config.yml
-      - ./config:/config:ro
+      # Configuration volume (read-write)
+      # Contains locker-config.yml and provisioning-token (deleted after provisioning)
+      - ./config:/config
       
       # Data volume (read-write)
       # Stores persistent data: .mqtt-client-id, .mqtt-credentials.json, .provisioning-state, provisioning-token

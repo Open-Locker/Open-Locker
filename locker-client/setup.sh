@@ -60,12 +60,12 @@ if [ ! -f data/.provisioning-state ]; then
     
     if [ "$has_token" = "y" ] || [ "$has_token" = "Y" ]; then
         read -p "Enter provisioning token: " token
-        echo "$token" > data/provisioning-token
-        echo "✓ Provisioning token saved to data/provisioning-token"
+        echo "$token" > config/provisioning-token
+        echo "✓ Provisioning token saved to config/provisioning-token"
         echo "  (This file will be automatically deleted after provisioning)"
     else
         echo "  You can add the provisioning token later:"
-        echo "  echo 'YOUR_TOKEN' > data/provisioning-token"
+        echo "  echo 'YOUR_TOKEN' > config/provisioning-token"
     fi
 else
     echo "✓ Locker is already provisioned"
