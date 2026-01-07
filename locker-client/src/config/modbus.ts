@@ -1,5 +1,5 @@
 import { logger } from "../helper/logger";
-import { configLoader } from "./configLoader";
+import { configLoader, ModbusClientConfig as ConfigModbusClient } from "./configLoader";
 
 export interface ModbusClientConfig {
   id: string;
@@ -17,7 +17,7 @@ function parseModbusClients(): ModbusClientConfig[] {
   const config = configLoader.loadConfig();
   const modbusPort = config.modbus.port;
   
-  return config.modbus.clients.map((client) => ({
+  return config.modbus.clients.map((client: ConfigModbusClient) => ({
     id: client.id,
     port: modbusPort, // Use the main MODBUS_PORT from config
     baudRate: client.baudRate || 9600,
