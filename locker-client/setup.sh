@@ -14,6 +14,17 @@ mkdir -p config data
 # Copy example configuration
 if [ ! -f config/locker-config.yml ]; then
     echo "Creating config/locker-config.yml from example..."
+    
+    # Check if example file exists locally, otherwise download it
+    if [ ! -f locker-config.yml.example ]; then
+        echo "Downloading example configuration from GitHub..."
+        wget -q https://raw.githubusercontent.com/Open-Locker/Open-Locker/main/locker-client/locker-config.yml.example -O locker-config.yml.example
+        if [ $? -ne 0 ]; then
+            echo "❌ Failed to download example configuration"
+            exit 1
+        fi
+    fi
+    
     cp locker-config.yml.example config/locker-config.yml
     echo "✓ Configuration file created"
     echo ""
