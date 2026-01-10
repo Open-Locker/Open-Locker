@@ -3,71 +3,75 @@ import { modbusConfig, ModbusClientConfig } from "../config/modbus";
 import { logger } from "../helper/logger";
 
 class ModbusService {
-  private clients: Map<string, ModbusRTU> = new Map();
+  private client: ModbusRTU | null = null;
   private clientConfigs: Map<string, ModbusClientConfig> = new Map();
+  private slaveIdMap: Map<string, number> = new Map();
 
   constructor() {
-    // Store client configurations
+    // Store client configurations and build slave ID mapping
     modbusConfig.clients.forEach(config => {
       this.clientConfigs.set(config.id, config);
+      this.slaveIdMap.set(config.id, config.slaveId);
     });
   }
 
   async connect(): Promise<void> {
-    const connectionPromises = Array.from(this.clientConfigs.entries()).map(
-      async ([id, config]) => {
-        try {
-          const client = new ModbusRTU();
-          
-          await client.connectRTUBuffered(config.port, {
-            baudRate: config.baudRate,
-            dataBits: config.dataBits,
-            stopBits: config.stopBits,
-            parity: config.parity,
-          });
-
-          client.setID(config.slaveId);
-          client.setTimeout(config.timeout);
-
-          this.clients.set(id, client);
-          logger.info(`Modbus RTU client '${id}' connected to ${config.port}`);
-        } catch (error) {
-          logger.error(`Failed to connect Modbus client '${id}':`, error);
-          throw error;
-        }
+    try {
+      // Create a single Modbus connection
+      this.client = new ModbusRTU();
+      
+      // Use configuration from the first client for connection settings
+      const firstConfig = Array.from(this.clientConfigs.values())[0];
+      if (!firstConfig) {
+        throw new Error("No Modbus client configurations found");
       }
-    );
+      
+      await this.client.connectRTUBuffered(firstConfig.port, {
+        baudRate: firstConfig.baudRate,
+        dataBits: firstConfig.dataBits,
+        stopBits: firstConfig.stopBits,
+        parity: firstConfig.parity,
+      });
 
-    await Promise.all(connectionPromises);
-    logger.info(`All Modbus RTU connections established (${this.clients.size} clients)`);
+      this.client.setTimeout(firstConfig.timeout);
+      
+      logger.info(`Modbus RTU connected to ${firstConfig.port}`);
+      logger.info(`Configured slave IDs: ${Array.from(this.slaveIdMap.entries()).map(([id, slaveId]) => `${id}=${slaveId}`).join(', ')}`);
+    } catch (error) {
+      logger.error(`Failed to connect Modbus RTU:`, error);
+      throw error;
+    }
   }
 
   async disconnect(): Promise<void> {
-    const disconnectPromises = Array.from(this.clients.entries()).map(
-      ([id, client]) =>
-        new Promise<void>((resolve) => {
-          client.close(() => {
-            logger.info(`Modbus RTU client '${id}' connection closed`);
-            resolve();
-          });
-        })
-    );
-
-    await Promise.all(disconnectPromises);
-    this.clients.clear();
-    logger.info("All Modbus RTU connections closed");
+    if (this.client) {
+      await new Promise<void>((resolve) => {
+        this.client!.close(() => {
+          logger.info("Modbus RTU connection closed");
+          resolve();
+        });
+      });
+      this.client = null;
+    }
   }
 
   getClient(clientId: string = "default"): ModbusRTU {
-    const client = this.clients.get(clientId);
-    if (!client) {
-      throw new Error(`Modbus client '${clientId}' not found`);
+    if (!this.client) {
+      throw new Error("Modbus client not connected");
     }
-    return client;
+    
+    // Set the slave ID for this client
+    const slaveId = this.slaveIdMap.get(clientId);
+    if (slaveId === undefined) {
+      throw new Error(`Client '${clientId}' not found in configuration`);
+    }
+    
+    this.client.setID(slaveId);
+    return this.client;
   }
 
   getClientIds(): string[] {
-    return Array.from(this.clients.keys());
+    return Array.from(this.slaveIdMap.keys());
   }
 
   async writeCoil(address: number, value: boolean, clientId: string = "default"): Promise<void> {
@@ -136,9 +140,9 @@ class ModbusService {
 
   isModbusConnected(clientId?: string): boolean {
     if (clientId) {
-      return this.clients.has(clientId);
+      return this.client !== null && this.slaveIdMap.has(clientId);
     }
-    return this.clients.size > 0;
+    return this.client !== null;
   }
 }
 
