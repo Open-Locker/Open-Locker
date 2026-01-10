@@ -44,6 +44,50 @@ modbus:
     lockStatus: 1       # Coil address for lock status (default: 1)
     doorSensor: 2       # Coil address for door sensor (default: 2)
 
+# Compartments Configuration
+compartments:
+  # Define compartments and map them to Modbus clients
+  # Each compartment specifies which slave it's connected to and its 0-based address
+  - id: 1
+    slaveId: 1        # Connected to locker1 (slave 1)
+    address: 0        # 0-based address on this slave
+  
+  - id: 2
+    slaveId: 1
+    address: 1
+  
+  - id: 3
+    slaveId: 1
+    address: 2
+  
+  - id: 4
+    slaveId: 1
+    address: 3
+  
+  - id: 5
+    slaveId: 1
+    address: 4
+  
+  - id: 6
+    slaveId: 2        # Connected to locker2 (slave 2)
+    address: 0        # 0-based address on this slave
+  
+  - id: 7
+    slaveId: 2
+    address: 1
+  
+  - id: 8
+    slaveId: 2
+    address: 2
+  
+  - id: 9
+    slaveId: 2
+    address: 3
+  
+  - id: 10
+    slaveId: 2
+    address: 4
+
 # Logging Configuration (optional)
 logging:
   level: info  # Options: debug, info, warn, error

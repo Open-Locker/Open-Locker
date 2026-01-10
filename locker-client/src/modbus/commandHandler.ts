@@ -2,6 +2,7 @@ import { logger } from "../helper/logger";
 import { modbusService } from "../services/modbusService";
 import { mqttService } from "../services/mqttService";
 import { credentialsService } from "../services/credentialsService";
+import { configLoader } from "../config/configLoader";
 
 export class CommandHandler {
   private monitoringIntervals: Map<number, NodeJS.Timeout> = new Map();
@@ -33,42 +34,99 @@ export class CommandHandler {
   }
 
   private async openCompartment(compartmentID: number, clientId: string) {
-    // Waveshare relay uses 0-based addressing (0-7 for 8 channels)
-    const relayAddress = compartmentID - 1; // Convert 1-based to 0-based
+    // Get compartment configuration from config file
+    const compartmentConfig = configLoader.getCompartmentConfig(compartmentID);
     
-    if (relayAddress < 0 || relayAddress > 7) {
-      throw new Error(`Invalid compartment number: ${compartmentID}. Must be between 1 and 8.`);
+    if (!compartmentConfig) {
+      // Fallback to legacy mode if no compartment config
+      logger.warn(`No configuration found for compartment ${compartmentID}, using legacy addressing`);
+      const relayAddress = compartmentID - 1; // Convert 1-based to 0-based
+      
+      if (relayAddress < 0 || relayAddress > 7) {
+        throw new Error(`Invalid compartment number: ${compartmentID}. Must be between 1 and 8.`);
+      }
+      
+      logger.info(`Activating relay ${relayAddress} (compartment ${compartmentID})`);  
+      await modbusService.writeCoil(relayAddress, true, clientId);
+      
+      setTimeout(async () => {
+        try {
+          await modbusService.writeCoil(relayAddress, false, clientId);
+          logger.info(`Deactivated relay ${relayAddress} (compartment ${compartmentID})`);
+        } catch (error) {
+          logger.error(`Failed to deactivate relay ${relayAddress}:`, error);
+        }
+      }, this.COMPARTMENT_OPEN_DURATION);
+      return;
     }
-
-    logger.info(`Activating relay ${relayAddress} (compartment ${compartmentID})`);
     
-    // Turn relay ON (release lock)
-    await modbusService.writeCoil(relayAddress, true, clientId);
+    // Use compartment config
+    const relayAddress = compartmentConfig.address;
+    const targetSlaveId = compartmentConfig.slaveId;
+    
+    // Find the client ID for this slave
+    const config = configLoader.getConfig();
+    const targetClient = config?.modbus.clients.find(c => c.slaveId === targetSlaveId);
+    
+    if (!targetClient) {
+      throw new Error(`No Modbus client configured for slave ID ${targetSlaveId}`);
+    }
+    
+    logger.info(`Activating relay ${relayAddress} on slave ${targetSlaveId} (compartment ${compartmentID})`);
+    
+    // Turn relay ON (release lock) - use target client from compartment config
+    await modbusService.writeCoil(relayAddress, true, targetClient.id);
     
     // Keep relay on for specified duration, then turn off
     setTimeout(async () => {
       try {
-        await modbusService.writeCoil(relayAddress, false, clientId);
-        logger.info(`Deactivated relay ${relayAddress} (compartment ${compartmentID})`);
+        await modbusService.writeCoil(relayAddress, false, targetClient.id);
+        logger.info(`Deactivated relay ${relayAddress} on slave ${targetSlaveId} (compartment ${compartmentID})`);
       } catch (error) {
-        logger.error(`Failed to deactivate relay ${relayAddress}:`, error);
+        logger.error(`Failed to deactivate relay ${relayAddress} on slave ${targetSlaveId}:`, error);
       }
     }, this.COMPARTMENT_OPEN_DURATION);
   }
 
   private async startCoilMonitoring(compartmentID: number, clientId: string): Promise<void> {
-    const relayAddress = compartmentID - 1; // Convert to 0-based
+    // Get compartment configuration from config file
+    const compartmentConfig = configLoader.getCompartmentConfig(compartmentID);
+    
+    let relayAddress: number;
+    let targetClientId: string;
+    
+    if (!compartmentConfig) {
+      // Fallback to legacy mode if no compartment config
+      logger.warn(`No configuration found for compartment ${compartmentID}, using legacy addressing for monitoring`);
+      relayAddress = compartmentID - 1; // Convert to 0-based
+      targetClientId = clientId;
+    } else {
+      // Use compartment config
+      relayAddress = compartmentConfig.address;
+      const targetSlaveId = compartmentConfig.slaveId;
+      
+      // Find the client ID for this slave
+      const config = configLoader.getConfig();
+      const targetClient = config?.modbus.clients.find(c => c.slaveId === targetSlaveId);
+      
+      if (!targetClient) {
+        throw new Error(`No Modbus client configured for slave ID ${targetSlaveId}`);
+      }
+      
+      targetClientId = targetClient.id;
+    }
+    
     const monitorKey = compartmentID; // Use 1-based for monitoring map
     
     // Stop any existing monitoring for this compartment
     this.stopCoilMonitoring(monitorKey);
 
-    logger.info(`Starting relay monitoring for compartment ${compartmentID} (relay ${relayAddress})`);
+    logger.info(`Starting relay monitoring for compartment ${compartmentID} (relay ${relayAddress} on client ${targetClientId})`);
     
     const monitorCoil = async () => {
       try {
         // Read relay status (function code 01)
-        const relayStatus = await modbusService.readCoils(relayAddress, 1, clientId);
+        const relayStatus = await modbusService.readCoils(relayAddress, 1, targetClientId);
         const isRelayOn = relayStatus[0];
         
         logger.debug(`Compartment ${compartmentID} relay status: ${isRelayOn ? 'ON (unlocked)' : 'OFF (locked)'}`);

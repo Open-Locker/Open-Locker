@@ -13,6 +13,12 @@ export interface ModbusClientConfig {
   timeout?: number;
 }
 
+export interface CompartmentConfig {
+  id: number;
+  slaveId: number;
+  address: number;
+}
+
 export interface LockerConfig {
   mqtt: {
     brokerUrl: string;
@@ -29,6 +35,7 @@ export interface LockerConfig {
       doorSensor?: number;
     };
   };
+  compartments?: CompartmentConfig[];
   logging?: {
     level?: string;
   };
@@ -74,6 +81,16 @@ class ConfigLoader {
         logger.info(`Locker ${index + 1}: ID=${client.id}, SlaveID=${client.slaveId}, BaudRate=${client.baudRate || 9600}`);
       });
       
+      // Log compartment configuration
+      if (parsedConfig.compartments && parsedConfig.compartments.length > 0) {
+        logger.info(`Number of compartments configured: ${parsedConfig.compartments.length}`);
+        parsedConfig.compartments.forEach((compartment) => {
+          logger.info(`Compartment ${compartment.id}: SlaveID=${compartment.slaveId}, Address=${compartment.address}`);
+        });
+      } else {
+        logger.warn("No compartments configured. Using legacy addressing mode.");
+      }
+      
       return this.config;
     } catch (error) {
       logger.error("Failed to load configuration:", error);
@@ -88,6 +105,15 @@ class ConfigLoader {
   public reloadConfig(): LockerConfig {
     this.config = null;
     return this.loadConfig();
+  }
+
+  public getCompartmentConfig(compartmentId: number): CompartmentConfig | null {
+    if (!this.config?.compartments) {
+      return null;
+    }
+    
+    const compartment = this.config.compartments.find(c => c.id === compartmentId);
+    return compartment || null;
   }
 }
 
