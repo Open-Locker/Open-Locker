@@ -12,20 +12,24 @@ services:
     # Mount configuration and data volumes
     volumes:
       # Configuration volume (read-write)
-      # Contains locker-config.yml and provisioning-token (deleted after provisioning)
+      # Contains locker-config.yml
       - ./config:/config
       
       # Data volume (read-write)
-      # Stores persistent data: .mqtt-client-id, .mqtt-credentials.json, .provisioning-state, provisioning-token
+      # Stores persistent data: .mqtt-client-id, .mqtt-credentials.json, .provisioning-state
       - ./data:/data
+    
+    # Environment variables
+    environment:
+      # Optional: Override default paths
+      # - CONFIG_DIR=/config
+      # - DATA_DIR=/data
+      
+      # Optional: Set provisioning token for new lockers
+      # - PROVISIONING_TOKEN=your_token_here
     
     # Restart policy
     restart: unless-stopped
-    
-    # Optional: Override default paths
-    # environment:
-    #   - CONFIG_DIR=/config
-    #   - DATA_DIR=/data
     
     # Optional: Logging configuration
     logging:

@@ -11,4 +11,3 @@ export const PROVISIONING_STATE_FILE = path.join(DATA_DIR, ".provisioning-state"
 
 // Config files (stored in /config directory)
 export const CONFIG_FILE = path.join(CONFIG_DIR, "locker-config.yml");
-export const PROVISIONING_TOKEN_FILE = path.join(CONFIG_DIR, "provisioning-token");

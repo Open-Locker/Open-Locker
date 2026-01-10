@@ -4,8 +4,7 @@
 ```
 locker-client/
 ├── config/                          # Configuration volume
-│   ├── locker-config.yml           # Main config (required)
-│   └── provisioning-token          # One-time token (optional, auto-deleted)
+│   └── locker-config.yml           # Main config (required)
 │
 └── data/                            # Data volume (persistent)
     ├── .mqtt-client-id             # Generated
@@ -76,7 +75,7 @@ docker-compose exec locker-client sh
 
 **First time (not provisioned):**
 ```bash
-echo "YOUR_TOKEN_HERE" > config/provisioning-token
+export PROVISIONING_TOKEN="YOUR_TOKEN_HERE"
 docker-compose up -d
 ```
 
@@ -84,7 +83,7 @@ docker-compose up -d
 ```bash
 docker-compose down
 rm data/.provisioning-state data/.mqtt-credentials.json
-echo "NEW_TOKEN" > config/provisioning-token
+export PROVISIONING_TOKEN="NEW_TOKEN"
 docker-compose up -d
 ```
 
@@ -120,8 +119,8 @@ docker-compose exec locker-client cat /config/locker-config.yml
 
 **Provisioning fails:**
 ```bash
-# Check token file exists
-ls -la config/provisioning-token
+# Check environment variable is set
+echo $PROVISIONING_TOKEN
 
 # View logs
 docker-compose logs -f
@@ -131,6 +130,6 @@ docker-compose logs -f
 ```bash
 docker-compose down
 rm -rf data/*
-echo "NEW_TOKEN" > config/provisioning-token
+export PROVISIONING_TOKEN="NEW_TOKEN"
 docker-compose up -d
 ```

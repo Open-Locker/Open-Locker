@@ -55,18 +55,7 @@ echo ""
 # Check for provisioning token
 if [ ! -f data/.provisioning-state ]; then
     echo "⚠️  Locker is not provisioned"
-    echo ""
-    read -p "Do you have a provisioning token? (y/n): " has_token
-    
-    if [ "$has_token" = "y" ] || [ "$has_token" = "Y" ]; then
-        read -p "Enter provisioning token: " token
-        echo "$token" > config/provisioning-token
-        echo "✓ Provisioning token saved to config/provisioning-token"
-        echo "  (This file will be automatically deleted after provisioning)"
-    else
-        echo "  You can add the provisioning token later:"
-        echo "  echo 'YOUR_TOKEN' > config/provisioning-token"
-    fi
+    echo "  Set the PROVISIONING_TOKEN environment variable before starting the container"
 else
     echo "✓ Locker is already provisioned"
 fi

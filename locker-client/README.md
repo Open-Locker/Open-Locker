@@ -7,7 +7,7 @@ Docker-based client for managing Open Locker hardware via Modbus and MQTT.
 ### Prerequisites
 
 1. Create a configuration directory with `locker-config.yml`
-2. Optionally add a `provisioning-token` file for new lockers
+2. Set the `PROVISIONING_TOKEN` environment variable for new lockers
 
 See [docs/CONFIGURATION.md](docs/CONFIGURATION.md) for detailed setup instructions.
 
@@ -19,8 +19,8 @@ cp locker-config.yml.example config/locker-config.yml
 
 # 2. Edit config/locker-config.yml with your settings
 
-# 3. (Optional) Add provisioning token for new lockers
-echo "YOUR_TOKEN_HERE" > config/provisioning-token
+# 3. (Optional) Set provisioning token for new lockers
+export PROVISIONING_TOKEN="YOUR_TOKEN_HERE"
 
 # 4. Start the container
 docker-compose up -d
@@ -32,6 +32,7 @@ docker-compose up -d
 docker run -d \
   --name locker-client \
   --device=/dev/ttyACM0:/dev/ttyACM0 \
+  -e PROVISIONING_TOKEN="YOUR_TOKEN_HERE" \
   -v $(pwd)/config:/config:ro \
   -v locker-data:/data \
   --restart unless-stopped \
@@ -46,7 +47,6 @@ Configuration is now managed via YAML files and Docker volumes instead of enviro
 
 - **`/config`** - Configuration files (mount read-only)
   - `locker-config.yml` - Main configuration (required)
-  - `provisioning-token` - One-time provisioning token (optional, auto-deleted)
 
 - **`/data`** - Persistent runtime data (mount read-write)
   - `.mqtt-client-id` - Generated client identifier
@@ -138,7 +138,7 @@ docker logs locker-client
 ```
 
 Common issues:
-- Missing or invalid `PROVISIONING_TOKEN`
+- Missing or invalid `PROVISIONING_TOKEN` environment variable
 - Serial device not accessible
 - Incorrect MQTT broker configuration
 

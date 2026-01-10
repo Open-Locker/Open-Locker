@@ -29,7 +29,7 @@ async function main() {
       if (!provisioningToken) {
         logger.error("No provisioning token found");
         logger.error("Cannot start provisioning process without a token");
-        logger.error("Please provide a provisioning-token file in the /config directory");
+        logger.error("Please provide the PROVISIONING_TOKEN environment variable");
         process.exit(1);
       }
 
