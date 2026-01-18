@@ -6,6 +6,10 @@ class ModbusService {
   private client: ModbusRTU | null = null;
   private clientConfigs: Map<string, ModbusClientConfig> = new Map();
   private slaveIdMap: Map<string, number> = new Map();
+  private isConnecting: boolean = false;
+  private reconnectAttempts: number = 0;
+  private maxReconnectAttempts: number = 5;
+  private reconnectDelay: number = 5000; // 5 seconds
 
   constructor() {
     // Store client configurations and build slave ID mapping
@@ -16,8 +20,24 @@ class ModbusService {
   }
 
   async connect(): Promise<void> {
+    if (this.isConnecting) {
+      logger.debug("Connection already in progress");
+      return;
+    }
+
+    this.isConnecting = true;
+
     try {
-      // Create a single Modbus connection
+      // Close existing connection if any
+      if (this.client) {
+        try {
+          await this.disconnect();
+        } catch (err) {
+          logger.warn("Error closing existing connection:", err);
+        }
+      }
+
+      // Create a new Modbus connection
       this.client = new ModbusRTU();
       
       // Use configuration from the first client for connection settings
@@ -35,11 +55,17 @@ class ModbusService {
 
       this.client.setTimeout(firstConfig.timeout);
       
+      // Reset reconnect attempts on successful connection
+      this.reconnectAttempts = 0;
+      
       logger.info(`Modbus RTU connected to ${firstConfig.port}`);
       logger.info(`Configured slave IDs: ${Array.from(this.slaveIdMap.entries()).map(([id, slaveId]) => `${id}=${slaveId}`).join(', ')}`);
     } catch (error) {
       logger.error(`Failed to connect Modbus RTU:`, error);
+      this.client = null;
       throw error;
+    } finally {
+      this.isConnecting = false;
     }
   }
 
@@ -53,6 +79,34 @@ class ModbusService {
       });
       this.client = null;
     }
+  }
+
+  async reconnect(): Promise<void> {
+    if (this.reconnectAttempts >= this.maxReconnectAttempts) {
+      logger.error(`Max Modbus reconnection attempts (${this.maxReconnectAttempts}) reached. Manual intervention required.`);
+      return;
+    }
+
+    this.reconnectAttempts++;
+    logger.info(`Attempting to reconnect Modbus (attempt ${this.reconnectAttempts}/${this.maxReconnectAttempts})...`);
+
+    try {
+      await this.connect();
+      logger.info("Modbus reconnection successful");
+    } catch (error) {
+      logger.error(`Modbus reconnection attempt ${this.reconnectAttempts} failed:`, error);
+      
+      if (this.reconnectAttempts < this.maxReconnectAttempts) {
+        logger.info(`Will retry in ${this.reconnectDelay / 1000} seconds...`);
+        setTimeout(() => {
+          this.reconnect();
+        }, this.reconnectDelay);
+      }
+    }
+  }
+
+  resetReconnectAttempts(): void {
+    this.reconnectAttempts = 0;
   }
 
   getClient(clientId: string = "default"): ModbusRTU {
@@ -139,10 +193,35 @@ class ModbusService {
   }
 
   isModbusConnected(clientId?: string): boolean {
-    if (clientId) {
-      return this.client !== null && this.slaveIdMap.has(clientId);
+    if (!this.client) {
+      return false;
     }
-    return this.client !== null;
+
+    // Check if the port is actually open
+    if (!this.client.isOpen) {
+      return false;
+    }
+
+    if (clientId) {
+      return this.slaveIdMap.has(clientId);
+    }
+    return true;
+  }
+
+  async ensureConnection(): Promise<boolean> {
+    if (this.isModbusConnected()) {
+      return true;
+    }
+
+    logger.warn("Modbus connection lost, attempting to reconnect...");
+    
+    try {
+      await this.reconnect();
+      return this.isModbusConnected();
+    } catch (error) {
+      logger.error("Failed to ensure Modbus connection:", error);
+      return false;
+    }
   }
 }
 

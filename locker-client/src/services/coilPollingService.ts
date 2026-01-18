@@ -49,6 +49,13 @@ class CoilPollingService {
    */
   private async pollStatus(): Promise<void> {
     try {
+      // Check if Modbus is connected before attempting to poll
+      if (!modbusService.isModbusConnected()) {
+        logger.warn("Modbus not connected, skipping poll and attempting reconnection...");
+        await modbusService.ensureConnection();
+        return;
+      }
+
       // Read all 8 relay states (Function Code 01)
       const relayStates = await modbusService.readCoils(0x0000, this.NUM_CHANNELS, this.primaryClient);
       
@@ -62,6 +69,14 @@ class CoilPollingService {
       await this.publishStatus(relayStates, inputStates);
     } catch (error) {
       logger.error("Error polling relay/input status:", error);
+      
+      // If we get a port error, mark connection as lost and try to reconnect
+      if (error instanceof Error && (error.message.includes("Port Not Open") || error.message.includes("ECONNREFUSED"))) {
+        logger.warn("Port error detected, initiating reconnection...");
+        modbusService.reconnect().catch(err => {
+          logger.error("Failed to initiate reconnection:", err);
+        });
+      }
     }
   }
 

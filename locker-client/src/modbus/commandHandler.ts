@@ -10,6 +10,15 @@ export class CommandHandler {
   private readonly COMPARTMENT_OPEN_DURATION = 200; // 200ms to keep relay on (time for lock to release)
 
   async handleOpenCompartment(compartmentID: number, clientId?: string): Promise<void> {
+    // Check Modbus connection before attempting operation
+    if (!modbusService.isModbusConnected()) {
+      logger.warn("Modbus not connected, attempting to establish connection...");
+      const connected = await modbusService.ensureConnection();
+      if (!connected) {
+        throw new Error("Cannot open compartment: Modbus connection unavailable");
+      }
+    }
+
     // Use provided clientId or default to the first available client
     let modbusClientId = clientId;
     if (!modbusClientId) {
@@ -28,6 +37,15 @@ export class CommandHandler {
       await this.startCoilMonitoring(compartmentID, modbusClientId);
     } catch (error) {
       logger.error("Failed to execute command:", error);
+      
+      // If we get a port error, try to reconnect
+      if (error instanceof Error && (error.message.includes("Port Not Open") || error.message.includes("ECONNREFUSED"))) {
+        logger.warn("Port error detected, initiating reconnection...");
+        modbusService.reconnect().catch(err => {
+          logger.error("Failed to initiate reconnection:", err);
+        });
+      }
+      
       await this.reportError(error);
       throw error;
     }
@@ -125,6 +143,13 @@ export class CommandHandler {
     
     const monitorCoil = async () => {
       try {
+        // Check connection before monitoring
+        if (!modbusService.isModbusConnected()) {
+          logger.warn(`Connection lost while monitoring compartment ${compartmentID}, stopping monitoring`);
+          this.stopCoilMonitoring(monitorKey);
+          return;
+        }
+
         // Read relay status (function code 01)
         const relayStatus = await modbusService.readCoils(relayAddress, 1, targetClientId);
         const isRelayOn = relayStatus[0];
@@ -141,6 +166,15 @@ export class CommandHandler {
         }
       } catch (error) {
         logger.error(`Error monitoring compartment ${compartmentID}:`, error);
+        
+        // If we get a port error, stop monitoring and try to reconnect
+        if (error instanceof Error && (error.message.includes("Port Not Open") || error.message.includes("ECONNREFUSED"))) {
+          logger.warn("Port error detected during monitoring, initiating reconnection...");
+          modbusService.reconnect().catch(err => {
+            logger.error("Failed to initiate reconnection:", err);
+          });
+        }
+        
         this.stopCoilMonitoring(monitorKey);
         await this.reportError(error);
       }
