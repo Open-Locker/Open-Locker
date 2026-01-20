@@ -112,6 +112,23 @@ services:
         depends_on:
             <<: *worker_depends_on_dev
 
+    scheduler:
+        <<: *laravel_service_dev
+        restart: unless-stopped
+        stop_signal: SIGTERM
+        environment:
+            <<: *laravel_env_dev
+            AUTORUN_ENABLED: "false"
+        command: "php artisan schedule:work"
+        depends_on:
+            <<: *worker_depends_on_dev
+        healthcheck:
+            test: ["CMD", "healthcheck-schedule"]
+            start_period: 10s
+            interval: 30s
+            timeout: 10s
+            retries: 3
+
     mailpit:
         image: "axllent/mailpit:latest"
         ports:

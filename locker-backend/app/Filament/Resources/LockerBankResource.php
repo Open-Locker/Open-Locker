@@ -31,6 +31,18 @@ class LockerBankResource extends Resource
                 Textarea::make('location_description')
                     ->maxLength(65535)
                     ->columnSpanFull(),
+                TextInput::make('heartbeat_interval_seconds')
+                    ->label('Heartbeat interval (seconds)')
+                    ->numeric()
+                    ->minValue(1)
+                    ->default(5)
+                    ->helperText('Sent to the client via apply_config.'),
+                TextInput::make('heartbeat_timeout_seconds')
+                    ->label('Heartbeat timeout (seconds)')
+                    ->numeric()
+                    ->minValue(1)
+                    ->default(30)
+                    ->helperText('Backend marks the locker offline when no heartbeat is received within this timeout.'),
                 Placeholder::make('config_status')
                     ->label('Config status')
                     ->content(function (?LockerBank $record): string {
@@ -58,6 +70,16 @@ class LockerBankResource extends Resource
 
                 TextColumn::make('name')
                     ->searchable()->sortable(),
+                TextColumn::make('connection_status')
+                    ->label('Status')
+                    ->badge()
+                    ->state(fn (LockerBank $record): string => $record->connection_status ?? 'unknown')
+                    ->color(fn (string $state): string => match ($state) {
+                        'online' => 'success',
+                        'offline' => 'danger',
+                        default => 'gray',
+                    })
+                    ->sortable(),
                 TextColumn::make('config_status')
                     ->label('Config')
                     ->badge()

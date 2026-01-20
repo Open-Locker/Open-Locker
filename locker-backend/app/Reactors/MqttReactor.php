@@ -63,6 +63,7 @@ class MqttReactor extends Reactor implements ShouldQueue
             'timestamp' => now()->toIso8601String(),
             'data' => [
                 'config_hash' => $event->configHash,
+                'heartbeat_interval_seconds' => $event->heartbeatIntervalSeconds,
                 'compartments' => $event->compartments,
             ],
         ]);
@@ -72,6 +73,7 @@ class MqttReactor extends Reactor implements ShouldQueue
             'lockerBankUuid' => $event->lockerBankUuid,
             'transactionId' => $event->commandId,
             'configHash' => $event->configHash,
+            'heartbeatIntervalSeconds' => $event->heartbeatIntervalSeconds,
             'compartmentCount' => count($event->compartments),
         ]);
 

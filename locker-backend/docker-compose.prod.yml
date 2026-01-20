@@ -107,6 +107,23 @@ services:
     depends_on:
       <<: *worker_depends_on_prod
 
+  scheduler:
+    <<: *laravel_service_prod
+    restart: unless-stopped
+    stop_signal: SIGTERM
+    environment:
+      <<: *laravel_env_prod
+      AUTORUN_ENABLED: "false"
+    command: "php artisan schedule:work"
+    depends_on:
+      <<: *worker_depends_on_prod
+    healthcheck:
+      test: ["CMD", "healthcheck-schedule"]
+      start_period: 10s
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
   mqtt:
     image: iegomez/mosquitto-go-auth:latest
     restart: unless-stopped

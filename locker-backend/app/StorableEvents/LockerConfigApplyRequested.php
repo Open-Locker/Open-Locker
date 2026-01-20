@@ -15,6 +15,7 @@ class LockerConfigApplyRequested extends ShouldBeStored
         public readonly string $lockerBankUuid,
         public readonly string $commandId,
         public readonly string $configHash,
+        public readonly int $heartbeatIntervalSeconds,
         public readonly array $compartments,
     ) {}
 }

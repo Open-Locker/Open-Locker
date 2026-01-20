@@ -58,7 +58,7 @@ class LockerService
         ]);
 
         LockerBankAggregate::retrieve((string) $lockerBank->id)
-            ->requestApplyConfig($configHash, $payload['compartments'])
+            ->requestApplyConfig($configHash, (int) $lockerBank->heartbeat_interval_seconds, $payload['compartments'])
             ->persist();
 
         $lockerBank->update([

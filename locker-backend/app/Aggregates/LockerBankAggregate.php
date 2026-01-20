@@ -80,7 +80,7 @@ class LockerBankAggregate extends AggregateRoot
      *
      * @param  array<int, array<string, int>>  $compartments
      */
-    public function requestApplyConfig(string $configHash, array $compartments): self
+    public function requestApplyConfig(string $configHash, int $heartbeatIntervalSeconds, array $compartments): self
     {
         $lockerBankUuid = (string) $this->uuid();
         $commandId = (string) Str::uuid();
@@ -89,6 +89,7 @@ class LockerBankAggregate extends AggregateRoot
             'lockerBankUuid' => $lockerBankUuid,
             'commandId' => $commandId,
             'configHash' => $configHash,
+            'heartbeatIntervalSeconds' => $heartbeatIntervalSeconds,
             'compartmentCount' => count($compartments),
         ]);
 
@@ -96,6 +97,7 @@ class LockerBankAggregate extends AggregateRoot
             lockerBankUuid: $lockerBankUuid,
             commandId: $commandId,
             configHash: $configHash,
+            heartbeatIntervalSeconds: $heartbeatIntervalSeconds,
             compartments: $compartments,
         ));
 

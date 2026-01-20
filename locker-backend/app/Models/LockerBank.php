@@ -15,6 +15,10 @@ use Illuminate\Support\Str;
  * @property-read string $provisioning_token
  * @property-read \Illuminate\Support\CarbonImmutable|null $provisioned_at
  * @property-read \Illuminate\Support\CarbonImmutable|null $last_heartbeat_at
+ * @property-read int $heartbeat_interval_seconds
+ * @property-read int $heartbeat_timeout_seconds
+ * @property-read string $connection_status
+ * @property-read \Illuminate\Support\CarbonImmutable|null $connection_status_changed_at
  * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\Compartment> $compartments
  * @property-read int|null $compartments_count
  */
@@ -28,6 +32,10 @@ class LockerBank extends Model
         'provisioning_token',
         'provisioned_at',
         'last_heartbeat_at',
+        'heartbeat_interval_seconds',
+        'heartbeat_timeout_seconds',
+        'connection_status',
+        'connection_status_changed_at',
         'last_config_sent_at',
         'last_config_sent_hash',
         'last_config_ack_at',
@@ -37,6 +45,7 @@ class LockerBank extends Model
     protected $casts = [
         'provisioned_at' => 'datetime',
         'last_heartbeat_at' => 'datetime',
+        'connection_status_changed_at' => 'datetime',
         'last_config_sent_at' => 'datetime',
         'last_config_ack_at' => 'datetime',
     ];
@@ -56,7 +65,7 @@ class LockerBank extends Model
     /**
      * Build the config payload that will be sent to the client.
      *
-     * @return array{config_hash:string, compartments:array<int, array{id:int, slaveId:int, address:int}>}
+     * @return array{config_hash:string, heartbeat_interval_seconds:int, compartments:array<int, array{id:int, slaveId:int, address:int}>}
      */
     public function buildApplyConfigPayload(): array
     {
@@ -77,6 +86,7 @@ class LockerBank extends Model
 
         return [
             'config_hash' => $hash,
+            'heartbeat_interval_seconds' => (int) $this->heartbeat_interval_seconds,
             'compartments' => $compartments,
         ];
     }

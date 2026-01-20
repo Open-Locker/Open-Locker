@@ -225,6 +225,7 @@ Backend).
       "timestamp": "2023-10-27T10:05:00Z",
       "data": {
         "config_hash": "2f4d3c...sha256hex...",
+        "heartbeat_interval_seconds": 5,
         "compartments": [
           { "id": 1, "slaveId": 1, "address": 0 },
           { "id": 2, "slaveId": 1, "address": 1 }
@@ -370,6 +371,39 @@ Verbindungsabbrüche zu melden.
   Namen des Clients auf das angegebene Topic. Das Backend kann darauf lauschen
   und den Status des Schranks auf "unreachable" setzen.
 
+##### 4.5.1 Client-Implementierung (Last Will and Testament)
+
+Damit das Backend Verbindungsabbrüche schnell erkennen kann, sollte der
+IoT-Client beim Verbindungsaufbau ein MQTT Last Will and Testament setzen. Der
+Broker publiziert diese Nachricht automatisch, wenn die Verbindung unerwartet
+abbricht (z.B. Stromausfall, Netzwerk weg), ohne dass der Client sie aktiv
+senden kann.
+
+- **Topic**: `locker/{locker_uuid}/state`
+- **QoS**: 1 (empfohlen)
+- **retained**: `false` (empfohlen, da es ein Moment-Event ist; der
+  Heartbeat-Timeout im Backend ist der Fallback)
+
+Beispiel-Payload (JSON):
+
+```json
+{
+  "type": "state",
+  "state": "connection_lost",
+  "status": "offline",
+  "timestamp": "2023-10-27T10:00:00Z",
+  "reason": "mqtt_last_will"
+}
+```
+
+Hinweise:
+
+- Der Broker prüft ACLs auch für Last-Will-Publishes. Device-User müssen daher
+  auf `locker/%u/state` publishen dürfen (siehe ACL-Plan).
+- Last Will ist ein **Fast-Path** Signal; das Backend sollte zusätzlich
+  weiterhin zeitbasiert (Heartbeat-Timeout) offline erkennen, falls
+  Broker/Netzwerk Probleme haben.
+
 #### 4.6 Registrierungsprozess (Pre-Provisioning Workflow)
 
 Der Client wird im Backend vor-registriert ("pre-provisioned"), um maximale
@@ -504,6 +538,8 @@ Für spontane Events auf `locker/{uuid}/event` empfehlen wir optional:
 - ACL für Device-User erweitern:
   - publish erlauben: `locker/%u/state`, `locker/%u/response`, `locker/%u/event`
   - subscribe erlauben: `locker/%u/command`
+- Hinweis: MQTT Last Will wird vom Broker im Namen des Clients publiziert.
+  Deshalb muss `publish locker/%u/state` auch dafür erlaubt sein.
 - Migrationsphase (optional):
   - publish erlauben zusätzlich: `locker/%u/status` (deprecated), bis alle
     Clients migriert sind.
