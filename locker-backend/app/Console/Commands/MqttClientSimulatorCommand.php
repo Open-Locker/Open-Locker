@@ -21,11 +21,8 @@ class MqttClientSimulatorCommand extends Command
         {token : The registration token to use for the MQTT topic}
         {--host= : Override the MQTT broker host (applies to provisioning + device simulation)}
         {--port= : Override the MQTT broker port (applies to provisioning + device simulation)}
-        {--no-heartbeat : Do not publish heartbeats}
-        {--listen-seconds=60 : When --no-heartbeat is set, keep listening for commands for N seconds (0 = forever)}
-        {--auto-status : Publish a simulated status response for open_compartment commands}
-        {--auto-status-result=success : For --auto-status, publish success|error}
-        {--auto-status-delay-ms=0 : Delay before publishing the status response (milliseconds)}';
+        {--heartbeat-interval=10 : Heartbeat interval in seconds (default: 10)}
+        {--open-result=success : open_compartment result: success|error (default: success)}';
 
     /**
      * The console command description.
@@ -46,8 +43,6 @@ class MqttClientSimulatorCommand extends Command
         $payload = json_encode(['client_id' => $clientId]);
 
         $provisionResult = null; // ['status' => 'success|error', 'user' => ..., 'password' => ...]
-        $noHeartbeat = (bool) $this->option('no-heartbeat');
-        $listenSeconds = (int) $this->option('listen-seconds');
 
         $overrideHost = $this->option('host');
         $overridePort = $this->option('port');
@@ -69,9 +64,9 @@ class MqttClientSimulatorCommand extends Command
             }
         }
 
-        $autoStatus = (bool) $this->option('auto-status');
-        $autoStatusResult = (string) $this->option('auto-status-result');
-        $autoStatusDelayMs = max(0, (int) $this->option('auto-status-delay-ms'));
+        $heartbeatIntervalSeconds = max(1, (int) $this->option('heartbeat-interval'));
+        $openResult = (string) $this->option('open-result');
+        $openResult = $openResult === 'error' ? 'error' : 'success';
 
         try {
             // Use a unique client_id for this run on the provisioning connection
@@ -124,7 +119,7 @@ class MqttClientSimulatorCommand extends Command
             $deviceClientId = 'device-test-'.uniqid();
             $stateTopic = "locker/{$lockerUuid}/state";
             $commandTopic = "locker/{$lockerUuid}/command";
-            $statusTopic = "locker/{$lockerUuid}/status";
+            $responseTopic = "locker/{$lockerUuid}/response";
 
             // Connect the simulated device to the same broker host/port as our listener
             $host = (string) config('mqtt-client.connections.listener.host', 'mqtt');
@@ -141,16 +136,14 @@ class MqttClientSimulatorCommand extends Command
             $this->info("[device] Connected with client_id: {$deviceClientId} as username: {$lockerUuid}");
             $this->info("[device] Broker: {$host}:{$port}");
 
-            $openCommandReceived = false;
             $seenTransactionIds = [];
+            $transactionResponses = [];
 
             $base->subscribe($commandTopic, function (string $topic, string $message) use (
-                &$openCommandReceived,
                 &$seenTransactionIds,
-                $autoStatus,
-                $autoStatusDelayMs,
-                $autoStatusResult,
-                $statusTopic,
+                &$transactionResponses,
+                $responseTopic,
+                $openResult,
                 $base
             ) {
                 $this->info("<<< [device] Command received on [{$topic}]");
@@ -161,14 +154,15 @@ class MqttClientSimulatorCommand extends Command
                     return;
                 }
 
-                if (($decoded['action'] ?? null) !== 'open_compartment') {
-                    return;
-                }
-
-                $openCommandReceived = true;
-
                 $transactionId = (string) ($decoded['transaction_id'] ?? '');
+
                 if ($transactionId !== '' && isset($seenTransactionIds[$transactionId])) {
+                    // Simulate idempotency: resend the same response if we have it.
+                    if (isset($transactionResponses[$transactionId])) {
+                        $this->info(">>> [device] Duplicate transaction {$transactionId}, resending response to [{$responseTopic}] (QoS 1)");
+                        $base->publish($responseTopic, (string) $transactionResponses[$transactionId], 1);
+                    }
+
                     return;
                 }
 
@@ -176,42 +170,70 @@ class MqttClientSimulatorCommand extends Command
                     $seenTransactionIds[$transactionId] = true;
                 }
 
-                if (! $autoStatus) {
+                $action = $decoded['action'] ?? null;
+
+                if ($action === 'apply_config') {
+                    $data = $decoded['data'] ?? [];
+                    $configHash = is_array($data) && isset($data['config_hash']) && is_string($data['config_hash'])
+                        ? $data['config_hash']
+                        : null;
+
+                    if (! is_string($configHash) || strlen($configHash) !== 64) {
+                        $compartments = is_array($data) && isset($data['compartments']) && is_array($data['compartments'])
+                            ? $data['compartments']
+                            : [];
+                        $configHash = hash('sha256', json_encode($compartments, JSON_UNESCAPED_SLASHES));
+                    }
+
+                    $response = [
+                        'type' => 'command_response',
+                        'action' => 'apply_config',
+                        'result' => 'success',
+                        'transaction_id' => $transactionId !== '' ? $transactionId : null,
+                        'timestamp' => now()->toIso8601String(),
+                        'applied_config_hash' => $configHash,
+                        'message' => 'Config applied (simulated).',
+                    ];
+
+                    $json = json_encode($response);
+                    if ($transactionId !== '') {
+                        $transactionResponses[$transactionId] = $json;
+                    }
+
+                    $this->info(">>> [device] Publishing simulated apply_config response to [{$responseTopic}] (QoS 1)");
+                    $base->publish($responseTopic, (string) $json, 1);
+
                     return;
                 }
 
-                if ($autoStatusDelayMs > 0) {
-                    usleep($autoStatusDelayMs * 1000);
+                if ($action !== 'open_compartment') {
+                    return;
                 }
 
-                $status = $autoStatusResult === 'error' ? 'error' : 'success';
-                $event = $status === 'success' ? 'action_completed' : 'action_failed';
+                $result = $openResult;
 
                 $response = [
-                    'event' => $event,
+                    'type' => 'command_response',
                     'action' => 'open_compartment',
-                    'status' => $status,
+                    'result' => $result,
                     'transaction_id' => $transactionId !== '' ? $transactionId : null,
                     'timestamp' => now()->toIso8601String(),
-                    'message' => $status === 'success'
+                    'message' => $result === 'success'
                         ? 'Compartment opened successfully (simulated).'
                         : 'Could not open compartment (simulated).',
                 ];
 
-                if ($status !== 'success') {
+                if ($result !== 'success') {
                     $response['error_code'] = 'SIMULATED_ERROR';
                 }
 
-                $data = $decoded['data'] ?? [];
-                if (is_array($data) && array_key_exists('compartment_number', $data)) {
-                    $response['data'] = [
-                        'compartment_number' => $data['compartment_number'],
-                    ];
+                $json = json_encode($response);
+                if ($transactionId !== '') {
+                    $transactionResponses[$transactionId] = $json;
                 }
 
-                $json = json_encode($response);
-                $this->info(">>> [device] Publishing simulated status to [{$statusTopic}] (QoS 1)");
-                $base->publish($statusTopic, (string) $json, 1);
+                $this->info(">>> [device] Publishing simulated open_compartment response to [{$responseTopic}] (QoS 1)");
+                $base->publish($responseTopic, (string) $json, 1);
             }, 1);
 
             $this->info("[device] Subscribed to command topic: {$commandTopic} (QoS 1)");
@@ -220,29 +242,7 @@ class MqttClientSimulatorCommand extends Command
             // Use a stable loop start timestamp so internal timeouts / keepalive work as expected.
             $loopStartedAt = microtime(true);
 
-            if ($noHeartbeat) {
-                if ($listenSeconds === 0) {
-                    $this->info('No-heartbeat mode enabled. Listening for commands indefinitely (CTRL+C to stop)...');
-
-                    while (true) {
-                        $base->loopOnce($loopStartedAt, true);
-                    }
-                }
-
-                $this->info("No-heartbeat mode enabled. Listening for commands for {$listenSeconds}s...");
-                $deadline = microtime(true) + max(1, $listenSeconds);
-
-                while (microtime(true) <= $deadline) {
-                    $base->loopOnce($loopStartedAt, true);
-                }
-
-                $this->info('Done listening.');
-                $base->disconnect();
-
-                return Command::SUCCESS;
-            }
-
-            $this->info(">>> Publishing heartbeat to [{$stateTopic}] every 1s (QoS 1). Press CTRL+C to stop.");
+            $this->info(">>> Publishing heartbeat to [{$stateTopic}] every {$heartbeatIntervalSeconds}s (QoS 1). Press CTRL+C to stop.");
 
             // Continuous heartbeat loop
             while (true) {
@@ -255,8 +255,12 @@ class MqttClientSimulatorCommand extends Command
 
                 $base->publish($stateTopic, (string) $heartbeatPayload, 1);
                 $this->info(">>> Publishing heartbeat to [{$stateTopic}]");
-                $base->loopOnce($loopStartedAt, true);
-                sleep(1);
+
+                $nextHeartbeatAt = microtime(true) + $heartbeatIntervalSeconds;
+                while (microtime(true) < $nextHeartbeatAt) {
+                    $base->loopOnce($loopStartedAt, true);
+                    usleep(200_000);
+                }
             }
         } catch (\Exception $e) {
             $this->error("An error occurred: {$e->getMessage()}");
