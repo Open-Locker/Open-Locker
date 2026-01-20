@@ -43,6 +43,12 @@ class LockerBankResource extends Resource
                     ->minValue(1)
                     ->default(30)
                     ->helperText('Backend marks the locker offline when no heartbeat is received within this timeout.'),
+                Placeholder::make('provisioning_token')
+                    ->label('Provisioning token')
+                    ->content(fn (?LockerBank $record): string => $record?->provisioning_token ?? '—'),
+                Placeholder::make('provisioned_at')
+                    ->label('Provisioned at')
+                    ->content(fn (?LockerBank $record): string => $record?->provisioned_at?->toDateTimeString() ?? '—'),
                 Placeholder::make('config_status')
                     ->label('Config status')
                     ->content(function (?LockerBank $record): string {
