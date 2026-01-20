@@ -28,11 +28,17 @@ class LockerBank extends Model
         'provisioning_token',
         'provisioned_at',
         'last_heartbeat_at',
+        'last_config_sent_at',
+        'last_config_sent_hash',
+        'last_config_ack_at',
+        'last_config_ack_hash',
     ];
 
     protected $casts = [
         'provisioned_at' => 'datetime',
         'last_heartbeat_at' => 'datetime',
+        'last_config_sent_at' => 'datetime',
+        'last_config_ack_at' => 'datetime',
     ];
 
     public static function booted(): void
@@ -45,5 +51,48 @@ class LockerBank extends Model
     public function compartments(): HasMany
     {
         return $this->hasMany(Compartment::class);
+    }
+
+    /**
+     * Build the config payload that will be sent to the client.
+     *
+     * @return array{config_hash:string, compartments:array<int, array{id:int, slaveId:int, address:int}>}
+     */
+    public function buildApplyConfigPayload(): array
+    {
+        $compartments = $this->compartments()
+            ->orderBy('number')
+            ->get(['number', 'slave_id', 'address'])
+            ->map(static function (Compartment $compartment): array {
+                return [
+                    'id' => (int) $compartment->number,
+                    'slaveId' => (int) $compartment->slave_id,
+                    'address' => (int) $compartment->address,
+                ];
+            })
+            ->all();
+
+        $json = json_encode($compartments, JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR);
+        $hash = hash('sha256', $json);
+
+        return [
+            'config_hash' => $hash,
+            'compartments' => $compartments,
+        ];
+    }
+
+    public function currentConfigHash(): string
+    {
+        return $this->buildApplyConfigPayload()['config_hash'];
+    }
+
+    public function isConfigDirty(): bool
+    {
+        $ackHash = (string) ($this->last_config_ack_hash ?? '');
+        if ($ackHash === '') {
+            return true;
+        }
+
+        return ! hash_equals($ackHash, $this->currentConfigHash());
     }
 }

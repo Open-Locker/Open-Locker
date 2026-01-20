@@ -7,6 +7,7 @@ namespace App\Aggregates;
 use App\Models\Compartment;
 use App\Models\LockerBank;
 use App\StorableEvents\CompartmentOpeningRequested;
+use App\StorableEvents\LockerConfigApplyRequested;
 use App\StorableEvents\LockerProvisioningFailed;
 use App\StorableEvents\LockerWasProvisioned;
 use Illuminate\Support\Facades\Log;
@@ -69,6 +70,33 @@ class LockerBankAggregate extends AggregateRoot
             compartmentUuid: $compartmentUuid,
             compartmentNumber: $compartmentNumber,
             commandId: $commandId,
+        ));
+
+        return $this;
+    }
+
+    /**
+     * Record a request to apply the current addressing config on the client.
+     *
+     * @param  array<int, array<string, int>>  $compartments
+     */
+    public function requestApplyConfig(string $configHash, array $compartments): self
+    {
+        $lockerBankUuid = (string) $this->uuid();
+        $commandId = (string) Str::uuid();
+
+        Log::info('Recording LockerConfigApplyRequested event', [
+            'lockerBankUuid' => $lockerBankUuid,
+            'commandId' => $commandId,
+            'configHash' => $configHash,
+            'compartmentCount' => count($compartments),
+        ]);
+
+        $this->recordThat(new LockerConfigApplyRequested(
+            lockerBankUuid: $lockerBankUuid,
+            commandId: $commandId,
+            configHash: $configHash,
+            compartments: $compartments,
         ));
 
         return $this;

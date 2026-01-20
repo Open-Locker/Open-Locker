@@ -6,6 +6,7 @@ namespace App\Services;
 
 use App\Aggregates\LockerBankAggregate;
 use App\Models\Compartment;
+use App\Models\LockerBank;
 use Illuminate\Support\Facades\Log;
 
 class LockerService
@@ -29,5 +30,40 @@ class LockerService
         LockerBankAggregate::retrieve($lockerBankUuid)
             ->requestCompartmentOpening($compartment)
             ->persist();
+    }
+
+    /**
+     * Request the client to apply the current compartment addressing config.
+     *
+     * @throws \RuntimeException when configuration is incomplete
+     */
+    public function applyConfig(LockerBank $lockerBank): void
+    {
+        $payload = $lockerBank->buildApplyConfigPayload();
+        $configHash = $payload['config_hash'];
+
+        $missing = $lockerBank->compartments()
+            ->whereNull('slave_id')
+            ->orWhereNull('address')
+            ->count();
+
+        if ($missing > 0) {
+            throw new \RuntimeException('Config is incomplete: every compartment needs slave_id and address.');
+        }
+
+        Log::info('LockerService::applyConfig requested', [
+            'lockerBankUuid' => (string) $lockerBank->id,
+            'configHash' => $configHash,
+            'compartmentCount' => count($payload['compartments']),
+        ]);
+
+        LockerBankAggregate::retrieve((string) $lockerBank->id)
+            ->requestApplyConfig($configHash, $payload['compartments'])
+            ->persist();
+
+        $lockerBank->update([
+            'last_config_sent_at' => now(),
+            'last_config_sent_hash' => $configHash,
+        ]);
     }
 }

@@ -5,6 +5,7 @@ namespace App\Filament\Resources;
 use App\Filament\Resources\LockerBankResource\Pages;
 use App\Filament\Resources\LockerBankResource\RelationManagers;
 use App\Models\LockerBank;
+use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Form;
@@ -23,12 +24,29 @@ class LockerBankResource extends Resource
     {
         return $form
             ->schema([
+
                 TextInput::make('name')
                     ->required()
                     ->maxLength(255),
                 Textarea::make('location_description')
                     ->maxLength(65535)
                     ->columnSpanFull(),
+                Placeholder::make('config_status')
+                    ->label('Config status')
+                    ->content(function (?LockerBank $record): string {
+                        if (! $record) {
+                            return '—';
+                        }
+
+                        if ($record->isConfigDirty()) {
+                            return 'Dirty (not confirmed by client yet)';
+                        }
+
+                        return 'Clean (confirmed by client)';
+                    }),
+                Placeholder::make('last_config_ack_at')
+                    ->label('Last config confirmation')
+                    ->content(fn (?LockerBank $record): string => $record?->last_config_ack_at?->toDateTimeString() ?? '—'),
             ]);
     }
 
@@ -40,6 +58,14 @@ class LockerBankResource extends Resource
 
                 TextColumn::make('name')
                     ->searchable()->sortable(),
+                TextColumn::make('config_status')
+                    ->label('Config')
+                    ->badge()
+                    ->state(fn (LockerBank $record): string => $record->isConfigDirty() ? 'Dirty' : 'Clean')
+                    ->color(fn (string $state): string => $state === 'Dirty' ? 'warning' : 'success')
+                    ->tooltip(fn (LockerBank $record): ?string => $record->last_config_ack_at
+                        ? 'Last ack: '.$record->last_config_ack_at->toDateTimeString()
+                        : 'No config ack received yet'),
                 TextColumn::make('location_description')
                     ->searchable(),
                 TextColumn::make('provisioning_token')

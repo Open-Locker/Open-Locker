@@ -2,6 +2,7 @@
 
 namespace App\Console\Commands;
 
+use App\Mqtt\Handlers\CommandResponseHandler;
 use App\Mqtt\Handlers\HeartbeatHandler;
 use App\Mqtt\Handlers\RegistrationHandler;
 use Illuminate\Console\Command;
@@ -19,6 +20,7 @@ class MqttListen extends Command
     public function __construct(
         private readonly RegistrationHandler $registrationHandler,
         private readonly HeartbeatHandler $heartbeatHandler,
+        private readonly CommandResponseHandler $commandResponseHandler,
     ) {
         parent::__construct();
     }
@@ -55,6 +57,19 @@ class MqttListen extends Command
                     return;
                 }
                 $this->heartbeatHandler->handle($topic, $payload);
+            }, 1);
+
+            $this->info('Subscribing to: locker/+/response');
+            $mqtt->subscribe('locker/+/response', function (string $topic, string $message) {
+                $this->info("MQTT response message received [{$topic}]: {$message}");
+                Log::info('MQTT response message received', ['topic' => $topic, 'message' => $message]);
+                $payload = json_decode($message, true) ?? [];
+                if (! is_array($payload)) {
+                    Log::warning('Invalid JSON payload received', ['topic' => $topic, 'raw' => $message]);
+
+                    return;
+                }
+                $this->commandResponseHandler->handle($topic, $payload);
             }, 1);
 
             // Keep the client loop alive and allow internal sleep to avoid busy-waiting
