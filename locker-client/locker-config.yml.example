@@ -1,0 +1,93 @@
+# Locker Client Configuration File
+# This file should be mounted as a Docker volume at /config/locker-config.yml
+
+# MQTT Broker Configuration
+mqtt:
+  # MQTT broker URL (required)
+  brokerUrl: mqtt://open-locker.cloud
+  
+  # Default credentials for provisioning (required)
+  defaultUsername: provisioning_client
+  defaultPassword: a_public_password
+  
+  # Heartbeat interval in seconds (optional, default: 15)
+  heartbeatInterval: 15
+
+# Modbus RTU Configuration
+modbus:
+  # Serial port for Modbus communication (required)
+  # All Modbus clients will use this port
+  port: /dev/ttyACM0
+  
+  # List of Modbus clients (required)
+  # Note: Each client uses the same port but different slave IDs
+  clients:
+    - id: locker1
+      slaveId: 1
+      baudRate: 9600      # optional, default: 9600
+      dataBits: 8         # optional, default: 8
+      stopBits: 1         # optional, default: 1
+      parity: none        # optional, default: none (options: none, even, odd)
+      timeout: 1000       # optional, default: 1000 (milliseconds)
+    
+    - id: locker2
+      slaveId: 2
+      baudRate: 9600
+      dataBits: 8
+      stopBits: 1
+      parity: none
+      timeout: 1000
+  
+  # Modbus register addresses (optional)
+  addresses:
+    lockControl: 0      # Coil address for lock control (default: 0)
+    lockStatus: 1       # Coil address for lock status (default: 1)
+    doorSensor: 2       # Coil address for door sensor (default: 2)
+
+# Compartments Configuration
+compartments:
+  # Define compartments and map them to Modbus clients
+  # Each compartment specifies which slave it's connected to and its 0-based address
+  - id: 1
+    slaveId: 1        # Connected to locker1 (slave 1)
+    address: 0        # 0-based address on this slave
+  
+  - id: 2
+    slaveId: 1
+    address: 1
+  
+  - id: 3
+    slaveId: 1
+    address: 2
+  
+  - id: 4
+    slaveId: 1
+    address: 3
+  
+  - id: 5
+    slaveId: 1
+    address: 4
+  
+  - id: 6
+    slaveId: 2        # Connected to locker2 (slave 2)
+    address: 0        # 0-based address on this slave
+  
+  - id: 7
+    slaveId: 2
+    address: 1
+  
+  - id: 8
+    slaveId: 2
+    address: 2
+  
+  - id: 9
+    slaveId: 2
+    address: 3
+  
+  - id: 10
+    slaveId: 2
+    address: 4
+
+# Logging Configuration (optional)
+logging:
+  level: info  # Options: debug, info, warn, error

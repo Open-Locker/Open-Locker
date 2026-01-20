@@ -1,8 +1,7 @@
 import fs from "fs";
 import path from "path";
 import { logger } from "../helper/logger";
-
-const PROVISIONING_STATE_FILE = path.join(process.cwd(), ".provisioning-state");
+import { PROVISIONING_STATE_FILE } from "../config/paths";
 
 export class ProvisioningService {
   private isProvisioned: boolean = false;
