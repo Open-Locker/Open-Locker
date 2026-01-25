@@ -1,14 +1,20 @@
 <?php
 
+$reactorsEnabled = filter_var(env('EVENT_SOURCING_REACTORS_ENABLED', true), FILTER_VALIDATE_BOOL);
+$autoDiscoverPaths = $reactorsEnabled ? [
+    app()->path(),
+] : [];
+$reactors = $reactorsEnabled ? [
+    App\Reactors\MqttReactor::class,
+] : [];
+
 return [
 
     /*
      * These directories will be scanned for projectors and reactors. They
      * will be registered to Projectionist automatically.
      */
-    'auto_discover_projectors_and_reactors' => [
-        app()->path(),
-    ],
+    'auto_discover_projectors_and_reactors' => $autoDiscoverPaths,
 
     /*
      * This directory will be used as the base path when scanning
@@ -30,9 +36,7 @@ return [
      * `php artisan event-sourcing:create-reactor`. When not using auto-discovery
      * Reactors can be registered in this array or a service provider.
      */
-    'reactors' => [
-        App\Reactors\MqttReactor::class,
-    ],
+    'reactors' => $reactors,
 
     /*
      * A queue is used to guarantee that all events get passed to the projectors in
