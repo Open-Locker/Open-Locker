@@ -2,10 +2,23 @@
 
 namespace Tests;
 
+use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Testing\TestCase as BaseTestCase;
 
 abstract class TestCase extends BaseTestCase
 {
+    public function createApplication()
+    {
+        $basePath = Application::inferBasePath();
+        $envFile = $basePath.'/.env';
+
+        if (! file_exists($envFile)) {
+            touch($envFile);
+        }
+
+        return parent::createApplication();
+    }
+
     protected function setUp(): void
     {
         parent::setUp();
