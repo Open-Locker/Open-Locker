@@ -4,28 +4,32 @@ declare(strict_types=1);
 
 namespace App\Mqtt\Handlers;
 
-use App\Models\LockerBank;
+use App\Services\CommandResponseInboxService;
+use App\StorableEvents\CommandResponseReceived;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 
 class CommandResponseHandler
 {
+    public function __construct(private readonly CommandResponseInboxService $inbox) {}
+
     /**
-     * Handle incoming responses on topic pattern 'locker/{uuid}/response'.
+     * Handle incoming command response on topic pattern 'locker/{uuid}/response'
+     *.
      *
      * @param  array<string,mixed>  $payload
      */
     public function handle(string $topic, array $payload): void
     {
         $lockerBankUuid = Str::after($topic, 'locker/');
-        $lockerBankUuid = Str::before($lockerBankUuid, '/response');
+        $lockerBankUuid = Str::before($lockerBankUuid, '/');
 
-        $type = $payload['type'] ?? null;
-        $action = $payload['action'] ?? null;
-        $result = $payload['result'] ?? null;
+        $transactionId = isset($payload['transaction_id']) && is_string($payload['transaction_id'])
+            ? trim($payload['transaction_id'])
+            : '';
 
-        if ($type !== 'command_response' || ! is_string($action) || ! is_string($result)) {
-            Log::warning('Invalid command response payload received', [
+        if ($transactionId === '') {
+            Log::warning('Command response missing transaction_id; ignoring.', [
                 'topic' => $topic,
                 'payload' => $payload,
             ]);
@@ -33,48 +37,41 @@ class CommandResponseHandler
             return;
         }
 
-        if ($action !== 'apply_config') {
-            // Out of scope for now (we can expand later).
-            return;
+        $isFirst = $this->inbox->recordIfFirst($lockerBankUuid, $transactionId, $topic, $payload);
+        if (! $isFirst) {
+            return; // dedup: do not create duplicate side effects
         }
 
-        if ($result !== 'success') {
-            Log::warning('apply_config returned non-success result', [
-                'lockerBankUuid' => $lockerBankUuid,
-                'payload' => $payload,
-            ]);
+        $type = isset($payload['type']) && is_string($payload['type']) ? $payload['type'] : null;
+        $action = isset($payload['action']) && is_string($payload['action']) ? $payload['action'] : null;
+        $result = isset($payload['result']) && is_string($payload['result']) ? $payload['result'] : null;
+        $timestamp = isset($payload['timestamp']) && is_string($payload['timestamp']) ? $payload['timestamp'] : null;
+        $errorCode = isset($payload['error_code']) && is_string($payload['error_code']) ? $payload['error_code'] : null;
+        $message = isset($payload['message']) && is_string($payload['message']) ? $payload['message'] : null;
+        $data = isset($payload['data']) && is_array($payload['data']) ? $payload['data'] : [];
 
-            return;
+        // Promote top-level device-only fields into data so downstream event sourcing
+        // can derive domain-specific events without depending on the raw MQTT payload.
+        if (isset($payload['applied_config_hash']) && is_string($payload['applied_config_hash']) && ! array_key_exists('applied_config_hash', $data)) {
+            $data['applied_config_hash'] = $payload['applied_config_hash'];
         }
 
-        $appliedHash = $payload['applied_config_hash'] ?? null;
-        if (! is_string($appliedHash) || strlen($appliedHash) !== 64) {
-            Log::warning('apply_config success missing valid applied_config_hash', [
-                'lockerBankUuid' => $lockerBankUuid,
-                'payload' => $payload,
-            ]);
-
-            return;
-        }
-
-        $lockerBank = LockerBank::find($lockerBankUuid);
-        if (! $lockerBank) {
-            Log::warning('LockerBank not found for command response', [
-                'lockerBankUuid' => $lockerBankUuid,
+        if ($type !== null && $type !== 'command_response') {
+            Log::warning('Unexpected response type received; continuing anyway.', [
                 'topic' => $topic,
+                'type' => $type,
             ]);
-
-            return;
         }
 
-        $lockerBank->update([
-            'last_config_ack_at' => now(),
-            'last_config_ack_hash' => $appliedHash,
-        ]);
-
-        Log::info('apply_config acknowledged by client', [
-            'lockerBankUuid' => $lockerBankUuid,
-            'appliedConfigHash' => $appliedHash,
-        ]);
+        event(new CommandResponseReceived(
+            lockerBankUuid: $lockerBankUuid,
+            transactionId: $transactionId,
+            action: $action,
+            result: $result,
+            timestamp: $timestamp,
+            errorCode: $errorCode,
+            message: $message,
+            data: $data,
+        ));
     }
 }

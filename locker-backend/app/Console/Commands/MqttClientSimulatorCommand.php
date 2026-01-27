@@ -29,7 +29,7 @@ class MqttClientSimulatorCommand extends Command
      *
      * @var string
      */
-    protected $description = 'Simulates a device: provisions via MQTT, connects with issued credentials, subscribes to locker/{uuid}/command, and optionally publishes heartbeats and status replies.';
+    protected $description = 'Simulates a device: provisions via MQTT, connects with issued credentials, subscribes to locker/{uuid}/command, and optionally publishes heartbeats and command responses.';
 
     /**
      * Execute the console command.
@@ -247,7 +247,8 @@ class MqttClientSimulatorCommand extends Command
             // Continuous heartbeat loop
             while (true) {
                 $heartbeatPayload = json_encode([
-                    'event' => 'heartbeat',
+                    'type' => 'state',
+                    'state' => 'heartbeat',
                     'data' => [
                         'timestamp' => now()->toIso8601String(),
                     ],

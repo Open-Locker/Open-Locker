@@ -35,7 +35,7 @@ class LockerBankResource extends Resource
                     ->label('Heartbeat interval (seconds)')
                     ->numeric()
                     ->minValue(1)
-                    ->default(5)
+                    ->default(10)
                     ->helperText('Sent to the client via apply_config.'),
                 TextInput::make('heartbeat_timeout_seconds')
                     ->label('Heartbeat timeout (seconds)')

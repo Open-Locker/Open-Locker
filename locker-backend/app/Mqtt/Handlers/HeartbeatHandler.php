@@ -15,12 +15,32 @@ class HeartbeatHandler
     /**
      * Handle incoming heartbeat on topic pattern 'locker/{uuid}/state'.
      *
+     * Note: The /state topic may contain different "state" messages (e.g. connection_lost).
+     * This handler only records heartbeat messages as HeartbeatReceived events.
+     *
      * @param  array<string,mixed>  $payload
      */
     public function handle(string $topic, array $payload): void
     {
         $lockerBankUuid = Str::after($topic, 'locker/');
         $lockerBankUuid = Str::before($lockerBankUuid, '/state');
+
+        $stateName = null;
+        if (isset($payload['state']) && is_string($payload['state'])) {
+            $stateName = $payload['state'];
+        } elseif (isset($payload['event']) && is_string($payload['event'])) {
+            // Legacy contract
+            $stateName = $payload['event'];
+        }
+
+        if ($stateName !== 'heartbeat') {
+            Log::info('Ignoring non-heartbeat state message', [
+                'uuid' => $lockerBankUuid,
+                'state' => $stateName,
+            ]);
+
+            return;
+        }
 
         $timestamp = isset($payload['data']['timestamp']) && is_string($payload['data']['timestamp'])
             ? $payload['data']['timestamp']

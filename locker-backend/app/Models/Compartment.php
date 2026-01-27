@@ -20,6 +20,11 @@ class Compartment extends Model
         'number',
         'slave_id',
         'address',
+        'last_opened_at',
+        'last_open_failed_at',
+        'last_open_transaction_id',
+        'last_open_error_code',
+        'last_open_error_message',
     ];
 
     public static function booted(): void
@@ -74,6 +79,8 @@ class Compartment extends Model
             'number' => 'integer',
             'slave_id' => 'integer',
             'address' => 'integer',
+            'last_opened_at' => 'datetime',
+            'last_open_failed_at' => 'datetime',
         ];
     }
 }

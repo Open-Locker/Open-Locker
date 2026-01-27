@@ -12,7 +12,7 @@ return new class extends Migration
     {
         Schema::table('locker_banks', function (Blueprint $table) {
             $table->unsignedInteger('heartbeat_interval_seconds')
-                ->default(5)
+                ->default(10)
                 ->after('last_heartbeat_at');
 
             $table->unsignedInteger('heartbeat_timeout_seconds')

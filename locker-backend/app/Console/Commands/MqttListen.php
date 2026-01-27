@@ -3,6 +3,7 @@
 namespace App\Console\Commands;
 
 use App\Mqtt\Handlers\CommandResponseHandler;
+use App\Mqtt\Handlers\DeviceEventHandler;
 use App\Mqtt\Handlers\HeartbeatHandler;
 use App\Mqtt\Handlers\RegistrationHandler;
 use Illuminate\Console\Command;
@@ -21,6 +22,7 @@ class MqttListen extends Command
         private readonly RegistrationHandler $registrationHandler,
         private readonly HeartbeatHandler $heartbeatHandler,
         private readonly CommandResponseHandler $commandResponseHandler,
+        private readonly DeviceEventHandler $deviceEventHandler,
     ) {
         parent::__construct();
     }
@@ -59,6 +61,7 @@ class MqttListen extends Command
                 $this->heartbeatHandler->handle($topic, $payload);
             }, 1);
 
+            // Command Responses (new contract)
             $this->info('Subscribing to: locker/+/response');
             $mqtt->subscribe('locker/+/response', function (string $topic, string $message) {
                 $this->info("MQTT response message received [{$topic}]: {$message}");
@@ -72,6 +75,19 @@ class MqttListen extends Command
                 $this->commandResponseHandler->handle($topic, $payload);
             }, 1);
 
+            // Spontaneous events
+            $this->info('Subscribing to: locker/+/event');
+            $mqtt->subscribe('locker/+/event', function (string $topic, string $message) {
+                $this->info("MQTT event message received [{$topic}]: {$message}");
+                Log::info('MQTT event message received', ['topic' => $topic, 'message' => $message]);
+                $payload = json_decode($message, true) ?? [];
+                if (! is_array($payload)) {
+                    Log::warning('Invalid JSON payload received', ['topic' => $topic, 'raw' => $message]);
+
+                    return;
+                }
+                $this->deviceEventHandler->handle($topic, $payload);
+            }, 1);
             // Keep the client loop alive and allow internal sleep to avoid busy-waiting
             $mqtt->loop(true);
 

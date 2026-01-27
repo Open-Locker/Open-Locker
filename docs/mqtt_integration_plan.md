@@ -54,7 +54,8 @@ Damit bildet Laravel auch die frühere ACL-Logik ab:
 - **Einzelner Locker-Client**
   - Darf **nur seine eigenen Topics** verwenden, typischerweise:
     - lesen: `locker/{locker_id}/command`
-    - schreiben: `locker/{locker_id}/status` und `locker/{locker_id}/state`
+    - schreiben: `locker/{locker_id}/response`, `locker/{locker_id}/event` und
+      `locker/{locker_id}/state`
   - Der effektive Namensraum wird aus der in der Datenbank hinterlegten
     Locker-ID bzw. dem MQTT-Benutzernamen abgeleitet.
 
@@ -187,10 +188,8 @@ der Payloads für die verschiedenen Topics.
 - **State / Zustand (Client → Backend)**: `locker/{locker_uuid}/state`
   (**retained**, für aktuelle Zustände/Telemetry/Heartbeats)
 
-> Hinweis (Migration): Falls bereits Clients/Backend auf `.../status` basieren,
-> kann das Backend vorübergehend **beide** Topics akzeptieren (`.../status` und
-> `.../response`) und `.../status` als deprecated markieren. Langfristig nutzen
-> wir nur noch `.../response`.
+> Hinweis: Für transaktionsgebundene Antworten nutzen wir ausschließlich
+> `.../response`. Spontane Ereignisse laufen über `.../event`.
 
 ### Nachrichten-Payloads (JSON-Beispiele)
 
@@ -243,8 +242,8 @@ und enthält zusätzlich einen `timestamp` (ISO 8601), gesetzt vom **Sender**
 Wichtig:
 
 - Responses sind **transaktionsgebunden** und haben **immer** `transaction_id`.
-- Spontane Ereignisse (z.B. "door_state_changed" oder "qr_scanned") werden
-  **nicht** als Response gesendet, sondern auf `.../event`.
+- Spontane Ereignisse (z.B. "door_state_changed") werden **nicht** als Response
+  gesendet, sondern auf `.../event`.
 
 - **Antwort auf `open_door` (Erfolg):**
   - Topic: `locker/uuid-123/response`
@@ -540,14 +539,13 @@ Für spontane Events auf `locker/{uuid}/event` empfehlen wir optional:
   - subscribe erlauben: `locker/%u/command`
 - Hinweis: MQTT Last Will wird vom Broker im Namen des Clients publiziert.
   Deshalb muss `publish locker/%u/state` auch dafür erlaubt sein.
-- Migrationsphase (optional):
-  - publish erlauben zusätzlich: `locker/%u/status` (deprecated), bis alle
-    Clients migriert sind.
+
+<!-- No /status migration: use /response for command responses -->
 
 ### 7.2 Laravel Listener (`mqtt:listen`)
 
 - Subscribe ergänzen:
-  - `locker/+/response` (und optional `locker/+/status` in Übergangszeit)
+  - `locker/+/response`
   - `locker/+/event`
   - `locker/+/state` bleibt
 - Handler aufsplitten:
@@ -588,11 +586,8 @@ Für spontane Events auf `locker/{uuid}/event` empfehlen wir optional:
 
 ### 7.6 Future Features (QR Scan & Update Command)
 
-- **QR Scan**:
-  - IoT Client sendet `qr_scanned` auf `locker/{uuid}/event` (mit optional
-    `event_id`)
-  - Backend validiert QR und entscheidet, ob es ein `open_compartment` Command
-    sendet (neue `transaction_id`).
+<!-- QR scan flow intentionally omitted until concept is defined -->
+
 - **Update Command**:
   - Backend sendet `action=update_firmware` (oder `apply_config`) auf
     `.../command` mit `transaction_id`
@@ -604,7 +599,4 @@ Für spontane Events auf `locker/{uuid}/event` empfehlen wir optional:
   - Doppelte `/response` Nachrichten erzeugen **keine** doppelten Domain-Events
   - Dedup/Tracker verhält sich korrekt (first vs duplicate)
 - Rollout:
-  - Phase 1: Backend akzeptiert `status` + `response`, Clients schicken weiter
-    `status`
-  - Phase 2: Clients migrieren auf `response` + `event`
-  - Phase 3: `status` ACL/Subscription entfernen (Breaking Change)
+  - Direkt `.../response` verwenden (kein `.../status` Topic).
