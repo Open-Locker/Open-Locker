@@ -37,6 +37,14 @@ modbus:
       stopBits: 1
       parity: none
       timeout: 1000
+
+    - id: locker3
+      slaveId: 3
+      baudRate: 9600
+      dataBits: 8
+      stopBits: 1
+      parity: none
+      timeout: 1000
   
   # Modbus register addresses (optional)
   addresses:
@@ -86,6 +94,26 @@ compartments:
   
   - id: 10
     slaveId: 2
+    address: 4
+
+  - id: 11
+    slaveId: 3        # Connected to locker2 (slave 2)
+    address: 0        # 0-based address on this slave
+  
+  - id: 12
+    slaveId: 3
+    address: 1
+  
+  - id: 13
+    slaveId: 3
+    address: 2
+  
+  - id: 14
+    slaveId: 3
+    address: 3
+  
+  - id: 15
+    slaveId: 3
     address: 4
 
 # Logging Configuration (optional)
