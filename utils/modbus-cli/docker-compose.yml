@@ -1,0 +1,15 @@
+services:
+  modbus-cli:
+    build: .
+    image: modbus-cli:latest
+    container_name: modbus-cli
+    devices:
+      # Pass through USB serial devices
+      # Note: You may need to adjust this based on your actual device
+      - /dev/ttyACM0:/dev/ttyACM0
+    privileged: true  # Required for device access
+    stdin_open: true
+    tty: true
+    # Override default CMD to run interactive shell
+    # Use: docker-compose run --rm modbus-cli config
+    # Or:  docker-compose run --rm modbus-cli set-slave-id 5

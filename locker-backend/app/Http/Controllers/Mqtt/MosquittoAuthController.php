@@ -126,7 +126,8 @@ class MosquittoAuthController extends Controller
 
             if ($isWriteAcc) { // publish (device -> backend)
                 $allow = $this->acl->topicMatches('locker/%u/state', $topic, $username, $clientId)
-                    || $this->acl->topicMatches('locker/%u/status', $topic, $username, $clientId);
+                    || $this->acl->topicMatches('locker/%u/response', $topic, $username, $clientId)
+                    || $this->acl->topicMatches('locker/%u/event', $topic, $username, $clientId);
 
                 return response()->json([
                     'allow' => $allow,

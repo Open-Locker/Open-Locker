@@ -21,6 +21,7 @@ class AppInfoControllerTest extends TestCase
             'name',
             'type',
             'api_version',
+            'version',
             'identifier',
             'environment',
             'timestamp',

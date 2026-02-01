@@ -4,9 +4,16 @@ declare(strict_types=1);
 
 namespace App\StorableEvents;
 
-use Spatie\EventSourcing\StoredEvents\ShouldBeStored;
-
-class HeartbeatReceived extends ShouldBeStored
+/**
+ * Legacy telemetry event.
+ *
+ * We intentionally do NOT store individual heartbeats in the event store because they can be
+ * extremely high-frequency. We only store derived connection transition events.
+ *
+ * Note: Do not delete this class if you already have historical stored events referencing
+ * App\StorableEvents\HeartbeatReceived. Spatie will need the class to deserialize/replay them.
+ */
+class HeartbeatReceived
 {
     /**
      * @param  string  $lockerBankUuid  The UUID of the locker bank sending the heartbeat

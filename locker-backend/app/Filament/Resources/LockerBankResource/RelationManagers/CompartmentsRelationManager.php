@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Filament\Resources\LockerBankResource\RelationManagers;
 
 use App\Models\Compartment;
+use App\Models\LockerBank;
 use App\Services\LockerService;
 use Filament\Forms;
 use Filament\Forms\Form;
@@ -28,7 +29,24 @@ class CompartmentsRelationManager extends RelationManager
                     ->required()
                     ->step(1)
                     ->minValue(1)
-                    ->helperText('The number of the compartment'),
+                    ->helperText('1-based compartment number (logical ID used by MQTT commands).'),
+
+                Forms\Components\TextInput::make('slave_id')
+                    ->label('Slave ID')
+                    ->numeric()
+                    ->required()
+                    ->step(1)
+                    ->minValue(1)
+                    ->maxValue(255)
+                    ->helperText('Modbus slave ID of the IO board (1-255).'),
+
+                Forms\Components\TextInput::make('address')
+                    ->label('Address')
+                    ->numeric()
+                    ->required()
+                    ->step(1)
+                    ->minValue(0)
+                    ->helperText('0-based relay address on the given slave. Used for both coil and input.'),
             ]);
     }
 
@@ -37,12 +55,55 @@ class CompartmentsRelationManager extends RelationManager
         return $table
             ->recordTitleAttribute('number')
             ->columns([
-                Tables\Columns\TextColumn::make('number')->sortable()->label('Compartment Number'),
+                Tables\Columns\TextColumn::make('number')
+                    ->sortable()
+                    ->label('Compartment')
+                    ->prefix('#'),
+
+                Tables\Columns\TextInputColumn::make('slave_id')
+                    ->label('Slave ID')
+                    ->rules(['nullable', 'integer', 'min:1', 'max:255'])
+                    ->tooltip('Modbus slave ID (1-255).'),
+
+                Tables\Columns\TextInputColumn::make('address')
+                    ->label('Address')
+                    ->rules(['nullable', 'integer', 'min:0'])
+                    ->tooltip('0-based relay address. Used for both coil and input.'),
             ])
             ->filters([
                 //
             ])
             ->headerActions([
+                Tables\Actions\Action::make('sendConfigToClient')
+                    ->label('Send config to client')
+                    ->icon('heroicon-m-paper-airplane')
+                    ->requiresConfirmation()
+                    ->disabled(function (): bool {
+                        /** @var LockerBank $lockerBank */
+                        $lockerBank = $this->getOwnerRecord();
+
+                        return $lockerBank->provisioned_at === null;
+                    })
+                    ->action(function (): void {
+                        /** @var LockerBank $lockerBank */
+                        $lockerBank = $this->getOwnerRecord();
+
+                        try {
+                            app(LockerService::class)->applyConfig($lockerBank);
+
+                            Notification::make()
+                                ->title('Config queued for sending')
+                                ->body('An apply_config command was queued and will be sent via MQTT.')
+                                ->success()
+                                ->send();
+                        } catch (\Throwable $e) {
+                            Notification::make()
+                                ->title('Failed to queue config')
+                                ->body($e->getMessage())
+                                ->danger()
+                                ->send();
+                        }
+                    }),
                 Tables\Actions\CreateAction::make(),
             ])
             ->actions([

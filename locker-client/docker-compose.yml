@@ -1,0 +1,39 @@
+version: '3.8'
+
+services:
+  locker-client:
+    image: ghcr.io/open-locker/locker-client:latest
+    container_name: locker-client
+    
+    # Map the Modbus serial device
+    devices:
+      - /dev/ttyACM0:/dev/ttyACM0
+    
+    # Mount configuration and data volumes
+    volumes:
+      # Configuration volume (read-write)
+      # Contains locker-config.yml
+      - ./config:/config
+      
+      # Data volume (read-write)
+      # Stores persistent data: .mqtt-client-id, .mqtt-credentials.json, .provisioning-state
+      - ./data:/data
+    
+    # Environment variables
+    environment:
+      # Optional: Override default paths
+      # - CONFIG_DIR=/config
+      # - DATA_DIR=/data
+      
+      # Optional: Set provisioning token for new lockers
+      # - PROVISIONING_TOKEN=your_token_here
+    
+    # Restart policy
+    restart: unless-stopped
+    
+    # Optional: Logging configuration
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"

@@ -205,7 +205,7 @@ class MosquittoAuthControllerTest extends TestCase
         $denied->assertStatus(403)->assertJson(['allow' => false, 'ok' => false]);
     }
 
-    public function test_device_user_can_publish_only_state_and_status(): void
+    public function test_device_user_can_publish_only_state_response_and_event(): void
     {
         MqttUser::factory()->create([
             'username' => 'device_1',
@@ -220,13 +220,21 @@ class MosquittoAuthControllerTest extends TestCase
         ]);
         $state->assertOk()->assertJson(['allow' => true, 'ok' => true]);
 
-        $status = $this->postJson('/api/mosq/acl?mosq_secret=test-secret', [
+        $response = $this->postJson('/api/mosq/acl?mosq_secret=test-secret', [
             'username' => 'device_1',
             'clientid' => 'device_1_client',
-            'topic' => 'locker/device_1/status',
+            'topic' => 'locker/device_1/response',
             'acc' => 2,
         ]);
-        $status->assertOk()->assertJson(['allow' => true, 'ok' => true]);
+        $response->assertOk()->assertJson(['allow' => true, 'ok' => true]);
+
+        $event = $this->postJson('/api/mosq/acl?mosq_secret=test-secret', [
+            'username' => 'device_1',
+            'clientid' => 'device_1_client',
+            'topic' => 'locker/device_1/event',
+            'acc' => 2,
+        ]);
+        $event->assertOk()->assertJson(['allow' => true, 'ok' => true]);
 
         $commandDenied = $this->postJson('/api/mosq/acl?mosq_secret=test-secret', [
             'username' => 'device_1',

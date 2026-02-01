@@ -6,6 +6,7 @@ namespace App\Reactors;
 
 use App\Services\MqttUserService;
 use App\StorableEvents\CompartmentOpeningRequested;
+use App\StorableEvents\LockerConfigApplyRequested;
 use App\StorableEvents\LockerProvisioningFailed;
 use App\StorableEvents\LockerProvisioningReplyFailed;
 use App\StorableEvents\LockerWasProvisioned;
@@ -47,6 +48,33 @@ class MqttReactor extends Reactor implements ShouldQueue
             'compartmentUuid' => $event->compartmentUuid,
             'compartmentNumber' => $event->compartmentNumber,
             'transactionId' => $event->commandId,
+        ]);
+
+        MQTT::connection('publisher')->publish($topic, (string) $payload, 1);
+    }
+
+    public function onLockerConfigApplyRequested(LockerConfigApplyRequested $event): void
+    {
+        $topic = "locker/{$event->lockerBankUuid}/command";
+
+        $payload = json_encode([
+            'action' => 'apply_config',
+            'transaction_id' => $event->commandId,
+            'timestamp' => now()->toIso8601String(),
+            'data' => [
+                'config_hash' => $event->configHash,
+                'heartbeat_interval_seconds' => $event->heartbeatIntervalSeconds,
+                'compartments' => $event->compartments,
+            ],
+        ]);
+
+        Log::info('[MqttReactor] Publishing apply_config command.', [
+            'topic' => $topic,
+            'lockerBankUuid' => $event->lockerBankUuid,
+            'transactionId' => $event->commandId,
+            'configHash' => $event->configHash,
+            'heartbeatIntervalSeconds' => $event->heartbeatIntervalSeconds,
+            'compartmentCount' => count($event->compartments),
         ]);
 
         MQTT::connection('publisher')->publish($topic, (string) $payload, 1);

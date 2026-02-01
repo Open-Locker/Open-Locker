@@ -85,6 +85,33 @@ docker compose up -d
 docker compose -f docker-compose.prod.yml up -d
 ```
 
+#### Pin the backend image version (recommended)
+
+By default, `docker-compose.prod.yml` uses the `latest` image tag:
+
+```yaml
+image: ghcr.io/open-locker/locker-backend:${BACKEND_IMAGE_TAG:-latest}
+```
+
+For production deployments, we strongly recommend pinning the image to an immutable tag:
+
+- **Commit SHA tag** (always available): `BACKEND_IMAGE_TAG=<github_sha>`
+- **Release tag** (optional): `BACKEND_IMAGE_TAG=vX.Y.Z`
+
+Example:
+
+```bash
+export BACKEND_IMAGE_TAG="<github_sha>"
+docker compose -f docker-compose.prod.yml pull
+docker compose -f docker-compose.prod.yml up -d --force-recreate
+```
+
+Tip: put `BACKEND_IMAGE_TAG=<github_sha>` in `locker-backend/.env` so you don't need to export it
+in every shell session.
+
+If you use the provided `docker-compose.prod.yml`, the API will also expose this value via
+`GET /api/identify` as `version`, because the compose file sets `APP_VERSION` from `BACKEND_IMAGE_TAG`.
+
 ### 4. Create Admin User
 
 Once the services are running, create your first admin user:

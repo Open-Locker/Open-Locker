@@ -20,6 +20,14 @@
     <php>
         <env name="APP_ENV" value="testing"/>
         <env name="APP_MAINTENANCE_DRIVER" value="file"/>
+        <env name="LOG_CHANNEL" value="stderr"/>
+        <env name="LOG_STACK" value="stderr"/>
+        <!-- Ensure we do NOT use committed bootstrap/cache/*.php files in tests -->
+        <env name="APP_CONFIG_CACHE" value="/tmp/laravel-test-config.php"/>
+        <env name="APP_EVENTS_CACHE" value="/tmp/laravel-test-events.php"/>
+        <env name="APP_PACKAGES_CACHE" value="/tmp/laravel-test-packages.php"/>
+        <env name="APP_ROUTES_CACHE" value="/tmp/laravel-test-routes.php"/>
+        <env name="APP_SERVICES_CACHE" value="/tmp/laravel-test-services.php"/>
         <env name="BCRYPT_ROUNDS" value="4"/>
         <env name="CACHE_STORE" value="array"/>
         <env name="DB_CONNECTION" value="sqlite"/>

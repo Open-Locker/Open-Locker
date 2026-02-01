@@ -19,4 +19,10 @@ COPY package.json ./
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/dist ./dist
 
+# Create directories for volumes
+RUN mkdir -p /data /config
+
+# Declare volumes for persistent data and configuration
+VOLUME ["/data", "/config"]
+
 CMD ["node", "dist/app.js"]

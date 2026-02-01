@@ -1,11 +1,18 @@
 # Open-Locker
 
+<p align="center">
+  <a href="logo_open_locker.svg">
+    <img src="logo_open_locker.svg" alt="Open-Locker Logo" width="160" />
+  </a>
+</p>
+
 [![Discord](https://img.shields.io/discord/1330191581273260113?style=flat-square&logo=discord&label=Discord&labelColor=%23FFF)](https://discord.gg/rZ74RYKN3H)
 
 ## The Project
 
-This is an open source project to create software that locks and unlocks public
-lockers to store and/or share items, sponsored by
+This is an open source project to build both the software and the hardware
+blueprints/build guide (incl. a kit) for public lockers to store and/or share
+items, sponsored by
 [Smart City Hameln-Pyrmont](https://mitwirkportal.de/informieren).
 
 ### What we want to achieve
@@ -20,11 +27,10 @@ something that will be of immediate use to the people around them.
 
 ### How you can help
 
-You can join our weeklies on **Mondays and Tuesdays, alternating every week, at
-19:30 CET/18:30 UTC** in our [Discord](https://discord.gg/rZ74RYKN3H), either to
-listen in or to participate, or you can interact with us via github, sending us
-pull requests, issues or general feedback. Our next weekly is on Tuesday, the
-6th of May, followed by Monday, the 12th of May.
+You can join our weekly meeting **every Tuesday at 19:30 CET/18:30 UTC** in our
+[Discord](https://discord.gg/rZ74RYKN3H), either to listen in or to participate,
+or you can interact with us via github, sending us pull requests, issues or
+general feedback.
 
 If you're still unsure where to start, you can always reach out to us in our
 discord's text channels.
@@ -36,6 +42,7 @@ This is a **monorepo** containing multiple components:
 - **Backend** (`locker-backend/`): Laravel 11 API with Filament admin panel
 - **Mobile App** (`locker_app/`): Flutter app for end users
 - **API Client** (`packages/locker_api/`): Auto-generated Dart client
+- **Hardware** (`hardware/`): KiCad designs and build kit references
 - **Documentation** (`docs/`): Project architecture and guides
 
 ### System Overview
@@ -108,6 +115,7 @@ Detailed system architecture documentation in
 Open-Locker/
 ├── locker-backend/     # Laravel API & Admin Panel
 ├── locker_app/         # Flutter Mobile App
+├── hardware/           # Hardware designs (KiCad) and related files
 ├── packages/           # Shared packages
 │   └── locker_api/     # Auto-generated API client
 ├── docs/               # Project documentation

@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Validation\ValidationException;
 
 class Compartment extends Model
 {
@@ -17,6 +18,13 @@ class Compartment extends Model
     protected $fillable = [
         'locker_bank_id',
         'number',
+        'slave_id',
+        'address',
+        'last_opened_at',
+        'last_open_failed_at',
+        'last_open_transaction_id',
+        'last_open_error_code',
+        'last_open_error_message',
     ];
 
     public static function booted(): void
@@ -25,6 +33,27 @@ class Compartment extends Model
             if (is_null($compartment->number)) {
                 $maxNumber = self::where('locker_bank_id', $compartment->locker_bank_id)->max('number');
                 $compartment->number = $maxNumber + 1;
+            }
+        });
+
+        static::saving(function (self $compartment) {
+            if (is_null($compartment->locker_bank_id) || is_null($compartment->slave_id) || is_null($compartment->address)) {
+                return;
+            }
+
+            $query = self::query()
+                ->where('locker_bank_id', $compartment->locker_bank_id)
+                ->where('slave_id', $compartment->slave_id)
+                ->where('address', $compartment->address);
+
+            if ($compartment->exists) {
+                $query->where('id', '!=', $compartment->id);
+            }
+
+            if ($query->exists()) {
+                throw ValidationException::withMessages([
+                    'address' => 'This Slave ID + Address combination is already used in this locker bank.',
+                ]);
             }
         });
     }
@@ -47,8 +76,11 @@ class Compartment extends Model
     protected function casts(): array
     {
         return [
-            // No longer needed as 'status' is removed from this model.
-            // Status will be handled via events.
+            'number' => 'integer',
+            'slave_id' => 'integer',
+            'address' => 'integer',
+            'last_opened_at' => 'datetime',
+            'last_open_failed_at' => 'datetime',
         ];
     }
 }
