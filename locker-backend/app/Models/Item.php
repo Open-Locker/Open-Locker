@@ -5,6 +5,7 @@ namespace App\Models;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Relations\HasOneThrough;
@@ -38,14 +39,13 @@ class Item extends Model
     }
 
     /**
-     * Get the current active loan for this item
+     * The compartment this item belongs to.
      *
-     * @return HasOne<Compartment, Item>
+     * @return BelongsTo<Compartment, Item>
      */
-    public function compartment(): HasOne
+    public function compartment(): BelongsTo
     {
-
-        return $this->hasOne(Compartment::class, 'id', 'compartment_id');
+        return $this->belongsTo(Compartment::class);
     }
 
     /**

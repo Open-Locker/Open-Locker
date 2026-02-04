@@ -27,7 +27,7 @@ class ItemResource extends JsonResource
             'name' => $this->resource->name,
             'description' => $this->resource->description,
             'image_url' => $this->resource->image_path ? config('app.url').Storage::url($this->resource->image_path) : null,
-            'locker_id' => $this->resource->locker_id,
+            'compartment_id' => (string) $this->resource->compartment_id,
             'created_at' => $this->resource->created_at,
             'updated_at' => $this->resource->updated_at,
             /** @var ?Carbon | null */

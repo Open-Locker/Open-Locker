@@ -46,6 +46,10 @@ class AuthControllerTest extends TestCase
 
     public function test_non_admin_cannot_register_users()
     {
+        // The first created user becomes admin automatically (User::booted),
+        // so ensure we create a different user for the non-admin case.
+        User::factory()->create();
+
         $regularUser = User::factory()->create();
         $token = $regularUser->createToken('auth_token')->plainTextToken;
 

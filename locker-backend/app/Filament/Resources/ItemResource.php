@@ -27,7 +27,19 @@ class ItemResource extends Resource
                 Forms\Components\FileUpload::make('image_path')
                     ->image()->visibility('public')
                     ->required(),
-                Forms\Components\Select::make('locker_id')->relationship('locker', 'name')
+                Forms\Components\Select::make('compartment_id')
+                    ->relationship('compartment', 'id')
+                    ->getOptionLabelFromRecordUsing(static function (mixed $record): string {
+                        /** @var \App\Models\Compartment $record */
+                        $bankName = (string) ($record->lockerBank?->name ?? '');
+                        $number = (int) ($record->number ?? 0);
+
+                        return trim($bankName) !== ''
+                            ? $bankName.' · Compartment '.$number
+                            : 'Compartment '.$number;
+                    })
+                    ->searchable()
+                    ->preload()
                     ->required(),
             ]);
     }
@@ -43,8 +55,12 @@ class ItemResource extends Resource
                 Tables\Columns\TextColumn::make('description')
                     ->searchable(),
 
-                Tables\Columns\TextColumn::make('locker.name')
+                Tables\Columns\TextColumn::make('compartment.lockerBank.name')
+                    ->label('Locker bank')
                     ->searchable(),
+                Tables\Columns\TextColumn::make('compartment.number')
+                    ->label('Compartment')
+                    ->sortable(),
                 Tables\Columns\TextColumn::make('currentBorrower.name')
                     ->label('Borrowed By')
                     ->searchable(),
