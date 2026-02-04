@@ -3,6 +3,7 @@
 use App\Http\Controllers\AdminController;
 use App\Http\Controllers\AppInfoController;
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\CompartmentController;
 use App\Http\Controllers\ItemController;
 use App\Http\Controllers\LockerBankStatusController;
 use App\Http\Controllers\Mqtt\MosquittoAuthController;
@@ -26,6 +27,9 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::get('locker-banks/{lockerBank}/status', LockerBankStatusController::class)
         ->name('locker-banks.status');
+
+    Route::get('compartments', [CompartmentController::class, 'index'])
+        ->name('compartments.index');
 
     Route::controller(AuthController::class)->group(function () {
         Route::post('logout', 'logout')->name('auth.logout');
