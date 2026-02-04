@@ -65,6 +65,9 @@ function RootLayoutNav() {
     return null;
   }
 
+  const lightBackground = '#fbfdf5'; // subtle green tint
+  const lightSurface = '#ffffff';
+
   const paperTheme =
     colorScheme === 'dark'
       ? {
@@ -80,6 +83,14 @@ function RootLayoutNav() {
             outline: '#6f7a3b',
             outlineVariant: '#3a4321',
           },
+          elevation: {
+            level0: '#12150a',
+            level1: '#161a0c',
+            level2: '#1a1f0f',
+            level3: '#1f2612',
+            level4: '#242d15',
+            level5: '#283418',
+          },
         }
       : {
           ...MD3LightTheme,
@@ -88,18 +99,48 @@ function RootLayoutNav() {
             primary: OPEN_LOCKER_PRIMARY,
             secondary: '#6f8b00',
             tertiary: '#afca0b',
-            background: '#ffffff',
-            surface: '#ffffff',
+            background: lightBackground,
+            surface: lightSurface,
             // Used by Paper inputs/cards as background tint (replaces default purple hue)
             surfaceVariant: '#f1f5e0',
             outline: '#7a8d2a',
             outlineVariant: '#d5ddb2',
           },
+          // Remove default MD3 purple-tinted elevation surfaces.
+          elevation: {
+            level0: lightSurface,
+            level1: lightSurface,
+            level2: lightSurface,
+            level3: lightSurface,
+            level4: lightSurface,
+            level5: lightSurface,
+          },
+        };
+
+  const navigationTheme =
+    colorScheme === 'dark'
+      ? {
+          ...DarkTheme,
+          colors: {
+            ...DarkTheme.colors,
+            primary: OPEN_LOCKER_PRIMARY,
+            background: paperTheme.colors.background,
+            card: paperTheme.colors.surface,
+          },
+        }
+      : {
+          ...DefaultTheme,
+          colors: {
+            ...DefaultTheme.colors,
+            primary: OPEN_LOCKER_PRIMARY,
+            background: paperTheme.colors.background,
+            card: paperTheme.colors.surface,
+          },
         };
 
   return (
     <PaperProvider theme={paperTheme}>
-      <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+      <ThemeProvider value={navigationTheme}>
         <Stack>
           <Stack.Protected guard={!!token}>
             <Stack.Screen name="(tabs)" options={{ headerShown: false }} />

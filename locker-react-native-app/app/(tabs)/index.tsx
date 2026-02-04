@@ -1,7 +1,7 @@
 import React from 'react';
 import { RefreshControl, SectionList, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { ActivityIndicator, List, Text } from 'react-native-paper';
+import { ActivityIndicator, List, Text, useTheme } from 'react-native-paper';
 
 import { fetchCompartments } from '@/src/api/compartmentsApi';
 import { useAuth } from '@/src/auth/AuthContext';
@@ -33,6 +33,7 @@ function groupByLockerBank(compartments: CompartmentDto[]): Section[] {
 
 export default function CompartmentsScreen() {
   const { token } = useAuth();
+  const theme = useTheme();
   const [data, setData] = React.useState<CompartmentDto[] | null>(null);
   const [error, setError] = React.useState<string | null>(null);
   const [isLoading, setIsLoading] = React.useState(true);
@@ -77,7 +78,7 @@ export default function CompartmentsScreen() {
 
   if (isLoading && !data) {
     return (
-      <SafeAreaView style={styles.safe} edges={['bottom']}>
+      <SafeAreaView style={[styles.safe, { backgroundColor: theme.colors.background }]} edges={['bottom']}>
         <View style={styles.center}>
           <ActivityIndicator />
           <Text style={styles.centerText}>Loading compartments…</Text>
@@ -89,7 +90,7 @@ export default function CompartmentsScreen() {
   const sections = groupByLockerBank(data ?? []);
 
   return (
-    <SafeAreaView style={styles.safe} edges={['bottom']}>
+    <SafeAreaView style={[styles.safe, { backgroundColor: theme.colors.background }]} edges={['bottom']}>
       {error ? (
         <Text style={styles.error} accessibilityRole="alert">
           {error}

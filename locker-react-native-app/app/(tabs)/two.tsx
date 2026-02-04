@@ -1,16 +1,17 @@
 import React from 'react';
 import { StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Button, Card, Text } from 'react-native-paper';
+import { Button, Card, Text, useTheme } from 'react-native-paper';
 
 import { getApiBaseUrl } from '@/src/api/baseUrl';
 import { useAuth } from '@/src/auth/AuthContext';
 
 export default function AccountScreen() {
   const { userName, signOut } = useAuth();
+  const theme = useTheme();
 
   return (
-    <SafeAreaView style={styles.safe} edges={['bottom']}>
+    <SafeAreaView style={[styles.safe, { backgroundColor: theme.colors.background }]} edges={['bottom']}>
       <View style={styles.container}>
         <Card>
           <Card.Title title="Account" />

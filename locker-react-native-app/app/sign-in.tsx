@@ -1,7 +1,7 @@
 import React from 'react';
 import { KeyboardAvoidingView, Platform, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Button, HelperText, Text, TextInput } from 'react-native-paper';
+import { Button, HelperText, Text, TextInput, useTheme } from 'react-native-paper';
 
 import { ApiError } from '@/src/api/http';
 import { useAuth } from '@/src/auth/AuthContext';
@@ -20,6 +20,7 @@ function getErrorMessage(error: unknown): string {
 
 export default function SignInScreen() {
   const { signIn } = useAuth();
+  const theme = useTheme();
 
   const [email, setEmail] = React.useState('');
   const [password, setPassword] = React.useState('');
@@ -40,7 +41,7 @@ export default function SignInScreen() {
   }, [email, password, signIn]);
 
   return (
-    <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
+    <SafeAreaView style={[styles.safe, { backgroundColor: theme.colors.background }]} edges={['top', 'bottom']}>
       <KeyboardAvoidingView
         style={styles.container}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
