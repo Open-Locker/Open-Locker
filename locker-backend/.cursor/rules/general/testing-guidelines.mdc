@@ -105,7 +105,7 @@ public function test_complete_borrow_return_workflow(): void
 ```php
 // Preferred: Factory usage
 $user = User::factory()->create();
-$item = Item::factory()->create(['locker_id' => Locker::factory()]);
+$item = Item::factory()->create(['compartment_id' => Compartment::factory()]);
 
 // Create with relationships
 $loan = ItemLoan::factory()->create([
@@ -117,7 +117,7 @@ $loan = ItemLoan::factory()->create([
 ### Mock Hardware Services
 ```php
 $this->mock(LockerService::class, function ($mock) {
-    $mock->shouldReceive('openLocker')->once()->andReturn(true);
+    $mock->shouldReceive('openCompartment')->once()->andReturn(true);
 });
 ```
 

@@ -17,15 +17,15 @@ This project implements a digital locker sharing system for lending physical ite
 
 #### Item
 - **Purpose**: Physical objects that can be borrowed
-- **Key Attributes**: `name`, `description`, `image_path`, `locker_id`
-- **Relationships**: Belongs to one `Locker`, has many `ItemLoan` records
-- **Business Rule**: Must be assigned to exactly one locker
+- **Key Attributes**: `name`, `description`, `image_path`, `compartment_id`
+- **Relationships**: Belongs to one `Compartment`, has many `ItemLoan` records
+- **Business Rule**: Must be assigned to exactly one compartment
 
-#### Locker
+#### Compartment
 - **Purpose**: Physical storage compartments controlled via Modbus
-- **Key Attributes**: `name`, `unit_id`, `coil_address`, `input_address`, `status`
+- **Key Attributes**: `locker_bank_id`, `number`, `slave_id`, `address`
 - **Relationships**: Has one `Item`
-- **Hardware Mapping**: Directly corresponds to physical locker hardware
+- **Hardware Mapping**: Directly corresponds to a physical compartment in a locker bank
 
 #### ItemLoan
 - **Purpose**: Tracks borrowing and returning of items
@@ -51,7 +51,7 @@ DB::transaction(function () use ($lockerService, $item, $request) {
         'borrowed_at' => now(),
     ]);
     
-    $lockerService->openLocker($item->locker);
+    $lockerService->openCompartment($item->compartment);
 });
 ```
 
@@ -109,15 +109,15 @@ $table->enum('status', array_map(
 ```php
 // Always define inverse relationships
 // Item model
-public function locker(): HasOne
+public function compartment(): BelongsTo
 {
-    return $this->hasOne(Locker::class, 'id', 'locker_id');
+    return $this->belongsTo(Compartment::class);
 }
 
-// Locker model  
+// Compartment model
 public function item(): HasOne
 {
-    return $this->hasOne(Item::class, 'locker_id', 'id');
+    return $this->hasOne(Item::class);
 }
 ```
 
