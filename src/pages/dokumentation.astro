@@ -1,0 +1,56 @@
+---
+import Layout from '../layouts/Layout.astro';
+import Seo from '../components/Seo.astro';
+
+const title = 'Dokumentation — Open-Locker';
+const description = 'Dokumentation für Open-Locker (coming soon).';
+---
+
+<Layout lang="de">
+	<Seo slot="head" title={title} description={description} noindex={true} />
+
+	<section class="mx-auto max-w-6xl px-4 py-12">
+		<h1 class="text-3xl font-semibold tracking-tight text-slate-900">Dokumentation</h1>
+		<p class="mt-4 max-w-2xl text-slate-700">
+			Coming soon: hier verlinken wir die wichtigsten Einstiegs- und Betriebs-Guides (Installation, Architektur,
+			Hardware, MQTT/Modbus).
+		</p>
+
+		<div class="mt-8 rounded-2xl border border-slate-200 bg-slate-50 p-6">
+			<p class="text-sm font-semibold text-slate-900">Bis dahin</p>
+			<ul class="mt-3 list-disc space-y-2 pl-5 text-sm text-slate-700">
+				<li>
+					<a
+						class="underline-offset-4 hover:underline"
+						href="https://github.com/Open-Locker/Open-Locker/blob/main/docs/Installation.md"
+						target="_blank"
+						rel="noreferrer"
+					>
+						Installation (GitHub)
+					</a>
+				</li>
+				<li>
+					<a
+						class="underline-offset-4 hover:underline"
+						href="https://github.com/Open-Locker/Open-Locker/blob/main/docs/Architecture.md"
+						target="_blank"
+						rel="noreferrer"
+					>
+						Architektur (GitHub)
+					</a>
+				</li>
+				<li>
+					<a
+						class="underline-offset-4 hover:underline"
+						href="https://github.com/Open-Locker/Open-Locker"
+						target="_blank"
+						rel="noreferrer"
+					>
+						Repository (GitHub)
+					</a>
+				</li>
+			</ul>
+		</div>
+	</section>
+</Layout>
+

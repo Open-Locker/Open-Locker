@@ -2,9 +2,9 @@
 import Layout from '../layouts/Layout.astro';
 import Seo from '../components/Seo.astro';
 
-const title = 'Open Locker – Unser Schrank kann mehr.';
+const title = 'Open-Locker — Open-Source-Software für Schließfächer';
 const description =
-	'Eine Open-Source-Toolbox, um kostengünstige, digitale Schließfachsysteme selbst zu bauen, zu teilen und zu verwalten.';
+	'Open-Locker ist ein Open-Source-Projekt für Software und Hardware-Baupläne von öffentlichen Schließfächern zum Lagern und Teilen von Gegenständen.';
 
 const GITHUB_URL = 'https://github.com/Open-Locker/Open-Locker';
 const INSTALLATION_URL = 'https://github.com/Open-Locker/Open-Locker/blob/main/docs/Installation.md';
@@ -14,45 +14,42 @@ const DISCORD_URL = 'https://discord.gg/rZ74RYKN3H';
 <Layout>
 	<Seo slot="head" title={title} description={description} />
 
-	<section class="border-b border-slate-200 bg-linear-to-b from-slate-50 to-white">
+	<section id="start" class="border-b border-slate-200 bg-linear-to-b from-slate-50 to-white scroll-mt-24">
 		<div class="mx-auto grid max-w-6xl gap-10 px-4 py-14 md:grid-cols-2 md:items-center md:py-20">
 			<div class="space-y-6">
-				<p class="text-sm font-semibold tracking-wide text-slate-600">Die Vision · Open Source · Self-hostable</p>
+				<p class="text-sm font-semibold tracking-wide text-slate-600">Open Source · Self-hostable · Community-driven</p>
 				<h1 class="text-4xl font-semibold tracking-tight text-slate-900 md:text-5xl">
-					{title}
+					Open-Locker
 				</h1>
 				<p class="text-lg leading-relaxed text-slate-700">
-					{description}
+					Baut und betreibt öffentliche Schließfächer, die einfach zu nutzen, gut anpassbar und offen entwickelt sind —
+					von der Backend-API über die Mobile App bis zum Hardware-Bauplan.
 				</p>
 
 				<div class="flex flex-wrap gap-3">
 					<a
-						href="#mitmachen"
-						class="rounded-md bg-slate-900 px-4 py-2.5 text-sm font-medium text-white hover:bg-slate-800 focus-visible:ring-2 focus-visible:ring-slate-900"
+						href={INSTALLATION_URL}
+						target="_blank"
+						rel="noreferrer"
+						class="rounded-md bg-slate-900 px-4 py-2.5 text-sm font-medium text-white hover:bg-slate-800 focus-visible:ring-2 focus-visible:ring-blue-600"
 					>
-						Jetzt mitmachen
+						Loslegen (Installation)
 					</a>
 					<a
-						href="#foerderer"
-						class="rounded-md border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-900 hover:bg-slate-50 focus-visible:ring-2 focus-visible:ring-slate-900"
+						href={GITHUB_URL}
+						target="_blank"
+						rel="noreferrer"
+						class="rounded-md border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-900 hover:bg-slate-50 focus-visible:ring-2 focus-visible:ring-blue-600"
 					>
-						Projekt unterstützen
+						Auf GitHub ansehen
 					</a>
 					<a
 						href={DISCORD_URL}
 						target="_blank"
 						rel="noreferrer"
-						class="rounded-md border border-blue-200 bg-blue-50 px-4 py-2.5 text-sm font-medium text-blue-800 hover:bg-blue-100 focus-visible:ring-2 focus-visible:ring-slate-900"
+						class="rounded-md border border-blue-200 bg-blue-50 px-4 py-2.5 text-sm font-medium text-blue-800 hover:bg-blue-100 focus-visible:ring-2 focus-visible:ring-blue-600"
 					>
 						Discord beitreten
-					</a>
-					<a
-						href={INSTALLATION_URL}
-						target="_blank"
-						rel="noreferrer"
-						class="rounded-md border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-900 hover:bg-slate-50 focus-visible:ring-2 focus-visible:ring-slate-900"
-					>
-						Installation lesen
 					</a>
 				</div>
 
@@ -84,229 +81,121 @@ const DISCORD_URL = 'https://discord.gg/rZ74RYKN3H';
 		</div>
 	</section>
 
-	<section class="mx-auto max-w-6xl px-4 py-14 md:py-20" aria-labelledby="problem-solution-title">
-		<div class="space-y-10">
+	<section class="mx-auto max-w-6xl px-4 py-14 md:py-20">
+		<div class="grid gap-10 md:grid-cols-3">
 			<div class="space-y-2">
-				<h2 id="problem-solution-title" class="text-2xl font-semibold tracking-tight text-slate-900">
-					Das Problem &amp; unsere Lösung
-				</h2>
-			</div>
-
-			<div class="grid gap-6 md:grid-cols-2">
-				<article class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-					<h3 class="text-base font-semibold text-slate-900">Das Problem</h3>
-					<p class="mt-3 text-sm text-slate-600">Industrielle Smart-Schrank-Lösungen kosten oft</p>
-					<p class="mt-2 text-3xl font-semibold tracking-tight text-slate-900 md:text-4xl">20.000 €+</p>
-					<p class="mt-3 text-slate-700">
-						Für kleinere Gruppen ist das schnell zu teuer, obwohl es häufig schon Spinde oder Schränke gibt, die man weiter
-						nutzen könnte.
-					</p>
-				</article>
-
-				<article class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-					<h3 class="text-base font-semibold text-slate-900">Unsere Lösung</h3>
-					<p class="mt-3 text-slate-700">
-						Open Locker liefert dir alles, was du brauchst, um vorhandene Schränke digital aufzurüsten:
-					</p>
-					<ul class="mt-4 space-y-2 text-slate-700">
-						<li class="flex gap-3">
-							<span class="mt-2 h-2 w-2 shrink-0 rounded-full bg-blue-600" aria-hidden="true"></span>
-							<span>kostenlose Schritt-für-Schritt-Anleitung</span>
-						</li>
-						<li class="flex gap-3">
-							<span class="mt-2 h-2 w-2 shrink-0 rounded-full bg-blue-600" aria-hidden="true"></span>
-							<span>Einkaufsliste (Hardware, Kabel, Schlösser)</span>
-						</li>
-						<li class="flex gap-3">
-							<span class="mt-2 h-2 w-2 shrink-0 rounded-full bg-blue-600" aria-hidden="true"></span>
-							<span>passende Software: App &amp; Adminbereich</span>
-						</li>
-						<li class="flex gap-3">
-							<span class="mt-2 h-2 w-2 shrink-0 rounded-full bg-blue-600" aria-hidden="true"></span>
-							<span>geeignet für z. B. IKEA-Schränke oder alte Industriespinde</span>
-						</li>
-					</ul>
-				</article>
-			</div>
-		</div>
-	</section>
-
-	<section class="border-t border-slate-200 bg-slate-50" aria-labelledby="audience-title">
-		<div class="mx-auto max-w-6xl px-4 py-14 md:py-20">
-			<div class="space-y-2">
-				<h2 id="audience-title" class="text-2xl font-semibold tracking-tight text-slate-900">Für wen ist das?</h2>
+				<h2 class="text-lg font-semibold text-slate-900">Für Betreiber</h2>
 				<p class="text-slate-700">
-					Open Locker ist für alle, die Dinge teilen möchten: von der Bastelgruppe bis zur Kommune.
+					Betreibt ein zuverlässiges System mit Admin-Panel, Mobile App und Integrationen für den echten Alltag.
 				</p>
 			</div>
-
-			<div class="mt-10 grid gap-6 md:grid-cols-2">
-				<article class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-					<h3 class="text-base font-semibold text-slate-900">Für Macher</h3>
-					<p class="mt-2 text-slate-700">Hardware trifft Software (und es fühlt sich magisch an).</p>
-					<ul class="mt-4 space-y-2 text-slate-700">
-						<li class="flex gap-3">
-							<span class="mt-2 h-2 w-2 shrink-0 rounded-full bg-slate-900" aria-hidden="true"></span>
-							<span>Tech-Stack: Laravel, Flutter, Raspberry Pi, MQTT</span>
-						</li>
-						<li class="flex gap-3">
-							<span class="mt-2 h-2 w-2 shrink-0 rounded-full bg-slate-900" aria-hidden="true"></span>
-							<span>Wenn digitale Befehle physische Schlösser öffnen</span>
-						</li>
-						<li class="flex gap-3">
-							<span class="mt-2 h-2 w-2 shrink-0 rounded-full bg-slate-900" aria-hidden="true"></span>
-							<span>Ideal zum Mitbauen, Testen und Iterieren</span>
-						</li>
-					</ul>
-				</article>
-
-				<article class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-					<h3 class="text-base font-semibold text-slate-900">Für Vereine &amp; Schulen</h3>
-					<p class="mt-2 text-slate-700">Ressourcen teilen ohne Verwaltungsstress.</p>
-					<ul class="mt-4 space-y-2 text-slate-700">
-						<li class="flex gap-3">
-							<span class="mt-2 h-2 w-2 shrink-0 rounded-full bg-slate-900" aria-hidden="true"></span>
-							<span>Laptops, VR-Brillen oder Werkzeug einfach ausleihen</span>
-						</li>
-						<li class="flex gap-3">
-							<span class="mt-2 h-2 w-2 shrink-0 rounded-full bg-slate-900" aria-hidden="true"></span>
-							<span>Transparenz: wer hat was, wann ist es zurück?</span>
-						</li>
-						<li class="flex gap-3">
-							<span class="mt-2 h-2 w-2 shrink-0 rounded-full bg-slate-900" aria-hidden="true"></span>
-							<span>Weniger Schlüsselchaos, mehr Selbstorganisation</span>
-						</li>
-					</ul>
-				</article>
-
-				<article class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-					<h3 class="text-base font-semibold text-slate-900">Für Betriebe</h3>
-					<p class="mt-2 text-slate-700">Lokale Logistik, die wirklich hilft.</p>
-					<ul class="mt-4 space-y-2 text-slate-700">
-						<li class="flex gap-3">
-							<span class="mt-2 h-2 w-2 shrink-0 rounded-full bg-slate-900" aria-hidden="true"></span>
-							<span>Abholung (z. B. Brötchen beim Bäcker) ohne Wartezeit</span>
-						</li>
-						<li class="flex gap-3">
-							<span class="mt-2 h-2 w-2 shrink-0 rounded-full bg-slate-900" aria-hidden="true"></span>
-							<span>Automatisierte Hofläden oder Übergabeboxen</span>
-						</li>
-						<li class="flex gap-3">
-							<span class="mt-2 h-2 w-2 shrink-0 rounded-full bg-slate-900" aria-hidden="true"></span>
-							<span>Vor Ort, kostengünstig, anpassbar</span>
-						</li>
-					</ul>
-				</article>
-
-				<article id="foerderer" class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-					<h3 class="text-base font-semibold text-slate-900">Für Institutionen &amp; Förderer</h3>
-					<p class="mt-2 text-slate-700">Digitale Souveränität als Infrastruktur.</p>
-					<ul class="mt-4 space-y-2 text-slate-700">
-						<li class="flex gap-3">
-							<span class="mt-2 h-2 w-2 shrink-0 rounded-full bg-slate-900" aria-hidden="true"></span>
-							<span>Gemeinwohlorientiert &amp; langfristig wartbar</span>
-						</li>
-						<li class="flex gap-3">
-							<span class="mt-2 h-2 w-2 shrink-0 rounded-full bg-slate-900" aria-hidden="true"></span>
-							<span>Smart-City Baustein: offen, interoperabel, nachvollziehbar</span>
-						</li>
-						<li class="flex gap-3">
-							<span class="mt-2 h-2 w-2 shrink-0 rounded-full bg-slate-900" aria-hidden="true"></span>
-							<span>Unabhängigkeit von proprietären Insellösungen</span>
-						</li>
-					</ul>
-				</article>
-			</div>
-		</div>
-	</section>
-
-	<section class="mx-auto max-w-6xl px-4 py-14 md:py-20" aria-labelledby="tech-title">
-		<div class="space-y-10">
 			<div class="space-y-2">
-				<h2 id="tech-title" class="text-2xl font-semibold tracking-tight text-slate-900">
-					Technischer Überblick (kurz &amp; knapp)
-				</h2>
+				<h2 class="text-lg font-semibold text-slate-900">Für Mitwirkende</h2>
 				<p class="text-slate-700">
-					Open Locker verbindet eine einfache Nutzer-App mit einem robusten Setup im Schrank – offen, nachvollziehbar und erweiterbar.
+					Verbessert Backend, App und Hardware-Dokumentation. Issues und PRs sind willkommen.
 				</p>
 			</div>
-
-			<div class="grid gap-6 md:grid-cols-4">
-				<article class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-					<h3 class="text-base font-semibold text-slate-900">Flutter App</h3>
-					<p class="mt-2 text-sm text-slate-700">Ausleihen, Freigeben, Öffnen.</p>
-				</article>
-				<article class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-					<h3 class="text-base font-semibold text-slate-900">Backend</h3>
-					<p class="mt-2 text-sm text-slate-700">Logik, Nutzer, Rechte, Events.</p>
-				</article>
-				<article class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-					<h3 class="text-base font-semibold text-slate-900">MQTT</h3>
-					<p class="mt-2 text-sm text-slate-700">Leichte, zuverlässige Kommunikation.</p>
-				</article>
-				<article class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-					<h3 class="text-base font-semibold text-slate-900">Raspberry Pi im Schrank</h3>
-					<p class="mt-2 text-sm text-slate-700">Steuert Elektronik &amp; Schlösser.</p>
-				</article>
-			</div>
-
-			<aside class="rounded-2xl border border-slate-200 bg-slate-50 p-6">
-				<h3 class="text-base font-semibold text-slate-900">Lizenz: GPL‑3.0</h3>
-				<p class="mt-2 text-slate-700">
-					GPL‑3.0 stellt sicher, dass Open Locker dauerhaft frei bleibt und dass Verbesserungen der Community wieder zugutekommen.
+			<div class="space-y-2">
+				<h2 class="text-lg font-semibold text-slate-900">Für Communities</h2>
+				<p class="text-slate-700">
+					Teilt und verleiht Equipment lokal — mit transparenter, anpassbarer Infrastruktur.
 				</p>
-			</aside>
+			</div>
 		</div>
 	</section>
 
-	<section class="border-t border-slate-200 bg-slate-50">
+	<section id="mitmachen" class="border-t border-slate-200 bg-slate-50 scroll-mt-24">
 		<div class="mx-auto max-w-6xl px-4 py-14 md:py-16">
-			<div id="mitmachen" class="grid gap-6 md:grid-cols-2">
-				<article class="rounded-2xl border border-slate-200 bg-white p-8">
-					<h2 class="text-2xl font-semibold tracking-tight text-slate-900">Community &amp; Mitmachen</h2>
-					<p class="mt-3 text-slate-700">
-						Open Locker lebt von Menschen, die mitdenken, mitbauen und mittesten. Egal ob Code, Hardware oder Feedback: Jede Hilfe zählt.
+			<div class="rounded-2xl border border-slate-200 bg-white p-8 md:flex md:items-center md:justify-between md:gap-8">
+				<div class="space-y-2">
+					<h2 class="text-2xl font-semibold tracking-tight text-slate-900">Du willst mitmachen?</h2>
+					<p class="text-slate-700">
+						Komm auf Discord in die Runde oder schnapp dir ein Issue auf GitHub — wir helfen dir gern beim Einstieg.
 					</p>
-					<div class="mt-6 rounded-xl border border-slate-200 bg-slate-50 p-5">
-						<p class="text-sm font-semibold text-slate-900">Meilenstein</p>
-						<p class="mt-2 text-slate-700">
-							Sieg beim Hameln Hack 2024. Seitdem bauen wir Schritt für Schritt an einer offenen, bezahlbaren Smart-Locker Lösung.
-						</p>
-					</div>
-				</article>
+				</div>
+				<div class="mt-6 flex flex-wrap gap-3 md:mt-0">
+					<a
+						href={DISCORD_URL}
+						target="_blank"
+						rel="noreferrer"
+						class="rounded-md bg-slate-900 px-4 py-2.5 text-sm font-medium text-white hover:bg-slate-800 focus-visible:ring-2 focus-visible:ring-blue-600"
+					>
+						Discord beitreten
+					</a>
+					<a
+						href={GITHUB_URL + '/issues'}
+						target="_blank"
+						rel="noreferrer"
+						class="rounded-md border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-900 hover:bg-slate-50 focus-visible:ring-2 focus-visible:ring-blue-600"
+					>
+						Issues ansehen
+					</a>
+				</div>
+			</div>
+		</div>
+	</section>
 
-				<article class="rounded-2xl border border-slate-200 bg-white p-8">
-					<p class="text-sm font-semibold tracking-wide text-slate-600">Aktiv helfen</p>
-					<p class="mt-3 text-slate-700">
-						Wir treffen uns wöchentlich im Discord: dienstags um 19:30 Uhr. Schau vorbei, sag Hallo, oder such dir ein Thema.
+	<section id="kosten" class="border-t border-slate-200 bg-white scroll-mt-24">
+		<div class="mx-auto max-w-6xl px-4 py-14 md:py-16">
+			<div class="grid gap-10 md:grid-cols-2 md:items-start">
+				<div class="space-y-3">
+					<h2 class="text-2xl font-semibold tracking-tight text-slate-900">Kosten</h2>
+					<p class="text-slate-700">
+						Open-Locker ist Open Source. Die Software selbst ist kostenlos — Kosten entstehen typischerweise durch
+						Hosting/Betrieb, Hardware und ggf. Support.
 					</p>
-					<div class="mt-6 flex flex-wrap gap-3">
-						<a
-							href={DISCORD_URL}
-							target="_blank"
-							rel="noreferrer"
-							class="rounded-md bg-slate-900 px-4 py-2.5 text-sm font-medium text-white hover:bg-slate-800 focus-visible:ring-2 focus-visible:ring-slate-900"
-						>
-							Zum Discord
-						</a>
-						<a
-							href={GITHUB_URL}
-							target="_blank"
-							rel="noreferrer"
-							class="rounded-md border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-900 hover:bg-slate-50 focus-visible:ring-2 focus-visible:ring-slate-900"
-						>
-							GitHub Repository
-						</a>
-						<a
-							href={GITHUB_URL + '/issues'}
-							target="_blank"
-							rel="noreferrer"
-							class="rounded-md border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-900 hover:bg-slate-50 focus-visible:ring-2 focus-visible:ring-slate-900"
-						>
-							Issues ansehen
-						</a>
-					</div>
-				</article>
+				</div>
+				<div class="rounded-2xl border border-slate-200 bg-slate-50 p-6">
+					<ul class="space-y-3 text-sm text-slate-700">
+						<li><strong class="text-slate-900">Software</strong>: kostenlos (Open Source)</li>
+						<li><strong class="text-slate-900">Betrieb</strong>: Server/Monitoring/Backups (je nach Setup)</li>
+						<li><strong class="text-slate-900">Hardware</strong>: Schließfächer, Raspberry Pi, Modbus, Netzwerk</li>
+						<li><strong class="text-slate-900">Support</strong>: optional (Community oder Partner)</li>
+					</ul>
+				</div>
+			</div>
+		</div>
+	</section>
+
+	<section id="kontakt" class="border-t border-slate-200 bg-slate-50 scroll-mt-24">
+		<div class="mx-auto max-w-6xl px-4 py-14 md:py-16">
+			<div class="rounded-2xl border border-slate-200 bg-white p-8">
+				<h2 class="text-2xl font-semibold tracking-tight text-slate-900">Kontakt</h2>
+				<p class="mt-3 text-slate-700">
+					Am schnellsten erreichst du uns über Discord oder GitHub. Für formale Anfragen kannst du hier später eine
+					E-Mail-Adresse ergänzen.
+				</p>
+
+				<div class="mt-6 flex flex-wrap gap-3">
+					<a
+						href={DISCORD_URL}
+						target="_blank"
+						rel="noreferrer"
+						class="rounded-md bg-slate-900 px-4 py-2.5 text-sm font-medium text-white hover:bg-slate-800 focus-visible:ring-2 focus-visible:ring-blue-600"
+					>
+						Discord
+					</a>
+					<a
+						href={GITHUB_URL}
+						target="_blank"
+						rel="noreferrer"
+						class="rounded-md border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-900 hover:bg-slate-50 focus-visible:ring-2 focus-visible:ring-blue-600"
+					>
+						GitHub
+					</a>
+					<a
+						href={GITHUB_URL + '/issues'}
+						target="_blank"
+						rel="noreferrer"
+						class="rounded-md border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-900 hover:bg-slate-50 focus-visible:ring-2 focus-visible:ring-blue-600"
+					>
+						Issue erstellen
+					</a>
+				</div>
+
+				<p class="mt-6 text-sm text-slate-600">
+					E-Mail (Platzhalter): <span class="font-medium text-slate-900">kontakt@open-locker.example</span>
+				</p>
 			</div>
 		</div>
 	</section>
