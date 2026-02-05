@@ -16,8 +16,8 @@ const INSTALLATION_URL = DOCS_LINKS.installation;
 	<Seo slot="head" title={title} description={description} />
 
 	<section id="start" class="border-b border-slate-200 bg-linear-to-b from-slate-50 to-white scroll-mt-24">
-		<div class="mx-auto grid max-w-6xl gap-10 px-4 py-14 md:grid-cols-2 md:items-center md:py-20">
-			<div class="space-y-6">
+		<div class="mx-auto max-w-6xl px-4 py-14 md:py-20">
+			<div class="max-w-2xl space-y-6">
 				<p class="text-sm font-semibold tracking-wide text-slate-600">Open Source · Self-hostable · Community-driven</p>
 				<h1 class="text-4xl font-semibold tracking-tight text-slate-900 md:text-5xl">
 					Open Locker
@@ -53,29 +53,10 @@ const INSTALLATION_URL = DOCS_LINKS.installation;
 					<DiscordMeetingInfo discordUrl={LINKS.discordInvite} />
 				</div>
 			</div>
-
-			<div class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-				<p class="text-sm font-semibold text-slate-900">Was drin ist</p>
-				<ul class="mt-4 space-y-3 text-sm text-slate-700">
-					<li>
-						<strong class="text-slate-900">Backend</strong>: Laravel 11 API mit Filament Admin-Panel
-					</li>
-					<li>
-						<strong class="text-slate-900">Mobile App</strong>: Flutter App für Nutzer:innen
-					</li>
-					<li>
-						<strong class="text-slate-900">Hardware</strong>: Raspberry Pi + Modbus-Kommunikation zu den Schließfächern
-					</li>
-					<li>
-						<strong class="text-slate-900">IoT-Stack</strong>: MQTT-Broker mit HTTP-Auth via Backend
-					</li>
-					<li>
-						<strong class="text-slate-900">Docs</strong>: Architektur + Installations-Guides
-					</li>
-				</ul>
-			</div>
 		</div>
 	</section>
+
+	<UseCasesMarquee />
 
 	<section class="mx-auto max-w-6xl px-4 py-14 md:py-20">
 		<div class="grid gap-10 md:grid-cols-3">
@@ -96,6 +77,38 @@ const INSTALLATION_URL = DOCS_LINKS.installation;
 				<p class="text-slate-700">
 					Teilt und verleiht Equipment lokal — mit transparenter, anpassbarer Infrastruktur.
 				</p>
+			</div>
+		</div>
+	</section>
+
+	<section id="technik" class="border-t border-slate-200 bg-white scroll-mt-24">
+		<div class="mx-auto max-w-6xl px-4 py-14 md:py-16">
+			<div class="grid gap-10 md:grid-cols-2 md:items-start">
+				<div class="space-y-3">
+					<h2 class="text-2xl font-semibold tracking-tight text-slate-900">Technik auf einen Blick</h2>
+					<p class="text-slate-700">
+						Open Locker umfasst Software, App und Hardware-Baupläne — du kannst klein starten und später erweitern.
+					</p>
+				</div>
+				<div class="rounded-2xl border border-slate-200 bg-slate-50 p-6">
+					<ul class="space-y-3 text-sm text-slate-700">
+						<li>
+							<strong class="text-slate-900">Backend</strong>: Laravel 11 API mit Filament Admin-Panel
+						</li>
+						<li>
+							<strong class="text-slate-900">Mobile App</strong>: Flutter App für Nutzer:innen
+						</li>
+						<li>
+							<strong class="text-slate-900">Hardware</strong>: Raspberry Pi + Modbus-Kommunikation zu den Schließfächern
+						</li>
+						<li>
+							<strong class="text-slate-900">IoT-Stack</strong>: MQTT-Broker mit HTTP-Auth via Backend
+						</li>
+						<li>
+							<strong class="text-slate-900">Docs</strong>: Architektur + Installations-Guides
+						</li>
+					</ul>
+				</div>
 			</div>
 		</div>
 	</section>
