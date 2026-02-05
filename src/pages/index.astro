@@ -2,14 +2,14 @@
 import Layout from '../layouts/Layout.astro';
 import Seo from '../components/Seo.astro';
 import DiscordMeetingInfo from '../components/DiscordMeetingInfo.astro';
+import Partners from '../components/Partners.astro';
+import { DOCS_LINKS, LINKS } from '../config/links';
 
 const title = 'Open-Locker — Open-Source-Software für Schließfächer';
 const description =
 	'Open-Locker ist ein Open-Source-Projekt für Software und Hardware-Baupläne von öffentlichen Schließfächern zum Lagern und Teilen von Gegenständen.';
 
-const GITHUB_URL = 'https://github.com/Open-Locker/Open-Locker';
-const INSTALLATION_URL = 'https://github.com/Open-Locker/Open-Locker/blob/main/docs/Installation.md';
-const DISCORD_URL = 'https://discord.gg/rZ74RYKN3H';
+const INSTALLATION_URL = DOCS_LINKS.installation;
 ---
 
 <Layout>
@@ -50,7 +50,7 @@ const DISCORD_URL = 'https://discord.gg/rZ74RYKN3H';
 							Installation lesen
 						</a>
 					</div>
-					<DiscordMeetingInfo discordUrl={DISCORD_URL} />
+					<DiscordMeetingInfo discordUrl={LINKS.discordInvite} />
 				</div>
 			</div>
 
@@ -111,7 +111,7 @@ const DISCORD_URL = 'https://discord.gg/rZ74RYKN3H';
 				</div>
 				<div class="mt-6 flex flex-wrap gap-3 md:mt-0">
 					<a
-						href={DISCORD_URL}
+						href={LINKS.discordInvite}
 						target="_blank"
 						rel="noreferrer"
 						class="rounded-md bg-slate-900 px-4 py-2.5 text-sm font-medium text-white hover:bg-slate-800 focus-visible:ring-2 focus-visible:ring-blue-600"
@@ -119,7 +119,7 @@ const DISCORD_URL = 'https://discord.gg/rZ74RYKN3H';
 						Discord beitreten
 					</a>
 					<a
-						href={GITHUB_URL + '/issues'}
+						href={LINKS.githubRepo + '/issues'}
 						target="_blank"
 						rel="noreferrer"
 						class="rounded-md border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-900 hover:bg-slate-50 focus-visible:ring-2 focus-visible:ring-blue-600"
@@ -158,13 +158,12 @@ const DISCORD_URL = 'https://discord.gg/rZ74RYKN3H';
 			<div class="rounded-2xl border border-slate-200 bg-white p-8">
 				<h2 class="text-2xl font-semibold tracking-tight text-slate-900">Kontakt</h2>
 				<p class="mt-3 text-slate-700">
-					Am schnellsten erreichst du uns über Discord oder GitHub. Für formale Anfragen kannst du hier später eine
-					E-Mail-Adresse ergänzen.
+					Am schnellsten erreichst du uns über Discord oder GitHub. Für formale Anfragen schreib uns eine E-Mail.
 				</p>
 
 				<div class="mt-6 flex flex-wrap gap-3">
 					<a
-						href={DISCORD_URL}
+						href={LINKS.discordInvite}
 						target="_blank"
 						rel="noreferrer"
 						class="rounded-md bg-slate-900 px-4 py-2.5 text-sm font-medium text-white hover:bg-slate-800 focus-visible:ring-2 focus-visible:ring-blue-600"
@@ -172,7 +171,7 @@ const DISCORD_URL = 'https://discord.gg/rZ74RYKN3H';
 						Discord
 					</a>
 					<a
-						href={GITHUB_URL}
+						href={LINKS.githubRepo}
 						target="_blank"
 						rel="noreferrer"
 						class="rounded-md border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-900 hover:bg-slate-50 focus-visible:ring-2 focus-visible:ring-blue-600"
@@ -180,7 +179,7 @@ const DISCORD_URL = 'https://discord.gg/rZ74RYKN3H';
 						GitHub
 					</a>
 					<a
-						href={GITHUB_URL + '/issues'}
+						href={LINKS.githubRepo + '/issues'}
 						target="_blank"
 						rel="noreferrer"
 						class="rounded-md border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-900 hover:bg-slate-50 focus-visible:ring-2 focus-visible:ring-blue-600"
@@ -190,9 +189,17 @@ const DISCORD_URL = 'https://discord.gg/rZ74RYKN3H';
 				</div>
 
 				<p class="mt-6 text-sm text-slate-600">
-					E-Mail (Platzhalter): <span class="font-medium text-slate-900">kontakt@open-locker.example</span>
+					E-Mail:{' '}
+					<a
+						class="font-medium text-slate-900 underline-offset-4 hover:underline"
+						href={'mailto:' + LINKS.contactEmail}
+					>
+						{LINKS.contactEmail}
+					</a>
 				</p>
 			</div>
 		</div>
 	</section>
+
+	<Partners />
 </Layout>

@@ -1,4 +1,6 @@
 ---
+import { LINKS } from '../config/links';
+
 type Props = {
 	title: string;
 	description: string;
@@ -17,9 +19,6 @@ const canonical = new URL(Astro.url.pathname, Astro.site ?? Astro.url);
 const ogImage = new URL(imagePath, Astro.site ?? Astro.url);
 
 const robots = noindex ? 'noindex, nofollow' : 'index, follow';
-
-const GITHUB_URL = 'https://github.com/Open-Locker/Open-Locker';
-const DISCORD_URL = 'https://discord.gg/rZ74RYKN3H';
 ---
 
 <title>{title}</title>
@@ -45,5 +44,5 @@ const DISCORD_URL = 'https://discord.gg/rZ74RYKN3H';
 	'@type': 'Organization',
 	name: 'Open Locker',
 	url: canonical.origin,
-	sameAs: [GITHUB_URL, DISCORD_URL],
+	sameAs: [LINKS.githubRepo, LINKS.discordInvite],
 })} />

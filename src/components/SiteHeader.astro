@@ -1,9 +1,8 @@
 ---
 import githubIcon from '../assets/GitHub_Invertocat_Black.svg';
 import discordIcon from '../assets/Discord-Symbol-Blurple.svg';
+import { LINKS } from '../config/links';
 
-const GITHUB_URL = 'https://github.com/Open-Locker/Open-Locker';
-const DISCORD_URL = 'https://discord.gg/rZ74RYKN3H';
 ---
 
 <header class="sticky top-0 z-40 border-b border-slate-200/80 bg-white/80 backdrop-blur">
@@ -44,7 +43,7 @@ const DISCORD_URL = 'https://discord.gg/rZ74RYKN3H';
 
 		<div class="flex items-center gap-1">
 			<a
-				href={GITHUB_URL}
+				href={LINKS.githubRepo}
 				target="_blank"
 				rel="noreferrer"
 				aria-label="Open-Locker auf GitHub"
@@ -63,7 +62,7 @@ const DISCORD_URL = 'https://discord.gg/rZ74RYKN3H';
 			</a>
 
 			<a
-				href={DISCORD_URL}
+				href={LINKS.discordInvite}
 				target="_blank"
 				rel="noreferrer"
 				aria-label="Open-Locker auf Discord"
