@@ -3,8 +3,8 @@ import Layout from '../../layouts/Layout.astro';
 import Seo from '../../components/Seo.astro';
 import { getCollection } from 'astro:content';
 
-const title = 'Blog — Open-Locker';
-const description = 'Updates und Hintergrund aus dem Open-Locker Projekt.';
+const title = 'Blog — Open Locker';
+const description = 'Updates und Hintergrund aus dem Open Locker Projekt.';
 
 const posts = (await getCollection('blog'))
 	.filter((p) => !p.data.draft)

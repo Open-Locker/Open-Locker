@@ -7,9 +7,33 @@ import { LINKS } from '../config/links';
 
 <header class="sticky top-0 z-40 border-b border-slate-200/80 bg-white/80 backdrop-blur">
 	<div class="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3">
-		<a href="/" class="flex items-center gap-3 rounded-md focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-600">
-			<img src="/logo-open-locker.svg" alt="Open-Locker" class="h-9 w-9" width="36" height="36" />
-			<span class="text-lg font-bold tracking-tight">Open Locker</span>
+		<a
+			href="/"
+			class="group flex items-center gap-3 rounded-md focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-600"
+			aria-label="Open Locker Startseite"
+		>
+			<span
+				class="relative inline-flex h-10 w-10 items-center justify-center rounded-xl bg-white shadow-sm transition group-hover:shadow md:h-11 md:w-11"
+				aria-hidden="true"
+			>
+				<img
+					src="/logo-open-locker.svg"
+					alt="Open Locker"
+					class="h-6 w-6 select-none md:h-7 md:w-7"
+					width="28"
+					height="28"
+					loading="eager"
+					decoding="async"
+				/>
+			</span>
+			<span class="flex flex-col leading-tight">
+				<span class="text-[15px] font-semibold tracking-[-0.02em] text-slate-900 md:text-base">
+					Open Locker
+				</span>
+				<span class="hidden text-[11px] font-medium tracking-wide text-slate-500 sm:block md:text-xs">
+					Open-Source-Schließfächer
+				</span>
+			</span>
 		</a>
 
 		<nav class="hidden items-center gap-1 text-sm md:flex" aria-label="Hauptmenü">
@@ -46,7 +70,7 @@ import { LINKS } from '../config/links';
 				href={LINKS.githubRepo}
 				target="_blank"
 				rel="noreferrer"
-				aria-label="Open-Locker auf GitHub"
+				aria-label="Open Locker auf GitHub"
 				title="GitHub"
 				class="inline-flex h-10 w-10 items-center justify-center rounded-md text-slate-700 hover:bg-slate-100 hover:text-slate-900 focus-visible:ring-2 focus-visible:ring-blue-600"
 			>
@@ -65,7 +89,7 @@ import { LINKS } from '../config/links';
 				href={LINKS.discordInvite}
 				target="_blank"
 				rel="noreferrer"
-				aria-label="Open-Locker auf Discord"
+				aria-label="Open Locker auf Discord"
 				title="Discord"
 				class="inline-flex h-10 w-10 items-center justify-center rounded-md text-slate-700 hover:bg-slate-100 hover:text-slate-900 focus-visible:ring-2 focus-visible:ring-blue-600"
 			>
