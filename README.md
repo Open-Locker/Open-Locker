@@ -82,6 +82,13 @@ All commands are run from the root of the project, from a terminal:
 | `pnpm astro ...`       | Run CLI commands like `astro add`, `astro check` |
 | `pnpm astro -- --help` | Get help using the Astro CLI                     |
 
+## SEO (Sitemap + robots.txt)
+
+This site generates a sitemap via `@astrojs/sitemap` and serves a dynamic `robots.txt`.
+
+- **Set `SITE_URL`** in production builds (e.g. `https://example.com`) so canonical URLs, `robots.txt`, and the sitemap use the correct domain.
+- If `SITE_URL` is not set, it falls back to `http://localhost:4321` for local development.
+
 ## 👀 Want to learn more?
 
 Feel free to check [our documentation](https://docs.astro.build) or jump into our [Discord server](https://astro.build/chat).

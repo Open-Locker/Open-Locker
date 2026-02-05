@@ -1,23 +1,40 @@
 <!doctype html>
-<html lang="en">
+---
+import '../styles/global.css';
+import SiteHeader from '../components/SiteHeader.astro';
+import SiteFooter from '../components/SiteFooter.astro';
+
+type Props = {
+	lang?: string;
+};
+
+const { lang = 'de' } = Astro.props;
+---
+
+<html lang={lang}>
 	<head>
 		<meta charset="UTF-8" />
 		<meta name="viewport" content="width=device-width" />
 		<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
 		<link rel="icon" href="/favicon.ico" />
 		<meta name="generator" content={Astro.generator} />
-		<title>Astro Basics</title>
+		<link rel="sitemap" href="/sitemap-index.xml" />
+		<slot name="head" />
 	</head>
-	<body>
-		<slot />
+	<body class="min-h-dvh bg-white text-slate-900 antialiased">
+		<a
+			href="#main"
+			class="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50 focus:rounded-md focus:bg-white focus:px-3 focus:py-2 focus:text-sm focus:font-medium focus:text-slate-900 focus:shadow-lg"
+		>
+			Skip to content
+		</a>
+
+		<SiteHeader />
+
+		<main id="main" class="min-h-[60dvh]">
+			<slot />
+		</main>
+
+		<SiteFooter />
 	</body>
 </html>
-
-<style>
-	html,
-	body {
-		margin: 0;
-		width: 100%;
-		height: 100%;
-	}
-</style>

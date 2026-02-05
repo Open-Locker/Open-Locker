@@ -1,0 +1,36 @@
+---
+import Layout from '../layouts/Layout.astro';
+import Seo from '../components/Seo.astro';
+
+const title = 'Datenschutz — Open-Locker';
+const description = 'Datenschutzerklärung für die Open-Locker Website.';
+---
+
+<Layout lang="de">
+	<Seo slot="head" title={title} description={description} noindex={false} />
+
+	<section class="mx-auto max-w-6xl px-4 py-12">
+		<h1 class="text-3xl font-semibold tracking-tight text-slate-900">Datenschutz</h1>
+
+		<article class="prose prose-slate mt-8 max-w-none">
+			<p>
+				<strong>Platzhalter:</strong> Bitte ersetze diesen Text durch eure Datenschutzerklärung (z.B. Hosting, Logs,
+				Cookies, Analytics, Kontaktwege, Rechtsgrundlagen). Diese Website ist als statische Seite gedacht; wenn ihr
+				keine Tracking-Tools nutzt, ist die Erklärung meist deutlich einfacher.
+			</p>
+
+			<h2>Verantwortliche Stelle</h2>
+			<p><em>[bitte eintragen]</em></p>
+
+			<h2>Server-Logs</h2>
+			<p><em>[bitte eintragen]</em></p>
+
+			<h2>Externe Links (GitHub/Discord)</h2>
+			<p>
+				Diese Website verlinkt auf externe Plattformen (z.B. GitHub, Discord). Beim Aufruf der Links gelten die
+				Datenschutzbestimmungen der jeweiligen Anbieter.
+			</p>
+		</article>
+	</section>
+</Layout>
+

@@ -1,0 +1,35 @@
+---
+const GITHUB_URL = 'https://github.com/Open-Locker/Open-Locker';
+const DISCORD_URL = 'https://discord.gg/rZ74RYKN3H';
+---
+
+<header class="sticky top-0 z-40 border-b border-slate-200/80 bg-white/80 backdrop-blur">
+	<div class="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3">
+		<a href="/" class="flex items-center gap-3 rounded-md focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-600">
+			<img src="/logo-open-locker.svg" alt="Open-Locker" class="h-9 w-9" width="36" height="36" />
+			<span class="text-lg font-bold tracking-tight">Open Locker</span>
+		</a>
+
+		<nav class="flex items-center gap-2 text-sm">
+			<a class="rounded-md px-2 py-1 text-slate-700 hover:text-slate-900 focus-visible:ring-2 focus-visible:ring-blue-600" href="/blog/">
+				Blog
+			</a>
+			<a
+				class="rounded-md px-2 py-1 text-slate-700 hover:text-slate-900 focus-visible:ring-2 focus-visible:ring-blue-600"
+				href={GITHUB_URL}
+				target="_blank"
+				rel="noreferrer"
+			>
+				GitHub
+			</a>
+			<a
+				class="rounded-md bg-slate-900 px-3 py-1.5 font-medium text-white hover:bg-slate-800 focus-visible:ring-2 focus-visible:ring-blue-600"
+				href={DISCORD_URL}
+				target="_blank"
+				rel="noreferrer"
+			>
+				Discord beitreten
+			</a>
+		</nav>
+	</div>
+</header>

@@ -1,11 +1,137 @@
 ---
-import Welcome from '../components/Welcome.astro';
 import Layout from '../layouts/Layout.astro';
+import Seo from '../components/Seo.astro';
 
-// Welcome to Astro! Wondering what to do next? Check out the Astro documentation at https://docs.astro.build
-// Don't want to use any of this? Delete everything in this file, the `assets`, `components`, and `layouts` directories, and start fresh.
+const title = 'Open-Locker — Open-Source-Software für Schließfächer';
+const description =
+	'Open-Locker ist ein Open-Source-Projekt für Software und Hardware-Baupläne von öffentlichen Schließfächern zum Lagern und Teilen von Gegenständen.';
+
+const GITHUB_URL = 'https://github.com/Open-Locker/Open-Locker';
+const INSTALLATION_URL = 'https://github.com/Open-Locker/Open-Locker/blob/main/docs/Installation.md';
+const DISCORD_URL = 'https://discord.gg/rZ74RYKN3H';
 ---
 
 <Layout>
-	<Welcome />
+	<Seo slot="head" title={title} description={description} />
+
+	<section class="border-b border-slate-200 bg-gradient-to-b from-slate-50 to-white">
+		<div class="mx-auto grid max-w-6xl gap-10 px-4 py-14 md:grid-cols-2 md:items-center md:py-20">
+			<div class="space-y-6">
+				<p class="text-sm font-semibold tracking-wide text-slate-600">Open Source · Self-hostable · Community-driven</p>
+				<h1 class="text-4xl font-semibold tracking-tight text-slate-900 md:text-5xl">
+					Open-Locker
+				</h1>
+				<p class="text-lg leading-relaxed text-slate-700">
+					Baut und betreibt öffentliche Schließfächer, die einfach zu nutzen, gut anpassbar und offen entwickelt sind —
+					von der Backend-API über die Mobile App bis zum Hardware-Bauplan.
+				</p>
+
+				<div class="flex flex-wrap gap-3">
+					<a
+						href={INSTALLATION_URL}
+						target="_blank"
+						rel="noreferrer"
+						class="rounded-md bg-slate-900 px-4 py-2.5 text-sm font-medium text-white hover:bg-slate-800 focus-visible:ring-2 focus-visible:ring-blue-600"
+					>
+						Loslegen (Installation)
+					</a>
+					<a
+						href={GITHUB_URL}
+						target="_blank"
+						rel="noreferrer"
+						class="rounded-md border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-900 hover:bg-slate-50 focus-visible:ring-2 focus-visible:ring-blue-600"
+					>
+						Auf GitHub ansehen
+					</a>
+					<a
+						href={DISCORD_URL}
+						target="_blank"
+						rel="noreferrer"
+						class="rounded-md border border-blue-200 bg-blue-50 px-4 py-2.5 text-sm font-medium text-blue-800 hover:bg-blue-100 focus-visible:ring-2 focus-visible:ring-blue-600"
+					>
+						Discord beitreten
+					</a>
+				</div>
+
+				<p class="text-sm text-slate-600">
+					Wöchentliches Treffen jeden Dienstag um <strong>19:30 CET / 18:30 UTC</strong>.
+				</p>
+			</div>
+
+			<div class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+				<p class="text-sm font-semibold text-slate-900">Was drin ist</p>
+				<ul class="mt-4 space-y-3 text-sm text-slate-700">
+					<li>
+						<strong class="text-slate-900">Backend</strong>: Laravel 11 API mit Filament Admin-Panel
+					</li>
+					<li>
+						<strong class="text-slate-900">Mobile App</strong>: Flutter App für Nutzer:innen
+					</li>
+					<li>
+						<strong class="text-slate-900">Hardware</strong>: Raspberry Pi + Modbus-Kommunikation zu den Schließfächern
+					</li>
+					<li>
+						<strong class="text-slate-900">IoT-Stack</strong>: MQTT-Broker mit HTTP-Auth via Backend
+					</li>
+					<li>
+						<strong class="text-slate-900">Docs</strong>: Architektur + Installations-Guides
+					</li>
+				</ul>
+			</div>
+		</div>
+	</section>
+
+	<section class="mx-auto max-w-6xl px-4 py-14 md:py-20">
+		<div class="grid gap-10 md:grid-cols-3">
+			<div class="space-y-2">
+				<h2 class="text-lg font-semibold text-slate-900">Für Betreiber</h2>
+				<p class="text-slate-700">
+					Betreibt ein zuverlässiges System mit Admin-Panel, Mobile App und Integrationen für den echten Alltag.
+				</p>
+			</div>
+			<div class="space-y-2">
+				<h2 class="text-lg font-semibold text-slate-900">Für Mitwirkende</h2>
+				<p class="text-slate-700">
+					Verbessert Backend, App und Hardware-Dokumentation. Issues und PRs sind willkommen.
+				</p>
+			</div>
+			<div class="space-y-2">
+				<h2 class="text-lg font-semibold text-slate-900">Für Communities</h2>
+				<p class="text-slate-700">
+					Teilt und verleiht Equipment lokal — mit transparenter, anpassbarer Infrastruktur.
+				</p>
+			</div>
+		</div>
+	</section>
+
+	<section class="border-t border-slate-200 bg-slate-50">
+		<div class="mx-auto max-w-6xl px-4 py-14 md:py-16">
+			<div class="rounded-2xl border border-slate-200 bg-white p-8 md:flex md:items-center md:justify-between md:gap-8">
+				<div class="space-y-2">
+					<h2 class="text-2xl font-semibold tracking-tight text-slate-900">Du willst mitmachen?</h2>
+					<p class="text-slate-700">
+						Komm auf Discord in die Runde oder schnapp dir ein Issue auf GitHub — wir helfen dir gern beim Einstieg.
+					</p>
+				</div>
+				<div class="mt-6 flex flex-wrap gap-3 md:mt-0">
+					<a
+						href={DISCORD_URL}
+						target="_blank"
+						rel="noreferrer"
+						class="rounded-md bg-slate-900 px-4 py-2.5 text-sm font-medium text-white hover:bg-slate-800 focus-visible:ring-2 focus-visible:ring-blue-600"
+					>
+						Discord beitreten
+					</a>
+					<a
+						href={GITHUB_URL + '/issues'}
+						target="_blank"
+						rel="noreferrer"
+						class="rounded-md border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-900 hover:bg-slate-50 focus-visible:ring-2 focus-visible:ring-blue-600"
+					>
+						Issues ansehen
+					</a>
+				</div>
+			</div>
+		</div>
+	</section>
 </Layout>

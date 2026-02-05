@@ -1,0 +1,52 @@
+---
+const GITHUB_URL = 'https://github.com/Open-Locker/Open-Locker';
+const DISCORD_URL = 'https://discord.gg/rZ74RYKN3H';
+---
+
+<footer class="border-t border-slate-200 bg-white">
+	<div class="mx-auto grid max-w-6xl gap-8 px-4 py-10 md:grid-cols-3">
+		<div class="space-y-3">
+			<div class="flex items-center gap-3">
+				<img src="/logo-open-locker.svg" alt="" class="h-9 w-9" width="36" height="36" />
+				<div>
+					<p class="text-sm font-semibold">Open-Locker</p>
+					<p class="text-sm text-slate-600">Open-Source-Software + Hardware-Baupläne für Schließfächer.</p>
+				</div>
+			</div>
+		</div>
+
+		<div class="space-y-2 text-sm">
+			<p class="font-semibold text-slate-900">Project</p>
+			<ul class="space-y-1 text-slate-700">
+				<li><a class="hover:text-slate-900 underline-offset-4 hover:underline" href="/blog/">Blog</a></li>
+				<li>
+					<a class="hover:text-slate-900 underline-offset-4 hover:underline" href={GITHUB_URL} target="_blank" rel="noreferrer">
+						GitHub
+					</a>
+				</li>
+				<li>
+					<a class="hover:text-slate-900 underline-offset-4 hover:underline" href={DISCORD_URL} target="_blank" rel="noreferrer">
+						Discord
+					</a>
+				</li>
+			</ul>
+		</div>
+
+		<div class="space-y-2 text-sm">
+			<p class="font-semibold text-slate-900">Legal</p>
+			<ul class="space-y-1 text-slate-700">
+				<li><a class="hover:text-slate-900 underline-offset-4 hover:underline" href="/impressum/">Impressum</a></li>
+				<li><a class="hover:text-slate-900 underline-offset-4 hover:underline" href="/datenschutz/">Datenschutz</a></li>
+			</ul>
+		</div>
+	</div>
+
+	<div class="border-t border-slate-200">
+		<div class="mx-auto flex max-w-6xl flex-col gap-2 px-4 py-6 text-sm text-slate-600 md:flex-row md:items-center md:justify-between">
+			<p>© {new Date().getFullYear()} Open-Locker</p>
+			<p>
+				Gebaut mit Astro · Statische Seite via NGINX
+			</p>
+		</div>
+	</div>
+</footer>
