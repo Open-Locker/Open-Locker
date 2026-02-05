@@ -32,7 +32,20 @@ The pipeline in `.gitlab-ci.yml` builds a Docker image and pushes it to the **Gi
 - **`$CI_COMMIT_REF_SLUG`** tag for branch builds
 - **`latest`** is published on `main`
 
-The `deploy` job is included as a **manual placeholder** and should be replaced with your real deployment logic.
+### Coolify deployment (recommended with Docker Image)
+
+If you run your own **Coolify** instance, you can deploy the pushed image via a Coolify **Docker Image** resource.
+
+1. In Coolify, create a resource of type **Docker Image** and point it to your GitLab registry image, e.g.:
+   - `registry.gitlab.com/<group>/<project>:latest`
+2. If your registry is private, create a GitLab **Deploy Token** with `read_registry` and configure Coolify to be able to pull the image (Coolify docs describe the required `docker login` on the server).
+3. In the Coolify resource, go to **Webhooks** and copy the **Deploy Webhook** URL.
+4. Create a Coolify **API token** with deploy permissions.
+5. In GitLab, add CI/CD variables:
+   - `COOLIFY_WEBHOOK`: the Deploy Webhook URL from Coolify
+   - `COOLIFY_TOKEN`: the Coolify API token (mask + protect recommended)
+
+Now every successful `main` pipeline triggers a redeploy in Coolify.
 
 ## 🚀 Project Structure
 

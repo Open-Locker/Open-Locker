@@ -42,10 +42,13 @@ release-latest:
 
 deploy:
   stage: deploy
+  image: curlimages/curl:latest
   script:
-    - 'echo "TODO: implement deployment (pull $IMAGE_LATEST or $IMAGE_TEST and deploy)."'
+    - >
+      curl --fail --show-error --silent
+      --request GET "$COOLIFY_WEBHOOK"
+      --header "Authorization: Bearer $COOLIFY_TOKEN"
   rules:
     - if: $CI_COMMIT_BRANCH == "main"
-      when: manual
-  allow_failure: true
+  allow_failure: false
 
