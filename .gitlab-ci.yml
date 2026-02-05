@@ -1,6 +1,6 @@
 workflow:
   rules:
-    - if: $CI_COMMIT_BRANCH == "main"
+    - if: $CI_COMMIT_TAG
     - when: never
 
 stages:
@@ -23,26 +23,26 @@ variables:
   DOCKER_TLS_CERTDIR: "/certs"
 
   IMAGE_TEST: "$CI_REGISTRY_IMAGE:$CI_COMMIT_SHA"
-  IMAGE_BRANCH: "$CI_REGISTRY_IMAGE:$CI_COMMIT_REF_SLUG"
+  IMAGE_TAG: "$CI_REGISTRY_IMAGE:$CI_COMMIT_TAG"
   IMAGE_LATEST: "$CI_REGISTRY_IMAGE:latest"
 
 build-image:
   stage: build
   script:
-    - docker build --pull -t "$IMAGE_TEST" -t "$IMAGE_BRANCH" .
+    - docker build --pull -t "$IMAGE_TEST" -t "$IMAGE_TAG" .
     - docker push "$IMAGE_TEST"
-    - docker push "$IMAGE_BRANCH"
+    - docker push "$IMAGE_TAG"
   rules:
-    - if: $CI_COMMIT_BRANCH == "main"
+    - if: $CI_COMMIT_TAG
 
 release-latest:
   stage: release
   script:
-    - docker pull "$IMAGE_TEST"
-    - docker tag "$IMAGE_TEST" "$IMAGE_LATEST"
+    - docker pull "$IMAGE_TAG"
+    - docker tag "$IMAGE_TAG" "$IMAGE_LATEST"
     - docker push "$IMAGE_LATEST"
   rules:
-    - if: $CI_COMMIT_BRANCH == "main"
+    - if: $CI_COMMIT_TAG
 
 deploy:
   stage: deploy
@@ -53,6 +53,6 @@ deploy:
       --request GET "$COOLIFY_WEBHOOK"
       --header "Authorization: Bearer $COOLIFY_TOKEN"
   rules:
-    - if: $CI_COMMIT_BRANCH == "main"
+    - if: $CI_COMMIT_TAG
   allow_failure: false
 
