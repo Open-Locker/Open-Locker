@@ -1,32 +1,72 @@
 ---
 import { LINKS } from '../config/links';
+
+const supporterSubject = encodeURIComponent('Open Locker — Unterstützer werden');
+const supporterMailto = `mailto:${LINKS.contactEmail}?subject=${supporterSubject}`;
 ---
 
-<section aria-labelledby="partners-title" class="bg-white">
-	<div class="mx-auto max-w-6xl px-4 py-12">
-		<div class="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
-			<h2 id="partners-title" class="text-lg font-semibold tracking-tight text-slate-900">
-				Unterstützt und entwickelt durch
-			</h2>
+<section
+	id="foerderer"
+	aria-labelledby="partners-title"
+	class="border-t border-slate-200 bg-white scroll-mt-24"
+>
+	<div class="mx-auto max-w-6xl px-4 py-14 md:py-16">
+		<div class="space-y-8">
+			<div class="space-y-3">
+				<h2 id="partners-title" class="text-2xl font-semibold tracking-tight text-slate-900">
+					Partner &amp; Förderer
+				</h2>
+				<p class="max-w-3xl text-slate-700">
+					Open Locker wird von Organisationen und Menschen unterstützt, die offene Infrastruktur für Sharing und
+					Logistik voranbringen wollen.
+				</p>
+			</div>
 
-			<div class="flex flex-col items-start gap-5 sm:flex-row sm:flex-wrap sm:items-center sm:justify-end">
-				{LINKS.partners.map((partner) => (
-					<a
-						href={partner.url}
-						target="_blank"
-						rel="noreferrer"
-						class="inline-flex items-center justify-center rounded-md px-2 py-1 focus-visible:ring-2 focus-visible:ring-blue-600"
-						aria-label={partner.name}
-						title={partner.name}
-					>
-						<img
-							src={partner.logoSrc}
-							alt={partner.name}
-							loading="lazy"
-							class="h-10 w-auto max-w-56 object-contain md:h-12"
-						/>
+			<div class="rounded-2xl border border-slate-200 bg-slate-50 p-6">
+				<div class="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
+					{LINKS.partners.map((partner) => (
+						<a
+							href={partner.url}
+							target="_blank"
+							rel="noreferrer"
+							class="group flex min-w-0 items-center justify-center overflow-hidden rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm shadow-slate-900/5 transition hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-md focus-visible:ring-2 focus-visible:ring-blue-600"
+							aria-label={partner.name}
+							title={partner.name}
+						>
+							<img
+								src={partner.logoSrc}
+								alt={partner.name}
+								loading="lazy"
+								class="h-10 w-auto max-w-full object-contain opacity-95 transition group-hover:opacity-100 md:h-12"
+							/>
+						</a>
+					))}
+				</div>
+			</div>
+		</div>
+
+		<div class="mt-10 rounded-2xl border border-slate-200 bg-linear-to-br from-slate-900 to-slate-800 p-8 text-white md:flex md:items-center md:justify-between md:gap-10">
+			<div class="space-y-2">
+				<h3 class="text-xl font-semibold tracking-tight">Unterstützer werden</h3>
+				<p class="text-slate-200">
+					Du willst Open Locker fördern, pilotieren oder als Partner:in mitentwickeln? Lass uns kurz sprechen — wir
+					freuen uns über jede Nachricht.
+				</p>
+				<p class="text-sm text-slate-300">
+					E-Mail:{' '}
+					<a class="font-medium underline underline-offset-4 hover:text-white" href={supporterMailto}>
+						{LINKS.contactEmail}
 					</a>
-				))}
+				</p>
+			</div>
+
+			<div class="mt-6 flex flex-wrap gap-3 md:mt-0">
+				<a
+					href={supporterMailto}
+					class="rounded-md bg-white px-4 py-2.5 text-sm font-medium text-slate-900 hover:bg-slate-100 focus-visible:ring-2 focus-visible:ring-white"
+				>
+					Let&apos;s talk
+				</a>
 			</div>
 		</div>
 	</div>
