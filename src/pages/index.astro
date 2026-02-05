@@ -31,16 +31,10 @@ const INSTALLATION_URL = DOCS_LINKS.installation;
 				<div class="space-y-4">
 					<div class="flex flex-wrap gap-3">
 						<a
-							href="#mitmachen"
+							href="#mehr-erfahren"
 							class="rounded-md bg-slate-900 px-4 py-2.5 text-sm font-medium text-white hover:bg-slate-800 focus-visible:ring-2 focus-visible:ring-slate-900"
 						>
-							Jetzt mitmachen
-						</a>
-						<a
-							href="#foerderer"
-							class="rounded-md border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-900 hover:bg-slate-50 focus-visible:ring-2 focus-visible:ring-slate-900"
-						>
-							Projekt unterstützen
+							Mehr erfahren
 						</a>
 						<a
 							href={INSTALLATION_URL}
@@ -48,7 +42,7 @@ const INSTALLATION_URL = DOCS_LINKS.installation;
 							rel="noreferrer"
 							class="rounded-md border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-900 hover:bg-slate-50 focus-visible:ring-2 focus-visible:ring-slate-900"
 						>
-							Installation lesen
+							Losbauen
 						</a>
 					</div>
 					<DiscordMeetingInfo discordUrl={LINKS.discordInvite} />
@@ -59,7 +53,7 @@ const INSTALLATION_URL = DOCS_LINKS.installation;
 
 	<UseCasesMarquee />
 
-	<section class="mx-auto max-w-6xl px-4 py-14 md:py-20">
+	<section id="mehr-erfahren" class="mx-auto max-w-6xl px-4 py-14 md:py-20 scroll-mt-24">
 		<div class="grid gap-10 md:grid-cols-3">
 			<div class="space-y-2">
 				<h2 class="text-lg font-semibold text-slate-900">Für Betreiber</h2>
