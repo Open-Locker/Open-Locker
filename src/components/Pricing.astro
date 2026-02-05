@@ -1,0 +1,184 @@
+---
+import Check from '@lucide/astro/icons/check';
+import Sparkles from '@lucide/astro/icons/sparkles';
+import Server from '@lucide/astro/icons/server';
+import GraduationCap from '@lucide/astro/icons/graduation-cap';
+
+type Props = {
+	id?: string;
+	installationUrl: string;
+	contactHref?: string;
+	docsHref?: string;
+};
+
+const { id = 'kosten', installationUrl, contactHref = '#kontakt', docsHref = '/dokumentation/' } = Astro.props;
+---
+
+<section id={id} class="border-t border-slate-200 bg-white scroll-mt-24">
+	<div class="mx-auto max-w-6xl px-4 py-14 md:py-16">
+		<div class="grid gap-10 lg:grid-cols-[1.2fr_1fr] lg:items-start">
+			<div class="space-y-4">
+				<div class="space-y-2">
+					<p class="text-sm font-semibold tracking-wide text-slate-600">Pricing (Open-Source-Edition)</p>
+					<h2 class="text-2xl font-semibold tracking-tight text-slate-900">
+						Spoiler: die Software kostet <span class="underline decoration-amber-300 decoration-4 underline-offset-4">0&nbsp;€</span>.
+					</h2>
+					<p class="text-slate-700">
+						Open Locker ist Open Source und self-hostable. Bezahlt wird höchstens mit Hardware, Hosting/Betrieb oder ein
+						bisschen Zeit — je nachdem, wie ihr es aufsetzt.
+					</p>
+				</div>
+
+				<div class="rounded-2xl border border-slate-200 bg-slate-50 p-6">
+					<p class="text-sm font-semibold text-slate-900">Was du in jedem Plan bekommst</p>
+					<ul class="mt-4 space-y-3 text-sm text-slate-700">
+						<li class="flex items-start gap-3">
+							<Check class="mt-0.5 h-5 w-5 text-emerald-700" aria-hidden="true" />
+							<span><strong class="text-slate-900">Open Source</strong>: Code lesen, ändern, auditieren.</span>
+						</li>
+						<li class="flex items-start gap-3">
+							<Check class="mt-0.5 h-5 w-5 text-emerald-700" aria-hidden="true" />
+							<span><strong class="text-slate-900">Mobile App + Admin-Panel</strong>: Bedienung &amp; Betrieb.</span>
+						</li>
+						<li class="flex items-start gap-3">
+							<Check class="mt-0.5 h-5 w-5 text-emerald-700" aria-hidden="true" />
+							<span><strong class="text-slate-900">MQTT-basierte Architektur</strong>: klare Rollen, saubere Schnittstellen.</span>
+						</li>
+						<li class="flex items-start gap-3">
+							<Check class="mt-0.5 h-5 w-5 text-emerald-700" aria-hidden="true" />
+							<span><strong class="text-slate-900">Self-hosting</strong>: Datenhoheit statt Cloud-Blackbox.</span>
+						</li>
+					</ul>
+				</div>
+			</div>
+
+			<div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-1">
+				<div class="relative rounded-2xl border border-emerald-200 bg-emerald-50 p-6">
+					<div class="absolute right-4 top-4 rounded-full bg-white/70 px-2.5 py-1 text-[11px] font-semibold text-emerald-900 ring-1 ring-emerald-200">
+						Empfohlen
+					</div>
+					<div class="flex items-start justify-between gap-4">
+						<div class="space-y-1">
+							<p class="text-sm font-semibold text-slate-900">Self-hosted</p>
+							<p class="text-xs text-emerald-900/80">Du betreibst es selbst — volle Kontrolle.</p>
+						</div>
+						<Sparkles class="h-6 w-6 text-emerald-900" aria-hidden="true" />
+					</div>
+					<p class="mt-4 text-4xl font-semibold tracking-tight text-slate-900">0&nbsp;€</p>
+					<p class="mt-1 text-sm text-emerald-900/80">für die Software. Für immer.</p>
+					<ul class="mt-4 space-y-2 text-sm text-slate-700">
+						<li class="flex items-start gap-2">
+							<Check class="mt-0.5 h-4 w-4 text-emerald-800" aria-hidden="true" />
+							<span>Ideal, wenn ihr Technik ohnehin im Haus habt.</span>
+						</li>
+						<li class="flex items-start gap-2">
+							<Check class="mt-0.5 h-4 w-4 text-emerald-800" aria-hidden="true" />
+							<span>Perfekt für Communities &amp; kommunale Projekte.</span>
+						</li>
+					</ul>
+					<a
+						href={installationUrl}
+						target="_blank"
+						rel="noreferrer"
+						class="mt-6 inline-flex w-full items-center justify-center rounded-md bg-slate-900 px-4 py-2.5 text-sm font-medium text-white hover:bg-slate-800 focus-visible:ring-2 focus-visible:ring-slate-900"
+					>
+						Losbauen
+					</a>
+					<a
+						href={docsHref}
+						class="mt-3 inline-flex w-full items-center justify-center rounded-md border border-emerald-200 bg-white/60 px-4 py-2.5 text-sm font-medium text-emerald-950 hover:bg-white focus-visible:ring-2 focus-visible:ring-emerald-700"
+					>
+						Doku ansehen
+					</a>
+				</div>
+
+				<div class="rounded-2xl border border-slate-200 bg-white p-6">
+					<div class="flex items-start justify-between gap-4">
+						<div class="space-y-1">
+							<p class="text-sm font-semibold text-slate-900">Hosted Backend</p>
+							<p class="text-xs text-slate-600">Weniger Ops, mehr Projekt-Support.</p>
+						</div>
+						<Server class="h-6 w-6 text-slate-900" aria-hidden="true" />
+					</div>
+					<p class="mt-4 text-4xl font-semibold tracking-tight text-slate-900">„Frag uns“</p>
+					<p class="mt-1 text-sm text-slate-600">Preis hängt von Setup, Umfang und Support ab.</p>
+					<ul class="mt-4 space-y-2 text-sm text-slate-700">
+						<li class="flex items-start gap-2">
+							<Check class="mt-0.5 h-4 w-4 text-slate-900" aria-hidden="true" />
+							<span>Hosting in Deutschland (EU-freundlich).</span>
+						</li>
+						<li class="flex items-start gap-2">
+							<Check class="mt-0.5 h-4 w-4 text-slate-900" aria-hidden="true" />
+							<span>Monitoring/Backups nach Absprache.</span>
+						</li>
+						<li class="flex items-start gap-2">
+							<Check class="mt-0.5 h-4 w-4 text-slate-900" aria-hidden="true" />
+							<span>Euer Beitrag fließt in Wartung &amp; neue Features.</span>
+						</li>
+					</ul>
+					<a
+						href={contactHref}
+						class="mt-6 inline-flex w-full items-center justify-center rounded-md border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-900 hover:bg-slate-50 focus-visible:ring-2 focus-visible:ring-slate-900"
+					>
+						Kontakt aufnehmen
+					</a>
+				</div>
+
+				<div class="rounded-2xl border border-amber-200 bg-amber-50 p-6 sm:col-span-2 lg:col-span-1">
+					<div class="flex items-start justify-between gap-4">
+						<div class="space-y-1">
+							<p class="text-sm font-semibold text-slate-900">Workshops &amp; Onboarding</p>
+							<p class="text-xs text-amber-900/80">Für Teams, die schnell sauber live gehen wollen.</p>
+						</div>
+						<GraduationCap class="h-6 w-6 text-amber-900" aria-hidden="true" />
+					</div>
+					<p class="mt-4 text-4xl font-semibold tracking-tight text-slate-900">„Frag uns“</p>
+					<p class="mt-1 text-sm text-amber-900/80">Abrechnung nach Umfang, Ziel und Termin.</p>
+					<ul class="mt-4 space-y-2 text-sm text-slate-700">
+						<li class="flex items-start gap-2">
+							<Check class="mt-0.5 h-4 w-4 text-amber-900" aria-hidden="true" />
+							<span>Workshop/Onboarding (remote oder vor Ort).</span>
+						</li>
+						<li class="flex items-start gap-2">
+							<Check class="mt-0.5 h-4 w-4 text-amber-900" aria-hidden="true" />
+							<span>Gemeinsames Setup, Best Practices und Troubleshooting.</span>
+						</li>
+						<li class="flex items-start gap-2">
+							<Check class="mt-0.5 h-4 w-4 text-amber-900" aria-hidden="true" />
+							<span>Optional: Doku/Übergabe für euren Betrieb.</span>
+						</li>
+					</ul>
+					<a
+						href={contactHref}
+						class="mt-6 inline-flex w-full items-center justify-center rounded-md bg-slate-900 px-4 py-2.5 text-sm font-medium text-white hover:bg-slate-800 focus-visible:ring-2 focus-visible:ring-slate-900"
+					>
+						Workshop anfragen
+					</a>
+				</div>
+			</div>
+		</div>
+
+		<div class="mt-10 rounded-2xl border border-slate-200 bg-white p-6">
+			<p class="text-sm font-semibold text-slate-900">Was kostet es wirklich (wenn überhaupt)?</p>
+			<div class="mt-4 grid gap-4 md:grid-cols-3">
+				<div class="rounded-xl border border-slate-200 bg-slate-50 p-4">
+					<p class="text-sm font-semibold text-slate-900">Betrieb</p>
+					<p class="mt-1 text-sm text-slate-700">Server, Monitoring, Backups — je nach Setup.</p>
+				</div>
+				<div class="rounded-xl border border-slate-200 bg-slate-50 p-4">
+					<p class="text-sm font-semibold text-slate-900">Hardware</p>
+					<p class="mt-1 text-sm text-slate-700">Schrank, Controller (z.&nbsp;B. Pi/ESP), Schlösser, Netzwerk.</p>
+				</div>
+				<div class="rounded-xl border border-slate-200 bg-slate-50 p-4">
+					<p class="text-sm font-semibold text-slate-900">Support</p>
+					<p class="mt-1 text-sm text-slate-700">Community gratis, Partner/Hosting optional.</p>
+				</div>
+			</div>
+			<p class="mt-4 text-xs text-slate-500">
+				Hinweis: Open Locker ist im Aufbau. Preise/Angebote (z.&nbsp;B. Hosting) sind bewusst „sprechbar“, weil jedes
+				Projekt anders ist.
+			</p>
+		</div>
+	</div>
+</section>
+

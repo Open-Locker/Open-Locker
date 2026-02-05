@@ -1,9 +1,12 @@
 ---
 import Layout from '../layouts/Layout.astro';
 import Seo from '../components/Seo.astro';
-import DiscordMeetingInfo from '../components/DiscordMeetingInfo.astro';
 import UseCasesMarquee from '../components/UseCasesMarquee.astro';
 import Partners from '../components/Partners.astro';
+import MeetingPolaroids from '../components/MeetingPolaroids.astro';
+import ProjectOverview from '../components/ProjectOverview.astro';
+import MqttArchitecture from '../components/MqttArchitecture.astro';
+import Pricing from '../components/Pricing.astro';
 import { DOCS_LINKS, LINKS } from '../config/links';
 
 const title = 'Open Locker — Open-Source-Software für Schließfächer';
@@ -21,11 +24,11 @@ const INSTALLATION_URL = DOCS_LINKS.installation;
 			<div class="max-w-2xl space-y-6">
 				<p class="text-sm font-semibold tracking-wide text-slate-600">Open Source · Self-hostable · Community-driven</p>
 				<h1 class="text-4xl font-semibold tracking-tight text-slate-900 md:text-5xl">
-					Open Locker
+					<span class="block">Open Locker</span>
+					<span class="mt-2 block">Der smarte Schrank für alle.</span>
 				</h1>
 				<p class="text-lg leading-relaxed text-slate-700">
-					Baut und betreibt öffentliche Schließfächer, die einfach zu nutzen, gut anpassbar und offen entwickelt sind —
-					von der Backend-API über die Mobile App bis zum Hardware-Bauplan.
+					Eine Open-Source-Toolbox, um kostengünstige, digitale Schließfachsysteme selbst zu bauen, zu teilen und zu verwalten.
 				</p>
 
 				<div class="space-y-4">
@@ -45,15 +48,16 @@ const INSTALLATION_URL = DOCS_LINKS.installation;
 							Losbauen
 						</a>
 					</div>
-					<DiscordMeetingInfo discordUrl={LINKS.discordInvite} />
 				</div>
 			</div>
 		</div>
 	</section>
 
+	<ProjectOverview />
+
 	<UseCasesMarquee />
 
-	<section id="mehr-erfahren" class="mx-auto max-w-6xl px-4 py-14 md:py-20 scroll-mt-24">
+	<section id="fuer-wen" class="mx-auto max-w-6xl px-4 py-14 md:py-20 scroll-mt-24">
 		<div class="grid gap-10 md:grid-cols-3">
 			<div class="space-y-2">
 				<h2 class="text-lg font-semibold text-slate-900">Für Betreiber</h2>
@@ -76,90 +80,54 @@ const INSTALLATION_URL = DOCS_LINKS.installation;
 		</div>
 	</section>
 
-	<section id="technik" class="border-t border-slate-200 bg-white scroll-mt-24">
-		<div class="mx-auto max-w-6xl px-4 py-14 md:py-16">
-			<div class="grid gap-10 md:grid-cols-2 md:items-start">
-				<div class="space-y-3">
-					<h2 class="text-2xl font-semibold tracking-tight text-slate-900">Technik auf einen Blick</h2>
-					<p class="text-slate-700">
-						Open Locker umfasst Software, App und Hardware-Baupläne — du kannst klein starten und später erweitern.
-					</p>
-				</div>
-				<div class="rounded-2xl border border-slate-200 bg-slate-50 p-6">
-					<ul class="space-y-3 text-sm text-slate-700">
-						<li>
-							<strong class="text-slate-900">Backend</strong>: Laravel 11 API mit Filament Admin-Panel
-						</li>
-						<li>
-							<strong class="text-slate-900">Mobile App</strong>: Flutter App für Nutzer:innen
-						</li>
-						<li>
-							<strong class="text-slate-900">Hardware</strong>: Raspberry Pi + Modbus-Kommunikation zu den Schließfächern
-						</li>
-						<li>
-							<strong class="text-slate-900">IoT-Stack</strong>: MQTT-Broker mit HTTP-Auth via Backend
-						</li>
-						<li>
-							<strong class="text-slate-900">Docs</strong>: Architektur + Installations-Guides
-						</li>
-					</ul>
-				</div>
-			</div>
-		</div>
-	</section>
+	<MqttArchitecture id="technik" />
 
 	<section id="mitmachen" class="border-t border-slate-200 bg-slate-50 scroll-mt-24">
-		<div class="mx-auto max-w-6xl px-4 py-14 md:py-16">
-			<div class="rounded-2xl border border-slate-200 bg-white p-8 md:flex md:items-center md:justify-between md:gap-8">
-				<div class="space-y-2">
-					<h2 class="text-2xl font-semibold tracking-tight text-slate-900">Du willst mitmachen?</h2>
-					<p class="text-slate-700">
-						Komm auf Discord in die Runde oder schnapp dir ein Issue auf GitHub — wir helfen dir gern beim Einstieg.
-					</p>
-				</div>
-				<div class="mt-6 flex flex-wrap gap-3 md:mt-0">
-					<a
-						href={LINKS.discordInvite}
-						target="_blank"
-						rel="noreferrer"
-						class="rounded-md bg-slate-900 px-4 py-2.5 text-sm font-medium text-white hover:bg-slate-800 focus-visible:ring-2 focus-visible:ring-blue-600"
-					>
-						Discord beitreten
-					</a>
-					<a
-						href={LINKS.githubRepo + '/issues'}
-						target="_blank"
-						rel="noreferrer"
-						class="rounded-md border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-900 hover:bg-slate-50 focus-visible:ring-2 focus-visible:ring-blue-600"
-					>
-						Issues ansehen
-					</a>
+		<div class="relative overflow-hidden">
+			<div class="pointer-events-none absolute inset-0">
+				<div class="absolute inset-0 bg-linear-to-br from-slate-50/85 via-white/55 to-slate-100/80"></div>
+				<MeetingPolaroids variant="spreadBackground" />
+			</div>
+
+			<div class="relative z-10 mx-auto max-w-6xl px-4 py-14 md:py-16">
+				<div class="max-w-2xl rounded-2xl border border-slate-200 bg-white/90 p-8 shadow-sm backdrop-blur-sm md:p-10">
+					<div class="space-y-4">
+						<div class="space-y-2">
+							<h2 class="text-2xl font-semibold tracking-tight text-slate-900">Du willst mitmachen?</h2>
+							<p class="text-slate-700">
+								Komm auf Discord in die Runde oder schnapp dir ein Issue auf GitHub — wir helfen dir gern beim Einstieg.
+							</p>
+						</div>
+
+						<div class="flex flex-wrap gap-3">
+							<a
+								href={LINKS.discordInvite}
+								target="_blank"
+								rel="noreferrer"
+								class="rounded-md bg-slate-900 px-4 py-2.5 text-sm font-medium text-white hover:bg-slate-800 focus-visible:ring-2 focus-visible:ring-blue-600"
+							>
+								Discord beitreten
+							</a>
+							<a
+								href={LINKS.githubRepo + '/issues'}
+								target="_blank"
+								rel="noreferrer"
+								class="rounded-md border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-900 hover:bg-slate-50 focus-visible:ring-2 focus-visible:ring-blue-600"
+							>
+								Issues ansehen
+							</a>
+						</div>
+
+						<p class="text-sm text-slate-600">
+							Bei unseren Live Meetings bekommst du schnell Kontext — hier ein paar echte Eindrücke im Hintergrund.
+						</p>
+					</div>
 				</div>
 			</div>
 		</div>
 	</section>
 
-	<section id="kosten" class="border-t border-slate-200 bg-white scroll-mt-24">
-		<div class="mx-auto max-w-6xl px-4 py-14 md:py-16">
-			<div class="grid gap-10 md:grid-cols-2 md:items-start">
-				<div class="space-y-3">
-					<h2 class="text-2xl font-semibold tracking-tight text-slate-900">Kosten</h2>
-					<p class="text-slate-700">
-						Open Locker ist Open Source. Die Software selbst ist kostenlos — Kosten entstehen typischerweise durch
-						Hosting/Betrieb, Hardware und ggf. Support.
-					</p>
-				</div>
-				<div class="rounded-2xl border border-slate-200 bg-slate-50 p-6">
-					<ul class="space-y-3 text-sm text-slate-700">
-						<li><strong class="text-slate-900">Software</strong>: kostenlos (Open Source)</li>
-						<li><strong class="text-slate-900">Betrieb</strong>: Server/Monitoring/Backups (je nach Setup)</li>
-						<li><strong class="text-slate-900">Hardware</strong>: Schließfächer, Raspberry Pi, Modbus, Netzwerk</li>
-						<li><strong class="text-slate-900">Support</strong>: optional (Community oder Partner)</li>
-					</ul>
-				</div>
-			</div>
-		</div>
-	</section>
+	<Pricing installationUrl={INSTALLATION_URL} contactHref="#kontakt" />
 
 	<section id="kontakt" class="border-t border-slate-200 bg-slate-50 scroll-mt-24">
 		<div class="mx-auto max-w-6xl px-4 py-14 md:py-16">
