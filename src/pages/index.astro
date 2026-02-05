@@ -1,6 +1,7 @@
 ---
 import Layout from '../layouts/Layout.astro';
 import Seo from '../components/Seo.astro';
+import DiscordMeetingInfo from '../components/DiscordMeetingInfo.astro';
 
 const title = 'Open-Locker — Open-Source-Software für Schließfächer';
 const description =
@@ -26,36 +27,31 @@ const DISCORD_URL = 'https://discord.gg/rZ74RYKN3H';
 					von der Backend-API über die Mobile App bis zum Hardware-Bauplan.
 				</p>
 
-				<div class="flex flex-wrap gap-3">
-					<a
-						href={INSTALLATION_URL}
-						target="_blank"
-						rel="noreferrer"
-						class="rounded-md bg-slate-900 px-4 py-2.5 text-sm font-medium text-white hover:bg-slate-800 focus-visible:ring-2 focus-visible:ring-blue-600"
-					>
-						Loslegen (Installation)
-					</a>
-					<a
-						href={GITHUB_URL}
-						target="_blank"
-						rel="noreferrer"
-						class="rounded-md border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-900 hover:bg-slate-50 focus-visible:ring-2 focus-visible:ring-blue-600"
-					>
-						Auf GitHub ansehen
-					</a>
-					<a
-						href={DISCORD_URL}
-						target="_blank"
-						rel="noreferrer"
-						class="rounded-md border border-blue-200 bg-blue-50 px-4 py-2.5 text-sm font-medium text-blue-800 hover:bg-blue-100 focus-visible:ring-2 focus-visible:ring-blue-600"
-					>
-						Discord beitreten
-					</a>
+				<div class="space-y-4">
+					<div class="flex flex-wrap gap-3">
+						<a
+							href="#mitmachen"
+							class="rounded-md bg-slate-900 px-4 py-2.5 text-sm font-medium text-white hover:bg-slate-800 focus-visible:ring-2 focus-visible:ring-slate-900"
+						>
+							Jetzt mitmachen
+						</a>
+						<a
+							href="#foerderer"
+							class="rounded-md border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-900 hover:bg-slate-50 focus-visible:ring-2 focus-visible:ring-slate-900"
+						>
+							Projekt unterstützen
+						</a>
+						<a
+							href={INSTALLATION_URL}
+							target="_blank"
+							rel="noreferrer"
+							class="rounded-md border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-900 hover:bg-slate-50 focus-visible:ring-2 focus-visible:ring-slate-900"
+						>
+							Installation lesen
+						</a>
+					</div>
+					<DiscordMeetingInfo discordUrl={DISCORD_URL} />
 				</div>
-
-				<p class="text-sm text-slate-600">
-					Wöchentliches Treffen jeden Dienstag um <strong>19:30 CET / 18:30 UTC</strong>.
-				</p>
 			</div>
 
 			<div class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
