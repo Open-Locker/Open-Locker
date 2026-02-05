@@ -1,0 +1,174 @@
+---
+type Props = {
+	heading?: string;
+	items?: string[];
+	durationSeconds?: number;
+};
+
+const {
+	heading = 'Anwendungsfälle',
+	items = [
+		'Gemeinschaftsräume',
+		'Büros',
+		'Bäckereien',
+		'Smart Cities',
+		'Kommunen',
+		'Community Spaces',
+		'Hacker Spaces',
+		'Coworking Spaces',
+		'Vereine',
+		'Kindergarten',
+		'Schule',
+		'Fitnessstudio',
+		'Dorfladen',
+		'Automaten',
+		'Musikschule',
+		'Verleihservices',
+	],
+	durationSeconds = 130,
+} = Astro.props;
+
+const uniqueItems = items.map((item) => item.trim()).filter(Boolean);
+// Ensure the marquee is long enough to avoid visible gaps on wide screens.
+const minItemCount = 28;
+const repeatFactor = uniqueItems.length === 0 ? 1 : Math.ceil(minItemCount / uniqueItems.length);
+const sequence = Array.from({ length: uniqueItems.length * repeatFactor }, (_, idx) => uniqueItems[idx % uniqueItems.length]);
+---
+
+<section aria-labelledby="use-cases-title" class="border-t border-slate-200 bg-white">
+	<div class="mx-auto max-w-6xl px-4 pt-14 md:pt-16">
+		<div class="flex flex-col gap-3 md:flex-row md:items-end md:justify-between md:gap-8">
+			<div class="max-w-2xl space-y-2">
+				<h2 id="use-cases-title" class="text-2xl font-semibold tracking-tight text-slate-900">
+					{heading}
+				</h2>
+				<p class="text-slate-700">
+					Open Locker passt überall dort, wo Dinge sicher gelagert, geteilt oder verliehen werden sollen.
+				</p>
+			</div>
+		</div>
+	</div>
+
+	<div class="use-cases-frame mt-6 py-8 md:py-10">
+		<div class="use-cases-viewport">
+			<ul class="use-cases-track use-cases-track--left" style={`--duration: ${durationSeconds}s`}>
+				{sequence.map((label) => (
+					<li class="shrink-0">
+						<span class="use-cases-item">{label}</span>
+					</li>
+				))}
+				{sequence.map((label) => (
+					<li class="shrink-0" aria-hidden="true">
+						<span class="use-cases-item">{label}</span>
+					</li>
+				))}
+			</ul>
+		</div>
+
+		<div class="use-cases-viewport mt-5 md:mt-6">
+			<ul class="use-cases-track use-cases-track--right" style={`--duration: ${durationSeconds}s`}>
+				{sequence.map((label) => (
+					<li class="shrink-0">
+						<span class="use-cases-item">{label}</span>
+					</li>
+				))}
+				{sequence.map((label) => (
+					<li class="shrink-0" aria-hidden="true">
+						<span class="use-cases-item">{label}</span>
+					</li>
+				))}
+			</ul>
+		</div>
+	</div>
+
+	<p class="sr-only">Anwendungsfälle: {uniqueItems.join(', ')}.</p>
+</section>
+
+<style>
+	.use-cases-frame {
+		overflow: hidden;
+		border-top: 1px solid rgb(226 232 240);
+		border-bottom: 1px solid rgb(226 232 240);
+		background: rgb(248 250 252);
+	}
+
+	.use-cases-viewport {
+		/* Full-width marquee with soft edge fade */
+		padding: 0 1rem;
+		-webkit-mask-image: linear-gradient(90deg, transparent, black 8%, black 92%, transparent);
+		mask-image: linear-gradient(90deg, transparent, black 8%, black 92%, transparent);
+	}
+
+	.use-cases-track {
+		display: flex;
+		align-items: center;
+		gap: clamp(1.25rem, 3vw, 2.25rem);
+		width: max-content;
+		will-change: transform;
+		padding: 0.25rem 0;
+	}
+
+	.use-cases-item {
+		display: inline-flex;
+		align-items: center;
+		white-space: nowrap;
+		font-size: clamp(1.5rem, 4.5vw, 3.25rem);
+		line-height: 1.05;
+		font-weight: 600;
+		letter-spacing: -0.02em;
+		color: rgb(15 23 42 / 0.9);
+	}
+
+	.use-cases-item::after {
+		content: '·';
+		display: inline-block;
+		margin-left: clamp(1.25rem, 3vw, 2.25rem);
+		color: rgb(15 23 42 / 0.35);
+	}
+
+	.use-cases-track li:last-child .use-cases-item::after {
+		content: '';
+		margin-left: 0;
+	}
+
+	@keyframes use-cases-scroll-left {
+		to {
+			transform: translateX(-50%);
+		}
+	}
+
+	@keyframes use-cases-scroll-right {
+		to {
+			transform: translateX(0);
+		}
+	}
+
+	/* Only animate if the user allows motion */
+	@media (prefers-reduced-motion: no-preference) {
+		.use-cases-track--left {
+			animation: use-cases-scroll-left var(--duration, 35s) linear infinite;
+		}
+
+		.use-cases-track--right {
+			transform: translateX(-50%);
+			animation: use-cases-scroll-right var(--duration, 35s) linear infinite;
+		}
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		.use-cases-viewport {
+			-webkit-mask-image: none;
+			mask-image: none;
+			padding: 0 1rem;
+		}
+
+		.use-cases-track {
+			flex-wrap: wrap;
+			width: auto;
+		}
+
+		.use-cases-track [aria-hidden="true"] {
+			display: none;
+		}
+	}
+</style>
