@@ -3,6 +3,8 @@
 import '../styles/global.css';
 import SiteHeader from '../components/SiteHeader.astro';
 import SiteFooter from '../components/SiteFooter.astro';
+import DiscordMeetingInfo from '../components/DiscordMeetingInfo.astro';
+import { LINKS } from '../config/links';
 
 type Props = {
 	lang?: string;
@@ -33,6 +35,7 @@ const iconVersion = '2';
 		</a>
 
 		<SiteHeader />
+		<DiscordMeetingInfo variant="banner" discordUrl={LINKS.discordInvite} />
 
 		<main id="main" class="min-h-[60dvh]">
 			<slot />
