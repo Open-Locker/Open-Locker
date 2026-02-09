@@ -84,9 +84,18 @@ const INSTALLATION_URL = DOCS_LINKS.installation;
 								href={LINKS.discordInvite}
 								target="_blank"
 								rel="noreferrer"
-								class="rounded-md bg-slate-900 px-4 py-2.5 text-sm font-medium text-white hover:bg-slate-800 focus-visible:ring-2 focus-visible:ring-blue-600"
+								class="inline-flex items-center rounded-md bg-[#5865F2] px-4 py-2.5 text-sm font-medium text-white hover:bg-[#4752C4] focus-visible:ring-2 focus-visible:ring-blue-600"
+								aria-label="Discord öffnen"
 							>
-								Discord beitreten
+								<img
+									src={discordWordmark.src}
+									width="132"
+									height="20"
+									class="h-5 w-auto"
+									alt=""
+									aria-hidden="true"
+									loading="lazy"
+								/>
 							</a>
 							<a
 								href={LINKS.githubRepo + '/issues'}
