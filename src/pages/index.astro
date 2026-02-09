@@ -101,9 +101,18 @@ const INSTALLATION_URL = DOCS_LINKS.installation;
 								href={LINKS.githubRepo + '/issues'}
 								target="_blank"
 								rel="noreferrer"
-								class="rounded-md border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-900 hover:bg-slate-50 focus-visible:ring-2 focus-visible:ring-blue-600"
+								class="inline-flex items-center gap-2 rounded-md border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-900 hover:bg-slate-50 focus-visible:ring-2 focus-visible:ring-blue-600"
 							>
-								Issues ansehen
+								<img
+									src={githubMark.src}
+									width="20"
+									height="20"
+									class="h-5 w-5"
+									alt=""
+									aria-hidden="true"
+									loading="lazy"
+								/>
+								<span>Issues ansehen</span>
 							</a>
 						</div>
 
