@@ -3,6 +3,7 @@ import Check from '@lucide/astro/icons/check';
 import Sparkles from '@lucide/astro/icons/sparkles';
 import Server from '@lucide/astro/icons/server';
 import GraduationCap from '@lucide/astro/icons/graduation-cap';
+import Wrench from '@lucide/astro/icons/wrench';
 
 type Props = {
 	id?: string;
@@ -30,7 +31,44 @@ const { id = 'kosten', installationUrl, contactHref = '#kontakt', docsHref = '/d
 					</p>
 				</div>
 
+				<aside
+					class="rounded-2xl border border-slate-200 bg-slate-50 p-6 text-slate-700 opacity-80 grayscale-[15%]"
+					aria-label="Teaser: zukünftiges Angebot"
+				>
+					<div class="flex items-start justify-between gap-4">
+						<div class="space-y-1">
+							<div class="flex flex-wrap items-center gap-2">
+								<p class="text-sm font-semibold text-slate-900">Schrank ohne Basteln</p>
+								<span class="rounded-full bg-slate-900/5 px-2.5 py-1 text-[11px] font-semibold text-slate-700 ring-1 ring-slate-200">
+									In Planung
+								</span>
+							</div>
+							<p class="text-xs text-slate-600">Für Teams, die nicht nur Software, sondern auch Hardware brauchen.</p>
+						</div>
+						<Wrench class="h-6 w-6 text-slate-700" aria-hidden="true" />
+					</div>
 
+					<p class="mt-4 text-lg font-semibold tracking-tight text-slate-900">Noch nicht verfügbar.</p>
+					<p class="mt-1 text-sm text-slate-600">
+						Unterstützung beim <strong>Aufbau/Umrüsten des Schranks</strong> inkl. Elektronik, Verkabelung und
+						Inbetriebnahme, ggfs. zusätzlich zu Hosting &amp; Setup.
+					</p>
+
+					<ul class="mt-4 space-y-2 text-sm text-slate-700">
+						<li class="flex items-start gap-2">
+							<Check class="mt-0.5 h-4 w-4 text-slate-700" aria-hidden="true" />
+							<span>Materialliste genau für deinen Anwendungsfall.</span>
+						</li>
+						<li class="flex items-start gap-2">
+							<Check class="mt-0.5 h-4 w-4 text-slate-700" aria-hidden="true" />
+							<span>Strom, Schlösser, bohren, schrauben und mehr. Wir packen mit an.</span>
+						</li>
+						<li class="flex items-start gap-2">
+							<Check class="mt-0.5 h-4 w-4 text-slate-700" aria-hidden="true" />
+							<span>Gemeinsam in Betrieb nehmen, damit nichts schiefgeht.</span>
+						</li>
+					</ul>
+				</aside>
 			</div>
 
 			<div class="grid gap-4 md:grid-cols-3">
