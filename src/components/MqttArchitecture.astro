@@ -11,10 +11,10 @@ const { id = 'architektur' } = Astro.props;
 		<div class="space-y-10">
 			<div class="space-y-4">
 				<div class="space-y-2">
-					<h2 class="text-2xl font-semibold tracking-tight text-slate-900">Aufbau und des System</h2>
+					<h2 class="text-2xl font-semibold tracking-tight text-slate-900">Aufbau</h2>
 					<p class="text-slate-700">
-						Die Idee ist einfach: <strong class="text-slate-900">klare Rollen</strong>, <strong class="text-slate-900">saubere Schnittstellen</strong>
-						und ein Messaging-Backbone (MQTT), damit Geräte am Standort zuverlässig mit der zentralen Instanz kommunizieren.
+						Beim Aufbau unseres Projekts haben wir besonders darauf geachtet, alles nutzerfreundlich, aber auch sicher und stabil zu halten.
+						Unsere einzelnen Bestandteile sind:
 					</p>
 				</div>
 
@@ -23,16 +23,16 @@ const { id = 'architektur' } = Astro.props;
 						<strong class="text-slate-900">Mobile App (Hauptbedienung)</strong>: eine einfache, nutzerfreundliche App für den Alltag (öffnen, buchen, Status sehen).
 					</li>
 					<li>
-						<strong class="text-slate-900">Admin-Panel</strong>: Verwaltung und Betrieb (Standorte, Geräte, Rollen, Support).
+						<strong class="text-slate-900">Adminbereich</strong>: Verwaltung und Betrieb (Standorte, Geräte, Rollen, Support).
 					</li>
 					<li>
-						<strong class="text-slate-900">Zentrale Instanz</strong>: prüft Berechtigungen, verwaltet Zustände und stellt die API bereit.
+						<strong class="text-slate-900">Backend</strong>: prüft Berechtigungen, verwaltet Zustände und stellt die API bereit.
 					</li>
 					<li>
-						<strong class="text-slate-900">MQTT Broker</strong>: entkoppelt zentrale Instanz und Schließfach-Standort (Commands ↔ Status).
+						<strong class="text-slate-900">MQTT Broker</strong>: entkoppelt das Backend und Schließfachstandort (Commands ↔ Status).
 					</li>
 					<li>
-						<strong class="text-slate-900">IoT Client</strong>: läuft z.&nbsp;B. auf einem Raspberry Pi oder ESP und übersetzt Nachrichten in „echte“ Signale zum Schrank (z.&nbsp;B. Modbus).
+						<strong class="text-slate-900">IoT Client</strong>: läuft z.B. auf einem Raspberry Pi oder ESP und übersetzt Nachrichten in „echte“ Signale zum Schrank (z.B. Modbus).
 					</li>
 				</ul>
 			</div>
@@ -59,12 +59,12 @@ const { id = 'architektur' } = Astro.props;
 						<p class="text-xs font-semibold tracking-wide text-slate-500">Mobile App</p>
 						<div class="rounded-xl border border-slate-200 bg-white p-3">
 							<p class="text-sm font-semibold text-slate-900">Mobile App</p>
-							<p class="mt-0.5 text-xs text-slate-600">Buchung &amp; Öffnen</p>
+							<p class="mt-0.5 text-xs text-slate-600">Gegenstände buchen &amp; Schließfächer öffnen</p>
 						</div>
 					</div>
 
 					<div class="space-y-2">
-						<p class="text-xs font-semibold tracking-wide text-slate-500">Zentrale Instanz (open-locker.de)</p>
+						<p class="text-xs font-semibold tracking-wide text-slate-500">Backend (open-locker.de)</p>
 						<div class="space-y-2">
 							<div class="rounded-xl border border-slate-200 bg-white p-3">
 								<p class="text-sm font-semibold text-slate-900">Laravel Backend</p>
@@ -110,7 +110,7 @@ const { id = 'architektur' } = Astro.props;
 							<span class="rounded-full bg-slate-900 px-2.5 py-1 text-xs font-semibold text-white">HTTPS (REST)</span>
 							<span class="font-medium">App</span>
 							<span class="text-slate-400" aria-hidden="true">→</span>
-							<span class="font-medium">Zentrale Instanz</span>
+							<span class="font-medium">Backend</span>
 							<span class="text-slate-400" aria-hidden="true">→</span>
 							<span class="rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-semibold text-emerald-900">MQTT</span>
 							<span class="font-medium">Broker</span>
@@ -132,7 +132,7 @@ const { id = 'architektur' } = Astro.props;
 							<span class="rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-semibold text-emerald-900">MQTT</span>
 							<span class="font-medium">Broker</span>
 							<span class="text-slate-400" aria-hidden="true">→</span>
-							<span class="font-medium">Zentrale Instanz</span>
+							<span class="font-medium">Backend</span>
 							<span class="text-slate-400" aria-hidden="true">→</span>
 							<span class="font-medium">Datenbank</span>
 							<span class="text-slate-400" aria-hidden="true">·</span>
