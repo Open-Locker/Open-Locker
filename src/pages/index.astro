@@ -7,6 +7,9 @@ import MeetingPolaroids from '../components/MeetingPolaroids.astro';
 import ProjectOverview from '../components/ProjectOverview.astro';
 import MqttArchitecture from '../components/MqttArchitecture.astro';
 import Pricing from '../components/Pricing.astro';
+import discordWordmark from '../assets/Discord-Logo-White.svg';
+import githubLockup from '../assets/GitHub_Lockup_Black.svg';
+import githubMark from '../assets/GitHub_Invertocat_Black.svg';
 import { DOCS_LINKS, LINKS } from '../config/links';
 
 const title = 'Open Locker — Open Source Software für Schließfächer';
@@ -119,25 +122,52 @@ const INSTALLATION_URL = DOCS_LINKS.installation;
 						href={LINKS.discordInvite}
 						target="_blank"
 						rel="noreferrer"
-						class="rounded-md bg-slate-900 px-4 py-2.5 text-sm font-medium text-white hover:bg-slate-800 focus-visible:ring-2 focus-visible:ring-blue-600"
+						class="inline-flex items-center rounded-md bg-[#5865F2] px-4 py-2.5 text-sm font-medium text-white hover:bg-[#4752C4] focus-visible:ring-2 focus-visible:ring-blue-600"
+						aria-label="Discord öffnen"
 					>
-						Discord
+						<img
+							src={discordWordmark.src}
+							width="132"
+							height="20"
+							class="h-5 w-auto"
+							alt=""
+							aria-hidden="true"
+							loading="lazy"
+						/>
 					</a>
 					<a
 						href={LINKS.githubRepo}
 						target="_blank"
 						rel="noreferrer"
-						class="rounded-md border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-900 hover:bg-slate-50 focus-visible:ring-2 focus-visible:ring-blue-600"
+						class="inline-flex items-center rounded-md border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-900 hover:bg-slate-50 focus-visible:ring-2 focus-visible:ring-blue-600"
+						aria-label="GitHub öffnen"
 					>
-						GitHub
+						<img
+							src={githubLockup.src}
+							width="88"
+							height="20"
+							class="h-5 w-auto max-w-44"
+							alt=""
+							aria-hidden="true"
+							loading="lazy"
+						/>
 					</a>
 					<a
 						href={LINKS.githubRepo + '/issues'}
 						target="_blank"
 						rel="noreferrer"
-						class="rounded-md border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-900 hover:bg-slate-50 focus-visible:ring-2 focus-visible:ring-blue-600"
+						class="inline-flex items-center gap-2 rounded-md border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-900 hover:bg-slate-50 focus-visible:ring-2 focus-visible:ring-blue-600"
 					>
-						Issue erstellen
+						<img
+							src={githubMark.src}
+							width="20"
+							height="20"
+							class="h-5 w-5"
+							alt=""
+							aria-hidden="true"
+							loading="lazy"
+						/>
+						<span>Issue erstellen</span>
 					</a>
 				</div>
 
