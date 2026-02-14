@@ -6,7 +6,7 @@ Das Open-Locker System ist ein IoT-basiertes Schließfachsystem, das aus mehrere
 Komponenten besteht:
 
 - **Backend**: Laravel 11 API mit Filament Admin-Panel
-- **Frontend**: Flutter Mobile App für Endnutzer
+- **Frontend**: React Native Mobile App für Endnutzer (rewrite / target app)
 - **Hardware**: Raspberry Pi mit Modbus-Kommunikation zu physischen
   Schließfächern
 - **Documentation**: Automatische OpenAPI-Dokumentation mit Scramble
@@ -16,7 +16,7 @@ Komponenten besteht:
 ```mermaid
 graph TB
     subgraph "Mobile App Layer"
-        FlutterApp["Flutter App<br/>(locker_app)"]
+        FlutterApp["Mobile App<br/>(React Native)"]
     end
     
     subgraph "API Layer"
@@ -131,11 +131,10 @@ graph TB
 - **Database**: PostgreSQL (Docker) als Standard, SQLite für Tests/Kleininstallationen
 - **Admin Panel**: Filament 3.x für administrative Aufgaben
 
-#### Flutter Mobile App (locker_app/)
+#### Mobile App
 
-- **Platform**: Cross-platform Flutter App
-- **API Client**: Auto-generierter Dart-Client über OpenAPI Generator
-- **Features**: Item-Browsing, Ausleihe, Rückgabe, Benutzerhistorie
+- **Platform**: React Native (cross-platform)
+- **Features (v1 focus)**: authentication, show accessible compartments, open/close + realtime feedback
 
 #### Hardware Integration
 
