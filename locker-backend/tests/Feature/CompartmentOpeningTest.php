@@ -22,6 +22,14 @@ class CompartmentOpeningTest extends TestCase
             'number' => 1,
         ]);
 
+        $mqttClient = \Mockery::mock(MqttClient::class);
+        $mqttClient->shouldReceive('publish')->once();
+
+        MQTT::shouldReceive('connection')
+            ->once()
+            ->with('publisher')
+            ->andReturn($mqttClient);
+
         app(LockerService::class)->openCompartment($compartment);
 
         $stored = EloquentStoredEvent::query()

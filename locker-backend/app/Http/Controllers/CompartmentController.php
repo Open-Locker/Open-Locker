@@ -4,27 +4,42 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
-use App\Http\Resources\CompartmentResource;
-use App\Services\CompartmentService;
+use App\Models\Compartment;
+use App\Services\CompartmentAccessService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 
 class CompartmentController extends Controller
 {
-    public function __construct(
-        private readonly CompartmentService $compartmentService,
-    ) {}
-
     /**
-     * List all compartments with their current contents.
+     * Open a compartment for an authorized user.
      *
-     * @response AnonymousResourceCollection<CompartmentResource>
+     * Dispatches an event-sourced open command and returns immediately.
+     *
+     * @response 200 {
+     *   "status": true,
+     *   "message": "Compartment open command queued"
+     * }
+     * @response 403 {
+     *   "status": false,
+     *   "message": "You do not have access to this compartment"
+     * }
      */
-    public function index(Request $request): AnonymousResourceCollection
-    {
-        return CompartmentResource::collection(
-            $this->compartmentService->listWithContents()
-        );
+    public function open(
+        Request $request,
+        Compartment $compartment,
+        CompartmentAccessService $compartmentAccessService,
+    ): JsonResponse {
+        if (! $compartmentAccessService->requestOpen($request->user(), $compartment)) {
+            return response()->json([
+                'status' => false,
+                'message' => __('You do not have access to this compartment'),
+            ], 403);
+        }
+
+        return response()->json([
+            'status' => true,
+            'message' => __('Compartment open command queued'),
+        ]);
     }
 }
-

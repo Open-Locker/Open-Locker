@@ -21,10 +21,7 @@ use Symfony\Component\HttpFoundation\JsonResponse;
 
 class AuthController extends Controller
 {
-
-    public function __construct(readonly AuthService $authService) {
-
-    }
+    public function __construct(public readonly AuthService $authService) {}
 
     /**
      * Register

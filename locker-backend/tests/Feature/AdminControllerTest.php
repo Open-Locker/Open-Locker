@@ -2,8 +2,8 @@
 
 namespace Tests\Feature;
 
+use App\Models\CompartmentAccess;
 use App\Models\Item;
-use App\Models\ItemLoan;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Foundation\Testing\WithFaker;
@@ -138,20 +138,19 @@ class AdminControllerTest extends TestCase
 
     public function test_admin_can_get_statistics()
     {
-        // Erstelle einige Items und Ausleihen für die Statistiken
+        // Erstelle einige Items und Zugriffsrechte für die Statistiken
         $items = Item::factory()->count(5)->create();
 
-        // Erstelle aktive Ausleihen (ohne returned_at)
-        ItemLoan::factory()->count(3)->create([
+        CompartmentAccess::factory()->count(3)->create([
             'user_id' => $this->regularUser->id,
-            'item_id' => $items[0]->id,
-            'returned_at' => null,
+            'revoked_at' => null,
+            'expires_at' => now()->addDay(),
         ]);
 
-        // Erstelle abgeschlossene Ausleihen (mit returned_at)
-        ItemLoan::factory()->returned()->count(2)->create([
+        CompartmentAccess::factory()->count(2)->create([
             'user_id' => $this->regularUser->id,
-            'item_id' => $items[1]->id,
+            'revoked_at' => now(),
+            'expires_at' => now()->addDay(),
         ]);
 
         $response = $this->withHeaders([
@@ -163,8 +162,8 @@ class AdminControllerTest extends TestCase
             'statistics' => [
                 'total_users',
                 'total_items',
-                'total_loans',
-                'active_loans',
+                'total_compartment_accesses',
+                'active_compartment_accesses',
             ],
         ]);
 
@@ -172,8 +171,8 @@ class AdminControllerTest extends TestCase
             'statistics' => [
                 'total_users' => 2, // Admin + Regular
                 'total_items' => 5,
-                'total_loans' => 5, // 3 aktive + 2 abgeschlossene
-                'active_loans' => 3,
+                'total_compartment_accesses' => 5,
+                'active_compartment_accesses' => 3,
             ],
         ]);
     }

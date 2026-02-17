@@ -24,6 +24,7 @@ return [
     'projectors' => [
         App\Projectors\LockerBankProjector::class,
         App\Projectors\CompartmentProjector::class,
+        App\Projectors\CompartmentAccessProjector::class,
     ],
 
     /*
@@ -34,6 +35,7 @@ return [
     'reactors' => [
         App\Reactors\MqttReactor::class,
         App\Reactors\CommandResponseReactor::class,
+        App\Reactors\CompartmentOpenAuthorizationReactor::class,
     ],
 
     /*

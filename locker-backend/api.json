@@ -1,12 +1,12 @@
 {
     "openapi": "3.1.0",
     "info": {
-        "title": "OpenLocker",
+        "title": "Open Locker",
         "version": "0.0.1"
     },
     "servers": [
         {
-            "url": "http:\/\/open-locker.test\/api"
+            "url": "http://open-locker.test/api"
         }
     ],
     "security": [
@@ -15,7 +15,7 @@
         }
     ],
     "paths": {
-        "\/admin\/users": {
+        "/admin/users": {
             "get": {
                 "operationId": "admin.users.index",
                 "summary": "List of alle users",
@@ -26,23 +26,23 @@
                     "200": {
                         "description": "Array of `User`",
                         "content": {
-                            "application\/json": {
+                            "application/json": {
                                 "schema": {
                                     "type": "array",
                                     "items": {
-                                        "$ref": "#\/components\/schemas\/User"
+                                        "$ref": "#/components/schemas/User"
                                     }
                                 }
                             }
                         }
                     },
                     "401": {
-                        "$ref": "#\/components\/responses\/AuthenticationException"
+                        "$ref": "#/components/responses/AuthenticationException"
                     }
                 }
             }
         },
-        "\/admin\/users\/{user}\/make-admin": {
+        "/admin/users/{user}/make-admin": {
             "post": {
                 "operationId": "admin.users.make-admin",
                 "summary": "Macht einen Benutzer zum Administrator",
@@ -64,7 +64,7 @@
                     "200": {
                         "description": "",
                         "content": {
-                            "application\/json": {
+                            "application/json": {
                                 "schema": {
                                     "type": "object",
                                     "properties": {
@@ -72,7 +72,7 @@
                                             "type": "string"
                                         },
                                         "user": {
-                                            "$ref": "#\/components\/schemas\/User"
+                                            "$ref": "#/components/schemas/User"
                                         }
                                     },
                                     "required": [
@@ -86,7 +86,7 @@
                     "400": {
                         "description": "",
                         "content": {
-                            "application\/json": {
+                            "application/json": {
                                 "schema": {
                                     "type": "object",
                                     "properties": {
@@ -102,15 +102,15 @@
                         }
                     },
                     "404": {
-                        "$ref": "#\/components\/responses\/ModelNotFoundException"
+                        "$ref": "#/components/responses/ModelNotFoundException"
                     },
                     "401": {
-                        "$ref": "#\/components\/responses\/AuthenticationException"
+                        "$ref": "#/components/responses/AuthenticationException"
                     }
                 }
             }
         },
-        "\/admin\/users\/{user}\/remove-admin": {
+        "/admin/users/{user}/remove-admin": {
             "post": {
                 "operationId": "admin.users.remove-admin",
                 "summary": "Removes administrator rights from a user",
@@ -132,7 +132,7 @@
                     "200": {
                         "description": "",
                         "content": {
-                            "application\/json": {
+                            "application/json": {
                                 "schema": {
                                     "type": "object",
                                     "properties": {
@@ -140,7 +140,7 @@
                                             "type": "string"
                                         },
                                         "user": {
-                                            "$ref": "#\/components\/schemas\/User"
+                                            "$ref": "#/components/schemas/User"
                                         }
                                     },
                                     "required": [
@@ -154,7 +154,7 @@
                     "400": {
                         "description": "",
                         "content": {
-                            "application\/json": {
+                            "application/json": {
                                 "schema": {
                                     "type": "object",
                                     "properties": {
@@ -170,15 +170,15 @@
                         }
                     },
                     "404": {
-                        "$ref": "#\/components\/responses\/ModelNotFoundException"
+                        "$ref": "#/components/responses/ModelNotFoundException"
                     },
                     "401": {
-                        "$ref": "#\/components\/responses\/AuthenticationException"
+                        "$ref": "#/components/responses/AuthenticationException"
                     }
                 }
             }
         },
-        "\/admin\/statistics": {
+        "/admin/statistics": {
             "get": {
                 "operationId": "admin.statistics",
                 "summary": "Returns statistics about the system",
@@ -189,7 +189,7 @@
                     "200": {
                         "description": "",
                         "content": {
-                            "application\/json": {
+                            "application/json": {
                                 "schema": {
                                     "type": "object",
                                     "properties": {
@@ -204,20 +204,20 @@
                                                     "type": "integer",
                                                     "description": "Total number of items"
                                                 },
-                                                "total_loans": {
+                                                "total_compartment_accesses": {
                                                     "type": "integer",
-                                                    "description": "Total number of loans"
+                                                    "description": "Total number of access grants"
                                                 },
-                                                "active_loans": {
+                                                "active_compartment_accesses": {
                                                     "type": "integer",
-                                                    "description": "Number of active loans"
+                                                    "description": "Number of currently active grants"
                                                 }
                                             },
                                             "required": [
                                                 "total_users",
                                                 "total_items",
-                                                "total_loans",
-                                                "active_loans"
+                                                "total_compartment_accesses",
+                                                "active_compartment_accesses"
                                             ]
                                         }
                                     },
@@ -229,12 +229,12 @@
                         }
                     },
                     "401": {
-                        "$ref": "#\/components\/responses\/AuthenticationException"
+                        "$ref": "#/components/responses/AuthenticationException"
                     }
                 }
             }
         },
-        "\/identify": {
+        "/identify": {
             "get": {
                 "operationId": "identify",
                 "summary": "Returns information for identifying the application",
@@ -245,25 +245,36 @@
                     "200": {
                         "description": "",
                         "content": {
-                            "application\/json": {
+                            "application/json": {
                                 "schema": {
                                     "type": "object",
                                     "properties": {
                                         "name": {
                                             "type": "string",
-                                            "example": "Open-Locker"
+                                            "enum": [
+                                                "Open-Locker"
+                                            ]
                                         },
                                         "type": {
                                             "type": "string",
-                                            "example": "backend"
+                                            "enum": [
+                                                "backend"
+                                            ]
                                         },
                                         "api_version": {
                                             "type": "string",
-                                            "example": "v1"
+                                            "enum": [
+                                                "v1"
+                                            ]
+                                        },
+                                        "version": {
+                                            "type": "string"
                                         },
                                         "identifier": {
                                             "type": "string",
-                                            "example": "open-locker-backend"
+                                            "enum": [
+                                                "open-locker-backend"
+                                            ]
                                         },
                                         "environment": {
                                             "type": "string"
@@ -276,6 +287,7 @@
                                         "name",
                                         "type",
                                         "api_version",
+                                        "version",
                                         "identifier",
                                         "environment",
                                         "timestamp"
@@ -287,7 +299,7 @@
                 }
             }
         },
-        "\/login": {
+        "/login": {
             "post": {
                 "operationId": "auth.login",
                 "summary": "Login",
@@ -297,7 +309,7 @@
                 "requestBody": {
                     "required": true,
                     "content": {
-                        "application\/json": {
+                        "application/json": {
                             "schema": {
                                 "type": "object",
                                 "properties": {
@@ -319,53 +331,45 @@
                 },
                 "responses": {
                     "200": {
-                        "description": "`TokenResponse`",
+                        "description": "`TokenResponseResource`",
                         "content": {
-                            "application\/json": {
+                            "application/json": {
                                 "schema": {
-                                    "$ref": "#\/components\/schemas\/TokenResponse"
+                                    "$ref": "#/components/schemas/TokenResponse"
                                 }
                             }
                         }
                     },
                     "422": {
-                        "$ref": "#\/components\/responses\/ValidationException"
+                        "$ref": "#/components/responses/ValidationException"
                     }
                 },
                 "security": []
             }
         },
-        "\/password\/email": {
-            "post": {
-                "operationId": "password.email",
+        "/password/email": {
+            "get": {
+                "operationId": "password.reset",
                 "summary": "Send Password E-Mail",
                 "tags": [
                     "Auth"
                 ],
-                "requestBody": {
-                    "required": true,
-                    "content": {
-                        "application\/json": {
-                            "schema": {
-                                "type": "object",
-                                "properties": {
-                                    "email": {
-                                        "type": "string",
-                                        "format": "email"
-                                    }
-                                },
-                                "required": [
-                                    "email"
-                                ]
-                            }
+                "parameters": [
+                    {
+                        "name": "email",
+                        "in": "query",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "email"
                         }
                     }
-                },
+                ],
                 "responses": {
                     "200": {
                         "description": "",
                         "content": {
-                            "application\/json": {
+                            "application/json": {
                                 "schema": {
                                     "type": "object",
                                     "properties": {
@@ -381,12 +385,12 @@
                         }
                     },
                     "422": {
-                        "$ref": "#\/components\/responses\/ValidationException"
+                        "$ref": "#/components/responses/ValidationException"
                     }
                 }
             }
         },
-        "\/reset-password": {
+        "/reset-password": {
             "post": {
                 "operationId": "password.store",
                 "summary": "Reset Password with Token",
@@ -396,7 +400,7 @@
                 "requestBody": {
                     "required": true,
                     "content": {
-                        "application\/json": {
+                        "application/json": {
                             "schema": {
                                 "type": "object",
                                 "properties": {
@@ -428,7 +432,7 @@
                     "200": {
                         "description": "",
                         "content": {
-                            "application\/json": {
+                            "application/json": {
                                 "schema": {
                                     "type": "object",
                                     "properties": {
@@ -444,12 +448,12 @@
                         }
                     },
                     "422": {
-                        "$ref": "#\/components\/responses\/ValidationException"
+                        "$ref": "#/components/responses/ValidationException"
                     }
                 }
             }
         },
-        "\/logout": {
+        "/logout": {
             "post": {
                 "operationId": "auth.logout",
                 "summary": "Logout",
@@ -460,7 +464,7 @@
                     "200": {
                         "description": "",
                         "content": {
-                            "application\/json": {
+                            "application/json": {
                                 "schema": {
                                     "type": "object",
                                     "properties": {
@@ -476,12 +480,12 @@
                         }
                     },
                     "401": {
-                        "$ref": "#\/components\/responses\/AuthenticationException"
+                        "$ref": "#/components/responses/AuthenticationException"
                     }
                 }
             }
         },
-        "\/user": {
+        "/user": {
             "get": {
                 "operationId": "auth.user",
                 "summary": "Get current User",
@@ -490,22 +494,22 @@
                 ],
                 "responses": {
                     "200": {
-                        "description": "`User`",
+                        "description": "`UserResource`",
                         "content": {
-                            "application\/json": {
+                            "application/json": {
                                 "schema": {
-                                    "$ref": "#\/components\/schemas\/User"
+                                    "$ref": "#/components/schemas/User"
                                 }
                             }
                         }
                     },
                     "401": {
-                        "$ref": "#\/components\/responses\/AuthenticationException"
+                        "$ref": "#/components/responses/AuthenticationException"
                     }
                 }
             }
         },
-        "\/verify-email\/{id}\/{hash}": {
+        "/verify-email/{id}/{hash}": {
             "get": {
                 "operationId": "verification.verify",
                 "summary": "Verify Email Address",
@@ -534,7 +538,7 @@
                     "200": {
                         "description": "",
                         "content": {
-                            "application\/json": {
+                            "application/json": {
                                 "schema": {
                                     "type": "object",
                                     "properties": {
@@ -550,18 +554,12 @@
                         }
                     },
                     "401": {
-                        "$ref": "#\/components\/responses\/AuthenticationException"
-                    },
-                    "422": {
-                        "$ref": "#\/components\/responses\/ValidationException"
-                    },
-                    "403": {
-                        "$ref": "#\/components\/responses\/AuthorizationException"
+                        "$ref": "#/components/responses/AuthenticationException"
                     }
                 }
             }
         },
-        "\/email\/verification-notification": {
+        "/email/verification-notification": {
             "post": {
                 "operationId": "verification.send",
                 "summary": "Send Email Verification Notification",
@@ -572,7 +570,7 @@
                     "200": {
                         "description": "",
                         "content": {
-                            "application\/json": {
+                            "application/json": {
                                 "schema": {
                                     "type": "object",
                                     "properties": {
@@ -588,72 +586,83 @@
                         }
                     },
                     "401": {
-                        "$ref": "#\/components\/responses\/AuthenticationException"
+                        "$ref": "#/components/responses/AuthenticationException"
                     }
                 }
             }
         },
-        "\/admin\/users\/register": {
+        "/admin/users/register": {
             "post": {
                 "operationId": "admin.users.register",
+                "description": "\u26a0\ufe0f Cannot generate request documentation: Undefined constant App\\Models\\User::class",
                 "summary": "Register",
                 "tags": [
                     "Auth"
                 ],
-                "requestBody": {
-                    "required": true,
-                    "content": {
-                        "application\/json": {
-                            "schema": {
-                                "type": "object",
-                                "properties": {
-                                    "name": {
-                                        "type": "string",
-                                        "maxLength": 255
-                                    },
-                                    "email": {
-                                        "type": "string",
-                                        "format": "email",
-                                        "maxLength": 255
-                                    },
-                                    "password": {
-                                        "type": "string"
-                                    },
-                                    "password_confirmation": {
-                                        "type": "string"
-                                    }
-                                },
-                                "required": [
-                                    "name",
-                                    "email",
-                                    "password",
-                                    "password_confirmation"
-                                ]
-                            }
-                        }
-                    }
-                },
                 "responses": {
                     "200": {
                         "description": "`TokenResponse`",
                         "content": {
-                            "application\/json": {
+                            "application/json": {
                                 "schema": {
-                                    "$ref": "#\/components\/schemas\/TokenResponse"
+                                    "$ref": "#/components/schemas/TokenResponse"
                                 }
                             }
                         }
                     },
                     "422": {
-                        "$ref": "#\/components\/responses\/ValidationException"
+                        "$ref": "#/components/responses/ValidationException"
                     },
                     "401": {
-                        "$ref": "#\/components\/responses\/AuthenticationException"
+                        "$ref": "#/components/responses/AuthenticationException"
                     }
                 }
             }
         },
-        "\/items": {
+        "/compartments/{compartment}/open": {
+            "post": {
+                "operationId": "compartments.open",
+                "description": "Dispatches an event-sourced open command and returns immediately.",
+                "summary": "Open a compartment for an authorized user",
+                "tags": [
+                    "Compartment"
+                ],
+                "parameters": [
+                    {
+                        "name": "compartment",
+                        "in": "path",
+                        "required": true,
+                        "description": "The compartment ID",
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "integer",
+                                    "enum": [
+                                        200
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/ModelNotFoundException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            }
+        },
+        "/items": {
             "get": {
                 "operationId": "items.index",
                 "summary": "Get all Items",
@@ -662,66 +671,39 @@
                 ],
                 "responses": {
                     "200": {
-                        "description": "Array of `Item`",
+                        "description": "Array of `ItemResource`",
                         "content": {
-                            "application\/json": {
+                            "application/json": {
                                 "schema": {
                                     "type": "array",
                                     "items": {
-                                        "$ref": "#\/components\/schemas\/Item"
+                                        "$ref": "#/components/schemas/Item"
                                     }
                                 }
                             }
                         }
                     },
                     "401": {
-                        "$ref": "#\/components\/responses\/AuthenticationException"
+                        "$ref": "#/components/responses/AuthenticationException"
                     }
                 }
             }
         },
-        "\/items\/borrowed": {
+        "/locker-banks/{lockerBank}/status": {
             "get": {
-                "operationId": "items.borrowed",
-                "summary": "Get all Items from User",
+                "operationId": "locker-banks.status",
                 "tags": [
-                    "Item"
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Array of `Item`",
-                        "content": {
-                            "application\/json": {
-                                "schema": {
-                                    "type": "array",
-                                    "items": {
-                                        "$ref": "#\/components\/schemas\/Item"
-                                    }
-                                }
-                            }
-                        }
-                    },
-                    "401": {
-                        "$ref": "#\/components\/responses\/AuthenticationException"
-                    }
-                }
-            }
-        },
-        "\/items\/{item}\/borrow": {
-            "post": {
-                "operationId": "items.borrow",
-                "summary": "Borrow a Item",
-                "tags": [
-                    "Item"
+                    "LockerBankStatus"
                 ],
                 "parameters": [
                     {
-                        "name": "item",
+                        "name": "lockerBank",
                         "in": "path",
                         "required": true,
-                        "description": "The item ID",
+                        "description": "The locker bank ID",
                         "schema": {
-                            "type": "integer"
+                            "type": "string",
+                            "format": "uuid"
                         }
                     }
                 ],
@@ -729,184 +711,148 @@
                     "200": {
                         "description": "",
                         "content": {
-                            "application\/json": {
+                            "application/json": {
                                 "schema": {
                                     "type": "object",
                                     "properties": {
-                                        "status": {
-                                            "type": "boolean"
-                                        },
-                                        "message": {
+                                        "id": {
                                             "type": "string"
+                                        },
+                                        "connection_status": {
+                                            "type": "string"
+                                        },
+                                        "connection_status_changed_at": {
+                                            "type": "string"
+                                        },
+                                        "last_heartbeat_at": {
+                                            "type": "string"
+                                        },
+                                        "heartbeat_interval_seconds": {
+                                            "type": "integer"
+                                        },
+                                        "heartbeat_timeout_seconds": {
+                                            "type": "integer"
                                         }
                                     },
                                     "required": [
-                                        "status",
-                                        "message"
+                                        "id",
+                                        "connection_status",
+                                        "connection_status_changed_at",
+                                        "last_heartbeat_at",
+                                        "heartbeat_interval_seconds",
+                                        "heartbeat_timeout_seconds"
                                     ]
                                 }
                             }
                         }
                     },
                     "404": {
-                        "$ref": "#\/components\/responses\/ModelNotFoundException"
+                        "$ref": "#/components/responses/ModelNotFoundException"
                     },
                     "401": {
-                        "$ref": "#\/components\/responses\/AuthenticationException"
+                        "$ref": "#/components/responses/AuthenticationException"
                     }
                 }
             }
         },
-        "\/items\/{item}\/return": {
+        "/mosq/auth": {
             "post": {
-                "operationId": "items.return",
-                "summary": "Returns a Item",
+                "operationId": "mosquittoAuth.auth",
+                "summary": "HTTP auth: validate user credentials",
                 "tags": [
-                    "Item"
+                    "MosquittoAuth"
                 ],
-                "parameters": [
-                    {
-                        "name": "item",
-                        "in": "path",
-                        "required": true,
-                        "description": "The item ID",
-                        "schema": {
-                            "type": "integer"
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/AuthRequest"
+                            }
                         }
                     }
-                ],
+                },
                 "responses": {
                     "200": {
                         "description": "",
                         "content": {
-                            "application\/json": {
+                            "application/json": {
                                 "schema": {
                                     "type": "object",
                                     "properties": {
-                                        "status": {
+                                        "allow": {
                                             "type": "boolean"
                                         },
-                                        "message": {
-                                            "type": "string"
+                                        "ok": {
+                                            "type": "boolean"
                                         }
                                     },
                                     "required": [
-                                        "status",
-                                        "message"
+                                        "allow",
+                                        "ok"
                                     ]
                                 }
                             }
                         }
                     },
-                    "404": {
-                        "$ref": "#\/components\/responses\/ModelNotFoundException"
-                    },
-                    "401": {
-                        "$ref": "#\/components\/responses\/AuthenticationException"
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
                     }
                 }
             }
         },
-        "\/items\/loan-history": {
-            "get": {
-                "operationId": "items.loanHistory",
-                "summary": "Get loan history for the current user",
-                "tags": [
-                    "Item"
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Array of `ItemLoan`",
-                        "content": {
-                            "application\/json": {
-                                "schema": {
-                                    "type": "array",
-                                    "items": {
-                                        "$ref": "#\/components\/schemas\/ItemLoan"
-                                    }
-                                }
-                            }
-                        }
-                    },
-                    "401": {
-                        "$ref": "#\/components\/responses\/AuthenticationException"
-                    }
-                }
-            }
-        },
-        "\/admin\/lockers": {
-            "get": {
-                "operationId": "admin.lockers.index",
-                "summary": "Returns a list of all available lockers",
-                "tags": [
-                    "Locker"
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Array of `Locker`",
-                        "content": {
-                            "application\/json": {
-                                "schema": {
-                                    "type": "array",
-                                    "items": {
-                                        "$ref": "#\/components\/schemas\/Locker"
-                                    }
-                                }
-                            }
-                        }
-                    },
-                    "401": {
-                        "$ref": "#\/components\/responses\/AuthenticationException"
-                    }
-                }
-            }
-        },
-        "\/admin\/lockers\/{locker}\/open": {
+        "/mosq/acl": {
             "post": {
-                "operationId": "admin.lockers.open",
-                "summary": "Manually opens a locker",
+                "operationId": "mosquittoAuth.acl",
+                "summary": "HTTP ACL check: authorize publish/subscribe per topic",
                 "tags": [
-                    "Locker"
+                    "MosquittoAuth"
                 ],
-                "parameters": [
-                    {
-                        "name": "locker",
-                        "in": "path",
-                        "required": true,
-                        "description": "The locker ID",
-                        "schema": {
-                            "type": "integer"
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/AclRequest"
+                            }
                         }
                     }
-                ],
+                },
                 "responses": {
+                    "403": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "allow": {
+                                            "type": "boolean"
+                                        },
+                                        "ok": {
+                                            "type": "boolean"
+                                        }
+                                    },
+                                    "required": [
+                                        "allow",
+                                        "ok"
+                                    ]
+                                }
+                            }
+                        }
+                    },
                     "200": {
                         "description": "",
                         "content": {
-                            "application\/json": {
+                            "application/json": {
                                 "schema": {
-                                    "type": "object",
-                                    "properties": {
-                                        "status": {
-                                            "type": "boolean"
-                                        },
-                                        "message": {
-                                            "type": "string"
-                                        }
-                                    },
-                                    "required": [
-                                        "status",
-                                        "message"
-                                    ]
+                                    "type": "string"
                                 }
                             }
                         }
                     },
-                    "404": {
-                        "$ref": "#\/components\/responses\/ModelNotFoundException"
-                    },
-                    "401": {
-                        "$ref": "#\/components\/responses\/AuthenticationException"
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
                     }
                 }
             }
@@ -921,6 +867,54 @@
             }
         },
         "schemas": {
+            "AclRequest": {
+                "type": "object",
+                "properties": {
+                    "username": {
+                        "type": "string"
+                    },
+                    "clientid": {
+                        "type": "string"
+                    },
+                    "topic": {
+                        "type": "string"
+                    },
+                    "acc": {
+                        "type": "integer"
+                    }
+                },
+                "required": [
+                    "username",
+                    "clientid",
+                    "topic",
+                    "acc"
+                ],
+                "title": "AclRequest"
+            },
+            "AuthRequest": {
+                "type": "object",
+                "properties": {
+                    "username": {
+                        "type": "string"
+                    },
+                    "password": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "clientid": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    }
+                },
+                "required": [
+                    "username"
+                ],
+                "title": "AuthRequest"
+            },
             "Item": {
                 "type": "object",
                 "properties": {
@@ -939,9 +933,9 @@
                             "null"
                         ]
                     },
-                    "locker_id": {
+                    "compartment_id": {
                         "type": [
-                            "integer",
+                            "string",
                             "null"
                         ]
                     },
@@ -958,13 +952,6 @@
                             "null"
                         ],
                         "format": "date-time"
-                    },
-                    "borrowed_at": {
-                        "type": [
-                            "string",
-                            "null"
-                        ],
-                        "format": "date-time"
                     }
                 },
                 "required": [
@@ -973,58 +960,6 @@
                     "description"
                 ],
                 "title": "Item"
-            },
-            "ItemLoan": {
-                "type": "object",
-                "properties": {
-                    "id": {
-                        "type": "integer"
-                    },
-                    "item": {
-                        "$ref": "#\/components\/schemas\/Item"
-                    },
-                    "user_id": {
-                        "type": "integer"
-                    },
-                    "borrowed_at": {
-                        "type": "string",
-                        "format": "date-time"
-                    },
-                    "returned_at": {
-                        "type": [
-                            "string",
-                            "null"
-                        ],
-                        "format": "date-time"
-                    }
-                },
-                "required": [
-                    "id",
-                    "item",
-                    "user_id",
-                    "borrowed_at"
-                ],
-                "title": "ItemLoan"
-            },
-            "Locker": {
-                "type": "object",
-                "properties": {
-                    "id": {
-                        "type": "integer"
-                    },
-                    "name": {
-                        "type": "string"
-                    },
-                    "is_open": {
-                        "type": "boolean"
-                    }
-                },
-                "required": [
-                    "id",
-                    "name",
-                    "is_open"
-                ],
-                "title": "Locker"
             },
             "TokenResponse": {
                 "type": "object",
@@ -1096,7 +1031,7 @@
             "ValidationException": {
                 "description": "Validation error",
                 "content": {
-                    "application\/json": {
+                    "application/json": {
                         "schema": {
                             "type": "object",
                             "properties": {
@@ -1123,48 +1058,29 @@
                     }
                 }
             },
-            "AuthenticationException": {
-                "description": "Unauthenticated",
-                "content": {
-                    "application\/json": {
-                        "schema": {
-                            "type": "object",
-                            "properties": {
-                                "message": {
-                                    "type": "string",
-                                    "description": "Error overview."
-                                }
-                            },
-                            "required": [
-                                "message"
-                            ]
-                        }
-                    }
-                }
-            },
-            "AuthorizationException": {
-                "description": "Authorization error",
-                "content": {
-                    "application\/json": {
-                        "schema": {
-                            "type": "object",
-                            "properties": {
-                                "message": {
-                                    "type": "string",
-                                    "description": "Error overview."
-                                }
-                            },
-                            "required": [
-                                "message"
-                            ]
-                        }
-                    }
-                }
-            },
             "ModelNotFoundException": {
                 "description": "Not found",
                 "content": {
-                    "application\/json": {
+                    "application/json": {
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "message": {
+                                    "type": "string",
+                                    "description": "Error overview."
+                                }
+                            },
+                            "required": [
+                                "message"
+                            ]
+                        }
+                    }
+                }
+            },
+            "AuthenticationException": {
+                "description": "Unauthenticated",
+                "content": {
+                    "application/json": {
                         "schema": {
                             "type": "object",
                             "properties": {

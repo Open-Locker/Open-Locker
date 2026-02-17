@@ -6,6 +6,7 @@ use Database\Factories\UserFactory;
 use Filament\Models\Contracts\FilamentUser;
 use Filament\Panel;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
@@ -53,23 +54,38 @@ class User extends Authenticatable implements FilamentUser, MustVerifyEmail
     }
 
     /**
-     * Get all loans for this user
+     * Get all compartment access entries for this user.
      *
-     * @return HasMany<ItemLoan, User>
+     * @return HasMany<CompartmentAccess, User>
      */
-    public function loans(): HasMany
+    public function compartmentAccesses(): HasMany
     {
-        return $this->hasMany(ItemLoan::class);
+        return $this->hasMany(CompartmentAccess::class);
     }
 
     /**
-     * Get active loans for this user
+     * Get active compartment access entries for this user.
      *
-     * @return HasMany<ItemLoan, User>
+     * @return HasMany<CompartmentAccess, User>
      */
-    public function activeLoans(): HasMany
+    public function activeCompartmentAccesses(): HasMany
     {
-        return $this->hasMany(ItemLoan::class)->where('status', 'active');
+        return $this->compartmentAccesses()
+            ->whereNull('revoked_at')
+            ->where(function (Builder $query): void {
+                $query->whereNull('expires_at')
+                    ->orWhere('expires_at', '>', now());
+            });
+    }
+
+    /**
+     * Check if the user currently has access to a compartment.
+     */
+    public function hasAccessToCompartment(Compartment $compartment): bool
+    {
+        return $this->activeCompartmentAccesses()
+            ->where('compartment_id', $compartment->id)
+            ->exists();
     }
 
     /**
@@ -107,15 +123,16 @@ class User extends Authenticatable implements FilamentUser, MustVerifyEmail
             return true;
         }
 
-        if ($this->is_admin_since && !$this->hasVerifiedEmail()) {
+        if ($this->is_admin_since && ! $this->hasVerifiedEmail()) {
             $currentRoute = request()->route()?->getName();
 
-            if (!str_contains($currentRoute ?? '', 'email-verification')) {
+            if (! str_contains($currentRoute ?? '', 'email-verification')) {
                 redirect()->to($panel->route('auth.email-verification.prompt'))->send();
             }
 
             return true;
         }
+
         return $this->isAdmin() && $this->hasVerifiedEmail();
     }
 

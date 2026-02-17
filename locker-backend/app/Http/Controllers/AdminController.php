@@ -3,8 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Http\Resources\UserResource;
+use App\Models\CompartmentAccess;
 use App\Models\Item;
-use App\Models\ItemLoan;
 use App\Models\User;
 use Dedoc\Scramble\Attributes\Response;
 use Illuminate\Http\JsonResponse;
@@ -76,8 +76,8 @@ class AdminController extends Controller
     {
         $totalUsers = User::count();
         $totalItems = Item::count();
-        $totalLoans = ItemLoan::count();
-        $activeLoans = ItemLoan::whereNull('returned_at')->count();
+        $totalCompartmentAccesses = CompartmentAccess::count();
+        $activeCompartmentAccesses = CompartmentAccess::active()->count();
 
         return response()->json([
             'statistics' => [
@@ -85,10 +85,10 @@ class AdminController extends Controller
                 'total_users' => $totalUsers,
                 /** @var int $totalItems Total number of items */
                 'total_items' => $totalItems,
-                /** @var int $totalLoans Total number of loans */
-                'total_loans' => $totalLoans,
-                /** @var int $activeLoans Number of active loans */
-                'active_loans' => $activeLoans,
+                /** @var int $totalCompartmentAccesses Total number of access grants */
+                'total_compartment_accesses' => $totalCompartmentAccesses,
+                /** @var int $activeCompartmentAccesses Number of currently active grants */
+                'active_compartment_accesses' => $activeCompartmentAccesses,
             ],
         ]);
     }

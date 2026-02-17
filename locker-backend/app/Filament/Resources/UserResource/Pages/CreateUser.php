@@ -4,12 +4,9 @@ namespace App\Filament\Resources\UserResource\Pages;
 
 use App\Filament\Resources\UserResource;
 use App\Services\AuthService;
-use Filament\Actions;
-use Filament\Facades\Filament;
+use Filament\Notifications\Notification;
 use Filament\Resources\Pages\CreateRecord;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Password;
-use Filament\Notifications\Notification;
 use Illuminate\Support\Str;
 
 class CreateUser extends CreateRecord
@@ -34,5 +31,4 @@ class CreateUser extends CreateRecord
 
         return $user;
     }
-
 }

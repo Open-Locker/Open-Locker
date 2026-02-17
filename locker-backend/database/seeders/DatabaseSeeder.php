@@ -3,8 +3,8 @@
 namespace Database\Seeders;
 
 use App\Models\Compartment;
+use App\Models\CompartmentAccess;
 use App\Models\Item;
-use App\Models\ItemLoan;
 use App\Models\LockerBank;
 use App\Models\User;
 use Illuminate\Database\Seeder;
@@ -40,18 +40,10 @@ class DatabaseSeeder extends Seeder
         // Create some users
         $users = User::factory()->count(5)->create();
 
-        // Create some active loans
-        foreach (Item::all()->take(5) as $item) {
-            ItemLoan::factory()->create([
-                'item_id' => $item->id,
-                'user_id' => $users->random()->id,
-            ]);
-        }
-
-        // Create some returned loans
-        foreach (Item::all()->skip(5) as $item) {
-            ItemLoan::factory()->returned()->create([
-                'item_id' => $item->id,
+        // Create compartment access grants for some users.
+        foreach ($compartments->take(5) as $compartment) {
+            CompartmentAccess::factory()->create([
+                'compartment_id' => $compartment->id,
                 'user_id' => $users->random()->id,
             ]);
         }

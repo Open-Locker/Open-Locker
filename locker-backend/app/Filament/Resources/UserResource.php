@@ -3,6 +3,7 @@
 namespace App\Filament\Resources;
 
 use App\Filament\Resources\UserResource\Pages;
+use App\Filament\Resources\UserResource\RelationManagers\CompartmentAccessesRelationManager;
 use App\Models\User;
 use Filament\Forms;
 use Filament\Forms\Form;
@@ -60,7 +61,7 @@ class UserResource extends Resource
             ->actions([
                 Tables\Actions\EditAction::make(),
                 Tables\Actions\Action::make('setAsAdmin')
-                    ->hidden(fn (User $record): bool => !!$record->is_admin_since)
+                    ->hidden(fn (User $record): bool => (bool) $record->is_admin_since)
                     ->label('zum Admin machen')
                     ->icon('heroicon-o-shield-check')
                     ->color('success')
@@ -78,7 +79,7 @@ class UserResource extends Resource
                             ->send();
                     }),
                 Tables\Actions\Action::make('removeAdmin')
-                    ->hidden(fn (User $record): bool => !$record->is_admin_since)
+                    ->hidden(fn (User $record): bool => ! $record->is_admin_since)
                     ->label('Adminrechte entziehen')
                     ->icon('heroicon-o-shield-exclamation')
                     ->color('danger')
@@ -116,7 +117,7 @@ class UserResource extends Resource
                     Tables\Actions\DeleteBulkAction::make()
                         ->before(function (Tables\Actions\DeleteBulkAction $action, Collection $records) {
                             $adminCount = User::whereNotNull('is_admin_since')->count();
-                            $deletedAdmins = $records->filter(fn(User $record) => $record->is_admin_since)->count();
+                            $deletedAdmins = $records->filter(fn (User $record) => $record->is_admin_since)->count();
 
                             if ($adminCount - $deletedAdmins < 1) {
                                 Notification::make()
@@ -126,7 +127,7 @@ class UserResource extends Resource
                                     ->send();
                                 $action->cancel();
                             }
-                        })
+                        }),
                 ]),
             ]);
     }
@@ -134,7 +135,7 @@ class UserResource extends Resource
     public static function getRelations(): array
     {
         return [
-            //
+            CompartmentAccessesRelationManager::class,
         ];
     }
 
