@@ -647,7 +647,7 @@
                                 "schema": {
                                     "type": "integer",
                                     "enum": [
-                                        200
+                                        202
                                     ]
                                 }
                             }
@@ -655,6 +655,144 @@
                     },
                     "404": {
                         "$ref": "#/components/responses/ModelNotFoundException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            }
+        },
+        "/compartments/open-requests/{commandId}": {
+            "get": {
+                "operationId": "compartments.open-status",
+                "summary": "Return status information for a previously created open command",
+                "tags": [
+                    "Compartment"
+                ],
+                "parameters": [
+                    {
+                        "name": "commandId",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "status": {
+                                            "type": "boolean"
+                                        },
+                                        "command_id": {
+                                            "type": "string"
+                                        },
+                                        "state": {
+                                            "type": "string"
+                                        },
+                                        "compartment_id": {
+                                            "type": "string"
+                                        },
+                                        "authorization_type": {
+                                            "type": "string"
+                                        },
+                                        "error_code": {
+                                            "type": "string"
+                                        },
+                                        "error_message": {
+                                            "type": "string"
+                                        },
+                                        "denied_reason": {
+                                            "type": "string"
+                                        },
+                                        "requested_at": {
+                                            "type": "string"
+                                        },
+                                        "accepted_at": {
+                                            "type": "string"
+                                        },
+                                        "denied_at": {
+                                            "type": "string"
+                                        },
+                                        "sent_at": {
+                                            "type": "string"
+                                        },
+                                        "opened_at": {
+                                            "type": "string"
+                                        },
+                                        "failed_at": {
+                                            "type": "string"
+                                        }
+                                    },
+                                    "required": [
+                                        "status",
+                                        "command_id",
+                                        "state",
+                                        "compartment_id",
+                                        "authorization_type",
+                                        "error_code",
+                                        "error_message",
+                                        "denied_reason",
+                                        "requested_at",
+                                        "accepted_at",
+                                        "denied_at",
+                                        "sent_at",
+                                        "opened_at",
+                                        "failed_at"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "status": {
+                                            "type": "boolean"
+                                        },
+                                        "message": {
+                                            "type": "string"
+                                        }
+                                    },
+                                    "required": [
+                                        "status",
+                                        "message"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "status": {
+                                            "type": "boolean"
+                                        },
+                                        "message": {
+                                            "type": "string"
+                                        }
+                                    },
+                                    "required": [
+                                        "status",
+                                        "message"
+                                    ]
+                                }
+                            }
+                        }
                     },
                     "401": {
                         "$ref": "#/components/responses/AuthenticationException"

@@ -51,12 +51,12 @@ class LockerBankAggregate extends AggregateRoot
      * Record a request to open a specific compartment within a locker bank.
      * The actual side-effect (publishing an MQTT command) is handled by a Reactor.
      */
-    public function requestCompartmentOpening(Compartment $compartment): self
+    public function requestCompartmentOpening(Compartment $compartment, ?string $commandId = null): self
     {
         $lockerBankUuid = (string) $compartment->locker_bank_id;
         $compartmentUuid = (string) $compartment->id;
         $compartmentNumber = (int) $compartment->number;
-        $commandId = (string) Str::uuid();
+        $commandId = $commandId ?: (string) Str::uuid();
 
         Log::info('Recording CompartmentOpeningRequested event', [
             'lockerBankUuid' => $lockerBankUuid,

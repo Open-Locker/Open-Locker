@@ -13,6 +13,7 @@
         "dedoc/scramble": "^0.12.6",
         "filament/filament": "^3.3",
         "laravel/framework": "^11.31",
+        "laravel/reverb": "^1.0",
         "laravel/sanctum": "^4.0",
         "laravel/tinker": "^2.9",
         "php-mqtt/laravel-client": "^1.6",

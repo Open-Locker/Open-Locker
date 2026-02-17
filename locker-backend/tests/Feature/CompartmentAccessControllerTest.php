@@ -42,16 +42,27 @@ class CompartmentAccessControllerTest extends TestCase
         $this->mock(LockerService::class, function ($mock) use ($compartment): void {
             $mock->shouldReceive('openCompartment')
                 ->once()
-                ->withArgs(fn (Compartment $model): bool => (string) $model->id === (string) $compartment->id);
+                ->withArgs(function (Compartment $model, ?string $requestId) use ($compartment): bool {
+                    return (string) $model->id === (string) $compartment->id
+                        && is_string($requestId)
+                        && $requestId !== '';
+                });
         });
 
         $response = $this->actingAs($user)->postJson(route('compartments.open', $compartment->id));
 
-        $response->assertStatus(200)
-            ->assertJson([
-                'status' => true,
-                'message' => __('Compartment open command queued'),
-            ]);
+        $response->assertStatus(202)
+            ->assertJsonPath('status', true)
+            ->assertJsonPath('state', 'pending')
+            ->assertJsonPath('message', __('Compartment open request accepted'));
+        $this->assertNotEmpty($response->json('command_id'));
+
+        $statusResponse = $this->actingAs($user)->getJson(route('compartments.open-status', [
+            'commandId' => $response->json('command_id'),
+        ]));
+        $statusResponse->assertStatus(200)
+            ->assertJsonPath('command_id', $response->json('command_id'))
+            ->assertJsonPath('state', 'accepted');
 
         $this->assertDatabaseHas('compartment_accesses', [
             'user_id' => $user->id,
@@ -78,8 +89,10 @@ class CompartmentAccessControllerTest extends TestCase
         $response->assertStatus(403)
             ->assertJson([
                 'status' => false,
+                'state' => 'denied',
                 'message' => __('You do not have access to this compartment'),
             ]);
+        $this->assertNotEmpty($response->json('command_id'));
 
         $this->assertDatabaseHas('stored_events', [
             'event_class' => CompartmentOpenRequested::class,
@@ -206,12 +219,17 @@ class CompartmentAccessControllerTest extends TestCase
         $this->mock(LockerService::class, function ($mock) use ($compartment): void {
             $mock->shouldReceive('openCompartment')
                 ->once()
-                ->withArgs(fn (Compartment $model): bool => (string) $model->id === (string) $compartment->id);
+                ->withArgs(function (Compartment $model, ?string $requestId) use ($compartment): bool {
+                    return (string) $model->id === (string) $compartment->id
+                        && is_string($requestId)
+                        && $requestId !== '';
+                });
         });
 
         $response = $this->actingAs($admin)->postJson(route('compartments.open', $compartment->id));
 
-        $response->assertStatus(200);
+        $response->assertStatus(202);
+        $this->assertNotEmpty($response->json('command_id'));
 
         /** @var ?EloquentStoredEvent $authorizedEvent */
         $authorizedEvent = EloquentStoredEvent::query()
@@ -221,5 +239,40 @@ class CompartmentAccessControllerTest extends TestCase
 
         $this->assertNotNull($authorizedEvent);
         $this->assertSame('admin_override', $authorizedEvent->event_properties['authorizationType'] ?? null);
+    }
+
+    public function test_open_status_endpoint_returns_not_found_for_unknown_command(): void
+    {
+        $user = $this->createRegularUser();
+
+        $response = $this->actingAs($user)->getJson(route('compartments.open-status', [
+            'commandId' => '00000000-0000-0000-0000-000000000000',
+        ]));
+
+        $response->assertStatus(404)
+            ->assertJsonPath('status', false);
+    }
+
+    public function test_user_cannot_read_other_users_open_status(): void
+    {
+        $owner = $this->createRegularUser();
+        $otherUser = $this->createRegularUser();
+        $compartment = Compartment::factory()->create();
+
+        app(CompartmentAccessService::class)->grantAccess($owner, $compartment);
+
+        $this->mock(LockerService::class, function ($mock): void {
+            $mock->shouldReceive('openCompartment')->once();
+        });
+
+        $openResponse = $this->actingAs($owner)->postJson(route('compartments.open', $compartment->id));
+        $commandId = $openResponse->json('command_id');
+
+        $statusResponse = $this->actingAs($otherUser)->getJson(route('compartments.open-status', [
+            'commandId' => $commandId,
+        ]));
+
+        $statusResponse->assertStatus(403)
+            ->assertJsonPath('status', false);
     }
 }

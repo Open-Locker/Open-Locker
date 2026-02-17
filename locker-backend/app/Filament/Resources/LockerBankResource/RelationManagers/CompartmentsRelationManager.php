@@ -6,7 +6,9 @@ namespace App\Filament\Resources\LockerBankResource\RelationManagers;
 
 use App\Models\Compartment;
 use App\Models\LockerBank;
+use App\Services\CompartmentAccessService;
 use App\Services\LockerService;
+use Filament\Facades\Filament;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Notifications\Notification;
@@ -69,6 +71,21 @@ class CompartmentsRelationManager extends RelationManager
                     ->label('Address')
                     ->rules(['nullable', 'integer', 'min:0'])
                     ->tooltip('0-based relay address. Used for both coil and input.'),
+                Tables\Columns\TextColumn::make('latestOpenRequest.status')
+                    ->label('Last open status')
+                    ->badge()
+                    ->color(fn (?string $state): string => match ($state) {
+                        'opened' => 'success',
+                        'failed', 'denied' => 'danger',
+                        'sent', 'accepted', 'requested' => 'warning',
+                        default => 'gray',
+                    })
+                    ->placeholder('No requests')
+                    ->sortable(),
+                Tables\Columns\TextColumn::make('latestOpenRequest.command_id')
+                    ->label('Last command ID')
+                    ->copyable()
+                    ->toggleable(),
             ])
             ->filters([
                 //
@@ -114,13 +131,30 @@ class CompartmentsRelationManager extends RelationManager
                     ->requiresConfirmation()
                     ->action(function (Compartment $record): void {
                         try {
-                            app(LockerService::class)->openCompartment($record);
+                            $user = Filament::auth()->user();
+                            if (! $user instanceof \App\Models\User) {
+                                Notification::make()
+                                    ->title('Unable to open compartment')
+                                    ->body('No authenticated user context available.')
+                                    ->danger()
+                                    ->send();
 
-                            Notification::make()
-                                ->title('Open command queued')
-                                ->body("Compartment {$record->number} opening was requested.")
-                                ->success()
-                                ->send();
+                                return;
+                            }
+
+                            $decision = app(CompartmentAccessService::class)->requestOpen($user, $record);
+
+                            $notification = Notification::make()
+                                ->title($decision['authorized'] ? 'Open command accepted' : 'Open command denied')
+                                ->body("Compartment {$record->number} command ID: {$decision['command_id']}");
+
+                            if ($decision['authorized']) {
+                                $notification->success();
+                            } else {
+                                $notification->danger();
+                            }
+
+                            $notification->send();
                         } catch (\Throwable $e) {
                             Log::error('Failed to request compartment opening from Filament.', [
                                 'compartment_id' => $record->id,

@@ -65,45 +65,54 @@ class CompartmentAccessService
      * Record an open request and authorization decision via event sourcing.
      * Admins are always authorized.
      */
-    public function requestOpen(User $user, Compartment $compartment): bool
+    public function requestOpen(User $user, Compartment $compartment): array
     {
-        $requestId = (string) Str::uuid();
-        $aggregate = CompartmentOpenAggregate::retrieve($requestId)
+        $commandId = (string) Str::uuid();
+        $aggregate = CompartmentOpenAggregate::retrieve($commandId)
             ->requestOpen(
-                requestId: $requestId,
+                commandId: $commandId,
                 actorUserId: $user->id,
                 compartmentUuid: (string) $compartment->id
             );
 
         if ($user->isAdmin()) {
             $aggregate->authorize(
-                requestId: $requestId,
+                commandId: $commandId,
                 actorUserId: $user->id,
                 compartmentUuid: (string) $compartment->id,
                 authorizationType: 'admin_override'
             )->persist();
 
-            return true;
+            return [
+                'authorized' => true,
+                'command_id' => $commandId,
+            ];
         }
 
         if ($this->hasActiveAccess($user, $compartment)) {
             $aggregate->authorize(
-                requestId: $requestId,
+                commandId: $commandId,
                 actorUserId: $user->id,
                 compartmentUuid: (string) $compartment->id,
                 authorizationType: 'granted_access'
             )->persist();
 
-            return true;
+            return [
+                'authorized' => true,
+                'command_id' => $commandId,
+            ];
         }
 
         $aggregate->deny(
-            requestId: $requestId,
+            commandId: $commandId,
             actorUserId: $user->id,
             compartmentUuid: (string) $compartment->id,
             reason: 'missing_active_access'
         )->persist();
 
-        return false;
+        return [
+            'authorized' => false,
+            'command_id' => $commandId,
+        ];
     }
 }

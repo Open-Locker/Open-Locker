@@ -20,7 +20,7 @@ class CompartmentOpenAuthorizationReactor extends Reactor implements ShouldQueue
         $compartment = Compartment::query()->find($event->compartmentUuid);
         if (! $compartment) {
             Log::warning('Authorized open request references unknown compartment', [
-                'requestId' => $event->requestId,
+                'commandId' => $event->commandId,
                 'actorUserId' => $event->actorUserId,
                 'compartmentUuid' => $event->compartmentUuid,
             ]);
@@ -28,6 +28,6 @@ class CompartmentOpenAuthorizationReactor extends Reactor implements ShouldQueue
             return;
         }
 
-        app(LockerService::class)->openCompartment($compartment);
+        app(LockerService::class)->openCompartment($compartment, $event->commandId);
     }
 }

@@ -11,10 +11,10 @@ use Spatie\EventSourcing\AggregateRoots\AggregateRoot;
 
 class CompartmentOpenAggregate extends AggregateRoot
 {
-    public function requestOpen(string $requestId, int $actorUserId, string $compartmentUuid): self
+    public function requestOpen(string $commandId, int $actorUserId, string $compartmentUuid): self
     {
         $this->recordThat(new CompartmentOpenRequested(
-            requestId: $requestId,
+            commandId: $commandId,
             actorUserId: $actorUserId,
             compartmentUuid: $compartmentUuid,
         ));
@@ -23,13 +23,13 @@ class CompartmentOpenAggregate extends AggregateRoot
     }
 
     public function authorize(
-        string $requestId,
+        string $commandId,
         int $actorUserId,
         string $compartmentUuid,
         string $authorizationType,
     ): self {
         $this->recordThat(new CompartmentOpenAuthorized(
-            requestId: $requestId,
+            commandId: $commandId,
             actorUserId: $actorUserId,
             compartmentUuid: $compartmentUuid,
             authorizationType: $authorizationType,
@@ -39,13 +39,13 @@ class CompartmentOpenAggregate extends AggregateRoot
     }
 
     public function deny(
-        string $requestId,
+        string $commandId,
         int $actorUserId,
         string $compartmentUuid,
         string $reason,
     ): self {
         $this->recordThat(new CompartmentOpenDenied(
-            requestId: $requestId,
+            commandId: $commandId,
             actorUserId: $actorUserId,
             compartmentUuid: $compartmentUuid,
             reason: $reason,

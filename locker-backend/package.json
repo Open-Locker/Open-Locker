@@ -9,8 +9,10 @@
         "autoprefixer": "^10.4.20",
         "axios": "^1.7.4",
         "concurrently": "^9.0.1",
+        "laravel-echo": "^2.2.0",
         "laravel-vite-plugin": "^1.2.0",
         "postcss": "^8.4.47",
+        "pusher-js": "^8.4.0",
         "tailwindcss": "^3.4.13",
         "vite": "^6.0.11"
     }

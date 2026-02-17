@@ -129,6 +129,26 @@ services:
             timeout: 10s
             retries: 3
 
+    reverb:
+        <<: *laravel_service_dev
+        restart: unless-stopped
+        stop_signal: SIGTERM
+        ports:
+            - "${FORWARD_REVERB_PORT:-8080}:8080"
+        environment:
+            <<: *laravel_env_dev
+            AUTORUN_ENABLED: "false"
+        command: "php artisan reverb:start --host=0.0.0.0 --port=8080"
+        depends_on:
+            redis:
+                condition: service_healthy
+        healthcheck:
+            test: ["CMD", "healthcheck-reverb"]
+            start_period: 10s
+            interval: 30s
+            timeout: 10s
+            retries: 3
+
     mailpit:
         image: "axllent/mailpit:latest"
         ports:

@@ -9,7 +9,7 @@ use Spatie\EventSourcing\StoredEvents\ShouldBeStored;
 class CompartmentOpenRequested extends ShouldBeStored
 {
     public function __construct(
-        public readonly string $requestId,
+        public readonly string $commandId,
         public readonly int $actorUserId,
         public readonly string $compartmentUuid,
     ) {}

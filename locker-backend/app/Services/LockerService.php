@@ -17,7 +17,7 @@ class LockerService
      * This is the "simple function" developers can call without knowing the
      * Event Sourcing / MQTT details.
      */
-    public function openCompartment(Compartment $compartment): void
+    public function openCompartment(Compartment $compartment, ?string $commandId = null): void
     {
         $lockerBankUuid = (string) $compartment->locker_bank_id;
 
@@ -25,10 +25,11 @@ class LockerService
             'lockerBankUuid' => $lockerBankUuid,
             'compartmentUuid' => (string) $compartment->id,
             'compartmentNumber' => (int) $compartment->number,
+            'commandId' => $commandId,
         ]);
 
         LockerBankAggregate::retrieve($lockerBankUuid)
-            ->requestCompartmentOpening($compartment)
+            ->requestCompartmentOpening($compartment, $commandId)
             ->persist();
     }
 

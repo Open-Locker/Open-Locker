@@ -65,6 +65,22 @@ class Compartment extends Model
         return $this->hasOne(Item::class);
     }
 
+    /**
+     * @return HasMany<CompartmentOpenRequest, Compartment>
+     */
+    public function openRequests(): HasMany
+    {
+        return $this->hasMany(CompartmentOpenRequest::class, 'compartment_id', 'id');
+    }
+
+    /**
+     * @return HasOne<CompartmentOpenRequest, Compartment>
+     */
+    public function latestOpenRequest(): HasOne
+    {
+        return $this->hasOne(CompartmentOpenRequest::class, 'compartment_id', 'id')->latestOfMany('requested_at');
+    }
+
     public function lockerBank(): BelongsTo
     {
         return $this->belongsTo(LockerBank::class);
