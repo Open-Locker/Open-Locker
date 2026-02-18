@@ -11,6 +11,11 @@ abstract class TestCase extends BaseTestCase
     {
         parent::setUp();
 
+        // Keep projections/reactors synchronous in tests, even if local
+        // docker-compose defaults use redis queues for app runtime.
+        config()->set('queue.default', 'sync');
+        config()->set('broadcasting.default', 'log');
+
         // Tests should not be blocked by API rate limiting.
         $this->withoutMiddleware(ThrottleRequests::class);
 
