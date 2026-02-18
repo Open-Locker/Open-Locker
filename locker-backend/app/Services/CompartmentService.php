@@ -21,7 +21,7 @@ class CompartmentService
         return Compartment::query()
             ->with([
                 'lockerBank',
-                'item.activeLoan',
+                'item',
             ])
             ->orderBy('locker_bank_id')
             ->orderBy('number')

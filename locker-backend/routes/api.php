@@ -28,7 +28,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('locker-banks/{lockerBank}/status', LockerBankStatusController::class)
         ->name('locker-banks.status');
 
-    Route::get('compartments', [CompartmentController::class, 'index'])
+    // Backward-compatible alias for accessible compartments.
+    Route::get('compartments', [CompartmentController::class, 'accessible'])
         ->name('compartments.index');
 
     Route::controller(AuthController::class)->group(function () {
