@@ -57,4 +57,3 @@ class CompartmentControllerTest extends TestCase
         ]);
     }
 }
-
