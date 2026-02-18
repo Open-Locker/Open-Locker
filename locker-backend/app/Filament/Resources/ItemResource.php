@@ -69,9 +69,6 @@ class ItemResource extends Resource
                 Tables\Columns\TextColumn::make('compartment.lockerBank.name')
                     ->label('Locker bank')
                     ->searchable(),
-                Tables\Columns\TextColumn::make('currentBorrower.name')
-                    ->label('Borrowed By')
-                    ->searchable(),
                 Tables\Columns\TextColumn::make('created_at')
                     ->dateTime()
                     ->sortable()
