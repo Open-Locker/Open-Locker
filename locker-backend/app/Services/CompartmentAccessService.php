@@ -10,6 +10,8 @@ use App\Models\Compartment;
 use App\Models\CompartmentAccess;
 use App\Models\User;
 use Carbon\CarbonInterface;
+use Illuminate\Auth\Access\AuthorizationException;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Str;
 
 class CompartmentAccessService
@@ -19,7 +21,10 @@ class CompartmentAccessService
         Compartment $compartment,
         ?CarbonInterface $expiresAt = null,
         ?string $notes = null,
+        ?User $actor = null,
     ): void {
+        $actor = $this->ensureCanManageAccess($actor);
+
         $aggregateUuid = CompartmentAccessAggregate::aggregateUuidFor(
             userId: $user->id,
             compartmentUuid: (string) $compartment->id
@@ -28,6 +33,7 @@ class CompartmentAccessService
         CompartmentAccessAggregate::retrieve($aggregateUuid)
             ->grantAccess(
                 userId: $user->id,
+                actorUserId: $actor->id,
                 compartmentUuid: (string) $compartment->id,
                 grantedAt: now(),
                 expiresAt: $expiresAt,
@@ -36,8 +42,10 @@ class CompartmentAccessService
             ->persist();
     }
 
-    public function revokeAccess(User $user, Compartment $compartment): void
+    public function revokeAccess(User $user, Compartment $compartment, ?User $actor = null): void
     {
+        $actor = $this->ensureCanManageAccess($actor);
+
         $aggregateUuid = CompartmentAccessAggregate::aggregateUuidFor(
             userId: $user->id,
             compartmentUuid: (string) $compartment->id
@@ -46,6 +54,7 @@ class CompartmentAccessService
         CompartmentAccessAggregate::retrieve($aggregateUuid)
             ->revokeAccess(
                 userId: $user->id,
+                actorUserId: $actor->id,
                 compartmentUuid: (string) $compartment->id,
                 revokedAt: now()
             )
@@ -114,5 +123,27 @@ class CompartmentAccessService
             'authorized' => false,
             'command_id' => $commandId,
         ];
+    }
+
+    /**
+     * @throws AuthorizationException
+     */
+    private function ensureCanManageAccess(?User $actor): User
+    {
+        $resolvedActor = $this->resolveActor($actor);
+        throw_unless($resolvedActor?->isAdmin(), AuthorizationException::class, 'Only admins can grant or revoke compartment access.');
+
+        return $resolvedActor;
+    }
+
+    private function resolveActor(?User $actor): ?User
+    {
+        if ($actor instanceof User) {
+            return $actor;
+        }
+
+        $authUser = Auth::user();
+
+        return $authUser instanceof User ? $authUser : null;
     }
 }

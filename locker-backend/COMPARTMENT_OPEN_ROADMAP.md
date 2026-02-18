@@ -29,13 +29,48 @@
 - Added Filament feedback improvements:
   - open action shows command id
   - compartment table shows latest open status + latest command id
+- Centralized access-management authorization in `CompartmentAccessService`:
+  - only admins can grant/revoke (service-level guard)
+  - optional actor fallback now resolves via authenticated user context
+- Added actor tracking for access events and projection:
+  - `CompartmentAccessGranted.actorUserId`
+  - `CompartmentAccessRevoked.actorUserId`
+  - read model columns `granted_by_user_id` / `revoked_by_user_id`
+- Added API endpoint for user-visible access scope:
+  - `GET /api/compartments/accessible` (grouped by locker bank)
+- Added tests for access management authorization:
+  - non-admin cannot grant access
+  - non-admin cannot revoke access
+- Extended Filament user access table visibility:
+  - `granted by` / `revoked by`
+  - latest open status and opened timestamp per compartment
+- Added dedicated Filament resource for command history:
+  - `CompartmentOpenRequestResource`
+  - filters for `failed`, `denied`, and explicit `status`
+- Exposed command history directly on locker detail page:
+  - `LockerBank` relation manager `openRequests`
+  - filterable by compartment and status
+- Added Docker-first Reverb defaults in compose files:
+  - dev/prod queue + broadcast defaults
+  - internal Reverb host config for app/workers
+  - browser Echo defaults via `VITE_REVERB_*`
+- Added Filament Realtime notification config:
+  - `config/filament.php` with Echo/Reverb settings
+  - test command `reverb:test-filament-notification`
+- Added compartment-open live toasts in Filament admin:
+  - panel render hook in `AdminPanelProvider`
+  - realtime listener view `filament/realtime-compartment-open-notifications`
+  - listens to `.compartment.open.status.updated` on `users.{id}.compartment-open`
+- Added app-side communication documentation:
+  - `docs/app_communication.md` for REST + Realtime + polling fallback contract
+  - linked from `docs/mqtt_integration_plan.md`
 
 ## Next
-- Add dedicated Filament page/resource for browsing command history and filtering failed requests.
 - Confirm production routing for Reverb domain/path and CORS/origin config.
+- Decide whether to keep `CompartmentOpenRequestResource` navigation hidden long-term
+  or expose it in addition to locker-detail relation view.
 
 ## Open Questions
-- Do we want one id (`command_id`) for all phases, or keep external `request_id` and internal `transaction_id`?
 - Is a `sent` status required in product UX, or are `accepted` and final status enough?
 - Should Filament receive push updates via Echo or use periodic refresh for request table?
 

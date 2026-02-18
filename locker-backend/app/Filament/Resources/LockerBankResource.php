@@ -76,6 +76,10 @@ class LockerBankResource extends Resource
 
                 TextColumn::make('name')
                     ->searchable()->sortable(),
+                TextColumn::make('compartments_count')
+                    ->label('Compartments')
+                    ->counts('compartments')
+                    ->sortable(),
                 TextColumn::make('connection_status')
                     ->label('Status')
                     ->badge()
@@ -136,6 +140,7 @@ class LockerBankResource extends Resource
     {
         return [
             RelationManagers\CompartmentsRelationManager::class,
+            RelationManagers\OpenRequestsRelationManager::class,
         ];
     }
 

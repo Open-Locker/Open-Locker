@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Resources\ApiErrorResource;
 use App\Http\Resources\UserResource;
 use App\Models\CompartmentAccess;
 use App\Models\Item;
@@ -30,9 +31,9 @@ class AdminController extends Controller
     public function makeAdmin(Request $request, User $user): JsonResponse
     {
         if ($user->isAdmin()) {
-            return response()->json([
+            return (new ApiErrorResource([
                 'message' => __('User is already an administrator.'),
-            ], 400);
+            ]))->response()->setStatusCode(400);
         }
 
         $user->makeAdmin();
@@ -49,16 +50,16 @@ class AdminController extends Controller
     public function removeAdmin(Request $request, User $user): JsonResponse
     {
         if (! $user->isAdmin()) {
-            return response()->json([
+            return (new ApiErrorResource([
                 'message' => __('User is not an administrator.'),
-            ], 400);
+            ]))->response()->setStatusCode(400);
         }
 
         // Prevent an admin from removing their own rights
         if (Auth::id() === $user->id) {
-            return response()->json([
+            return (new ApiErrorResource([
                 'message' => __('You cannot remove your own administrator rights.'),
-            ], 400);
+            ]))->response()->setStatusCode(400);
         }
 
         $user->removeAdmin();

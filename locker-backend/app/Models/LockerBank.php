@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 use Illuminate\Support\Str;
 
 /**
@@ -60,6 +61,21 @@ class LockerBank extends Model
     public function compartments(): HasMany
     {
         return $this->hasMany(Compartment::class);
+    }
+
+    /**
+     * @return HasManyThrough<CompartmentOpenRequest, Compartment, LockerBank>
+     */
+    public function openRequests(): HasManyThrough
+    {
+        return $this->hasManyThrough(
+            CompartmentOpenRequest::class,
+            Compartment::class,
+            'locker_bank_id',
+            'compartment_id',
+            'id',
+            'id'
+        );
     }
 
     /**

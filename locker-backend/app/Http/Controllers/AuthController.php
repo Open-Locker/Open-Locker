@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Resources\ApiErrorResource;
 use App\Http\Resources\TokenResponseResource;
 use App\Http\Resources\UserResource;
 use App\Models\User;
@@ -55,9 +56,9 @@ class AuthController extends Controller
     public function verifyEmail(EmailVerificationRequest $request): JsonResponse
     {
         if ($request->user()->hasVerifiedEmail()) {
-            return response()->json([
+            return (new ApiErrorResource([
                 'message' => __('Email already verified'),
-            ]);
+            ]))->response();
         }
 
         if ($request->user()->markEmailAsVerified()) {
@@ -119,9 +120,9 @@ class AuthController extends Controller
     {
 
         if ($request->user()->hasVerifiedEmail()) {
-            return response()->json([
+            return (new ApiErrorResource([
                 'message' => __('Email already verified'),
-            ]);
+            ]))->response();
         }
 
         $request->user()->sendEmailVerificationNotification();

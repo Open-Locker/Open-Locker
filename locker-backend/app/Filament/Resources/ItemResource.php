@@ -3,6 +3,7 @@
 namespace App\Filament\Resources;
 
 use App\Filament\Resources\ItemResource\Pages;
+use App\Models\Compartment;
 use App\Models\Item;
 use Filament\Forms;
 use Filament\Forms\Form;
@@ -28,16 +29,22 @@ class ItemResource extends Resource
                     ->image()->visibility('public')
                     ->required(),
                 Forms\Components\Select::make('compartment_id')
-                    ->relationship('compartment', 'id')
-                    ->getOptionLabelFromRecordUsing(static function (mixed $record): string {
-                        /** @var \App\Models\Compartment $record */
-                        $bankName = (string) ($record->lockerBank?->name ?? '');
-                        $number = (int) ($record->number ?? 0);
-
-                        return trim($bankName) !== ''
-                            ? $bankName.' · Compartment '.$number
-                            : 'Compartment '.$number;
-                    })
+                    ->label('Compartment')
+                    ->relationship(
+                        name: 'compartment',
+                        titleAttribute: 'number',
+                        modifyQueryUsing: fn ($query) => $query
+                            ->with('lockerBank')
+                            ->orderBy('locker_bank_id')
+                            ->orderBy('number')
+                    )
+                    ->getOptionLabelFromRecordUsing(
+                        fn (Compartment $record): string => sprintf(
+                            '%s / #%d',
+                            $record->lockerBank?->name ?? 'Unknown locker bank',
+                            (int) $record->number
+                        )
+                    )
                     ->searchable()
                     ->preload()
                     ->required(),
@@ -55,12 +62,13 @@ class ItemResource extends Resource
                 Tables\Columns\TextColumn::make('description')
                     ->searchable(),
 
+                Tables\Columns\TextColumn::make('compartment.number')
+                    ->label('Compartment')
+                    ->prefix('#')
+                    ->sortable(),
                 Tables\Columns\TextColumn::make('compartment.lockerBank.name')
                     ->label('Locker bank')
                     ->searchable(),
-                Tables\Columns\TextColumn::make('compartment.number')
-                    ->label('Compartment')
-                    ->sortable(),
                 Tables\Columns\TextColumn::make('currentBorrower.name')
                     ->label('Borrowed By')
                     ->searchable(),

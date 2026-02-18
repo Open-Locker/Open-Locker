@@ -8,9 +8,9 @@ use App\Models\Compartment;
 use App\Models\CompartmentAccess;
 use App\Models\User;
 use App\Services\CompartmentAccessService;
+use Filament\Facades\Filament;
 use Filament\Forms;
 use Filament\Forms\Form;
-use Filament\Notifications\Notification;
 use Filament\Resources\RelationManagers\RelationManager;
 use Filament\Tables;
 use Filament\Tables\Table;
@@ -40,6 +40,10 @@ class CompartmentAccessesRelationManager extends RelationManager
                 Tables\Columns\TextColumn::make('granted_at')
                     ->dateTime()
                     ->sortable(),
+                Tables\Columns\TextColumn::make('grantedByUser.name')
+                    ->label('Granted by')
+                    ->placeholder('System')
+                    ->toggleable(),
                 Tables\Columns\TextColumn::make('expires_at')
                     ->dateTime()
                     ->placeholder('Never')
@@ -48,6 +52,26 @@ class CompartmentAccessesRelationManager extends RelationManager
                     ->dateTime()
                     ->placeholder('Active')
                     ->sortable(),
+                Tables\Columns\TextColumn::make('revokedByUser.name')
+                    ->label('Revoked by')
+                    ->placeholder('-')
+                    ->toggleable(),
+                Tables\Columns\TextColumn::make('compartment.latestOpenRequest.status')
+                    ->label('Last open status')
+                    ->badge()
+                    ->color(fn (?string $state): string => match ($state) {
+                        'opened' => 'success',
+                        'failed', 'denied' => 'danger',
+                        'sent', 'accepted', 'requested' => 'warning',
+                        default => 'gray',
+                    })
+                    ->placeholder('No requests')
+                    ->sortable(),
+                Tables\Columns\TextColumn::make('compartment.latestOpenRequest.opened_at')
+                    ->label('Last opened at')
+                    ->dateTime()
+                    ->placeholder('-')
+                    ->toggleable(),
                 Tables\Columns\TextColumn::make('notes')
                     ->limit(40)
                     ->toggleable(),
@@ -56,6 +80,7 @@ class CompartmentAccessesRelationManager extends RelationManager
                 Tables\Actions\Action::make('grantAccess')
                     ->label('Grant access')
                     ->icon('heroicon-m-key')
+                    ->visible(fn (): bool => $this->currentUserIsAdmin())
                     ->form([
                         Forms\Components\Select::make('compartment_id')
                             ->label('Compartment')
@@ -84,6 +109,8 @@ class CompartmentAccessesRelationManager extends RelationManager
                     ->action(function (array $data): void {
                         /** @var User $user */
                         $user = $this->getOwnerRecord();
+                        /** @var User|null $actor */
+                        $actor = Filament::auth()->user();
                         /** @var Compartment $compartment */
                         $compartment = Compartment::query()->findOrFail($data['compartment_id']);
 
@@ -95,13 +122,11 @@ class CompartmentAccessesRelationManager extends RelationManager
                             user: $user,
                             compartment: $compartment,
                             expiresAt: $expiresAt,
-                            notes: $data['notes'] ?? null
+                            notes: $data['notes'] ?? null,
+                            actor: $actor
                         );
 
-                        Notification::make()
-                            ->title('Access granted')
-                            ->success()
-                            ->send();
+                        $this->resetTable();
                     }),
             ])
             ->actions([
@@ -109,21 +134,29 @@ class CompartmentAccessesRelationManager extends RelationManager
                     ->label('Revoke access')
                     ->color('danger')
                     ->icon('heroicon-m-no-symbol')
+                    ->visible(fn (): bool => $this->currentUserIsAdmin())
                     ->requiresConfirmation()
                     ->action(function (CompartmentAccess $record): void {
                         /** @var User $user */
                         $user = $this->getOwnerRecord();
+                        /** @var User|null $actor */
+                        $actor = Filament::auth()->user();
 
                         app(CompartmentAccessService::class)->revokeAccess(
                             user: $user,
-                            compartment: $record->compartment
+                            compartment: $record->compartment,
+                            actor: $actor
                         );
 
-                        Notification::make()
-                            ->title('Access revoked')
-                            ->success()
-                            ->send();
+                        $this->resetTable();
                     }),
             ]);
+    }
+
+    private function currentUserIsAdmin(): bool
+    {
+        $user = Filament::auth()->user();
+
+        return $user instanceof User && $user->isAdmin();
     }
 }

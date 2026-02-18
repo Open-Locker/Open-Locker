@@ -4,8 +4,13 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Http\Resources\AccessibleCompartmentsResource;
+use App\Http\Resources\ApiErrorResource;
+use App\Http\Resources\CompartmentOpenDecisionResource;
+use App\Http\Resources\CompartmentOpenStatusResource;
 use App\Models\Compartment;
 use App\Models\CompartmentOpenRequest;
+use App\Models\LockerBank;
 use App\Services\CompartmentAccessService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -13,9 +18,52 @@ use Illuminate\Http\Request;
 class CompartmentController extends Controller
 {
     /**
+     * Return compartments accessible by the current user, grouped by locker bank.
+     *
+     * @response AccessibleCompartmentsResource
+     */
+    public function accessible(Request $request): JsonResponse
+    {
+        $user = $request->user();
+
+        $lockerBanksQuery = LockerBank::query()
+            ->orderBy('name');
+
+        if ($user->isAdmin()) {
+            $lockerBanksQuery->with([
+                'compartments' => fn ($query) => $query
+                    ->with('item')
+                    ->orderBy('number'),
+            ]);
+        } else {
+            $lockerBanksQuery
+                ->whereHas('compartments.accesses', function ($query) use ($user): void {
+                    $query->where('user_id', $user->id)->active();
+                })
+                ->with([
+                    'compartments' => fn ($query) => $query
+                        ->whereHas('accesses', function ($accessQuery) use ($user): void {
+                            $accessQuery->where('user_id', $user->id)->active();
+                        })
+                        ->with('item')
+                        ->orderBy('number'),
+                ]);
+        }
+
+        return (new AccessibleCompartmentsResource($lockerBanksQuery->get()))->response();
+    }
+
+    /**
      * Open a compartment for an authorized user.
      *
      * Dispatches an event-sourced open command and returns immediately.
+     *
+     * Realtime note:
+     * After this endpoint returns, clients should subscribe to
+     * `private-users.{userId}.compartment-open` and listen for
+     * `.compartment.open.status.updated` events.
+     * Payload fields: `command_id`, `compartment_id`, `status`,
+     * `error_code`, `message`.
      *
      * @response 202 {
      *   "status": true,
@@ -38,58 +86,49 @@ class CompartmentController extends Controller
         $decision = $compartmentAccessService->requestOpen($request->user(), $compartment);
 
         if (! $decision['authorized']) {
-            return response()->json([
+            return (new CompartmentOpenDecisionResource([
                 'status' => false,
                 'command_id' => $decision['command_id'],
                 'state' => 'denied',
                 'message' => __('You do not have access to this compartment'),
-            ], 403);
+            ]))->response()->setStatusCode(403);
         }
 
-        return response()->json([
+        return (new CompartmentOpenDecisionResource([
             'status' => true,
             'command_id' => $decision['command_id'],
             'state' => 'pending',
             'message' => __('Compartment open request accepted'),
-        ], 202);
+        ]))->response()->setStatusCode(202);
     }
 
     /**
      * Return status information for a previously created open command.
+     *
+     * Realtime note:
+     * This endpoint is the polling fallback when websocket/reverb push is
+     * unavailable. Realtime push uses channel
+     * `private-users.{userId}.compartment-open` and event
+     * `.compartment.open.status.updated`.
      */
     public function openStatus(Request $request, string $commandId): JsonResponse
     {
         $openRequest = CompartmentOpenRequest::query()->find($commandId);
         if (! $openRequest) {
-            return response()->json([
+            return (new ApiErrorResource([
                 'status' => false,
                 'message' => __('Command not found'),
-            ], 404);
+            ]))->response()->setStatusCode(404);
         }
 
         $user = $request->user();
         if (! $user->isAdmin() && $openRequest->actor_user_id !== $user->id) {
-            return response()->json([
+            return (new ApiErrorResource([
                 'status' => false,
                 'message' => __('You are not allowed to view this command'),
-            ], 403);
+            ]))->response()->setStatusCode(403);
         }
 
-        return response()->json([
-            'status' => true,
-            'command_id' => $openRequest->command_id,
-            'state' => $openRequest->status,
-            'compartment_id' => $openRequest->compartment_id,
-            'authorization_type' => $openRequest->authorization_type,
-            'error_code' => $openRequest->error_code,
-            'error_message' => $openRequest->error_message,
-            'denied_reason' => $openRequest->denied_reason,
-            'requested_at' => $openRequest->requested_at,
-            'accepted_at' => $openRequest->accepted_at,
-            'denied_at' => $openRequest->denied_at,
-            'sent_at' => $openRequest->sent_at,
-            'opened_at' => $openRequest->opened_at,
-            'failed_at' => $openRequest->failed_at,
-        ]);
+        return (new CompartmentOpenStatusResource($openRequest))->response();
     }
 }

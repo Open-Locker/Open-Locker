@@ -15,6 +15,8 @@ class CompartmentAccess extends Model
 
     protected $fillable = [
         'user_id',
+        'granted_by_user_id',
+        'revoked_by_user_id',
         'compartment_id',
         'granted_at',
         'expires_at',
@@ -34,6 +36,22 @@ class CompartmentAccess extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    /**
+     * @return BelongsTo<User, CompartmentAccess>
+     */
+    public function grantedByUser(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'granted_by_user_id');
+    }
+
+    /**
+     * @return BelongsTo<User, CompartmentAccess>
+     */
+    public function revokedByUser(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'revoked_by_user_id');
     }
 
     /**

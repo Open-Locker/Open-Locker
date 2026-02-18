@@ -25,8 +25,10 @@ class CompartmentAccessProjector extends Projector implements ShouldQueue
             ],
             [
                 'granted_at' => $grantedAt,
+                'granted_by_user_id' => $event->actorUserId,
                 'expires_at' => $expiresAt,
                 'revoked_at' => null,
+                'revoked_by_user_id' => null,
                 'notes' => $event->notes,
             ]
         );
@@ -39,6 +41,7 @@ class CompartmentAccessProjector extends Projector implements ShouldQueue
             ->where('compartment_id', $event->compartmentUuid)
             ->update([
                 'revoked_at' => Carbon::parse($event->revokedAt),
+                'revoked_by_user_id' => $event->actorUserId,
             ]);
     }
 }

@@ -14,8 +14,11 @@ class LockerService
     /**
      * Request opening a compartment via Event Sourcing (Reactor will publish MQTT).
      *
-     * This is the "simple function" developers can call without knowing the
-     * Event Sourcing / MQTT details.
+     * This service is the hardware command boundary and should stay focused on
+     * locker-device interactions (MQTT/Modbus command flow).
+     *
+     * For business rules (authorization, admin override, command lifecycle),
+     * use CompartmentAccessService and related domain services first.
      */
     public function openCompartment(Compartment $compartment, ?string $commandId = null): void
     {
