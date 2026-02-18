@@ -24,33 +24,10 @@ modbus:
   clients:
     - id: locker1
       slaveId: 1
-      baudRate: 9600      # optional, default: 9600
-      dataBits: 8         # optional, default: 8
-      stopBits: 1         # optional, default: 1
-      parity: none        # optional, default: none (options: none, even, odd)
-      timeout: 1000       # optional, default: 1000 (milliseconds)
-    
     - id: locker2
       slaveId: 2
-      baudRate: 9600
-      dataBits: 8
-      stopBits: 1
-      parity: none
-      timeout: 1000
-
     - id: locker3
       slaveId: 3
-      baudRate: 9600
-      dataBits: 8
-      stopBits: 1
-      parity: none
-      timeout: 1000
-  
-  # Modbus register addresses (optional)
-  addresses:
-    lockControl: 0      # Coil address for lock control (default: 0)
-    lockStatus: 1       # Coil address for lock status (default: 1)
-    doorSensor: 2       # Coil address for door sensor (default: 2)
 
 # Compartments Configuration
 compartments:
@@ -97,7 +74,7 @@ compartments:
     address: 4
 
   - id: 11
-    slaveId: 3        # Connected to locker2 (slave 2)
+    slaveId: 3        # Connected to locker3 (slave 3)
     address: 0        # 0-based address on this slave
   
   - id: 12
