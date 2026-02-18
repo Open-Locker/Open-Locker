@@ -40,7 +40,8 @@ discord's text channels.
 This is a **monorepo** containing multiple components:
 
 - **Backend** (`locker-backend/`): Laravel 11 API with Filament admin panel
-- **Mobile App** (`locker_app/`): Flutter app for end users
+- **Mobile App** (`mobile-app/`): React Native (Expo) app for end users
+- **Legacy Mobile App** (`mobile-app-legacy-flutter/`): Previous Flutter app
 - **API Client** (`packages/locker_api/`): Auto-generated Dart client
 - **Hardware** (`hardware/`): KiCad designs and build kit references
 - **Documentation** (`docs/`): Project architecture and guides
@@ -52,7 +53,7 @@ The system consists of:
 - **IoT Hardware**: Raspberry Pi with Modbus communication to physical lockers
 - **MQTT Broker**: Mosquitto with HTTP Authentication (via Laravel backend)
 - **API Backend**: Laravel application managing items, users, and hardware
-- **Mobile App**: Flutter app for borrowing and returning items
+- **Mobile App**: React Native app for borrowing and returning items
 - **Admin Panel**: Filament-based web interface for system management
 
 ## Getting Started
@@ -81,14 +82,14 @@ Comprehensive documentation available in
 - Testing strategies and best practices
 - Deployment and production setup
 
-### Mobile App (Flutter)
+### Mobile App (React Native)
 
-Documentation available in [`locker_app/README.md`](locker_app/README.md):
+Source available in [`mobile-app/`](mobile-app/):
 
-- Flutter app architecture
+- React Native/Expo app structure
 - State management and navigation
 - API integration patterns
-- Platform-specific builds
+- Platform-specific builds (iOS/Android)
 
 ### Project Architecture
 
@@ -103,7 +104,7 @@ Detailed system architecture documentation in
 ## Technology Stack
 
 - **Backend**: Laravel 11, Filament 3.x, Sanctum, SQLite
-- **Frontend**: Flutter, Dart, OpenAPI-generated client
+- **Frontend**: React Native (Expo), TypeScript
 - **MQTT**: Mosquitto + mosquitto-go-auth (HTTP Backend)
 - **Hardware**: Modbus TCP/RTU, libmodbus, FFI
 - **Documentation**: Scramble OpenAPI, Mermaid diagrams
@@ -114,7 +115,8 @@ Detailed system architecture documentation in
 ```
 Open-Locker/
 ├── locker-backend/     # Laravel API & Admin Panel
-├── locker_app/         # Flutter Mobile App
+├── mobile-app/         # React Native Mobile App
+├── mobile-app-legacy-flutter/ # Legacy Flutter Mobile App
 ├── hardware/           # Hardware designs (KiCad) and related files
 ├── packages/           # Shared packages
 │   └── locker_api/     # Auto-generated API client

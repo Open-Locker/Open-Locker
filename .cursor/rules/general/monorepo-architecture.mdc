@@ -12,7 +12,8 @@ This is a **monorepo** containing multiple interconnected components for the Ope
 ```
 Open-Locker/
 ├── locker-backend/           # Laravel 11 API + Admin Panel
-├── locker_app/              # Flutter Mobile App  
+├── mobile-app/              # React Native Mobile App
+├── mobile-app-legacy-flutter/ # Legacy Flutter Mobile App
 ├── packages/locker_api/     # Generated Dart API Client
 ├── docs/                    # Project Documentation
 ├── docker-compose.yml       # Multi-service orchestration
@@ -28,11 +29,16 @@ Open-Locker/
 - **Hardware**: Modbus integration for IoT communication
 - **Documentation**: Auto-generated OpenAPI via Scramble
 
-### 📱 **Mobile App** (`locker_app/`)
-- **Technology**: Flutter (cross-platform)
+### 📱 **Mobile App** (`mobile-app/`)
+- **Technology**: React Native with Expo
 - **Purpose**: End-user interface for borrowing items
 - **Features**: Authentication, item browsing, locker interaction
-- **API Client**: Uses generated Dart client from `packages/locker_api/`
+- **API Client**: Uses backend REST API directly
+
+### 📱 **Legacy Mobile App** (`mobile-app-legacy-flutter/`)
+- **Technology**: Flutter (cross-platform)
+- **Purpose**: Previous end-user interface implementation
+- **Status**: Legacy, retained for reference/migration support
 
 ### 📦 **API Client** (`packages/locker_api/`)
 - **Technology**: Generated Dart package from OpenAPI
@@ -78,7 +84,7 @@ We use `just` to automate common development tasks.
 ### **Cross-Component Changes**
 1. **Backend API changes** → Run Scramble to update OpenAPI
 2. **OpenAPI updates** → Regenerate Dart client package  
-3. **Client updates** → Update Flutter app dependencies
+3. **Client updates** → Update mobile app dependencies
 4. **Testing** → Integration tests across all components
 
 ### **Environment Coordination**
@@ -89,7 +95,7 @@ We use `just` to automate common development tasks.
 ## Deployment Architecture
 
 ```
-Internet → Flutter App → Laravel API → Modbus Gateway → Physical Lockers
+Internet → Mobile App → Laravel API → Modbus Gateway → Physical Lockers
                       ↓
                    Admin Panel (Filament)
 ```

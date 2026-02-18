@@ -23,7 +23,8 @@ cd Open-Locker
 Die Struktur:
 
 - `locker-backend/` – Laravel API + Admin Panel
-- `locker_app/` – Flutter App
+- `mobile-app/` – React Native (Expo) App
+- `mobile-app-legacy-flutter/` – Legacy Flutter App
 - `packages/locker_api/` – generierter Dart API-Client
 
 ## 3. Backend Setup (Laravel, Dev mit Sail)
