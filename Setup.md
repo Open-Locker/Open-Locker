@@ -162,3 +162,25 @@ just install-hooks
 > perspektivisch ebenfalls über `just`-Targets kapseln (z. B. `just dev-up`,
 > `just dev-reset-db`), damit neue Entwickler noch weniger manuelle Schritte
 > benötigen.
+
+## 8. Mobile App Setup (React Native / Expo)
+
+Die aktive App liegt in `mobile-app/` und verwendet **pnpm**.
+
+```bash
+cd mobile-app
+pnpm install
+```
+
+Start (Expo):
+
+```bash
+pnpm start
+```
+
+Primäre Targets:
+
+```bash
+pnpm android
+pnpm ios
+```
