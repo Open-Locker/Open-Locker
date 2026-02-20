@@ -19,10 +19,7 @@ async function parseJsonSafely(text: string): Promise<unknown> {
   }
 }
 
-export async function requestJson<T>(
-  input: RequestInfo,
-  init?: RequestInit
-): Promise<T> {
+export async function requestJson<T>(input: RequestInfo, init?: RequestInit): Promise<T> {
   const res = await fetch(input, {
     ...init,
     headers: {
@@ -40,4 +37,3 @@ export async function requestJson<T>(
 
   return body as T;
 }
-

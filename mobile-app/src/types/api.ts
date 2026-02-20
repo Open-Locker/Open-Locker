@@ -30,4 +30,3 @@ export type CompartmentDto = {
   locker_bank: LockerBankDto | null;
   item: ItemDto | null;
 };
-

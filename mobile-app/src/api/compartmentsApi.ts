@@ -11,4 +11,3 @@ export async function fetchCompartments(token: string): Promise<CompartmentDto[]
     },
   });
 }
-

@@ -55,7 +55,10 @@ export default function SignInScreen() {
   }, [dispatch, email, password, postLogin]);
 
   return (
-    <SafeAreaView style={[styles.safe, { backgroundColor: theme.colors.background }]} edges={['top', 'bottom']}>
+    <SafeAreaView
+      style={[styles.safe, { backgroundColor: theme.colors.background }]}
+      edges={['top', 'bottom']}
+    >
       <KeyboardAvoidingView
         style={styles.container}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
@@ -119,4 +122,3 @@ const styles = StyleSheet.create({
   input: { marginTop: 8 },
   button: { marginTop: 12 },
 });
-

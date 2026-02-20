@@ -55,7 +55,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       signIn,
       signOut,
     }),
-    [state, signIn, signOut]
+    [state, signIn, signOut],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
@@ -68,4 +68,3 @@ export function useAuth(): AuthContextValue {
   }
   return ctx;
 }
-

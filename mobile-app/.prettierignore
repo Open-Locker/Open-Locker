@@ -1,0 +1,6 @@
+node_modules
+.expo
+dist
+coverage
+pnpm-lock.yaml
+src/store/generatedApi.ts

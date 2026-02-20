@@ -24,4 +24,3 @@ export function getApiBaseUrl(): string {
 
   return 'http://localhost/api';
 }
-

@@ -38,4 +38,3 @@ export async function deleteItem(key: string): Promise<void> {
 
   await SecureStore.deleteItemAsync(key);
 }
-

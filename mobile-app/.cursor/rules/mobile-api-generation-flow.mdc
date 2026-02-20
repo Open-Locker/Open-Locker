@@ -27,6 +27,12 @@ cd ../mobile-app && pnpm run generate:api
 `pnpm run generate:api` must fail fast when TypeScript types break after
 regeneration.
 
+For full post-generation quality checks, run:
+
+```bash
+pnpm run quality:api
+```
+
 ## Editing rules
 
 - Do edit `src/store/baseApi.ts` for shared base query behavior (headers, auth, base URL).

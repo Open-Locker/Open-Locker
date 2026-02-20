@@ -29,12 +29,12 @@ type LockerBankGroup = {
 
 type AccessibleCompartmentsResponse = {
   status: boolean;
-  locker_banks: Array<{
+  locker_banks: {
     id: string;
     name: string;
     location_description: string;
     compartments: CompartmentEntry[];
-  }>;
+  }[];
 };
 
 function mapSections(response: AccessibleCompartmentsResponse | undefined): LockerBankGroup[] {
@@ -61,7 +61,10 @@ export default function CompartmentsScreen() {
 
   if (isLoading && !data) {
     return (
-      <SafeAreaView style={[styles.safe, { backgroundColor: theme.colors.background }]} edges={['bottom']}>
+      <SafeAreaView
+        style={[styles.safe, { backgroundColor: theme.colors.background }]}
+        edges={['bottom']}
+      >
         <View style={styles.center}>
           <ActivityIndicator />
           <Text style={styles.centerText}>Loading compartments…</Text>
@@ -75,7 +78,10 @@ export default function CompartmentsScreen() {
     error && 'status' in error ? `Failed to load compartments (${String(error.status)}).` : null;
 
   return (
-    <SafeAreaView style={[styles.safe, { backgroundColor: theme.colors.background }]} edges={['bottom']}>
+    <SafeAreaView
+      style={[styles.safe, { backgroundColor: theme.colors.background }]}
+      edges={['bottom']}
+    >
       {errorMessage ? (
         <Text style={styles.error} accessibilityRole="alert">
           {errorMessage}
@@ -128,7 +134,11 @@ export default function CompartmentsScreen() {
                           {description}
                         </Text>
                       ) : (
-                        <Text variant="bodyMedium" style={styles.cardDescriptionMuted} numberOfLines={2}>
+                        <Text
+                          variant="bodyMedium"
+                          style={styles.cardDescriptionMuted}
+                          numberOfLines={2}
+                        >
                           {isEmpty ? 'No item in this compartment.' : 'No description.'}
                         </Text>
                       )}

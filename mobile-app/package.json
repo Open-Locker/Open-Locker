@@ -6,8 +6,14 @@
     "start": "expo start",
     "android": "expo start --android",
     "ios": "expo start --ios",
+    "lint": "expo lint",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
     "typecheck": "tsc --noEmit",
-    "generate:api": "rtk-query-codegen-openapi openapi-codegen.config.json && pnpm run typecheck"
+    "doctor": "npx expo-doctor",
+    "check": "pnpm run typecheck && pnpm run lint && pnpm run format:check && pnpm run doctor",
+    "generate:api": "rtk-query-codegen-openapi openapi-codegen.config.json && pnpm run typecheck",
+    "quality:api": "pnpm run generate:api && pnpm run lint && pnpm run format:check"
   },
   "dependencies": {
     "@expo/vector-icons": "^15.0.3",
@@ -36,6 +42,11 @@
   "devDependencies": {
     "@rtk-query/codegen-openapi": "^2.2.0",
     "@types/react": "~19.1.0",
+    "eslint": "^9.39.2",
+    "eslint-config-expo": "~10.0.0",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-prettier": "^5.5.5",
+    "prettier": "^3.8.1",
     "react-test-renderer": "19.1.0",
     "typescript": "~5.9.2"
   },

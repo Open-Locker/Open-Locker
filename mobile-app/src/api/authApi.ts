@@ -12,4 +12,3 @@ export async function login(email: string, password: string): Promise<TokenRespo
     body: JSON.stringify({ email, password }),
   });
 }
-

@@ -3,10 +3,7 @@
     "name": "mobile-app",
     "slug": "mobile-app",
     "version": "1.0.0",
-    "platforms": [
-      "ios",
-      "android"
-    ],
+    "platforms": ["ios", "android"],
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "mobileapp",
@@ -28,9 +25,7 @@
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false
     },
-    "plugins": [
-      "expo-router"
-    ],
+    "plugins": ["expo-router"],
     "experiments": {
       "typedRoutes": true
     }

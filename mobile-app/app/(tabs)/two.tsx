@@ -14,7 +14,10 @@ export default function AccountScreen() {
   const theme = useTheme();
 
   return (
-    <SafeAreaView style={[styles.safe, { backgroundColor: theme.colors.background }]} edges={['bottom']}>
+    <SafeAreaView
+      style={[styles.safe, { backgroundColor: theme.colors.background }]}
+      edges={['bottom']}
+    >
       <View style={styles.container}>
         <Card>
           <Card.Title title="Account" />
