@@ -1,0 +1,22 @@
+---
+description: Testing structure and colocated test conventions
+globs: mobile-app/src/**/*.{ts,tsx}
+alwaysApply: false
+---
+
+# Mobile Testing Patterns
+
+- Prefer colocated tests: `*.test.ts` or `*.test.tsx` next to source files.
+- Test behavior and contracts, not implementation details.
+- Prioritize tests for feature hooks, state selectors/reducers, and utility logic.
+
+## Suggested priorities
+
+1. Business logic in feature model and reducers.
+2. Data mapping and transformation utilities.
+3. Critical user flows in screen-level modules.
+
+## Practical rules
+
+- Keep tests deterministic; isolate network with mocks.
+- For bug fixes, add or update a test that reproduces the issue.

@@ -1,0 +1,23 @@
+---
+description: Naming and import conventions for Expo mobile app
+globs: mobile-app/**/*.{ts,tsx,js,jsx}
+alwaysApply: false
+---
+
+# Naming and Imports
+
+- Use `kebab-case` for file names by default.
+- Keep React component names in `PascalCase`.
+- Use stable aliases for imports and keep relative deep paths minimal.
+- Avoid barrel files that hide too much; use them for explicit feature public APIs only.
+
+## Platform files (Android and iOS)
+
+- Use `.android` and `.ios` suffixes only when behavior differs significantly.
+- Keep shared fallback in a base file (for example `button.tsx` plus `button.ios.tsx`).
+- Keep exported props identical across platform variants.
+
+## Consistency
+
+- Match naming and folder conventions across all new features.
+- Prefer small, explicit modules over generic catch-all files.

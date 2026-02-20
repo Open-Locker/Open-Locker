@@ -1,0 +1,30 @@
+---
+description: Hybrid feature-first structure for Expo apps
+globs: mobile-app/src/**/*.{ts,tsx}
+alwaysApply: false
+---
+
+# Mobile Feature Architecture
+
+- Use a hybrid structure: file-based routing in `app/`, domain logic in `src/features/*`.
+- Organize by feature first, then by technical concern inside each feature.
+- Keep shared primitives in `src/components`, `src/hooks`, `src/lib`, and `src/types`.
+
+## Recommended shape
+
+```text
+src/
+  features/
+    auth/
+      api/
+      hooks/
+      ui/
+      model/
+      index.ts
+```
+
+## Rules of thumb
+
+- Prefer feature-local files over global folders when code is not reused.
+- Promote code to shared folders only after real reuse appears.
+- Keep feature public API explicit with a small `index.ts`.

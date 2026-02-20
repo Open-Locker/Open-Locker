@@ -1,0 +1,30 @@
+---
+description: Redux Toolkit structure with feature slices and selectors
+globs: mobile-app/src/store/**/*.ts
+alwaysApply: false
+---
+
+# Redux Toolkit Patterns
+
+- Prefer feature slices over action/reducer split files.
+- Keep selectors near the slice that owns the state shape.
+- Put as much state transition logic as possible in reducers.
+- Keep store setup in `src/store/store.ts`; keep app-wide API base setup isolated.
+
+## Suggested store layout
+
+```text
+src/
+  store/
+    store.ts
+    baseApi.ts
+  features/
+    auth/
+      authSlice.ts
+      selectors.ts
+```
+
+## API and side effects
+
+- Keep RTK Query setup centralized; inject endpoints per feature if needed.
+- Avoid importing the store directly in random modules; use thunks/middleware/injection patterns.
