@@ -9,6 +9,7 @@ import { Provider } from 'react-redux';
 import { MD3DarkTheme, MD3LightTheme, PaperProvider } from 'react-native-paper';
 
 import { useColorScheme } from '@/components/useColorScheme';
+import { hydrateApiBaseUrl } from '@/src/api/baseUrl';
 import { OPEN_LOCKER_PRIMARY } from '@/src/config/theme';
 import { loadPersistedAuth } from '@/src/store/authStorage';
 import { restoreAuth } from '@/src/store/authSlice';
@@ -46,6 +47,7 @@ function RootLayoutBootstrap() {
   useEffect(() => {
     let cancelled = false;
     (async () => {
+      await hydrateApiBaseUrl();
       const auth = await loadPersistedAuth();
       if (!cancelled) {
         dispatch(restoreAuth(auth));
@@ -167,6 +169,8 @@ function RootLayoutNav() {
 
           <Stack.Protected guard={!token}>
             <Stack.Screen name="sign-in" options={{ headerShown: false }} />
+            <Stack.Screen name="forgot-password" options={{ title: 'Forgot Password' }} />
+            <Stack.Screen name="reset-password" options={{ title: 'Reset Password' }} />
           </Stack.Protected>
         </Stack>
       </ThemeProvider>

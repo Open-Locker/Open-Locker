@@ -1,6 +1,7 @@
 import React from 'react';
 import { KeyboardAvoidingView, Platform, StyleSheet } from 'react-native';
 import type { FetchBaseQueryError } from '@reduxjs/toolkit/query';
+import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Button, HelperText, Text, TextInput, useTheme } from 'react-native-paper';
 
@@ -39,7 +40,7 @@ export default function SignInScreen() {
     setIsSubmitting(true);
     try {
       const res = await postLogin({
-        body: {
+        loginRequest: {
           email: email.trim(),
           password,
         },
@@ -104,6 +105,14 @@ export default function SignInScreen() {
         >
           Sign in
         </Button>
+
+        <Button
+          mode="text"
+          onPress={() => router.push('/forgot-password' as never)}
+          style={styles.linkButton}
+        >
+          Forgot password?
+        </Button>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
@@ -121,4 +130,5 @@ const styles = StyleSheet.create({
   subtitle: { opacity: 0.8, marginBottom: 12 },
   input: { marginTop: 8 },
   button: { marginTop: 12 },
+  linkButton: { marginTop: 4, alignSelf: 'flex-start' },
 });

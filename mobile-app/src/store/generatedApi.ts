@@ -55,21 +55,20 @@ const injectedRtkApi = api
         query: (queryArg) => ({
           url: `/login`,
           method: "POST",
-          body: queryArg.body,
+          body: queryArg.loginRequest,
         }),
         invalidatesTags: ["Auth"],
       }),
-      getPasswordEmail: build.query<
-        GetPasswordEmailApiResponse,
-        GetPasswordEmailApiArg
+      postPasswordEmail: build.mutation<
+        PostPasswordEmailApiResponse,
+        PostPasswordEmailApiArg
       >({
         query: (queryArg) => ({
           url: `/password/email`,
-          params: {
-            email: queryArg.email,
-          },
+          method: "POST",
+          body: queryArg.sendPasswordResetRequest,
         }),
-        providesTags: ["Auth"],
+        invalidatesTags: ["Auth"],
       }),
       postResetPassword: build.mutation<
         PostResetPasswordApiResponse,
@@ -78,7 +77,7 @@ const injectedRtkApi = api
         query: (queryArg) => ({
           url: `/reset-password`,
           method: "POST",
-          body: queryArg.body,
+          body: queryArg.resetPasswordRequest,
         }),
         invalidatesTags: ["Auth"],
       }),
@@ -89,6 +88,22 @@ const injectedRtkApi = api
       getUser: build.query<GetUserApiResponse, GetUserApiArg>({
         query: () => ({ url: `/user` }),
         providesTags: ["Auth"],
+      }),
+      putProfile: build.mutation<PutProfileApiResponse, PutProfileApiArg>({
+        query: (queryArg) => ({
+          url: `/profile`,
+          method: "PUT",
+          body: queryArg.updateProfileRequest,
+        }),
+        invalidatesTags: ["Auth"],
+      }),
+      putPassword: build.mutation<PutPasswordApiResponse, PutPasswordApiArg>({
+        query: (queryArg) => ({
+          url: `/password`,
+          method: "PUT",
+          body: queryArg.changePasswordRequest,
+        }),
+        invalidatesTags: ["Auth"],
       }),
       getVerifyEmailByIdAndHash: build.query<
         GetVerifyEmailByIdAndHashApiResponse,
@@ -232,27 +247,19 @@ export type IdentifyApiArg = void;
 export type PostLoginApiResponse =
   /** status 200 `TokenResponseResource` */ TokenResponse;
 export type PostLoginApiArg = {
-  body: {
-    email: string;
-    password: string;
-  };
+  loginRequest: LoginRequest;
 };
-export type GetPasswordEmailApiResponse = /** status 200  */ {
+export type PostPasswordEmailApiResponse = /** status 200  */ {
   message: string | any[] | null;
 };
-export type GetPasswordEmailApiArg = {
-  email: string;
+export type PostPasswordEmailApiArg = {
+  sendPasswordResetRequest: SendPasswordResetRequest;
 };
 export type PostResetPasswordApiResponse = /** status 200  */ {
   message: string | any[] | null;
 };
 export type PostResetPasswordApiArg = {
-  body: {
-    token: string;
-    email: string;
-    password: string;
-    password_confirmation: string;
-  };
+  resetPasswordRequest: ResetPasswordRequest;
 };
 export type PostLogoutApiResponse = /** status 200  */ {
   message: string | any[] | null;
@@ -260,6 +267,16 @@ export type PostLogoutApiResponse = /** status 200  */ {
 export type PostLogoutApiArg = void;
 export type GetUserApiResponse = /** status 200 `UserResource` */ User;
 export type GetUserApiArg = void;
+export type PutProfileApiResponse = /** status 200 `User` */ User;
+export type PutProfileApiArg = {
+  updateProfileRequest: UpdateProfileRequest;
+};
+export type PutPasswordApiResponse = /** status 200  */ {
+  message: string | any[] | null;
+};
+export type PutPasswordApiArg = {
+  changePasswordRequest: ChangePasswordRequest;
+};
 export type GetVerifyEmailByIdAndHashApiResponse =
   /** status 200 `ApiErrorResource` */
     | {
@@ -348,6 +365,28 @@ export type TokenResponse = {
   name: string;
   verified: boolean;
 };
+export type LoginRequest = {
+  email: string;
+  password: string;
+};
+export type SendPasswordResetRequest = {
+  email: string;
+};
+export type ResetPasswordRequest = {
+  token: string;
+  email: string;
+  password: string;
+  password_confirmation: string;
+};
+export type UpdateProfileRequest = {
+  name: string;
+  email: string;
+};
+export type ChangePasswordRequest = {
+  current_password: string;
+  password: string;
+  password_confirmation: string;
+};
 export type AccessibleCompartments = {
   status: boolean;
   locker_banks: {
@@ -369,17 +408,17 @@ export type CompartmentOpenStatus = {
   status: boolean;
   command_id: string;
   state: string;
-  compartment_id?: string | null;
-  authorization_type?: string | null;
-  error_code?: string | null;
-  error_message?: string | null;
-  denied_reason?: string | null;
-  requested_at?: string | null;
-  accepted_at?: string | null;
-  denied_at?: string | null;
-  sent_at?: string | null;
-  opened_at?: string | null;
-  failed_at?: string | null;
+  compartment_id: string;
+  authorization_type: string;
+  error_code: string;
+  error_message: string;
+  denied_reason: string;
+  requested_at: string;
+  accepted_at: string;
+  denied_at: string;
+  sent_at: string;
+  opened_at: string;
+  failed_at: string;
 };
 export type Item = {
   id: number;
@@ -408,10 +447,12 @@ export const {
   useGetAdminStatisticsQuery,
   useIdentifyQuery,
   usePostLoginMutation,
-  useGetPasswordEmailQuery,
+  usePostPasswordEmailMutation,
   usePostResetPasswordMutation,
   usePostLogoutMutation,
   useGetUserQuery,
+  usePutProfileMutation,
+  usePutPasswordMutation,
   useGetVerifyEmailByIdAndHashQuery,
   usePostEmailVerificationNotificationMutation,
   usePostAdminUsersRegisterMutation,
