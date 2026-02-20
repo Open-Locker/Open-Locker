@@ -24,7 +24,7 @@ white "Starting Hook Manager..."
 CHANGED_FILES=$(git diff --cached --name-only)
 
 # Define projects in the monorepo
-PROJECTS="locker-backend"
+PROJECTS="locker-backend mobile-app"
 
 # Error status variable (in case a hook fails)
 HOOK_FAILED=0

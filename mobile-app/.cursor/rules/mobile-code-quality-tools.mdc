@@ -1,0 +1,32 @@
+---
+description: Required code quality tools and commands for mobile app
+globs: mobile-app/**/*.{ts,tsx,js,jsx,json}
+alwaysApply: false
+---
+
+# Mobile Code Quality Tools
+
+Use these tools consistently for all changes in `mobile-app/`:
+
+- ESLint with Expo Flat config (`eslint-config-expo`)
+- Prettier for formatting
+- TypeScript type checks (`tsc --noEmit`)
+- Expo Doctor for SDK/dependency health checks
+
+## Required scripts
+
+- `pnpm run lint`
+- `pnpm run format:check`
+- `pnpm run typecheck`
+- `pnpm run check`
+
+## Workflow
+
+1. During development, use `pnpm run format` when needed.
+2. Before opening a PR, run `pnpm run check`.
+3. For API regeneration, use `pnpm run quality:api` after backend spec updates.
+
+## Notes
+
+- Do not manually edit generated API files such as `src/store/generatedApi.ts`.
+- Keep formatting and linting clean; avoid committing code that fails checks.

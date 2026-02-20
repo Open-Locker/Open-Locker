@@ -1,0 +1,25 @@
+#!/bin/bash
+
+# Run checks only when mobile-app files are staged
+if git diff --cached --name-only | grep -q '^mobile-app/'; then
+  echo "Running mobile-app typecheck..."
+  pnpm run typecheck
+  if [ $? -ne 0 ]; then
+    echo "❌ TypeScript check failed. Commit aborted."
+    exit 1
+  fi
+
+  echo "Running mobile-app lint..."
+  pnpm run lint
+  if [ $? -ne 0 ]; then
+    echo "❌ ESLint check failed. Commit aborted."
+    exit 1
+  fi
+
+  echo "Running mobile-app format check..."
+  pnpm run format:check
+  if [ $? -ne 0 ]; then
+    echo "❌ Prettier format check failed. Commit aborted."
+    exit 1
+  fi
+fi
