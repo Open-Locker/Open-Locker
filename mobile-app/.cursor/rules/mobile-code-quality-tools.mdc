@@ -18,13 +18,20 @@ Use these tools consistently for all changes in `mobile-app/`:
 - `pnpm run lint`
 - `pnpm run format:check`
 - `pnpm run typecheck`
+- `pnpm run test:ci`
 - `pnpm run check`
 
 ## Workflow
 
 1. During development, use `pnpm run format` when needed.
 2. Before opening a PR, run `pnpm run check`.
-3. For API regeneration, use `pnpm run quality:api` after backend spec updates.
+3. Before opening a PR, run `pnpm run test:ci`.
+4. For API regeneration, use `pnpm run quality:api` after backend spec updates.
+
+## CI expectations
+
+- GitHub Actions workflow `mobile-app-ci.yml` must stay green.
+- Required CI checks: typecheck, lint, format check, unit tests, Expo dependency check.
 
 ## Notes
 

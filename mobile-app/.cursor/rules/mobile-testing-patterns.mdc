@@ -9,6 +9,8 @@ alwaysApply: false
 - Prefer colocated tests: `*.test.ts` or `*.test.tsx` next to source files.
 - Test behavior and contracts, not implementation details.
 - Prioritize tests for feature hooks, state selectors/reducers, and utility logic.
+- Use `jest-expo` preset for Expo-compatible unit tests.
+- Use `@testing-library/react-native` for component tests.
 
 ## Suggested priorities
 
@@ -20,3 +22,4 @@ alwaysApply: false
 
 - Keep tests deterministic; isolate network with mocks.
 - For bug fixes, add or update a test that reproduces the issue.
+- Avoid `react-test-renderer` for new tests in React 19+ projects.
