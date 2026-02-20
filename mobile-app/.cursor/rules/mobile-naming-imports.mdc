@@ -21,3 +21,5 @@ alwaysApply: false
 
 - Match naming and folder conventions across all new features.
 - Prefer small, explicit modules over generic catch-all files.
+- Import and use existing shared components instead of creating near-duplicate components with different names.
+- Only create a new component when responsibilities or props differ meaningfully from existing shared components.

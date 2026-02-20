@@ -25,6 +25,9 @@ src/
 
 ## Rules of thumb
 
+- Before creating a new UI component, check for an existing reusable component in `src/components` and the current feature first.
+- Reuse and extend existing components when possible; avoid copy-paste variants that only differ by small style changes.
 - Prefer feature-local files over global folders when code is not reused.
 - Promote code to shared folders only after real reuse appears.
+- If multiple features need the same UI or behavior, move it to shared folders instead of duplicating it.
 - Keep feature public API explicit with a small `index.ts`.

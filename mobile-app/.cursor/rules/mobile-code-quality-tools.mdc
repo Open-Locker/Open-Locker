@@ -37,3 +37,5 @@ Use these tools consistently for all changes in `mobile-app/`:
 
 - Do not manually edit generated API files such as `src/store/generatedApi.ts`.
 - Keep formatting and linting clean; avoid committing code that fails checks.
+- Prefer reusing existing components over creating new ones when behavior already exists.
+- When similar components appear, refactor to a shared reusable component instead of duplicating code.
