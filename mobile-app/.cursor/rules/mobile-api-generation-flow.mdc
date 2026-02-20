@@ -20,12 +20,16 @@ alwaysApply: false
 # 1) Update OpenAPI spec from backend code
 cd locker-backend && composer export:api
 
-# 2) Regenerate RTK Query API in mobile app
+# 2) Regenerate RTK Query API in mobile app (includes TypeScript check)
 cd ../mobile-app && pnpm run generate:api
 ```
+
+`pnpm run generate:api` must fail fast when TypeScript types break after
+regeneration.
 
 ## Editing rules
 
 - Do edit `src/store/baseApi.ts` for shared base query behavior (headers, auth, base URL).
 - Do not manually edit `src/store/generatedApi.ts` because it is generated.
 - After backend endpoint/schema changes, always rerun both steps above.
+- Always run a TypeScript check after generation (already enforced by `generate:api`).

@@ -6,7 +6,8 @@
     "start": "expo start",
     "android": "expo start --android",
     "ios": "expo start --ios",
-    "generate:api": "rtk-query-codegen-openapi openapi-codegen.config.json"
+    "typecheck": "tsc --noEmit",
+    "generate:api": "rtk-query-codegen-openapi openapi-codegen.config.json && pnpm run typecheck"
   },
   "dependencies": {
     "@expo/vector-icons": "^15.0.3",
