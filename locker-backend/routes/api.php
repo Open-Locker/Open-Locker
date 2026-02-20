@@ -16,7 +16,7 @@ Route::get('identify', [AppInfoController::class, 'identify'])->name('api.identi
 
 Route::controller(AuthController::class)->group(function () {
     Route::post('login', 'login')->middleware(['throttle:6,1'])->name('auth.login');
-    Route::get('password/email', 'sendPasswordEmail')->middleware(['throttle:6,1'])->name('password.reset');
+    Route::post('password/email', 'sendPasswordEmail')->middleware(['throttle:6,1'])->name('password.email');
 
     Route::post('reset-password', 'storeNewPassword')
         ->name('password.store');
@@ -35,6 +35,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::controller(AuthController::class)->group(function () {
         Route::post('logout', 'logout')->name('auth.logout');
         Route::get('user', 'user')->name('auth.user');
+        Route::put('profile', 'updateProfile')->name('auth.profile.update');
+        Route::put('password', 'changePassword')->name('auth.password.update');
         Route::get('verify-email/{id}/{hash}', 'verifyEmail')
             ->middleware(['signed', 'throttle:6,1'])->name('verification.verify');
         Route::post('email/verification-notification', 'sendVerificationEmail')

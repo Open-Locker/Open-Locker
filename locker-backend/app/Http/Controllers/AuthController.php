@@ -2,6 +2,11 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\Auth\ChangePasswordRequest;
+use App\Http\Requests\Auth\LoginRequest;
+use App\Http\Requests\Auth\ResetPasswordRequest;
+use App\Http\Requests\Auth\SendPasswordResetRequest;
+use App\Http\Requests\Auth\UpdateProfileRequest;
 use App\Http\Resources\ApiErrorResource;
 use App\Http\Resources\TokenResponseResource;
 use App\Http\Resources\UserResource;
@@ -75,14 +80,11 @@ class AuthController extends Controller
      *
      * @unauthenticated
      */
-    public function login(Request $request): TokenResponseResource
+    public function login(LoginRequest $request): TokenResponseResource
     {
-        $request->validate([
-            'email' => 'required|email',
-            'password' => 'required',
-        ]);
+        $validated = $request->validated();
 
-        if (! Auth::attempt($request->only('email', 'password'))) {
+        if (! Auth::attempt($validated)) {
             throw ValidationException::withMessages(['email' => [__('The provided credentials are incorrect.')]]);
         }
 
@@ -135,11 +137,11 @@ class AuthController extends Controller
     /**
      * Send Password E-Mail
      */
-    public function sendPasswordEmail(Request $request): JsonResponse
+    public function sendPasswordEmail(SendPasswordResetRequest $request): JsonResponse
     {
-        $request->validate(['email' => 'required|email']);
+        $validated = $request->validated();
 
-        $status = $this->authService->sendResetLink($request->input('email'));
+        $status = $this->authService->sendResetLink($validated['email']);
 
         if ($status == Password::RESET_LINK_SENT) {
             return response()->json([
@@ -155,23 +157,23 @@ class AuthController extends Controller
     /**
      * Reset Password with Token
      */
-    public function storeNewPassword(Request $request): JsonResponse
+    public function storeNewPassword(ResetPasswordRequest $request): JsonResponse
     {
-
-        $request->validate([
-            'token' => 'required',
-            'email' => 'required|email',
-            'password' => ['required', 'confirmed', Rules\Password::defaults()],
-        ]);
+        $validated = $request->validated();
 
         // Here we will attempt to reset the user's password. If it is successful we
         // will update the password on an actual user model and persist it to the
         // database. Otherwise we will parse the error and return the response.
         $status = Password::reset(
-            $request->only('email', 'password', 'password_confirmation', 'token'),
-            function ($user) use ($request) {
+            [
+                'email' => $validated['email'],
+                'password' => $validated['password'],
+                'password_confirmation' => $validated['password_confirmation'],
+                'token' => $validated['token'],
+            ],
+            function ($user) use ($validated) {
                 $user->forceFill([
-                    'password' => Hash::make($request->password),
+                    'password' => Hash::make($validated['password']),
                     'remember_token' => Str::random(60),
                 ])->save();
 
@@ -190,6 +192,39 @@ class AuthController extends Controller
 
         throw ValidationException::withMessages([
             'email' => [trans($status)],
+        ]);
+    }
+
+    /**
+     * Update the authenticated user's profile.
+     */
+    public function updateProfile(UpdateProfileRequest $request): UserResource
+    {
+        $validated = $request->validated();
+
+        $user = $request->user();
+        $user->name = $validated['name'];
+        $user->email = $validated['email'];
+        $user->save();
+
+        return new UserResource($user->fresh());
+    }
+
+    /**
+     * Change the authenticated user's password.
+     */
+    public function changePassword(ChangePasswordRequest $request): JsonResponse
+    {
+        $validated = $request->validated();
+
+        $user = $request->user();
+        $user->forceFill([
+            'password' => Hash::make($validated['password']),
+            'remember_token' => Str::random(60),
+        ])->save();
+
+        return response()->json([
+            'message' => __('Password updated successfully'),
         ]);
     }
 }

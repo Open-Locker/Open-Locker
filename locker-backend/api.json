@@ -309,20 +309,7 @@
                     "content": {
                         "application/json": {
                             "schema": {
-                                "type": "object",
-                                "properties": {
-                                    "email": {
-                                        "type": "string",
-                                        "format": "email"
-                                    },
-                                    "password": {
-                                        "type": "string"
-                                    }
-                                },
-                                "required": [
-                                    "email",
-                                    "password"
-                                ]
+                                "$ref": "#/components/schemas/LoginRequest"
                             }
                         }
                     }
@@ -346,23 +333,22 @@
             }
         },
         "/password/email": {
-            "get": {
-                "operationId": "password.reset",
+            "post": {
+                "operationId": "password.email",
                 "summary": "Send Password E-Mail",
                 "tags": [
                     "Auth"
                 ],
-                "parameters": [
-                    {
-                        "name": "email",
-                        "in": "query",
-                        "required": true,
-                        "schema": {
-                            "type": "string",
-                            "format": "email"
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/SendPasswordResetRequest"
+                            }
                         }
                     }
-                ],
+                },
                 "responses": {
                     "200": {
                         "description": "",
@@ -411,28 +397,7 @@
                     "content": {
                         "application/json": {
                             "schema": {
-                                "type": "object",
-                                "properties": {
-                                    "token": {
-                                        "type": "string"
-                                    },
-                                    "email": {
-                                        "type": "string",
-                                        "format": "email"
-                                    },
-                                    "password": {
-                                        "type": "string"
-                                    },
-                                    "password_confirmation": {
-                                        "type": "string"
-                                    }
-                                },
-                                "required": [
-                                    "token",
-                                    "email",
-                                    "password",
-                                    "password_confirmation"
-                                ]
+                                "$ref": "#/components/schemas/ResetPasswordRequest"
                             }
                         }
                     }
@@ -536,6 +501,99 @@
                     },
                     "401": {
                         "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            }
+        },
+        "/profile": {
+            "put": {
+                "operationId": "auth.profile.update",
+                "summary": "Update the authenticated user's profile",
+                "tags": [
+                    "Auth"
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/UpdateProfileRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "`User`",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/User"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
+                    }
+                }
+            }
+        },
+        "/password": {
+            "put": {
+                "operationId": "auth.password.update",
+                "summary": "Change the authenticated user's password",
+                "tags": [
+                    "Auth"
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ChangePasswordRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "message": {
+                                            "anyOf": [
+                                                {
+                                                    "type": "string"
+                                                },
+                                                {
+                                                    "type": "array",
+                                                    "items": {}
+                                                },
+                                                {
+                                                    "type": "null"
+                                                }
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "message"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
                     }
                 }
             }
@@ -1217,6 +1275,26 @@
                 ],
                 "title": "AuthRequest"
             },
+            "ChangePasswordRequest": {
+                "type": "object",
+                "properties": {
+                    "current_password": {
+                        "type": "string"
+                    },
+                    "password": {
+                        "type": "string"
+                    },
+                    "password_confirmation": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "current_password",
+                    "password",
+                    "password_confirmation"
+                ],
+                "title": "ChangePasswordRequest"
+            },
             "CompartmentOpenStatus": {
                 "type": "object",
                 "properties": {
@@ -1230,82 +1308,54 @@
                         "type": "string"
                     },
                     "compartment_id": {
-                        "type": [
-                            "string",
-                            "null"
-                        ]
+                        "type": "string"
                     },
                     "authorization_type": {
-                        "type": [
-                            "string",
-                            "null"
-                        ]
+                        "type": "string"
                     },
                     "error_code": {
-                        "type": [
-                            "string",
-                            "null"
-                        ]
+                        "type": "string"
                     },
                     "error_message": {
-                        "type": [
-                            "string",
-                            "null"
-                        ]
+                        "type": "string"
                     },
                     "denied_reason": {
-                        "type": [
-                            "string",
-                            "null"
-                        ]
+                        "type": "string"
                     },
                     "requested_at": {
-                        "type": [
-                            "string",
-                            "null"
-                        ],
-                        "format": "date-time"
+                        "type": "string"
                     },
                     "accepted_at": {
-                        "type": [
-                            "string",
-                            "null"
-                        ],
-                        "format": "date-time"
+                        "type": "string"
                     },
                     "denied_at": {
-                        "type": [
-                            "string",
-                            "null"
-                        ],
-                        "format": "date-time"
+                        "type": "string"
                     },
                     "sent_at": {
-                        "type": [
-                            "string",
-                            "null"
-                        ],
-                        "format": "date-time"
+                        "type": "string"
                     },
                     "opened_at": {
-                        "type": [
-                            "string",
-                            "null"
-                        ],
-                        "format": "date-time"
+                        "type": "string"
                     },
                     "failed_at": {
-                        "type": [
-                            "string",
-                            "null"
-                        ],
-                        "format": "date-time"
+                        "type": "string"
                     }
                 },
                 "required": [
                     "status",
                     "command_id",
-                    "state"
+                    "state",
+                    "compartment_id",
+                    "authorization_type",
+                    "error_code",
+                    "error_message",
+                    "denied_reason",
+                    "requested_at",
+                    "accepted_at",
+                    "denied_at",
+                    "sent_at",
+                    "opened_at",
+                    "failed_at"
                 ],
                 "title": "CompartmentOpenStatus"
             },
@@ -1355,6 +1405,61 @@
                 ],
                 "title": "Item"
             },
+            "LoginRequest": {
+                "type": "object",
+                "properties": {
+                    "email": {
+                        "type": "string",
+                        "format": "email"
+                    },
+                    "password": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "email",
+                    "password"
+                ],
+                "title": "LoginRequest"
+            },
+            "ResetPasswordRequest": {
+                "type": "object",
+                "properties": {
+                    "token": {
+                        "type": "string"
+                    },
+                    "email": {
+                        "type": "string",
+                        "format": "email"
+                    },
+                    "password": {
+                        "type": "string"
+                    },
+                    "password_confirmation": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "token",
+                    "email",
+                    "password",
+                    "password_confirmation"
+                ],
+                "title": "ResetPasswordRequest"
+            },
+            "SendPasswordResetRequest": {
+                "type": "object",
+                "properties": {
+                    "email": {
+                        "type": "string",
+                        "format": "email"
+                    }
+                },
+                "required": [
+                    "email"
+                ],
+                "title": "SendPasswordResetRequest"
+            },
             "TokenResponse": {
                 "type": "object",
                 "properties": {
@@ -1374,6 +1479,24 @@
                     "verified"
                 ],
                 "title": "TokenResponse"
+            },
+            "UpdateProfileRequest": {
+                "type": "object",
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "maxLength": 255
+                    },
+                    "email": {
+                        "type": "string",
+                        "format": "email"
+                    }
+                },
+                "required": [
+                    "name",
+                    "email"
+                ],
+                "title": "UpdateProfileRequest"
             },
             "User": {
                 "type": "object",

@@ -3,10 +3,11 @@
 namespace Tests\Feature;
 
 use App\Models\User;
-use Illuminate\Auth\Notifications\ResetPassword;
+use App\Notifications\Auth\HybridResetPasswordNotification;
 use Illuminate\Auth\Notifications\VerifyEmail;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Foundation\Testing\WithFaker;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\URL;
 use Tests\TestCase;
@@ -314,9 +315,7 @@ class AuthControllerTest extends TestCase
                 'message' => 'Password reset link sent',
             ]);
 
-        Notification::assertSentTo(
-            [$user], \Illuminate\Auth\Notifications\ResetPassword::class
-        );
+        Notification::assertSentTo([$user], HybridResetPasswordNotification::class);
     }
 
     public function test_user_cannot_request_password_reset_link_with_invalid_email()
@@ -337,16 +336,15 @@ class AuthControllerTest extends TestCase
 
         $this->post(Route('password.email'), ['email' => $user->email]);
 
-        Notification::assertSentTo($user, ResetPassword::class, function ($notification) use ($user) {
-            $response = $this->post('/reset-password', [
-                'token' => $notification->token,
+        Notification::assertSentTo($user, HybridResetPasswordNotification::class, function ($notification) use ($user) {
+            $response = $this->postJson('/api/reset-password', [
+                'token' => $notification->token(),
                 'email' => $user->email,
                 'password' => 'password',
                 'password_confirmation' => 'password',
             ]);
 
-            $response
-                ->assertSessionHasNoErrors();
+            $response->assertStatus(200);
 
             return true;
         });
@@ -356,13 +354,98 @@ class AuthControllerTest extends TestCase
     {
         $user = User::factory()->create();
 
-        $response = $this->postJson('/api/password/reset', [
+        $response = $this->postJson('/api/reset-password', [
             'token' => 'invalid-token',
             'email' => $user->email,
             'password' => 'newpassword',
             'password_confirmation' => 'newpassword',
         ]);
 
-        $response->assertStatus(404);
+        $response->assertStatus(422)
+            ->assertJsonValidationErrors(['email']);
+    }
+
+    public function test_user_can_update_their_profile()
+    {
+        $user = User::factory()->create();
+        $token = $user->createToken('auth_token')->plainTextToken;
+
+        $response = $this->withHeaders([
+            'Authorization' => 'Bearer '.$token,
+        ])->putJson('/api/profile', [
+            'name' => 'Updated Name',
+            'email' => 'updated@example.com',
+        ]);
+
+        $response->assertStatus(200)
+            ->assertJson([
+                'name' => 'Updated Name',
+                'email' => 'updated@example.com',
+            ]);
+
+        $this->assertDatabaseHas('users', [
+            'id' => $user->id,
+            'name' => 'Updated Name',
+            'email' => 'updated@example.com',
+        ]);
+    }
+
+    public function test_user_cannot_update_profile_with_existing_email()
+    {
+        $user = User::factory()->create();
+        $other = User::factory()->create();
+        $token = $user->createToken('auth_token')->plainTextToken;
+
+        $response = $this->withHeaders([
+            'Authorization' => 'Bearer '.$token,
+        ])->putJson('/api/profile', [
+            'name' => 'Updated Name',
+            'email' => $other->email,
+        ]);
+
+        $response->assertStatus(422)
+            ->assertJsonValidationErrors(['email']);
+    }
+
+    public function test_user_can_change_their_password()
+    {
+        $user = User::factory()->create([
+            'password' => bcrypt('old-password'),
+        ]);
+        $token = $user->createToken('auth_token')->plainTextToken;
+
+        $response = $this->withHeaders([
+            'Authorization' => 'Bearer '.$token,
+        ])->putJson('/api/password', [
+            'current_password' => 'old-password',
+            'password' => 'new-password',
+            'password_confirmation' => 'new-password',
+        ]);
+
+        $response->assertStatus(200)
+            ->assertJson([
+                'message' => 'Password updated successfully',
+            ]);
+
+        $this->assertTrue(Hash::check('new-password', $user->fresh()->password));
+    }
+
+    public function test_user_cannot_change_password_with_wrong_current_password()
+    {
+        $user = User::factory()->create([
+            'password' => bcrypt('old-password'),
+        ]);
+        $token = $user->createToken('auth_token')->plainTextToken;
+
+        $response = $this->withHeaders([
+            'Authorization' => 'Bearer '.$token,
+        ])->putJson('/api/password', [
+            'current_password' => 'wrong-password',
+            'password' => 'new-password',
+            'password_confirmation' => 'new-password',
+        ]);
+
+        $response->assertStatus(422)
+            ->assertJsonValidationErrors(['current_password']);
     }
 }
