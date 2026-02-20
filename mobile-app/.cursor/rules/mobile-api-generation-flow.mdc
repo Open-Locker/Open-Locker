@@ -1,0 +1,31 @@
+---
+description: Explain backend-to-mobile API generation flow
+globs: mobile-app/{openapi-codegen.config.json,package.json,src/store/baseApi.ts,src/store/generatedApi.ts}
+alwaysApply: false
+---
+
+# API Generation Flow (Backend -> Mobile)
+
+- OpenAPI source is generated in `locker-backend/api.json` via Scramble.
+- Mobile client code is generated from that file using RTK Query codegen.
+- `openapi-codegen.config.json` defines the mapping:
+  - `schemaFile`: `../locker-backend/api.json`
+  - `apiFile`: `./src/store/baseApi.ts`
+  - `outputFile`: `./src/store/generatedApi.ts`
+  - `exportName`: `openLockerApi`
+
+## Commands
+
+```bash
+# 1) Update OpenAPI spec from backend code
+cd locker-backend && composer export:api
+
+# 2) Regenerate RTK Query API in mobile app
+cd ../mobile-app && pnpm run generate:api
+```
+
+## Editing rules
+
+- Do edit `src/store/baseApi.ts` for shared base query behavior (headers, auth, base URL).
+- Do not manually edit `src/store/generatedApi.ts` because it is generated.
+- After backend endpoint/schema changes, always rerun both steps above.
