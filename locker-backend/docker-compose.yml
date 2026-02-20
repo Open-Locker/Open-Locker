@@ -23,6 +23,7 @@ x-laravel-env-dev: &laravel_env_dev
     VITE_REVERB_SCHEME: http
     # Keep Laravel app version aligned with the deployed image tag
     APP_VERSION: "${BACKEND_IMAGE_TAG:-dev}"
+    SHOW_WELCOME_MESSAGE: false
 
 x-laravel-service-dev: &laravel_service_dev
     image: locker-backend-app:latest

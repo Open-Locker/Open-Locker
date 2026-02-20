@@ -27,7 +27,7 @@ class NullableFieldsTransformer
                 }
             }
             if (count($nullable) > 0) {
-                $required = array_diff($required, $nullable);
+                $required = array_values(array_diff($required, $nullable));
                 $type->required = $required;
             }
         }

@@ -1,0 +1,9 @@
+{
+  "schemaFile": "../locker-backend/api.json",
+  "apiFile": "./src/store/baseApi.ts",
+  "apiImport": "baseApi",
+  "outputFile": "./src/store/generatedApi.ts",
+  "exportName": "openLockerApi",
+  "hooks": true,
+  "tag": true
+}

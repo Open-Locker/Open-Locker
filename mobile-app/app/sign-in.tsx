@@ -1,25 +1,30 @@
 import React from 'react';
 import { KeyboardAvoidingView, Platform, StyleSheet } from 'react-native';
+import type { FetchBaseQueryError } from '@reduxjs/toolkit/query';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Button, HelperText, Text, TextInput, useTheme } from 'react-native-paper';
 
-import { ApiError } from '@/src/api/http';
-import { useAuth } from '@/src/auth/AuthContext';
 import { OPEN_LOCKER_PRIMARY } from '@/src/config/theme';
+import { persistAuth } from '@/src/store/authStorage';
+import { setCredentials } from '@/src/store/authSlice';
+import { usePostLoginMutation } from '@/src/store/generatedApi';
+import { useAppDispatch } from '@/src/store/hooks';
 
 function getErrorMessage(error: unknown): string {
-  if (error instanceof ApiError) {
-    if (error.status === 422) {
+  const apiError = error as FetchBaseQueryError | undefined;
+  if (apiError && typeof apiError === 'object' && 'status' in apiError) {
+    if (apiError.status === 422) {
       return 'Invalid email or password.';
     }
-    return `Request failed (${error.status}).`;
+    return `Request failed (${String(apiError.status)}).`;
   }
   if (error instanceof Error) return error.message;
   return 'Something went wrong.';
 }
 
 export default function SignInScreen() {
-  const { signIn } = useAuth();
+  const dispatch = useAppDispatch();
+  const [postLogin] = usePostLoginMutation();
   const theme = useTheme();
 
   const [email, setEmail] = React.useState('');
@@ -33,12 +38,21 @@ export default function SignInScreen() {
     setError(null);
     setIsSubmitting(true);
     try {
-      await signIn(email.trim(), password);
+      const res = await postLogin({
+        body: {
+          email: email.trim(),
+          password,
+        },
+      }).unwrap();
+
+      await persistAuth(res.token, res.name);
+      dispatch(setCredentials({ token: res.token, userName: res.name }));
     } catch (e) {
       setError(getErrorMessage(e));
+    } finally {
       setIsSubmitting(false);
     }
-  }, [email, password, signIn]);
+  }, [dispatch, email, password, postLogin]);
 
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: theme.colors.background }]} edges={['top', 'bottom']}>

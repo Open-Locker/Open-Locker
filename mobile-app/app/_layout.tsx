@@ -1,16 +1,19 @@
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useFonts } from 'expo-font';
 import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
 import 'react-native-reanimated';
+import { Provider } from 'react-redux';
 import { MD3DarkTheme, MD3LightTheme, PaperProvider } from 'react-native-paper';
 
 import { useColorScheme } from '@/components/useColorScheme';
-import { useAuth, AuthProvider } from '@/src/auth/AuthContext';
 import { OPEN_LOCKER_PRIMARY } from '@/src/config/theme';
+import { loadPersistedAuth } from '@/src/store/authStorage';
+import { restoreAuth } from '@/src/store/authSlice';
+import { useAppDispatch, useAppSelector } from '@/src/store/hooks';
+import { store } from '@/src/store/store';
 
 export {
   // Catch any errors thrown by the Layout component.
@@ -25,13 +28,33 @@ export const unstable_settings = {
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync();
 
-const queryClient = new QueryClient();
-
 export default function RootLayout() {
+  return (
+    <Provider store={store}>
+      <RootLayoutBootstrap />
+    </Provider>
+  );
+}
+
+function RootLayoutBootstrap() {
+  const dispatch = useAppDispatch();
   const [loaded, error] = useFonts({
     SpaceMono: require('../assets/fonts/SpaceMono-Regular.ttf'),
     ...FontAwesome.font,
   });
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const auth = await loadPersistedAuth();
+      if (!cancelled) {
+        dispatch(restoreAuth(auth));
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [dispatch]);
 
   // Expo Router uses Error Boundaries to catch errors in the navigation tree.
   useEffect(() => {
@@ -48,18 +71,13 @@ export default function RootLayout() {
     return null;
   }
 
-  return (
-    <QueryClientProvider client={queryClient}>
-      <AuthProvider>
-        <RootLayoutNav />
-      </AuthProvider>
-    </QueryClientProvider>
-  );
+  return <RootLayoutNav />;
 }
 
 function RootLayoutNav() {
   const colorScheme = useColorScheme();
-  const { token, isLoading } = useAuth();
+  const token = useAppSelector((state) => state.auth.token);
+  const isLoading = useAppSelector((state) => state.auth.isLoading);
 
   if (isLoading) {
     return null;

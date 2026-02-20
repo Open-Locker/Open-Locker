@@ -1,80 +1,63 @@
 import React from 'react';
 import { Image, RefreshControl, SectionList, StyleSheet, View } from 'react-native';
+import { skipToken } from '@reduxjs/toolkit/query';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ActivityIndicator, Card, Chip, List, Text, useTheme } from 'react-native-paper';
 
-import { fetchCompartments } from '@/src/api/compartmentsApi';
-import { useAuth } from '@/src/auth/AuthContext';
-import type { CompartmentDto } from '@/src/types/api';
+import { useGetCompartmentsQuery } from '@/src/store/generatedApi';
+import { useAppSelector } from '@/src/store/hooks';
 
-type Section = {
-  title: string;
-  data: CompartmentDto[];
+type CompartmentItem = {
+  id: number;
+  name: string;
+  description: string | null;
+  image_url?: string | null;
+  borrowed_at?: string | null;
 };
 
-function groupByLockerBank(compartments: CompartmentDto[]): Section[] {
-  const map = new Map<string, { title: string; data: CompartmentDto[] }>();
+type CompartmentEntry = {
+  id: string;
+  number: number;
+  item: CompartmentItem | null;
+};
 
-  for (const c of compartments) {
-    const bankName = c.locker_bank?.name?.trim();
-    const key = c.locker_bank_id;
-    const title = bankName && bankName.length > 0 ? bankName : `Locker bank ${c.locker_bank_id}`;
+type LockerBankGroup = {
+  id: string;
+  title: string;
+  data: CompartmentEntry[];
+};
 
-    const existing = map.get(key);
-    if (existing) {
-      existing.data.push(c);
-    } else {
-      map.set(key, { title, data: [c] });
-    }
-  }
+type AccessibleCompartmentsResponse = {
+  status: boolean;
+  locker_banks: Array<{
+    id: string;
+    name: string;
+    location_description: string;
+    compartments: CompartmentEntry[];
+  }>;
+};
 
-  return Array.from(map.values()).sort((a, b) => a.title.localeCompare(b.title));
+function mapSections(response: AccessibleCompartmentsResponse | undefined): LockerBankGroup[] {
+  if (!response?.locker_banks) return [];
+  return response.locker_banks
+    .map((bank) => ({
+      id: bank.id,
+      title: bank.name?.trim() || `Locker bank ${bank.id}`,
+      data: Array.isArray(bank.compartments) ? bank.compartments : [],
+    }))
+    .sort((a, b) => a.title.localeCompare(b.title));
 }
 
 export default function CompartmentsScreen() {
-  const { token } = useAuth();
+  const token = useAppSelector((state) => state.auth.token);
   const theme = useTheme();
-  const [data, setData] = React.useState<CompartmentDto[] | null>(null);
-  const [error, setError] = React.useState<string | null>(null);
-  const [isLoading, setIsLoading] = React.useState(true);
-  const [isRefreshing, setIsRefreshing] = React.useState(false);
-
-  const load = React.useCallback(async () => {
-    if (!token) return;
-    setError(null);
-    const compartments = await fetchCompartments(token);
-    setData(compartments);
-  }, [token]);
-
-  React.useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      if (!token) return;
-      try {
-        setIsLoading(true);
-        await load();
-      } catch (e) {
-        if (!cancelled) setError(e instanceof Error ? e.message : 'Failed to load compartments.');
-      } finally {
-        if (!cancelled) setIsLoading(false);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [load, token]);
-
-  const onRefresh = React.useCallback(async () => {
-    if (!token) return;
-    setIsRefreshing(true);
-    try {
-      await load();
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to refresh.');
-    } finally {
-      setIsRefreshing(false);
-    }
-  }, [load, token]);
+  const {
+    data,
+    error,
+    isLoading,
+    isFetching,
+    refetch: refetchCompartments,
+  } = useGetCompartmentsQuery(token ? undefined : skipToken);
 
   if (isLoading && !data) {
     return (
@@ -87,26 +70,35 @@ export default function CompartmentsScreen() {
     );
   }
 
-  const sections = groupByLockerBank(data ?? []);
+  const sections = mapSections(data as AccessibleCompartmentsResponse | undefined);
+  const errorMessage =
+    error && 'status' in error ? `Failed to load compartments (${String(error.status)}).` : null;
 
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: theme.colors.background }]} edges={['bottom']}>
-      {error ? (
+      {errorMessage ? (
         <Text style={styles.error} accessibilityRole="alert">
-          {error}
+          {errorMessage}
         </Text>
       ) : null}
 
       <SectionList
         sections={sections}
         keyExtractor={(item) => item.id}
-        refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={onRefresh} />}
+        refreshControl={
+          <RefreshControl
+            refreshing={isFetching && !isLoading}
+            onRefresh={() => {
+              void refetchCompartments();
+            }}
+          />
+        }
         contentContainerStyle={styles.listContent}
         renderSectionHeader={({ section }) => <List.Subheader>{section.title}</List.Subheader>}
         renderItem={({ item }) => {
           const itemName = item.item?.name?.trim();
           const isEmpty = !item.item;
-          const borrowedAt = item.item?.borrowed_at;
+          const borrowedAt = item.item?.borrowed_at ?? null;
           const statusLabel = isEmpty ? 'Empty' : borrowedAt ? 'Borrowed' : 'Available';
           const imageUrl = item.item?.image_url ?? null;
           const description = item.item?.description?.trim() ?? '';

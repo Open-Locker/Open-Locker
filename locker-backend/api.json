@@ -69,7 +69,18 @@
                                     "type": "object",
                                     "properties": {
                                         "message": {
-                                            "type": "string"
+                                            "anyOf": [
+                                                {
+                                                    "type": "string"
+                                                },
+                                                {
+                                                    "type": "array",
+                                                    "items": {}
+                                                },
+                                                {
+                                                    "type": "null"
+                                                }
+                                            ]
                                         },
                                         "user": {
                                             "$ref": "#/components/schemas/User"
@@ -84,19 +95,11 @@
                         }
                     },
                     "400": {
-                        "description": "",
+                        "description": "`ApiError`",
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "type": "object",
-                                    "properties": {
-                                        "message": {
-                                            "type": "string"
-                                        }
-                                    },
-                                    "required": [
-                                        "message"
-                                    ]
+                                    "$ref": "#/components/schemas/ApiError"
                                 }
                             }
                         }
@@ -137,7 +140,18 @@
                                     "type": "object",
                                     "properties": {
                                         "message": {
-                                            "type": "string"
+                                            "anyOf": [
+                                                {
+                                                    "type": "string"
+                                                },
+                                                {
+                                                    "type": "array",
+                                                    "items": {}
+                                                },
+                                                {
+                                                    "type": "null"
+                                                }
+                                            ]
                                         },
                                         "user": {
                                             "$ref": "#/components/schemas/User"
@@ -152,19 +166,11 @@
                         }
                     },
                     "400": {
-                        "description": "",
+                        "description": "`ApiError`",
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "type": "object",
-                                    "properties": {
-                                        "message": {
-                                            "type": "string"
-                                        }
-                                    },
-                                    "required": [
-                                        "message"
-                                    ]
+                                    "$ref": "#/components/schemas/ApiError"
                                 }
                             }
                         }
@@ -251,30 +257,22 @@
                                     "properties": {
                                         "name": {
                                             "type": "string",
-                                            "enum": [
-                                                "Open-Locker"
-                                            ]
+                                            "const": "Open-Locker"
                                         },
                                         "type": {
                                             "type": "string",
-                                            "enum": [
-                                                "backend"
-                                            ]
+                                            "const": "backend"
                                         },
                                         "api_version": {
                                             "type": "string",
-                                            "enum": [
-                                                "v1"
-                                            ]
+                                            "const": "v1"
                                         },
                                         "version": {
                                             "type": "string"
                                         },
                                         "identifier": {
                                             "type": "string",
-                                            "enum": [
-                                                "open-locker-backend"
-                                            ]
+                                            "const": "open-locker-backend"
                                         },
                                         "environment": {
                                             "type": "string"
@@ -374,7 +372,18 @@
                                     "type": "object",
                                     "properties": {
                                         "message": {
-                                            "type": "string"
+                                            "anyOf": [
+                                                {
+                                                    "type": "string"
+                                                },
+                                                {
+                                                    "type": "array",
+                                                    "items": {}
+                                                },
+                                                {
+                                                    "type": "null"
+                                                }
+                                            ]
                                         }
                                     },
                                     "required": [
@@ -437,7 +446,18 @@
                                     "type": "object",
                                     "properties": {
                                         "message": {
-                                            "type": "string"
+                                            "anyOf": [
+                                                {
+                                                    "type": "string"
+                                                },
+                                                {
+                                                    "type": "array",
+                                                    "items": {}
+                                                },
+                                                {
+                                                    "type": "null"
+                                                }
+                                            ]
                                         }
                                     },
                                     "required": [
@@ -469,7 +489,18 @@
                                     "type": "object",
                                     "properties": {
                                         "message": {
-                                            "type": "string"
+                                            "anyOf": [
+                                                {
+                                                    "type": "string"
+                                                },
+                                                {
+                                                    "type": "array",
+                                                    "items": {}
+                                                },
+                                                {
+                                                    "type": "null"
+                                                }
+                                            ]
                                         }
                                     },
                                     "required": [
@@ -536,18 +567,36 @@
                 ],
                 "responses": {
                     "200": {
-                        "description": "",
+                        "description": "`ApiErrorResource`",
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "type": "object",
-                                    "properties": {
-                                        "message": {
-                                            "type": "string"
+                                    "anyOf": [
+                                        {
+                                            "type": "object",
+                                            "properties": {
+                                                "message": {
+                                                    "anyOf": [
+                                                        {
+                                                            "type": "string"
+                                                        },
+                                                        {
+                                                            "type": "array",
+                                                            "items": {}
+                                                        },
+                                                        {
+                                                            "type": "null"
+                                                        }
+                                                    ]
+                                                }
+                                            },
+                                            "required": [
+                                                "message"
+                                            ]
+                                        },
+                                        {
+                                            "$ref": "#/components/schemas/ApiError"
                                         }
-                                    },
-                                    "required": [
-                                        "message"
                                     ]
                                 }
                             }
@@ -555,6 +604,12 @@
                     },
                     "401": {
                         "$ref": "#/components/responses/AuthenticationException"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/AuthorizationException"
                     }
                 }
             }
@@ -568,18 +623,36 @@
                 ],
                 "responses": {
                     "200": {
-                        "description": "",
+                        "description": "`ApiError`",
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "type": "object",
-                                    "properties": {
-                                        "message": {
-                                            "type": "string"
+                                    "anyOf": [
+                                        {
+                                            "type": "object",
+                                            "properties": {
+                                                "message": {
+                                                    "anyOf": [
+                                                        {
+                                                            "type": "string"
+                                                        },
+                                                        {
+                                                            "type": "array",
+                                                            "items": {}
+                                                        },
+                                                        {
+                                                            "type": "null"
+                                                        }
+                                                    ]
+                                                }
+                                            },
+                                            "required": [
+                                                "message"
+                                            ]
+                                        },
+                                        {
+                                            "$ref": "#/components/schemas/ApiError"
                                         }
-                                    },
-                                    "required": [
-                                        "message"
                                     ]
                                 }
                             }
@@ -594,11 +667,43 @@
         "/admin/users/register": {
             "post": {
                 "operationId": "admin.users.register",
-                "description": "\u26a0\ufe0f Cannot generate request documentation: Undefined constant App\\Models\\User::class",
                 "summary": "Register",
                 "tags": [
                     "Auth"
                 ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "properties": {
+                                    "name": {
+                                        "type": "string",
+                                        "maxLength": 255
+                                    },
+                                    "email": {
+                                        "type": "string",
+                                        "format": "email",
+                                        "maxLength": 255
+                                    },
+                                    "password": {
+                                        "type": "string"
+                                    },
+                                    "password_confirmation": {
+                                        "type": "string"
+                                    }
+                                },
+                                "required": [
+                                    "name",
+                                    "email",
+                                    "password",
+                                    "password_confirmation"
+                                ]
+                            }
+                        }
+                    }
+                },
                 "responses": {
                     "200": {
                         "description": "`TokenResponse`",
@@ -619,10 +724,58 @@
                 }
             }
         },
+        "/compartments": {
+            "get": {
+                "operationId": "compartments.index",
+                "summary": "Return compartments accessible by the current user, grouped by locker bank",
+                "tags": [
+                    "Compartment"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "`AccessibleCompartmentsResource`",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/AccessibleCompartments"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            }
+        },
+        "/compartments/accessible": {
+            "get": {
+                "operationId": "compartments.accessible",
+                "summary": "Return compartments accessible by the current user, grouped by locker bank",
+                "tags": [
+                    "Compartment"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "`AccessibleCompartments`",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/AccessibleCompartments"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            }
+        },
         "/compartments/{compartment}/open": {
             "post": {
                 "operationId": "compartments.open",
-                "description": "Dispatches an event-sourced open command and returns immediately.",
+                "description": "Dispatches an event-sourced open command and returns immediately.\n\nRealtime note:\nAfter this endpoint returns, clients should subscribe to\n`private-users.{userId}.compartment-open` and listen for\n`.compartment.open.status.updated` events.\nPayload fields: `command_id`, `compartment_id`, `status`,\n`error_code`, `message`.",
                 "summary": "Open a compartment for an authorized user",
                 "tags": [
                     "Compartment"
@@ -646,9 +799,7 @@
                             "application/json": {
                                 "schema": {
                                     "type": "integer",
-                                    "enum": [
-                                        202
-                                    ]
+                                    "const": 202
                                 }
                             }
                         }
@@ -665,6 +816,7 @@
         "/compartments/open-requests/{commandId}": {
             "get": {
                 "operationId": "compartments.open-status",
+                "description": "Realtime note:\nThis endpoint is the polling fallback when websocket/reverb push is\nunavailable. Realtime push uses channel\n`private-users.{userId}.compartment-open` and event\n`.compartment.open.status.updated`.",
                 "summary": "Return status information for a previously created open command",
                 "tags": [
                     "Compartment"
@@ -681,115 +833,31 @@
                 ],
                 "responses": {
                     "200": {
-                        "description": "",
+                        "description": "`CompartmentOpenStatusResource`",
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "type": "object",
-                                    "properties": {
-                                        "status": {
-                                            "type": "boolean"
-                                        },
-                                        "command_id": {
-                                            "type": "string"
-                                        },
-                                        "state": {
-                                            "type": "string"
-                                        },
-                                        "compartment_id": {
-                                            "type": "string"
-                                        },
-                                        "authorization_type": {
-                                            "type": "string"
-                                        },
-                                        "error_code": {
-                                            "type": "string"
-                                        },
-                                        "error_message": {
-                                            "type": "string"
-                                        },
-                                        "denied_reason": {
-                                            "type": "string"
-                                        },
-                                        "requested_at": {
-                                            "type": "string"
-                                        },
-                                        "accepted_at": {
-                                            "type": "string"
-                                        },
-                                        "denied_at": {
-                                            "type": "string"
-                                        },
-                                        "sent_at": {
-                                            "type": "string"
-                                        },
-                                        "opened_at": {
-                                            "type": "string"
-                                        },
-                                        "failed_at": {
-                                            "type": "string"
-                                        }
-                                    },
-                                    "required": [
-                                        "status",
-                                        "command_id",
-                                        "state",
-                                        "compartment_id",
-                                        "authorization_type",
-                                        "error_code",
-                                        "error_message",
-                                        "denied_reason",
-                                        "requested_at",
-                                        "accepted_at",
-                                        "denied_at",
-                                        "sent_at",
-                                        "opened_at",
-                                        "failed_at"
-                                    ]
+                                    "$ref": "#/components/schemas/CompartmentOpenStatus"
                                 }
                             }
                         }
                     },
                     "403": {
-                        "description": "",
+                        "description": "`ApiError`",
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "type": "object",
-                                    "properties": {
-                                        "status": {
-                                            "type": "boolean"
-                                        },
-                                        "message": {
-                                            "type": "string"
-                                        }
-                                    },
-                                    "required": [
-                                        "status",
-                                        "message"
-                                    ]
+                                    "$ref": "#/components/schemas/ApiError"
                                 }
                             }
                         }
                     },
                     "404": {
-                        "description": "",
+                        "description": "`ApiError`",
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "type": "object",
-                                    "properties": {
-                                        "status": {
-                                            "type": "boolean"
-                                        },
-                                        "message": {
-                                            "type": "string"
-                                        }
-                                    },
-                                    "required": [
-                                        "status",
-                                        "message"
-                                    ]
+                                    "$ref": "#/components/schemas/ApiError"
                                 }
                             }
                         }
@@ -1005,6 +1073,86 @@
             }
         },
         "schemas": {
+            "AccessibleCompartments": {
+                "type": "object",
+                "properties": {
+                    "status": {
+                        "type": "boolean"
+                    },
+                    "locker_banks": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "id": {
+                                    "type": "string"
+                                },
+                                "name": {
+                                    "type": "string"
+                                },
+                                "location_description": {
+                                    "type": [
+                                        "string",
+                                        "null"
+                                    ]
+                                },
+                                "compartments": {
+                                    "type": "array",
+                                    "items": {
+                                        "type": "object",
+                                        "properties": {
+                                            "id": {
+                                                "type": "string"
+                                            },
+                                            "number": {
+                                                "type": "integer"
+                                            },
+                                            "item": {
+                                                "type": [
+                                                    "object",
+                                                    "null"
+                                                ],
+                                                "properties": {
+                                                    "id": {
+                                                        "type": "string"
+                                                    },
+                                                    "name": {
+                                                        "type": "string"
+                                                    },
+                                                    "description": {
+                                                        "type": "string"
+                                                    }
+                                                },
+                                                "required": [
+                                                    "id",
+                                                    "name",
+                                                    "description"
+                                                ]
+                                            }
+                                        },
+                                        "required": [
+                                            "id",
+                                            "number",
+                                            "item"
+                                        ]
+                                    }
+                                }
+                            },
+                            "required": [
+                                "id",
+                                "name",
+                                "location_description",
+                                "compartments"
+                            ]
+                        }
+                    }
+                },
+                "required": [
+                    "status",
+                    "locker_banks"
+                ],
+                "title": "AccessibleCompartments"
+            },
             "AclRequest": {
                 "type": "object",
                 "properties": {
@@ -1029,6 +1177,22 @@
                 ],
                 "title": "AclRequest"
             },
+            "ApiError": {
+                "type": "object",
+                "properties": {
+                    "status": {
+                        "type": "boolean"
+                    },
+                    "message": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "status",
+                    "message"
+                ],
+                "title": "ApiError"
+            },
             "AuthRequest": {
                 "type": "object",
                 "properties": {
@@ -1052,6 +1216,98 @@
                     "username"
                 ],
                 "title": "AuthRequest"
+            },
+            "CompartmentOpenStatus": {
+                "type": "object",
+                "properties": {
+                    "status": {
+                        "type": "boolean"
+                    },
+                    "command_id": {
+                        "type": "string"
+                    },
+                    "state": {
+                        "type": "string"
+                    },
+                    "compartment_id": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "authorization_type": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "error_code": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "error_message": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "denied_reason": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "requested_at": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "format": "date-time"
+                    },
+                    "accepted_at": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "format": "date-time"
+                    },
+                    "denied_at": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "format": "date-time"
+                    },
+                    "sent_at": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "format": "date-time"
+                    },
+                    "opened_at": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "format": "date-time"
+                    },
+                    "failed_at": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "format": "date-time"
+                    }
+                },
+                "required": [
+                    "status",
+                    "command_id",
+                    "state"
+                ],
+                "title": "CompartmentOpenStatus"
             },
             "Item": {
                 "type": "object",
@@ -1156,12 +1412,12 @@
                         "format": "date-time"
                     }
                 },
-                "required": {
-                    "0": "id",
-                    "1": "name",
-                    "2": "email",
-                    "4": "is_admin"
-                },
+                "required": [
+                    "id",
+                    "name",
+                    "email",
+                    "is_admin"
+                ],
                 "title": "User"
             }
         },
@@ -1217,6 +1473,25 @@
             },
             "AuthenticationException": {
                 "description": "Unauthenticated",
+                "content": {
+                    "application/json": {
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "message": {
+                                    "type": "string",
+                                    "description": "Error overview."
+                                }
+                            },
+                            "required": [
+                                "message"
+                            ]
+                        }
+                    }
+                }
+            },
+            "AuthorizationException": {
+                "description": "Authorization error",
                 "content": {
                     "application/json": {
                         "schema": {

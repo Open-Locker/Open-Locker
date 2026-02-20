@@ -4,10 +4,13 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Button, Card, Text, useTheme } from 'react-native-paper';
 
 import { getApiBaseUrl } from '@/src/api/baseUrl';
-import { useAuth } from '@/src/auth/AuthContext';
+import { clearPersistedAuth } from '@/src/store/authStorage';
+import { clearCredentials } from '@/src/store/authSlice';
+import { useAppDispatch, useAppSelector } from '@/src/store/hooks';
 
 export default function AccountScreen() {
-  const { userName, signOut } = useAuth();
+  const dispatch = useAppDispatch();
+  const userName = useAppSelector((state) => state.auth.userName);
   const theme = useTheme();
 
   return (
@@ -30,7 +33,10 @@ export default function AccountScreen() {
             <Button
               mode="contained"
               onPress={() => {
-                void signOut();
+                void (async () => {
+                  await clearPersistedAuth();
+                  dispatch(clearCredentials());
+                })();
               }}
             >
               Logout
