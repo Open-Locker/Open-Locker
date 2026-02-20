@@ -1,0 +1,40 @@
+---
+description: Require ADRs for architecture-significant decisions
+alwaysApply: true
+---
+
+# ADR Requirement for Architecture Decisions
+
+When a task introduces or changes architecture-significant behavior, create
+or update an ADR in `docs/adr/`.
+
+## Trigger Conditions
+
+Create or update an ADR when at least one of these applies:
+
+- API contract, schema, or external integration boundary changes
+- MQTT topic structure or payload contract changes
+- Modbus protocol, register mapping, or hardware communication strategy changes
+- New infrastructure, platform dependency, or hosting/runtime strategy changes
+- Security, performance, reliability, or operability trade-offs
+- Cross-component decisions affecting backend, mobile app, and/or IoT flows
+
+## Required Agent Behavior
+
+- Do not silently implement architecture-significant changes.
+- Check whether an ADR already exists for the decision.
+- If none exists, create a new ADR before or alongside implementation.
+- If an existing ADR is outdated, create a new ADR that supersedes it.
+- Reference the ADR path in the final summary or PR/task notes.
+
+## Minimum ADR Content
+
+- Status (`proposed`, `accepted`, `superseded`, `deprecated`)
+- Context and problem statement
+- Decision and rationale
+- Alternatives considered
+- Consequences (benefits, drawbacks, risks)
+- Rollout or migration notes when relevant
+
+If running in ask/read-only mode, draft ADR content in the response and ask to
+switch to agent mode for file creation.

@@ -1,0 +1,40 @@
+---
+description: ADR naming, format, and lifecycle conventions
+globs: docs/adr/**/*.md
+alwaysApply: false
+---
+
+# ADR Format and Lifecycle
+
+Store ADRs in `docs/adr/` and use numeric, kebab-case file names:
+
+- `0001-short-title.md`
+- `0002-next-decision.md`
+
+## ADR Structure
+
+Use this section order:
+
+1. Title
+2. Status
+3. Date
+4. Context
+5. Decision
+6. Alternatives Considered
+7. Consequences
+8. References
+
+## Lifecycle Rules
+
+- Keep one architecture decision per ADR.
+- Do not rewrite accepted ADR history.
+- When direction changes, create a new ADR and mark the old one superseded.
+- Link old and new ADRs for traceability.
+
+## Traceability Rules
+
+When implementation follows an ADR, reference the ADR in:
+
+- commit message or PR description
+- implementation notes
+- related technical documentation
