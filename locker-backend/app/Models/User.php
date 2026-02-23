@@ -10,6 +10,7 @@ use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
@@ -77,6 +78,47 @@ class User extends Authenticatable implements FilamentUser, MustVerifyEmail
                 $query->whereNull('expires_at')
                     ->orWhere('expires_at', '>', now());
             });
+    }
+
+    /**
+     * @return HasMany<UserTermsAcceptance, User>
+     */
+    public function termsAcceptances(): HasMany
+    {
+        return $this->hasMany(UserTermsAcceptance::class);
+    }
+
+    /**
+     * @return HasOne<UserTermsAcceptance, User>
+     */
+    public function latestTermsAcceptance(): HasOne
+    {
+        return $this->hasOne(UserTermsAcceptance::class)->latestOfMany('accepted_at');
+    }
+
+    public function currentTermsVersion(): ?int
+    {
+        $document = TermsDocument::query()->with('activeVersion')->oldest('id')->first();
+
+        return $document?->activeVersion?->version;
+    }
+
+    public function latestAcceptedTermsVersion(): ?int
+    {
+        return $this->termsAcceptances()
+            ->with('acceptedVersion')
+            ->latest('accepted_at')
+            ->first()?->acceptedVersion?->version;
+    }
+
+    public function hasAcceptedCurrentTerms(): bool
+    {
+        $currentVersion = $this->currentTermsVersion();
+        $acceptedVersion = $this->latestAcceptedTermsVersion();
+
+        return $currentVersion !== null
+            && $acceptedVersion !== null
+            && $currentVersion === $acceptedVersion;
     }
 
     /**

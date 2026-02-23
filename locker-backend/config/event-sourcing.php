@@ -26,6 +26,7 @@ return [
         App\Projectors\CompartmentProjector::class,
         App\Projectors\CompartmentAccessProjector::class,
         App\Projectors\CompartmentOpenRequestProjector::class,
+        App\Projectors\TermsProjector::class,
     ],
 
     /*
@@ -38,6 +39,7 @@ return [
         App\Reactors\CommandResponseReactor::class,
         App\Reactors\CompartmentOpenAuthorizationReactor::class,
         App\Reactors\CompartmentOpenStatusBroadcastReactor::class,
+        App\Reactors\TermsNotificationReactor::class,
     ],
 
     /*

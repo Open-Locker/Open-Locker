@@ -625,7 +625,7 @@
                 ],
                 "responses": {
                     "200": {
-                        "description": "`ApiErrorResource`",
+                        "description": "`ApiError`",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -1120,6 +1120,101 @@
                     }
                 }
             }
+        },
+        "/terms/current": {
+            "get": {
+                "operationId": "terms.current",
+                "summary": "Return the currently active terms document version",
+                "tags": [
+                    "Terms"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "`TermsCurrentResource`",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/CurrentTerms"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "`ApiErrorResource`",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            }
+        },
+        "/terms/accept": {
+            "post": {
+                "operationId": "terms.accept",
+                "summary": "Accept the currently active terms version",
+                "tags": [
+                    "Terms"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "message": {
+                                            "anyOf": [
+                                                {
+                                                    "type": "string"
+                                                },
+                                                {
+                                                    "type": "array",
+                                                    "items": {}
+                                                },
+                                                {
+                                                    "type": "null"
+                                                }
+                                            ]
+                                        },
+                                        "accepted_version": {
+                                            "type": "integer"
+                                        },
+                                        "accepted_at": {
+                                            "type": "string"
+                                        }
+                                    },
+                                    "required": [
+                                        "message",
+                                        "accepted_version",
+                                        "accepted_at"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "`ApiError`",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            }
         }
     },
     "components": {
@@ -1308,56 +1403,112 @@
                         "type": "string"
                     },
                     "compartment_id": {
-                        "type": "string"
+                        "type": [
+                            "string",
+                            "null"
+                        ]
                     },
                     "authorization_type": {
-                        "type": "string"
+                        "type": [
+                            "string",
+                            "null"
+                        ]
                     },
                     "error_code": {
-                        "type": "string"
+                        "type": [
+                            "string",
+                            "null"
+                        ]
                     },
                     "error_message": {
-                        "type": "string"
+                        "type": [
+                            "string",
+                            "null"
+                        ]
                     },
                     "denied_reason": {
-                        "type": "string"
+                        "type": [
+                            "string",
+                            "null"
+                        ]
                     },
                     "requested_at": {
-                        "type": "string"
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "format": "date-time"
                     },
                     "accepted_at": {
-                        "type": "string"
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "format": "date-time"
                     },
                     "denied_at": {
-                        "type": "string"
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "format": "date-time"
                     },
                     "sent_at": {
-                        "type": "string"
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "format": "date-time"
                     },
                     "opened_at": {
-                        "type": "string"
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "format": "date-time"
                     },
                     "failed_at": {
-                        "type": "string"
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "format": "date-time"
                     }
                 },
                 "required": [
                     "status",
                     "command_id",
-                    "state",
-                    "compartment_id",
-                    "authorization_type",
-                    "error_code",
-                    "error_message",
-                    "denied_reason",
-                    "requested_at",
-                    "accepted_at",
-                    "denied_at",
-                    "sent_at",
-                    "opened_at",
-                    "failed_at"
+                    "state"
                 ],
                 "title": "CompartmentOpenStatus"
+            },
+            "CurrentTerms": {
+                "type": "object",
+                "properties": {
+                    "document_name": {
+                        "type": "string"
+                    },
+                    "version": {
+                        "type": "string"
+                    },
+                    "content": {
+                        "type": "string"
+                    },
+                    "published_at": {
+                        "type": "string"
+                    },
+                    "current_accepted": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "document_name",
+                    "version",
+                    "content",
+                    "published_at",
+                    "current_accepted"
+                ],
+                "title": "CurrentTerms"
             },
             "Item": {
                 "type": "object",
@@ -1520,6 +1671,21 @@
                     "is_admin": {
                         "type": "boolean"
                     },
+                    "terms_last_accepted_version": {
+                        "type": [
+                            "integer",
+                            "null"
+                        ]
+                    },
+                    "terms_current_version": {
+                        "type": [
+                            "integer",
+                            "null"
+                        ]
+                    },
+                    "terms_current_accepted": {
+                        "type": "boolean"
+                    },
                     "created_at": {
                         "type": [
                             "string",
@@ -1539,7 +1705,8 @@
                     "id",
                     "name",
                     "email",
-                    "is_admin"
+                    "is_admin",
+                    "terms_current_accepted"
                 ],
                 "title": "User"
             }
@@ -1575,8 +1742,8 @@
                     }
                 }
             },
-            "ModelNotFoundException": {
-                "description": "Not found",
+            "AuthenticationException": {
+                "description": "Unauthenticated",
                 "content": {
                     "application/json": {
                         "schema": {
@@ -1594,8 +1761,8 @@
                     }
                 }
             },
-            "AuthenticationException": {
-                "description": "Unauthenticated",
+            "ModelNotFoundException": {
+                "description": "Not found",
                 "content": {
                     "application/json": {
                         "schema": {

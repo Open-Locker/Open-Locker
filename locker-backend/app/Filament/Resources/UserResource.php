@@ -54,6 +54,14 @@ class UserResource extends Resource
                 Tables\Columns\TextColumn::make('is_admin_since')
                     ->dateTime()
                     ->sortable(),
+                Tables\Columns\IconColumn::make('terms_current_accepted')
+                    ->label('Current terms accepted')
+                    ->boolean()
+                    ->state(fn (User $record): bool => $record->hasAcceptedCurrentTerms()),
+                Tables\Columns\TextColumn::make('latest_terms_version')
+                    ->label('Last accepted terms version')
+                    ->state(fn (User $record): ?int => $record->latestAcceptedTermsVersion())
+                    ->placeholder('-'),
             ])
             ->filters([
                 //
