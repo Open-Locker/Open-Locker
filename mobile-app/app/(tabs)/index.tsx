@@ -1,25 +1,29 @@
 import React from 'react';
-import { Image, RefreshControl, SectionList, StyleSheet, View } from 'react-native';
+import { RefreshControl, SectionList, StyleSheet, View } from 'react-native';
+import type { FetchBaseQueryError } from '@reduxjs/toolkit/query';
 import { skipToken } from '@reduxjs/toolkit/query';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { ActivityIndicator, Card, Chip, List, Text, useTheme } from 'react-native-paper';
+import {
+  ActivityIndicator,
+  Button,
+  Card,
+  HelperText,
+  List,
+  Modal,
+  Portal,
+  Text,
+  useTheme,
+} from 'react-native-paper';
 
-import { useGetCompartmentsQuery } from '@/src/store/generatedApi';
+import {
+  type GetCompartmentsAccessibleApiResponse,
+  useGetCompartmentsAccessibleQuery,
+  usePostCompartmentsByCompartmentOpenMutation,
+} from '@/src/store/generatedApi';
 import { useAppSelector } from '@/src/store/hooks';
 
-type CompartmentItem = {
-  id: number;
-  name: string;
-  description: string | null;
-  image_url?: string | null;
-  borrowed_at?: string | null;
-};
-
-type CompartmentEntry = {
-  id: string;
-  number: number;
-  item: CompartmentItem | null;
-};
+type LockerBank = GetCompartmentsAccessibleApiResponse['locker_banks'][number];
+type CompartmentEntry = LockerBank['compartments'][number];
 
 type LockerBankGroup = {
   id: string;
@@ -27,17 +31,9 @@ type LockerBankGroup = {
   data: CompartmentEntry[];
 };
 
-type AccessibleCompartmentsResponse = {
-  status: boolean;
-  locker_banks: {
-    id: string;
-    name: string;
-    location_description: string;
-    compartments: CompartmentEntry[];
-  }[];
-};
-
-function mapSections(response: AccessibleCompartmentsResponse | undefined): LockerBankGroup[] {
+function mapSections(
+  response: GetCompartmentsAccessibleApiResponse | undefined,
+): LockerBankGroup[] {
   if (!response?.locker_banks) return [];
   return response.locker_banks
     .map((bank) => ({
@@ -48,16 +44,31 @@ function mapSections(response: AccessibleCompartmentsResponse | undefined): Lock
     .sort((a, b) => a.title.localeCompare(b.title));
 }
 
+function getErrorMessage(error: unknown): string {
+  const apiError = error as FetchBaseQueryError | undefined;
+  if (apiError && typeof apiError === 'object' && 'status' in apiError) {
+    return `Request failed (${String(apiError.status)}).`;
+  }
+  if (error instanceof Error) return error.message;
+  return 'Something went wrong.';
+}
+
 export default function CompartmentsScreen() {
   const token = useAppSelector((state) => state.auth.token);
   const theme = useTheme();
+  const [requestOpen, requestOpenState] = usePostCompartmentsByCompartmentOpenMutation();
   const {
     data,
     error,
     isLoading,
     isFetching,
     refetch: refetchCompartments,
-  } = useGetCompartmentsQuery(token ? undefined : skipToken);
+  } = useGetCompartmentsAccessibleQuery(token ? undefined : skipToken);
+  const [selectedCompartment, setSelectedCompartment] = React.useState<CompartmentEntry | null>(
+    null,
+  );
+  const [modalError, setModalError] = React.useState<string | null>(null);
+  const [modalInfo, setModalInfo] = React.useState<string | null>(null);
 
   if (isLoading && !data) {
     return (
@@ -73,7 +84,7 @@ export default function CompartmentsScreen() {
     );
   }
 
-  const sections = mapSections(data as AccessibleCompartmentsResponse | undefined);
+  const sections = mapSections(data);
   const errorMessage =
     error && 'status' in error ? `Failed to load compartments (${String(error.status)}).` : null;
 
@@ -104,21 +115,26 @@ export default function CompartmentsScreen() {
         renderItem={({ item }) => {
           const itemName = item.item?.name?.trim();
           const isEmpty = !item.item;
-          const borrowedAt = item.item?.borrowed_at ?? null;
-          const statusLabel = isEmpty ? 'Empty' : borrowedAt ? 'Borrowed' : 'Available';
-          const imageUrl = item.item?.image_url ?? null;
           const description = item.item?.description?.trim() ?? '';
 
           return (
             <View style={styles.cardWrap}>
-              <Card mode="elevated" style={styles.card}>
+              <Card
+                mode="elevated"
+                style={styles.card}
+                onPress={
+                  item.item
+                    ? () => {
+                        setModalError(null);
+                        setModalInfo(null);
+                        setSelectedCompartment(item);
+                      }
+                    : undefined
+                }
+              >
                 <Card.Content style={styles.cardContent}>
                   <View style={styles.cardRow}>
-                    {imageUrl ? (
-                      <Image source={{ uri: imageUrl }} style={styles.thumb} resizeMode="cover" />
-                    ) : (
-                      <View style={styles.thumbPlaceholder} />
-                    )}
+                    <View style={styles.thumbPlaceholder} />
 
                     <View style={styles.cardMain}>
                       <Text variant="titleMedium" numberOfLines={1} style={styles.cardTitle}>
@@ -143,17 +159,6 @@ export default function CompartmentsScreen() {
                         </Text>
                       )}
                     </View>
-
-                    <View style={styles.cardSide}>
-                      <Chip
-                        compact
-                        selected={!isEmpty}
-                        icon={isEmpty ? 'inbox-outline' : 'package-variant'}
-                        style={styles.statusChip}
-                      >
-                        {statusLabel}
-                      </Chip>
-                    </View>
                   </View>
                 </Card.Content>
               </Card>
@@ -166,6 +171,53 @@ export default function CompartmentsScreen() {
           </View>
         }
       />
+      <Portal>
+        <Modal
+          visible={!!selectedCompartment}
+          onDismiss={() => setSelectedCompartment(null)}
+          contentContainerStyle={[styles.modalContent, { backgroundColor: theme.colors.surface }]}
+        >
+          <Text variant="titleMedium" style={styles.modalTitle}>
+            {selectedCompartment?.item?.name ?? `Compartment ${selectedCompartment?.number ?? ''}`}
+          </Text>
+          <Text variant="bodyMedium" style={styles.modalSubtitle}>
+            Compartment {selectedCompartment?.number}
+          </Text>
+          <Text variant="bodySmall" style={styles.modalHint}>
+            Send open command for this compartment.
+          </Text>
+          <HelperText type="error" visible={!!modalError}>
+            {modalError}
+          </HelperText>
+          <HelperText type="info" visible={!!modalInfo}>
+            {modalInfo}
+          </HelperText>
+          <Button
+            mode="contained"
+            onPress={() => {
+              if (!selectedCompartment) return;
+              void (async () => {
+                setModalError(null);
+                setModalInfo(null);
+                try {
+                  await requestOpen({ compartment: selectedCompartment.id }).unwrap();
+                  setModalInfo('Open request sent.');
+                  setSelectedCompartment(null);
+                } catch (e) {
+                  setModalError(getErrorMessage(e));
+                }
+              })();
+            }}
+            loading={requestOpenState.isLoading}
+            disabled={!selectedCompartment || requestOpenState.isLoading}
+          >
+            Open compartment
+          </Button>
+          <Button mode="text" onPress={() => setSelectedCompartment(null)}>
+            Close
+          </Button>
+        </Modal>
+      </Portal>
     </SafeAreaView>
   );
 }
@@ -183,10 +235,17 @@ const styles = StyleSheet.create({
   thumb: { width: 80, height: 80, borderRadius: 12, backgroundColor: '#e9eed4' },
   thumbPlaceholder: { width: 80, height: 80, borderRadius: 12, backgroundColor: '#e9eed4' },
   cardMain: { flex: 1, minWidth: 0, gap: 2 },
-  cardSide: { alignItems: 'flex-end', justifyContent: 'flex-start' },
-  statusChip: { alignSelf: 'flex-end' },
   cardTitle: { fontWeight: '700' },
   cardSubtitle: { opacity: 0.7, marginBottom: 4 },
   cardDescription: { lineHeight: 20 },
   cardDescriptionMuted: { opacity: 0.7, lineHeight: 20 },
+  modalContent: {
+    margin: 16,
+    borderRadius: 12,
+    padding: 16,
+    gap: 8,
+  },
+  modalTitle: { fontWeight: '700' },
+  modalSubtitle: { opacity: 0.8 },
+  modalHint: { opacity: 0.7, marginBottom: 6 },
 });
