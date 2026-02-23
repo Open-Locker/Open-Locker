@@ -7,6 +7,7 @@ export const addTagTypes = [
   "Item",
   "LockerBankStatus",
   "MosquittoAuth",
+  "Terms",
 ] as const;
 const injectedRtkApi = api
   .enhanceEndpoints({
@@ -199,6 +200,20 @@ const injectedRtkApi = api
         }),
         invalidatesTags: ["MosquittoAuth"],
       }),
+      getTermsCurrent: build.query<
+        GetTermsCurrentApiResponse,
+        GetTermsCurrentApiArg
+      >({
+        query: () => ({ url: `/terms/current` }),
+        providesTags: ["Terms"],
+      }),
+      postTermsAccept: build.mutation<
+        PostTermsAcceptApiResponse,
+        PostTermsAcceptApiArg
+      >({
+        query: () => ({ url: `/terms/accept`, method: "POST" }),
+        invalidatesTags: ["Terms"],
+      }),
     }),
     overrideExisting: false,
   });
@@ -277,12 +292,11 @@ export type PutPasswordApiResponse = /** status 200  */ {
 export type PutPasswordApiArg = {
   changePasswordRequest: ChangePasswordRequest;
 };
-export type GetVerifyEmailByIdAndHashApiResponse =
-  /** status 200 `ApiErrorResource` */
-    | {
-        message: string | any[] | null;
-      }
-    | ApiError;
+export type GetVerifyEmailByIdAndHashApiResponse = /** status 200 `ApiError` */
+  | {
+      message: string | any[] | null;
+    }
+  | ApiError;
 export type GetVerifyEmailByIdAndHashApiArg = {
   id: string;
   hash: string;
@@ -347,12 +361,24 @@ export type PostMosqAclApiResponse = /** status 200  */ string;
 export type PostMosqAclApiArg = {
   aclRequest: AclRequest;
 };
+export type GetTermsCurrentApiResponse =
+  /** status 200 `TermsCurrentResource` */ CurrentTerms;
+export type GetTermsCurrentApiArg = void;
+export type PostTermsAcceptApiResponse = /** status 200  */ {
+  message: string | any[] | null;
+  accepted_version: number;
+  accepted_at: string;
+};
+export type PostTermsAcceptApiArg = void;
 export type User = {
   id: number;
   name: string;
   email: string;
   email_verified_at?: string | null;
   is_admin: boolean;
+  terms_last_accepted_version?: number | null;
+  terms_current_version?: number | null;
+  terms_current_accepted: boolean;
   created_at?: string | null;
   updated_at?: string | null;
 };
@@ -408,17 +434,17 @@ export type CompartmentOpenStatus = {
   status: boolean;
   command_id: string;
   state: string;
-  compartment_id: string;
-  authorization_type: string;
-  error_code: string;
-  error_message: string;
-  denied_reason: string;
-  requested_at: string;
-  accepted_at: string;
-  denied_at: string;
-  sent_at: string;
-  opened_at: string;
-  failed_at: string;
+  compartment_id?: string | null;
+  authorization_type?: string | null;
+  error_code?: string | null;
+  error_message?: string | null;
+  denied_reason?: string | null;
+  requested_at?: string | null;
+  accepted_at?: string | null;
+  denied_at?: string | null;
+  sent_at?: string | null;
+  opened_at?: string | null;
+  failed_at?: string | null;
 };
 export type Item = {
   id: number;
@@ -439,6 +465,13 @@ export type AclRequest = {
   clientid: string;
   topic: string;
   acc: number;
+};
+export type CurrentTerms = {
+  document_name: string;
+  version: string;
+  content: string;
+  published_at: string;
+  current_accepted: string;
 };
 export const {
   useGetAdminUsersQuery,
@@ -464,4 +497,6 @@ export const {
   useGetLockerBanksByLockerBankStatusQuery,
   usePostMosqAuthMutation,
   usePostMosqAclMutation,
+  useGetTermsCurrentQuery,
+  usePostTermsAcceptMutation,
 } = injectedRtkApi;

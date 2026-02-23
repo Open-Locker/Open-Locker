@@ -164,6 +164,10 @@ function RootLayoutNav() {
         <Stack>
           <Stack.Protected guard={!!token}>
             <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+            <Stack.Screen
+              name="terms"
+              options={{ title: 'Terms & Conditions', presentation: 'modal' }}
+            />
             <Stack.Screen name="modal" options={{ presentation: 'modal' }} />
           </Stack.Protected>
 

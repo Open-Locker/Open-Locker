@@ -9,7 +9,7 @@ import { OPEN_LOCKER_PRIMARY } from '@/src/config/theme';
 import { getApiBaseUrl } from '@/src/api/baseUrl';
 import { persistAuth } from '@/src/store/authStorage';
 import { setCredentials } from '@/src/store/authSlice';
-import { usePostLoginMutation } from '@/src/store/generatedApi';
+import { openLockerApi, usePostLoginMutation } from '@/src/store/generatedApi';
 import { useAppDispatch } from '@/src/store/hooks';
 
 function getErrorMessage(error: unknown): string {
@@ -56,6 +56,13 @@ export default function SignInScreen() {
 
       await persistAuth(res.token, res.name);
       dispatch(setCredentials({ token: res.token, userName: res.name }));
+
+      const userRequest = dispatch(openLockerApi.endpoints.getUser.initiate());
+      const user = await userRequest.unwrap();
+      userRequest.unsubscribe();
+      if (!user.terms_current_accepted) {
+        router.replace('/terms' as never);
+      }
     } catch (e) {
       setError(getErrorMessage(e));
     } finally {
