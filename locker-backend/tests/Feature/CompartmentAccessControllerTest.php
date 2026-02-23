@@ -113,6 +113,33 @@ class CompartmentAccessControllerTest extends TestCase
         ]);
     }
 
+    public function test_unverified_user_cannot_open_compartment(): void
+    {
+        $user = $this->createRegularUser();
+        $admin = $this->createAdminUser();
+        $compartment = Compartment::factory()->create();
+
+        app(CompartmentAccessService::class)->grantAccess($user, $compartment, actor: $admin);
+        $user->forceFill(['email_verified_at' => null])->save();
+
+        $this->mock(LockerService::class, function ($mock): void {
+            $mock->shouldNotReceive('openCompartment');
+        });
+
+        $response = $this->actingAs($user)->postJson(route('compartments.open', $compartment->id));
+
+        $response->assertStatus(403)
+            ->assertJsonPath('status', false)
+            ->assertJsonPath('message', __('Please verify your email address before opening compartments'));
+
+        $this->assertDatabaseMissing('stored_events', [
+            'event_class' => CompartmentOpenRequested::class,
+        ]);
+        $this->assertDatabaseMissing('stored_events', [
+            'event_class' => CompartmentOpenAuthorized::class,
+        ]);
+    }
+
     public function test_user_with_expired_access_gets_forbidden(): void
     {
         $user = $this->createRegularUser();
@@ -400,5 +427,20 @@ class CompartmentAccessControllerTest extends TestCase
 
         $this->assertContains((string) $compartmentOne->id, $returnedIds);
         $this->assertContains((string) $compartmentTwo->id, $returnedIds);
+    }
+
+    public function test_request_open_denies_unverified_user_in_service_layer(): void
+    {
+        $user = $this->createRegularUser();
+        $user->forceFill(['email_verified_at' => null])->save();
+        $compartment = Compartment::factory()->create();
+
+        $decision = app(CompartmentAccessService::class)->requestOpen($user, $compartment);
+
+        $this->assertFalse($decision['authorized']);
+        $this->assertNotEmpty($decision['command_id']);
+        $this->assertDatabaseHas('stored_events', [
+            'event_class' => CompartmentOpenDenied::class,
+        ]);
     }
 }

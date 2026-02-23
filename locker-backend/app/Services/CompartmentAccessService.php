@@ -84,6 +84,20 @@ class CompartmentAccessService
                 compartmentUuid: (string) $compartment->id
             );
 
+        if (! $user->hasVerifiedEmail()) {
+            $aggregate->deny(
+                commandId: $commandId,
+                actorUserId: $user->id,
+                compartmentUuid: (string) $compartment->id,
+                reason: 'unverified_email'
+            )->persist();
+
+            return [
+                'authorized' => false,
+                'command_id' => $commandId,
+            ];
+        }
+
         if ($user->isAdmin()) {
             $aggregate->authorize(
                 commandId: $commandId,

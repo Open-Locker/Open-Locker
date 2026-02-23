@@ -203,9 +203,21 @@ class AuthController extends Controller
         $validated = $request->validated();
 
         $user = $request->user();
-        $user->name = $validated['name'];
-        $user->email = $validated['email'];
+        $user->fill([
+            'name' => $validated['name'],
+            'email' => $validated['email'],
+        ]);
+
+        $emailChanged = $user->isDirty('email');
+        if ($emailChanged) {
+            $user->email_verified_at = null;
+        }
+
         $user->save();
+
+        if ($emailChanged) {
+            $user->sendEmailVerificationNotification();
+        }
 
         return new UserResource($user->fresh());
     }

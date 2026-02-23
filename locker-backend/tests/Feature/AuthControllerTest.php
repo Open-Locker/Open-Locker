@@ -407,6 +407,32 @@ class AuthControllerTest extends TestCase
             ->assertJsonValidationErrors(['email']);
     }
 
+    public function test_updating_email_resets_verification_and_sends_new_verification_email()
+    {
+        Notification::fake();
+
+        $user = User::factory()->create([
+            'email_verified_at' => now(),
+        ]);
+        $token = $user->createToken('auth_token')->plainTextToken;
+
+        $response = $this->withHeaders([
+            'Authorization' => 'Bearer '.$token,
+        ])->putJson('/api/profile', [
+            'name' => 'Updated Name',
+            'email' => 'new-address@example.com',
+        ]);
+
+        $response->assertStatus(200)
+            ->assertJson([
+                'name' => 'Updated Name',
+                'email' => 'new-address@example.com',
+            ]);
+
+        $this->assertNull($user->fresh()->email_verified_at);
+        Notification::assertSentTo([$user->fresh()], VerifyEmail::class);
+    }
+
     public function test_user_can_change_their_password()
     {
         $user = User::factory()->create([

@@ -77,16 +77,23 @@ export default function AccountScreen() {
 
   const onSaveProfile = React.useCallback(async () => {
     setProfileMessage(null);
+    const normalizedNewEmail = email.trim().toLowerCase();
+    const previousEmail = user?.email?.trim().toLowerCase() ?? null;
+    const emailChanged = previousEmail !== null && previousEmail !== normalizedNewEmail;
     try {
       await updateProfile({
         updateProfileRequest: { name: name.trim(), email: email.trim() },
       }).unwrap();
       await refetch();
-      setProfileMessage('Profile updated.');
+      setProfileMessage(
+        emailChanged
+          ? 'Profile updated. Please verify your new email address.'
+          : 'Profile updated.',
+      );
     } catch (error) {
       setProfileMessage(getErrorMessage(error));
     }
-  }, [email, name, refetch, updateProfile]);
+  }, [email, name, refetch, updateProfile, user?.email]);
 
   const onChangePassword = React.useCallback(async () => {
     setPasswordMessage(null);

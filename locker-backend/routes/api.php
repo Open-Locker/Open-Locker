@@ -50,7 +50,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::controller(CompartmentController::class)->prefix('/compartments')->group(function () {
         Route::get('accessible', 'accessible')->name('compartments.accessible');
-        Route::post('{compartment}/open', 'open')->name('compartments.open');
+        Route::post('{compartment}/open', 'open')->middleware('verified.api')->name('compartments.open');
         Route::get('open-requests/{commandId}', 'openStatus')->name('compartments.open-status');
     });
 
