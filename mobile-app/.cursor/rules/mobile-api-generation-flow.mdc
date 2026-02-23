@@ -36,6 +36,8 @@ pnpm run quality:api
 ## Editing rules
 
 - Do edit `src/store/baseApi.ts` for shared base query behavior (headers, auth, base URL).
-- Do not manually edit `src/store/generatedApi.ts` because it is generated.
+- Never manually edit `src/store/generatedApi.ts` because it is fully generated.
+- If endpoint names or request/response types change, regenerate first and then update consumer code (screens/hooks/services), not the generated file.
+- If you see unstaged/manual edits in `src/store/generatedApi.ts`, discard them and regenerate via codegen.
 - After backend endpoint/schema changes, always rerun both steps above.
 - Always run a TypeScript check after generation (already enforced by `generate:api`).
