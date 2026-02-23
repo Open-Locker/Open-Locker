@@ -121,7 +121,7 @@ class TermsControllerTest extends TestCase
         );
     }
 
-    public function test_terms_gate_blocks_domain_routes_until_acceptance(): void
+    public function test_terms_gate_allows_reads_but_blocks_mutations_until_acceptance(): void
     {
         $user = User::factory()->create();
         $token = $user->createToken('auth_token')->plainTextToken;
@@ -132,6 +132,11 @@ class TermsControllerTest extends TestCase
         $this->withHeaders([
             'Authorization' => 'Bearer '.$token,
         ])->getJson('/api/items')
+            ->assertStatus(200);
+
+        $this->withHeaders([
+            'Authorization' => 'Bearer '.$token,
+        ])->postJson('/api/admin/users/'.$user->id.'/make-admin')
             ->assertStatus(403)
             ->assertJson([
                 'code' => 'terms_not_accepted',

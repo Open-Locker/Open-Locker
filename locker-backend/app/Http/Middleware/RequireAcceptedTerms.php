@@ -24,6 +24,11 @@ class RequireAcceptedTerms
 
     public function handle(Request $request, Closure $next): Response
     {
+        // Keep browsing/read-only API access available until terms are accepted.
+        if (in_array($request->method(), ['GET', 'HEAD', 'OPTIONS'], true)) {
+            return $next($request);
+        }
+
         $routeName = $request->route()?->getName();
         if (is_string($routeName) && in_array($routeName, self::ALLOWED_ROUTE_NAMES, true)) {
             return $next($request);
