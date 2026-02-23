@@ -1,11 +1,12 @@
 import React from 'react';
 import { KeyboardAvoidingView, Platform, StyleSheet } from 'react-native';
 import type { FetchBaseQueryError } from '@reduxjs/toolkit/query';
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Button, HelperText, Text, TextInput, useTheme } from 'react-native-paper';
 
 import { OPEN_LOCKER_PRIMARY } from '@/src/config/theme';
+import { getApiBaseUrl } from '@/src/api/baseUrl';
 import { persistAuth } from '@/src/store/authStorage';
 import { setCredentials } from '@/src/store/authSlice';
 import { usePostLoginMutation } from '@/src/store/generatedApi';
@@ -32,6 +33,13 @@ export default function SignInScreen() {
   const [password, setPassword] = React.useState('');
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
+  const [currentApiBaseUrl, setCurrentApiBaseUrl] = React.useState(getApiBaseUrl());
+
+  useFocusEffect(
+    React.useCallback(() => {
+      setCurrentApiBaseUrl(getApiBaseUrl());
+    }, []),
+  );
 
   const canSubmit = email.trim().length > 0 && password.length > 0 && !isSubmitting;
 
@@ -69,6 +77,9 @@ export default function SignInScreen() {
         </Text>
         <Text variant="bodyMedium" style={styles.subtitle}>
           Sign in to view compartments and items.
+        </Text>
+        <Text variant="bodySmall" style={styles.currentServer}>
+          Server: {currentApiBaseUrl}
         </Text>
 
         <TextInput
@@ -113,6 +124,13 @@ export default function SignInScreen() {
         >
           Forgot password?
         </Button>
+        <Button
+          mode="text"
+          onPress={() => router.push('/change-server' as never)}
+          style={styles.linkButton}
+        >
+          Change server
+        </Button>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
@@ -128,6 +146,7 @@ const styles = StyleSheet.create({
   },
   title: { fontWeight: '700' },
   subtitle: { opacity: 0.8, marginBottom: 12 },
+  currentServer: { opacity: 0.7, marginBottom: 8 },
   input: { marginTop: 8 },
   button: { marginTop: 12 },
   linkButton: { marginTop: 4, alignSelf: 'flex-start' },

@@ -4,12 +4,6 @@ import type { FetchBaseQueryError } from '@reduxjs/toolkit/query';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Button, Card, HelperText, Text, TextInput, useTheme } from 'react-native-paper';
 
-import {
-  getApiBaseUrl,
-  normalizeApiBaseUrl,
-  resetApiBaseUrlToDefault,
-  setApiBaseUrl,
-} from '@/src/api/baseUrl';
 import { baseApi } from '@/src/store/baseApi';
 import { clearPersistedAuth } from '@/src/store/authStorage';
 import { clearCredentials } from '@/src/store/authSlice';
@@ -46,11 +40,8 @@ export default function AccountScreen() {
   const [currentPassword, setCurrentPassword] = React.useState('');
   const [newPassword, setNewPassword] = React.useState('');
   const [newPasswordConfirmation, setNewPasswordConfirmation] = React.useState('');
-  const [customApiBaseUrl, setCustomApiBaseUrl] = React.useState(getApiBaseUrl());
   const [profileMessage, setProfileMessage] = React.useState<string | null>(null);
   const [passwordMessage, setPasswordMessage] = React.useState<string | null>(null);
-  const [backendMessage, setBackendMessage] = React.useState<string | null>(null);
-  const [backendError, setBackendError] = React.useState<string | null>(null);
 
   React.useEffect(() => {
     if (user) {
@@ -113,43 +104,6 @@ export default function AccountScreen() {
       setPasswordMessage(getErrorMessage(error));
     }
   }, [changePassword, currentPassword, newPassword, newPasswordConfirmation]);
-
-  const onSaveBackendUrl = React.useCallback(async () => {
-    setBackendError(null);
-    setBackendMessage(null);
-
-    const normalized = normalizeApiBaseUrl(customApiBaseUrl);
-    if (!normalized) {
-      setBackendError('Please enter a valid backend URL.');
-      return;
-    }
-
-    try {
-      const identifyResponse = await fetch(`${normalized}/identify`, {
-        method: 'GET',
-        headers: { Accept: 'application/json' },
-      });
-      if (!identifyResponse.ok) {
-        setBackendError(`Backend check failed (${identifyResponse.status}).`);
-        return;
-      }
-
-      await setApiBaseUrl(normalized);
-      setBackendMessage('Backend updated. Please sign in again.');
-      await clearSession();
-    } catch (error) {
-      setBackendError(getErrorMessage(error));
-    }
-  }, [clearSession, customApiBaseUrl]);
-
-  const onResetBackendUrl = React.useCallback(async () => {
-    setBackendError(null);
-    setBackendMessage(null);
-    await resetApiBaseUrlToDefault();
-    setCustomApiBaseUrl(getApiBaseUrl());
-    setBackendMessage('Backend reset to default. Please sign in again.');
-    await clearSession();
-  }, [clearSession]);
 
   return (
     <SafeAreaView
@@ -215,28 +169,6 @@ export default function AccountScreen() {
             <HelperText type="info" visible={!!passwordMessage}>
               {passwordMessage}
             </HelperText>
-
-            <Text variant="bodyMedium" style={styles.label}>
-              API base URL:
-            </Text>
-            <TextInput
-              value={customApiBaseUrl}
-              onChangeText={setCustomApiBaseUrl}
-              autoCapitalize="none"
-              autoCorrect={false}
-            />
-            <Button mode="outlined" onPress={() => void onSaveBackendUrl()}>
-              Save backend URL
-            </Button>
-            <Button mode="text" onPress={() => void onResetBackendUrl()}>
-              Reset backend URL to default
-            </Button>
-            <HelperText type="error" visible={!!backendError}>
-              {backendError}
-            </HelperText>
-            <HelperText type="info" visible={!!backendMessage}>
-              {backendMessage}
-            </HelperText>
           </Card.Content>
           <Card.Actions>
             <Button mode="contained" onPress={() => void onLogout()}>
@@ -254,6 +186,5 @@ const styles = StyleSheet.create({
   container: { padding: 16, justifyContent: 'flex-start' },
   content: { gap: 6 },
   name: { marginBottom: 8 },
-  label: { marginTop: 8, opacity: 0.7 },
   sectionTitle: { marginTop: 12 },
 });

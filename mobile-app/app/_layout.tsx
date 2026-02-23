@@ -169,6 +169,7 @@ function RootLayoutNav() {
 
           <Stack.Protected guard={!token}>
             <Stack.Screen name="sign-in" options={{ headerShown: false }} />
+            <Stack.Screen name="change-server" options={{ title: 'Change Server' }} />
             <Stack.Screen name="forgot-password" options={{ title: 'Forgot Password' }} />
             <Stack.Screen name="reset-password" options={{ title: 'Reset Password' }} />
           </Stack.Protected>
