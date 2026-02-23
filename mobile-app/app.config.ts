@@ -37,6 +37,7 @@ export default ({ config }: ConfigContext): ExpoConfig => {
   const variant = getAppVariant();
   const suffix = getVariantSuffix(variant);
   const appIdBase = process.env.APP_ID_BASE ?? 'com.openlocker.mobileapp';
+  const appleTeamId = process.env.EXPO_APPLE_TEAM_ID;
   const appDomain = 'open-locker.cloud';
   const marketingDomain = 'open-locker.org';
 
@@ -62,6 +63,7 @@ export default ({ config }: ConfigContext): ExpoConfig => {
     ios: {
       ...config.ios,
       supportsTablet: true,
+      ...(appleTeamId ? { appleTeamId } : {}),
       bundleIdentifier: `${appIdBase}${suffix}`,
       associatedDomains: [`applinks:${appDomain}`, `applinks:${marketingDomain}`],
     },
