@@ -20,6 +20,7 @@ use Illuminate\Routing\Middleware\SubstituteBindings;
 use Illuminate\Session\Middleware\StartSession;
 use Illuminate\Support\Facades\App;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\HtmlString;
 use Illuminate\View\Middleware\ShareErrorsFromSession;
 
 class AdminPanelProvider extends PanelProvider
@@ -53,8 +54,8 @@ class AdminPanelProvider extends PanelProvider
                     950 => 'oklch(0.24 0.08 263.785)',
                 ],
             ])
-            ->brandName('Open Locker')
-            ->brandLogo(asset('storage/assets/logo.svg', App::isProduction()))
+            ->brandName('')
+            ->brandLogo(fn (): HtmlString => new HtmlString(view('filament.brand')->render()))
             ->brandLogoHeight('3rem')
             ->favicon(asset('storage/assets/logo.svg', App::isProduction()))
             ->maxContentWidth(Width::Full)
