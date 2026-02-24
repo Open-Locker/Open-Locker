@@ -1,10 +1,11 @@
 import React from 'react';
-import { KeyboardAvoidingView, Platform, StyleSheet } from 'react-native';
+import { KeyboardAvoidingView, Platform, StyleSheet, View } from 'react-native';
 import type { FetchBaseQueryError } from '@reduxjs/toolkit/query';
 import { router, useFocusEffect } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Button, HelperText, Text, TextInput, useTheme } from 'react-native-paper';
+import { Button, HelperText, Surface, Text, TextInput, useTheme } from 'react-native-paper';
 
+import LogoOpenLocker from '@/assets/images/logo_open_locker.svg';
 import { OPEN_LOCKER_PRIMARY } from '@/src/config/theme';
 import { getApiBaseUrl } from '@/src/api/baseUrl';
 import { persistAuth } from '@/src/store/authStorage';
@@ -79,65 +80,75 @@ export default function SignInScreen() {
         style={styles.container}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
-        <Text variant="headlineMedium" style={styles.title}>
-          Open Locker
-        </Text>
-        <Text variant="bodyMedium" style={styles.subtitle}>
-          Sign in to view compartments and items.
-        </Text>
+        <View style={styles.brandHeader}>
+          <View style={styles.logoContainer}>
+            <LogoOpenLocker width={58} height={58} />
+          </View>
+          <Text variant="headlineMedium" style={styles.title}>
+            Open Locker
+          </Text>
+          <Text variant="titleSmall" style={styles.tagline}>
+            Der smarte Schrank für alle
+          </Text>
+        </View>
+
+        <Surface elevation={1} style={[styles.formCard, { backgroundColor: theme.colors.surface }]}>
+          <Text variant="titleMedium" style={styles.formTitle}>
+            Sign in
+          </Text>
+          <Text variant="bodyMedium" style={styles.subtitle}>
+            Access compartments and manage your items.
+          </Text>
+
+          <TextInput
+            label="Email"
+            value={email}
+            onChangeText={setEmail}
+            autoCapitalize="none"
+            autoCorrect={false}
+            keyboardType="email-address"
+            textContentType="username"
+            style={styles.input}
+          />
+
+          <TextInput
+            label="Password"
+            value={password}
+            onChangeText={setPassword}
+            secureTextEntry
+            textContentType="password"
+            style={styles.input}
+          />
+
+          <HelperText type="error" visible={!!error}>
+            {error}
+          </HelperText>
+
+          <Button
+            mode="contained"
+            onPress={onSubmit}
+            disabled={!canSubmit}
+            loading={isSubmitting}
+            buttonColor={OPEN_LOCKER_PRIMARY}
+            style={styles.button}
+            contentStyle={styles.buttonContent}
+          >
+            Sign in
+          </Button>
+
+          <View style={styles.linksRow}>
+            <Button mode="text" onPress={() => router.push('/forgot-password' as never)} compact>
+              Forgot password?
+            </Button>
+            <Button mode="text" onPress={() => router.push('/change-server' as never)} compact>
+              Change server
+            </Button>
+          </View>
+        </Surface>
+
         <Text variant="bodySmall" style={styles.currentServer}>
           Server: {currentApiBaseUrl}
         </Text>
-
-        <TextInput
-          label="Email"
-          value={email}
-          onChangeText={setEmail}
-          autoCapitalize="none"
-          autoCorrect={false}
-          keyboardType="email-address"
-          textContentType="username"
-          style={styles.input}
-        />
-
-        <TextInput
-          label="Password"
-          value={password}
-          onChangeText={setPassword}
-          secureTextEntry
-          textContentType="password"
-          style={styles.input}
-        />
-
-        <HelperText type="error" visible={!!error}>
-          {error}
-        </HelperText>
-
-        <Button
-          mode="contained"
-          onPress={onSubmit}
-          disabled={!canSubmit}
-          loading={isSubmitting}
-          buttonColor={OPEN_LOCKER_PRIMARY}
-          style={styles.button}
-        >
-          Sign in
-        </Button>
-
-        <Button
-          mode="text"
-          onPress={() => router.push('/forgot-password' as never)}
-          style={styles.linkButton}
-        >
-          Forgot password?
-        </Button>
-        <Button
-          mode="text"
-          onPress={() => router.push('/change-server' as never)}
-          style={styles.linkButton}
-        >
-          Change server
-        </Button>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
@@ -147,14 +158,47 @@ const styles = StyleSheet.create({
   safe: { flex: 1 },
   container: {
     flex: 1,
-    paddingHorizontal: 16,
-    paddingTop: 28,
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    paddingBottom: 18,
+    gap: 14,
+  },
+  brandHeader: {
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 8,
+  },
+  logoContainer: {
+    width: 86,
+    height: 86,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#ffffff',
+    borderWidth: 1,
+    borderColor: '#e4eafc',
+  },
+  title: { fontWeight: '700', letterSpacing: 0.2, fontFamily: 'Inter_700Bold' },
+  tagline: { opacity: 0.75, marginTop: 2, fontFamily: 'Inter_500Medium' },
+  formCard: {
+    borderRadius: 18,
+    padding: 16,
     gap: 8,
   },
-  title: { fontWeight: '700' },
-  subtitle: { opacity: 0.8, marginBottom: 12 },
-  currentServer: { opacity: 0.7, marginBottom: 8 },
-  input: { marginTop: 8 },
-  button: { marginTop: 12 },
-  linkButton: { marginTop: 4, alignSelf: 'flex-start' },
+  formTitle: { fontWeight: '600', marginBottom: 2, fontFamily: 'Inter_600SemiBold' },
+  subtitle: { opacity: 0.82, marginBottom: 8, lineHeight: 21 },
+  input: { marginTop: 6 },
+  button: { marginTop: 10, borderRadius: 12 },
+  buttonContent: { height: 46 },
+  linksRow: {
+    marginTop: 6,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  currentServer: {
+    opacity: 0.62,
+    marginTop: 'auto',
+    textAlign: 'center',
+  },
 });

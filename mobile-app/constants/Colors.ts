@@ -1,19 +1,21 @@
-const tintColorLight = '#afca0b';
-const tintColorDark = '#afca0b';
+import { OPEN_LOCKER_PRIMARY_HEX } from '@/src/config/theme';
+
+const tintColorLight = OPEN_LOCKER_PRIMARY_HEX;
+const tintColorDark = OPEN_LOCKER_PRIMARY_HEX;
 
 export default {
   light: {
-    text: '#000',
-    background: '#fbfdf5',
+    text: '#111827',
+    background: '#f6f8fc',
     tint: tintColorLight,
-    tabIconDefault: '#ccc',
+    tabIconDefault: '#9ca3af',
     tabIconSelected: tintColorLight,
   },
   dark: {
-    text: '#fff',
-    background: '#000',
+    text: '#f9fafb',
+    background: '#0b1020',
     tint: tintColorDark,
-    tabIconDefault: '#ccc',
+    tabIconDefault: '#9ca3af',
     tabIconSelected: tintColorDark,
   },
 };
