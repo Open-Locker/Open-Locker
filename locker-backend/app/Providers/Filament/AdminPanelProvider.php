@@ -39,7 +39,19 @@ class AdminPanelProvider extends PanelProvider
             ->passwordReset()
             ->profile()
             ->colors([
-                'primary' => '#afca0b',
+                'primary' => [
+                    50 => 'oklch(0.97 0.03 263.785)',
+                    100 => 'oklch(0.93 0.06 263.785)',
+                    200 => 'oklch(0.87 0.11 263.785)',
+                    300 => 'oklch(0.79 0.16 263.785)',
+                    400 => 'oklch(0.69 0.21 263.785)',
+                    500 => 'oklch(0.561 0.241 263.785)',
+                    600 => 'oklch(0.5 0.22 263.785)',
+                    700 => 'oklch(0.43 0.19 263.785)',
+                    800 => 'oklch(0.36 0.15 263.785)',
+                    900 => 'oklch(0.3 0.11 263.785)',
+                    950 => 'oklch(0.24 0.08 263.785)',
+                ],
             ])
             ->brandName('Open Locker')
             ->brandLogo(asset('storage/assets/logo.svg', App::isProduction()))
