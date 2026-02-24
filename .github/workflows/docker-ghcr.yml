@@ -25,6 +25,29 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          tools: composer
+
+      - name: Composer audit
+        working-directory: locker-backend
+        run: composer audit
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+
+      - name: Prepare npm lockfile for audit
+        working-directory: locker-backend
+        run: npm install --package-lock-only --ignore-scripts --no-audit
+
+      - name: NPM audit
+        working-directory: locker-backend
+        run: npm audit --package-lock-only --audit-level=high
+
       - name: Log in to GitHub Container Registry
         uses: docker/login-action@v3
         with:
