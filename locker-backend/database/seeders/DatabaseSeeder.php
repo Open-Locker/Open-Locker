@@ -47,5 +47,39 @@ class DatabaseSeeder extends Seeder
                 'user_id' => $users->random()->id,
             ]);
         }
+
+        $testUser = User::factory()->create([
+            'name' => 'Locker Test User',
+            'email' => 'locker-test-user@example.com',
+            'password' => bcrypt('password'),
+        ]);
+
+        $testLockerBankA = LockerBank::factory()->create([
+            'name' => 'Test Locker Bank A',
+        ]);
+        $testLockerBankB = LockerBank::factory()->create([
+            'name' => 'Test Locker Bank B',
+        ]);
+
+        $createCompartmentsForLocker = function (LockerBank $lockerBank, int $count) {
+            return collect(range(1, $count))->map(function (int $index) use ($lockerBank): Compartment {
+                return Compartment::factory()->for($lockerBank)->create([
+                    'number' => $index,
+                ]);
+            });
+        };
+
+        $testCompartments = $createCompartmentsForLocker($testLockerBankA, 3)
+            ->merge($createCompartmentsForLocker($testLockerBankB, 4));
+
+        $testCompartments->each(function (Compartment $compartment) use ($testUser, $admin): void {
+            Item::factory()->create(['compartment_id' => $compartment->id]);
+
+            CompartmentAccess::factory()->create([
+                'user_id' => $testUser->id,
+                'compartment_id' => $compartment->id,
+                'granted_by_user_id' => $admin->id,
+            ]);
+        });
     }
 }
