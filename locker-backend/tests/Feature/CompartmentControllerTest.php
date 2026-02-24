@@ -37,18 +37,21 @@ class CompartmentControllerTest extends TestCase
         $response = $this->actingAs($user)->getJson('/api/compartments');
 
         $response->assertStatus(200)
-            ->assertJsonCount(2);
+            ->assertJsonPath('status', true)
+            ->assertJsonCount(1, 'locker_banks')
+            ->assertJsonCount(2, 'locker_banks.0.compartments');
 
         $response->assertJsonStructure([
-            '*' => [
+            'locker_banks' => [[
                 'id',
-                'locker_bank_id',
-                'number',
-                'slave_id',
-                'address',
-                'locker_bank',
-                'item',
-            ],
+                'name',
+                'location_description',
+                'compartments' => [[
+                    'id',
+                    'number',
+                    'item',
+                ]],
+            ]],
         ]);
 
         $response->assertJsonFragment([

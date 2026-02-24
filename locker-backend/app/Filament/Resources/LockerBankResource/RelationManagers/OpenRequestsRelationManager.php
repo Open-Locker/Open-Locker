@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Filament\Resources\LockerBankResource\RelationManagers;
 
-use Filament\Forms\Form;
 use Filament\Resources\RelationManagers\RelationManager;
+use Filament\Schemas\Schema;
 use Filament\Tables;
 use Filament\Tables\Table;
 
@@ -15,7 +15,7 @@ class OpenRequestsRelationManager extends RelationManager
 
     protected static ?string $title = 'Open command history';
 
-    public function form(Form $form): Form
+    public function form(Schema $form): Schema
     {
         return $form->schema([]);
     }

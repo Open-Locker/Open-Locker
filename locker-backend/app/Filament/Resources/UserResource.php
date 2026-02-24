@@ -6,9 +6,9 @@ use App\Filament\Resources\UserResource\Pages;
 use App\Filament\Resources\UserResource\RelationManagers\CompartmentAccessesRelationManager;
 use App\Models\User;
 use Filament\Forms;
-use Filament\Forms\Form;
 use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
+use Filament\Schemas\Schema;
 use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Collection;
@@ -18,9 +18,9 @@ class UserResource extends Resource
 {
     protected static ?string $model = User::class;
 
-    protected static ?string $navigationIcon = 'heroicon-o-rectangle-stack';
+    protected static \BackedEnum|string|null $navigationIcon = 'heroicon-o-rectangle-stack';
 
-    public static function form(Form $form): Form
+    public static function form(Schema $form): Schema
     {
         return $form
             ->schema([
@@ -67,8 +67,8 @@ class UserResource extends Resource
                 //
             ])
             ->actions([
-                Tables\Actions\EditAction::make(),
-                Tables\Actions\Action::make('setAsAdmin')
+                \Filament\Actions\EditAction::make(),
+                \Filament\Actions\Action::make('setAsAdmin')
                     ->hidden(fn (User $record): bool => (bool) $record->is_admin_since)
                     ->label('zum Admin machen')
                     ->icon('heroicon-o-shield-check')
@@ -86,7 +86,7 @@ class UserResource extends Resource
                             ->success()
                             ->send();
                     }),
-                Tables\Actions\Action::make('removeAdmin')
+                \Filament\Actions\Action::make('removeAdmin')
                     ->hidden(fn (User $record): bool => ! $record->is_admin_since)
                     ->label('Adminrechte entziehen')
                     ->icon('heroicon-o-shield-exclamation')
@@ -121,9 +121,9 @@ class UserResource extends Resource
                     }),
             ])->actionsAlignment('left')
             ->bulkActions([
-                Tables\Actions\BulkActionGroup::make([
-                    Tables\Actions\DeleteBulkAction::make()
-                        ->before(function (Tables\Actions\DeleteBulkAction $action, Collection $records) {
+                \Filament\Actions\BulkActionGroup::make([
+                    \Filament\Actions\DeleteBulkAction::make()
+                        ->before(function (\Filament\Actions\DeleteBulkAction $action, Collection $records) {
                             $adminCount = User::whereNotNull('is_admin_since')->count();
                             $deletedAdmins = $records->filter(fn (User $record) => $record->is_admin_since)->count();
 

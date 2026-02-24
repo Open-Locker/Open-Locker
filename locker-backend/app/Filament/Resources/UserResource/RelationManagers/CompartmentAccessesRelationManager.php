@@ -10,8 +10,8 @@ use App\Models\User;
 use App\Services\CompartmentAccessService;
 use Filament\Facades\Filament;
 use Filament\Forms;
-use Filament\Forms\Form;
 use Filament\Resources\RelationManagers\RelationManager;
+use Filament\Schemas\Schema;
 use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Support\Carbon;
@@ -20,7 +20,7 @@ class CompartmentAccessesRelationManager extends RelationManager
 {
     protected static string $relationship = 'compartmentAccesses';
 
-    public function form(Form $form): Form
+    public function form(Schema $form): Schema
     {
         return $form->schema([]);
     }
@@ -77,7 +77,7 @@ class CompartmentAccessesRelationManager extends RelationManager
                     ->toggleable(),
             ])
             ->headerActions([
-                Tables\Actions\Action::make('grantAccess')
+                \Filament\Actions\Action::make('grantAccess')
                     ->label('Grant access')
                     ->icon('heroicon-m-key')
                     ->visible(fn (): bool => $this->currentUserIsAdmin())
@@ -130,7 +130,7 @@ class CompartmentAccessesRelationManager extends RelationManager
                     }),
             ])
             ->actions([
-                Tables\Actions\Action::make('revokeAccess')
+                \Filament\Actions\Action::make('revokeAccess')
                     ->label('Revoke access')
                     ->color('danger')
                     ->icon('heroicon-m-no-symbol')

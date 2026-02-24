@@ -6,8 +6,8 @@ namespace App\Filament\Resources;
 
 use App\Filament\Resources\CompartmentOpenRequestResource\Pages;
 use App\Models\CompartmentOpenRequest;
-use Filament\Forms\Form;
 use Filament\Resources\Resource;
+use Filament\Schemas\Schema;
 use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
@@ -16,13 +16,13 @@ class CompartmentOpenRequestResource extends Resource
 {
     protected static ?string $model = CompartmentOpenRequest::class;
 
-    protected static ?string $navigationIcon = 'heroicon-o-clock';
+    protected static \BackedEnum|string|null $navigationIcon = 'heroicon-o-clock';
 
     protected static ?string $navigationLabel = 'Open Command History';
 
     protected static bool $shouldRegisterNavigation = false;
 
-    public static function form(Form $form): Form
+    public static function form(Schema $form): Schema
     {
         return $form->schema([]);
     }

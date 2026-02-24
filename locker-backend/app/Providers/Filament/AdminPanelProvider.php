@@ -10,7 +10,7 @@ use Filament\Http\Middleware\DispatchServingFilamentEvent;
 use Filament\Pages;
 use Filament\Panel;
 use Filament\PanelProvider;
-use Filament\Support\Enums\MaxWidth;
+use Filament\Support\Enums\Width;
 use Filament\View\PanelsRenderHook;
 use Filament\Widgets;
 use Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse;
@@ -45,7 +45,7 @@ class AdminPanelProvider extends PanelProvider
             ->brandLogo(asset('storage/assets/logo.svg', App::isProduction()))
             ->brandLogoHeight('3rem')
             ->favicon(asset('storage/assets/logo.svg', App::isProduction()))
-            ->maxContentWidth(MaxWidth::Full)
+            ->maxContentWidth(Width::Full)
             ->sidebarCollapsibleOnDesktop()
             ->sidebarWidth(300)
             ->discoverResources(in: app_path('Filament/Resources'), for: 'App\\Filament\\Resources')

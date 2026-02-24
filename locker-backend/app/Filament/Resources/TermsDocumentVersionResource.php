@@ -8,12 +8,12 @@ use App\Filament\Resources\TermsDocumentVersionResource\Pages;
 use App\Models\TermsDocumentVersion;
 use App\Models\User;
 use App\Services\TermsService;
+use Filament\Actions\Action;
 use Filament\Forms\Components\RichEditor;
-use Filament\Forms\Form;
 use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
+use Filament\Schemas\Schema;
 use Filament\Tables;
-use Filament\Tables\Actions\Action;
 use Filament\Tables\Table;
 use Illuminate\Support\Facades\Auth;
 use Throwable;
@@ -22,11 +22,11 @@ class TermsDocumentVersionResource extends Resource
 {
     protected static ?string $model = TermsDocumentVersion::class;
 
-    protected static ?string $navigationIcon = 'heroicon-o-document-text';
+    protected static \BackedEnum|string|null $navigationIcon = 'heroicon-o-document-text';
 
     protected static ?string $navigationLabel = 'Terms & Policies';
 
-    protected static ?string $navigationGroup = 'Legal';
+    protected static string|\UnitEnum|null $navigationGroup = 'Legal';
 
     protected static ?string $modelLabel = 'legal document version';
 
@@ -52,7 +52,7 @@ class TermsDocumentVersionResource extends Resource
         return __('legal document versions');
     }
 
-    public static function form(Form $form): Form
+    public static function form(Schema $form): Schema
     {
         return $form->schema([]);
     }

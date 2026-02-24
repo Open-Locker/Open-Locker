@@ -8,13 +8,13 @@ use App\Models\Compartment;
 use App\Models\LockerBank;
 use App\Services\CompartmentAccessService;
 use App\Services\LockerService;
+use Filament\Actions\Action;
 use Filament\Facades\Filament;
 use Filament\Forms;
-use Filament\Forms\Form;
 use Filament\Notifications\Notification;
 use Filament\Resources\RelationManagers\RelationManager;
+use Filament\Schemas\Schema;
 use Filament\Tables;
-use Filament\Tables\Actions\Action;
 use Filament\Tables\Table;
 use Illuminate\Support\Facades\Log;
 
@@ -22,7 +22,7 @@ class CompartmentsRelationManager extends RelationManager
 {
     protected static string $relationship = 'compartments';
 
-    public function form(Form $form): Form
+    public function form(Schema $form): Schema
     {
         return $form
             ->schema([
@@ -91,7 +91,7 @@ class CompartmentsRelationManager extends RelationManager
                 //
             ])
             ->headerActions([
-                Tables\Actions\Action::make('sendConfigToClient')
+                \Filament\Actions\Action::make('sendConfigToClient')
                     ->label('Send config to client')
                     ->icon('heroicon-m-paper-airplane')
                     ->requiresConfirmation()
@@ -121,10 +121,10 @@ class CompartmentsRelationManager extends RelationManager
                                 ->send();
                         }
                     }),
-                Tables\Actions\CreateAction::make(),
+                \Filament\Actions\CreateAction::make(),
             ])
             ->actions([
-                Tables\Actions\EditAction::make(),
+                \Filament\Actions\EditAction::make(),
                 Action::make('open')
                     ->label('Open')
                     ->icon('heroicon-m-bolt')
@@ -170,11 +170,11 @@ class CompartmentsRelationManager extends RelationManager
                                 ->send();
                         }
                     }),
-                Tables\Actions\DeleteAction::make(),
+                \Filament\Actions\DeleteAction::make(),
             ])
             ->bulkActions([
-                Tables\Actions\BulkActionGroup::make([
-                    Tables\Actions\DeleteBulkAction::make(),
+                \Filament\Actions\BulkActionGroup::make([
+                    \Filament\Actions\DeleteBulkAction::make(),
                 ]),
             ]);
     }
