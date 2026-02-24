@@ -23,7 +23,8 @@ RUN apt-get update && apt-get install -y \
 # Install Node.js
 RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \
     && apt-get install -y nodejs \
-    && npm install -g npm pnpm bun yarn
+    && corepack enable \
+    && corepack prepare pnpm@10.17.1 --activate
 
 # Fix permissions for www-data
 RUN chown -R www-data:www-data /var/www/html
@@ -31,19 +32,19 @@ RUN chown -R www-data:www-data /var/www/html
 USER www-data
 
 # Copy dependency files first to leverage cache
-COPY --chown=www-data:www-data composer.json composer.lock package.json package-lock.json* pnpm-lock.yaml* bun.lockb* ./
+COPY --chown=www-data:www-data composer.json composer.lock package.json pnpm-lock.yaml* bun.lockb* ./
 
 # Install Composer dependencies (no autoloader yet)
 RUN composer install --no-dev --no-scripts --no-autoloader --prefer-dist
 
 # Install Node dependencies
-RUN npm install
+RUN pnpm install --frozen-lockfile
 
 # Copy the rest of the application
 COPY --chown=www-data:www-data . .
 
 # Build frontend assets
-RUN npm run build
+RUN pnpm run build
 
 # Generate optimized autoloader
 RUN composer dump-autoload --optimize

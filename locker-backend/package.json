@@ -1,6 +1,7 @@
 {
     "private": true,
     "type": "module",
+    "packageManager": "pnpm@10.17.1",
     "scripts": {
         "build": "vite build",
         "dev": "vite"
