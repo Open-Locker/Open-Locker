@@ -1,162 +1,24 @@
 ---
-description: Testing Guidelines for the Laravel Lackend
+description: Open-Locker backend testing deltas
 alwaysApply: false
 ---
-# Testing Guidelines
+# Testing Deltas (Beyond Boost)
 
-This project follows Laravel testing best practices with **Feature Tests preferred over Unit Tests** for comprehensive API and workflow testing.
+Boost already defines baseline Laravel and PHPUnit behavior. Keep this rule
+focused on Open-Locker specifics.
 
-## Testing Philosophy
+## Domain-Critical Scenarios
 
-### Preference Order
-1. **Feature Tests** - Test complete user workflows and API endpoints
-2. **Unit Tests** - Only for isolated component logic when necessary
-3. **Integration Tests** - For complex service interactions
+- Prioritize end-to-end coverage for borrow/return item workflows.
+- Test both business outcome and persistence state, especially active loan
+  constraints (`returned_at` is `null` for open loans).
+- Include authorization checks for user vs. admin-only endpoints.
 
-**Why Feature Tests?**
-- Test real user scenarios end-to-end
-- Catch integration issues between components
-- Validate complete request/response cycles
-- More confidence in actual functionality
+## Hardware Boundary
 
-## Test Structure
+- Mock hardware-facing services (for example `LockerService`) in feature tests.
+- Verify API behavior and side effects without requiring live Modbus hardware.
 
-```
-tests/
-├── Feature/           # API endpoints & workflows (PRIMARY)
-│   ├── AuthControllerTest.php
-│   ├── ItemControllerTest.php
-│   ├── AdminControllerTest.php
-│   ├── LockerControllerTest.php
-│   └── AppInfoControllerTest.php
-├── Unit/             # Isolated component tests (MINIMAL)
-│   └── ExampleTest.php
-└── TestCase.php      # Base test class
-```
+## Practical Scope
 
-## Essential Patterns
-
-### Base Test Setup
-```php
-use Illuminate\Foundation\Testing\RefreshDatabase;
-use Tests\TestCase;
-
-class ControllerTest extends TestCase
-{
-    use RefreshDatabase;
-}
-```
-
-### Authentication Testing
-```php
-// Authenticated requests
-$user = User::factory()->create();
-$response = $this->actingAs($user)->getJson('/api/endpoint');
-
-// Admin-only endpoints
-$admin = User::factory()->create();
-$admin->makeAdmin();
-$response = $this->actingAs($admin)->getJson('/api/admin/endpoint');
-```
-
-### Core Assertions
-```php
-// Status & JSON structure
-$response->assertStatus(200)
-    ->assertJsonStructure(['id', 'name', 'created_at'])
-    ->assertJson(['status' => true]);
-
-// Database state
-$this->assertDatabaseHas('item_loans', [
-    'item_id' => $item->id,
-    'user_id' => $user->id,
-    'returned_at' => null,
-]);
-```
-
-### Business Logic Testing
-```php
-public function test_complete_borrow_return_workflow(): void
-{
-    $user = User::factory()->create();
-    $item = Item::factory()->create();
-
-    // Test borrowing
-    $borrowResponse = $this->actingAs($user)
-        ->postJson(route('items.borrow', $item->id));
-    $borrowResponse->assertStatus(200);
-    
-    // Verify database state
-    $this->assertDatabaseHas('item_loans', [
-        'item_id' => $item->id,
-        'returned_at' => null,
-    ]);
-
-    // Test returning
-    $returnResponse = $this->actingAs($user)
-        ->postJson(route('items.return', $item->id));
-    $returnResponse->assertStatus(200);
-}
-```
-
-## Test Data Management
-
-### Use Factories
-```php
-// Preferred: Factory usage
-$user = User::factory()->create();
-$item = Item::factory()->create(['compartment_id' => Compartment::factory()]);
-
-// Create with relationships
-$loan = ItemLoan::factory()->create([
-    'item_id' => Item::factory(),
-    'user_id' => User::factory(),
-]);
-```
-
-### Mock Hardware Services
-```php
-$this->mock(LockerService::class, function ($mock) {
-    $mock->shouldReceive('openCompartment')->once()->andReturn(true);
-});
-```
-
-## Running Tests
-
-```bash
-# All tests
-composer test
-
-# Specific test file
-composer test tests/Feature/ItemControllerTest.php
-
-# With coverage
-composer test:coverage
-
-# Parallel execution
-composer test:parallel
-```
-
-## Configuration
-
-- **Database**: SQLite in-memory (`:memory:`)
-- **Environment**: Array drivers for cache/session
-- **PHPUnit**: Configured in `phpunit.xml`
-
-## Test Naming Convention
-
-- `test_user_can_borrow_available_item`
-- `test_admin_cannot_delete_own_account`  
-- `test_unauthenticated_user_gets_401`
-
-Pattern: `test_[who]_[can/cannot]_[action]_[condition]`
-
-## When to Write Unit Tests
-
-Only create Unit Tests for:
-- Complex algorithms or calculations
-- Isolated utility functions
-- Custom validation rules
-- Services that don't touch external systems
-
-**Default to Feature Tests** for everything else.
+- Default to feature tests; only add unit tests for isolated pure logic.

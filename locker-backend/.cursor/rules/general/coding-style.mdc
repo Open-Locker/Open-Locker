@@ -1,20 +1,15 @@
 ---
-description: 
-globs: 
+description: Project-specific PHP quality checks
 alwaysApply: true
 ---
-- All PHP code must adhere to the **PSR-12** coding standard.
-- Use `declare(strict_types=1);` at the top of every PHP file.
-- Use full class imports instead of FQCNs in docblocks.
-- Prefer early returns over nested if-statements.
-- All public, protected, and private methods must have docblocks explaining their purpose, parameters, and return values.
 
-### Functions and Methods
+# Coding Style Deltas (Beyond Boost)
 
-- A function should serve a **singular purpose**. If a function does multiple things, break it up into smaller, more focused functions.
-- Function names should be descriptive and clearly communicate their purpose. It should be possible to understand what a function does from its name alone.
-- While function names should be self-documenting, **always add docblocks** to explain parameters and return values to ensure clarity.
+Boost already enforces broad coding practices. This rule keeps only
+project-specific quality requirements.
 
-### Code Quality
-
-- After any meaningful change, run `sail artisan pint` and `sail artisan stan` to check for code style violations and perform static analysis. Please fix any reported issues.
+- Use `declare(strict_types=1);` in PHP files unless the file follows an
+  established legacy pattern that omits it.
+- Run static checks after meaningful backend changes:
+  - `sail artisan pint`
+  - `sail artisan stan`

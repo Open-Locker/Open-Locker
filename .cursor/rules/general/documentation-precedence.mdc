@@ -1,0 +1,15 @@
+---
+description: Clarify ADR precedence over no-doc defaults
+alwaysApply: true
+---
+
+# Documentation Rule Precedence
+
+Use this precedence when multiple rules apply:
+
+1. ADR requirements for architecture-significant changes take priority.
+2. General "do not create docs unless asked" guidance applies only when no
+   ADR-triggering condition is met.
+
+If an ADR trigger is present, create or update ADRs in `docs/adr/` even when
+no explicit documentation request was made.
