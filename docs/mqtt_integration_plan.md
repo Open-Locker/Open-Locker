@@ -195,8 +195,9 @@ der Payloads für die verschiedenen Topics.
 
 #### 4.1 Befehle (Backend sendet)
 
-Ein Befehl enthält eine `action`, eine `transaction_id` zur Nachverfolgung und
-einen `timestamp` (ISO 8601). Der `timestamp` wird vom **Sender** gesetzt (hier:
+Ein Befehl enthält eine `action`, eine `transaction_id` zur fachlichen
+Nachverfolgung, eine `message_id` zur technischen Deduplication und einen
+`timestamp` (ISO 8601). Der `timestamp` wird vom **Sender** gesetzt (hier:
 Backend).
 
 - **Tür öffnen:**
@@ -206,6 +207,7 @@ Backend).
     {
       "action": "open_compartment",
       "transaction_id": "xyz-789",
+      "message_id": "msg-9b6c3a2e",
       "timestamp": "2023-10-27T10:00:00Z",
       "data": { "compartment_number": 3 }
     }
@@ -221,6 +223,7 @@ Backend).
     {
       "action": "apply_config",
       "transaction_id": "cfg-123",
+      "message_id": "msg-47af02d1",
       "timestamp": "2023-10-27T10:05:00Z",
       "data": {
         "config_hash": "2f4d3c...sha256hex...",
@@ -235,13 +238,14 @@ Backend).
 
 #### 4.2 Responses (Client sendet)
 
-Eine **Response** referenziert die `transaction_id` der ursprünglichen Aktion
-und enthält zusätzlich einen `timestamp` (ISO 8601), gesetzt vom **Sender**
-(hier: Client).
+Eine **Response** referenziert die `transaction_id` der ursprünglichen Aktion,
+enthält eine eigene `message_id` (technische Message-Dedup) und zusätzlich
+einen `timestamp` (ISO 8601), gesetzt vom **Sender** (hier: Client).
 
 Wichtig:
 
 - Responses sind **transaktionsgebunden** und haben **immer** `transaction_id`.
+- Jede Response hat zusätzlich **immer** eine `message_id`.
 - Spontane Ereignisse (z.B. "door_state_changed") werden **nicht** als Response
   gesendet, sondern auf `.../event`.
 
@@ -254,6 +258,7 @@ Wichtig:
       "action": "open_compartment",
       "result": "success",
       "transaction_id": "xyz-789",
+      "message_id": "msg-f1d2d2f9",
       "timestamp": "2023-10-27T10:00:01Z",
       "message": "Compartment opened successfully."
     }
@@ -268,6 +273,7 @@ Wichtig:
       "action": "open_compartment",
       "result": "error",
       "transaction_id": "xyz-789",
+      "message_id": "msg-b2e7f214",
       "timestamp": "2023-10-27T10:00:01Z",
       "error_code": "DOOR_JAMMED",
       "message": "Could not open compartment, mechanism is jammed."
@@ -284,6 +290,7 @@ Wichtig:
       "action": "apply_config",
       "result": "success",
       "transaction_id": "cfg-123",
+      "message_id": "msg-a91e0386",
       "timestamp": "2023-10-27T10:05:02Z",
       "applied_config_hash": "2f4d3c...sha256hex...",
       "message": "Config applied."
@@ -294,7 +301,8 @@ Wichtig:
 
 Spontane Events sind **nicht** transaktionsgebunden (kein `transaction_id`),
 sondern repräsentieren etwas, das “passiert ist”. Da QoS 1 Duplikate zulässt,
-verwenden wir optional ein `event_id` (UUID) für Dedup.
+verwenden wir eine verpflichtende `message_id` für den globalen Dedup-Layer.
+`event_id` bleibt optional als fachliche Korrelation.
 
 - **Spontanes Event (z.B. Tür wurde manuell geschlossen):**
   - Topic: `locker/uuid-123/event`
@@ -303,6 +311,7 @@ verwenden wir optional ein `event_id` (UUID) für Dedup.
     {
       "type": "event",
       "event": "door_state_changed",
+      "message_id": "msg-evt-111",
       "event_id": "evt-111",
       "timestamp": "2023-10-27T10:00:00Z",
       "data": {
@@ -319,6 +328,7 @@ verwenden wir optional ein `event_id` (UUID) für Dedup.
     {
       "type": "event",
       "event": "qr_scanned",
+      "message_id": "msg-evt-222",
       "event_id": "evt-222",
       "timestamp": "2023-10-27T10:02:00Z",
       "data": {
@@ -340,6 +350,7 @@ bekannten Zustand sehen.
     ```json
     {
       "type": "state",
+      "message_id": "msg-state-001",
       "state": "heartbeat",
       "data": {
         "timestamp": "2023-10-27T10:01:00Z",
@@ -360,6 +371,7 @@ Verbindungsabbrüche zu melden.
   ```json
   {
     "type": "state",
+    "message_id": "msg-lwt-001",
     "state": "connection_lost",
     "status": "offline",
     "timestamp": "..."
@@ -388,6 +400,7 @@ Beispiel-Payload (JSON):
 ```json
 {
   "type": "state",
+  "message_id": "msg-lwt-002",
   "state": "connection_lost",
   "status": "offline",
   "timestamp": "2023-10-27T10:00:00Z",
@@ -420,7 +433,8 @@ Sicherheit und Kontrolle zu gewährleisten.
    und sendet seine `client_id` an das Registrierungs-Topic, das das Token
    enthält.
    - Topic: `locker/register/das-ist-der-token-123`
-   - Payload: `{"client_id": "random-client-xyz789"}`
+   - Payload:
+     `{"message_id":"msg-prov-001","client_id":"random-client-xyz789","timestamp":"2023-10-27T10:00:00Z"}`
    - Gleichzeitig lauscht der Client auf seinem privaten Antwort-Topic:
      `locker/provisioning/reply/random-client-xyz789`.
 5. **Backend verknüpft und provisioniert**:
@@ -435,14 +449,16 @@ Sicherheit und Kontrolle zu gewährleisten.
      Antwortkanal des Clients.
      - Topic: `locker/provisioning/reply/{unique_client_id}`
      - Payload:
-       `{"status": "success", "data": {"mqtt_user": "...", "mqtt_password": "..."}}`
+       `{"message_id":"msg-prov-reply-001","status":"success","timestamp":"2023-10-27T10:00:01Z","data":{"mqtt_user":"...","mqtt_password":"..."}}`
    - **Bei Fehler** (z.B. Token ungültig): Das Backend sendet eine
      Fehlermeldung.
      - Topic: `locker/provisioning/reply/{unique_client_id}`
      - Payload:
        ```json
        {
+         "message_id": "msg-prov-reply-err-001",
          "status": "error",
+         "timestamp": "2023-10-27T10:00:01Z",
          "message": "Invalid or expired provisioning token."
        }
        ```
@@ -491,11 +507,40 @@ LockerBankAggregate::retrieve($compartment->lockerBank->id)
 Dieser Ansatz entkoppelt die Annahme des Befehls sauber von der Ausführung der
 Nebenwirkungen (MQTT-Kommunikation) und der Aktualisierung der Lese-Modelle.
 
-## 6. Deduplication & Idempotency (Konzept)
+## 6. Guard Layer, Deduplication & Idempotency (Konzept)
 
 Da QoS 1 _at least once_ ist, kann der Broker/Client Nachrichten erneut
 zustellen (z.B. bei Reconnect, fehlendem ACK). Deshalb müssen **Backend und
-IoT-Client** Duplikate sicher verarbeiten.
+IoT-Client** alle eingehenden MQTT-Nachrichten über eine gemeinsame
+Vorverarbeitungs-Schicht laufen lassen, bevor Domain-Logik ausgeführt wird.
+
+### 6.0 Globaler Message Guard Layer (Pflicht)
+
+Jede empfangene MQTT-Message (`register`, `command`, `response`, `event`,
+`state`) läuft zuerst durch einen Guard Layer.
+
+Aufgaben des Guard Layers:
+
+- JSON-Parsing + Schema-Basisvalidierung pro Topic
+- Pflichtfelder prüfen (inkl. ID-Felder)
+- Dedup-Key bestimmen
+- First-seen vs duplicate entscheiden
+- bei Invalid/Duplicate: früh abbrechen oder kontrolliert re-acknowledgen
+- strukturierte Logs/Metriken schreiben
+
+ID-Regeln:
+
+- `message_id` ist für **alle** MQTT-Nachrichten verpflichtend (technische
+  Dedup-ID).
+- `transaction_id` ist zusätzlich verpflichtend für transaktionsgebundene
+  Nachrichten (`/command`, `/response`).
+- `event_id` bleibt optional als fachliche Event-Korrelation.
+
+Reject-Regel:
+
+- Transaktionsgebundene Nachrichten ohne valide `transaction_id` werden
+  abgelehnt (keine Side-Effects).
+- Nachrichten ohne `message_id` werden abgelehnt (keine Side-Effects).
 
 ### 6.1 Command-Dedup auf dem IoT-Client (Pflicht)
 
@@ -504,6 +549,7 @@ IoT-Client** Duplikate sicher verarbeiten.
   - Regel: Ein `transaction_id` darf **nicht** zweimal ausgeführt werden.
   - Der Client kann bei Duplikaten die **Response erneut senden**, aber die
     eigentliche Hardware-Operation nur einmal ausführen.
+  - Guard Layer dedupt zusätzlich technisch über `message_id`.
 
 ### 6.2 Response-Dedup im Backend (DB-gestützt, empfohlen)
 
@@ -520,17 +566,25 @@ Pattern (DB), das die Transaktionen eindeutig macht.
 
 Damit verhindern wir doppelte Domain-Events im Event Store.
 
-### 6.3 Event-Dedup (optional)
+### 6.3 Event/State/Provisioning-Dedup (Pflicht im Guard Layer)
 
-Für spontane Events auf `locker/{uuid}/event` empfehlen wir optional:
+Für alle nicht transaktionsgebundenen Topics erfolgt Dedup im Guard Layer über
+`message_id`:
 
-- `event_id` (UUID) im Payload
-- Dedup im Backend per Redis TTL oder DB (je nach Kritikalität).
+- `locker/{uuid}/event`
+- `locker/{uuid}/state`
+- `locker/register/+`
+- `locker/provisioning/reply/{client_id}`
+
+Empfehlung zur Speicherung:
+
+- Redis (TTL) für Hot-Dedup + optional persistente DB-Ablage für Audit.
 
 ## 7. Implementierungsplan (Umsetzung der Topic-Trennung + Dedup)
 
 > Ziel: `status` → `response` umbenennen, `event` einführen, `state` retained
-> nutzen und dedup robust implementieren (ohne doppelte Domain-Events).
+> nutzen und dedup robust implementieren (ohne doppelte Domain-Events), mit
+> einem globalen Guard Layer vor allen Handlern.
 
 ### 7.1 Broker/ACL (Mosquitto go-auth)
 
@@ -552,6 +606,7 @@ Für spontane Events auf `locker/{uuid}/event` empfehlen wir optional:
   - `CommandResponseHandler` (für `/response`)
   - `DeviceEventHandler` (für `/event`)
   - `HeartbeatHandler` bleibt (für `/state`)
+- Neu: `InboundMessageGuard` als erste Stufe vor allen spezifischen Handlern.
 
 ### 7.3 Dedup/Tracker im Backend
 
@@ -561,7 +616,14 @@ Für spontane Events auf `locker/{uuid}/event` empfehlen wir optional:
   - Felder z.B.: `action`, `result`, `error_code`, `requested_at`,
     `completed_at`, `payload_hash`, `last_seen_at`
 - Logik:
+  - Guard Layer validiert `message_id` (alle Topics) und `transaction_id`
+    (`/response`).
   - Response wird nur beim **ersten** Auftreten verarbeitet
+    (fachlich über `transaction_id`).
+  - Doppelte Packet-Zustellung mit neuer `message_id` aber gleicher
+    `transaction_id` bleibt fachlich dedupliziert.
+  - Doppelte Packet-Zustellung mit gleicher `message_id` wird direkt im Guard
+    Layer verworfen.
   - Duplicates werden ignoriert (und/oder nur `last_seen_at` aktualisiert)
 
 ### 7.4 Domain-Integration (Event Sourcing)
@@ -575,13 +637,18 @@ Für spontane Events auf `locker/{uuid}/event` empfehlen wir optional:
 ### 7.5 IoT Client Anpassungen
 
 - Commands:
+  - Guard Layer validiert `message_id` + `transaction_id`
   - Dedup nach `transaction_id` (persistenter Cache/DB)
+  - technische Dedup zusätzlich nach `message_id`
   - Hardware-Operation nur einmal pro `transaction_id`
 - Responses:
+  - Jede Response enthält `message_id`
   - Für jeden Command genau eine Response auf `.../response` (success/error)
 - Events:
-  - Spontane Events auf `.../event`, optional `event_id`
+  - Spontane Events auf `.../event` mit verpflichtender `message_id`, optional
+    `event_id`
 - State:
+  - State-Messages mit verpflichtender `message_id`
   - regelmäßige state/heartbeat Nachrichten auf `.../state` (retained)
 
 ### 7.6 Future Features (QR Scan & Update Command)
@@ -596,6 +663,10 @@ Für spontane Events auf `locker/{uuid}/event` empfehlen wir optional:
 ### 7.7 Tests & Rollout
 
 - Feature Tests:
+  - Guard Layer rejectet Messages ohne `message_id`
+  - Guard Layer rejectet `/command` und `/response` ohne `transaction_id`
+  - Doppelte `/state` und `/event` (gleiche `message_id`) erzeugen keine
+    doppelten Side-Effects
   - Doppelte `/response` Nachrichten erzeugen **keine** doppelten Domain-Events
   - Dedup/Tracker verhält sich korrekt (first vs duplicate)
 - Rollout:
