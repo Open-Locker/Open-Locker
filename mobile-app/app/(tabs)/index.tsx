@@ -21,11 +21,15 @@ import {
   usePostCompartmentsByCompartmentOpenMutation,
 } from '@/src/store/generatedApi';
 import { useAppSelector } from '@/src/store/hooks';
+import {
+  getCompartmentStatusPalette,
+  getLockerStatusPalette,
+  type CompartmentVisualStatus,
+  type LockerVisualStatus,
+} from '@/src/theme/statusPalette';
 
 type LockerBank = GetCompartmentsAccessibleApiResponse['locker_banks'][number];
 type CompartmentEntry = LockerBank['compartments'][number];
-type CompartmentVisualStatus = 'open' | 'closed' | 'unknown';
-type LockerVisualStatus = 'online' | 'offline';
 
 type LockerBankGroup = {
   id: string;
@@ -144,24 +148,9 @@ export default function CompartmentsScreen() {
       : selectedCompartmentStatus === 'closed'
         ? 'Geschlossen'
         : 'Unbekannt';
-  const selectedCompartmentStatusColor =
-    selectedCompartmentStatus === 'open'
-      ? theme.colors.primary
-      : selectedCompartmentStatus === 'closed'
-        ? theme.colors.onSurfaceVariant
-        : '#B7791F';
-  const selectedCompartmentStatusBorderColor =
-    selectedCompartmentStatus === 'open'
-      ? theme.colors.primary
-      : selectedCompartmentStatus === 'closed'
-        ? theme.colors.outline
-        : '#D69E2E';
-  const selectedCompartmentStatusBackgroundColor =
-    selectedCompartmentStatus === 'open'
-      ? theme.colors.primaryContainer
-      : selectedCompartmentStatus === 'closed'
-        ? theme.colors.surfaceVariant
-        : '#FFF6E8';
+  const selectedStatusPalette = selectedCompartmentStatus
+    ? getCompartmentStatusPalette(theme, selectedCompartmentStatus)
+    : null;
 
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: theme.colors.background }]} edges={[]}>
@@ -198,11 +187,7 @@ export default function CompartmentsScreen() {
         {sections.map((section) => {
           const lockerStatus = getFakeLockerStatus(section.id);
           const isSelected = selectedLockerBankId === section.id;
-          const lockerTextColor = isSelected
-            ? theme.colors.onPrimaryContainer
-            : lockerStatus === 'offline'
-              ? '#A34747'
-              : theme.colors.onSurfaceVariant;
+          const lockerStatusPalette = getLockerStatusPalette(theme, lockerStatus, isSelected);
 
           return (
             <Chip
@@ -212,30 +197,24 @@ export default function CompartmentsScreen() {
               style={[
                 styles.bankChip,
                 {
-                  backgroundColor: isSelected
-                    ? theme.colors.primaryContainer
-                    : lockerStatus === 'offline'
-                      ? '#FFF3F3'
-                      : theme.colors.background,
-                  borderColor: isSelected
-                    ? theme.colors.primary
-                    : lockerStatus === 'offline'
-                      ? '#E08A8A'
-                      : theme.colors.outlineVariant,
+                  backgroundColor: lockerStatusPalette.backgroundColor,
+                  borderColor: lockerStatusPalette.borderColor,
                 },
               ]}
               selectedColor={theme.colors.onPrimaryContainer}
               textStyle={[
                 styles.bankChipText,
                 {
-                  color: lockerTextColor,
+                  color: lockerStatusPalette.color,
                 },
               ]}
               compact
               showSelectedCheck={false}
               icon={
                 lockerStatus === 'offline'
-                  ? ({ size }) => <WifiOff size={size} color={lockerTextColor} strokeWidth={2.2} />
+                  ? ({ size }) => (
+                      <WifiOff size={size} color={lockerStatusPalette.color} strokeWidth={2.2} />
+                    )
                   : undefined
               }
             >
@@ -274,24 +253,7 @@ export default function CompartmentsScreen() {
               : compartmentStatus === 'closed'
                 ? 'Geschlossen'
                 : 'Unbekannt';
-          const statusColor =
-            compartmentStatus === 'open'
-              ? theme.colors.primary
-              : compartmentStatus === 'closed'
-                ? theme.colors.onSurfaceVariant
-                : '#B7791F';
-          const statusBorderColor =
-            compartmentStatus === 'open'
-              ? theme.colors.primary
-              : compartmentStatus === 'closed'
-                ? theme.colors.outline
-                : '#D69E2E';
-          const statusBackgroundColor =
-            compartmentStatus === 'open'
-              ? theme.colors.primaryContainer
-              : compartmentStatus === 'closed'
-                ? theme.colors.surfaceVariant
-                : '#FFF6E8';
+          const statusPalette = getCompartmentStatusPalette(theme, compartmentStatus);
 
           return (
             <View style={styles.cardWrap}>
@@ -333,19 +295,19 @@ export default function CompartmentsScreen() {
                             style={[
                               styles.statusPill,
                               {
-                                borderColor: statusBorderColor,
-                                backgroundColor: statusBackgroundColor,
+                                borderColor: statusPalette.borderColor,
+                                backgroundColor: statusPalette.backgroundColor,
                               },
                             ]}
                           >
                             {compartmentStatus === 'open' ? (
-                              <LockOpen size={12} color={statusColor} />
+                              <LockOpen size={12} color={statusPalette.color} />
                             ) : compartmentStatus === 'closed' ? (
-                              <Lock size={12} color={statusColor} />
+                              <Lock size={12} color={statusPalette.color} />
                             ) : (
-                              <CircleHelp size={12} color={statusColor} />
+                              <CircleHelp size={12} color={statusPalette.color} />
                             )}
-                            <Text style={[styles.statusPillText, { color: statusColor }]}>
+                            <Text style={[styles.statusPillText, { color: statusPalette.color }]}>
                               {statusLabel}
                             </Text>
                           </View>
@@ -406,19 +368,19 @@ export default function CompartmentsScreen() {
                   styles.statusPill,
                   styles.sheetStatusPill,
                   {
-                    borderColor: selectedCompartmentStatusBorderColor,
-                    backgroundColor: selectedCompartmentStatusBackgroundColor,
+                    borderColor: selectedStatusPalette?.borderColor,
+                    backgroundColor: selectedStatusPalette?.backgroundColor,
                   },
                 ]}
               >
                 {selectedCompartmentStatus === 'open' ? (
-                  <LockOpen size={12} color={selectedCompartmentStatusColor} />
+                  <LockOpen size={12} color={selectedStatusPalette?.color} />
                 ) : selectedCompartmentStatus === 'closed' ? (
-                  <Lock size={12} color={selectedCompartmentStatusColor} />
+                  <Lock size={12} color={selectedStatusPalette?.color} />
                 ) : (
-                  <CircleHelp size={12} color={selectedCompartmentStatusColor} />
+                  <CircleHelp size={12} color={selectedStatusPalette?.color} />
                 )}
-                <Text style={[styles.statusPillText, { color: selectedCompartmentStatusColor }]}>
+                <Text style={[styles.statusPillText, { color: selectedStatusPalette?.color }]}>
                   {selectedCompartmentStatusLabel}
                 </Text>
               </View>
