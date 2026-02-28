@@ -64,6 +64,10 @@ export const resources = {
       account: {
         signedInAs: 'Signed in as',
         profile: 'Profile',
+        language: 'Language',
+        languageHint: 'Choose the app language.',
+        languageEnglish: 'English',
+        languageGerman: 'German',
         name: 'Name',
         saveProfile: 'Save profile',
         profileUpdated: 'Profile updated.',
@@ -183,6 +187,10 @@ export const resources = {
       account: {
         signedInAs: 'Angemeldet als',
         profile: 'Profil',
+        language: 'Sprache',
+        languageHint: 'Wähle die Sprache der App.',
+        languageEnglish: 'Englisch',
+        languageGerman: 'Deutsch',
         name: 'Name',
         saveProfile: 'Profil speichern',
         profileUpdated: 'Profil aktualisiert.',

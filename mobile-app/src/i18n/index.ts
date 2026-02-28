@@ -2,6 +2,7 @@ import { createInstance } from 'i18next';
 import { getLocales } from 'expo-localization';
 import { initReactI18next } from 'react-i18next';
 
+import { loadPersistedAppLanguage, persistAppLanguage } from '@/src/i18n/languageStorage';
 import { resources, type AppLanguage } from '@/src/i18n/resources';
 
 const fallbackLanguage: AppLanguage = 'en';
@@ -23,6 +24,11 @@ function resolveDeviceLanguage(): AppLanguage {
   return fallbackLanguage;
 }
 
+function normalizeLanguage(language: string | undefined | null): AppLanguage {
+  const candidate = language?.split('-')[0]?.toLowerCase();
+  return candidate === 'de' ? 'de' : 'en';
+}
+
 if (!i18next.isInitialized) {
   i18next.use(initReactI18next).init({
     resources,
@@ -35,6 +41,26 @@ if (!i18next.isInitialized) {
       useSuspense: false,
     },
   });
+}
+
+export function getCurrentAppLanguage(): AppLanguage {
+  return normalizeLanguage(i18next.resolvedLanguage ?? i18next.language);
+}
+
+export async function hydrateAppLanguage(): Promise<void> {
+  const persistedLanguage = await loadPersistedAppLanguage();
+  if (!persistedLanguage) {
+    return;
+  }
+
+  if (getCurrentAppLanguage() !== persistedLanguage) {
+    await i18next.changeLanguage(persistedLanguage);
+  }
+}
+
+export async function setAppLanguage(language: AppLanguage): Promise<void> {
+  await i18next.changeLanguage(language);
+  await persistAppLanguage(language);
 }
 
 export default i18next;

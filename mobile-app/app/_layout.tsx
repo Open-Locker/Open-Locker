@@ -18,7 +18,7 @@ import { PaperProvider } from 'react-native-paper';
 
 import { useColorScheme } from '@/components/useColorScheme';
 import { hydrateApiBaseUrl } from '@/src/api/baseUrl';
-import '@/src/i18n';
+import { hydrateAppLanguage } from '@/src/i18n';
 import { loadPersistedAuth } from '@/src/store/authStorage';
 import { restoreAuth } from '@/src/store/authSlice';
 import { useAppDispatch, useAppSelector } from '@/src/store/hooks';
@@ -61,6 +61,7 @@ function RootLayoutBootstrap() {
   useEffect(() => {
     let cancelled = false;
     (async () => {
+      await hydrateAppLanguage();
       await hydrateApiBaseUrl();
       const auth = await loadPersistedAuth();
       if (!cancelled) {

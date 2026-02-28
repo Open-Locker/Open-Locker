@@ -3,8 +3,10 @@ import { ScrollView, StyleSheet, View } from 'react-native';
 import type { FetchBaseQueryError } from '@reduxjs/toolkit/query';
 import { useTranslation } from 'react-i18next';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { HelperText, Text, useTheme } from 'react-native-paper';
+import { HelperText, SegmentedButtons, Text, useTheme } from 'react-native-paper';
 
+import { getCurrentAppLanguage, setAppLanguage } from '@/src/i18n';
+import type { AppLanguage } from '@/src/i18n/resources';
 import { baseApi } from '@/src/store/baseApi';
 import { clearPersistedAuth } from '@/src/store/authStorage';
 import { clearCredentials } from '@/src/store/authSlice';
@@ -49,6 +51,7 @@ export default function AccountScreen() {
   const [newPasswordConfirmation, setNewPasswordConfirmation] = React.useState('');
   const [profileMessage, setProfileMessage] = React.useState<string | null>(null);
   const [passwordMessage, setPasswordMessage] = React.useState<string | null>(null);
+  const [language, setLanguage] = React.useState<AppLanguage>(getCurrentAppLanguage());
 
   React.useEffect(() => {
     if (user) {
@@ -110,6 +113,15 @@ export default function AccountScreen() {
     }
   }, [changePassword, currentPassword, newPassword, newPasswordConfirmation, t]);
 
+  const onChangeLanguage = React.useCallback(async (value: string) => {
+    if (value !== 'en' && value !== 'de') {
+      return;
+    }
+
+    setLanguage(value);
+    await setAppLanguage(value);
+  }, []);
+
   return (
     <SafeAreaView
       style={[styles.safe, { backgroundColor: theme.colors.background }]}
@@ -125,6 +137,37 @@ export default function AccountScreen() {
         <Text variant="titleMedium" style={styles.name}>
           {userName ?? t('common.unknownUser')}
         </Text>
+
+        <View
+          style={[
+            styles.sectionCard,
+            { backgroundColor: theme.colors.surface, borderColor: theme.colors.outlineVariant },
+          ]}
+        >
+          <Text variant="titleSmall" style={styles.sectionTitle}>
+            {t('account.language')}
+          </Text>
+          <Text variant="bodySmall" style={styles.sectionDescription}>
+            {t('account.languageHint')}
+          </Text>
+          <SegmentedButtons
+            value={language}
+            onValueChange={(value) => {
+              void onChangeLanguage(value);
+            }}
+            density="small"
+            buttons={[
+              {
+                value: 'en',
+                label: t('account.languageEnglish'),
+              },
+              {
+                value: 'de',
+                label: t('account.languageGerman'),
+              },
+            ]}
+          />
+        </View>
 
         <View
           style={[
@@ -222,6 +265,7 @@ const styles = StyleSheet.create({
     gap: OPEN_LOCKER_DESIGN_TOKENS.spacing.sm,
   },
   sectionTitle: { fontFamily: 'Inter_600SemiBold' },
+  sectionDescription: { opacity: 0.72 },
   logoutButton: {
     marginTop: OPEN_LOCKER_DESIGN_TOKENS.spacing.xs,
   },
