@@ -1,19 +1,12 @@
 import React from 'react';
-import { Pressable, RefreshControl, SectionList, StyleSheet, View } from 'react-native';
+import { Animated, FlatList, Pressable, RefreshControl, StyleSheet, View } from 'react-native';
 import { BottomSheetBackdrop, BottomSheetModal, BottomSheetView } from '@gorhom/bottom-sheet';
-import { CircleHelp, Lock, LockOpen, WifiOff } from 'lucide-react-native';
+import { CircleHelp, CircleUserRound, Lock, LockOpen, WifiOff } from 'lucide-react-native';
 import type { FetchBaseQueryError } from '@reduxjs/toolkit/query';
 import { skipToken } from '@reduxjs/toolkit/query';
+import { router } from 'expo-router';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import {
-  ActivityIndicator,
-  Button,
-  Card,
-  Chip,
-  HelperText,
-  Text,
-  useTheme,
-} from 'react-native-paper';
+import { ActivityIndicator, Button, Chip, HelperText, Text, useTheme } from 'react-native-paper';
 
 import {
   type GetCompartmentsAccessibleApiResponse,
@@ -27,25 +20,25 @@ import {
   type CompartmentVisualStatus,
   type LockerVisualStatus,
 } from '@/src/theme/statusPalette';
+import { CompartmentCard } from '@/src/ui/card/CompartmentCard';
 
 type LockerBank = GetCompartmentsAccessibleApiResponse['locker_banks'][number];
 type CompartmentEntry = LockerBank['compartments'][number];
-
-type LockerBankGroup = {
+type LockerBankFilter = {
   id: string;
   title: string;
-  data: CompartmentEntry[];
+  compartments: CompartmentEntry[];
 };
 
-function mapSections(
+function mapLockerBanks(
   response: GetCompartmentsAccessibleApiResponse | undefined,
-): LockerBankGroup[] {
+): LockerBankFilter[] {
   if (!response?.locker_banks) return [];
   return response.locker_banks
     .map((bank) => ({
       id: bank.id,
       title: bank.name?.trim() || `Locker bank ${bank.id}`,
-      data: Array.isArray(bank.compartments) ? bank.compartments : [],
+      compartments: Array.isArray(bank.compartments) ? bank.compartments : [],
     }))
     .sort((a, b) => a.title.localeCompare(b.title));
 }
@@ -59,9 +52,32 @@ function getErrorMessage(error: unknown): string {
   return 'Something went wrong.';
 }
 
-function getFakeCompartmentStatus(compartment: CompartmentEntry): CompartmentVisualStatus {
-  if (compartment.number % 5 === 0) return 'unknown';
-  return compartment.number % 2 === 0 ? 'closed' : 'open';
+function getCompartmentStatusFromApi(
+  compartment: CompartmentEntry,
+): CompartmentVisualStatus | null {
+  const candidate = compartment as CompartmentEntry & {
+    state?: unknown;
+    status?: unknown;
+    is_open?: unknown;
+    open?: unknown;
+  };
+
+  const rawState = candidate.state ?? candidate.status;
+  if (typeof rawState === 'string') {
+    const normalized = rawState.trim().toLowerCase();
+    if (normalized === 'open') return 'open';
+    if (normalized === 'closed') return 'closed';
+    if (normalized === 'unknown') return 'unknown';
+  }
+
+  if (typeof candidate.is_open === 'boolean') {
+    return candidate.is_open ? 'open' : 'closed';
+  }
+  if (typeof candidate.open === 'boolean') {
+    return candidate.open ? 'open' : 'closed';
+  }
+
+  return null;
 }
 
 function getFakeLockerStatus(lockerBankId: string): LockerVisualStatus {
@@ -74,8 +90,10 @@ function getFakeLockerStatus(lockerBankId: string): LockerVisualStatus {
 
 export default function CompartmentsScreen() {
   const token = useAppSelector((state) => state.auth.token);
+  const userName = useAppSelector((state) => state.auth.userName);
   const theme = useTheme();
   const insets = useSafeAreaInsets();
+  const scrollY = React.useRef(new Animated.Value(0)).current;
   const [requestOpen, requestOpenState] = usePostCompartmentsByCompartmentOpenMutation();
   const {
     data,
@@ -132,108 +150,101 @@ export default function CompartmentsScreen() {
     );
   }
 
-  const sections = mapSections(data);
-  const visibleSections =
+  const lockerBanks = mapLockerBanks(data);
+  const visibleLockerBanks =
     selectedLockerBankId === 'all'
-      ? sections
-      : sections.filter((section) => section.id === selectedLockerBankId);
+      ? lockerBanks
+      : lockerBanks.filter((section) => section.id === selectedLockerBankId);
+  const visibleCompartments = visibleLockerBanks
+    .flatMap((lockerBank) => lockerBank.compartments)
+    .sort((a, b) => a.number - b.number);
   const errorMessage =
     error && 'status' in error ? `Failed to load compartments (${String(error.status)}).` : null;
   const selectedCompartmentStatus = selectedCompartment
-    ? getFakeCompartmentStatus(selectedCompartment)
+    ? getCompartmentStatusFromApi(selectedCompartment)
     : null;
+  const accountInitial = (userName?.trim().charAt(0) || 'A').toUpperCase();
   const selectedCompartmentStatusLabel =
     selectedCompartmentStatus === 'open'
-      ? 'Offen'
+      ? 'Open'
       : selectedCompartmentStatus === 'closed'
-        ? 'Geschlossen'
-        : 'Unbekannt';
+        ? 'Closed'
+        : 'Unknown';
   const selectedStatusPalette = selectedCompartmentStatus
     ? getCompartmentStatusPalette(theme, selectedCompartmentStatus)
     : null;
+  const headerMaxHeight = 74;
+  const headerTranslateY = scrollY.interpolate({
+    inputRange: [0, headerMaxHeight],
+    outputRange: [0, -headerMaxHeight],
+    extrapolate: 'clamp',
+  });
+  const headerOpacity = scrollY.interpolate({
+    inputRange: [0, headerMaxHeight * 0.8],
+    outputRange: [1, 0],
+    extrapolate: 'clamp',
+  });
+  const headerContainerHeight = scrollY.interpolate({
+    inputRange: [0, headerMaxHeight],
+    outputRange: [headerMaxHeight, 0],
+    extrapolate: 'clamp',
+  });
 
   return (
-    <SafeAreaView style={[styles.safe, { backgroundColor: theme.colors.background }]} edges={[]}>
-      <View style={styles.bankFilterRow}>
-        <Chip
-          selected={selectedLockerBankId === 'all'}
-          onPress={() => setSelectedLockerBankId('all')}
+    <SafeAreaView
+      style={[styles.safe, { backgroundColor: theme.colors.background }]}
+      edges={['top']}
+    >
+      <Animated.View style={[styles.screenHeaderContainer, { height: headerContainerHeight }]}>
+        <Animated.View
           style={[
-            styles.bankChip,
+            styles.screenHeader,
             {
-              backgroundColor:
-                selectedLockerBankId === 'all'
-                  ? theme.colors.primaryContainer
-                  : theme.colors.background,
-              borderColor:
-                selectedLockerBankId === 'all' ? theme.colors.primary : theme.colors.outlineVariant,
+              opacity: headerOpacity,
+              transform: [{ translateY: headerTranslateY }],
             },
           ]}
-          selectedColor={theme.colors.onPrimaryContainer}
-          textStyle={[
-            styles.bankChipText,
-            {
-              color:
-                selectedLockerBankId === 'all'
-                  ? theme.colors.onPrimaryContainer
-                  : theme.colors.onSurfaceVariant,
-            },
-          ]}
-          compact
-          showSelectedCheck={false}
         >
-          Alle Schränke
-        </Chip>
-        {sections.map((section) => {
-          const lockerStatus = getFakeLockerStatus(section.id);
-          const isSelected = selectedLockerBankId === section.id;
-          const lockerStatusPalette = getLockerStatusPalette(theme, lockerStatus, isSelected);
-
-          return (
-            <Chip
-              key={section.id}
-              selected={isSelected}
-              onPress={() => setSelectedLockerBankId(section.id)}
-              style={[
-                styles.bankChip,
-                {
-                  backgroundColor: lockerStatusPalette.backgroundColor,
-                  borderColor: lockerStatusPalette.borderColor,
-                },
-              ]}
-              selectedColor={theme.colors.onPrimaryContainer}
-              textStyle={[
-                styles.bankChipText,
-                {
-                  color: lockerStatusPalette.color,
-                },
-              ]}
-              compact
-              showSelectedCheck={false}
-              icon={
-                lockerStatus === 'offline'
-                  ? ({ size }) => (
-                      <WifiOff size={size} color={lockerStatusPalette.color} strokeWidth={2.2} />
-                    )
-                  : undefined
-              }
+          <View style={styles.screenHeaderTop}>
+            <View style={styles.screenHeaderText}>
+              <Text style={styles.screenHeading}>Compartment</Text>
+              <Text style={styles.screenSubheading}>Manage and open your compartments.</Text>
+            </View>
+            <Pressable
+              onPress={() => router.push('/account' as never)}
+              style={({ pressed }) => [styles.profileButton, pressed && styles.cardPressed]}
+              accessibilityRole="button"
+              accessibilityLabel="Open profile"
             >
-              {section.title}
-            </Chip>
-          );
-        })}
-      </View>
+              <View
+                style={[styles.profileAvatar, { backgroundColor: theme.colors.primaryContainer }]}
+              >
+                <Text style={[styles.profileInitial, { color: theme.colors.onPrimaryContainer }]}>
+                  {accountInitial}
+                </Text>
+              </View>
+              <CircleUserRound size={16} color={theme.colors.onSurfaceVariant} strokeWidth={2.2} />
+            </Pressable>
+          </View>
+        </Animated.View>
+      </Animated.View>
       {errorMessage ? (
         <Text style={styles.error} accessibilityRole="alert">
           {errorMessage}
         </Text>
       ) : null}
 
-      <SectionList
-        sections={visibleSections}
+      <FlatList
+        data={visibleCompartments}
         keyExtractor={(item) => item.id}
+        numColumns={2}
+        columnWrapperStyle={styles.gridRow}
         contentInsetAdjustmentBehavior="never"
-        stickySectionHeadersEnabled={false}
+        stickyHeaderIndices={[0]}
+        onScroll={Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], {
+          useNativeDriver: false,
+        })}
+        scrollEventThrottle={16}
         refreshControl={
           <RefreshControl
             refreshing={isFetching && !isLoading}
@@ -242,87 +253,96 @@ export default function CompartmentsScreen() {
             }}
           />
         }
-        contentContainerStyle={[styles.listContent, { paddingBottom: insets.bottom + 24 }]}
+        contentContainerStyle={[styles.gridContent, { paddingBottom: insets.bottom + 24 }]}
+        ListHeaderComponent={
+          <View style={[styles.bankFilterRow, { backgroundColor: theme.colors.background }]}>
+            <View style={[styles.filterRail, { backgroundColor: theme.colors.surfaceVariant }]}>
+              <Chip
+                selected={selectedLockerBankId === 'all'}
+                onPress={() => setSelectedLockerBankId('all')}
+                style={[
+                  styles.bankChip,
+                  {
+                    backgroundColor:
+                      selectedLockerBankId === 'all'
+                        ? theme.colors.primaryContainer
+                        : theme.colors.surfaceVariant,
+                    borderColor:
+                      selectedLockerBankId === 'all'
+                        ? theme.colors.primary
+                        : theme.colors.surfaceVariant,
+                  },
+                ]}
+                selectedColor={theme.colors.onPrimaryContainer}
+                textStyle={[
+                  styles.bankChipText,
+                  {
+                    color:
+                      selectedLockerBankId === 'all'
+                        ? theme.colors.onPrimaryContainer
+                        : theme.colors.onSurfaceVariant,
+                  },
+                ]}
+                compact
+                showSelectedCheck={false}
+              >
+                All
+              </Chip>
+              {lockerBanks.map((section) => {
+                const lockerStatus = getFakeLockerStatus(section.id);
+                const isSelected = selectedLockerBankId === section.id;
+                const lockerStatusPalette = getLockerStatusPalette(theme, lockerStatus, isSelected);
+
+                return (
+                  <Chip
+                    key={section.id}
+                    selected={isSelected}
+                    onPress={() => setSelectedLockerBankId(section.id)}
+                    style={[
+                      styles.bankChip,
+                      {
+                        backgroundColor: lockerStatusPalette.backgroundColor,
+                        borderColor: lockerStatusPalette.borderColor,
+                      },
+                    ]}
+                    selectedColor={theme.colors.onPrimaryContainer}
+                    textStyle={[
+                      styles.bankChipText,
+                      {
+                        color: lockerStatusPalette.color,
+                      },
+                    ]}
+                    compact
+                    showSelectedCheck={false}
+                    icon={
+                      lockerStatus === 'offline'
+                        ? ({ size }) => (
+                            <WifiOff
+                              size={size}
+                              color={lockerStatusPalette.color}
+                              strokeWidth={2.2}
+                            />
+                          )
+                        : undefined
+                    }
+                  >
+                    {section.title}
+                  </Chip>
+                );
+              })}
+            </View>
+          </View>
+        }
         renderItem={({ item }) => {
-          const isEmpty = !item.item;
-          const storedItemName = item.item?.name?.trim();
-          const compartmentStatus = getFakeCompartmentStatus(item);
-          const statusLabel =
-            compartmentStatus === 'open'
-              ? 'Offen'
-              : compartmentStatus === 'closed'
-                ? 'Geschlossen'
-                : 'Unbekannt';
-          const statusPalette = getCompartmentStatusPalette(theme, compartmentStatus);
+          const compartmentStatus = getCompartmentStatusFromApi(item);
 
           return (
-            <View style={styles.cardWrap}>
-              <Pressable
+            <View style={styles.gridItem}>
+              <CompartmentCard
+                compartment={item}
+                status={compartmentStatus}
                 onPress={() => openCompartmentSheet(item)}
-                style={({ pressed }) => [pressed && styles.cardPressed]}
-              >
-                <Card
-                  mode="contained"
-                  style={[
-                    styles.card,
-                    {
-                      backgroundColor: theme.colors.surface,
-                      borderColor: theme.colors.outlineVariant,
-                    },
-                  ]}
-                >
-                  <Card.Content style={styles.cardContent}>
-                    <View style={styles.cardRow}>
-                      <View
-                        style={[
-                          styles.numberBadge,
-                          {
-                            backgroundColor: isEmpty
-                              ? theme.colors.surfaceVariant
-                              : theme.colors.primaryContainer,
-                          },
-                        ]}
-                      >
-                        <Text style={styles.numberLabel}>#{item.number}</Text>
-                      </View>
-
-                      <View style={styles.cardMain}>
-                        <View style={styles.cardHeaderRow}>
-                          <Text variant="titleMedium" numberOfLines={1} style={styles.cardTitle}>
-                            Compartment {item.number}
-                          </Text>
-                          <View
-                            style={[
-                              styles.statusPill,
-                              {
-                                borderColor: statusPalette.borderColor,
-                                backgroundColor: statusPalette.backgroundColor,
-                              },
-                            ]}
-                          >
-                            {compartmentStatus === 'open' ? (
-                              <LockOpen size={12} color={statusPalette.color} />
-                            ) : compartmentStatus === 'closed' ? (
-                              <Lock size={12} color={statusPalette.color} />
-                            ) : (
-                              <CircleHelp size={12} color={statusPalette.color} />
-                            )}
-                            <Text style={[styles.statusPillText, { color: statusPalette.color }]}>
-                              {statusLabel}
-                            </Text>
-                          </View>
-                        </View>
-
-                        <Text variant="bodySmall" numberOfLines={1} style={styles.cardSubtitle}>
-                          {isEmpty
-                            ? 'No item currently stored'
-                            : `Contains: ${storedItemName ?? 'Unnamed item'}`}
-                        </Text>
-                      </View>
-                    </View>
-                  </Card.Content>
-                </Card>
-              </Pressable>
+              />
             </View>
           );
         }}
@@ -358,29 +378,29 @@ export default function CompartmentsScreen() {
             }
           }}
         >
-          {selectedCompartment ? (
+          {selectedCompartment && selectedCompartmentStatus && selectedStatusPalette ? (
             <View style={styles.sheetStatusRow}>
               <Text variant="bodySmall" style={styles.modalSubtitle}>
-                Fachstatus (Demo):
+                Compartment status:
               </Text>
               <View
                 style={[
                   styles.statusPill,
                   styles.sheetStatusPill,
                   {
-                    borderColor: selectedStatusPalette?.borderColor,
-                    backgroundColor: selectedStatusPalette?.backgroundColor,
+                    borderColor: selectedStatusPalette.borderColor,
+                    backgroundColor: selectedStatusPalette.backgroundColor,
                   },
                 ]}
               >
                 {selectedCompartmentStatus === 'open' ? (
-                  <LockOpen size={12} color={selectedStatusPalette?.color} />
+                  <LockOpen size={12} color={selectedStatusPalette.color} />
                 ) : selectedCompartmentStatus === 'closed' ? (
-                  <Lock size={12} color={selectedStatusPalette?.color} />
+                  <Lock size={12} color={selectedStatusPalette.color} />
                 ) : (
-                  <CircleHelp size={12} color={selectedStatusPalette?.color} />
+                  <CircleHelp size={12} color={selectedStatusPalette.color} />
                 )}
-                <Text style={[styles.statusPillText, { color: selectedStatusPalette?.color }]}>
+                <Text style={[styles.statusPillText, { color: selectedStatusPalette.color }]}>
                   {selectedCompartmentStatusLabel}
                 </Text>
               </View>
@@ -390,11 +410,11 @@ export default function CompartmentsScreen() {
             Compartment {selectedCompartment?.number ?? ''}
           </Text>
           <Text variant="bodyMedium" style={styles.modalSubtitle}>
-            Im Fach wird gelagert:
+            Stored item:
           </Text>
           <View style={[styles.sheetStoredItemCard, { borderColor: theme.colors.outlineVariant }]}>
             <Text variant="titleSmall" style={styles.modalStoredItemName}>
-              {selectedCompartment?.item?.name?.trim() || 'Aktuell kein Item'}
+              {selectedCompartment?.item?.name?.trim() || 'No item currently stored'}
             </Text>
             {!!selectedCompartment?.item?.description?.trim() && (
               <Text variant="bodyMedium" style={styles.modalStoredItemDescription}>
@@ -443,16 +463,76 @@ export default function CompartmentsScreen() {
 
 const styles = StyleSheet.create({
   safe: { flex: 1 },
-  listContent: { paddingTop: 10 },
+  screenHeaderContainer: {
+    overflow: 'hidden',
+  },
+  screenHeader: {
+    paddingHorizontal: 16,
+    paddingTop: 8,
+    paddingBottom: 8,
+    gap: 2,
+  },
+  screenHeaderTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 10,
+  },
+  screenHeaderText: {
+    flex: 1,
+  },
+  screenHeading: {
+    fontFamily: 'Inter_700Bold',
+    fontSize: 32,
+    lineHeight: 36,
+    letterSpacing: -0.9,
+  },
+  screenSubheading: {
+    fontFamily: 'Inter_500Medium',
+    opacity: 0.8,
+    fontSize: 13,
+    lineHeight: 18,
+  },
+  profileButton: {
+    height: 38,
+    borderRadius: 999,
+    paddingHorizontal: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 5,
+  },
+  profileAvatar: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  profileInitial: {
+    fontFamily: 'Inter_600SemiBold',
+    fontSize: 12,
+  },
+  gridContent: {
+    paddingTop: 8,
+    paddingHorizontal: 16,
+    gap: 10,
+  },
+  gridRow: {
+    gap: 10,
+    marginBottom: 10,
+  },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24, gap: 12 },
   centerText: { opacity: 0.7 },
   bankFilterRow: {
+    paddingBottom: 8,
+  },
+  filterRail: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    paddingHorizontal: 16,
-    paddingTop: 10,
-    paddingBottom: 10,
+    gap: 6,
+    borderRadius: 12,
+    padding: 4,
     flexWrap: 'wrap',
   },
   bankChip: {
@@ -463,36 +543,13 @@ const styles = StyleSheet.create({
     fontFamily: 'Inter_500Medium',
   },
   error: { color: '#b00020', paddingHorizontal: 16, paddingTop: 12 },
-  cardWrap: { paddingHorizontal: 16, paddingBottom: 12 },
-  card: { width: '100%', borderRadius: 16, borderWidth: 1 },
+  gridItem: {
+    flex: 1,
+  },
   cardPressed: {
     opacity: 0.9,
-    transform: [{ scale: 0.995 }],
+    transform: [{ scale: 0.985 }],
   },
-  cardContent: { paddingVertical: 10 },
-  cardRow: { flexDirection: 'row', gap: 12, alignItems: 'center' },
-  numberBadge: {
-    width: 62,
-    height: 62,
-    borderRadius: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  numberLabel: {
-    fontFamily: 'Inter_700Bold',
-    fontSize: 24,
-    lineHeight: 28,
-    letterSpacing: -0.2,
-  },
-  cardMain: { flex: 1, minWidth: 0, gap: 3 },
-  cardHeaderRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 8,
-  },
-  cardTitle: { fontWeight: '700', fontFamily: 'Inter_600SemiBold' },
-  cardSubtitle: { opacity: 0.7, marginBottom: 2, fontFamily: 'Inter_500Medium' },
   statusPill: {
     flexDirection: 'row',
     alignItems: 'center',

@@ -66,6 +66,7 @@ export default function TabLayout() {
         <Stack.Screen
           name="index"
           options={{
+            headerShown: false,
             title: 'Compartments',
             headerRight: () => (
               <View style={styles.headerActions}>
