@@ -1,2 +1,0 @@
-/home/smn/dev/Open-Locker/locker_app/android/app/.cxx/Debug/1c6e434q/x86_64/CMakeFiles/edit_cache.dir
-/home/smn/dev/Open-Locker/locker_app/android/app/.cxx/Debug/1c6e434q/x86_64/CMakeFiles/rebuild_cache.dir

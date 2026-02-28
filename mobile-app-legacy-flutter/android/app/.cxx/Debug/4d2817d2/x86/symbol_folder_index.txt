@@ -1,1 +1,0 @@
-/home/smn/dev/Open-Locker/locker_app/build/app/intermediates/cxx/Debug/4d2817d2/obj/x86
