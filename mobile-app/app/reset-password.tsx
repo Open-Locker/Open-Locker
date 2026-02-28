@@ -2,6 +2,7 @@ import React from 'react';
 import { KeyboardAvoidingView, Platform, StyleSheet, View } from 'react-native';
 import type { FetchBaseQueryError } from '@reduxjs/toolkit/query';
 import { router, useLocalSearchParams } from 'expo-router';
+import { useTranslation } from 'react-i18next';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { HelperText, Text, useTheme } from 'react-native-paper';
 
@@ -16,21 +17,25 @@ function toParamValue(value: string | string[] | undefined): string {
   return value ?? '';
 }
 
-function getErrorMessage(error: unknown): string {
+function getErrorMessage(
+  error: unknown,
+  t: (key: string, options?: Record<string, unknown>) => string,
+): string {
   const apiError = error as FetchBaseQueryError | undefined;
   if (apiError && typeof apiError === 'object' && 'status' in apiError) {
     if (apiError.status === 422) {
-      return 'Reset token is invalid or expired.';
+      return t('passwordReset.invalidToken');
     }
-    return `Request failed (${String(apiError.status)}).`;
+    return t('common.requestFailedWithStatus', { status: String(apiError.status) });
   }
   if (error instanceof Error) {
     return error.message;
   }
-  return 'Something went wrong.';
+  return t('common.somethingWentWrong');
 }
 
 export default function ResetPasswordScreen() {
+  const { t } = useTranslation();
   const params = useLocalSearchParams<{ token?: string; email?: string }>();
   const [resetPassword] = usePostResetPasswordMutation();
   const theme = useTheme();
@@ -63,13 +68,15 @@ export default function ResetPasswordScreen() {
           password_confirmation: passwordConfirmation,
         },
       }).unwrap();
-      setSuccessMessage(typeof res.message === 'string' ? res.message : 'Password has been reset.');
+      setSuccessMessage(
+        typeof res.message === 'string' ? res.message : t('passwordReset.passwordResetDone'),
+      );
     } catch (e) {
-      setError(getErrorMessage(e));
+      setError(getErrorMessage(e, t));
     } finally {
       setIsSubmitting(false);
     }
-  }, [email, password, passwordConfirmation, resetPassword, token]);
+  }, [email, password, passwordConfirmation, resetPassword, t, token]);
 
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: theme.colors.background }]}>
@@ -77,27 +84,32 @@ export default function ResetPasswordScreen() {
         style={styles.container}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
-        <Text variant="headlineSmall">Reset Password</Text>
+        <Text variant="headlineSmall">{t('passwordReset.resetTitle')}</Text>
         <Text variant="bodyMedium" style={styles.subtitle}>
-          Paste your reset token and choose a new password.
+          {t('passwordReset.resetSubtitle')}
         </Text>
 
-        <AppTextInput label="Email" value={email} onChangeText={setEmail} autoCapitalize="none" />
         <AppTextInput
-          label="Reset token"
+          label={t('auth.email')}
+          value={email}
+          onChangeText={setEmail}
+          autoCapitalize="none"
+        />
+        <AppTextInput
+          label={t('passwordReset.resetToken')}
           value={token}
           onChangeText={setToken}
           autoCapitalize="none"
         />
         <AppTextInput
-          label="New password"
+          label={t('account.newPassword')}
           value={password}
           onChangeText={setPassword}
           secureTextEntry
           textContentType="newPassword"
         />
         <AppTextInput
-          label="Confirm new password"
+          label={t('account.confirmNewPassword')}
           value={passwordConfirmation}
           onChangeText={setPasswordConfirmation}
           secureTextEntry
@@ -118,10 +130,10 @@ export default function ResetPasswordScreen() {
             disabled={!canSubmit}
             loading={isSubmitting}
           >
-            Reset password
+            {t('passwordReset.resetPassword')}
           </AppButton>
           <AppButton mode="text" onPress={() => router.replace('/sign-in')}>
-            Back to sign in
+            {t('passwordReset.backToSignIn')}
           </AppButton>
         </View>
       </KeyboardAvoidingView>

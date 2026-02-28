@@ -1,6 +1,7 @@
 import React from 'react';
 import { KeyboardAvoidingView, Platform, StyleSheet } from 'react-native';
 import type { FetchBaseQueryError } from '@reduxjs/toolkit/query';
+import { useTranslation } from 'react-i18next';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Button, HelperText, Text, TextInput, useTheme } from 'react-native-paper';
 
@@ -13,18 +14,22 @@ import {
 import { baseApi } from '@/src/store/baseApi';
 import { useAppDispatch } from '@/src/store/hooks';
 
-function getErrorMessage(error: unknown): string {
+function getErrorMessage(
+  error: unknown,
+  t: (key: string, options?: Record<string, unknown>) => string,
+): string {
   const apiError = error as FetchBaseQueryError | undefined;
   if (apiError && typeof apiError === 'object' && 'status' in apiError) {
-    return `Request failed (${String(apiError.status)}).`;
+    return t('common.requestFailedWithStatus', { status: String(apiError.status) });
   }
   if (error instanceof Error) {
     return error.message;
   }
-  return 'Something went wrong.';
+  return t('common.somethingWentWrong');
 }
 
 export default function ChangeServerScreen() {
+  const { t } = useTranslation();
   const dispatch = useAppDispatch();
   const theme = useTheme();
 
@@ -39,7 +44,7 @@ export default function ChangeServerScreen() {
 
     const normalized = normalizeApiBaseUrl(customApiBaseUrl);
     if (!normalized) {
-      setBackendError('Please enter a valid backend URL.');
+      setBackendError(t('server.enterValidBackendUrl'));
       return;
     }
 
@@ -50,19 +55,21 @@ export default function ChangeServerScreen() {
         headers: { Accept: 'application/json' },
       });
       if (!identifyResponse.ok) {
-        setBackendError(`Backend check failed (${identifyResponse.status}).`);
+        setBackendError(
+          t('server.backendCheckFailed', { status: String(identifyResponse.status) }),
+        );
         return;
       }
 
       await setApiBaseUrl(normalized);
       dispatch(baseApi.util.resetApiState());
-      setBackendMessage('Backend updated. Return and sign in.');
+      setBackendMessage(t('server.backendUpdated'));
     } catch (error) {
-      setBackendError(getErrorMessage(error));
+      setBackendError(getErrorMessage(error, t));
     } finally {
       setIsSaving(false);
     }
-  }, [customApiBaseUrl, dispatch]);
+  }, [customApiBaseUrl, dispatch, t]);
 
   const onResetBackendUrl = React.useCallback(async () => {
     setBackendError(null);
@@ -70,8 +77,8 @@ export default function ChangeServerScreen() {
     await resetApiBaseUrlToDefault();
     setCustomApiBaseUrl(getApiBaseUrl());
     dispatch(baseApi.util.resetApiState());
-    setBackendMessage('Backend reset to default.');
-  }, [dispatch]);
+    setBackendMessage(t('server.backendReset'));
+  }, [dispatch, t]);
 
   return (
     <SafeAreaView
@@ -83,14 +90,14 @@ export default function ChangeServerScreen() {
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
         <Text variant="headlineSmall" style={styles.title}>
-          Change server
+          {t('server.title')}
         </Text>
         <Text variant="bodyMedium" style={styles.subtitle}>
-          Select the backend URL before signing in.
+          {t('server.subtitle')}
         </Text>
 
         <TextInput
-          label="API base URL"
+          label={t('server.apiBaseUrl')}
           value={customApiBaseUrl}
           onChangeText={setCustomApiBaseUrl}
           autoCapitalize="none"
@@ -99,10 +106,10 @@ export default function ChangeServerScreen() {
           style={styles.input}
         />
         <Button mode="contained" onPress={() => void onSaveBackendUrl()} loading={isSaving}>
-          Save backend URL
+          {t('server.saveBackendUrl')}
         </Button>
         <Button mode="text" onPress={() => void onResetBackendUrl()}>
-          Reset backend URL to default
+          {t('server.resetBackendUrl')}
         </Button>
         <HelperText type="error" visible={!!backendError}>
           {backendError}

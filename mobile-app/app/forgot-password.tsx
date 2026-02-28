@@ -2,6 +2,7 @@ import React from 'react';
 import { KeyboardAvoidingView, Platform, StyleSheet, View } from 'react-native';
 import type { FetchBaseQueryError } from '@reduxjs/toolkit/query';
 import { router } from 'expo-router';
+import { useTranslation } from 'react-i18next';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { HelperText, Text, useTheme } from 'react-native-paper';
 
@@ -9,21 +10,25 @@ import { usePostPasswordEmailMutation } from '@/src/store/generatedApi';
 import { OPEN_LOCKER_DESIGN_TOKENS } from '@/src/theme/tokens';
 import { AppButton, AppTextInput } from '@/src/ui';
 
-function getErrorMessage(error: unknown): string {
+function getErrorMessage(
+  error: unknown,
+  t: (key: string, options?: Record<string, unknown>) => string,
+): string {
   const apiError = error as FetchBaseQueryError | undefined;
   if (apiError && typeof apiError === 'object' && 'status' in apiError) {
     if (apiError.status === 422) {
-      return 'Please enter a valid account email.';
+      return t('passwordReset.enterValidEmail');
     }
-    return `Request failed (${String(apiError.status)}).`;
+    return t('common.requestFailedWithStatus', { status: String(apiError.status) });
   }
   if (error instanceof Error) {
     return error.message;
   }
-  return 'Something went wrong.';
+  return t('common.somethingWentWrong');
 }
 
 export default function ForgotPasswordScreen() {
+  const { t } = useTranslation();
   const [requestPasswordReset] = usePostPasswordEmailMutation();
   const [email, setEmail] = React.useState('');
   const [error, setError] = React.useState<string | null>(null);
@@ -42,14 +47,14 @@ export default function ForgotPasswordScreen() {
         sendPasswordResetRequest: { email: email.trim() },
       }).unwrap();
       setSuccessMessage(
-        typeof res.message === 'string' ? res.message : 'Password reset link sent.',
+        typeof res.message === 'string' ? res.message : t('passwordReset.resetLinkSent'),
       );
     } catch (e) {
-      setError(getErrorMessage(e));
+      setError(getErrorMessage(e, t));
     } finally {
       setIsSubmitting(false);
     }
-  }, [email, requestPasswordReset]);
+  }, [email, requestPasswordReset, t]);
 
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: theme.colors.background }]}>
@@ -57,13 +62,13 @@ export default function ForgotPasswordScreen() {
         style={styles.container}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
-        <Text variant="headlineSmall">Forgot Password</Text>
+        <Text variant="headlineSmall">{t('passwordReset.forgotTitle')}</Text>
         <Text variant="bodyMedium" style={styles.subtitle}>
-          Enter your account email and we will send you a reset link.
+          {t('passwordReset.forgotSubtitle')}
         </Text>
 
         <AppTextInput
-          label="Email"
+          label={t('auth.email')}
           value={email}
           onChangeText={setEmail}
           autoCapitalize="none"
@@ -84,10 +89,10 @@ export default function ForgotPasswordScreen() {
             disabled={!canSubmit}
             loading={isSubmitting}
           >
-            Send reset link
+            {t('passwordReset.sendResetLink')}
           </AppButton>
           <AppButton mode="text" onPress={() => router.replace('/sign-in')}>
-            Back to sign in
+            {t('passwordReset.backToSignIn')}
           </AppButton>
         </View>
       </KeyboardAvoidingView>

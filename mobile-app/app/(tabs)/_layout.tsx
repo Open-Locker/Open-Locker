@@ -2,6 +2,7 @@ import React from 'react';
 import { router, Stack } from 'expo-router';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { ChevronRight } from 'lucide-react-native';
+import { useTranslation } from 'react-i18next';
 import { ActivityIndicator, Button, Surface, Text, useTheme } from 'react-native-paper';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -37,6 +38,7 @@ function SmallBottomNotice({
 }
 
 export default function TabLayout() {
+  const { t } = useTranslation();
   const theme = useTheme();
   const headerShown = useClientOnlyValue(false, true);
   const insets = useSafeAreaInsets();
@@ -67,7 +69,7 @@ export default function TabLayout() {
           name="index"
           options={{
             headerShown: false,
-            title: 'Compartments',
+            title: t('compartments.title'),
             headerRight: () => (
               <View style={styles.headerActions}>
                 <Pressable
@@ -77,7 +79,7 @@ export default function TabLayout() {
                   ]}
                   onPress={() => router.push('/account' as never)}
                   accessibilityRole="button"
-                  accessibilityLabel="Account"
+                  accessibilityLabel={t('common.account')}
                 >
                   <View
                     style={[
@@ -102,15 +104,19 @@ export default function TabLayout() {
       >
         {needsTermsAcceptance ? (
           <SmallBottomNotice
-            message="New terms are available."
-            actionLabel="Review"
+            message={t('compartments.newTermsAvailable')}
+            actionLabel={t('compartments.review')}
             onAction={() => router.push('/terms' as never)}
           />
         ) : null}
         {needsVerification ? (
           <SmallBottomNotice
-            message="Please verify your email."
-            actionLabel={sendVerificationEmailState.isLoading ? 'Sending...' : 'Resend'}
+            message={t('compartments.verifyEmail')}
+            actionLabel={
+              sendVerificationEmailState.isLoading
+                ? t('compartments.sending')
+                : t('compartments.resend')
+            }
             actionLoading={sendVerificationEmailState.isLoading}
             onAction={() => {
               void (async () => {
@@ -119,10 +125,10 @@ export default function TabLayout() {
                   setVerificationMessage(
                     response && typeof response === 'object' && 'message' in response
                       ? String(response.message)
-                      : 'Verification email sent.',
+                      : t('compartments.verificationSent'),
                   );
                 } catch {
-                  setVerificationMessage('Failed to send verification email.');
+                  setVerificationMessage(t('compartments.verificationFailed'));
                 }
               })();
             }}

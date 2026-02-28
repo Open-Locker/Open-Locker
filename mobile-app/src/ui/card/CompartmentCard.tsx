@@ -1,6 +1,7 @@
 import React from 'react';
 import { Pressable, StyleSheet, Text as RNText, View } from 'react-native';
 import { CircleHelp, Lock, LockOpen } from 'lucide-react-native';
+import { useTranslation } from 'react-i18next';
 import { Card, Text, useTheme } from 'react-native-paper';
 
 import type { GetCompartmentsAccessibleApiResponse } from '@/src/store/generatedApi';
@@ -19,11 +20,17 @@ type CompartmentCardProps = {
 };
 
 export function CompartmentCard({ compartment, status, onPress }: CompartmentCardProps) {
+  const { t } = useTranslation();
   const theme = useTheme();
   const isEmpty = !compartment.item;
   const storedItemName = compartment.item?.name?.trim();
   const displayNumber = String(compartment.number).padStart(2, '0');
-  const statusLabel = status === 'open' ? 'Open' : status === 'closed' ? 'Closed' : 'Unknown';
+  const statusLabel =
+    status === 'open'
+      ? t('compartments.statusOpen')
+      : status === 'closed'
+        ? t('compartments.statusClosed')
+        : t('compartments.statusUnknown');
   const statusPalette = status ? getCompartmentStatusPalette(theme, status) : null;
   const cardTextColor = status === 'open' ? '#0f2a75' : '#0f172a';
   const subtitleTextColor =
@@ -53,7 +60,9 @@ export function CompartmentCard({ compartment, status, onPress }: CompartmentCar
               numberOfLines={2}
               style={[styles.subtitle, { color: subtitleTextColor }]}
             >
-              {isEmpty ? 'Currently empty' : (storedItemName ?? 'Unnamed item')}
+              {isEmpty
+                ? t('compartments.currentlyEmpty')
+                : (storedItemName ?? t('compartments.unnamedItem'))}
             </Text>
           </View>
           {status && statusPalette ? (

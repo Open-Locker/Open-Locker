@@ -1,6 +1,7 @@
 import React from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 import type { FetchBaseQueryError } from '@reduxjs/toolkit/query';
+import { useTranslation } from 'react-i18next';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { HelperText, Text, useTheme } from 'react-native-paper';
 
@@ -17,18 +18,22 @@ import { useAppDispatch, useAppSelector } from '@/src/store/hooks';
 import { OPEN_LOCKER_DESIGN_TOKENS } from '@/src/theme/tokens';
 import { AppButton, AppTextInput } from '@/src/ui';
 
-function getErrorMessage(error: unknown): string {
+function getErrorMessage(
+  error: unknown,
+  t: (key: string, options?: Record<string, unknown>) => string,
+): string {
   const apiError = error as FetchBaseQueryError | undefined;
   if (apiError && typeof apiError === 'object' && 'status' in apiError) {
-    return `Request failed (${String(apiError.status)}).`;
+    return t('common.requestFailedWithStatus', { status: String(apiError.status) });
   }
   if (error instanceof Error) {
     return error.message;
   }
-  return 'Something went wrong.';
+  return t('common.somethingWentWrong');
 }
 
 export default function AccountScreen() {
+  const { t } = useTranslation();
   const dispatch = useAppDispatch();
   const userName = useAppSelector((state) => state.auth.userName);
   const theme = useTheme();
@@ -79,14 +84,12 @@ export default function AccountScreen() {
       }).unwrap();
       await refetch();
       setProfileMessage(
-        emailChanged
-          ? 'Profile updated. Please verify your new email address.'
-          : 'Profile updated.',
+        emailChanged ? t('account.profileUpdatedVerifyEmail') : t('account.profileUpdated'),
       );
     } catch (error) {
-      setProfileMessage(getErrorMessage(error));
+      setProfileMessage(getErrorMessage(error, t));
     }
-  }, [email, name, refetch, updateProfile, user?.email]);
+  }, [email, name, refetch, t, updateProfile, user?.email]);
 
   const onChangePassword = React.useCallback(async () => {
     setPasswordMessage(null);
@@ -101,11 +104,11 @@ export default function AccountScreen() {
       setCurrentPassword('');
       setNewPassword('');
       setNewPasswordConfirmation('');
-      setPasswordMessage('Password updated.');
+      setPasswordMessage(t('account.passwordUpdated'));
     } catch (error) {
-      setPasswordMessage(getErrorMessage(error));
+      setPasswordMessage(getErrorMessage(error, t));
     }
-  }, [changePassword, currentPassword, newPassword, newPasswordConfirmation]);
+  }, [changePassword, currentPassword, newPassword, newPasswordConfirmation, t]);
 
   return (
     <SafeAreaView
@@ -114,13 +117,13 @@ export default function AccountScreen() {
     >
       <ScrollView contentContainerStyle={styles.container}>
         <Text variant="headlineSmall" style={styles.pageTitle}>
-          Account
+          {t('navigation.account')}
         </Text>
         <Text variant="bodyMedium" style={styles.pageSubtitle}>
-          Signed in as
+          {t('account.signedInAs')}
         </Text>
         <Text variant="titleMedium" style={styles.name}>
-          {userName ?? 'Unknown user'}
+          {userName ?? t('common.unknownUser')}
         </Text>
 
         <View
@@ -130,11 +133,11 @@ export default function AccountScreen() {
           ]}
         >
           <Text variant="titleSmall" style={styles.sectionTitle}>
-            Profile
+            {t('account.profile')}
           </Text>
-          <AppTextInput label="Name" value={name} onChangeText={setName} />
+          <AppTextInput label={t('account.name')} value={name} onChangeText={setName} />
           <AppTextInput
-            label="Email"
+            label={t('auth.email')}
             value={email}
             onChangeText={setEmail}
             autoCapitalize="none"
@@ -145,7 +148,7 @@ export default function AccountScreen() {
             onPress={() => void onSaveProfile()}
             loading={updateProfileState.isLoading}
           >
-            Save profile
+            {t('account.saveProfile')}
           </AppButton>
           <HelperText type="info" visible={!!profileMessage}>
             {profileMessage}
@@ -159,22 +162,22 @@ export default function AccountScreen() {
           ]}
         >
           <Text variant="titleSmall" style={styles.sectionTitle}>
-            Change password
+            {t('account.changePassword')}
           </Text>
           <AppTextInput
-            label="Current password"
+            label={t('account.currentPassword')}
             value={currentPassword}
             onChangeText={setCurrentPassword}
             secureTextEntry
           />
           <AppTextInput
-            label="New password"
+            label={t('account.newPassword')}
             value={newPassword}
             onChangeText={setNewPassword}
             secureTextEntry
           />
           <AppTextInput
-            label="Confirm new password"
+            label={t('account.confirmNewPassword')}
             value={newPasswordConfirmation}
             onChangeText={setNewPasswordConfirmation}
             secureTextEntry
@@ -184,7 +187,7 @@ export default function AccountScreen() {
             onPress={() => void onChangePassword()}
             loading={changePasswordState.isLoading}
           >
-            Update password
+            {t('account.updatePassword')}
           </AppButton>
           <HelperText type="info" visible={!!passwordMessage}>
             {passwordMessage}
@@ -192,7 +195,7 @@ export default function AccountScreen() {
         </View>
 
         <AppButton mode="contained" onPress={() => void onLogout()} style={styles.logoutButton}>
-          Logout
+          {t('account.logout')}
         </AppButton>
       </ScrollView>
     </SafeAreaView>

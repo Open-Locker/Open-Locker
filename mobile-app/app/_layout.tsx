@@ -10,6 +10,7 @@ import { useFonts } from 'expo-font';
 import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import 'react-native-reanimated';
 import { Provider } from 'react-redux';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
@@ -17,6 +18,7 @@ import { PaperProvider } from 'react-native-paper';
 
 import { useColorScheme } from '@/components/useColorScheme';
 import { hydrateApiBaseUrl } from '@/src/api/baseUrl';
+import '@/src/i18n';
 import { loadPersistedAuth } from '@/src/store/authStorage';
 import { restoreAuth } from '@/src/store/authSlice';
 import { useAppDispatch, useAppSelector } from '@/src/store/hooks';
@@ -89,6 +91,7 @@ function RootLayoutBootstrap() {
 }
 
 function RootLayoutNav() {
+  const { t } = useTranslation();
   const colorScheme = useColorScheme();
   const token = useAppSelector((state) => state.auth.token);
   const isLoading = useAppSelector((state) => state.auth.isLoading);
@@ -107,19 +110,28 @@ function RootLayoutNav() {
           <Stack>
             <Stack.Protected guard={!!token}>
               <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-              <Stack.Screen name="account" options={{ title: 'Account' }} />
+              <Stack.Screen name="account" options={{ title: t('navigation.account') }} />
               <Stack.Screen
                 name="terms"
-                options={{ title: 'Terms & Conditions', presentation: 'modal' }}
+                options={{ title: t('navigation.terms'), presentation: 'modal' }}
               />
               <Stack.Screen name="modal" options={{ presentation: 'modal' }} />
             </Stack.Protected>
 
             <Stack.Protected guard={!token}>
               <Stack.Screen name="sign-in" options={{ headerShown: false }} />
-              <Stack.Screen name="change-server" options={{ title: 'Change Server' }} />
-              <Stack.Screen name="forgot-password" options={{ title: 'Forgot Password' }} />
-              <Stack.Screen name="reset-password" options={{ title: 'Reset Password' }} />
+              <Stack.Screen
+                name="change-server"
+                options={{ title: t('navigation.changeServer') }}
+              />
+              <Stack.Screen
+                name="forgot-password"
+                options={{ title: t('navigation.forgotPassword') }}
+              />
+              <Stack.Screen
+                name="reset-password"
+                options={{ title: t('navigation.resetPassword') }}
+              />
             </Stack.Protected>
           </Stack>
         </BottomSheetModalProvider>

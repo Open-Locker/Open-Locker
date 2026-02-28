@@ -1,6 +1,7 @@
 import React from 'react';
 import type { FetchBaseQueryError } from '@reduxjs/toolkit/query';
 import { router } from 'expo-router';
+import { useTranslation } from 'react-i18next';
 import { ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ActivityIndicator, HelperText, Surface, Text, useTheme } from 'react-native-paper';
@@ -20,13 +21,16 @@ import { useAppDispatch } from '@/src/store/hooks';
 import { OPEN_LOCKER_DESIGN_TOKENS } from '@/src/theme/tokens';
 import { AppButton } from '@/src/ui';
 
-function getErrorMessage(error: unknown): string {
+function getErrorMessage(
+  error: unknown,
+  t: (key: string, options?: Record<string, unknown>) => string,
+): string {
   const apiError = error as FetchBaseQueryError | undefined;
   if (apiError && typeof apiError === 'object' && 'status' in apiError) {
-    return `Request failed (${String(apiError.status)}).`;
+    return t('common.requestFailedWithStatus', { status: String(apiError.status) });
   }
   if (error instanceof Error) return error.message;
-  return 'Something went wrong.';
+  return t('common.somethingWentWrong');
 }
 
 function isCurrentAccepted(value: unknown): boolean {
@@ -39,6 +43,7 @@ function isCurrentAccepted(value: unknown): boolean {
 }
 
 export default function TermsScreen() {
+  const { t } = useTranslation();
   const theme = useTheme();
   const { width } = useWindowDimensions();
   const dispatch = useAppDispatch();
@@ -75,9 +80,9 @@ export default function TermsScreen() {
       dispatch(openLockerApi.util.invalidateTags(['Auth', 'Terms']));
       router.replace('/(tabs)' as never);
     } catch (error) {
-      setSubmitError(getErrorMessage(error));
+      setSubmitError(getErrorMessage(error, t));
     }
-  }, [acceptTerms, dispatch]);
+  }, [acceptTerms, dispatch, t]);
 
   const onLogout = React.useCallback(async () => {
     try {
@@ -101,7 +106,7 @@ export default function TermsScreen() {
       >
         <View style={styles.loadingWrap}>
           <ActivityIndicator />
-          <Text style={styles.loadingText}>Loading current terms...</Text>
+          <Text style={styles.loadingText}>{t('terms.loadingCurrent')}</Text>
         </View>
       </SafeAreaView>
     );
@@ -109,7 +114,7 @@ export default function TermsScreen() {
 
   const termsErrorMessage =
     termsError && 'status' in termsError
-      ? `Failed to load current terms (${String(termsError.status)}).`
+      ? t('terms.loadFailed', { status: String(termsError.status) })
       : null;
 
   return (
@@ -119,10 +124,10 @@ export default function TermsScreen() {
     >
       <ScrollView contentContainerStyle={styles.container}>
         <Text variant="headlineSmall" style={styles.title}>
-          Terms & Conditions
+          {t('navigation.terms')}
         </Text>
         <Text variant="bodyMedium" style={styles.subtitle}>
-          You must accept the current terms before using the app.
+          {t('terms.mustAccept')}
         </Text>
 
         <Surface
@@ -130,12 +135,14 @@ export default function TermsScreen() {
           elevation={1}
         >
           <Text variant="titleSmall">
-            {currentTerms?.document_name ?? 'Current terms'}
+            {currentTerms?.document_name ?? t('terms.currentTerms')}
             {currentTerms?.version ? ` v${currentTerms.version}` : ''}
           </Text>
           {currentTerms?.published_at ? (
             <Text variant="bodySmall" style={styles.metaText}>
-              Published: {new Date(currentTerms.published_at).toLocaleString()}
+              {t('terms.publishedAt', {
+                value: new Date(currentTerms.published_at).toLocaleString(),
+              })}
             </Text>
           ) : null}
           {currentTerms?.content ? (
@@ -156,7 +163,7 @@ export default function TermsScreen() {
             />
           ) : (
             <Text variant="bodyMedium" style={styles.contentText}>
-              No terms content available.
+              {t('terms.noContent')}
             </Text>
           )}
         </Surface>
@@ -175,13 +182,13 @@ export default function TermsScreen() {
           disabled={acceptTermsState.isLoading || !!termsErrorMessage || !currentTerms}
           style={styles.acceptButton}
         >
-          Accept and continue
+          {t('terms.acceptAndContinue')}
         </AppButton>
         <AppButton mode="text" onPress={onClose}>
-          Close
+          {t('common.close')}
         </AppButton>
         <AppButton mode="text" onPress={() => void onLogout()}>
-          Logout
+          {t('account.logout')}
         </AppButton>
       </ScrollView>
     </SafeAreaView>

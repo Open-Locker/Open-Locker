@@ -9,6 +9,7 @@ import {
 import type { FetchBaseQueryError } from '@reduxjs/toolkit/query';
 import Constants from 'expo-constants';
 import { router, useFocusEffect } from 'expo-router';
+import { useTranslation } from 'react-i18next';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { HelperText, Text, useTheme } from 'react-native-paper';
 
@@ -21,19 +22,23 @@ import { useAppDispatch } from '@/src/store/hooks';
 import { OPEN_LOCKER_DESIGN_TOKENS } from '@/src/theme/tokens';
 import { AppButton, AppTextInput } from '@/src/ui';
 
-function getErrorMessage(error: unknown): string {
+function getErrorMessage(
+  error: unknown,
+  t: (key: string, options?: Record<string, unknown>) => string,
+): string {
   const apiError = error as FetchBaseQueryError | undefined;
   if (apiError && typeof apiError === 'object' && 'status' in apiError) {
     if (apiError.status === 422) {
-      return 'Invalid email or password.';
+      return t('auth.invalidEmailOrPassword');
     }
-    return `Request failed (${String(apiError.status)}).`;
+    return t('common.requestFailedWithStatus', { status: String(apiError.status) });
   }
   if (error instanceof Error) return error.message;
-  return 'Something went wrong.';
+  return t('common.somethingWentWrong');
 }
 
 export default function SignInScreen() {
+  const { t } = useTranslation();
   const dispatch = useAppDispatch();
   const { height } = useWindowDimensions();
   const [postLogin] = usePostLoginMutation();
@@ -49,11 +54,13 @@ export default function SignInScreen() {
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
   const [currentApiBaseUrl, setCurrentApiBaseUrl] = React.useState(getApiBaseUrl());
-  const appVersion = Constants.expoConfig?.version ?? Constants.nativeAppVersion ?? 'unknown';
+  const appVersion =
+    Constants.expoConfig?.version ?? Constants.nativeAppVersion ?? t('auth.unknownVersion');
   const isCompactLayout = height <= 720;
   const serverVersion = isIdentifyError
-    ? 'unreachable'
-    : (identifyData?.version ?? (isLoadingIdentify ? 'loading...' : 'unknown'));
+    ? t('auth.serverVersionUnreachable')
+    : (identifyData?.version ??
+      (isLoadingIdentify ? t('auth.serverVersionLoading') : t('auth.unknownVersion')));
 
   useFocusEffect(
     React.useCallback(() => {
@@ -84,11 +91,11 @@ export default function SignInScreen() {
         router.replace('/terms' as never);
       }
     } catch (e) {
-      setError(getErrorMessage(e));
+      setError(getErrorMessage(e, t));
     } finally {
       setIsSubmitting(false);
     }
-  }, [dispatch, email, password, postLogin]);
+  }, [dispatch, email, password, postLogin, t]);
 
   return (
     <SafeAreaView
@@ -116,20 +123,20 @@ export default function SignInScreen() {
             Open Locker
           </Text>
           <Text variant="titleSmall" style={styles.tagline}>
-            Der smarte Schrank für alle
+            {t('auth.openLockerTagline')}
           </Text>
         </View>
 
         <View style={[styles.formWrap, isCompactLayout && styles.formWrapCompact]}>
           <Text variant="titleMedium" style={styles.formTitle}>
-            Sign in
+            {t('auth.signIn')}
           </Text>
           <Text variant="bodyMedium" style={styles.subtitle}>
-            Access compartments and manage your items.
+            {t('auth.accessAndManage')}
           </Text>
 
           <AppTextInput
-            label="Email"
+            label={t('auth.email')}
             value={email}
             onChangeText={setEmail}
             autoCapitalize="none"
@@ -140,7 +147,7 @@ export default function SignInScreen() {
           />
 
           <AppTextInput
-            label="Password"
+            label={t('auth.password')}
             value={password}
             onChangeText={setPassword}
             secureTextEntry
@@ -160,15 +167,15 @@ export default function SignInScreen() {
             style={styles.button}
             compactHeight={isCompactLayout}
           >
-            Sign in
+            {t('auth.signIn')}
           </AppButton>
 
           <View style={styles.linksRow}>
             <AppButton mode="text" onPress={() => router.push('/forgot-password' as never)} compact>
-              Forgot password?
+              {t('auth.forgotPassword')}
             </AppButton>
             <AppButton mode="text" onPress={() => router.push('/change-server' as never)} compact>
-              Change server
+              {t('auth.changeServer')}
             </AppButton>
           </View>
         </View>
@@ -178,19 +185,19 @@ export default function SignInScreen() {
             variant="bodySmall"
             style={[styles.currentServer, isCompactLayout && styles.currentServerCompact]}
           >
-            Server: {currentApiBaseUrl}
+            {t('auth.serverLabel', { value: currentApiBaseUrl })}
           </Text>
           <Text
             variant="bodySmall"
             style={[styles.currentServer, isCompactLayout && styles.currentServerCompact]}
           >
-            App version: {appVersion}
+            {t('auth.appVersionLabel', { value: appVersion })}
           </Text>
           <Text
             variant="bodySmall"
             style={[styles.currentServer, isCompactLayout && styles.currentServerCompact]}
           >
-            Server version: {serverVersion}
+            {t('auth.serverVersionLabel', { value: serverVersion })}
           </Text>
         </View>
       </KeyboardAvoidingView>

@@ -5,6 +5,7 @@ import { CircleHelp, CircleUserRound, Lock, LockOpen, WifiOff } from 'lucide-rea
 import type { FetchBaseQueryError } from '@reduxjs/toolkit/query';
 import { skipToken } from '@reduxjs/toolkit/query';
 import { router } from 'expo-router';
+import { useTranslation } from 'react-i18next';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ActivityIndicator, Button, Chip, HelperText, Text, useTheme } from 'react-native-paper';
 
@@ -32,24 +33,28 @@ type LockerBankFilter = {
 
 function mapLockerBanks(
   response: GetCompartmentsAccessibleApiResponse | undefined,
+  t: (key: string, options?: Record<string, unknown>) => string,
 ): LockerBankFilter[] {
   if (!response?.locker_banks) return [];
   return response.locker_banks
     .map((bank) => ({
       id: bank.id,
-      title: bank.name?.trim() || `Locker bank ${bank.id}`,
+      title: bank.name?.trim() || t('compartments.lockerBankDefault', { id: bank.id }),
       compartments: Array.isArray(bank.compartments) ? bank.compartments : [],
     }))
     .sort((a, b) => a.title.localeCompare(b.title));
 }
 
-function getErrorMessage(error: unknown): string {
+function getErrorMessage(
+  error: unknown,
+  t: (key: string, options?: Record<string, unknown>) => string,
+): string {
   const apiError = error as FetchBaseQueryError | undefined;
   if (apiError && typeof apiError === 'object' && 'status' in apiError) {
-    return `Request failed (${String(apiError.status)}).`;
+    return t('common.requestFailedWithStatus', { status: String(apiError.status) });
   }
   if (error instanceof Error) return error.message;
-  return 'Something went wrong.';
+  return t('common.somethingWentWrong');
 }
 
 function getCompartmentStatusFromApi(
@@ -89,6 +94,7 @@ function getFakeLockerStatus(lockerBankId: string): LockerVisualStatus {
 }
 
 export default function CompartmentsScreen() {
+  const { t } = useTranslation();
   const token = useAppSelector((state) => state.auth.token);
   const userName = useAppSelector((state) => state.auth.userName);
   const theme = useTheme();
@@ -144,13 +150,13 @@ export default function CompartmentsScreen() {
       <SafeAreaView style={[styles.safe, { backgroundColor: theme.colors.background }]} edges={[]}>
         <View style={styles.center}>
           <ActivityIndicator />
-          <Text style={styles.centerText}>Loading compartments…</Text>
+          <Text style={styles.centerText}>{t('compartments.loading')}</Text>
         </View>
       </SafeAreaView>
     );
   }
 
-  const lockerBanks = mapLockerBanks(data);
+  const lockerBanks = mapLockerBanks(data, t);
   const visibleLockerBanks =
     selectedLockerBankId === 'all'
       ? lockerBanks
@@ -159,17 +165,19 @@ export default function CompartmentsScreen() {
     .flatMap((lockerBank) => lockerBank.compartments)
     .sort((a, b) => a.number - b.number);
   const errorMessage =
-    error && 'status' in error ? `Failed to load compartments (${String(error.status)}).` : null;
+    error && 'status' in error
+      ? t('compartments.loadFailed', { status: String(error.status) })
+      : null;
   const selectedCompartmentStatus = selectedCompartment
     ? getCompartmentStatusFromApi(selectedCompartment)
     : null;
   const accountInitial = (userName?.trim().charAt(0) || 'A').toUpperCase();
   const selectedCompartmentStatusLabel =
     selectedCompartmentStatus === 'open'
-      ? 'Open'
+      ? t('compartments.statusOpen')
       : selectedCompartmentStatus === 'closed'
-        ? 'Closed'
-        : 'Unknown';
+        ? t('compartments.statusClosed')
+        : t('compartments.statusUnknown');
   const selectedStatusPalette = selectedCompartmentStatus
     ? getCompartmentStatusPalette(theme, selectedCompartmentStatus)
     : null;
@@ -207,14 +215,14 @@ export default function CompartmentsScreen() {
         >
           <View style={styles.screenHeaderTop}>
             <View style={styles.screenHeaderText}>
-              <Text style={styles.screenHeading}>Compartment</Text>
-              <Text style={styles.screenSubheading}>Manage and open your compartments.</Text>
+              <Text style={styles.screenHeading}>{t('compartments.title')}</Text>
+              <Text style={styles.screenSubheading}>{t('compartments.subtitle')}</Text>
             </View>
             <Pressable
               onPress={() => router.push('/account' as never)}
               style={({ pressed }) => [styles.profileButton, pressed && styles.cardPressed]}
               accessibilityRole="button"
-              accessibilityLabel="Open profile"
+              accessibilityLabel={t('compartments.openProfile')}
             >
               <View
                 style={[styles.profileAvatar, { backgroundColor: theme.colors.primaryContainer }]}
@@ -286,7 +294,7 @@ export default function CompartmentsScreen() {
                 compact
                 showSelectedCheck={false}
               >
-                All
+                {t('common.all')}
               </Chip>
               {lockerBanks.map((section) => {
                 const lockerStatus = getFakeLockerStatus(section.id);
@@ -348,7 +356,7 @@ export default function CompartmentsScreen() {
         }}
         ListEmptyComponent={
           <View style={styles.center}>
-            <Text>No compartments found.</Text>
+            <Text>{t('compartments.empty')}</Text>
           </View>
         }
       />
@@ -381,7 +389,7 @@ export default function CompartmentsScreen() {
           {selectedCompartment && selectedCompartmentStatus && selectedStatusPalette ? (
             <View style={styles.sheetStatusRow}>
               <Text variant="bodySmall" style={styles.modalSubtitle}>
-                Compartment status:
+                {t('compartments.statusLabel')}
               </Text>
               <View
                 style={[
@@ -407,14 +415,14 @@ export default function CompartmentsScreen() {
             </View>
           ) : null}
           <Text variant="titleMedium" style={styles.modalTitle}>
-            Compartment {selectedCompartment?.number ?? ''}
+            {t('compartments.compartmentNumber', { number: selectedCompartment?.number ?? '' })}
           </Text>
           <Text variant="bodyMedium" style={styles.modalSubtitle}>
-            Stored item:
+            {t('compartments.storedItemLabel')}
           </Text>
           <View style={[styles.sheetStoredItemCard, { borderColor: theme.colors.outlineVariant }]}>
             <Text variant="titleSmall" style={styles.modalStoredItemName}>
-              {selectedCompartment?.item?.name?.trim() || 'No item currently stored'}
+              {selectedCompartment?.item?.name?.trim() || t('compartments.noItemStored')}
             </Text>
             {!!selectedCompartment?.item?.description?.trim() && (
               <Text variant="bodyMedium" style={styles.modalStoredItemDescription}>
@@ -423,7 +431,7 @@ export default function CompartmentsScreen() {
             )}
           </View>
           <Text variant="bodySmall" style={styles.modalHint}>
-            Send open command for this compartment.
+            {t('compartments.openCommandHint')}
           </Text>
           <HelperText type="error" visible={!!modalError}>
             {modalError}
@@ -440,20 +448,20 @@ export default function CompartmentsScreen() {
                 setModalInfo(null);
                 try {
                   await requestOpen({ compartment: selectedCompartment.id }).unwrap();
-                  setModalInfo('Open request sent.');
+                  setModalInfo(t('compartments.openRequestSent'));
                   closeCompartmentSheet();
                 } catch (e) {
-                  setModalError(getErrorMessage(e));
+                  setModalError(getErrorMessage(e, t));
                 }
               })();
             }}
             loading={requestOpenState.isLoading}
             disabled={!selectedCompartment || requestOpenState.isLoading}
           >
-            Open compartment
+            {t('compartments.openCompartment')}
           </Button>
           <Button mode="text" onPress={closeCompartmentSheet}>
-            Close
+            {t('common.close')}
           </Button>
         </BottomSheetView>
       </BottomSheetModal>
