@@ -3,7 +3,7 @@ import type { FetchBaseQueryError } from '@reduxjs/toolkit/query';
 import { router } from 'expo-router';
 import { ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { ActivityIndicator, Button, HelperText, Surface, Text, useTheme } from 'react-native-paper';
+import { ActivityIndicator, HelperText, Surface, Text, useTheme } from 'react-native-paper';
 import RenderHtml from 'react-native-render-html';
 
 import { baseApi } from '@/src/store/baseApi';
@@ -17,6 +17,8 @@ import {
   usePostTermsAcceptMutation,
 } from '@/src/store/generatedApi';
 import { useAppDispatch } from '@/src/store/hooks';
+import { OPEN_LOCKER_DESIGN_TOKENS } from '@/src/theme/tokens';
+import { AppButton } from '@/src/ui';
 
 function getErrorMessage(error: unknown): string {
   const apiError = error as FetchBaseQueryError | undefined;
@@ -166,7 +168,7 @@ export default function TermsScreen() {
           {submitError}
         </HelperText>
 
-        <Button
+        <AppButton
           mode="contained"
           onPress={() => void onAccept()}
           loading={acceptTermsState.isLoading}
@@ -174,13 +176,13 @@ export default function TermsScreen() {
           style={styles.acceptButton}
         >
           Accept and continue
-        </Button>
-        <Button mode="text" onPress={onClose}>
+        </AppButton>
+        <AppButton mode="text" onPress={onClose}>
           Close
-        </Button>
-        <Button mode="text" onPress={() => void onLogout()}>
+        </AppButton>
+        <AppButton mode="text" onPress={() => void onLogout()}>
           Logout
-        </Button>
+        </AppButton>
       </ScrollView>
     </SafeAreaView>
   );
@@ -189,21 +191,21 @@ export default function TermsScreen() {
 const styles = StyleSheet.create({
   safe: { flex: 1 },
   container: {
-    paddingHorizontal: 16,
-    paddingTop: 16,
-    paddingBottom: 24,
-    gap: 8,
+    paddingHorizontal: OPEN_LOCKER_DESIGN_TOKENS.spacing.lg,
+    paddingTop: OPEN_LOCKER_DESIGN_TOKENS.spacing.lg,
+    paddingBottom: OPEN_LOCKER_DESIGN_TOKENS.spacing.xl,
+    gap: OPEN_LOCKER_DESIGN_TOKENS.spacing.sm,
   },
   title: { fontWeight: '700' },
   subtitle: { opacity: 0.8, marginBottom: 8 },
   contentCard: {
-    padding: 12,
-    borderRadius: 12,
-    gap: 8,
+    padding: OPEN_LOCKER_DESIGN_TOKENS.spacing.md,
+    borderRadius: OPEN_LOCKER_DESIGN_TOKENS.radius.md,
+    gap: OPEN_LOCKER_DESIGN_TOKENS.spacing.sm,
   },
   metaText: { opacity: 0.7 },
   contentText: { lineHeight: 22 },
-  acceptButton: { marginTop: 8 },
+  acceptButton: { marginTop: OPEN_LOCKER_DESIGN_TOKENS.spacing.sm },
   loadingWrap: {
     flex: 1,
     alignItems: 'center',

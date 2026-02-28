@@ -3,9 +3,11 @@ import { KeyboardAvoidingView, Platform, StyleSheet, View } from 'react-native';
 import type { FetchBaseQueryError } from '@reduxjs/toolkit/query';
 import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Button, HelperText, Text, TextInput, useTheme } from 'react-native-paper';
+import { HelperText, Text, useTheme } from 'react-native-paper';
 
 import { usePostPasswordEmailMutation } from '@/src/store/generatedApi';
+import { OPEN_LOCKER_DESIGN_TOKENS } from '@/src/theme/tokens';
+import { AppButton, AppTextInput } from '@/src/ui';
 
 function getErrorMessage(error: unknown): string {
   const apiError = error as FetchBaseQueryError | undefined;
@@ -60,7 +62,7 @@ export default function ForgotPasswordScreen() {
           Enter your account email and we will send you a reset link.
         </Text>
 
-        <TextInput
+        <AppTextInput
           label="Email"
           value={email}
           onChangeText={setEmail}
@@ -76,12 +78,17 @@ export default function ForgotPasswordScreen() {
         </HelperText>
 
         <View style={styles.actions}>
-          <Button mode="contained" onPress={onSubmit} disabled={!canSubmit} loading={isSubmitting}>
+          <AppButton
+            mode="contained"
+            onPress={onSubmit}
+            disabled={!canSubmit}
+            loading={isSubmitting}
+          >
             Send reset link
-          </Button>
-          <Button mode="text" onPress={() => router.replace('/sign-in')}>
+          </AppButton>
+          <AppButton mode="text" onPress={() => router.replace('/sign-in')}>
             Back to sign in
-          </Button>
+          </AppButton>
         </View>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -92,16 +99,16 @@ const styles = StyleSheet.create({
   safe: { flex: 1 },
   container: {
     flex: 1,
-    paddingHorizontal: 16,
+    paddingHorizontal: OPEN_LOCKER_DESIGN_TOKENS.spacing.lg,
     paddingTop: 24,
-    gap: 8,
+    gap: OPEN_LOCKER_DESIGN_TOKENS.spacing.sm,
   },
   subtitle: {
     marginBottom: 12,
     opacity: 0.85,
   },
   actions: {
-    marginTop: 8,
-    gap: 8,
+    marginTop: OPEN_LOCKER_DESIGN_TOKENS.spacing.sm,
+    gap: OPEN_LOCKER_DESIGN_TOKENS.spacing.sm,
   },
 });

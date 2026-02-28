@@ -1,0 +1,36 @@
+---
+description: Mobile design system usage and folder structure
+globs: mobile-app/**/*.{ts,tsx}
+alwaysApply: false
+---
+
+# Mobile Design System and Structure
+
+- Treat `src/theme/*` as the single source of truth for visual decisions.
+- Keep route files in `app/` thin; put reusable UI primitives in `src/ui/*`.
+- Prefer semantic theme helpers over hardcoded colors, spacing, and radius values.
+
+## Design system layers
+
+- `src/theme/tokens.ts`: raw design tokens (brand colors, spacing, radius).
+- `src/theme/themeFactory.ts`: builds Paper + navigation theme from tokens.
+- `src/theme/statusPalette.ts`: semantic status palettes (open/closed/offline).
+- `src/config/theme.ts`: compatibility exports for existing imports.
+
+## UI primitives
+
+- Put shared wrappers in `src/ui/` (for example `AppButton`, `AppTextInput`).
+- Reuse `src/ui` primitives before introducing screen-local style variants.
+- Add defaults in wrappers (mode, outline colors, height, radius) and keep screens focused on behavior.
+
+## Screen responsibilities
+
+- `app/*`: routing, data orchestration, and composition of UI primitives.
+- `src/ui/*`: reusable presentational defaults.
+- `src/features/*`: domain logic and feature-specific modules.
+
+## Rules of thumb
+
+- Avoid inline hex values in screens unless there is a one-off exception.
+- Add new visual states as semantic palette helpers instead of ad-hoc color logic.
+- If two screens repeat the same styling pattern, extract it to `src/ui` first.

@@ -8,12 +8,18 @@ alwaysApply: false
 
 - Use a hybrid structure: file-based routing in `app/`, domain logic in `src/features/*`.
 - Organize by feature first, then by technical concern inside each feature.
-- Keep shared primitives in `src/components`, `src/hooks`, `src/lib`, and `src/types`.
+- Keep shared primitives in `src/ui`, `src/components`, `src/hooks`, `src/lib`, and `src/types`.
 
 ## Recommended shape
 
 ```text
 src/
+  ui/
+    button/
+    input/
+    card/
+    feedback/
+    layout/
   features/
     auth/
       api/
@@ -25,7 +31,7 @@ src/
 
 ## Rules of thumb
 
-- Before creating a new UI component, check for an existing reusable component in `src/components` and the current feature first.
+- Before creating a new UI component, check for an existing reusable component in `src/ui`, `src/components`, and the current feature first.
 - Reuse and extend existing components when possible; avoid copy-paste variants that only differ by small style changes.
 - Prefer feature-local files over global folders when code is not reused.
 - Promote code to shared folders only after real reuse appears.

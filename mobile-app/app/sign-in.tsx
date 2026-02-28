@@ -10,15 +10,16 @@ import type { FetchBaseQueryError } from '@reduxjs/toolkit/query';
 import Constants from 'expo-constants';
 import { router, useFocusEffect } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Button, HelperText, Text, TextInput, useTheme } from 'react-native-paper';
+import { HelperText, Text, useTheme } from 'react-native-paper';
 
 import LogoOpenLocker from '@/assets/images/logo_open_locker.svg';
-import { OPEN_LOCKER_PRIMARY } from '@/src/config/theme';
 import { getApiBaseUrl } from '@/src/api/baseUrl';
 import { persistAuth } from '@/src/store/authStorage';
 import { setCredentials } from '@/src/store/authSlice';
 import { openLockerApi, useIdentifyQuery, usePostLoginMutation } from '@/src/store/generatedApi';
 import { useAppDispatch } from '@/src/store/hooks';
+import { OPEN_LOCKER_DESIGN_TOKENS } from '@/src/theme/tokens';
+import { AppButton, AppTextInput } from '@/src/ui';
 
 function getErrorMessage(error: unknown): string {
   const apiError = error as FetchBaseQueryError | undefined;
@@ -99,7 +100,16 @@ export default function SignInScreen() {
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
         <View style={[styles.brandHeader, isCompactLayout && styles.brandHeaderCompact]}>
-          <View style={[styles.logoContainer, isCompactLayout && styles.logoContainerCompact]}>
+          <View
+            style={[
+              styles.logoContainer,
+              isCompactLayout && styles.logoContainerCompact,
+              {
+                backgroundColor: theme.colors.surface,
+                borderColor: theme.colors.outlineVariant,
+              },
+            ]}
+          >
             <LogoOpenLocker width={58} height={58} />
           </View>
           <Text variant="headlineMedium" style={styles.title}>
@@ -118,7 +128,7 @@ export default function SignInScreen() {
             Access compartments and manage your items.
           </Text>
 
-          <TextInput
+          <AppTextInput
             label="Email"
             value={email}
             onChangeText={setEmail}
@@ -129,7 +139,7 @@ export default function SignInScreen() {
             style={styles.input}
           />
 
-          <TextInput
+          <AppTextInput
             label="Password"
             value={password}
             onChangeText={setPassword}
@@ -142,25 +152,24 @@ export default function SignInScreen() {
             {error}
           </HelperText>
 
-          <Button
+          <AppButton
             mode="contained"
             onPress={onSubmit}
             disabled={!canSubmit}
             loading={isSubmitting}
-            buttonColor={OPEN_LOCKER_PRIMARY}
             style={styles.button}
-            contentStyle={[styles.buttonContent, isCompactLayout && styles.buttonContentCompact]}
+            compactHeight={isCompactLayout}
           >
             Sign in
-          </Button>
+          </AppButton>
 
           <View style={styles.linksRow}>
-            <Button mode="text" onPress={() => router.push('/forgot-password' as never)} compact>
+            <AppButton mode="text" onPress={() => router.push('/forgot-password' as never)} compact>
               Forgot password?
-            </Button>
-            <Button mode="text" onPress={() => router.push('/change-server' as never)} compact>
+            </AppButton>
+            <AppButton mode="text" onPress={() => router.push('/change-server' as never)} compact>
               Change server
-            </Button>
+            </AppButton>
           </View>
         </View>
 
@@ -193,7 +202,7 @@ const styles = StyleSheet.create({
   safe: { flex: 1 },
   container: {
     flex: 1,
-    paddingHorizontal: 24,
+    paddingHorizontal: OPEN_LOCKER_DESIGN_TOKENS.spacing.xl,
     paddingTop: 28,
     paddingBottom: 20,
     gap: 18,
@@ -206,7 +215,7 @@ const styles = StyleSheet.create({
   },
   brandHeader: {
     alignItems: 'center',
-    gap: 8,
+    gap: OPEN_LOCKER_DESIGN_TOKENS.spacing.sm,
     marginBottom: 6,
   },
   brandHeaderCompact: {
@@ -216,12 +225,10 @@ const styles = StyleSheet.create({
   logoContainer: {
     width: 90,
     height: 90,
-    borderRadius: 24,
+    borderRadius: OPEN_LOCKER_DESIGN_TOKENS.radius.xl,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#ffffff',
     borderWidth: 1,
-    borderColor: '#e4eafc',
   },
   logoContainerCompact: {
     width: 72,
@@ -231,7 +238,7 @@ const styles = StyleSheet.create({
   title: { fontWeight: '700', letterSpacing: 0.2, fontFamily: 'Inter_700Bold' },
   tagline: { opacity: 0.72, marginTop: 2, fontFamily: 'Inter_500Medium' },
   formWrap: {
-    gap: 10,
+    gap: OPEN_LOCKER_DESIGN_TOKENS.spacing.sm + 2,
   },
   formWrapCompact: {
     gap: 7,
@@ -244,18 +251,16 @@ const styles = StyleSheet.create({
   },
   subtitle: { opacity: 0.76, marginBottom: 10, lineHeight: 21, textAlign: 'center' },
   input: { marginTop: 4 },
-  button: { marginTop: 12, borderRadius: 14 },
-  buttonContent: { height: 48 },
-  buttonContentCompact: { height: 44 },
+  button: { marginTop: OPEN_LOCKER_DESIGN_TOKENS.spacing.md },
   linksRow: {
-    marginTop: 8,
+    marginTop: OPEN_LOCKER_DESIGN_TOKENS.spacing.sm,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
   },
   metaBlock: {
     marginTop: 'auto',
-    gap: 2,
+    gap: OPEN_LOCKER_DESIGN_TOKENS.spacing.xs - 2,
   },
   metaBlockCompact: {
     gap: 1,

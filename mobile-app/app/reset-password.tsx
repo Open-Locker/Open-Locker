@@ -3,9 +3,11 @@ import { KeyboardAvoidingView, Platform, StyleSheet, View } from 'react-native';
 import type { FetchBaseQueryError } from '@reduxjs/toolkit/query';
 import { router, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Button, HelperText, Text, TextInput, useTheme } from 'react-native-paper';
+import { HelperText, Text, useTheme } from 'react-native-paper';
 
 import { usePostResetPasswordMutation } from '@/src/store/generatedApi';
+import { OPEN_LOCKER_DESIGN_TOKENS } from '@/src/theme/tokens';
+import { AppButton, AppTextInput } from '@/src/ui';
 
 function toParamValue(value: string | string[] | undefined): string {
   if (Array.isArray(value)) {
@@ -80,21 +82,21 @@ export default function ResetPasswordScreen() {
           Paste your reset token and choose a new password.
         </Text>
 
-        <TextInput label="Email" value={email} onChangeText={setEmail} autoCapitalize="none" />
-        <TextInput
+        <AppTextInput label="Email" value={email} onChangeText={setEmail} autoCapitalize="none" />
+        <AppTextInput
           label="Reset token"
           value={token}
           onChangeText={setToken}
           autoCapitalize="none"
         />
-        <TextInput
+        <AppTextInput
           label="New password"
           value={password}
           onChangeText={setPassword}
           secureTextEntry
           textContentType="newPassword"
         />
-        <TextInput
+        <AppTextInput
           label="Confirm new password"
           value={passwordConfirmation}
           onChangeText={setPasswordConfirmation}
@@ -110,12 +112,17 @@ export default function ResetPasswordScreen() {
         </HelperText>
 
         <View style={styles.actions}>
-          <Button mode="contained" onPress={onSubmit} disabled={!canSubmit} loading={isSubmitting}>
+          <AppButton
+            mode="contained"
+            onPress={onSubmit}
+            disabled={!canSubmit}
+            loading={isSubmitting}
+          >
             Reset password
-          </Button>
-          <Button mode="text" onPress={() => router.replace('/sign-in')}>
+          </AppButton>
+          <AppButton mode="text" onPress={() => router.replace('/sign-in')}>
             Back to sign in
-          </Button>
+          </AppButton>
         </View>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -126,16 +133,16 @@ const styles = StyleSheet.create({
   safe: { flex: 1 },
   container: {
     flex: 1,
-    paddingHorizontal: 16,
+    paddingHorizontal: OPEN_LOCKER_DESIGN_TOKENS.spacing.lg,
     paddingTop: 24,
-    gap: 8,
+    gap: OPEN_LOCKER_DESIGN_TOKENS.spacing.sm,
   },
   subtitle: {
     marginBottom: 12,
     opacity: 0.85,
   },
   actions: {
-    marginTop: 8,
-    gap: 8,
+    marginTop: OPEN_LOCKER_DESIGN_TOKENS.spacing.sm,
+    gap: OPEN_LOCKER_DESIGN_TOKENS.spacing.sm,
   },
 });
