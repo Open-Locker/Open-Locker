@@ -1,0 +1,21 @@
+---
+description: Mobile i18n standards for all user-facing text
+globs: mobile-app/**/*.{ts,tsx}
+alwaysApply: false
+---
+
+# Mobile i18n Standards
+
+- Never hardcode new user-facing UI text in components or screens.
+- Always use translation keys via `t(...)` from `react-i18next`.
+- Add every new key to both locales in `src/i18n/resources.ts`:
+  - `en` is the default/fallback language.
+  - `de` must be kept in sync.
+- Group keys by feature domain (for example `auth.*`, `account.*`,
+  `compartments.*`, `common.*`) instead of flat key names.
+- Prefer interpolation for dynamic values (for example status codes,
+  versions, names) instead of string concatenation.
+- Keep API payload/content values untranslated unless they are rendered as
+  UI labels.
+- When adding a new screen, add its navigation/header strings to i18n as
+  well.
