@@ -36,10 +36,26 @@ function getAppName(variant: AppVariant): string {
 export default ({ config }: ConfigContext): ExpoConfig => {
   const variant = getAppVariant();
   const suffix = getVariantSuffix(variant);
-  const appIdBase = process.env.APP_ID_BASE ?? 'com.openlocker.mobileapp';
+  const defaultAppIdBase = 'com.openlocker.mobileapp';
+  const existingEasProjectId = (config.extra as { eas?: { projectId?: string } } | undefined)?.eas
+    ?.projectId;
+  const easProjectId = process.env.EXPO_EAS_PROJECT_ID ?? existingEasProjectId;
+  const appIdBase = process.env.APP_ID_BASE ?? defaultAppIdBase;
+  const iosAppIdBase = process.env.APP_ID_BASE_IOS ?? appIdBase;
+  const androidAppIdBase = process.env.APP_ID_BASE_ANDROID ?? appIdBase;
   const appleTeamId = process.env.EXPO_APPLE_TEAM_ID;
   const appDomain = 'open-locker.cloud';
   const marketingDomain = 'open-locker.org';
+
+  if (variant === 'production') {
+    const iosUsesDefaultId = iosAppIdBase === defaultAppIdBase;
+    const androidUsesDefaultId = androidAppIdBase === defaultAppIdBase;
+    if (iosUsesDefaultId || androidUsesDefaultId) {
+      throw new Error(
+        'Production builds require explicit APP_ID_BASE, APP_ID_BASE_IOS, or APP_ID_BASE_ANDROID.',
+      );
+    }
+  }
 
   return {
     ...config,
@@ -64,12 +80,15 @@ export default ({ config }: ConfigContext): ExpoConfig => {
       ...config.ios,
       supportsTablet: true,
       ...(appleTeamId ? { appleTeamId } : {}),
-      bundleIdentifier: `${appIdBase}${suffix}`,
+      bundleIdentifier: `${iosAppIdBase}${suffix}`,
       associatedDomains: [`applinks:${appDomain}`, `applinks:${marketingDomain}`],
+      infoPlist: {
+        ITSAppUsesNonExemptEncryption: false,
+      },
     },
     android: {
       ...config.android,
-      package: `${appIdBase}${suffix}`,
+      package: `${androidAppIdBase}${suffix}`,
       adaptiveIcon: {
         foregroundImage: './assets/images/adaptive-icon.png',
         backgroundColor: '#ffffff',
@@ -88,12 +107,31 @@ export default ({ config }: ConfigContext): ExpoConfig => {
         },
       ],
     },
-    plugins: ['expo-router'],
+    plugins: [
+      'expo-router',
+      [
+        'expo-localization',
+        {
+          supportedLocales: {
+            ios: ['en', 'de'],
+            android: ['en', 'de'],
+          },
+        },
+      ],
+    ],
     experiments: {
       typedRoutes: true,
     },
     extra: {
       ...config.extra,
+      ...(easProjectId
+        ? {
+            eas: {
+              ...((config.extra as { eas?: Record<string, unknown> } | undefined)?.eas ?? {}),
+              projectId: easProjectId,
+            },
+          }
+        : {}),
       appVariant: variant,
       appDomain,
       marketingDomain,
