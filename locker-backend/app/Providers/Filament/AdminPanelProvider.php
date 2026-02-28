@@ -15,6 +15,7 @@ use Filament\View\PanelsRenderHook;
 use Filament\Widgets;
 use Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse;
 use Illuminate\Cookie\Middleware\EncryptCookies;
+use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Http\Middleware\VerifyCsrfToken;
 use Illuminate\Routing\Middleware\SubstituteBindings;
 use Illuminate\Session\Middleware\StartSession;
@@ -22,13 +23,18 @@ use Illuminate\Support\Facades\App;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\HtmlString;
 use Illuminate\View\Middleware\ShareErrorsFromSession;
+use PDOException;
 
 class AdminPanelProvider extends PanelProvider
 {
     public function panel(Panel $panel): Panel
     {
-        if (Schema::hasTable('users') && User::count() === 0) {
-            $panel->registration();
+        try {
+            if (Schema::hasTable('users') && User::count() === 0) {
+                $panel->registration();
+            }
+        } catch (QueryException|PDOException) {
+            // During image builds/package discovery, database access may be unavailable.
         }
 
         return $panel
