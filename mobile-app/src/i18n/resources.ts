@@ -34,7 +34,7 @@ export const resources = {
         unknownVersion: 'unknown',
       },
       compartments: {
-        title: 'Compartment',
+        title: 'Compartments',
         subtitle: 'Manage and open your compartments.',
         loading: 'Loading compartments...',
         loadFailed: 'Failed to load compartments ({{status}}).',
@@ -157,7 +157,7 @@ export const resources = {
         unknownVersion: 'unbekannt',
       },
       compartments: {
-        title: 'Fach',
+        title: 'Fächer',
         subtitle: 'Verwalte und öffne deine Fächer.',
         loading: 'Fächer werden geladen...',
         loadFailed: 'Fächer konnten nicht geladen werden ({{status}}).',
