@@ -21,6 +21,22 @@ class TermsControllerTest extends TestCase
 {
     use RefreshDatabase;
 
+    public function test_api_user_marks_terms_as_accepted_when_no_active_terms_exist(): void
+    {
+        $user = User::factory()->create();
+        $token = $user->createToken('auth_token')->plainTextToken;
+
+        $this->withHeaders([
+            'Authorization' => 'Bearer '.$token,
+        ])->getJson('/api/user')
+            ->assertStatus(200)
+            ->assertJson([
+                'terms_last_accepted_version' => null,
+                'terms_current_version' => null,
+                'terms_current_accepted' => true,
+            ]);
+    }
+
     public function test_api_user_returns_terms_status_fields(): void
     {
         $user = User::factory()->create();

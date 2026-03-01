@@ -1,6 +1,7 @@
 import React from 'react';
 import type { FetchBaseQueryError } from '@reduxjs/toolkit/query';
-import { router, Stack } from 'expo-router';
+import { useNavigation } from '@react-navigation/native';
+import { Stack } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -42,9 +43,18 @@ function isCurrentAccepted(value: unknown): boolean {
   return false;
 }
 
+function isNotFoundError(error: unknown): boolean {
+  if (!error || typeof error !== 'object' || !('status' in error)) {
+    return false;
+  }
+
+  return error.status === 404;
+}
+
 export default function TermsScreen() {
   const { t } = useTranslation();
   const theme = useTheme();
+  const navigation = useNavigation();
   const { width } = useWindowDimensions();
   const dispatch = useAppDispatch();
   const [acceptTerms, acceptTermsState] = usePostTermsAcceptMutation();
@@ -57,6 +67,10 @@ export default function TermsScreen() {
   } = useGetTermsCurrentQuery();
   const [submitError, setSubmitError] = React.useState<string | null>(null);
 
+  const navigateToTabs = React.useCallback(() => {
+    navigation.navigate('(tabs)' as never);
+  }, [navigation]);
+
   const clearSession = React.useCallback(async () => {
     await clearPersistedAuth();
     dispatch(baseApi.util.resetApiState());
@@ -66,23 +80,30 @@ export default function TermsScreen() {
   const hasAcceptedCurrentTerms = !!user?.terms_current_accepted;
   const termsAlreadyAccepted =
     hasAcceptedCurrentTerms || isCurrentAccepted(currentTerms?.current_accepted);
+  const hasNoActiveTerms = isNotFoundError(termsError);
 
   React.useEffect(() => {
     if (!isLoadingUser && termsAlreadyAccepted) {
-      router.replace('/(tabs)' as never);
+      navigateToTabs();
     }
-  }, [isLoadingUser, termsAlreadyAccepted]);
+  }, [isLoadingUser, navigateToTabs, termsAlreadyAccepted]);
+
+  React.useEffect(() => {
+    if (!isLoadingTerms && hasNoActiveTerms) {
+      navigateToTabs();
+    }
+  }, [hasNoActiveTerms, isLoadingTerms, navigateToTabs]);
 
   const onAccept = React.useCallback(async () => {
     setSubmitError(null);
     try {
       await acceptTerms().unwrap();
       dispatch(openLockerApi.util.invalidateTags(['Auth', 'Terms']));
-      router.replace('/(tabs)' as never);
+      navigateToTabs();
     } catch (error) {
       setSubmitError(getErrorMessage(error, t));
     }
-  }, [acceptTerms, dispatch, t]);
+  }, [acceptTerms, dispatch, navigateToTabs, t]);
 
   const onLogout = React.useCallback(async () => {
     try {
@@ -95,8 +116,8 @@ export default function TermsScreen() {
   }, [clearSession, logoutCurrentSession]);
 
   const onClose = React.useCallback(() => {
-    router.replace('/(tabs)' as never);
-  }, []);
+    navigateToTabs();
+  }, [navigateToTabs]);
 
   if (isLoadingUser || isLoadingTerms) {
     const loadingDocumentName = currentTerms?.document_name ?? t('terms.currentDocument');

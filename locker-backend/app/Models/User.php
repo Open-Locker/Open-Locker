@@ -114,10 +114,13 @@ class User extends Authenticatable implements FilamentUser, MustVerifyEmail
     public function hasAcceptedCurrentTerms(): bool
     {
         $currentVersion = $this->currentTermsVersion();
+        if ($currentVersion === null) {
+            return true;
+        }
+
         $acceptedVersion = $this->latestAcceptedTermsVersion();
 
-        return $currentVersion !== null
-            && $acceptedVersion !== null
+        return $acceptedVersion !== null
             && $currentVersion === $acceptedVersion;
     }
 
