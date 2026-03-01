@@ -1,5 +1,13 @@
 import React from 'react';
-import { Animated, FlatList, Pressable, RefreshControl, StyleSheet, View } from 'react-native';
+import {
+  Animated,
+  FlatList,
+  Pressable,
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  View,
+} from 'react-native';
 import { BottomSheetBackdrop, BottomSheetModal, BottomSheetView } from '@gorhom/bottom-sheet';
 import { CircleHelp, CircleUserRound, Lock, LockOpen, WifiOff } from 'lucide-react-native';
 import type { FetchBaseQueryError } from '@reduxjs/toolkit/query';
@@ -29,6 +37,10 @@ type LockerBankFilter = {
   id: string;
   title: string;
   compartments: CompartmentEntry[];
+};
+type VisibleCompartmentEntry = {
+  key: string;
+  compartment: CompartmentEntry;
 };
 
 function mapLockerBanks(
@@ -111,7 +123,7 @@ export default function CompartmentsScreen() {
   const [selectedCompartment, setSelectedCompartment] = React.useState<CompartmentEntry | null>(
     null,
   );
-  const [selectedLockerBankId, setSelectedLockerBankId] = React.useState<string>('all');
+  const [selectedLockerBankId, setSelectedLockerBankId] = React.useState<string>('');
   const [modalError, setModalError] = React.useState<string | null>(null);
   const [modalInfo, setModalInfo] = React.useState<string | null>(null);
   const compartmentSheetRef = React.useRef<BottomSheetModal>(null);
@@ -145,6 +157,21 @@ export default function CompartmentsScreen() {
     compartmentSheetRef.current?.dismiss();
   }, []);
 
+  const lockerBanks = mapLockerBanks(data, t);
+  React.useEffect(() => {
+    if (lockerBanks.length === 0) {
+      if (selectedLockerBankId !== '') {
+        setSelectedLockerBankId('');
+      }
+      return;
+    }
+
+    const hasSelected = lockerBanks.some((section) => section.id === selectedLockerBankId);
+    if (!hasSelected) {
+      setSelectedLockerBankId(lockerBanks[0].id);
+    }
+  }, [lockerBanks, selectedLockerBankId]);
+
   if (isLoading && !data) {
     return (
       <SafeAreaView style={[styles.safe, { backgroundColor: theme.colors.background }]} edges={[]}>
@@ -156,14 +183,15 @@ export default function CompartmentsScreen() {
     );
   }
 
-  const lockerBanks = mapLockerBanks(data, t);
-  const visibleLockerBanks =
-    selectedLockerBankId === 'all'
-      ? lockerBanks
-      : lockerBanks.filter((section) => section.id === selectedLockerBankId);
-  const visibleCompartments = visibleLockerBanks
-    .flatMap((lockerBank) => lockerBank.compartments)
-    .sort((a, b) => a.number - b.number);
+  const visibleLockerBanks = lockerBanks.filter((section) => section.id === selectedLockerBankId);
+  const visibleCompartments: VisibleCompartmentEntry[] = visibleLockerBanks
+    .flatMap((lockerBank) =>
+      lockerBank.compartments.map((compartment) => ({
+        key: `${lockerBank.id}:${compartment.id}`,
+        compartment,
+      })),
+    )
+    .sort((a, b) => a.compartment.number - b.compartment.number);
   const errorMessage =
     error && 'status' in error
       ? t('compartments.loadFailed', { status: String(error.status) })
@@ -244,7 +272,7 @@ export default function CompartmentsScreen() {
 
       <FlatList
         data={visibleCompartments}
-        keyExtractor={(item) => item.id}
+        keyExtractor={(item) => item.key}
         numColumns={2}
         columnWrapperStyle={styles.gridRow}
         contentInsetAdjustmentBehavior="never"
@@ -264,38 +292,11 @@ export default function CompartmentsScreen() {
         contentContainerStyle={[styles.gridContent, { paddingBottom: insets.bottom + 24 }]}
         ListHeaderComponent={
           <View style={[styles.bankFilterRow, { backgroundColor: theme.colors.background }]}>
-            <View style={[styles.filterRail, { backgroundColor: theme.colors.surfaceVariant }]}>
-              <Chip
-                selected={selectedLockerBankId === 'all'}
-                onPress={() => setSelectedLockerBankId('all')}
-                style={[
-                  styles.bankChip,
-                  {
-                    backgroundColor:
-                      selectedLockerBankId === 'all'
-                        ? theme.colors.primaryContainer
-                        : theme.colors.surfaceVariant,
-                    borderColor:
-                      selectedLockerBankId === 'all'
-                        ? theme.colors.primary
-                        : theme.colors.surfaceVariant,
-                  },
-                ]}
-                selectedColor={theme.colors.onPrimaryContainer}
-                textStyle={[
-                  styles.bankChipText,
-                  {
-                    color:
-                      selectedLockerBankId === 'all'
-                        ? theme.colors.onPrimaryContainer
-                        : theme.colors.onSurfaceVariant,
-                  },
-                ]}
-                compact
-                showSelectedCheck={false}
-              >
-                {t('common.all')}
-              </Chip>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.filterRail}
+            >
               {lockerBanks.map((section) => {
                 const lockerStatus = getFakeLockerStatus(section.id);
                 const isSelected = selectedLockerBankId === section.id;
@@ -338,18 +339,18 @@ export default function CompartmentsScreen() {
                   </Chip>
                 );
               })}
-            </View>
+            </ScrollView>
           </View>
         }
         renderItem={({ item }) => {
-          const compartmentStatus = getCompartmentStatusFromApi(item);
+          const compartmentStatus = getCompartmentStatusFromApi(item.compartment);
 
           return (
             <View style={styles.gridItem}>
               <CompartmentCard
-                compartment={item}
+                compartment={item.compartment}
                 status={compartmentStatus}
-                onPress={() => openCompartmentSheet(item)}
+                onPress={() => openCompartmentSheet(item.compartment)}
               />
             </View>
           );
@@ -539,9 +540,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    borderRadius: 12,
-    padding: 4,
-    flexWrap: 'wrap',
+    paddingVertical: 2,
+    paddingRight: 8,
   },
   bankChip: {
     borderRadius: 999,

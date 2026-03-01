@@ -32,7 +32,8 @@ export function CompartmentCard({ compartment, status, onPress }: CompartmentCar
         ? t('compartments.statusClosed')
         : t('compartments.statusUnknown');
   const statusPalette = status ? getCompartmentStatusPalette(theme, status) : null;
-  const cardTextColor = status === 'open' ? '#0f2a75' : '#0f172a';
+  const cardTextColor =
+    status === 'open' ? theme.colors.onPrimaryContainer : theme.colors.onSurface;
   const subtitleTextColor =
     status === 'open' ? theme.colors.onPrimaryContainer : theme.colors.onSurfaceVariant;
 
@@ -55,15 +56,15 @@ export function CompartmentCard({ compartment, status, onPress }: CompartmentCar
         <Card.Content style={styles.cardContent}>
           <View style={styles.mainContent}>
             <RNText style={[styles.code, { color: cardTextColor }]}>{displayNumber}</RNText>
-            <Text
-              variant="bodySmall"
-              numberOfLines={2}
-              style={[styles.subtitle, { color: subtitleTextColor }]}
-            >
-              {isEmpty
-                ? t('compartments.currentlyEmpty')
-                : (storedItemName ?? t('compartments.unnamedItem'))}
-            </Text>
+            {!isEmpty ? (
+              <Text
+                variant="bodySmall"
+                numberOfLines={2}
+                style={[styles.subtitle, { color: subtitleTextColor }]}
+              >
+                {storedItemName ?? t('compartments.unnamedItem')}
+              </Text>
+            ) : null}
           </View>
           {status && statusPalette ? (
             <View style={styles.statusPillWrap}>
