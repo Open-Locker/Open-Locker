@@ -3,7 +3,7 @@ export const resources = {
     translation: {
       navigation: {
         account: 'Account',
-        terms: 'Terms & Conditions',
+        terms: 'Required document',
         changeServer: 'Change Server',
         forgotPassword: 'Forgot Password',
         resetPassword: 'Reset Password',
@@ -45,7 +45,7 @@ export const resources = {
         statusClosed: 'Closed',
         statusUnknown: 'Unknown',
         openProfile: 'Open profile',
-        newTermsAvailable: 'New terms are available.',
+        newTermsAvailable: 'A required document needs your acceptance.',
         review: 'Review',
         verifyEmail: 'Please verify your email.',
         sending: 'Sending...',
@@ -81,12 +81,12 @@ export const resources = {
         logout: 'Logout',
       },
       terms: {
-        mustAccept: 'You must accept the current terms before using the app.',
-        currentTerms: 'Current terms',
-        loadingCurrent: 'Loading current terms...',
-        loadFailed: 'Failed to load current terms ({{status}}).',
+        mustAccept: 'You must accept {{documentName}} before using the app.',
+        currentDocument: 'current document',
+        loadingCurrent: 'Loading {{documentName}}...',
+        loadFailed: 'Failed to load {{documentName}} ({{status}}).',
         publishedAt: 'Published: {{value}}',
-        noContent: 'No terms content available.',
+        noContent: 'No content available for {{documentName}}.',
         acceptAndContinue: 'Accept and continue',
       },
       passwordReset: {
@@ -126,7 +126,7 @@ export const resources = {
     translation: {
       navigation: {
         account: 'Konto',
-        terms: 'AGB',
+        terms: 'Pflichtdokument',
         changeServer: 'Server ändern',
         forgotPassword: 'Passwort vergessen',
         resetPassword: 'Passwort zurücksetzen',
@@ -168,7 +168,7 @@ export const resources = {
         statusClosed: 'Geschlossen',
         statusUnknown: 'Unbekannt',
         openProfile: 'Profil öffnen',
-        newTermsAvailable: 'Neue AGB sind verfügbar.',
+        newTermsAvailable: 'Ein Pflichtdokument muss akzeptiert werden.',
         review: 'Ansehen',
         verifyEmail: 'Bitte bestätige deine E-Mail-Adresse.',
         sending: 'Senden...',
@@ -205,12 +205,12 @@ export const resources = {
         logout: 'Abmelden',
       },
       terms: {
-        mustAccept: 'Du musst die aktuellen AGB akzeptieren, bevor du die App nutzt.',
-        currentTerms: 'Aktuelle AGB',
-        loadingCurrent: 'Aktuelle AGB werden geladen...',
-        loadFailed: 'Aktuelle AGB konnten nicht geladen werden ({{status}}).',
+        mustAccept: 'Du musst {{documentName}} akzeptieren, bevor du die App nutzt.',
+        currentDocument: 'aktuelles Dokument',
+        loadingCurrent: '{{documentName}} wird geladen...',
+        loadFailed: '{{documentName}} konnte nicht geladen werden ({{status}}).',
         publishedAt: 'Veröffentlicht: {{value}}',
-        noContent: 'Kein AGB-Inhalt verfügbar.',
+        noContent: 'Kein Inhalt für {{documentName}} verfügbar.',
         acceptAndContinue: 'Akzeptieren und fortfahren',
       },
       passwordReset: {

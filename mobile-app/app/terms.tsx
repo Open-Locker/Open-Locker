@@ -1,6 +1,6 @@
 import React from 'react';
 import type { FetchBaseQueryError } from '@reduxjs/toolkit/query';
-import { router } from 'expo-router';
+import { router, Stack } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -99,6 +99,7 @@ export default function TermsScreen() {
   }, []);
 
   if (isLoadingUser || isLoadingTerms) {
+    const loadingDocumentName = currentTerms?.document_name ?? t('terms.currentDocument');
     return (
       <SafeAreaView
         style={[styles.safe, { backgroundColor: theme.colors.background }]}
@@ -106,7 +107,9 @@ export default function TermsScreen() {
       >
         <View style={styles.loadingWrap}>
           <ActivityIndicator />
-          <Text style={styles.loadingText}>{t('terms.loadingCurrent')}</Text>
+          <Text style={styles.loadingText}>
+            {t('terms.loadingCurrent', { documentName: loadingDocumentName })}
+          </Text>
         </View>
       </SafeAreaView>
     );
@@ -114,84 +117,91 @@ export default function TermsScreen() {
 
   const termsErrorMessage =
     termsError && 'status' in termsError
-      ? t('terms.loadFailed', { status: String(termsError.status) })
+      ? t('terms.loadFailed', {
+          documentName: currentTerms?.document_name ?? t('terms.currentDocument'),
+          status: String(termsError.status),
+        })
       : null;
+  const currentDocumentName = currentTerms?.document_name ?? t('terms.currentDocument');
 
   return (
-    <SafeAreaView
-      style={[styles.safe, { backgroundColor: theme.colors.background }]}
-      edges={['bottom']}
-    >
-      <ScrollView contentContainerStyle={styles.container}>
-        <Text variant="headlineSmall" style={styles.title}>
-          {t('navigation.terms')}
-        </Text>
-        <Text variant="bodyMedium" style={styles.subtitle}>
-          {t('terms.mustAccept')}
-        </Text>
-
-        <Surface
-          style={[styles.contentCard, { backgroundColor: theme.colors.surface }]}
-          elevation={1}
-        >
-          <Text variant="titleSmall">
-            {currentTerms?.document_name ?? t('terms.currentTerms')}
-            {currentTerms?.version ? ` v${currentTerms.version}` : ''}
+    <>
+      <Stack.Screen options={{ title: currentDocumentName }} />
+      <SafeAreaView
+        style={[styles.safe, { backgroundColor: theme.colors.background }]}
+        edges={['bottom']}
+      >
+        <ScrollView contentContainerStyle={styles.container}>
+          <Text variant="headlineSmall" style={styles.title}>
+            {currentDocumentName}
           </Text>
-          {currentTerms?.published_at ? (
-            <Text variant="bodySmall" style={styles.metaText}>
-              {t('terms.publishedAt', {
-                value: new Date(currentTerms.published_at).toLocaleString(),
-              })}
-            </Text>
-          ) : null}
-          {currentTerms?.content ? (
-            <RenderHtml
-              contentWidth={Math.max(0, width - 56)}
-              source={{ html: currentTerms.content }}
-              baseStyle={{
-                color: theme.colors.onSurface,
-                fontSize: 16,
-                lineHeight: 24,
-              }}
-              tagsStyles={{
-                p: { marginTop: 0, marginBottom: 12 },
-                h1: { fontSize: 24, lineHeight: 32, marginTop: 0, marginBottom: 12 },
-                h2: { fontSize: 20, lineHeight: 28, marginTop: 0, marginBottom: 12 },
-                li: { marginBottom: 8 },
-              }}
-            />
-          ) : (
-            <Text variant="bodyMedium" style={styles.contentText}>
-              {t('terms.noContent')}
-            </Text>
-          )}
-        </Surface>
+          <Text variant="bodyMedium" style={styles.subtitle}>
+            {t('terms.mustAccept', { documentName: currentDocumentName })}
+          </Text>
 
-        <HelperText type="error" visible={!!termsErrorMessage}>
-          {termsErrorMessage}
-        </HelperText>
-        <HelperText type="error" visible={!!submitError}>
-          {submitError}
-        </HelperText>
+          <Surface
+            style={[styles.contentCard, { backgroundColor: theme.colors.surface }]}
+            elevation={1}
+          >
+            <Text variant="titleSmall">
+              {currentDocumentName}
+              {currentTerms?.version ? ` v${currentTerms.version}` : ''}
+            </Text>
+            {currentTerms?.published_at ? (
+              <Text variant="bodySmall" style={styles.metaText}>
+                {t('terms.publishedAt', {
+                  value: new Date(currentTerms.published_at).toLocaleString(),
+                })}
+              </Text>
+            ) : null}
+            {currentTerms?.content ? (
+              <RenderHtml
+                contentWidth={Math.max(0, width - 56)}
+                source={{ html: currentTerms.content }}
+                baseStyle={{
+                  color: theme.colors.onSurface,
+                  fontSize: 16,
+                  lineHeight: 24,
+                }}
+                tagsStyles={{
+                  p: { marginTop: 0, marginBottom: 12 },
+                  h1: { fontSize: 24, lineHeight: 32, marginTop: 0, marginBottom: 12 },
+                  h2: { fontSize: 20, lineHeight: 28, marginTop: 0, marginBottom: 12 },
+                  li: { marginBottom: 8 },
+                }}
+              />
+            ) : (
+              <Text variant="bodyMedium" style={styles.contentText}>
+                {t('terms.noContent', { documentName: currentDocumentName })}
+              </Text>
+            )}
+          </Surface>
 
-        <AppButton
-          mode="contained"
-          onPress={() => void onAccept()}
-          loading={acceptTermsState.isLoading}
-          disabled={acceptTermsState.isLoading || !!termsErrorMessage || !currentTerms}
-          style={styles.acceptButton}
-        >
-          {t('terms.acceptAndContinue')}
-        </AppButton>
-        <AppButton mode="text" onPress={onClose}>
-          {t('common.close')}
-        </AppButton>
-        <AppButton mode="text" onPress={() => void onLogout()}>
-          {t('account.logout')}
-        </AppButton>
-      </ScrollView>
-    </SafeAreaView>
+          <HelperText type="error" visible={!!termsErrorMessage}>
+            {termsErrorMessage}
+          </HelperText>
+          <HelperText type="error" visible={!!submitError}>
+            {submitError}
+          </HelperText>
+
+          <AppButton
+            mode="contained"
+            onPress={() => void onAccept()}
+            loading={acceptTermsState.isLoading}
+            disabled={acceptTermsState.isLoading || !!termsErrorMessage || !currentTerms}
+            style={styles.acceptButton}
+          >
+            {t('terms.acceptAndContinue')}
+          </AppButton>
+          <AppButton mode="text" onPress={onClose}>
+            {t('common.close')}
+          </AppButton>
+          <AppButton mode="text" onPress={() => void onLogout()}>
+            {t('account.logout')}
+          </AppButton>
+        </ScrollView>
+      </SafeAreaView>
+    </>
   );
 }
 
