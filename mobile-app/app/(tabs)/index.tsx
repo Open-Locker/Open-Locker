@@ -157,20 +157,19 @@ export default function CompartmentsScreen() {
     compartmentSheetRef.current?.dismiss();
   }, []);
 
-  const lockerBanks = mapLockerBanks(data, t);
-  React.useEffect(() => {
-    if (lockerBanks.length === 0) {
-      if (selectedLockerBankId !== '') {
-        setSelectedLockerBankId('');
-      }
-      return;
-    }
+  const lockerBanks = React.useMemo(() => mapLockerBanks(data, t), [data, t]);
+  const effectiveLockerBankId = React.useMemo(() => {
+    if (lockerBanks.length === 0) return '';
 
     const hasSelected = lockerBanks.some((section) => section.id === selectedLockerBankId);
-    if (!hasSelected) {
-      setSelectedLockerBankId(lockerBanks[0].id);
-    }
+    return hasSelected ? selectedLockerBankId : lockerBanks[0].id;
   }, [lockerBanks, selectedLockerBankId]);
+
+  React.useEffect(() => {
+    if (selectedLockerBankId !== effectiveLockerBankId) {
+      setSelectedLockerBankId(effectiveLockerBankId);
+    }
+  }, [effectiveLockerBankId, selectedLockerBankId]);
 
   if (isLoading && !data) {
     return (
@@ -183,7 +182,7 @@ export default function CompartmentsScreen() {
     );
   }
 
-  const visibleLockerBanks = lockerBanks.filter((section) => section.id === selectedLockerBankId);
+  const visibleLockerBanks = lockerBanks.filter((section) => section.id === effectiveLockerBankId);
   const visibleCompartments: VisibleCompartmentEntry[] = visibleLockerBanks
     .flatMap((lockerBank) =>
       lockerBank.compartments.map((compartment) => ({
@@ -299,7 +298,7 @@ export default function CompartmentsScreen() {
             >
               {lockerBanks.map((section) => {
                 const lockerStatus = getFakeLockerStatus(section.id);
-                const isSelected = selectedLockerBankId === section.id;
+                const isSelected = effectiveLockerBankId === section.id;
                 const lockerStatusPalette = getLockerStatusPalette(theme, lockerStatus, isSelected);
 
                 return (
