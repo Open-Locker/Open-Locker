@@ -1,7 +1,6 @@
 import React from 'react';
 import type { FetchBaseQueryError } from '@reduxjs/toolkit/query';
-import { useNavigation } from '@react-navigation/native';
-import { Stack } from 'expo-router';
+import { Stack, useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -54,7 +53,7 @@ function isNotFoundError(error: unknown): boolean {
 export default function TermsScreen() {
   const { t } = useTranslation();
   const theme = useTheme();
-  const navigation = useNavigation();
+  const router = useRouter();
   const { width } = useWindowDimensions();
   const dispatch = useAppDispatch();
   const [acceptTerms, acceptTermsState] = usePostTermsAcceptMutation();
@@ -68,8 +67,8 @@ export default function TermsScreen() {
   const [submitError, setSubmitError] = React.useState<string | null>(null);
 
   const navigateToTabs = React.useCallback(() => {
-    navigation.navigate('(tabs)' as never);
-  }, [navigation]);
+    router.replace('/(tabs)');
+  }, [router]);
 
   const clearSession = React.useCallback(async () => {
     await clearPersistedAuth();

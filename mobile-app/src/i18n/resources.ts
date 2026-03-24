@@ -207,8 +207,8 @@ export const resources = {
       terms: {
         mustAccept: 'Du musst {{documentName}} akzeptieren, bevor du die App nutzt.',
         currentDocument: 'aktuelles Dokument',
-        loadingCurrent: '{{documentName}} wird geladen...',
-        loadFailed: '{{documentName}} konnte nicht geladen werden ({{status}}).',
+        loadingCurrent: 'Lade {{documentName}}...',
+        loadFailed: 'Fehler beim Laden von {{documentName}} ({{status}}).',
         publishedAt: 'Veröffentlicht: {{value}}',
         noContent: 'Kein Inhalt für {{documentName}} verfügbar.',
         acceptAndContinue: 'Akzeptieren und fortfahren',
