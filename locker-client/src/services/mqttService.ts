@@ -1,7 +1,17 @@
-import { mqttConfig } from "../config/mqtt";
+import { withMessageId } from "../helper/mqttMessage";
 import { logger } from "../helper/logger";
-import { commandHandler } from "../modbus/commandHandler";
 import { mqttClientManager } from "../mqtt/mqttClientManager";
+
+export function prepareMQTTPayload(message: string | object): string {
+  if (typeof message === "string") {
+    return message;
+  }
+
+  const envelope =
+    "message_id" in message ? message : withMessageId(message);
+
+  return JSON.stringify(envelope);
+}
 
 export class MQTTService {
   async publish(
@@ -15,8 +25,7 @@ export class MQTTService {
       throw new Error("MQTT client is not connected");
     }
 
-    const payload =
-      typeof message === "string" ? message : JSON.stringify(message);
+    const payload = prepareMQTTPayload(message);
 
     return new Promise((resolve, reject) => {
       client.publish(topic, payload, options || { qos: 1 }, (error) => {

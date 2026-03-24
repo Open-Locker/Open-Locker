@@ -8,8 +8,8 @@ use App\StorableEvents\CompartmentOpeningRequested;
 use Database\Factories\CompartmentFactory;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use PhpMqtt\Client\Facades\MQTT;
-use PhpMqtt\Client\MqttClient;
 use Spatie\EventSourcing\StoredEvents\Models\EloquentStoredEvent;
+use Tests\Fakes\FakeMqttClient;
 use Tests\TestCase;
 
 class CompartmentOpeningTest extends TestCase
@@ -22,8 +22,7 @@ class CompartmentOpeningTest extends TestCase
             'number' => 1,
         ]);
 
-        $mqttClient = \Mockery::mock(MqttClient::class);
-        $mqttClient->shouldReceive('publish')->once();
+        $mqttClient = new FakeMqttClient;
 
         MQTT::shouldReceive('connection')
             ->once()
@@ -31,6 +30,8 @@ class CompartmentOpeningTest extends TestCase
             ->andReturn($mqttClient);
 
         app(LockerService::class)->openCompartment($compartment);
+
+        $this->assertCount(1, $mqttClient->published);
 
         $stored = EloquentStoredEvent::query()
             ->where('event_class', CompartmentOpeningRequested::class)
@@ -41,11 +42,16 @@ class CompartmentOpeningTest extends TestCase
         /** @var array<string, mixed> $props */
         $props = $stored->event_properties;
 
-        $this->assertSame((string) $compartment->locker_bank_id, (string) ($props['lockerBankUuid'] ?? null));
-        $this->assertSame((string) $compartment->id, (string) ($props['compartmentUuid'] ?? null));
-        $this->assertSame(1, (int) ($props['compartmentNumber'] ?? 0));
-        $this->assertIsString($props['commandId'] ?? null);
-        $this->assertNotEmpty($props['commandId'] ?? null);
+        $lockerBankUuid = $props['lockerBankUuid'];
+        $compartmentUuid = $props['compartmentUuid'];
+        $compartmentNumber = $props['compartmentNumber'];
+        $commandId = $props['commandId'];
+
+        $this->assertSame((string) $compartment->locker_bank_id, (string) $lockerBankUuid);
+        $this->assertSame((string) $compartment->id, (string) $compartmentUuid);
+        $this->assertSame(1, (int) $compartmentNumber);
+        $this->assertIsString($commandId);
+        $this->assertNotEmpty($commandId);
     }
 
     public function test_mqtt_reactor_publishes_open_command_to_expected_topic(): void
@@ -62,31 +68,8 @@ class CompartmentOpeningTest extends TestCase
             commandId: $commandId,
         );
 
-        $mqttClient = \Mockery::mock(MqttClient::class);
+        $mqttClient = new FakeMqttClient;
         $topicExpected = "locker/{$lockerBankUuid}/command";
-
-        $mqttClient->shouldReceive('publish')
-            ->once()
-            ->withArgs(function (string $topic, string $payload, int $qos) use ($topicExpected, $commandId, $compartmentUuid, $compartmentNumber) {
-                $this->assertSame($topicExpected, $topic);
-                $this->assertSame(1, $qos);
-
-                $decoded = json_decode($payload, true);
-                $this->assertIsArray($decoded);
-
-                $this->assertSame('open_compartment', $decoded['action'] ?? null);
-                $this->assertSame($commandId, $decoded['transaction_id'] ?? null);
-
-                $timestamp = $decoded['timestamp'] ?? null;
-                $this->assertIsString($timestamp);
-                $this->assertNotEmpty($timestamp);
-                \Carbon\CarbonImmutable::parse($timestamp); // should not throw
-
-                $this->assertSame($compartmentUuid, $decoded['data']['compartment_id'] ?? null);
-                $this->assertSame($compartmentNumber, $decoded['data']['compartment_number'] ?? null);
-
-                return true;
-            });
 
         MQTT::shouldReceive('connection')
             ->once()
@@ -94,5 +77,27 @@ class CompartmentOpeningTest extends TestCase
             ->andReturn($mqttClient);
 
         app(MqttReactor::class)->onCompartmentOpeningRequested($event);
+
+        $this->assertCount(1, $mqttClient->published);
+        $published = $mqttClient->published[0];
+
+        $this->assertSame($topicExpected, $published['topic']);
+        $this->assertSame(1, $published['qos']);
+
+        $decoded = json_decode($published['payload'], true);
+        $this->assertIsArray($decoded);
+
+        $messageId = $decoded['message_id'];
+        $timestamp = $decoded['timestamp'] ?? null;
+
+        $this->assertSame('open_compartment', $decoded['action'] ?? null);
+        $this->assertIsString($messageId);
+        $this->assertNotEmpty($messageId);
+        $this->assertSame($commandId, $decoded['transaction_id'] ?? null);
+        $this->assertIsString($timestamp);
+        $this->assertNotEmpty($timestamp);
+        \Carbon\CarbonImmutable::parse($timestamp); // should not throw
+        $this->assertSame($compartmentUuid, $decoded['data']['compartment_id'] ?? null);
+        $this->assertSame($compartmentNumber, $decoded['data']['compartment_number'] ?? null);
     }
 }

@@ -5,7 +5,8 @@
   "license": "MIT",
   "scripts": {
     "dev": "ts-node src/app.ts",
-    "build": "tsc"
+    "build": "tsc",
+    "test": "npm run build && node --test dist/tests/**/*.test.js"
   },
   "dependencies": {
     "dotenv": "^16.5.0",

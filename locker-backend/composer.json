@@ -50,7 +50,7 @@
         "test:parallel": "php artisan test --parallel",
         "test:coverage": "php artisan test --coverage",
         "test:filter": "php artisan test --filter",
-        "analyse": "./vendor/bin/phpstan analyse",
+        "analyse": "./vendor/bin/phpstan analyse --memory-limit=1G",
         "quality": [
             "@format-check",
             "@analyse",

@@ -66,6 +66,7 @@ mqtt:
 
 modbus:
   port: /dev/ttyACM0
+  flashDurationMs: 200
   clients:
     - id: locker1
       slaveId: 1
@@ -74,6 +75,8 @@ modbus:
 ```
 
 **Note:** Modbus clients no longer have individual `port` properties. All clients use the port defined in `modbus.port`.
+`modbus.flashDurationMs` configures the hardware pulse duration for supported
+Waveshare boards with native flash support.
 
 ### Device Access
 

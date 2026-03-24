@@ -1,14 +1,15 @@
+import { withMessageId } from "../helper/mqttMessage";
 import { logger } from "../helper/logger";
 import { credentialsService } from "../services/credentialsService";
+import { mqttDedupService } from "../services/mqttDedupService";
 import { mqttService } from "../services/mqttService";
 import {
   ErrorResponse,
-  MQTTCommand,
+  isMQTTCommand,
+  isOpenCompartmentCommand,
   MQTTErrorCode,
   OpenCompartmentCommand,
   SuccessResponse,
-  isOpenCompartmentCommand,
-  isMQTTCommand,
 } from "../types/mqtt";
 import { commandHandler } from "../modbus/commandHandler";
 import { mqttClientManager } from "../mqtt/mqttClientManager";
@@ -25,11 +26,15 @@ export class MQTTMessageHandler {
   async initialize(): Promise<void> {
     const credentials = credentialsService.getCredentials();
     if (!credentials || !credentials.username) {
-      throw new Error("Cannot initialize MQTT handler: No credentials available");
+      throw new Error(
+        "Cannot initialize MQTT handler: No credentials available",
+      );
     }
 
     this.lockerUuid = credentials.username;
-    logger.info(`Initializing MQTT message handler for locker: ${this.lockerUuid}`);
+    logger.info(
+      `Initializing MQTT message handler for locker: ${this.lockerUuid}`,
+    );
 
     // Subscribe to command topic
     const commandTopic = `locker/${this.lockerUuid}/command`;
@@ -67,7 +72,7 @@ export class MQTTMessageHandler {
    * Handle an incoming command message
    */
   private async handleCommand(messageStr: string): Promise<void> {
-    let command: any;
+    let command: unknown;
 
     try {
       command = JSON.parse(messageStr);
@@ -76,19 +81,47 @@ export class MQTTMessageHandler {
       return;
     }
 
-    // Validate basic command structure
+    // Validate command envelope before any side effects
     if (!isMQTTCommand(command)) {
-      logger.error("Invalid command structure:", command);
-      await this.sendErrorResponse(
-        command.transaction_id || "unknown",
-        command.action || "unknown",
-        MQTTErrorCode.INVALID_COMMAND,
-        "Invalid command format"
+      logger.error("Rejected command without required IDs:", command);
+      return;
+    }
+
+    if (mqttDedupService.hasSeenMessageId(command.message_id)) {
+      logger.info(
+        `Ignoring duplicate MQTT packet ${command.message_id} for transaction ${command.transaction_id}`,
       );
       return;
     }
 
-    logger.info(`Processing command: ${command.action} (${command.transaction_id})`);
+    mqttDedupService.rememberMessageId(command.message_id);
+
+    logger.info(
+      `Processing command: ${command.action} (${command.transaction_id}, packet ${command.message_id})`,
+    );
+
+    const existingRecord = mqttDedupService.getCommandRecord(
+      command.transaction_id,
+    );
+
+    if (existingRecord?.status === "completed") {
+      logger.info(
+        `Ignoring duplicate transaction ${command.transaction_id} because it was already completed`,
+      );
+      return;
+    }
+
+    if (existingRecord?.status === "in_progress") {
+      logger.info(
+        `Ignoring duplicate transaction ${command.transaction_id} while execution is still in progress`,
+      );
+      return;
+    }
+
+    mqttDedupService.markCommandInProgress(
+      command.transaction_id,
+      command.action,
+    );
 
     // Route to specific command handler
     try {
@@ -100,7 +133,11 @@ export class MQTTMessageHandler {
           command.transaction_id,
           command.action,
           MQTTErrorCode.INVALID_COMMAND,
-          `Unknown action: ${command.action}`
+          `Unknown action: ${command.action}`,
+        );
+        mqttDedupService.markCommandCompleted(
+          command.transaction_id,
+          command.action,
         );
       }
     } catch (error) {
@@ -109,7 +146,11 @@ export class MQTTMessageHandler {
         command.transaction_id,
         command.action,
         MQTTErrorCode.UNKNOWN_ERROR,
-        error instanceof Error ? error.message : "Unknown error occurred"
+        error instanceof Error ? error.message : "Unknown error occurred",
+      );
+      mqttDedupService.markCommandCompleted(
+        command.transaction_id,
+        command.action,
       );
     }
   }
@@ -117,11 +158,15 @@ export class MQTTMessageHandler {
   /**
    * Handle the open_compartment command
    */
-  private async handleOpenCompartment(command: OpenCompartmentCommand): Promise<void> {
+  private async handleOpenCompartment(
+    command: OpenCompartmentCommand,
+  ): Promise<void> {
     const { compartment_number } = command.data;
     const { transaction_id, action } = command;
 
-    logger.info(`Opening compartment ${compartment_number} (transaction: ${transaction_id})`);
+    logger.info(
+      `Opening compartment ${compartment_number} (transaction: ${transaction_id})`,
+    );
 
     try {
       // Execute the command via the command handler
@@ -131,8 +176,9 @@ export class MQTTMessageHandler {
       await this.sendSuccessResponse(
         transaction_id,
         action,
-        `Compartment ${compartment_number} opened successfully.`
+        `Compartment ${compartment_number} opened successfully.`,
       );
+      mqttDedupService.markCommandCompleted(transaction_id, action);
     } catch (error) {
       logger.error(`Failed to open compartment ${compartment_number}:`, error);
 
@@ -142,7 +188,7 @@ export class MQTTMessageHandler {
 
       if (error instanceof Error) {
         errorMessage = error.message;
-        
+
         // Check for specific error types
         if (error.message.toLowerCase().includes("modbus")) {
           errorCode = MQTTErrorCode.MODBUS_ERROR;
@@ -157,7 +203,13 @@ export class MQTTMessageHandler {
         }
       }
 
-      await this.sendErrorResponse(transaction_id, action, errorCode, errorMessage);
+      await this.sendErrorResponse(
+        transaction_id,
+        action,
+        errorCode,
+        errorMessage,
+      );
+      mqttDedupService.markCommandCompleted(transaction_id, action);
     }
   }
 
@@ -167,25 +219,24 @@ export class MQTTMessageHandler {
   private async sendSuccessResponse(
     transaction_id: string,
     action: string,
-    message: string
-  ): Promise<void> {
+    message: string,
+  ): Promise<SuccessResponse> {
     if (!this.lockerUuid) {
-      logger.error("Cannot send response: locker UUID not set");
-      return;
+      throw new Error("Cannot send response: locker UUID not set");
     }
 
-    const response: SuccessResponse = {
+    const response: SuccessResponse = withMessageId({
       type: "command_response",
       action,
       result: "success",
       transaction_id,
       timestamp: new Date().toISOString(),
       message,
-    };
+    });
 
-    const topic = `locker/${this.lockerUuid}/response`;
-    await mqttService.publish(topic, response, { qos: 1 });
+    await this.publishResponse(response);
     logger.info(`Success response sent for transaction ${transaction_id}`);
+    return response;
   }
 
   /**
@@ -195,14 +246,13 @@ export class MQTTMessageHandler {
     transaction_id: string,
     action: string,
     error_code: MQTTErrorCode,
-    message: string
-  ): Promise<void> {
+    message: string,
+  ): Promise<ErrorResponse> {
     if (!this.lockerUuid) {
-      logger.error("Cannot send response: locker UUID not set");
-      return;
+      throw new Error("Cannot send response: locker UUID not set");
     }
 
-    const response: ErrorResponse = {
+    const response: ErrorResponse = withMessageId({
       type: "command_response",
       action,
       result: "error",
@@ -210,11 +260,31 @@ export class MQTTMessageHandler {
       timestamp: new Date().toISOString(),
       error_code,
       message,
-    };
+    });
+
+    await this.publishResponse(response);
+    logger.error(
+      `Error response sent for transaction ${transaction_id}: ${error_code} - ${message}`,
+    );
+    return response;
+  }
+
+  private async publishResponse(response: {
+    type: "command_response";
+    action: string;
+    result: "success" | "error";
+    transaction_id: string;
+    timestamp: string;
+    message_id: string;
+    message?: string;
+    error_code?: string;
+  }): Promise<void> {
+    if (!this.lockerUuid) {
+      throw new Error("Cannot send response: locker UUID not set");
+    }
 
     const topic = `locker/${this.lockerUuid}/response`;
     await mqttService.publish(topic, response, { qos: 1 });
-    logger.error(`Error response sent for transaction ${transaction_id}: ${error_code} - ${message}`);
   }
 }
 

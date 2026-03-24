@@ -1,5 +1,5 @@
 import fs from "fs";
-import yaml from "js-yaml";
+import { load } from "js-yaml";
 import { logger } from "../helper/logger";
 import { CONFIG_FILE } from "./paths";
 
@@ -28,6 +28,7 @@ export interface LockerConfig {
   };
   modbus: {
     port: string; // Main MODBUS_PORT
+    flashDurationMs?: number;
     clients: ModbusClientConfig[];
     addresses?: {
       lockControl?: number;
@@ -55,7 +56,7 @@ class ConfigLoader {
       }
 
       const fileContents = fs.readFileSync(CONFIG_FILE, "utf8");
-      const parsedConfig = yaml.load(fileContents) as LockerConfig;
+      const parsedConfig = load(fileContents) as LockerConfig;
 
       // Validate required fields
       if (!parsedConfig.mqtt?.brokerUrl) {
@@ -66,7 +67,10 @@ class ConfigLoader {
         throw new Error("modbus.port is required in configuration");
       }
 
-      if (!parsedConfig.modbus?.clients || !Array.isArray(parsedConfig.modbus.clients)) {
+      if (
+        !parsedConfig.modbus?.clients ||
+        !Array.isArray(parsedConfig.modbus.clients)
+      ) {
         throw new Error("modbus.clients must be an array in configuration");
       }
 
@@ -74,23 +78,37 @@ class ConfigLoader {
       logger.info("Configuration loaded successfully from " + CONFIG_FILE);
       logger.info(`MQTT Broker: ${parsedConfig.mqtt.brokerUrl}`);
       logger.info(`Modbus Port: ${parsedConfig.modbus.port}`);
-      logger.info(`Number of locker clients configured: ${parsedConfig.modbus.clients.length}`);
-      
+      logger.info(
+        `Number of locker clients configured: ${parsedConfig.modbus.clients.length}`,
+      );
+
       // Log details for each locker client
       parsedConfig.modbus.clients.forEach((client, index) => {
-        logger.info(`Locker ${index + 1}: ID=${client.id}, SlaveID=${client.slaveId}, BaudRate=${client.baudRate || 9600}`);
+        logger.info(
+          `Locker ${
+            index + 1
+          }: ID=${client.id}, SlaveID=${client.slaveId}, BaudRate=${
+            client.baudRate || 9600
+          }`,
+        );
       });
-      
+
       // Log compartment configuration
       if (parsedConfig.compartments && parsedConfig.compartments.length > 0) {
-        logger.info(`Number of compartments configured: ${parsedConfig.compartments.length}`);
+        logger.info(
+          `Number of compartments configured: ${parsedConfig.compartments.length}`,
+        );
         parsedConfig.compartments.forEach((compartment) => {
-          logger.info(`Compartment ${compartment.id}: SlaveID=${compartment.slaveId}, Address=${compartment.address}`);
+          logger.info(
+            `Compartment ${compartment.id}: SlaveID=${compartment.slaveId}, Address=${compartment.address}`,
+          );
         });
       } else {
-        logger.warn("No compartments configured. Using legacy addressing mode.");
+        logger.warn(
+          "No compartments configured. Using legacy addressing mode.",
+        );
       }
-      
+
       return this.config;
     } catch (error) {
       logger.error("Failed to load configuration:", error);
@@ -111,8 +129,10 @@ class ConfigLoader {
     if (!this.config?.compartments) {
       return null;
     }
-    
-    const compartment = this.config.compartments.find(c => c.id === compartmentId);
+
+    const compartment = this.config.compartments.find((c) =>
+      c.id === compartmentId
+    );
     return compartment || null;
   }
 }

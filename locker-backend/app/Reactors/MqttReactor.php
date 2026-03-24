@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Reactors;
 
+use App\Mqtt\MqttPayloadFactory;
 use App\Services\MqttUserService;
 use App\StorableEvents\CompartmentOpeningRequested;
 use App\StorableEvents\LockerConfigApplyRequested;
@@ -18,6 +19,10 @@ use Spatie\EventSourcing\EventHandlers\Reactors\Reactor;
 
 class MqttReactor extends Reactor implements ShouldQueue
 {
+    public function __construct(
+        private readonly MqttPayloadFactory $mqttPayloadFactory,
+    ) {}
+
     /**
      * Ensure queued reactor handlers run on the same queue as Spatie's stored event jobs.
      *
@@ -30,7 +35,7 @@ class MqttReactor extends Reactor implements ShouldQueue
     {
         $topic = "locker/{$event->lockerBankUuid}/command";
 
-        $payload = json_encode([
+        $payload = $this->mqttPayloadFactory->encode([
             // Keep payload aligned with docs/mqtt_integration_plan.md
             // (commands contain "action" + "transaction_id")
             'action' => 'open_compartment',
@@ -57,7 +62,7 @@ class MqttReactor extends Reactor implements ShouldQueue
     {
         $topic = "locker/{$event->lockerBankUuid}/command";
 
-        $payload = json_encode([
+        $payload = $this->mqttPayloadFactory->encode([
             'action' => 'apply_config',
             'transaction_id' => $event->commandId,
             'timestamp' => now()->toIso8601String(),
@@ -92,7 +97,7 @@ class MqttReactor extends Reactor implements ShouldQueue
             app(MqttUserService::class)->createUser($mqttUser, $mqttPassword, $event->lockerBankUuid);
             Log::info('[MqttReactor] MQTT user created successfully.');
 
-            $payload = json_encode([
+            $payload = $this->mqttPayloadFactory->encode([
                 'status' => 'success',
                 'data' => [
                     'mqtt_user' => $mqttUser,
@@ -125,7 +130,7 @@ class MqttReactor extends Reactor implements ShouldQueue
     public function onLockerProvisioningFailed(LockerProvisioningFailed $event): void
     {
         Log::info('[MqttReactor] Handling LockerProvisioningFailed event.');
-        $payload = json_encode([
+        $payload = $this->mqttPayloadFactory->encode([
             'status' => 'error',
             'message' => $event->reason,
         ]);

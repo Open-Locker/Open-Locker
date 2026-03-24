@@ -41,6 +41,7 @@ mqtt:
 
 modbus:
   port: /dev/ttyACM0
+  flashDurationMs: 200
   clients:
     - id: locker1
       slaveId: 1

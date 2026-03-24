@@ -20,21 +20,27 @@ async function main() {
     ensureDirectories();
     // Check provisioning state
     const isProvisioned = provisioningService.getProvisioningState();
-    logger.info(`Locker provisioning status: ${isProvisioned ? "PROVISIONED" : "NOT PROVISIONED"}`);
+    logger.info(
+      `Locker provisioning status: ${
+        isProvisioned ? "PROVISIONED" : "NOT PROVISIONED"
+      }`,
+    );
 
     if (!isProvisioned) {
       // Read and delete provisioning token from file
       const provisioningToken = provisioningTokenService.readAndDeleteToken();
-      
+
       if (!provisioningToken) {
         logger.error("No provisioning token found");
         logger.error("Cannot start provisioning process without a token");
-        logger.error("Please provide the PROVISIONING_TOKEN environment variable");
+        logger.error(
+          "Please provide the PROVISIONING_TOKEN environment variable",
+        );
         process.exit(1);
       }
 
       logger.info("Starting provisioning process...");
-      
+
       // Connect with default credentials
       await mqttClientManager.connect(mqttConfig.brokerUrl, {
         username: mqttConfig.defaultUsername,
@@ -48,7 +54,7 @@ async function main() {
       try {
         const success = await provisioningRegistrationService.register(
           provisioningToken,
-          mqttConfig.clientId
+          mqttConfig.clientId,
         );
 
         if (success) {
@@ -60,11 +66,11 @@ async function main() {
 
           // Wait 5 seconds before reconnecting
           logger.info("Waiting 5 seconds before reconnecting...");
-          await new Promise(resolve => setTimeout(resolve, 5000));
+          await new Promise((resolve) => setTimeout(resolve, 5000));
 
           // Get the new credentials directly from credentials service
           const newCredentials = credentialsService.getCredentials();
-          
+
           if (!newCredentials) {
             throw new Error("Failed to load new credentials");
           }
@@ -76,11 +82,11 @@ async function main() {
           });
 
           logger.info("MQTT reconnected with provisioned credentials");
-          
+
           // Initialize MQTT message handler
           await mqttMessageHandler.initialize();
           logger.info("MQTT message handler initialized");
-          
+
           // Start heartbeat service
           heartbeatService.start();
         }
@@ -97,11 +103,11 @@ async function main() {
       });
 
       logger.info("MQTT connection established");
-      
+
       // Initialize MQTT message handler
       await mqttMessageHandler.initialize();
       logger.info("MQTT message handler initialized");
-      
+
       // Start heartbeat service
       heartbeatService.start();
     }
@@ -110,6 +116,12 @@ async function main() {
     if (provisioningService.getProvisioningState()) {
       await modbusService.connect();
       logger.info("Modbus RTU connection established");
+
+      const modbusClientIds = modbusService.getClientIds();
+      for (const modbusClientId of modbusClientIds) {
+        await modbusService.turnAllRelaysOff(modbusClientId);
+      }
+      logger.info("Startup failsafe completed: all relays set to OFF");
 
       // Start coil polling service
       coilPollingService.start();
@@ -121,7 +133,7 @@ async function main() {
     process.on("SIGINT", gracefulShutdown);
     process.on("SIGTERM", gracefulShutdown);
 
-    logger.info("Application started successfully")
+    logger.info("Application started successfully");
   } catch (error) {
     logger.error("Failed to start application:", error);
     process.exit(1);
@@ -134,10 +146,10 @@ async function gracefulShutdown() {
   try {
     // Stop heartbeat service
     heartbeatService.stop();
-    
+
     // Stop coil polling service
     coilPollingService.stop();
-    
+
     // Stop all compartment monitoring
     commandHandler.stopAllMonitoring();
 

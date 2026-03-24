@@ -1,3 +1,5 @@
+import { MQTTMessageEnvelope } from "../helper/mqttMessage";
+
 /**
  * MQTT Message Type Definitions
  * Based on the Open Locker MQTT Protocol Specification
@@ -10,7 +12,7 @@
 /**
  * Base structure for all commands received from the backend
  */
-export interface MQTTCommand {
+export interface MQTTCommand extends MQTTMessageEnvelope {
   action: string;
   transaction_id: string;
   timestamp: string; // ISO 8601
@@ -34,7 +36,7 @@ export interface OpenCompartmentCommand extends MQTTCommand {
 /**
  * Base structure for command responses sent by the client
  */
-export interface MQTTCommandResponse {
+export interface MQTTCommandResponse extends MQTTMessageEnvelope {
   type: "command_response";
   action: string;
   result: "success" | "error";
@@ -80,23 +82,32 @@ export enum MQTTErrorCode {
 // ============================================================================
 
 export function isOpenCompartmentCommand(
-  cmd: any
+  cmd: unknown,
 ): cmd is OpenCompartmentCommand {
+  const candidate = cmd as Record<string, any> | null;
+
   return (
-    cmd &&
-    cmd.action === "open_compartment" &&
-    typeof cmd.transaction_id === "string" &&
-    typeof cmd.timestamp === "string" &&
-    cmd.data &&
-    typeof cmd.data.compartment_number === "number"
+    candidate !== null &&
+    typeof candidate === "object" &&
+    candidate.action === "open_compartment" &&
+    typeof candidate.message_id === "string" &&
+    typeof candidate.transaction_id === "string" &&
+    typeof candidate.timestamp === "string" &&
+    candidate.data !== null &&
+    typeof candidate.data === "object" &&
+    typeof candidate.data.compartment_number === "number"
   );
 }
 
-export function isMQTTCommand(cmd: any): cmd is MQTTCommand {
+export function isMQTTCommand(cmd: unknown): cmd is MQTTCommand {
+  const candidate = cmd as Record<string, any> | null;
+
   return (
-    cmd &&
-    typeof cmd.action === "string" &&
-    typeof cmd.transaction_id === "string" &&
-    typeof cmd.timestamp === "string"
+    candidate !== null &&
+    typeof candidate === "object" &&
+    typeof candidate.action === "string" &&
+    typeof candidate.message_id === "string" &&
+    typeof candidate.transaction_id === "string" &&
+    typeof candidate.timestamp === "string"
   );
 }
