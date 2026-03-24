@@ -16,6 +16,7 @@ use Illuminate\Auth\Events\PasswordReset;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Auth\Events\Verified;
 use Illuminate\Foundation\Auth\EmailVerificationRequest;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
@@ -157,7 +158,7 @@ class AuthController extends Controller
     /**
      * Reset Password with Token
      */
-    public function storeNewPassword(ResetPasswordRequest $request): JsonResponse
+    public function storeNewPassword(ResetPasswordRequest $request): JsonResponse|RedirectResponse
     {
         $validated = $request->validated();
 
@@ -185,6 +186,12 @@ class AuthController extends Controller
         // the application's home authenticated view. If there is an error we can
         // redirect them back to where they came from with their error message.
         if ($status == Password::PASSWORD_RESET) {
+            if (! $request->expectsJson()) {
+                return redirect()
+                    ->route('password.reset.form')
+                    ->with('status', __('Your password has been reset. You can now sign in in the app.'));
+            }
+
             return response()->json([
                 'message' => __($status),
             ]);

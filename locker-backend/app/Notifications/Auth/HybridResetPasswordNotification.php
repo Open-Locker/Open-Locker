@@ -62,7 +62,7 @@ class HybridResetPasswordNotification extends Notification
 
     private function buildWebResetUrl(): string
     {
-        $baseUrl = rtrim((string) config('auth-links.web_reset_url'), '/');
+        $baseUrl = rtrim((string) config('app.url', 'http://localhost'), '/').'/reset-password';
         $query = http_build_query([
             'token' => $this->token,
             'email' => $this->email,

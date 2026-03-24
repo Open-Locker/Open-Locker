@@ -365,6 +365,44 @@ class AuthControllerTest extends TestCase
             ->assertJsonValidationErrors(['email']);
     }
 
+    public function test_password_reset_page_is_publicly_accessible()
+    {
+        $response = $this->get('/reset-password?token=test-token&email=user@example.com');
+
+        $response->assertOk()
+            ->assertSee('Reset your password')
+            ->assertSee('user@example.com')
+            ->assertSee('test-token', false);
+    }
+
+    public function test_user_can_reset_password_from_public_web_form()
+    {
+        Notification::fake();
+
+        $user = User::factory()->create();
+
+        $this->post(route('password.email'), ['email' => $user->email]);
+
+        Notification::assertSentTo($user, HybridResetPasswordNotification::class, function ($notification) use ($user) {
+            $response = $this->from(route('password.reset.form', [
+                'token' => $notification->token(),
+                'email' => $user->email,
+            ]))->post(route('password.reset.web.store'), [
+                'token' => $notification->token(),
+                'email' => $user->email,
+                'password' => 'new-password-123',
+                'password_confirmation' => 'new-password-123',
+            ]);
+
+            $response->assertRedirect(route('password.reset.form'));
+            $response->assertSessionHas('status');
+
+            $this->assertTrue(Hash::check('new-password-123', $user->fresh()->password));
+
+            return true;
+        });
+    }
+
     public function test_user_can_update_their_profile()
     {
         $user = User::factory()->create();
