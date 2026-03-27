@@ -57,6 +57,9 @@ This is the currently used and validated build profile.
 
 This build profile is planned, but not yet built or validated.
 
+One reason for planning this variant is that the Raspberry Pi based setup was
+not always reliable in our tests and occasionally dropped out.
+
 At a high level, the cabinet-side hardware is expected to stay similar:
 
 - lock hardware
@@ -65,8 +68,15 @@ At a high level, the cabinet-side hardware is expected to stay similar:
 - connectors
 - power distribution
 
-The controller stack will likely change, so the controller-specific BOM for the
-ESP-based variant is still `TBD`.
+The planned controller board for the first ESP-based build is the Waveshare
+`ESP32-S3-ETH-8DI-8RO`. See
+[`docs/adr/0005-esp-build-controller-board-selection.md`](adr/0005-esp-build-controller-board-selection.md).
+
+For builds with up to 8 compartments, the board's onboard 8 relays and 8
+digital inputs are the planned starting point.
+
+For builds with more than 8 compartments, add one or more external Waveshare
+`Modbus RTU Relay (D)` boards over RS485.
 
 ## Recommended Connection Board
 
@@ -133,14 +143,16 @@ For now, treat the following as stable:
 - connection board recommendation
 - internal cabinet wiring approach
 - basic 12 V power distribution
+- planned ESP controller board: Waveshare `ESP32-S3-ETH-8DI-8RO`
+- planned expansion path for more than 8 compartments: external Waveshare
+  `Modbus RTU Relay (D)` board over RS485
 
 The following items still need a dedicated design and validation step:
 
-- ESP module selection
-- controller carrier or interface board
 - RS485 interface strategy
 - controller power conversion and protection
 - service and update workflow
+- final ESP software and service model
 
 Until that work is complete, this document only provides a validated BOM for
 the Raspberry Pi based build.

@@ -60,6 +60,10 @@ Dies ist die derzeit eingesetzte und validierte Build-Variante.
 
 Diese Build-Variante ist geplant, aber noch nicht aufgebaut oder validiert.
 
+Ein Grund fuer diese geplante Variante ist, dass die Raspberry-Pi-basierte
+Loesung in unseren Tests nicht immer zuverlaessig war und vereinzelt
+ausgefallen ist.
+
 Auf Schrankseite bleiben voraussichtlich weitgehend gleich:
 
 - Schloss-Hardware
@@ -68,8 +72,15 @@ Auf Schrankseite bleiben voraussichtlich weitgehend gleich:
 - Steckverbinder
 - 12-V-Stromverteilung
 
-Der Controller-Stack wird sich voraussichtlich aendern. Deshalb ist die
-controller-spezifische Stueckliste fuer die ESP-Variante noch `TBD`.
+Als geplantes Controller-Board fuer den ersten ESP-basierten Build ist das
+Waveshare `ESP32-S3-ETH-8DI-8RO` vorgesehen. Siehe
+[`docs/adr/0005-esp-build-controller-board-selection.md`](adr/0005-esp-build-controller-board-selection.md).
+
+Fuer Builds mit bis zu 8 Faechern sind die integrierten 8 Relais und 8
+Digitaleingaenge des Boards der geplante Ausgangspunkt.
+
+Fuer Builds mit mehr als 8 Faechern sollen zusaetzlich ein oder mehrere externe
+Waveshare-Boards `Modbus RTU Relay (D)` ueber RS485 angebunden werden.
 
 ## Empfohlenes Connection Board
 
@@ -138,15 +149,17 @@ Derzeit koennen folgende Punkte als stabil betrachtet werden:
 - Empfehlung fuer das Connection Board
 - grundsaetzlicher Ansatz fuer die interne Verkabelung
 - grundsaetzliche 12-V-Stromverteilung
+- geplantes ESP-Controller-Board: Waveshare `ESP32-S3-ETH-8DI-8RO`
+- geplanter Erweiterungspfad fuer mehr als 8 Faecher: externes Waveshare
+  `Modbus RTU Relay (D)` Board ueber RS485
 
 Fuer die folgenden Punkte ist noch eine eigene Design- und Validierungsphase
 noetig:
 
-- Auswahl des ESP-Moduls
-- Controller-Traeger- oder Interface-Board
 - RS485-Interface-Strategie
 - Stromversorgung und Schutzbeschaltung fuer den Controller
 - Service- und Update-Workflow
+- finales ESP-Software- und Service-Modell
 
 Bis diese Punkte abgeschlossen sind, dokumentiert dieses Dokument nur eine
 validierte Stueckliste fuer die Raspberry-Pi-Variante.
