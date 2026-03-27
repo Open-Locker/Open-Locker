@@ -139,6 +139,7 @@ the Cloud Backend via MQTT and controls the hardware via Modbus.
 - Raspberry Pi 3/4/5 or Zero 2 W
 - Raspberry Pi OS Lite (64-bit recommended)
 - Docker & Docker Compose installed
+- Recommended hardware BOM: [Bill of Materials](Bill-of-Materials.md)
 
 ### 1. Setup
 
