@@ -6,32 +6,47 @@ namespace App\Mqtt\Handlers;
 
 use App\Aggregates\LockerBankAggregate;
 use App\Models\LockerBank;
-use Illuminate\Support\Arr;
+use App\Mqtt\InboundMqttProtocolGuard;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 
-class RegistrationHandler
+class RegistrationHandler extends AbstractInboundMqttHandler
 {
+    public function __construct(InboundMqttProtocolGuard $guard)
+    {
+        parent::__construct($guard);
+    }
+
+    public function topicPattern(): string
+    {
+        return 'locker/register/+';
+    }
+
+    protected function receivedLogMessage(): string
+    {
+        return 'MQTT registration message received';
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    protected function rules(): array
+    {
+        return [
+            'client_id' => ['required', 'string'],
+        ];
+    }
+
     /**
      * Handle incoming registration message on topic pattern 'locker/register/+'.
      *
      * @param  string  $topic  The full topic the message was received on.
      * @param  array<string,mixed>  $payload  Decoded JSON payload.
      */
-    public function handle(string $topic, array $payload): void
+    protected function handleValidated(string $topic, array $payload): void
     {
         $provisioningToken = Str::after($topic, 'locker/register/');
-
-        // Validate payload
-        $clientId = Arr::get($payload, 'client_id');
-        if (! is_string($clientId) || $clientId === '') {
-            Log::warning('Invalid registration payload received', [
-                'topic' => $topic,
-                'payload' => $payload,
-            ]);
-
-            return;
-        }
+        $clientId = (string) $payload['client_id'];
 
         $replyToTopic = 'locker/provisioning/reply/'.$clientId;
 

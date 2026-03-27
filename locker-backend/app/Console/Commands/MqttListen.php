@@ -2,12 +2,14 @@
 
 namespace App\Console\Commands;
 
+use App\Mqtt\Handlers\AbstractInboundMqttHandler;
 use App\Mqtt\Handlers\CommandResponseHandler;
 use App\Mqtt\Handlers\DeviceEventHandler;
 use App\Mqtt\Handlers\HeartbeatHandler;
 use App\Mqtt\Handlers\RegistrationHandler;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Log;
+use PhpMqtt\Client\Contracts\MqttClient;
 use PhpMqtt\Client\Facades\MQTT;
 
 class MqttListen extends Command
@@ -35,59 +37,10 @@ class MqttListen extends Command
         try {
             $mqtt = MQTT::connection('listener');
 
-            $this->info('Subscribing to: locker/register/+');
-            $mqtt->subscribe('locker/register/+', function (string $topic, string $message) {
-                $this->info("MQTT message received [{$topic}]: {$message}");
-                Log::info('MQTT message received', ['topic' => $topic, 'message' => $message]);
-                $payload = json_decode($message, true) ?? [];
-                if (! is_array($payload)) {
-                    Log::warning('Invalid JSON payload received', ['topic' => $topic, 'raw' => $message]);
+            foreach ($this->handlers() as $handler) {
+                $this->subscribe($mqtt, $handler);
+            }
 
-                    return;
-                }
-                $this->registrationHandler->handle($topic, $payload);
-            }, 1);
-
-            $this->info('Subscribing to: locker/+/state');
-            $mqtt->subscribe('locker/+/state', function (string $topic, string $message) {
-                $this->info("MQTT state message received [{$topic}]: {$message}");
-                Log::info('MQTT state message received', ['topic' => $topic, 'message' => $message]);
-                $payload = json_decode($message, true) ?? [];
-                if (! is_array($payload)) {
-                    Log::warning('Invalid JSON payload received', ['topic' => $topic, 'raw' => $message]);
-
-                    return;
-                }
-                $this->heartbeatHandler->handle($topic, $payload);
-            }, 1);
-
-            // Command Responses (new contract)
-            $this->info('Subscribing to: locker/+/response');
-            $mqtt->subscribe('locker/+/response', function (string $topic, string $message) {
-                $this->info("MQTT response message received [{$topic}]: {$message}");
-                Log::info('MQTT response message received', ['topic' => $topic, 'message' => $message]);
-                $payload = json_decode($message, true) ?? [];
-                if (! is_array($payload)) {
-                    Log::warning('Invalid JSON payload received', ['topic' => $topic, 'raw' => $message]);
-
-                    return;
-                }
-                $this->commandResponseHandler->handle($topic, $payload);
-            }, 1);
-
-            // Spontaneous events
-            $this->info('Subscribing to: locker/+/event');
-            $mqtt->subscribe('locker/+/event', function (string $topic, string $message) {
-                $this->info("MQTT event message received [{$topic}]: {$message}");
-                Log::info('MQTT event message received', ['topic' => $topic, 'message' => $message]);
-                $payload = json_decode($message, true) ?? [];
-                if (! is_array($payload)) {
-                    Log::warning('Invalid JSON payload received', ['topic' => $topic, 'raw' => $message]);
-
-                    return;
-                }
-                $this->deviceEventHandler->handle($topic, $payload);
-            }, 1);
             // Keep the client loop alive and allow internal sleep to avoid busy-waiting
             $mqtt->loop(true);
 
@@ -97,5 +50,31 @@ class MqttListen extends Command
 
             return Command::FAILURE;
         }
+    }
+
+    /**
+     * @return array<int, AbstractInboundMqttHandler>
+     */
+    private function handlers(): array
+    {
+        return [
+            $this->registrationHandler,
+            $this->heartbeatHandler,
+            $this->commandResponseHandler,
+            $this->deviceEventHandler,
+        ];
+    }
+
+    private function subscribe(
+        MqttClient $mqtt,
+        AbstractInboundMqttHandler $handler,
+    ): void {
+        $this->info('Subscribing to: '.$handler->topicPattern());
+
+        $mqtt->subscribe(
+            $handler->topicPattern(),
+            static fn (string $topic, string $message) => $handler->handleMessage($topic, $message),
+            1,
+        );
     }
 }

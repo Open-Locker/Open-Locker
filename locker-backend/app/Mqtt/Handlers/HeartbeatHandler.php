@@ -5,13 +5,42 @@ declare(strict_types=1);
 namespace App\Mqtt\Handlers;
 
 use App\Models\LockerBank;
+use App\Mqtt\InboundMqttProtocolGuard;
 use App\StorableEvents\LockerConnectionRestored;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 
-class HeartbeatHandler
+class HeartbeatHandler extends AbstractInboundMqttHandler
 {
+    public function __construct(InboundMqttProtocolGuard $guard)
+    {
+        parent::__construct($guard);
+    }
+
+    public function topicPattern(): string
+    {
+        return 'locker/+/state';
+    }
+
+    protected function receivedLogMessage(): string
+    {
+        return 'MQTT state message received';
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    protected function rules(): array
+    {
+        return [
+            'state' => ['nullable', 'string', 'required_without:event'],
+            'event' => ['nullable', 'string', 'required_without:state'],
+            'data' => ['nullable', 'array'],
+            'data.timestamp' => ['nullable', 'string'],
+        ];
+    }
+
     /**
      * Handle incoming heartbeat on topic pattern 'locker/{uuid}/state'.
      *
@@ -20,7 +49,7 @@ class HeartbeatHandler
      *
      * @param  array<string,mixed>  $payload
      */
-    public function handle(string $topic, array $payload): void
+    protected function handleValidated(string $topic, array $payload): void
     {
         $lockerBankUuid = Str::after($topic, 'locker/');
         $lockerBankUuid = Str::before($lockerBankUuid, '/state');
