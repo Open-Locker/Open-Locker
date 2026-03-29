@@ -153,7 +153,7 @@ async function main() {
       );
 
       // Start coil polling service
-      coilPollingService.start(reachableModbusClientIds[0]);
+      coilPollingService.start();
     } else {
       logger.warn("Locker is not provisioned. Modbus connection skipped.");
     }
