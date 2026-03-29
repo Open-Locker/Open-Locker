@@ -84,6 +84,10 @@ class FilamentAdminSmokeTest extends TestCase
         $response = $this->actingAs($user)->get(route('filament.admin.pages.dashboard'));
 
         $response->assertRedirect(route('filament.admin.auth.email-verification.prompt'));
+
+        $promptResponse = $this->actingAs($user)->get(route('filament.admin.auth.email-verification.prompt'));
+
+        $promptResponse->assertOk();
     }
 
     public function test_authenticated_unverified_admin_can_load_filament_login_route_without_server_error(): void

@@ -13,6 +13,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Facades\Password;
 use Laravel\Sanctum\HasApiTokens;
 
 class User extends Authenticatable implements FilamentUser, MustVerifyEmail
@@ -168,6 +169,24 @@ class User extends Authenticatable implements FilamentUser, MustVerifyEmail
     public function sendPasswordResetNotification($token): void
     {
         $this->notify(new HybridResetPasswordNotification((string) $token, $this->email));
+    }
+
+    public function sendAdminPasswordResetLink(): string
+    {
+        return Password::sendResetLink([
+            'email' => $this->email,
+        ]);
+    }
+
+    public function sendAdminVerificationEmail(): bool
+    {
+        if ($this->hasVerifiedEmail()) {
+            return false;
+        }
+
+        $this->sendEmailVerificationNotification();
+
+        return true;
     }
 
     public function canAccessPanel(Panel $panel): bool
