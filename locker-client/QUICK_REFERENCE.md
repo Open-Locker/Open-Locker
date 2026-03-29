@@ -22,12 +22,51 @@ chmod +x setup.sh
 # 2. Run setup
 ./setup.sh
 
-# 3. Start
+# 3. Review .env and config/locker-config.yml
+
+# 4. Start
 docker-compose up -d
 
-# 4. Check logs
+# 5. Check logs
 docker-compose logs -f
 ```
+
+## Environment File
+
+```bash
+cp .env.example .env
+```
+
+Most important variables:
+- `LOCKER_CLIENT_IMAGE_TAG=latest`
+- `PROVISIONING_TOKEN=`
+- `WATCHTOWER_POLL_INTERVAL=300`
+- `TZ=UTC`
+
+## Image Tags
+
+Default behavior:
+
+```bash
+grep '^LOCKER_CLIENT_IMAGE_TAG=' .env
+```
+
+Deploy a tagged client release:
+
+```bash
+sed -i.bak 's/^LOCKER_CLIENT_IMAGE_TAG=.*/LOCKER_CLIENT_IMAGE_TAG=1.2.3/' .env
+docker-compose pull
+docker-compose up -d
+```
+
+Client release publishing:
+
+```bash
+git tag locker-client-v1.2.3
+git push origin locker-client-v1.2.3
+```
+
+`locker-client-v1.2.3` publishes the container image tag `1.2.3`.
 
 ## Configuration Template
 
@@ -62,6 +101,9 @@ docker-compose restart
 # View logs
 docker-compose logs -f
 
+# View watchtower logs
+docker-compose logs -f watchtower
+
 # Inspect config
 docker-compose exec locker-client ls -la /config
 
@@ -79,6 +121,22 @@ docker-compose exec locker-client sh
 export PROVISIONING_TOKEN="YOUR_TOKEN_HERE"
 docker-compose up -d
 ```
+
+## Watchtower
+
+Watchtower is included in the default Compose setup and updates only labeled
+containers.
+
+Optional environment variables:
+
+```bash
+sed -i.bak 's/^TZ=.*/TZ=Europe\\/Berlin/' .env
+sed -i.bak 's/^WATCHTOWER_POLL_INTERVAL=.*/WATCHTOWER_POLL_INTERVAL=300/' .env
+```
+
+Behavior:
+- `LOCKER_CLIENT_IMAGE_TAG=latest` tracks the latest published client image
+- `LOCKER_CLIENT_IMAGE_TAG=1.2.3` stays pinned until you change the tag
 
 **Re-provisioning:**
 ```bash

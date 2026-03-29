@@ -26,6 +26,27 @@ fi
 
 echo ""
 
+# Copy example environment file
+if [ ! -f .env ]; then
+    echo "Creating .env from example..."
+
+    if [ ! -f .env.example ]; then
+        echo "Downloading example environment file from GitHub..."
+        wget -q https://raw.githubusercontent.com/Open-Locker/Open-Locker/main/locker-client/.env.example -O .env.example
+        if [ $? -ne 0 ]; then
+            echo "❌ Failed to download example environment file"
+            exit 1
+        fi
+    fi
+
+    cp .env.example .env
+    echo "✓ Environment file created"
+else
+    echo "✓ .env already exists"
+fi
+
+echo ""
+
 # Copy example configuration
 if [ ! -f config/locker-config.yml ]; then
     echo "Creating config/locker-config.yml from example..."
@@ -55,7 +76,7 @@ echo ""
 # Check for provisioning token
 if [ ! -f data/.provisioning-state ]; then
     echo "⚠️  Locker is not provisioned"
-    echo "  Set the PROVISIONING_TOKEN environment variable before starting the container"
+    echo "  Set PROVISIONING_TOKEN in .env before starting the container"
 else
     echo "✓ Locker is already provisioned"
 fi
@@ -64,7 +85,8 @@ echo ""
 echo "=== Setup Complete ==="
 echo ""
 echo "Next steps:"
-echo "1. Review and edit config/locker-config.yml"
-echo "2. Start the container with: docker compose up -d"
-echo "3. Check logs with: docker compose logs -f"
+echo "1. Review and edit .env"
+echo "2. Review and edit config/locker-config.yml"
+echo "3. Start the containers with: docker compose up -d"
+echo "4. Check logs with: docker compose logs -f"
 echo ""
