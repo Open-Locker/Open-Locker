@@ -1,53 +1,53 @@
-# Stueckliste
+# Stückliste
 
 Deutsche Version. Die englische Originalfassung ist unter
-[`docs/Bill-of-Materials.md`](Bill-of-Materials.md) verfuegbar.
+[`docs/Bill-of-Materials.md`](Bill-of-Materials.md) verfügbar.
 
-Dieses Dokument beschreibt eine vorgeschlagene Stueckliste fuer einen
+Dieses Dokument beschreibt eine vorgeschlagene Stückliste für einen
 Open-Locker-Testschrank.
 
 Es basiert auf der aktuell eingesetzten Raspberry-Pi-Variante und dokumentiert
-zunaechst die schrankunabhaengigen elektrischen Komponenten. Eine ESP-basierte
+zunächst die schrankunabhängigen elektrischen Komponenten. Eine ESP-basierte
 Variante ist geplant, aber noch nicht aufgebaut oder validiert.
 
 ## Geltungsbereich
 
-Diese Stueckliste konzentriert sich auf:
+Diese Stückliste konzentriert sich auf:
 
 - Controller- und Kommunikationshardware
 - Relais- und Schlossansteuerung
 - Verkabelung, Steckverbinder und Stromverteilung
 - optionale Teile, die den Aufbau und die Erweiterung vereinfachen
 
-Diese Stueckliste deckt bewusst keine schrankabhaengige mechanische Integration
+Diese Stückliste deckt bewusst keine schrankabhängige mechanische Integration
 ab, zum Beispiel:
 
-- wie Schloesser in einen Holzschrank eingebaut werden
-- wie Schloesser in einen Metallschrank eingebaut werden
-- Bohrungen, Halterungen, Blechbearbeitung oder Verstaerkungen
+- wie Schlösser in einen Holzschrank eingebaut werden
+- wie Schlösser in einen Metallschrank eingebaut werden
+- Bohrungen, Halterungen, Blechbearbeitung oder Verstärkungen
 
-Diese Details haengen stark vom jeweiligen Schranktyp ab und sollten separat
+Diese Details hängen stark vom jeweiligen Schranktyp ab und sollten separat
 dokumentiert werden, sobald es ein wiederholbares Schrankdesign gibt.
 
 ## Allgemeine Hinweise
 
 - Die Lieferantenlinks sind nur Beispiele. Gleichwertige Teile anderer Anbieter
-  sind in Ordnung, sofern ein Teil nicht ausdruecklich als erforderlich markiert
+  sind in Ordnung, sofern ein Teil nicht ausdrücklich als erforderlich markiert
   ist.
 - Wir haben derzeit keine Affiliate-Beziehungen zu den in diesem Dokument
   genannten Anbietern.
-- Fuer die Beschaffung verwenden wir moeglichst neutrale technische
-  Bezeichnungen. Marketplace-Titel enthalten oft Marketing-Sprache, die fuer
+- Für die Beschaffung verwenden wir möglichst neutrale technische
+  Bezeichnungen. Marketplace-Titel enthalten oft Marketing-Sprache, die für
   die Dokumentation wenig hilfreich ist.
 - Das Modbus-Relaisboard muss das unten genannte Waveshare-Board sein, weil die
   aktuelle Implementierung auf verifiziertem Waveshare-spezifischem Flash- und
   Digital-Input-Verhalten basiert. Siehe
   [`docs/adr/0004-waveshare-hardware-flash-and-supported-boards.md`](adr/0004-waveshare-hardware-flash-and-supported-boards.md).
-- Kabellaengen haengen von der Schrankgroesse und der Kabelfuehrung ab.
-- Die Dimensionierung des Netzteils haengt von der Anzahl der Faecher,
-  Schloesser und Relaisboards im finalen Schrank ab.
-- Diese Stueckliste ist ein dokumentiertes Praxisbeispiel fuer den bisherigen
-  Aufbau. Sie ist keine Garantie fuer einen bestimmten Lieferanten, Hersteller
+- Kabellängen hängen von der Schrankgröße und der Kabelführung ab.
+- Die Dimensionierung des Netzteils hängt von der Anzahl der Fächer,
+  Schlösser und Relaisboards im finalen Schrank ab.
+- Diese Stückliste ist ein dokumentiertes Praxisbeispiel für den bisherigen
+  Aufbau. Sie ist keine Garantie für einen bestimmten Lieferanten, Hersteller
   oder Teile-Stand.
 
 ## Build-Profile
@@ -60,8 +60,8 @@ Dies ist die derzeit eingesetzte und validierte Build-Variante.
 
 Diese Build-Variante ist geplant, aber noch nicht aufgebaut oder validiert.
 
-Ein Grund fuer diese geplante Variante ist, dass die Raspberry-Pi-basierte
-Loesung in unseren Tests nicht immer zuverlaessig war und vereinzelt
+Ein Grund für diese geplante Variante ist, dass die Raspberry-Pi-basierte
+Lösung in unseren Tests nicht immer zuverlässig war und vereinzelt
 ausgefallen ist.
 
 Auf Schrankseite bleiben voraussichtlich weitgehend gleich:
@@ -72,15 +72,15 @@ Auf Schrankseite bleiben voraussichtlich weitgehend gleich:
 - Steckverbinder
 - 12-V-Stromverteilung
 
-Als geplantes Controller-Board fuer den ersten ESP-basierten Build ist das
+Als geplantes Controller-Board für den ersten ESP-basierten Build ist das
 Waveshare `ESP32-S3-ETH-8DI-8RO` vorgesehen. Siehe
 [`docs/adr/0005-esp-build-controller-board-selection.md`](adr/0005-esp-build-controller-board-selection.md).
 
-Fuer Builds mit bis zu 8 Faechern sind die integrierten 8 Relais und 8
-Digitaleingaenge des Boards der geplante Ausgangspunkt.
+Für Builds mit bis zu 8 Fächern sind die integrierten 8 Relais und 8
+Digitaleingänge des Boards der geplante Ausgangspunkt.
 
-Fuer Builds mit mehr als 8 Faechern sollen zusaetzlich ein oder mehrere externe
-Waveshare-Boards `Modbus RTU Relay (D)` ueber RS485 angebunden werden.
+Für Builds mit mehr als 8 Fächern sollen zusätzlich ein oder mehrere externe
+Waveshare-Boards `Modbus RTU Relay (D)` über RS485 angebunden werden.
 
 ## Empfohlenes Connection Board
 
@@ -100,7 +100,7 @@ typischerweise verwendet:
 - 10x 2-polige Leiterplatten-Schraubklemmen
 - 13x 4-polige Leiterplatten-Schraubklemmen
 
-Beispiel fuer einen passenden Steckverbinder-Satz:
+Beispiel für einen passenden Steckverbinder-Satz:
 
 - 3,5-mm-Leiterplatten-Schraubklemmen
   [Beispiellink](https://de.aliexpress.com/item/1005008051970362.html)
@@ -111,26 +111,26 @@ Hinweis zur Leiterplattenfertigung:
 
 ## Gemeinsame Komponenten
 
-Diese Teile gelten fuer beide Build-Profile, sofern nicht anders angegeben.
+Diese Teile gelten für beide Build-Profile, sofern nicht anders angegeben.
 
 | Teil | Typische Menge | Hinweise | Beispiellink |
 | --- | --- | --- | --- |
-| 8-Kanal-Modbus-RTU-Relaisboard mit Digitaleingaengen | 1 pro bis zu 8 Faechern | Erforderliches Teil. Verwendet das Waveshare `Modbus RTU Relay (D)` Board, weil die aktuelle Software dessen Flash- und Digital-Input-Funktionen nutzt. Pro Fach wird ein Relaisausgang und ein Digitaleingang benoetigt. | [Waveshare-Relaisboard](https://www.amazon.de/dp/B0CRKPYVSN) |
-| 12-V-Schrankschloss mit Rueckmeldekontakt | 1 pro Fach | Wenn moeglich, ein Schloss mit integriertem Status- oder Erkennungsschalter verwenden. Die konkrete Montage haengt vom Schrankmaterial und Tuerdesign ab. | [Beispiel A](https://www.amazon.de/dp/B07B9WMKG2), [Beispiel B](https://www.amazon.de/dp/B071WBDFZR) |
-| 12-V-DC-Netzteil | 1 pro Schrank | Das Netzteil fuer die maximal gleichzeitig aktiven Schloesser plus Controller- und Relaisboard-Reserve dimensionieren. | [Beispiel-Netzteil](https://www.amazon.de/dp/B07GFFG1BQ) |
-| Interne Schrankverkabelung | nach Bedarf | Die Kabellaenge passend zu Schrankgeometrie und Kabelfuehrung waehlen. | [Beispielkabel](https://www.amazon.de/dp/B0BHSVC7HP) |
-| Aderendhuelsen, 0,34 mm2 | nach Bedarf | Empfohlen fuer saubere und zuverlaessige Anschluesse an Schraubklemmen. | [Beispiel-Aderendhuelsen](https://www.amazon.de/dp/B0DJ759X65) |
-| 2-polige Steckverbinder, 2,5 mm Raster | optional | Optional. Kann auch durch direkt geloetete Verbindungen ersetzt werden. | [Beispiel-Steckverbinder](https://www.amazon.de/dp/B07QM13SRX) |
-| Einbau-DC-Buchse, 5,5 x 2,1 mm | 1 pro Schrank | Sinnvoll, um die externe 12-V-Versorgung von aussen in den Schrank zu fuehren. | [Beispiel-DC-Buchse](https://www.amazon.de/dp/B0F24DFZHF) |
-| 4-poliger GX16-Steckverbindersatz | optional | Sinnvoll, wenn mehrere Schraenke elektrisch miteinander verbunden werden sollen. | [Beispiel-GX16-Steckverbinder](https://www.amazon.de/-/en/Aiqeer-Aviation-Thread-Connector-Female/dp/B09WXZNKXN/) |
+| 8-Kanal-Modbus-RTU-Relaisboard mit Digitaleingängen | 1 pro bis zu 8 Fächern | Erforderliches Teil. Verwendet das Waveshare `Modbus RTU Relay (D)` Board, weil die aktuelle Software dessen Flash- und Digital-Input-Funktionen nutzt. Pro Fach wird ein Relaisausgang und ein Digitaleingang benötigt. | [Waveshare-Relaisboard](https://www.amazon.de/dp/B0CRKPYVSN) |
+| 12-V-Schrankschloss mit Rückmeldekontakt | 1 pro Fach | Wenn möglich, ein Schloss mit integriertem Status- oder Erkennungsschalter verwenden. Die konkrete Montage hängt vom Schrankmaterial und Türdesign ab. | [Beispiel A](https://www.amazon.de/dp/B07B9WMKG2), [Beispiel B](https://www.amazon.de/dp/B071WBDFZR) |
+| 12-V-DC-Netzteil | 1 pro Schrank | Das Netzteil für die maximal gleichzeitig aktiven Schlösser plus Controller- und Relaisboard-Reserve dimensionieren. | [Beispiel-Netzteil](https://www.amazon.de/dp/B07GFFG1BQ) |
+| Interne Schrankverkabelung | nach Bedarf | Die Kabellänge passend zu Schrankgeometrie und Kabelführung wählen. | [Beispielkabel](https://www.amazon.de/dp/B0BHSVC7HP) |
+| Aderendhülsen, 0,34 mm2 | nach Bedarf | Empfohlen für saubere und zuverlässige Anschlüsse an Schraubklemmen. | [Beispiel-Aderendhülsen](https://www.amazon.de/dp/B0DJ759X65) |
+| 2-polige Steckverbinder, 2,5 mm Raster | optional | Optional. Kann auch durch direkt gelötete Verbindungen ersetzt werden. | [Beispiel-Steckverbinder](https://www.amazon.de/dp/B07QM13SRX) |
+| Einbau-DC-Buchse, 5,5 x 2,1 mm | 1 pro Schrank | Sinnvoll, um die externe 12-V-Versorgung von außen in den Schrank zu führen. | [Beispiel-DC-Buchse](https://www.amazon.de/dp/B0F24DFZHF) |
+| 4-poliger GX16-Steckverbindersatz | optional | Sinnvoll, wenn mehrere Schränke elektrisch miteinander verbunden werden sollen. | [Beispiel-GX16-Steckverbinder](https://www.amazon.de/-/en/Aiqeer-Aviation-Thread-Connector-Female/dp/B09WXZNKXN/) |
 | Connection Board, 3,5-mm-Klemmenvariante | nach Bedarf | Empfohlen, um die Verkabelung im Schrank zu vereinfachen. Verwendet das Design aus `hardware/connection-board-cut-out_3_5`. | [Repository-Design](../hardware/connection-board-cut-out_3_5) |
-| 3,5-mm-Leiterplatten-Schraubklemmen fuer das Connection Board | 1 Satz pro Connection Board | Typische Bestueckung: 10x 2-polig und 13x 4-polig pro Board. | [Beispiel-Klemmensatz](https://de.aliexpress.com/item/1005008051970362.html) |
-| Kurze Kabelstrecken zwischen Connection Board und Relaisboard | nach Bedarf | Lautsprecherkabel oder vergleichbare Litze sind fuer kurze Strecken geeignet. Fuer die jeweilige Strecke Kabel fuer bis zu 12 V / 2 A auslegen. | Kein fester Anbieter |
+| 3,5-mm-Leiterplatten-Schraubklemmen für das Connection Board | 1 Satz pro Connection Board | Typische Bestückung: 10x 2-polig und 13x 4-polig pro Board. | [Beispiel-Klemmensatz](https://de.aliexpress.com/item/1005008051970362.html) |
+| Kurze Kabelstrecken zwischen Connection Board und Relaisboard | nach Bedarf | Lautsprecherkabel oder vergleichbare Litze sind für kurze Strecken geeignet. Für die jeweilige Strecke Kabel für bis zu 12 V / 2 A auslegen. | Kein fester Anbieter |
 
 ## Raspberry-Pi-spezifische Komponenten
 
-Diese Teile werden nur fuer die aktuell genutzte Raspberry-Pi-Variante
-benoetigt.
+Diese Teile werden nur für die aktuell genutzte Raspberry-Pi-Variante
+benötigt.
 
 | Teil | Typische Menge | Hinweise | Beispiellink |
 | --- | --- | --- | --- |
@@ -142,56 +142,56 @@ benoetigt.
 
 Die ESP-basierte Variante ist noch nicht finalisiert.
 
-Derzeit koennen folgende Punkte als stabil betrachtet werden:
+Derzeit können folgende Punkte als stabil betrachtet werden:
 
 - Schloss-Hardware
 - Relaisboard-Anforderung
-- Empfehlung fuer das Connection Board
-- grundsaetzlicher Ansatz fuer die interne Verkabelung
-- grundsaetzliche 12-V-Stromverteilung
+- Empfehlung für das Connection Board
+- grundsätzlicher Ansatz für die interne Verkabelung
+- grundsätzliche 12-V-Stromverteilung
 - geplantes ESP-Controller-Board: Waveshare `ESP32-S3-ETH-8DI-8RO`
-- geplanter Erweiterungspfad fuer mehr als 8 Faecher: externes Waveshare
-  `Modbus RTU Relay (D)` Board ueber RS485
+- geplanter Erweiterungspfad für mehr als 8 Fächer: externes Waveshare
+  `Modbus RTU Relay (D)` Board über RS485
 
-Fuer die folgenden Punkte ist noch eine eigene Design- und Validierungsphase
-noetig:
+Für die folgenden Punkte ist noch eine eigene Design- und Validierungsphase
+nötig:
 
 - RS485-Interface-Strategie
-- Stromversorgung und Schutzbeschaltung fuer den Controller
+- Stromversorgung und Schutzbeschaltung für den Controller
 - Service- und Update-Workflow
 - finales ESP-Software- und Service-Modell
 
 Bis diese Punkte abgeschlossen sind, dokumentiert dieses Dokument nur eine
-validierte Stueckliste fuer die Raspberry-Pi-Variante.
+validierte Stückliste für die Raspberry-Pi-Variante.
 
-## Nicht abgedeckte schrankabhaengige Teile
+## Nicht abgedeckte schrankabhängige Teile
 
-Die folgenden Themen sind bewusst nicht Teil dieser Stueckliste, weil sie vom
-konkreten Schrank abhaengen:
+Die folgenden Themen sind bewusst nicht Teil dieser Stückliste, weil sie vom
+konkreten Schrank abhängen:
 
 - Schloss-Halterungen und Montageplatten
 - Bohrschablonen
-- Tuerverstaerkungen
-- Montagematerial fuer Holzschraenke
-- Montagematerial fuer Metallschraenke
-- Gehaeuseausschnitte und Nachbearbeitung
+- Türverstärkungen
+- Montagematerial für Holzschränke
+- Montagematerial für Metallschränke
+- Gehäuseausschnitte und Nachbearbeitung
 
 Diese Punkte sollten in einer schrank-spezifischen Aufbauanleitung dokumentiert
 werden, sobald ein wiederholbares Schrankdesign existiert.
 
 ## Haftungsausschluss
 
-Diese Stueckliste dient als praktische Referenz fuer das Open-Locker-Projekt.
-Teile und Lieferanten koennen sich im Laufe der Zeit aendern. Das Projekt
-uebernimmt keine Gewaehrleistung oder Lieferantenzusagen fuer die gelisteten
+Diese Stückliste dient als praktische Referenz für das Open-Locker-Projekt.
+Teile und Lieferanten können sich im Laufe der Zeit ändern. Das Projekt
+übernimmt keine Gewährleistung oder Lieferantenzusagen für die gelisteten
 Teile.
 
 ## Feedback
 
-Wenn ihr einen Open-Locker-Schrank auf Basis dieser Stueckliste baut, freuen
-wir uns ueber Feedback.
+Wenn ihr einen Open-Locker-Schrank auf Basis dieser Stückliste baut, freuen
+wir uns über Feedback.
 
-Hilfreiches Feedback waere zum Beispiel:
+Hilfreiches Feedback wäre zum Beispiel:
 
 - welche Teile gut funktioniert haben
 - welche Teile schwer zu beschaffen waren
@@ -199,5 +199,5 @@ Hilfreiches Feedback waere zum Beispiel:
 - schrankspezifische Erfahrungen aus dem Aufbau
 - Korrekturen bei Mengen, elektrischen Werten oder Verdrahtungsannahmen
 
-Rueckmeldungen aus der Community helfen uns dabei, diese Stueckliste zu
-verbessern und kuenftige Builds leichter reproduzierbar zu machen.
+Rückmeldungen aus der Community helfen uns dabei, diese Stückliste zu
+verbessern und künftige Builds leichter reproduzierbar zu machen.
