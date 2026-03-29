@@ -370,7 +370,7 @@ class AuthControllerTest extends TestCase
         $response = $this->get('/reset-password?token=test-token&email=user@example.com');
 
         $response->assertOk()
-            ->assertSee('Reset your password')
+            ->assertSee('Setze dein Passwort zurueck')
             ->assertSee('user@example.com')
             ->assertSee('test-token', false);
     }
@@ -384,7 +384,7 @@ class AuthControllerTest extends TestCase
         $this->post(route('password.email'), ['email' => $user->email]);
 
         Notification::assertSentTo($user, HybridResetPasswordNotification::class, function ($notification) use ($user) {
-            $response = $this->from(route('password.reset.form', [
+            $response = $this->followingRedirects()->from(route('password.reset.form', [
                 'token' => $notification->token(),
                 'email' => $user->email,
             ]))->post(route('password.reset.web.store'), [
@@ -394,8 +394,10 @@ class AuthControllerTest extends TestCase
                 'password_confirmation' => 'new-password-123',
             ]);
 
-            $response->assertRedirect(route('password.reset.form'));
-            $response->assertSessionHas('status');
+            $response->assertOk()
+                ->assertSee('Passwort erfolgreich zurueckgesetzt')
+                ->assertDontSee('Passwort zuruecksetzen')
+                ->assertDontSee('E-Mail-Adresse');
 
             $this->assertTrue(Hash::check('new-password-123', $user->fresh()->password));
 

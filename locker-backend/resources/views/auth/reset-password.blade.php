@@ -184,8 +184,18 @@
             @include('filament.brand')
         </div>
 
-        <h1 id="reset-password-title">{{ __('Reset your password') }}</h1>
-        <p>{{ __('Choose a new password for your account. After resetting it, sign in again in the app with the new password.') }}</p>
+        @php
+            $hasSuccessStatus = session('status') && ! $errors->any();
+        @endphp
+
+        <h1 id="reset-password-title">
+            {{ $hasSuccessStatus ? __('Password reset successful') : __('Reset your password') }}
+        </h1>
+        <p>
+            {{ $hasSuccessStatus
+                ? __('You can now sign in in the app with your new password.')
+                : __('Choose a new password for your account. After resetting it, sign in again in the app with the new password.') }}
+        </p>
 
         @if (session('status'))
             <div class="feedback feedback-success" role="status">
@@ -203,66 +213,68 @@
             </div>
         @endif
 
-        <form method="POST" action="{{ route('password.reset.web.store') }}">
-            @csrf
+        @unless ($hasSuccessStatus)
+            <form method="POST" action="{{ route('password.reset.web.store') }}">
+                @csrf
 
-            <div class="stack">
-                <div class="field">
-                    <label for="email">{{ __('Email address') }}</label>
-                    <input
-                        id="email"
-                        name="email"
-                        type="email"
-                        autocomplete="email"
-                        value="{{ old('email', $email) }}"
-                        required
-                    >
-                </div>
-
-                @if (old('token', $token) !== '')
-                    <input type="hidden" name="token" value="{{ old('token', $token) }}">
-                    <div class="hint">
-                        {{ __('Your reset token was loaded from the email link.') }}
-                    </div>
-                @else
+                <div class="stack">
                     <div class="field">
-                        <label for="token">{{ __('Reset token') }}</label>
+                        <label for="email">{{ __('Email address') }}</label>
                         <input
-                            id="token"
-                            name="token"
-                            type="text"
-                            autocomplete="off"
-                            value="{{ old('token', $token) }}"
+                            id="email"
+                            name="email"
+                            type="email"
+                            autocomplete="email"
+                            value="{{ old('email', $email) }}"
                             required
                         >
                     </div>
-                @endif
 
-                <div class="field">
-                    <label for="password">{{ __('New password') }}</label>
-                    <input
-                        id="password"
-                        name="password"
-                        type="password"
-                        autocomplete="new-password"
-                        required
-                    >
+                    @if (old('token', $token) !== '')
+                        <input type="hidden" name="token" value="{{ old('token', $token) }}">
+                        <div class="hint">
+                            {{ __('Your reset token was loaded from the email link.') }}
+                        </div>
+                    @else
+                        <div class="field">
+                            <label for="token">{{ __('Reset token') }}</label>
+                            <input
+                                id="token"
+                                name="token"
+                                type="text"
+                                autocomplete="off"
+                                value="{{ old('token', $token) }}"
+                                required
+                            >
+                        </div>
+                    @endif
+
+                    <div class="field">
+                        <label for="password">{{ __('New password') }}</label>
+                        <input
+                            id="password"
+                            name="password"
+                            type="password"
+                            autocomplete="new-password"
+                            required
+                        >
+                    </div>
+
+                    <div class="field">
+                        <label for="password_confirmation">{{ __('Confirm new password') }}</label>
+                        <input
+                            id="password_confirmation"
+                            name="password_confirmation"
+                            type="password"
+                            autocomplete="new-password"
+                            required
+                        >
+                    </div>
+
+                    <button class="button" type="submit">{{ __('Reset password') }}</button>
                 </div>
-
-                <div class="field">
-                    <label for="password_confirmation">{{ __('Confirm new password') }}</label>
-                    <input
-                        id="password_confirmation"
-                        name="password_confirmation"
-                        type="password"
-                        autocomplete="new-password"
-                        required
-                    >
-                </div>
-
-                <button class="button" type="submit">{{ __('Reset password') }}</button>
-            </div>
-        </form>
+            </form>
+        @endunless
 
         <p class="footer-note">{{ __('If you did not request a password reset, you can safely close this page.') }}</p>
     </section>

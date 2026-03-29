@@ -1,0 +1,14 @@
+{
+    "Reset password": "Passwort zuruecksetzen",
+    "Reset your password": "Setze dein Passwort zurueck",
+    "Password reset successful": "Passwort erfolgreich zurueckgesetzt",
+    "Choose a new password for your account. After resetting it, sign in again in the app with the new password.": "Waehle ein neues Passwort fuer dein Konto. Nach dem Zuruecksetzen kannst du dich mit dem neuen Passwort erneut in der App anmelden.",
+    "You can now sign in in the app with your new password.": "Du kannst dich jetzt mit deinem neuen Passwort in der App anmelden.",
+    "Your password has been reset. You can now sign in in the app.": "Dein Passwort wurde zurueckgesetzt. Du kannst dich jetzt in der App anmelden.",
+    "Email address": "E-Mail-Adresse",
+    "Your reset token was loaded from the email link.": "Dein Reset-Token wurde aus dem E-Mail-Link uebernommen.",
+    "Reset token": "Reset-Token",
+    "New password": "Neues Passwort",
+    "Confirm new password": "Neues Passwort bestaetigen",
+    "If you did not request a password reset, you can safely close this page.": "Wenn du kein Zuruecksetzen des Passworts angefordert hast, kannst du diese Seite einfach schliessen."
+}
