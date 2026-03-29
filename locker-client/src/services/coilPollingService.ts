@@ -12,7 +12,7 @@ class CoilPollingService {
   /**
    * Start polling relay and input status
    */
-  start(): void {
+  start(preferredClientId?: string): void {
     if (this.intervalId) {
       logger.warn("Coil polling service is already running");
       return;
@@ -20,7 +20,11 @@ class CoilPollingService {
 
     // Get the first available client for monitoring
     const clientIds = modbusService.getClientIds();
-    this.primaryClient = clientIds[0] || "locker2";
+    if (preferredClientId && clientIds.includes(preferredClientId)) {
+      this.primaryClient = preferredClientId;
+    } else {
+      this.primaryClient = clientIds[0] || "locker2";
+    }
 
     logger.info(`Starting relay/input polling service with interval: ${this.pollingInterval / 1000}s for client: ${this.primaryClient}`);
 
@@ -127,7 +131,7 @@ class CoilPollingService {
     // Restart if already running
     if (this.intervalId) {
       this.stop();
-      this.start();
+      this.start(this.primaryClient);
     }
   }
 }

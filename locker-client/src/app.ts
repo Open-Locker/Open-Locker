@@ -118,13 +118,42 @@ async function main() {
       logger.info("Modbus RTU connection established");
 
       const modbusClientIds = modbusService.getClientIds();
+      const reachableModbusClientIds: string[] = [];
+      const startupFailsafeFailures: string[] = [];
+
       for (const modbusClientId of modbusClientIds) {
-        await modbusService.turnAllRelaysOff(modbusClientId);
+        try {
+          await modbusService.turnAllRelaysOff(modbusClientId);
+          reachableModbusClientIds.push(modbusClientId);
+        } catch (error) {
+          startupFailsafeFailures.push(modbusClientId);
+          logger.error(
+            `[${modbusClientId}] Startup failsafe failed, continuing without relay reset for this board:`,
+            error,
+          );
+        }
       }
-      logger.info("Startup failsafe completed: all relays set to OFF");
+
+      if (
+        modbusClientIds.length > 0 && reachableModbusClientIds.length === 0
+      ) {
+        throw new Error(
+          `Startup failsafe failed for all configured Modbus boards: ${modbusClientIds.join(", ")}`,
+        );
+      }
+
+      if (startupFailsafeFailures.length > 0) {
+        logger.warn(
+          `Startup failsafe skipped unreachable boards: ${startupFailsafeFailures.join(", ")}`,
+        );
+      }
+
+      logger.info(
+        `Startup failsafe completed for reachable boards: ${reachableModbusClientIds.join(", ")}`,
+      );
 
       // Start coil polling service
-      coilPollingService.start();
+      coilPollingService.start(reachableModbusClientIds[0]);
     } else {
       logger.warn("Locker is not provisioned. Modbus connection skipped.");
     }
