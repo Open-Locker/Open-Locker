@@ -315,7 +315,18 @@ class AuthControllerTest extends TestCase
                 'message' => 'Password reset link sent',
             ]);
 
-        Notification::assertSentTo([$user], HybridResetPasswordNotification::class);
+        Notification::assertSentTo($user, HybridResetPasswordNotification::class, function ($notification) use ($user) {
+            $mailMessage = $notification->toMail($user);
+            $mailText = implode("\n", [
+                ...$mailMessage->introLines,
+                ...$mailMessage->outroLines,
+            ]);
+
+            $this->assertStringStartsWith('http://open-locker.test/reset-password?', (string) $mailMessage->actionUrl);
+            $this->assertStringContainsString('open-locker://reset-password?', $mailText);
+
+            return true;
+        });
     }
 
     public function test_user_cannot_request_password_reset_link_with_invalid_email()
@@ -332,7 +343,7 @@ class AuthControllerTest extends TestCase
     {
         Notification::fake();
 
-        $user = User::factory()->create();
+        $user = User::factory()->unverified()->create();
 
         $this->post(Route('password.email'), ['email' => $user->email]);
 
@@ -345,6 +356,7 @@ class AuthControllerTest extends TestCase
             ]);
 
             $response->assertStatus(200);
+            $this->assertTrue($user->fresh()->hasVerifiedEmail());
 
             return true;
         });
@@ -379,7 +391,7 @@ class AuthControllerTest extends TestCase
     {
         Notification::fake();
 
-        $user = User::factory()->create();
+        $user = User::factory()->unverified()->create();
 
         $this->post(route('password.email'), ['email' => $user->email]);
 
@@ -396,13 +408,38 @@ class AuthControllerTest extends TestCase
 
             $response->assertOk()
                 ->assertSee('Passwort erfolgreich zurueckgesetzt')
-                ->assertDontSee('Passwort zuruecksetzen')
-                ->assertDontSee('E-Mail-Adresse');
+                ->assertDontSee('name="email"', false)
+                ->assertDontSee('<form', false);
 
             $this->assertTrue(Hash::check('new-password-123', $user->fresh()->password));
+            $this->assertTrue($user->fresh()->hasVerifiedEmail());
 
             return true;
         });
+    }
+
+    public function test_user_can_send_password_reset_link_for_filament_workflow(): void
+    {
+        Notification::fake();
+
+        $user = User::factory()->create();
+
+        $status = $user->sendAdminPasswordResetLink();
+
+        $this->assertSame(\Illuminate\Support\Facades\Password::RESET_LINK_SENT, $status);
+        Notification::assertSentTo($user, HybridResetPasswordNotification::class);
+    }
+
+    public function test_user_can_send_verification_mail_for_filament_workflow(): void
+    {
+        Notification::fake();
+
+        $user = User::factory()->unverified()->create();
+
+        $sent = $user->sendAdminVerificationEmail();
+
+        $this->assertTrue($sent);
+        Notification::assertSentTo($user, VerifyEmail::class);
     }
 
     public function test_user_can_update_their_profile()

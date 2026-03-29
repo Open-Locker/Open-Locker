@@ -40,8 +40,8 @@ class HybridResetPasswordNotification extends Notification
         return (new MailMessage)
             ->subject(__('Reset Password Notification'))
             ->line(__('You are receiving this email because we received a password reset request for your account.'))
-            ->action(__('Reset Password in App'), $appResetUrl)
-            ->line(__('If the app link does not work, use this browser link: :url', ['url' => $webResetUrl]))
+            ->action(__('Reset Password'), $webResetUrl)
+            ->line(__('If you prefer to continue in the app, use this link: :url', ['url' => $appResetUrl]))
             ->line(__('This password reset link will expire in :count minutes.', ['count' => config('auth.passwords.'.config('auth.defaults.passwords').'.expire')]))
             ->line(__('If you did not request a password reset, no further action is required.'));
     }
