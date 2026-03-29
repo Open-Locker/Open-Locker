@@ -24,7 +24,7 @@ services:
       # - DATA_DIR=/data
 
       # Please set the PROVISIONING_TOKEN environment variable before starting the container
-      PROVISIONING_TOKEN: ${PROVISIONING_TOKEN:}
+      PROVISIONING_TOKEN: ${PROVISIONING_TOKEN}
 
     # Restart policy
     restart: unless-stopped
