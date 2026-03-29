@@ -118,3 +118,6 @@ docker/mosquitto/config/password.conf
 *.DS_Store
 
 .pnpm-store/
+hardware/models/spacer1.stl
+hardware/models/spacer2.stl
+hardware/models/fillets3d.scad

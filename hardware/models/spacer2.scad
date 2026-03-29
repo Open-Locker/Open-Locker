@@ -7,15 +7,15 @@ use <fillets3d.scad>;   // https://github.com/ademuri/openscad-fillets
 // -----------------------------
 
 // Abmessungen Verschluss
-spacer_len      = 38;       // Länge Verschlussplatte
+spacer_len      = 40;       // Länge Verschlussplatte
 spacer_width    = 21;       // Breite Verschlussplatte
-spacer_height   = 20;       // Höhe des Spacers
+spacer_height   = 17;       // Höhe des Spacers
 
-hole_diameter   = 4.2;      // Durchmesser Schraubenloch
-hole2_diameter  = 6.5;      // Durchmesser Gewinde Nietmutter
+hole_diameter   = 4.5;      // Durchmesser Schraubenloch
+hole2_diameter  = 6.8;      // Durchmesser Gewinde Nietmutter
 hole2_height    = 9;        // Höhe Gewinde Nietmutter
-hole3_diameter  = 10;       // Durchmesser Kragen Nietmutter
-hole3_height    = .5;       // Höhe Kragen Nietmutter
+hole3_diameter  = 10.3;       // Durchmesser Kragen Nietmutter
+hole3_height    = 1.5;       // Höhe Kragen Nietmutter
 
 hole_offset_x      = 25;   // Abstand Bohrungen
 
@@ -26,7 +26,7 @@ module spacer() {
  $fn=50;
 
 // use the following line to smoothen. caution! will take some time to render!
-topBottomFillet(b = 0, t = spacer_height, r = 1, s = 10, e=1)
+// topBottomFillet(b = 0, t = spacer_height, r = .5, s = 10, e=1)
 
     difference(){
         cube([spacer_len, spacer_width, spacer_height], center=false);
