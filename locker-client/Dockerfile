@@ -3,12 +3,12 @@ FROM node:22 AS builder
 
 WORKDIR /app
 
-COPY package.json yarn.lock ./
-RUN yarn install --frozen-lockfile
+COPY package.json pnpm-lock.yaml ./
+RUN corepack enable pnpm && pnpm install --frozen-lockfile
 
 # Stage 2: Build Application
 COPY . .
-RUN yarn build
+RUN pnpm build
 
 # Stage 3: Production
 FROM node:22-slim

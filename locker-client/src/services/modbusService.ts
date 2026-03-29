@@ -2,13 +2,8 @@ import ModbusRTU from "modbus-serial";
 import { ModbusClientConfig, modbusConfig } from "../config/modbus";
 import { logger } from "../helper/logger";
 
-interface RawFC5Client extends ModbusRTU {
-  writeCustomFC(
-    address: number,
-    functionCode: number,
-    data: number[],
-    next: (error?: Error | null) => void,
-  ): void;
+interface WaveshareCommandClient extends ModbusRTU {
+  customFunction(functionCode: number, data: Buffer): Promise<unknown>;
 }
 
 class ModbusService {
@@ -320,29 +315,29 @@ class ModbusService {
     value: number,
     clientId: string,
   ): Promise<void> {
-    const client = this.getClient(clientId) as RawFC5Client;
-    const slaveId = this.getSlaveId(clientId);
-    const payload = [
+    const client = this.getClient(clientId) as WaveshareCommandClient;
+    if (typeof client.customFunction !== "function") {
+      throw new Error(
+        "modbus-serial customFunction API is unavailable. Install modbus-serial >= 8.0.23-no-serial-port.",
+      );
+    }
+
+    const payload = Buffer.from([
       (dataAddress >> 8) & 0xff,
       dataAddress & 0xff,
       (value >> 8) & 0xff,
       value & 0xff,
-    ];
+    ]);
 
-    await new Promise<void>((resolve, reject) => {
-      client.writeCustomFC(slaveId, 0x05, payload, (error?: Error | null) => {
-        if (error) {
-          logger.error(
-            `[${clientId}] Failed raw FC05 write to ${dataAddress}:`,
-            error,
-          );
-          reject(error);
-          return;
-        }
-
-        resolve();
-      });
-    });
+    try {
+      await client.customFunction(0x05, payload);
+    } catch (error) {
+      logger.error(
+        `[${clientId}] Failed raw FC05 write to ${dataAddress}:`,
+        error,
+      );
+      throw error;
+    }
   }
 
   private toFlashDurationValue(durationMs: number): number {

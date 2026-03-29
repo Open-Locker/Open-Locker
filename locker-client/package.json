@@ -2,16 +2,17 @@
   "name": "locker-client",
   "version": "1.0.0",
   "description": "Open Locker Client to control the an open locker via mqtt",
+  "packageManager": "pnpm@9.0.0",
   "license": "MIT",
   "scripts": {
     "dev": "ts-node src/app.ts",
     "build": "tsc",
-    "test": "npm run build && node --test dist/tests/**/*.test.js"
+    "test": "pnpm run build && node --test dist/tests/**/*.test.js"
   },
   "dependencies": {
     "dotenv": "^16.5.0",
     "js-yaml": "^4.1.1",
-    "modbus-serial": "^8.0.21-no-serial-port",
+    "modbus-serial": "^8.0.23-no-serial-port",
     "mqtt": "^5.13.1",
     "serialport": "^13.0.0",
     "typescript": "^5.8.3",
