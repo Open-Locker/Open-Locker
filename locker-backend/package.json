@@ -8,17 +8,18 @@
     },
     "pnpm": {
         "overrides": {
-            "socket.io-parser": "^4.2.6"
+            "socket.io-parser": "^4.2.6",
+            "vite-plugin-full-reload>picomatch": "^2.3.2"
         }
     },
     "devDependencies": {
-        "@tailwindcss/vite": "^4.2.1",
+        "@tailwindcss/vite": "^4.2.2",
         "axios": "^1.13.5",
         "concurrently": "^9.2.1",
         "laravel-echo": "^2.3.1",
-        "laravel-vite-plugin": "^2.1.0",
+        "laravel-vite-plugin": "^3.0.0",
         "pusher-js": "^8.4.0",
-        "tailwindcss": "^4.2.1",
-        "vite": "^7.3.1"
+        "tailwindcss": "^4.2.2",
+        "vite": "^8.0.3"
     }
 }
