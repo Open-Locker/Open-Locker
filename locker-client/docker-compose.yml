@@ -25,8 +25,8 @@ services:
       # - CONFIG_DIR=/config
       # - DATA_DIR=/data
       
-      # Optional: Set provisioning token for new lockers
-      # - PROVISIONING_TOKEN=your_token_here
+      # Please set the PROVISIONING_TOKEN environment variable before starting the container
+      PROVISIONING_TOKEN: ${PROVISIONING_TOKEN:}
     
     # Restart policy
     restart: unless-stopped
