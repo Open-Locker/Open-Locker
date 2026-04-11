@@ -3,7 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\User;
-use App\Notifications\Auth\HybridResetPasswordNotification;
+use App\Notifications\Auth\WebResetPasswordNotification;
 use App\Notifications\Auth\WebVerifyEmailNotification;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Foundation\Testing\WithFaker;
@@ -361,15 +361,15 @@ class AuthControllerTest extends TestCase
                 'message' => 'Password reset link sent',
             ]);
 
-        Notification::assertSentTo($user, HybridResetPasswordNotification::class, function ($notification) use ($user) {
+        Notification::assertSentTo($user, WebResetPasswordNotification::class, function ($notification) use ($user) {
             $mailMessage = $notification->toMail($user);
-            $mailText = implode("\n", [
+
+            $this->assertStringStartsWith('http://open-locker.test/reset-password?', (string) $mailMessage->actionUrl);
+            $this->assertNotContains('open-locker://', [
+                (string) $mailMessage->actionUrl,
                 ...$mailMessage->introLines,
                 ...$mailMessage->outroLines,
             ]);
-
-            $this->assertStringStartsWith('http://open-locker.test/reset-password?', (string) $mailMessage->actionUrl);
-            $this->assertStringContainsString('open-locker://reset-password?', $mailText);
 
             return true;
         });
@@ -393,7 +393,7 @@ class AuthControllerTest extends TestCase
 
         $this->post(Route('password.email'), ['email' => $user->email]);
 
-        Notification::assertSentTo($user, HybridResetPasswordNotification::class, function ($notification) use ($user) {
+        Notification::assertSentTo($user, WebResetPasswordNotification::class, function ($notification) use ($user) {
             $response = $this->postJson('/api/reset-password', [
                 'token' => $notification->token(),
                 'email' => $user->email,
@@ -441,7 +441,7 @@ class AuthControllerTest extends TestCase
 
         $this->post(route('password.email'), ['email' => $user->email]);
 
-        Notification::assertSentTo($user, HybridResetPasswordNotification::class, function ($notification) use ($user) {
+        Notification::assertSentTo($user, WebResetPasswordNotification::class, function ($notification) use ($user) {
             $response = $this->followingRedirects()->from(route('password.reset.form', [
                 'token' => $notification->token(),
                 'email' => $user->email,
@@ -473,7 +473,7 @@ class AuthControllerTest extends TestCase
         $status = $user->sendAdminPasswordResetLink();
 
         $this->assertSame(\Illuminate\Support\Facades\Password::RESET_LINK_SENT, $status);
-        Notification::assertSentTo($user, HybridResetPasswordNotification::class);
+        Notification::assertSentTo($user, WebResetPasswordNotification::class);
     }
 
     public function test_user_can_send_verification_mail_for_filament_workflow(): void

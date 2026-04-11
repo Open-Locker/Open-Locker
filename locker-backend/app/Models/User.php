@@ -2,7 +2,7 @@
 
 namespace App\Models;
 
-use App\Notifications\Auth\HybridResetPasswordNotification;
+use App\Notifications\Auth\WebResetPasswordNotification;
 use App\Notifications\Auth\WebVerifyEmailNotification;
 use Database\Factories\UserFactory;
 use Filament\Models\Contracts\FilamentUser;
@@ -163,13 +163,13 @@ class User extends Authenticatable implements FilamentUser, MustVerifyEmail
     }
 
     /**
-     * Send a password reset notification with app and web links.
+     * Send a password reset notification with a public web link.
      *
      * @param  mixed  $token
      */
     public function sendPasswordResetNotification($token): void
     {
-        $this->notify(new HybridResetPasswordNotification((string) $token, $this->email));
+        $this->notify(new WebResetPasswordNotification((string) $token, $this->email));
     }
 
     public function sendEmailVerificationNotification(): void

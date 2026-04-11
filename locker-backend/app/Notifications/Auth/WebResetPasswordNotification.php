@@ -8,7 +8,7 @@ use Illuminate\Bus\Queueable;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 
-class HybridResetPasswordNotification extends Notification
+class WebResetPasswordNotification extends Notification
 {
     use Queueable;
 
@@ -20,8 +20,6 @@ class HybridResetPasswordNotification extends Notification
     }
 
     /**
-     * Get the notification's delivery channels.
-     *
      * @return array<int, string>
      */
     public function via(object $notifiable): array
@@ -29,35 +27,14 @@ class HybridResetPasswordNotification extends Notification
         return ['mail'];
     }
 
-    /**
-     * Get the mail representation of the notification.
-     */
     public function toMail(object $notifiable): MailMessage
     {
-        $appResetUrl = $this->buildAppResetUrl();
-        $webResetUrl = $this->buildWebResetUrl();
-
         return (new MailMessage)
             ->subject(__('Reset Password Notification'))
             ->line(__('You are receiving this email because we received a password reset request for your account.'))
-            ->action(__('Reset Password'), $webResetUrl)
-            ->line(__('If you prefer to continue in the app, use this link: :url', ['url' => $appResetUrl]))
+            ->action(__('Reset Password'), $this->buildWebResetUrl())
             ->line(__('This password reset link will expire in :count minutes.', ['count' => config('auth.passwords.'.config('auth.defaults.passwords').'.expire')]))
             ->line(__('If you did not request a password reset, no further action is required.'));
-    }
-
-    private function buildAppResetUrl(): string
-    {
-        $scheme = (string) config('auth-links.mobile_scheme', 'open-locker://');
-        $path = trim((string) config('auth-links.mobile_reset_path', 'reset-password'), '/');
-        $query = http_build_query([
-            'token' => $this->token,
-            'email' => $this->email,
-        ]);
-
-        $prefix = str_ends_with($scheme, '://') ? $scheme : rtrim($scheme, '/').'/';
-
-        return sprintf('%s%s?%s', $prefix, $path, $query);
     }
 
     private function buildWebResetUrl(): string
