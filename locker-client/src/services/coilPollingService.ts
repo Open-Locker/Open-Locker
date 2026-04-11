@@ -28,6 +28,7 @@ class CoilPollingService {
   private pollingInterval: number = 5000; // 5 seconds
   private readonly NUM_CHANNELS = 8; // 8-channel relay board
   private hasWarnedAboutLegacyMultiBoardMapping: boolean = false;
+  private isPolling: boolean = false;
 
   /**
    * Start polling relay and input status
@@ -72,76 +73,87 @@ class CoilPollingService {
    * Poll relay and digital input status once
    */
   private async pollStatus(): Promise<void> {
-    // Check if Modbus is connected before attempting to poll
-    if (!modbusService.isModbusConnected()) {
-      logger.warn(
-        "Modbus not connected, skipping poll and attempting reconnection...",
-      );
-      await modbusService.ensureConnection();
+    if (this.isPolling) {
+      logger.warn("Skipping poll cycle because the previous cycle is still running");
       return;
     }
 
-    const pollingTargets = this.getPollingTargets();
-    if (pollingTargets.length === 0) {
-      logger.warn("No Modbus clients configured for polling");
-      return;
-    }
+    this.isPolling = true;
 
-    const snapshots: PolledClientSnapshot[] = [];
-
-    for (const target of pollingTargets) {
-      try {
-        const relayStates = await modbusService.readCoils(
-          0x0000,
-          this.NUM_CHANNELS,
-          target.clientId,
+    try {
+      // Check if Modbus is connected before attempting to poll
+      if (!modbusService.isModbusConnected()) {
+        logger.warn(
+          "Modbus not connected, skipping poll and attempting reconnection...",
         );
+        await modbusService.ensureConnection();
+        return;
+      }
 
-        const inputStates = await modbusService.readDiscreteInputs(
-          0x0000,
-          this.NUM_CHANNELS,
-          target.clientId,
-        );
+      const pollingTargets = this.getPollingTargets();
+      if (pollingTargets.length === 0) {
+        logger.warn("No Modbus clients configured for polling");
+        return;
+      }
 
-        logger.debug(`[${target.clientId}] Relay states:`, relayStates);
-        logger.debug(
-          `[${target.clientId}] Input states (door sensors):`,
-          inputStates,
-        );
+      const snapshots: PolledClientSnapshot[] = [];
 
-        snapshots.push({
-          ...target,
-          relayStates,
-          inputStates,
-        });
-      } catch (error) {
-        logger.error(
-          `[${target.clientId}] Error polling relay/input status:`,
-          error,
-        );
+      for (const target of pollingTargets) {
+        try {
+          const relayStates = await modbusService.readCoils(
+            0x0000,
+            this.NUM_CHANNELS,
+            target.clientId,
+          );
 
-        // Reconnect only on transport failures. A board timeout should not
-        // reset polling for other boards on the same RS485 bus.
-        if (
-          error instanceof Error &&
-          (error.message.includes("Port Not Open") ||
-            error.message.includes("ECONNREFUSED"))
-        ) {
-          logger.warn("Port error detected, initiating reconnection...");
-          modbusService.reconnect().catch((reconnectError) => {
-            logger.error("Failed to initiate reconnection:", reconnectError);
+          const inputStates = await modbusService.readDiscreteInputs(
+            0x0000,
+            this.NUM_CHANNELS,
+            target.clientId,
+          );
+
+          logger.debug(`[${target.clientId}] Relay states:`, relayStates);
+          logger.debug(
+            `[${target.clientId}] Input states (door sensors):`,
+            inputStates,
+          );
+
+          snapshots.push({
+            ...target,
+            relayStates,
+            inputStates,
           });
+        } catch (error) {
+          logger.error(
+            `[${target.clientId}] Error polling relay/input status:`,
+            error,
+          );
+
+          // Reconnect only on transport failures. A board timeout should not
+          // reset polling for other boards on the same RS485 bus.
+          if (
+            error instanceof Error &&
+            (error.message.includes("Port Not Open") ||
+              error.message.includes("ECONNREFUSED"))
+          ) {
+            logger.warn("Port error detected, initiating reconnection...");
+            modbusService.reconnect().catch((reconnectError) => {
+              logger.error("Failed to initiate reconnection:", reconnectError);
+            });
+          }
         }
       }
-    }
 
-    if (snapshots.length === 0) {
-      logger.warn("No reachable Modbus boards responded during polling cycle");
-      return;
-    }
+      if (snapshots.length === 0) {
+        logger.warn("No reachable Modbus boards responded during polling cycle");
+        return;
+      }
 
-    // Publish combined status across all reachable boards.
-    await this.publishStatus(snapshots);
+      // Publish combined status across all reachable boards.
+      await this.publishStatus(snapshots);
+    } finally {
+      this.isPolling = false;
+    }
   }
 
   /**
