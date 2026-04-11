@@ -1,6 +1,7 @@
 import ModbusRTU from "modbus-serial";
 import { ModbusClientConfig, modbusConfig } from "../config/modbus";
 import { logger } from "../helper/logger";
+import { SerialOperationQueue } from "../helper/serialOperationQueue";
 
 interface WaveshareCommandClient extends ModbusRTU {
   customFunction(functionCode: number, data: Buffer): Promise<unknown>;
@@ -11,7 +12,11 @@ class ModbusService {
   private clientConfigs: Map<string, ModbusClientConfig> = new Map();
   private slaveIdMap: Map<string, number> = new Map();
   private isConnecting: boolean = false;
-  private operationQueue: Promise<void> = Promise.resolve();
+  private operationQueue: SerialOperationQueue = new SerialOperationQueue(
+    (operationName, error) => {
+      logger.debug(`Modbus queue operation failed: ${operationName}`, error);
+    },
+  );
   private reconnectAttempts: number = 0;
   private maxReconnectAttempts: number = 5;
   private reconnectDelay: number = 5000; // 5 seconds
@@ -383,16 +388,7 @@ class ModbusService {
     operationName: string,
     operation: () => Promise<T>,
   ): Promise<T> {
-    const runOperation = this.operationQueue.then(operation, operation);
-
-    this.operationQueue = runOperation.then(
-      () => undefined,
-      (error) => {
-        logger.debug(`Modbus queue operation failed: ${operationName}`, error);
-      },
-    );
-
-    return runOperation;
+    return this.operationQueue.enqueue(operationName, operation);
   }
 
   private toFlashDurationValue(durationMs: number): number {
