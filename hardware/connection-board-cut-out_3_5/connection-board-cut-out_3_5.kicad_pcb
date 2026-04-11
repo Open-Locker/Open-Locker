@@ -18274,7 +18274,7 @@
 			)
 		)
 	)
-	(gr_text "Open Locker Connector Board\n\nVersion: 1.1.0\n\nPower supply: 12V\nBus: Modbus RTU\n\nDocs: https://github.com/Open-Locker/Open-Locker\nDesigned for: https://www.waveshare.com/wiki/Modbus_RTU_Relay_(D)"
+	(gr_text "Open Locker Connector Board\n\nVersion: 1.1.0 (Terminal Block 3.50 mm)\n\nPower supply: 12V\nBus: Modbus RTU\n\nDocs: https://github.com/Open-Locker/Open-Locker\nDesigned for: https://www.waveshare.com/wiki/Modbus_RTU_Relay_(D)"
 		(at 219 122 90)
 		(layer "F.SilkS")
 		(uuid "6174dad1-29ab-40ad-933b-1b06f156588e")
