@@ -24,6 +24,7 @@ use Illuminate\Support\Facades\Password;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rules;
 use Illuminate\Validation\ValidationException;
+use Illuminate\View\View;
 use Symfony\Component\HttpFoundation\JsonResponse;
 
 class AuthController extends Controller
@@ -73,6 +74,27 @@ class AuthController extends Controller
 
         return response()->json([
             'message' => __('Email verified'),
+        ]);
+    }
+
+    /**
+     * Verify Email Address from a public browser link.
+     */
+    public function verifyEmailLink(Request $request, string $id, string $hash): View
+    {
+        $user = User::query()->findOrFail((int) $id);
+
+        abort_unless(hash_equals(sha1($user->getEmailForVerification()), $hash), 403);
+
+        $alreadyVerified = $user->hasVerifiedEmail();
+
+        if (! $alreadyVerified && $user->markEmailAsVerified()) {
+            event(new Verified($user));
+        }
+
+        return view('auth.verify-email', [
+            'email' => $user->email,
+            'alreadyVerified' => $alreadyVerified,
         ]);
     }
 

@@ -12,5 +12,16 @@
     "Reset token": "Reset-Token",
     "New password": "Neues Passwort",
     "Confirm new password": "Neues Passwort bestaetigen",
-    "If you did not request a password reset, you can safely close this page.": "Wenn du kein Zuruecksetzen des Passworts angefordert hast, kannst du diese Seite einfach schliessen."
+    "If you did not request a password reset, you can safely close this page.": "Wenn du kein Zuruecksetzen des Passworts angefordert hast, kannst du diese Seite einfach schliessen.",
+    "Verify email": "E-Mail bestaetigen",
+    "Verify Email Address": "E-Mail-Adresse bestaetigen",
+    "Please click the button below to verify your email address.": "Bitte klicke auf den untenstehenden Button, um deine E-Mail-Adresse zu bestaetigen.",
+    "Email verified successfully": "E-Mail erfolgreich bestaetigt",
+    "Email already verified": "E-Mail bereits bestaetigt",
+    "The email address :email is now verified. You can continue in the app.": "Die E-Mail-Adresse :email ist jetzt bestaetigt. Du kannst in der App fortfahren.",
+    "This email address is already verified. You can continue in the app.": "Diese E-Mail-Adresse ist bereits bestaetigt. Du kannst in der App fortfahren.",
+    "Verification is complete. If the app was already open, you can return to it now.": "Die Bestaetigung ist abgeschlossen. Falls die App bereits offen war, kannst du jetzt zu ihr zurueckkehren.",
+    "No further action is required.": "Es ist keine weitere Aktion erforderlich.",
+    "If you did not expect this email, you can ignore this page.": "Wenn du diese E-Mail nicht erwartet hast, kannst du diese Seite ignorieren.",
+    "If you did not create an account, no further action is required.": "Wenn du kein Konto erstellt hast, ist keine weitere Aktion erforderlich."
 }

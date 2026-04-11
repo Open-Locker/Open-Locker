@@ -4,7 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\User;
 use App\Notifications\Auth\HybridResetPasswordNotification;
-use Illuminate\Auth\Notifications\VerifyEmail;
+use App\Notifications\Auth\WebVerifyEmailNotification;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Foundation\Testing\WithFaker;
 use Illuminate\Support\Facades\Hash;
@@ -113,7 +113,14 @@ class AuthControllerTest extends TestCase
 
         Notification::assertSentTo(
             [User::where('email', $userData['email'])->first()],
-            VerifyEmail::class
+            WebVerifyEmailNotification::class,
+            function ($notification, $channels, $notifiable) {
+                $mailMessage = $notification->toMail($notifiable);
+
+                $this->assertStringStartsWith('http://open-locker.test/verify-email/', (string) $mailMessage->actionUrl);
+
+                return true;
+            }
         );
     }
 
@@ -195,6 +202,16 @@ class AuthControllerTest extends TestCase
         $response->assertStatus(401);
     }
 
+    public function test_browser_request_to_protected_api_route_returns_unauthenticated_json(): void
+    {
+        $response = $this->get('/api/user');
+
+        $response->assertStatus(401)
+            ->assertJson([
+                'message' => 'Unauthenticated',
+            ]);
+    }
+
     public function test_registration_validation_rules()
     {
         $adminUser = User::factory()->create();
@@ -264,6 +281,27 @@ class AuthControllerTest extends TestCase
         $response->assertStatus(403);
     }
 
+    public function test_user_can_verify_email_from_public_web_link(): void
+    {
+        $user = User::factory()->create([
+            'email_verified_at' => null,
+        ]);
+
+        $verificationUrl = URL::temporarySignedRoute(
+            'verification.verify.web',
+            now()->addMinutes(60),
+            ['id' => $user->id, 'hash' => sha1($user->email)]
+        );
+
+        $response = $this->get($verificationUrl);
+
+        $response->assertOk()
+            ->assertSee('E-Mail erfolgreich bestaetigt')
+            ->assertSee($user->email);
+
+        $this->assertTrue($user->fresh()->hasVerifiedEmail());
+    }
+
     public function test_send_verification_email()
     {
         Notification::fake();
@@ -280,7 +318,15 @@ class AuthControllerTest extends TestCase
             ]);
 
         Notification::assertSentTo(
-            [$user], VerifyEmail::class
+            [$user],
+            WebVerifyEmailNotification::class,
+            function ($notification, $channels, $notifiable) {
+                $mailMessage = $notification->toMail($notifiable);
+
+                $this->assertStringStartsWith('http://open-locker.test/verify-email/', (string) $mailMessage->actionUrl);
+
+                return true;
+            }
         );
     }
 
@@ -296,7 +342,7 @@ class AuthControllerTest extends TestCase
 
         $response->assertStatus(200)
             ->assertJson([
-                'message' => 'Email already verified',
+                'message' => 'E-Mail bereits bestaetigt',
             ]);
     }
 
@@ -439,7 +485,7 @@ class AuthControllerTest extends TestCase
         $sent = $user->sendAdminVerificationEmail();
 
         $this->assertTrue($sent);
-        Notification::assertSentTo($user, VerifyEmail::class);
+        Notification::assertSentTo($user, WebVerifyEmailNotification::class);
     }
 
     public function test_user_can_update_their_profile()
@@ -507,7 +553,7 @@ class AuthControllerTest extends TestCase
             ]);
 
         $this->assertNull($user->fresh()->email_verified_at);
-        Notification::assertSentTo([$user->fresh()], VerifyEmail::class);
+        Notification::assertSentTo([$user->fresh()], WebVerifyEmailNotification::class);
     }
 
     public function test_user_can_change_their_password()
