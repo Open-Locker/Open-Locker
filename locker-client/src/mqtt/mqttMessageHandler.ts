@@ -4,21 +4,36 @@ import { credentialsService } from "../services/credentialsService";
 import { mqttDedupService } from "../services/mqttDedupService";
 import { mqttService } from "../services/mqttService";
 import {
+  ApplyConfigCommand,
   ErrorResponse,
+  isApplyConfigCommand,
   isMQTTCommand,
   isOpenCompartmentCommand,
   MQTTErrorCode,
   OpenCompartmentCommand,
   SuccessResponse,
 } from "../types/mqtt";
-import { commandHandler } from "../modbus/commandHandler";
 import { mqttClientManager } from "../mqtt/mqttClientManager";
+
+type CommandExecutor = {
+  handleOpenCompartment(compartmentID: number): Promise<void>;
+};
+
+function getDefaultCommandExecutor(): CommandExecutor {
+  const { commandHandler } = require("../modbus/commandHandler") as typeof import("../modbus/commandHandler");
+
+  return commandHandler;
+}
 
 /**
  * Handles incoming MQTT commands and coordinates responses
  */
 export class MQTTMessageHandler {
   private lockerUuid: string | null = null;
+
+  constructor(
+    private readonly commandExecutorFactory: () => CommandExecutor = getDefaultCommandExecutor,
+  ) {}
 
   /**
    * Initialize the message handler and subscribe to command topics
@@ -83,7 +98,7 @@ export class MQTTMessageHandler {
 
     // Validate command envelope before any side effects
     if (!isMQTTCommand(command)) {
-      logger.error("Rejected command without required IDs:", command);
+      logger.warn("Rejected command without valid required IDs", { command });
       return;
     }
 
@@ -106,14 +121,14 @@ export class MQTTMessageHandler {
 
     if (existingRecord?.status === "completed") {
       logger.info(
-        `Ignoring duplicate transaction ${command.transaction_id} because it was already completed`,
+        `Ignoring duplicate transaction ${command.transaction_id} because it was already completed without re-running hardware or re-ACKing`,
       );
       return;
     }
 
     if (existingRecord?.status === "in_progress") {
       logger.info(
-        `Ignoring duplicate transaction ${command.transaction_id} while execution is still in progress`,
+        `Ignoring duplicate transaction ${command.transaction_id} while execution is still in progress without re-running hardware or re-ACKing`,
       );
       return;
     }
@@ -127,6 +142,8 @@ export class MQTTMessageHandler {
     try {
       if (isOpenCompartmentCommand(command)) {
         await this.handleOpenCompartment(command);
+      } else if (isApplyConfigCommand(command)) {
+        await this.handleApplyConfig(command);
       } else {
         logger.warn(`Unknown command action: ${command.action}`);
         await this.sendErrorResponse(
@@ -170,7 +187,9 @@ export class MQTTMessageHandler {
 
     try {
       // Execute the command via the command handler
-      await commandHandler.handleOpenCompartment(compartment_number);
+      await this.commandExecutorFactory().handleOpenCompartment(
+        compartment_number,
+      );
 
       // Send success response
       await this.sendSuccessResponse(
@@ -211,6 +230,30 @@ export class MQTTMessageHandler {
       );
       mqttDedupService.markCommandCompleted(transaction_id, action);
     }
+  }
+
+  /**
+   * Establishes the transaction-bound apply_config path before the actual
+   * config application from issue #38 is implemented.
+   */
+  private async handleApplyConfig(command: ApplyConfigCommand): Promise<void> {
+    const { transaction_id, action } = command;
+
+    logger.warn(
+      `Received apply_config for transaction ${transaction_id}, but config application is not implemented yet`,
+      {
+        config_hash: command.data.config_hash,
+        compartment_count: command.data.compartments.length,
+      },
+    );
+
+    await this.sendErrorResponse(
+      transaction_id,
+      action,
+      MQTTErrorCode.INVALID_COMMAND,
+      "Action apply_config is not implemented yet.",
+    );
+    mqttDedupService.markCommandCompleted(transaction_id, action);
   }
 
   /**
