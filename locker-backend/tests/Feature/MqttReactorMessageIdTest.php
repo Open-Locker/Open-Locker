@@ -42,7 +42,7 @@ class MqttReactorMessageIdTest extends TestCase
 
         $this->assertIsArray($payload);
         $this->assertIsString($payload['message_id'] ?? null);
-        $this->assertNotEmpty($payload['message_id'] ?? null);
+        $this->assertNotEmpty($payload['message_id']);
         $this->assertSame('apply_config', $payload['action'] ?? null);
     }
 
@@ -71,7 +71,7 @@ class MqttReactorMessageIdTest extends TestCase
 
         $this->assertIsArray($payload);
         $this->assertIsString($payload['message_id'] ?? null);
-        $this->assertNotEmpty($payload['message_id'] ?? null);
+        $this->assertNotEmpty($payload['message_id']);
         $this->assertSame('success', $payload['status'] ?? null);
     }
 
@@ -96,7 +96,7 @@ class MqttReactorMessageIdTest extends TestCase
 
         $this->assertIsArray($payload);
         $this->assertIsString($payload['message_id'] ?? null);
-        $this->assertNotEmpty($payload['message_id'] ?? null);
+        $this->assertNotEmpty($payload['message_id']);
         $this->assertSame('error', $payload['status'] ?? null);
     }
 }
