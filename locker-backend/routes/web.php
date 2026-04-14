@@ -15,5 +15,9 @@ Route::get('/reset-password', function (Request $request) {
     ]);
 })->name('password.reset.form');
 
+Route::get('/verify-email/{id}/{hash}', [AuthController::class, 'verifyEmailLink'])
+    ->middleware(['signed', 'throttle:6,1'])
+    ->name('verification.verify.web');
+
 Route::post('/reset-password', [AuthController::class, 'storeNewPassword'])
     ->name('password.reset.web.store');

@@ -9,6 +9,20 @@ abstract class TestCase extends BaseTestCase
 {
     protected function setUp(): void
     {
+        foreach ([
+            'APP_CONFIG_CACHE',
+            'APP_EVENTS_CACHE',
+            'APP_PACKAGES_CACHE',
+            'APP_ROUTES_CACHE',
+            'APP_SERVICES_CACHE',
+        ] as $cacheEnvVar) {
+            $cachePath = getenv($cacheEnvVar);
+
+            if (is_string($cachePath) && $cachePath !== '' && file_exists($cachePath)) {
+                unlink($cachePath);
+            }
+        }
+
         parent::setUp();
 
         // Keep projections/reactors synchronous in tests, even if local

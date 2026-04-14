@@ -29,6 +29,19 @@ export interface OpenCompartmentCommand extends MQTTCommand {
   };
 }
 
+export interface ApplyConfigCommand extends MQTTCommand {
+  action: "apply_config";
+  data: {
+    config_hash: string;
+    heartbeat_interval_seconds: number;
+    compartments: Array<{
+      id: number;
+      slaveId: number;
+      address: number;
+    }>;
+  };
+}
+
 // ============================================================================
 // Responses (Client -> Backend)
 // ============================================================================
@@ -81,6 +94,10 @@ export enum MQTTErrorCode {
 // Type Guards
 // ============================================================================
 
+function isNonEmptyString(value: unknown): value is string {
+  return typeof value === "string" && value.trim().length > 0;
+}
+
 export function isOpenCompartmentCommand(
   cmd: unknown,
 ): cmd is OpenCompartmentCommand {
@@ -90,12 +107,42 @@ export function isOpenCompartmentCommand(
     candidate !== null &&
     typeof candidate === "object" &&
     candidate.action === "open_compartment" &&
-    typeof candidate.message_id === "string" &&
-    typeof candidate.transaction_id === "string" &&
-    typeof candidate.timestamp === "string" &&
+    isNonEmptyString(candidate.message_id) &&
+    isNonEmptyString(candidate.transaction_id) &&
+    isNonEmptyString(candidate.timestamp) &&
     candidate.data !== null &&
     typeof candidate.data === "object" &&
     typeof candidate.data.compartment_number === "number"
+  );
+}
+
+export function isApplyConfigCommand(cmd: unknown): cmd is ApplyConfigCommand {
+  const candidate = cmd as Record<string, any> | null;
+  const data = candidate?.data as Record<string, unknown> | null | undefined;
+
+  return (
+    candidate !== null &&
+    typeof candidate === "object" &&
+    candidate.action === "apply_config" &&
+    isNonEmptyString(candidate.message_id) &&
+    isNonEmptyString(candidate.transaction_id) &&
+    isNonEmptyString(candidate.timestamp) &&
+    data !== null &&
+    typeof data === "object" &&
+    isNonEmptyString(data.config_hash) &&
+    typeof data.heartbeat_interval_seconds === "number" &&
+    Array.isArray(data.compartments) &&
+    data.compartments.every((compartment) => {
+      const compartmentRecord = compartment as Record<string, unknown> | null;
+
+      return (
+        compartmentRecord !== null &&
+        typeof compartmentRecord === "object" &&
+        typeof compartmentRecord.id === "number" &&
+        typeof compartmentRecord.slaveId === "number" &&
+        typeof compartmentRecord.address === "number"
+      );
+    })
   );
 }
 
@@ -105,9 +152,9 @@ export function isMQTTCommand(cmd: unknown): cmd is MQTTCommand {
   return (
     candidate !== null &&
     typeof candidate === "object" &&
-    typeof candidate.action === "string" &&
-    typeof candidate.message_id === "string" &&
-    typeof candidate.transaction_id === "string" &&
-    typeof candidate.timestamp === "string"
+    isNonEmptyString(candidate.action) &&
+    isNonEmptyString(candidate.message_id) &&
+    isNonEmptyString(candidate.transaction_id) &&
+    isNonEmptyString(candidate.timestamp)
   );
 }

@@ -1,7 +1,9 @@
 services:
   locker-client:
-    image: ghcr.io/open-locker/locker-client:latest
+    image: ghcr.io/open-locker/locker-client:${LOCKER_CLIENT_IMAGE_TAG:-latest}
     container_name: locker-client
+    labels:
+      - com.centurylinklabs.watchtower.enable=true
 
     # Map the Modbus serial device
     devices:
@@ -35,3 +37,15 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
+
+  watchtower:
+    image: containrrr/watchtower:latest
+    container_name: locker-client-watchtower
+    restart: unless-stopped
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      TZ: ${TZ:-UTC}
+      WATCHTOWER_LABEL_ENABLE: "true"
+      WATCHTOWER_CLEANUP: "true"
+      WATCHTOWER_POLL_INTERVAL: ${WATCHTOWER_POLL_INTERVAL:-300}

@@ -4,6 +4,8 @@ on:
   push:
     branches:
       - main
+    tags:
+      - 'locker-client-v*'
     paths:
       - 'locker-client/**'
       - 'packages/locker_api/**'
@@ -35,6 +37,7 @@ jobs:
           tags: |
             type=ref,event=branch
             type=sha,prefix={{branch}}-
+            type=match,pattern=locker-client-v(.*),group=1
             type=raw,value=latest,enable={{is_default_branch}}
 
       - name: Set up QEMU

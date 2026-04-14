@@ -3,8 +3,8 @@
 namespace Tests\Feature;
 
 use App\Models\User;
-use App\Notifications\Auth\HybridResetPasswordNotification;
-use Illuminate\Auth\Notifications\VerifyEmail;
+use App\Notifications\Auth\WebResetPasswordNotification;
+use App\Notifications\Auth\WebVerifyEmailNotification;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Foundation\Testing\WithFaker;
 use Illuminate\Support\Facades\Hash;
@@ -113,7 +113,14 @@ class AuthControllerTest extends TestCase
 
         Notification::assertSentTo(
             [User::where('email', $userData['email'])->first()],
-            VerifyEmail::class
+            WebVerifyEmailNotification::class,
+            function ($notification, $channels, $notifiable) {
+                $mailMessage = $notification->toMail($notifiable);
+
+                $this->assertStringStartsWith('http://open-locker.test/verify-email/', (string) $mailMessage->actionUrl);
+
+                return true;
+            }
         );
     }
 
@@ -195,6 +202,16 @@ class AuthControllerTest extends TestCase
         $response->assertStatus(401);
     }
 
+    public function test_browser_request_to_protected_api_route_returns_unauthenticated_json(): void
+    {
+        $response = $this->get('/api/user');
+
+        $response->assertStatus(401)
+            ->assertJson([
+                'message' => 'Unauthenticated',
+            ]);
+    }
+
     public function test_registration_validation_rules()
     {
         $adminUser = User::factory()->create();
@@ -264,6 +281,27 @@ class AuthControllerTest extends TestCase
         $response->assertStatus(403);
     }
 
+    public function test_user_can_verify_email_from_public_web_link(): void
+    {
+        $user = User::factory()->create([
+            'email_verified_at' => null,
+        ]);
+
+        $verificationUrl = URL::temporarySignedRoute(
+            'verification.verify.web',
+            now()->addMinutes(60),
+            ['id' => $user->id, 'hash' => sha1($user->email)]
+        );
+
+        $response = $this->get($verificationUrl);
+
+        $response->assertOk()
+            ->assertSee('E-Mail erfolgreich bestaetigt')
+            ->assertSee($user->email);
+
+        $this->assertTrue($user->fresh()->hasVerifiedEmail());
+    }
+
     public function test_send_verification_email()
     {
         Notification::fake();
@@ -280,7 +318,15 @@ class AuthControllerTest extends TestCase
             ]);
 
         Notification::assertSentTo(
-            [$user], VerifyEmail::class
+            [$user],
+            WebVerifyEmailNotification::class,
+            function ($notification, $channels, $notifiable) {
+                $mailMessage = $notification->toMail($notifiable);
+
+                $this->assertStringStartsWith('http://open-locker.test/verify-email/', (string) $mailMessage->actionUrl);
+
+                return true;
+            }
         );
     }
 
@@ -296,7 +342,7 @@ class AuthControllerTest extends TestCase
 
         $response->assertStatus(200)
             ->assertJson([
-                'message' => 'Email already verified',
+                'message' => 'E-Mail bereits bestaetigt',
             ]);
     }
 
@@ -315,7 +361,18 @@ class AuthControllerTest extends TestCase
                 'message' => 'Password reset link sent',
             ]);
 
-        Notification::assertSentTo([$user], HybridResetPasswordNotification::class);
+        Notification::assertSentTo($user, WebResetPasswordNotification::class, function ($notification) use ($user) {
+            $mailMessage = $notification->toMail($user);
+
+            $this->assertStringStartsWith('http://open-locker.test/reset-password?', (string) $mailMessage->actionUrl);
+            $this->assertNotContains('open-locker://', [
+                (string) $mailMessage->actionUrl,
+                ...$mailMessage->introLines,
+                ...$mailMessage->outroLines,
+            ]);
+
+            return true;
+        });
     }
 
     public function test_user_cannot_request_password_reset_link_with_invalid_email()
@@ -332,11 +389,11 @@ class AuthControllerTest extends TestCase
     {
         Notification::fake();
 
-        $user = User::factory()->create();
+        $user = User::factory()->unverified()->create();
 
         $this->post(Route('password.email'), ['email' => $user->email]);
 
-        Notification::assertSentTo($user, HybridResetPasswordNotification::class, function ($notification) use ($user) {
+        Notification::assertSentTo($user, WebResetPasswordNotification::class, function ($notification) use ($user) {
             $response = $this->postJson('/api/reset-password', [
                 'token' => $notification->token(),
                 'email' => $user->email,
@@ -345,6 +402,7 @@ class AuthControllerTest extends TestCase
             ]);
 
             $response->assertStatus(200);
+            $this->assertTrue($user->fresh()->hasVerifiedEmail());
 
             return true;
         });
@@ -370,7 +428,7 @@ class AuthControllerTest extends TestCase
         $response = $this->get('/reset-password?token=test-token&email=user@example.com');
 
         $response->assertOk()
-            ->assertSee('Reset your password')
+            ->assertSee('Setze dein Passwort zurueck')
             ->assertSee('user@example.com')
             ->assertSee('test-token', false);
     }
@@ -379,12 +437,12 @@ class AuthControllerTest extends TestCase
     {
         Notification::fake();
 
-        $user = User::factory()->create();
+        $user = User::factory()->unverified()->create();
 
         $this->post(route('password.email'), ['email' => $user->email]);
 
-        Notification::assertSentTo($user, HybridResetPasswordNotification::class, function ($notification) use ($user) {
-            $response = $this->from(route('password.reset.form', [
+        Notification::assertSentTo($user, WebResetPasswordNotification::class, function ($notification) use ($user) {
+            $response = $this->followingRedirects()->from(route('password.reset.form', [
                 'token' => $notification->token(),
                 'email' => $user->email,
             ]))->post(route('password.reset.web.store'), [
@@ -394,13 +452,40 @@ class AuthControllerTest extends TestCase
                 'password_confirmation' => 'new-password-123',
             ]);
 
-            $response->assertRedirect(route('password.reset.form'));
-            $response->assertSessionHas('status');
+            $response->assertOk()
+                ->assertSee('Passwort erfolgreich zurueckgesetzt')
+                ->assertDontSee('name="email"', false)
+                ->assertDontSee('<form', false);
 
             $this->assertTrue(Hash::check('new-password-123', $user->fresh()->password));
+            $this->assertTrue($user->fresh()->hasVerifiedEmail());
 
             return true;
         });
+    }
+
+    public function test_user_can_send_password_reset_link_for_filament_workflow(): void
+    {
+        Notification::fake();
+
+        $user = User::factory()->create();
+
+        $status = $user->sendAdminPasswordResetLink();
+
+        $this->assertSame(\Illuminate\Support\Facades\Password::RESET_LINK_SENT, $status);
+        Notification::assertSentTo($user, WebResetPasswordNotification::class);
+    }
+
+    public function test_user_can_send_verification_mail_for_filament_workflow(): void
+    {
+        Notification::fake();
+
+        $user = User::factory()->unverified()->create();
+
+        $sent = $user->sendAdminVerificationEmail();
+
+        $this->assertTrue($sent);
+        Notification::assertSentTo($user, WebVerifyEmailNotification::class);
     }
 
     public function test_user_can_update_their_profile()
@@ -468,7 +553,7 @@ class AuthControllerTest extends TestCase
             ]);
 
         $this->assertNull($user->fresh()->email_verified_at);
-        Notification::assertSentTo([$user->fresh()], VerifyEmail::class);
+        Notification::assertSentTo([$user->fresh()], WebVerifyEmailNotification::class);
     }
 
     public function test_user_can_change_their_password()

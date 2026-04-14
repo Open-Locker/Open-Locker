@@ -12,7 +12,6 @@ use Filament\Schemas\Schema;
 use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Collection;
-use Illuminate\Database\Eloquent\Model;
 
 class UserResource extends Resource
 {
@@ -68,57 +67,6 @@ class UserResource extends Resource
             ])
             ->actions([
                 \Filament\Actions\EditAction::make(),
-                \Filament\Actions\Action::make('setAsAdmin')
-                    ->hidden(fn (User $record): bool => (bool) $record->is_admin_since)
-                    ->label('zum Admin machen')
-                    ->icon('heroicon-o-shield-check')
-                    ->color('success')
-                    ->requiresConfirmation()
-                    ->modalHeading('Nutzer zum Admin machen')
-                    ->modalDescription('Soll dieser Nutzer Adminrechte erhalten?')
-                    ->modalSubmitActionLabel('Ja, gib diesem Nutzer Adminrechte')
-                    ->action(function (Model $record) {
-                        $record->is_admin_since = now();
-                        $record->save();
-
-                        Notification::make()
-                            ->title('Nutzer ist nun Admin')
-                            ->success()
-                            ->send();
-                    }),
-                \Filament\Actions\Action::make('removeAdmin')
-                    ->hidden(fn (User $record): bool => ! $record->is_admin_since)
-                    ->label('Adminrechte entziehen')
-                    ->icon('heroicon-o-shield-exclamation')
-                    ->color('danger')
-                    ->requiresConfirmation()
-                    ->modalHeading('Nutzer Adminrechte entziehen')
-                    ->modalDescription('Sollen diesem Nutzer Adminrechte entzogen werden?')
-                    ->modalSubmitActionLabel('Ja, nimm diesem Nutzer die Adminrechte')
-                    ->action(function (Model $record) {
-
-                        $adminCount = User::whereNot('is_admin_since', false)
-                            ->where('id', '!=', $record->id)
-                            ->count();
-
-                        if ($adminCount === 0) {
-                            Notification::make()
-                                ->title('Aktion abgebrochen')
-                                ->body('Dem letzten Admin können nicht die Adminrechte entzogen werden.')
-                                ->danger()
-                                ->send();
-
-                            return;
-                        }
-
-                        $record->is_admin_since = null;
-                        $record->save();
-
-                        Notification::make()
-                            ->title('Nutzer ist nun nicht mehr Admin')
-                            ->success()
-                            ->send();
-                    }),
             ])->actionsAlignment('left')
             ->bulkActions([
                 \Filament\Actions\BulkActionGroup::make([

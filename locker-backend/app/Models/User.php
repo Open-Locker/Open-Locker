@@ -2,7 +2,8 @@
 
 namespace App\Models;
 
-use App\Notifications\Auth\HybridResetPasswordNotification;
+use App\Notifications\Auth\WebResetPasswordNotification;
+use App\Notifications\Auth\WebVerifyEmailNotification;
 use Database\Factories\UserFactory;
 use Filament\Models\Contracts\FilamentUser;
 use Filament\Panel;
@@ -13,6 +14,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Facades\Password;
 use Laravel\Sanctum\HasApiTokens;
 
 class User extends Authenticatable implements FilamentUser, MustVerifyEmail
@@ -161,35 +163,41 @@ class User extends Authenticatable implements FilamentUser, MustVerifyEmail
     }
 
     /**
-     * Send a password reset notification with app and web links.
+     * Send a password reset notification with a public web link.
      *
      * @param  mixed  $token
      */
     public function sendPasswordResetNotification($token): void
     {
-        $this->notify(new HybridResetPasswordNotification((string) $token, $this->email));
+        $this->notify(new WebResetPasswordNotification((string) $token, $this->email));
+    }
+
+    public function sendEmailVerificationNotification(): void
+    {
+        $this->notify(new WebVerifyEmailNotification);
+    }
+
+    public function sendAdminPasswordResetLink(): string
+    {
+        return Password::sendResetLink([
+            'email' => $this->email,
+        ]);
+    }
+
+    public function sendAdminVerificationEmail(): bool
+    {
+        if ($this->hasVerifiedEmail()) {
+            return false;
+        }
+
+        $this->sendEmailVerificationNotification();
+
+        return true;
     }
 
     public function canAccessPanel(Panel $panel): bool
     {
-        if (request()->routeIs([
-            'filament.admin.auth.email-verification.*',
-            'filament.admin.pages.auth.email-verification.*',
-        ])) {
-            return true;
-        }
-
-        if ($this->is_admin_since && ! $this->hasVerifiedEmail()) {
-            $currentRoute = request()->route()?->getName();
-
-            if (! str_contains($currentRoute ?? '', 'email-verification')) {
-                redirect()->to($panel->route('auth.email-verification.prompt'))->send();
-            }
-
-            return true;
-        }
-
-        return $this->isAdmin() && $this->hasVerifiedEmail();
+        return $this->isAdmin();
     }
 
     protected static function booted()

@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace App\Reactors;
 
-use App\Mqtt\MqttPayloadFactory;
+use App\Mqtt\Publishers\ApplyConfigCommandPublisher;
+use App\Mqtt\Publishers\OpenCompartmentCommandPublisher;
+use App\Mqtt\Publishers\ProvisioningReplyPublisher;
 use App\Services\MqttUserService;
 use App\StorableEvents\CompartmentOpeningRequested;
 use App\StorableEvents\LockerConfigApplyRequested;
@@ -14,13 +16,15 @@ use App\StorableEvents\LockerWasProvisioned;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
-use PhpMqtt\Client\Facades\MQTT;
 use Spatie\EventSourcing\EventHandlers\Reactors\Reactor;
 
 class MqttReactor extends Reactor implements ShouldQueue
 {
     public function __construct(
-        private readonly MqttPayloadFactory $mqttPayloadFactory,
+        private readonly OpenCompartmentCommandPublisher $openCompartmentCommandPublisher,
+        private readonly ApplyConfigCommandPublisher $applyConfigCommandPublisher,
+        private readonly ProvisioningReplyPublisher $provisioningReplyPublisher,
+        private readonly MqttUserService $mqttUserService,
     ) {}
 
     /**
@@ -33,56 +37,12 @@ class MqttReactor extends Reactor implements ShouldQueue
 
     public function onCompartmentOpeningRequested(CompartmentOpeningRequested $event): void
     {
-        $topic = "locker/{$event->lockerBankUuid}/command";
-
-        $payload = $this->mqttPayloadFactory->encode([
-            // Keep payload aligned with docs/mqtt_integration_plan.md
-            // (commands contain "action" + "transaction_id")
-            'action' => 'open_compartment',
-            'transaction_id' => $event->commandId,
-            'timestamp' => now()->toIso8601String(),
-            'data' => [
-                'compartment_id' => $event->compartmentUuid,
-                'compartment_number' => $event->compartmentNumber,
-            ],
-        ]);
-
-        Log::info('[MqttReactor] Publishing open_compartment command.', [
-            'topic' => $topic,
-            'lockerBankUuid' => $event->lockerBankUuid,
-            'compartmentUuid' => $event->compartmentUuid,
-            'compartmentNumber' => $event->compartmentNumber,
-            'transactionId' => $event->commandId,
-        ]);
-
-        MQTT::connection('publisher')->publish($topic, (string) $payload, 1);
+        $this->openCompartmentCommandPublisher->publish($event);
     }
 
     public function onLockerConfigApplyRequested(LockerConfigApplyRequested $event): void
     {
-        $topic = "locker/{$event->lockerBankUuid}/command";
-
-        $payload = $this->mqttPayloadFactory->encode([
-            'action' => 'apply_config',
-            'transaction_id' => $event->commandId,
-            'timestamp' => now()->toIso8601String(),
-            'data' => [
-                'config_hash' => $event->configHash,
-                'heartbeat_interval_seconds' => $event->heartbeatIntervalSeconds,
-                'compartments' => $event->compartments,
-            ],
-        ]);
-
-        Log::info('[MqttReactor] Publishing apply_config command.', [
-            'topic' => $topic,
-            'lockerBankUuid' => $event->lockerBankUuid,
-            'transactionId' => $event->commandId,
-            'configHash' => $event->configHash,
-            'heartbeatIntervalSeconds' => $event->heartbeatIntervalSeconds,
-            'compartmentCount' => count($event->compartments),
-        ]);
-
-        MQTT::connection('publisher')->publish($topic, (string) $payload, 1);
+        $this->applyConfigCommandPublisher->publish($event);
     }
 
     public function onLockerWasProvisioned(LockerWasProvisioned $event): void
@@ -94,21 +54,10 @@ class MqttReactor extends Reactor implements ShouldQueue
 
         try {
             Log::info('[MqttReactor] Attempting to create MQTT user...');
-            app(MqttUserService::class)->createUser($mqttUser, $mqttPassword, $event->lockerBankUuid);
+            $this->mqttUserService->createUser($mqttUser, $mqttPassword, $event->lockerBankUuid);
             Log::info('[MqttReactor] MQTT user created successfully.');
 
-            $payload = $this->mqttPayloadFactory->encode([
-                'status' => 'success',
-                'data' => [
-                    'mqtt_user' => $mqttUser,
-                    'mqtt_password' => $mqttPassword,
-                ],
-            ]);
-
-            Log::info("[MqttReactor] Attempting to publish credentials to topic: {$event->replyToTopic}");
-            MQTT::connection('publisher')->publish($event->replyToTopic, $payload, 1);
-            Log::info('[MqttReactor] Published credentials successfully.');
-
+            $this->provisioningReplyPublisher->publishSuccess($event, $mqttUser, $mqttPassword);
         } catch (\Exception $e) {
             Log::error('[MqttReactor] Failed to provision MQTT user or send credentials.', [
                 'lockerBankUuid' => $event->lockerBankUuid,
@@ -130,12 +79,6 @@ class MqttReactor extends Reactor implements ShouldQueue
     public function onLockerProvisioningFailed(LockerProvisioningFailed $event): void
     {
         Log::info('[MqttReactor] Handling LockerProvisioningFailed event.');
-        $payload = $this->mqttPayloadFactory->encode([
-            'status' => 'error',
-            'message' => $event->reason,
-        ]);
-
-        Log::info("[MqttReactor] Publishing failure to topic: {$event->replyToTopic}");
-        MQTT::connection('publisher')->publish($event->replyToTopic, $payload, 1);
+        $this->provisioningReplyPublisher->publishFailure($event);
     }
 }

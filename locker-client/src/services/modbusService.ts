@@ -1,6 +1,7 @@
 import ModbusRTU from "modbus-serial";
 import { ModbusClientConfig, modbusConfig } from "../config/modbus";
 import { logger } from "../helper/logger";
+import { SerialOperationQueue } from "../helper/serialOperationQueue";
 
 interface WaveshareCommandClient extends ModbusRTU {
   customFunction(functionCode: number, data: Buffer): Promise<unknown>;
@@ -11,6 +12,11 @@ class ModbusService {
   private clientConfigs: Map<string, ModbusClientConfig> = new Map();
   private slaveIdMap: Map<string, number> = new Map();
   private isConnecting: boolean = false;
+  private operationQueue: SerialOperationQueue = new SerialOperationQueue(
+    (operationName, error) => {
+      logger.debug(`Modbus queue operation failed: ${operationName}`, error);
+    },
+  );
   private reconnectAttempts: number = 0;
   private maxReconnectAttempts: number = 5;
   private reconnectDelay: number = 5000; // 5 seconds
@@ -29,6 +35,10 @@ class ModbusService {
   }
 
   async connect(): Promise<void> {
+    return this.enqueueOperation("connect", () => this.connectInternal());
+  }
+
+  private async connectInternal(): Promise<void> {
     if (this.isConnecting) {
       logger.debug("Connection already in progress");
       return;
@@ -40,7 +50,7 @@ class ModbusService {
       // Close existing connection if any
       if (this.client) {
         try {
-          await this.disconnect();
+          await this.disconnectInternal();
         } catch (err) {
           logger.warn("Error closing existing connection:", err);
         }
@@ -85,6 +95,10 @@ class ModbusService {
   }
 
   async disconnect(): Promise<void> {
+    return this.enqueueOperation("disconnect", () => this.disconnectInternal());
+  }
+
+  private async disconnectInternal(): Promise<void> {
     if (this.client) {
       await new Promise<void>((resolve) => {
         this.client!.close(() => {
@@ -97,6 +111,10 @@ class ModbusService {
   }
 
   async reconnect(): Promise<void> {
+    return this.enqueueOperation("reconnect", () => this.reconnectInternal());
+  }
+
+  private async reconnectInternal(): Promise<void> {
     if (this.reconnectAttempts >= this.maxReconnectAttempts) {
       logger.error(
         `Max Modbus reconnection attempts (${this.maxReconnectAttempts}) reached. Manual intervention required.`,
@@ -110,7 +128,7 @@ class ModbusService {
     );
 
     try {
-      await this.connect();
+      await this.connectInternal();
       logger.info("Modbus reconnection successful");
     } catch (error) {
       logger.error(
@@ -121,7 +139,9 @@ class ModbusService {
       if (this.reconnectAttempts < this.maxReconnectAttempts) {
         logger.info(`Will retry in ${this.reconnectDelay / 1000} seconds...`);
         setTimeout(() => {
-          this.reconnect();
+          this.reconnect().catch((reconnectError) => {
+            logger.error("Scheduled Modbus reconnect failed:", reconnectError);
+          });
         }, this.reconnectDelay);
       }
     }
@@ -152,15 +172,17 @@ class ModbusService {
     value: boolean,
     clientId: string = "default",
   ): Promise<void> {
-    const client = this.getClient(clientId);
+    return this.enqueueOperation(`writeCoil:${clientId}:${address}`, async () => {
+      const client = this.getClient(clientId);
 
-    try {
-      await client.writeCoil(address, value);
-      logger.debug(`[${clientId}] Wrote coil ${address}: ${value}`);
-    } catch (error) {
-      logger.error(`[${clientId}] Failed to write coil ${address}:`, error);
-      throw error;
-    }
+      try {
+        await client.writeCoil(address, value);
+        logger.debug(`[${clientId}] Wrote coil ${address}: ${value}`);
+      } catch (error) {
+        logger.error(`[${clientId}] Failed to write coil ${address}:`, error);
+        throw error;
+      }
+    });
   }
 
   async flashRelayOn(
@@ -201,15 +223,23 @@ class ModbusService {
     value: number,
     clientId: string = "default",
   ): Promise<void> {
-    const client = this.getClient(clientId);
+    return this.enqueueOperation(
+      `writeRegister:${clientId}:${address}`,
+      async () => {
+        const client = this.getClient(clientId);
 
-    try {
-      await client.writeRegister(address, value);
-      logger.debug(`[${clientId}] Wrote register ${address}: ${value}`);
-    } catch (error) {
-      logger.error(`[${clientId}] Failed to write register ${address}:`, error);
-      throw error;
-    }
+        try {
+          await client.writeRegister(address, value);
+          logger.debug(`[${clientId}] Wrote register ${address}: ${value}`);
+        } catch (error) {
+          logger.error(
+            `[${clientId}] Failed to write register ${address}:`,
+            error,
+          );
+          throw error;
+        }
+      },
+    );
   }
 
   async readCoils(
@@ -217,18 +247,20 @@ class ModbusService {
     length: number,
     clientId: string = "default",
   ): Promise<boolean[]> {
-    const client = this.getClient(clientId);
+    return this.enqueueOperation(`readCoils:${clientId}:${address}`, async () => {
+      const client = this.getClient(clientId);
 
-    try {
-      const result = await client.readCoils(address, length);
-      return result.data;
-    } catch (error) {
-      logger.error(
-        `[${clientId}] Failed to read coils from ${address}:`,
-        error,
-      );
-      throw error;
-    }
+      try {
+        const result = await client.readCoils(address, length);
+        return result.data;
+      } catch (error) {
+        logger.error(
+          `[${clientId}] Failed to read coils from ${address}:`,
+          error,
+        );
+        throw error;
+      }
+    });
   }
 
   async readDiscreteInputs(
@@ -236,18 +268,23 @@ class ModbusService {
     length: number,
     clientId: string = "default",
   ): Promise<boolean[]> {
-    const client = this.getClient(clientId);
+    return this.enqueueOperation(
+      `readDiscreteInputs:${clientId}:${address}`,
+      async () => {
+        const client = this.getClient(clientId);
 
-    try {
-      const result = await client.readDiscreteInputs(address, length);
-      return result.data;
-    } catch (error) {
-      logger.error(
-        `[${clientId}] Failed to read discrete inputs from ${address}:`,
-        error,
-      );
-      throw error;
-    }
+        try {
+          const result = await client.readDiscreteInputs(address, length);
+          return result.data;
+        } catch (error) {
+          logger.error(
+            `[${clientId}] Failed to read discrete inputs from ${address}:`,
+            error,
+          );
+          throw error;
+        }
+      },
+    );
   }
 
   async readHoldingRegisters(
@@ -255,18 +292,23 @@ class ModbusService {
     length: number,
     clientId: string = "default",
   ): Promise<number[]> {
-    const client = this.getClient(clientId);
+    return this.enqueueOperation(
+      `readHoldingRegisters:${clientId}:${address}`,
+      async () => {
+        const client = this.getClient(clientId);
 
-    try {
-      const result = await client.readHoldingRegisters(address, length);
-      return result.data;
-    } catch (error) {
-      logger.error(
-        `[${clientId}] Failed to read holding registers from ${address}:`,
-        error,
-      );
-      throw error;
-    }
+        try {
+          const result = await client.readHoldingRegisters(address, length);
+          return result.data;
+        } catch (error) {
+          logger.error(
+            `[${clientId}] Failed to read holding registers from ${address}:`,
+            error,
+          );
+          throw error;
+        }
+      },
+    );
   }
 
   isModbusConnected(clientId?: string): boolean {
@@ -315,29 +357,38 @@ class ModbusService {
     value: number,
     clientId: string,
   ): Promise<void> {
-    const client = this.getClient(clientId) as WaveshareCommandClient;
-    if (typeof client.customFunction !== "function") {
-      throw new Error(
-        "modbus-serial customFunction API is unavailable. Install modbus-serial >= 8.0.23-no-serial-port.",
-      );
-    }
+    return this.enqueueOperation(`rawFC5:${clientId}:${dataAddress}`, async () => {
+      const client = this.getClient(clientId) as WaveshareCommandClient;
+      if (typeof client.customFunction !== "function") {
+        throw new Error(
+          "modbus-serial customFunction API is unavailable. Install modbus-serial >= 8.0.23-no-serial-port.",
+        );
+      }
 
-    const payload = Buffer.from([
-      (dataAddress >> 8) & 0xff,
-      dataAddress & 0xff,
-      (value >> 8) & 0xff,
-      value & 0xff,
-    ]);
+      const payload = Buffer.from([
+        (dataAddress >> 8) & 0xff,
+        dataAddress & 0xff,
+        (value >> 8) & 0xff,
+        value & 0xff,
+      ]);
 
-    try {
-      await client.customFunction(0x05, payload);
-    } catch (error) {
-      logger.error(
-        `[${clientId}] Failed raw FC05 write to ${dataAddress}:`,
-        error,
-      );
-      throw error;
-    }
+      try {
+        await client.customFunction(0x05, payload);
+      } catch (error) {
+        logger.error(
+          `[${clientId}] Failed raw FC05 write to ${dataAddress}:`,
+          error,
+        );
+        throw error;
+      }
+    });
+  }
+
+  private enqueueOperation<T>(
+    operationName: string,
+    operation: () => Promise<T>,
+  ): Promise<T> {
+    return this.operationQueue.enqueue(operationName, operation);
   }
 
   private toFlashDurationValue(durationMs: number): number {
