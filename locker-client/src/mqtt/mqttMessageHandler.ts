@@ -16,6 +16,7 @@ import {
   parseMQTTCommand,
   SuccessResponse,
 } from "../types/mqtt";
+import type { MqttClient } from "mqtt";
 import { mqttClientManager } from "../mqtt/mqttClientManager";
 
 type CommandExecutor = {
@@ -37,6 +38,8 @@ function getDefaultRuntimeConfigApplier(): RuntimeConfigApplier {
  */
 export class MQTTMessageHandler {
   private lockerUuid: string | null = null;
+  /** Client instance the message listener is registered on (at most one per client). */
+  private messageListenerClient: MqttClient | null = null;
 
   constructor(
     private readonly commandExecutorFactory: () => CommandExecutor = getDefaultCommandExecutor,
@@ -67,8 +70,25 @@ export class MQTTMessageHandler {
     this.setupMessageListener();
   }
 
+  private readonly onMqttMessage = async (
+    topic: string,
+    payload: Buffer,
+  ): Promise<void> => {
+    try {
+      const message = payload.toString();
+      logger.debug(`Received message on topic ${topic}: ${message}`);
+
+      // Only process command messages
+      if (topic === `locker/${this.lockerUuid}/command`) {
+        await this.handleCommand(message);
+      }
+    } catch (error) {
+      logger.error("Error processing MQTT message:", error);
+    }
+  };
+
   /**
-   * Set up the MQTT message listener
+   * Set up the MQTT message listener (idempotent per client instance).
    */
   private setupMessageListener(): void {
     const client = mqttClientManager.getClient();
@@ -76,19 +96,16 @@ export class MQTTMessageHandler {
       throw new Error("MQTT client not available");
     }
 
-    client.on("message", async (topic: string, payload: Buffer) => {
-      try {
-        const message = payload.toString();
-        logger.debug(`Received message on topic ${topic}: ${message}`);
+    if (this.messageListenerClient === client) {
+      return;
+    }
 
-        // Only process command messages
-        if (topic === `locker/${this.lockerUuid}/command`) {
-          await this.handleCommand(message);
-        }
-      } catch (error) {
-        logger.error("Error processing MQTT message:", error);
-      }
-    });
+    if (this.messageListenerClient) {
+      this.messageListenerClient.off("message", this.onMqttMessage);
+    }
+
+    this.messageListenerClient = client;
+    client.on("message", this.onMqttMessage);
   }
 
   /**

@@ -1,9 +1,13 @@
 import assert from "node:assert/strict";
+import { EventEmitter } from "node:events";
 import test from "node:test";
+import type { MqttClient } from "mqtt";
 import { MQTTMessageHandler } from "../mqtt/mqttMessageHandler";
 import { ApplyConfigCommand } from "../types/mqtt";
 import { mqttService } from "../services/mqttService";
 import { mqttDedupService } from "../services/mqttDedupService";
+import { credentialsService } from "../services/credentialsService";
+import { mqttClientManager } from "../mqtt/mqttClientManager";
 
 type CommandRecord = {
   action: string;
@@ -440,5 +444,95 @@ test("apply_config publishes structured error responses when runtime apply fails
     );
   } finally {
     harness.restore();
+  }
+});
+
+test("initialize twice on the same MQTT client registers only one message handler", async () => {
+  let openCount = 0;
+  const handler = new MQTTMessageHandler(() => ({
+    handleOpenCompartment: async () => {
+      openCount++;
+    },
+  }));
+
+  const fakeClient = new EventEmitter();
+  const publishedMessages: PublishedMessage[] = [];
+  const dedupMock = createDedupMock();
+
+  const originalGetCredentials = credentialsService.getCredentials.bind(
+    credentialsService,
+  );
+  const originalSubscribe = mqttService.subscribe.bind(mqttService);
+  const originalGetClient = mqttClientManager.getClient.bind(mqttClientManager);
+  const originalPublish = mqttService.publish.bind(mqttService);
+  const originalHasSeenMessageId = mqttDedupService.hasSeenMessageId.bind(
+    mqttDedupService,
+  );
+  const originalRememberMessageId = mqttDedupService.rememberMessageId.bind(
+    mqttDedupService,
+  );
+  const originalGetCommandRecord = mqttDedupService.getCommandRecord.bind(
+    mqttDedupService,
+  );
+  const originalMarkCommandInProgress =
+    mqttDedupService.markCommandInProgress.bind(mqttDedupService);
+  const originalMarkCommandCompleted =
+    mqttDedupService.markCommandCompleted.bind(mqttDedupService);
+
+  credentialsService.getCredentials = () => ({
+    username: "locker-dup-test",
+    password: "secret",
+  });
+  mqttService.subscribe = async () => {};
+  mqttClientManager.getClient = () => fakeClient as unknown as MqttClient;
+  mqttService.publish = async (topic, message, options) => {
+    publishedMessages.push({
+      topic,
+      message: message as Record<string, unknown>,
+      options,
+    });
+  };
+  mqttDedupService.hasSeenMessageId = dedupMock.hasSeenMessageId;
+  mqttDedupService.rememberMessageId = dedupMock.rememberMessageId;
+  mqttDedupService.getCommandRecord = dedupMock.getCommandRecord;
+  mqttDedupService.markCommandInProgress = dedupMock.markCommandInProgress;
+  mqttDedupService.markCommandCompleted = dedupMock.markCommandCompleted;
+
+  try {
+    await handler.initialize();
+    await handler.initialize();
+
+    const payload = JSON.stringify({
+      action: "open_compartment",
+      transaction_id: "txn-dup-init",
+      message_id: "msg-dup-init",
+      timestamp: "2026-04-11T10:00:00Z",
+      data: { compartment_number: 2 },
+    });
+
+    (fakeClient as EventEmitter).emit(
+      "message",
+      "locker/locker-dup-test/command",
+      Buffer.from(payload),
+    );
+
+    await new Promise((r) => setImmediate(r));
+
+    assert.equal(openCount, 1);
+    assert.equal(publishedMessages.length, 1);
+    assert.equal(
+      publishedMessages[0]?.message.transaction_id,
+      "txn-dup-init",
+    );
+  } finally {
+    credentialsService.getCredentials = originalGetCredentials;
+    mqttService.subscribe = originalSubscribe;
+    mqttClientManager.getClient = originalGetClient;
+    mqttService.publish = originalPublish;
+    mqttDedupService.hasSeenMessageId = originalHasSeenMessageId;
+    mqttDedupService.rememberMessageId = originalRememberMessageId;
+    mqttDedupService.getCommandRecord = originalGetCommandRecord;
+    mqttDedupService.markCommandInProgress = originalMarkCommandInProgress;
+    mqttDedupService.markCommandCompleted = originalMarkCommandCompleted;
   }
 });
