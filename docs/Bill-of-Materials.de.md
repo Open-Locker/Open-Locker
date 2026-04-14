@@ -98,6 +98,34 @@ Hinweis zur Leiterplattenfertigung:
 
 - Wir haben unsere PCBs bei [JLCPCB](https://jlcpcb.com/) bestellt.
 
+### Weitere Leiterplatten-Designs im Repository
+
+Alle KiCad-Projekte liegen unter [`hardware/`](../hardware/). Neben der oben
+empfohlenen Variante `connection-board-cut-out_3_5` enthält das Repository
+unter anderem:
+
+- [`hardware/connection-board-cut-out_2_54`](../hardware/connection-board-cut-out_2_54)
+  (2,54-mm-Klemmenraster)
+- [`hardware/mtu-connection-board`](../hardware/mtu-connection-board)
+- [`hardware/mtu-connection-board-large`](../hardware/mtu-connection-board-large)
+
+Die passende Variante hängt von Klemmenraster, Fachanzahl und mechanischen
+Randbedingungen ab.
+
+### 3D-gedruckte Abstandhalter und Adapter
+
+Optionale, druckbare Teile für Schlossmontage und PCB-Abstand sind als
+OpenSCAD-Quellen unter [`hardware/models/`](../hardware/models/) gepflegt,
+u. a. Abstandhalter für FIT0620-ähnliche Schrankschlösser (`spacer1.scad`,
+`spacer2.scad`) sowie ein Adapter für die PCB-Montage (`pcb_mounting_adapter.scad`).
+STL-Dateien können lokal exportiert oder bei Bedarf als fertige Dateien ins
+Repository ergänzt werden. Mengen und Material hängen vom jeweiligen Schrank ab.
+
+Dieselbe mechanische Aufgabe lässt sich auch anders lösen – etwa mit
+zugeschnittenem Holz, Blech oder anderem Werkstatt-Material, je nach Werkzeug
+und Schrank. Die dokumentierten Referenzaufbauten des Projekts nutzen die hier
+beschriebenen 3D-gedruckten Teile.
+
 ## Gemeinsame Komponenten
 
 Diese Teile gelten für beide Build-Profile, sofern nicht anders angegeben.

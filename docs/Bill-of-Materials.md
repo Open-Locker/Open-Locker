@@ -104,6 +104,33 @@ PCB manufacturing reference:
 
 - We ordered our PCBs from [JLCPCB](https://jlcpcb.com/).
 
+### Other PCB layouts in this repository
+
+All KiCad projects live under [`hardware/`](../hardware/). Besides the recommended
+`connection-board-cut-out_3_5` variant above, the repository also contains:
+
+- [`hardware/connection-board-cut-out_2_54`](../hardware/connection-board-cut-out_2_54)
+  (2.54 mm terminal pitch)
+- [`hardware/mtu-connection-board`](../hardware/mtu-connection-board)
+- [`hardware/mtu-connection-board-large`](../hardware/mtu-connection-board-large)
+
+Pick the layout that matches your connector pitch, compartment count, and
+mechanical constraints.
+
+### 3D-printed spacers and adapters
+
+Optional printable parts for lock mounting and PCB standoffs are maintained as
+OpenSCAD sources under [`hardware/models/`](../hardware/models/), for example
+spacer variants for FIT0620-style cabinet locks (`spacer1.scad`, `spacer2.scad`)
+and a PCB mounting adapter (`pcb_mounting_adapter.scad`). Export STL locally or
+add pre-generated STL files to the repository when they are available.
+Quantities and material depend on your cabinet layout.
+
+The same mechanical spacing and mounting can be solved in other ways—for
+example with cut-to-size wood, sheet stock, or other shop-made brackets—depending
+on your tools and cabinet. The Open-Locker reference builds used the 3D-printed
+parts described here.
+
 ## Common Components
 
 These parts are shared by both build profiles unless noted otherwise.
