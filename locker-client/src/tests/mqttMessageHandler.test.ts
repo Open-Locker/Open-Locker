@@ -295,6 +295,39 @@ test("missing or empty transaction_id is rejected without side effects", async (
   }
 });
 
+test("invalid open_compartment payload is rejected before hardware side effects", async () => {
+  const harness = createHandlerHarness();
+  let openCount = 0;
+
+  harness.setOpenCompartmentMock(async () => {
+    openCount++;
+  });
+
+  try {
+    await harness.handleCommand({
+      action: "open_compartment",
+      transaction_id: "txn-invalid-open",
+      message_id: "msg-invalid-open",
+      timestamp: "2026-04-11T10:00:00Z",
+      data: { compartment_number: 0 },
+    });
+
+    assert.equal(openCount, 0);
+    assert.equal(harness.publishedMessages.length, 1);
+    assert.equal(harness.publishedMessages[0]?.message.result, "error");
+    assert.equal(
+      harness.publishedMessages[0]?.message.error_code,
+      "INVALID_COMMAND",
+    );
+    assert.equal(
+      harness.publishedMessages[0]?.message.message,
+      "Invalid open_compartment payload.",
+    );
+  } finally {
+    harness.restore();
+  }
+});
+
 test("apply_config publishes success with top-level applied_config_hash", async () => {
   const harness = createHandlerHarness();
   let receivedCommand: ApplyConfigCommand | null = null;
@@ -328,6 +361,47 @@ test("apply_config publishes success with top-level applied_config_hash", async 
     assert.equal(
       harness.publishedMessages[0]?.message.applied_config_hash,
       "b".repeat(64),
+    );
+  } finally {
+    harness.restore();
+  }
+});
+
+test("invalid apply_config payload is rejected before runtime apply is called", async () => {
+  const harness = createHandlerHarness();
+  let applyConfigCallCount = 0;
+
+  harness.setApplyConfigMock(async () => {
+    applyConfigCallCount++;
+    return {
+      appliedConfigHash: "c".repeat(64),
+      message: "Config applied.",
+    };
+  });
+
+  try {
+    await harness.handleCommand({
+      action: "apply_config",
+      transaction_id: "txn-invalid-apply",
+      message_id: "msg-invalid-apply",
+      timestamp: "2026-04-11T10:00:00Z",
+      data: {
+        config_hash: "not-a-sha",
+        heartbeat_interval_seconds: 15,
+        compartments: [{ id: 1, slaveId: 1, address: 0 }],
+      },
+    });
+
+    assert.equal(applyConfigCallCount, 0);
+    assert.equal(harness.publishedMessages.length, 1);
+    assert.equal(harness.publishedMessages[0]?.message.result, "error");
+    assert.equal(
+      harness.publishedMessages[0]?.message.error_code,
+      "INVALID_COMMAND",
+    );
+    assert.equal(
+      harness.publishedMessages[0]?.message.message,
+      "Invalid apply_config payload.",
     );
   } finally {
     harness.restore();

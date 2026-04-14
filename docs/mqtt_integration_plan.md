@@ -110,6 +110,11 @@ nahtlose Integration.
   der Einstellung **`clean_session = false`** (MQTT v3.1.1) verbinden, damit der
   Broker ihre Abonnements und ggf. QoS>0 Nachrichten **für die Session** puffern
   kann, während der Client offline ist.
+  - **locker-client (Stand Implementierung):** Standard ist `clean: false`
+    (override: `MQTT_CLEAN_SESSION` oder `mqtt.cleanSession` in der
+    Client-`config.yml`). Automatisches Reconnect ist standardmäßig **unbegrenzt**
+    (`MQTT_MAX_RECONNECT_ATTEMPTS=0`); der Client meldet dabei den Zustand
+    „reconnecting“ bis die Verbindung wieder steht (siehe ADR 0014).
 - **Backend "Last Will"**: Der Laravel-Client (sowohl Listener als auch
   Publisher) wird so konfiguriert, dass er einen "Last Will" auf dem Topic
   `server/status` mit der Nachricht `{"status": "offline"}` setzt. Dies

@@ -159,6 +159,13 @@ class ModbusService {
 
   getConfiguredSlaveIds(): number[] {
     const configuredCompartments = configLoader.getConfig()?.compartments;
+    if (
+      configLoader.hasExplicitRuntimeCompartmentsConfig() &&
+      configuredCompartments?.length === 0
+    ) {
+      return [];
+    }
+
     if (!configuredCompartments || configuredCompartments.length === 0) {
       return [this.LEGACY_DEFAULT_SLAVE_ID];
     }

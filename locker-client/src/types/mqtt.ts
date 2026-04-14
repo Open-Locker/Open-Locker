@@ -1,4 +1,5 @@
 import { MQTTMessageEnvelope } from "../helper/mqttMessage";
+import { z } from "zod";
 
 /**
  * MQTT Message Type Definitions
@@ -9,38 +10,62 @@ import { MQTTMessageEnvelope } from "../helper/mqttMessage";
 // Commands (Backend -> Client)
 // ============================================================================
 
+const nonEmptyStringSchema = z.string().trim().min(1);
+const positiveIntegerSchema = z.number().int().positive();
+const nonNegativeIntegerSchema = z.number().int().nonnegative();
+const sha256HexSchema = z.string().regex(/^[a-f0-9]{64}$/i);
+
+export const mqttCommandEnvelopeSchema = z.object({
+  action: nonEmptyStringSchema,
+  message_id: nonEmptyStringSchema,
+  transaction_id: nonEmptyStringSchema,
+  timestamp: nonEmptyStringSchema,
+});
+
+export const mqttCommandSchema = mqttCommandEnvelopeSchema.extend({
+  data: z.record(z.string(), z.unknown()).optional(),
+});
+
 /**
  * Base structure for all commands received from the backend
  */
-export interface MQTTCommand extends MQTTMessageEnvelope {
-  action: string;
-  transaction_id: string;
-  timestamp: string; // ISO 8601
-  data?: Record<string, any>;
-}
+export type MQTTCommand = z.infer<typeof mqttCommandSchema>;
 
 /**
  * Command to open a specific compartment
  */
-export interface OpenCompartmentCommand extends MQTTCommand {
-  action: "open_compartment";
-  data: {
-    compartment_number: number;
-  };
-}
+export const openCompartmentCommandSchema = mqttCommandEnvelopeSchema.extend({
+  action: z.literal("open_compartment"),
+  data: z.object({
+    compartment_number: positiveIntegerSchema,
+  }),
+});
 
-export interface ApplyConfigCommand extends MQTTCommand {
-  action: "apply_config";
-  data: {
-    config_hash: string;
-    heartbeat_interval_seconds: number;
-    compartments: Array<{
-      id: number;
-      slaveId: number;
-      address: number;
-    }>;
-  };
-}
+export type OpenCompartmentCommand = z.infer<typeof openCompartmentCommandSchema>;
+
+const applyConfigCompartmentSchema = z.object({
+  id: positiveIntegerSchema,
+  slaveId: positiveIntegerSchema,
+  address: nonNegativeIntegerSchema,
+});
+
+export const applyConfigCommandSchema = mqttCommandEnvelopeSchema.extend({
+  action: z.literal("apply_config"),
+  data: z.object({
+    config_hash: sha256HexSchema,
+    heartbeat_interval_seconds: positiveIntegerSchema,
+    compartments: z.array(applyConfigCompartmentSchema),
+  }),
+});
+
+export type ApplyConfigCommand = z.infer<typeof applyConfigCommandSchema>;
+
+export const knownMQTTCommandSchema = z.discriminatedUnion("action", [
+  openCompartmentCommandSchema,
+  applyConfigCommandSchema,
+]);
+
+export type KnownMQTTCommand = z.infer<typeof knownMQTTCommandSchema>;
 
 // ============================================================================
 // Responses (Client -> Backend)
@@ -93,70 +118,45 @@ export enum MQTTErrorCode {
 }
 
 // ============================================================================
-// Type Guards
+// Parsing Helpers
 // ============================================================================
 
-function isNonEmptyString(value: unknown): value is string {
-  return typeof value === "string" && value.trim().length > 0;
+export function parseMQTTCommand(cmd: unknown): MQTTCommand | null {
+  const result = mqttCommandSchema.safeParse(cmd);
+  return result.success ? result.data : null;
 }
+
+export function parseOpenCompartmentCommand(
+  cmd: unknown,
+): OpenCompartmentCommand | null {
+  const result = openCompartmentCommandSchema.safeParse(cmd);
+  return result.success ? result.data : null;
+}
+
+export function parseApplyConfigCommand(cmd: unknown): ApplyConfigCommand | null {
+  const result = applyConfigCommandSchema.safeParse(cmd);
+  return result.success ? result.data : null;
+}
+
+export function parseKnownMQTTCommand(cmd: unknown): KnownMQTTCommand | null {
+  const result = knownMQTTCommandSchema.safeParse(cmd);
+  return result.success ? result.data : null;
+}
+
+// ============================================================================
+// Type Guards
+// ============================================================================
 
 export function isOpenCompartmentCommand(
   cmd: unknown,
 ): cmd is OpenCompartmentCommand {
-  const candidate = cmd as Record<string, any> | null;
-
-  return (
-    candidate !== null &&
-    typeof candidate === "object" &&
-    candidate.action === "open_compartment" &&
-    isNonEmptyString(candidate.message_id) &&
-    isNonEmptyString(candidate.transaction_id) &&
-    isNonEmptyString(candidate.timestamp) &&
-    candidate.data !== null &&
-    typeof candidate.data === "object" &&
-    typeof candidate.data.compartment_number === "number"
-  );
+  return parseOpenCompartmentCommand(cmd) !== null;
 }
 
 export function isApplyConfigCommand(cmd: unknown): cmd is ApplyConfigCommand {
-  const candidate = cmd as Record<string, any> | null;
-  const data = candidate?.data as Record<string, unknown> | null | undefined;
-
-  return (
-    candidate !== null &&
-    typeof candidate === "object" &&
-    candidate.action === "apply_config" &&
-    isNonEmptyString(candidate.message_id) &&
-    isNonEmptyString(candidate.transaction_id) &&
-    isNonEmptyString(candidate.timestamp) &&
-    data !== null &&
-    typeof data === "object" &&
-    isNonEmptyString(data.config_hash) &&
-    typeof data.heartbeat_interval_seconds === "number" &&
-    Array.isArray(data.compartments) &&
-    data.compartments.every((compartment) => {
-      const compartmentRecord = compartment as Record<string, unknown> | null;
-
-      return (
-        compartmentRecord !== null &&
-        typeof compartmentRecord === "object" &&
-        typeof compartmentRecord.id === "number" &&
-        typeof compartmentRecord.slaveId === "number" &&
-        typeof compartmentRecord.address === "number"
-      );
-    })
-  );
+  return parseApplyConfigCommand(cmd) !== null;
 }
 
 export function isMQTTCommand(cmd: unknown): cmd is MQTTCommand {
-  const candidate = cmd as Record<string, any> | null;
-
-  return (
-    candidate !== null &&
-    typeof candidate === "object" &&
-    isNonEmptyString(candidate.action) &&
-    isNonEmptyString(candidate.message_id) &&
-    isNonEmptyString(candidate.transaction_id) &&
-    isNonEmptyString(candidate.timestamp)
-  );
+  return parseMQTTCommand(cmd) !== null;
 }

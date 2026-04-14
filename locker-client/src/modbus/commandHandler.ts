@@ -224,6 +224,12 @@ export class CommandHandler {
     const compartmentConfig = configLoader.getCompartmentConfig(compartmentID);
 
     if (!compartmentConfig) {
+      if (configLoader.hasExplicitRuntimeCompartmentsConfig()) {
+        throw new Error(
+          `Compartment ${compartmentID} is not configured on this client`,
+        );
+      }
+
       logger.warn(
         `No configuration found for compartment ${compartmentID}, using legacy addressing`,
       );

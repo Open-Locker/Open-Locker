@@ -217,6 +217,13 @@ class CoilPollingService {
   ): CompartmentStatusPayload[] {
     const configuredCompartments = configLoader.getConfig()?.compartments;
 
+    if (
+      configLoader.hasExplicitRuntimeCompartmentsConfig() &&
+      configuredCompartments?.length === 0
+    ) {
+      return [];
+    }
+
     if (!configuredCompartments || configuredCompartments.length === 0) {
       if (snapshots.length > 1 && !this.hasWarnedAboutLegacyMultiBoardMapping) {
         logger.warn(

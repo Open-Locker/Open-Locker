@@ -3,7 +3,7 @@ import path from "path";
 import { randomBytes } from "crypto";
 import { credentialsService } from "../services/credentialsService";
 import { logger } from "../helper/logger";
-import { configLoader } from "./configLoader";
+import { configLoader, type LockerConfig } from "./configLoader";
 import { MQTT_CLIENT_ID_FILE } from "./paths";
 
 const CLIENT_ID_FILE = MQTT_CLIENT_ID_FILE;
@@ -62,6 +62,70 @@ function getRequiredEnv(name: string): string {
   return value;
 }
 
+function parseOptionalEnvInt(name: string): number | undefined {
+  const raw = process.env[name]?.trim();
+  if (raw === undefined || raw === "") {
+    return undefined;
+  }
+  const n = Number.parseInt(raw, 10);
+  return Number.isFinite(n) ? n : undefined;
+}
+
+function parseOptionalEnvBool(name: string): boolean | undefined {
+  const raw = process.env[name]?.trim()?.toLowerCase();
+  if (raw === undefined || raw === "") {
+    return undefined;
+  }
+  if (raw === "true" || raw === "1" || raw === "yes") {
+    return true;
+  }
+  if (raw === "false" || raw === "0" || raw === "no") {
+    return false;
+  }
+  return undefined;
+}
+
+export type MqttTransportSettings = {
+  clean: boolean;
+  keepalive: number;
+  reconnectPeriod: number;
+  connectTimeout: number;
+  maxReconnectAttempts: number;
+};
+
+/**
+ * Transport options for mqtt.js. Env vars override YAML (`config.yml` mqtt.*).
+ * `maxReconnectAttempts`: 0 = unlimited (default); if > 0, client stops after N reconnect cycles.
+ */
+function buildMqttTransportSettings(
+  fileMqtt: LockerConfig["mqtt"],
+): MqttTransportSettings {
+  const m = fileMqtt ?? {};
+  const envClean = parseOptionalEnvBool("MQTT_CLEAN_SESSION");
+  const envKeepalive = parseOptionalEnvInt("MQTT_KEEPALIVE_SECONDS");
+  const envReconnect = parseOptionalEnvInt("MQTT_RECONNECT_PERIOD_MS");
+  const envConnectTimeout = parseOptionalEnvInt("MQTT_CONNECT_TIMEOUT_MS");
+  const envMaxAttempts = parseOptionalEnvInt("MQTT_MAX_RECONNECT_ATTEMPTS");
+
+  const clean = envClean ?? m.cleanSession ?? false;
+  const keepalive = envKeepalive ?? m.keepaliveSeconds ?? 60;
+  const reconnectPeriod = envReconnect ?? m.reconnectPeriodMs ?? 5000;
+  const connectTimeout = envConnectTimeout ?? m.connectTimeoutMs ?? 30000;
+  const maxReconnectAttempts = envMaxAttempts ?? m.maxReconnectAttempts ?? 0;
+
+  return {
+    clean,
+    keepalive: Math.max(0, keepalive),
+    reconnectPeriod: Math.max(0, reconnectPeriod),
+    connectTimeout: Math.max(0, connectTimeout),
+    maxReconnectAttempts: Math.max(0, maxReconnectAttempts),
+  };
+}
+
+export function getMqttTransportSettings(): MqttTransportSettings {
+  return buildMqttTransportSettings(configLoader.loadConfig().mqtt);
+}
+
 export function getMqttConfig() {
   const config = configLoader.loadConfig();
   const credentials = getCredentials();
@@ -74,16 +138,25 @@ export function getMqttConfig() {
     ...credentials,
     clientId: getOrGenerateClientId(),
     heartbeatInterval: heartbeatIntervalSeconds * 1000,
+    mqttTransport: buildMqttTransportSettings(config.mqtt),
   };
 }
 
 export function logCurrentMqttConfig(): void {
   const mqttConfig = getMqttConfig();
+  const t = mqttConfig.mqttTransport;
 
   logger.debug("MQTT configuration loaded:", {
     brokerUrl: mqttConfig.brokerUrl,
     username: mqttConfig.username || "(not set)",
     clientId: mqttConfig.clientId,
     heartbeatInterval: mqttConfig.heartbeatInterval,
+    cleanSession: t.clean,
+    keepaliveSeconds: t.keepalive,
+    reconnectPeriodMs: t.reconnectPeriod,
+    connectTimeoutMs: t.connectTimeout,
+    maxReconnectAttempts: t.maxReconnectAttempts === 0
+      ? "unlimited"
+      : t.maxReconnectAttempts,
   });
 }

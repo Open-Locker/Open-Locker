@@ -10,11 +10,10 @@ import { mqttService } from "../services/mqttService";
 import {
   ApplyConfigCommand,
   ErrorResponse,
-  isApplyConfigCommand,
-  isMQTTCommand,
-  isOpenCompartmentCommand,
   MQTTErrorCode,
   OpenCompartmentCommand,
+  parseKnownMQTTCommand,
+  parseMQTTCommand,
   SuccessResponse,
 } from "../types/mqtt";
 import { mqttClientManager } from "../mqtt/mqttClientManager";
@@ -96,18 +95,21 @@ export class MQTTMessageHandler {
    * Handle an incoming command message
    */
   private async handleCommand(messageStr: string): Promise<void> {
-    let command: unknown;
+    let rawCommand: unknown;
 
     try {
-      command = JSON.parse(messageStr);
+      rawCommand = JSON.parse(messageStr);
     } catch (error) {
       logger.error("Failed to parse command JSON:", error);
       return;
     }
 
     // Validate command envelope before any side effects
-    if (!isMQTTCommand(command)) {
-      logger.warn("Rejected command without valid required IDs", { command });
+    const command = parseMQTTCommand(rawCommand);
+    if (!command) {
+      logger.warn("Rejected command without valid required IDs", {
+        command: rawCommand,
+      });
       return;
     }
 
@@ -149,23 +151,58 @@ export class MQTTMessageHandler {
 
     // Route to specific command handler
     try {
-      if (isOpenCompartmentCommand(command)) {
-        await this.handleOpenCompartment(command);
-      } else if (isApplyConfigCommand(command)) {
-        await this.handleApplyConfig(command);
-      } else {
-        logger.warn(`Unknown command action: ${command.action}`);
+      const knownCommand = parseKnownMQTTCommand(rawCommand);
+      if (knownCommand) {
+        switch (knownCommand.action) {
+          case "open_compartment":
+            await this.handleOpenCompartment(knownCommand);
+            break;
+          case "apply_config":
+            await this.handleApplyConfig(knownCommand);
+            break;
+        }
+        return;
+      }
+
+      if (command.action === "open_compartment") {
         await this.sendErrorResponse(
           command.transaction_id,
           command.action,
           MQTTErrorCode.INVALID_COMMAND,
-          `Unknown action: ${command.action}`,
+          "Invalid open_compartment payload.",
         );
         mqttDedupService.markCommandCompleted(
           command.transaction_id,
           command.action,
         );
+        return;
       }
+
+      if (command.action === "apply_config") {
+        await this.sendErrorResponse(
+          command.transaction_id,
+          command.action,
+          MQTTErrorCode.INVALID_COMMAND,
+          "Invalid apply_config payload.",
+        );
+        mqttDedupService.markCommandCompleted(
+          command.transaction_id,
+          command.action,
+        );
+        return;
+      }
+
+      logger.warn(`Unknown command action: ${command.action}`);
+      await this.sendErrorResponse(
+        command.transaction_id,
+        command.action,
+        MQTTErrorCode.INVALID_COMMAND,
+        `Unknown action: ${command.action}`,
+      );
+      mqttDedupService.markCommandCompleted(
+        command.transaction_id,
+        command.action,
+      );
     } catch (error) {
       logger.error(`Error executing command ${command.action}:`, error);
       await this.sendErrorResponse(

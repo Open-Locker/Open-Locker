@@ -13,6 +13,13 @@ export interface CompartmentConfig {
 export interface LockerConfig {
   mqtt?: {
     heartbeatInterval?: number; // in seconds
+    /** false = persistent session (MQTT clean_session=false); aligns with broker QoS buffering */
+    cleanSession?: boolean;
+    keepaliveSeconds?: number;
+    reconnectPeriodMs?: number;
+    connectTimeoutMs?: number;
+    /** 0 = unlimited reconnect attempts (recommended for cabinets) */
+    maxReconnectAttempts?: number;
   };
   modbus: {
     port: string; // Main MODBUS_PORT
@@ -36,6 +43,7 @@ export interface LockerConfig {
 
 class ConfigLoader {
   private config: LockerConfig | null = null;
+  private hasExplicitRuntimeCompartments = false;
 
   public loadConfig(): LockerConfig {
     if (this.config) {
@@ -57,6 +65,8 @@ class ConfigLoader {
       }
 
       const runtimeOverlay = loadRuntimeConfigOverlay();
+      this.hasExplicitRuntimeCompartments =
+        runtimeOverlay?.compartments !== undefined;
       this.config = mergeRuntimeConfig(parsedConfig, runtimeOverlay);
       logger.info("Configuration loaded successfully from " + CONFIG_FILE);
       logger.info(`Modbus Port: ${this.config.modbus.port}`);
@@ -93,7 +103,16 @@ class ConfigLoader {
 
   public reloadConfig(): LockerConfig {
     this.config = null;
+    this.hasExplicitRuntimeCompartments = false;
     return this.loadConfig();
+  }
+
+  public hasExplicitRuntimeCompartmentsConfig(): boolean {
+    if (!this.config) {
+      this.loadConfig();
+    }
+
+    return this.hasExplicitRuntimeCompartments;
   }
 
   public getCompartmentConfig(compartmentId: number): CompartmentConfig | null {
