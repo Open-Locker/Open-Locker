@@ -14,15 +14,29 @@ export type MqttConnectionState =
   | "connected"
   | "reconnecting";
 
+/**
+ * Single MQTT client for the process. Expected usage: sequential connect from
+ * application startup (e.g. `app.ts`), then optional `disconnect` before a new
+ * `connect` after provisioning.
+ *
+ * Concurrent `connect()` calls while a handshake is in flight share the same
+ * Promise and resolve or reject together. If a second caller passes a
+ * different `brokerUrl` during that window, it throws — the in-flight attempt
+ * is not cancelled.
+ */
 class MQTTClientManager {
   private client: MqttClient | null = null;
-  private isConnecting = false;
   private reconnectAttempts = 0;
   private connectionState: MqttConnectionState = "disconnected";
   /** True only for explicit `disconnect()` (graceful shutdown). */
   private intentionalShutdown = false;
   /** True when optional max reconnect cap was hit. */
   private reconnectExhausted = false;
+
+  /** Shared by concurrent callers during the initial handshake only. */
+  private connectInFlight: Promise<MqttClient> | null = null;
+  /** Broker URL for the handshake in `connectInFlight` (for mismatch checks). */
+  private pendingConnectBrokerUrl: string | null = null;
 
   getConnectionState(): MqttConnectionState {
     return this.connectionState;
@@ -32,26 +46,33 @@ class MQTTClientManager {
     brokerUrl: string,
     options?: mqtt.IClientOptions,
   ): Promise<MqttClient> {
-    if (this.client && this.client.connected) {
+    if (this.client?.connected) {
       return this.client;
     }
 
-    if (this.isConnecting) {
-      return new Promise((resolve, reject) => {
-        const checkConnection = () => {
-          if (this.client && this.client.connected) {
-            resolve(this.client);
-          } else if (!this.isConnecting) {
-            reject(new Error("Connection failed"));
-          } else {
-            setTimeout(checkConnection, 100);
-          }
-        };
-        checkConnection();
-      });
+    if (this.connectInFlight) {
+      if (this.pendingConnectBrokerUrl !== brokerUrl) {
+        throw new Error(
+          "MQTT connect already in progress to a different broker URL",
+        );
+      }
+      return this.connectInFlight;
     }
 
-    this.isConnecting = true;
+    this.pendingConnectBrokerUrl = brokerUrl;
+    this.connectInFlight = this.connectNewClient(brokerUrl, options);
+    try {
+      return await this.connectInFlight;
+    } finally {
+      this.connectInFlight = null;
+      this.pendingConnectBrokerUrl = null;
+    }
+  }
+
+  private connectNewClient(
+    brokerUrl: string,
+    options?: mqtt.IClientOptions,
+  ): Promise<MqttClient> {
     this.intentionalShutdown = false;
     this.reconnectExhausted = false;
     this.connectionState = "connecting";
@@ -73,7 +94,6 @@ class MQTTClientManager {
       let isFirstConnectForThisClient = true;
 
       this.client.on("connect", () => {
-        this.isConnecting = false;
         this.reconnectAttempts = 0;
         this.connectionState = "connected";
         initialConnectSettled = true;
@@ -88,7 +108,6 @@ class MQTTClientManager {
 
       this.client.on("error", (error) => {
         logger.error("MQTT connection error:", error);
-        this.isConnecting = false;
         if (!initialConnectSettled) {
           this.connectionState = "disconnected";
           reject(error);
@@ -115,7 +134,6 @@ class MQTTClientManager {
 
       this.client.on("close", () => {
         logger.info("MQTT connection closed");
-        this.isConnecting = false;
         if (this.intentionalShutdown) {
           this.connectionState = "disconnected";
           return;
