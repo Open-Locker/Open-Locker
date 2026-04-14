@@ -3,7 +3,7 @@ import { logger } from "./helper/logger";
 import { ensureDirectories } from "./helper/directories";
 import { commandHandler } from "./modbus/commandHandler";
 import { mqttClientManager } from "./mqtt/mqttClientManager";
-import { mqttMessageHandler } from "./mqtt/mqttMessageHandler";
+import { MQTTMessageHandler } from "./mqtt/mqttMessageHandler";
 import { modbusService } from "./services/modbusService";
 import { provisioningService } from "./services/provisioningService";
 import { provisioningRegistrationService } from "./services/provisioningRegistrationService";
@@ -11,6 +11,8 @@ import { credentialsService } from "./services/credentialsService";
 import { heartbeatService } from "./services/heartbeatService";
 import { coilPollingService } from "./services/coilPollingService";
 import { provisioningTokenService } from "./services/provisioningTokenService";
+
+const mqttMessageHandler = new MQTTMessageHandler(() => commandHandler);
 
 async function main() {
   logger.info("Starting the application...");

@@ -258,4 +258,5 @@ export class CommandHandler {
   }
 }
 
+/** Wired into `MQTTMessageHandler` from `app.ts` so the mqtt layer does not statically import modbus. */
 export const commandHandler = new CommandHandler();

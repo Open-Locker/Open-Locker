@@ -19,15 +19,9 @@ import {
 import type { MqttClient } from "mqtt";
 import { mqttClientManager } from "../mqtt/mqttClientManager";
 
-type CommandExecutor = {
+export type CommandExecutor = {
   handleOpenCompartment(compartmentID: number): Promise<void>;
 };
-
-function getDefaultCommandExecutor(): CommandExecutor {
-  const { commandHandler } = require("../modbus/commandHandler") as typeof import("../modbus/commandHandler");
-
-  return commandHandler;
-}
 
 function getDefaultRuntimeConfigApplier(): RuntimeConfigApplier {
   return applyConfigService;
@@ -42,7 +36,7 @@ export class MQTTMessageHandler {
   private messageListenerClient: MqttClient | null = null;
 
   constructor(
-    private readonly commandExecutorFactory: () => CommandExecutor = getDefaultCommandExecutor,
+    private readonly commandExecutorFactory: () => CommandExecutor,
     private readonly runtimeConfigApplierFactory: () => RuntimeConfigApplier = getDefaultRuntimeConfigApplier,
   ) {}
 
@@ -412,5 +406,3 @@ export class MQTTMessageHandler {
     await mqttService.publish(topic, response, { qos: 1 });
   }
 }
-
-export const mqttMessageHandler = new MQTTMessageHandler();
