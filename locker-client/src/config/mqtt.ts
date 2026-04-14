@@ -19,12 +19,12 @@ function getOrGenerateClientId(): string {
     if (fs.existsSync(CLIENT_ID_FILE)) {
       const clientId = fs.readFileSync(CLIENT_ID_FILE, "utf-8").trim();
       if (clientId) {
-        console.log(`Using persisted client ID: ${clientId}`);
+        logger.info("Using persisted MQTT client ID from file");
         return clientId;
       }
     }
   } catch (error) {
-    console.warn("Failed to read persisted client ID:", error);
+    logger.warn("Failed to read persisted MQTT client ID:", error);
   }
 
   // Generate new client ID
@@ -33,9 +33,9 @@ function getOrGenerateClientId(): string {
   // Persist it for future use
   try {
     fs.writeFileSync(CLIENT_ID_FILE, newClientId, "utf-8");
-    console.log(`Generated and persisted new client ID: ${newClientId}`);
+    logger.info("Generated and persisted new MQTT client ID");
   } catch (error) {
-    console.warn("Failed to persist client ID:", error);
+    logger.warn("Failed to persist MQTT client ID:", error);
   }
 
   return newClientId;
