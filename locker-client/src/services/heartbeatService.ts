@@ -7,6 +7,8 @@ class HeartbeatService {
   private intervalId: NodeJS.Timeout | null = null;
   private startTime: number = Date.now();
   private lockerUuid: string | null = null;
+  /** Prevents overlapping mqttService.publish calls when the interval fires faster than MQTT completes. */
+  private heartbeatInFlight = false;
 
   /**
    * Start sending heartbeat messages
@@ -56,6 +58,11 @@ class HeartbeatService {
    * Send a heartbeat message
    */
   private async sendHeartbeat(): Promise<void> {
+    if (this.heartbeatInFlight) {
+      return;
+    }
+
+    this.heartbeatInFlight = true;
     try {
       if (!this.lockerUuid) {
         logger.error("Cannot send heartbeat: No UUID available");
@@ -78,6 +85,8 @@ class HeartbeatService {
       logger.debug(`Heartbeat sent to ${topic}`, { uptime_seconds: uptimeSeconds });
     } catch (error) {
       logger.error("Failed to send heartbeat:", error);
+    } finally {
+      this.heartbeatInFlight = false;
     }
   }
 
