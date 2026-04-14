@@ -1,4 +1,4 @@
-import { mqttConfig } from "./config/mqtt";
+import { getMqttConfig, logCurrentMqttConfig } from "./config/mqtt";
 import { logger } from "./helper/logger";
 import { ensureDirectories } from "./helper/directories";
 import { commandHandler } from "./modbus/commandHandler";
@@ -18,6 +18,7 @@ async function main() {
   try {
     // Ensure required directories exist
     ensureDirectories();
+    logCurrentMqttConfig();
     // Check provisioning state
     const isProvisioned = provisioningService.getProvisioningState();
     logger.info(
@@ -40,6 +41,7 @@ async function main() {
       }
 
       logger.info("Starting provisioning process...");
+      const mqttConfig = getMqttConfig();
 
       // Connect with default credentials
       await mqttClientManager.connect(mqttConfig.brokerUrl, {
@@ -95,6 +97,8 @@ async function main() {
         process.exit(1);
       }
     } else {
+      const mqttConfig = getMqttConfig();
+
       // Initialize MQTT connection with saved credentials
       await mqttClientManager.connect(mqttConfig.brokerUrl, {
         username: mqttConfig.username,
@@ -117,28 +121,28 @@ async function main() {
       await modbusService.connect();
       logger.info("Modbus RTU connection established");
 
-      const modbusClientIds = modbusService.getClientIds();
-      const reachableModbusClientIds: string[] = [];
-      const startupFailsafeFailures: string[] = [];
+      const configuredSlaveIds = modbusService.getConfiguredSlaveIds();
+      const reachableSlaveIds: number[] = [];
+      const startupFailsafeFailures: number[] = [];
 
-      for (const modbusClientId of modbusClientIds) {
+      for (const slaveId of configuredSlaveIds) {
         try {
-          await modbusService.turnAllRelaysOff(modbusClientId);
-          reachableModbusClientIds.push(modbusClientId);
+          await modbusService.turnAllRelaysOff(slaveId);
+          reachableSlaveIds.push(slaveId);
         } catch (error) {
-          startupFailsafeFailures.push(modbusClientId);
+          startupFailsafeFailures.push(slaveId);
           logger.error(
-            `[${modbusClientId}] Startup failsafe failed, continuing without relay reset for this board:`,
+            `[slave:${slaveId}] Startup failsafe failed, continuing without relay reset for this board:`,
             error,
           );
         }
       }
 
       if (
-        modbusClientIds.length > 0 && reachableModbusClientIds.length === 0
+        configuredSlaveIds.length > 0 && reachableSlaveIds.length === 0
       ) {
         throw new Error(
-          `Startup failsafe failed for all configured Modbus boards: ${modbusClientIds.join(", ")}`,
+          `Startup failsafe failed for all configured Modbus boards: ${configuredSlaveIds.join(", ")}`,
         );
       }
 
@@ -149,7 +153,7 @@ async function main() {
       }
 
       logger.info(
-        `Startup failsafe completed for reachable boards: ${reachableModbusClientIds.join(", ")}`,
+        `Startup failsafe completed for reachable boards: ${reachableSlaveIds.join(", ")}`,
       );
 
       // Start coil polling service

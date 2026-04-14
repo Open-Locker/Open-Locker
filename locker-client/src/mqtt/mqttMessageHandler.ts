@@ -1,6 +1,10 @@
 import { withMessageId } from "../helper/mqttMessage";
 import { logger } from "../helper/logger";
 import { credentialsService } from "../services/credentialsService";
+import {
+  applyConfigService,
+  RuntimeConfigApplier,
+} from "../services/applyConfigService";
 import { mqttDedupService } from "../services/mqttDedupService";
 import { mqttService } from "../services/mqttService";
 import {
@@ -25,6 +29,10 @@ function getDefaultCommandExecutor(): CommandExecutor {
   return commandHandler;
 }
 
+function getDefaultRuntimeConfigApplier(): RuntimeConfigApplier {
+  return applyConfigService;
+}
+
 /**
  * Handles incoming MQTT commands and coordinates responses
  */
@@ -33,6 +41,7 @@ export class MQTTMessageHandler {
 
   constructor(
     private readonly commandExecutorFactory: () => CommandExecutor = getDefaultCommandExecutor,
+    private readonly runtimeConfigApplierFactory: () => RuntimeConfigApplier = getDefaultRuntimeConfigApplier,
   ) {}
 
   /**
@@ -233,27 +242,43 @@ export class MQTTMessageHandler {
   }
 
   /**
-   * Establishes the transaction-bound apply_config path before the actual
-   * config application from issue #38 is implemented.
+   * Applies server-managed runtime config and responds with the applied hash.
    */
   private async handleApplyConfig(command: ApplyConfigCommand): Promise<void> {
     const { transaction_id, action } = command;
 
-    logger.warn(
-      `Received apply_config for transaction ${transaction_id}, but config application is not implemented yet`,
-      {
-        config_hash: command.data.config_hash,
-        compartment_count: command.data.compartments.length,
-      },
-    );
+    logger.info(`Applying runtime config for transaction ${transaction_id}`, {
+      config_hash: command.data.config_hash,
+      heartbeat_interval_seconds: command.data.heartbeat_interval_seconds,
+      compartment_count: command.data.compartments.length,
+    });
 
-    await this.sendErrorResponse(
-      transaction_id,
-      action,
-      MQTTErrorCode.INVALID_COMMAND,
-      "Action apply_config is not implemented yet.",
-    );
-    mqttDedupService.markCommandCompleted(transaction_id, action);
+    try {
+      const result = await this.runtimeConfigApplierFactory().applyConfig(command);
+
+      await this.sendSuccessResponse(
+        transaction_id,
+        action,
+        result.message,
+        { applied_config_hash: result.appliedConfigHash },
+      );
+      mqttDedupService.markCommandCompleted(transaction_id, action);
+    } catch (error) {
+      const errorCode =
+        error instanceof Error &&
+        "errorCode" in error &&
+        typeof error.errorCode === "string"
+          ? (error.errorCode as MQTTErrorCode)
+          : MQTTErrorCode.UNKNOWN_ERROR;
+
+      await this.sendErrorResponse(
+        transaction_id,
+        action,
+        errorCode,
+        error instanceof Error ? error.message : "Failed to apply config",
+      );
+      mqttDedupService.markCommandCompleted(transaction_id, action);
+    }
   }
 
   /**
@@ -263,6 +288,7 @@ export class MQTTMessageHandler {
     transaction_id: string,
     action: string,
     message: string,
+    extraFields: Partial<Pick<SuccessResponse, "applied_config_hash">> = {},
   ): Promise<SuccessResponse> {
     if (!this.lockerUuid) {
       throw new Error("Cannot send response: locker UUID not set");
@@ -275,6 +301,7 @@ export class MQTTMessageHandler {
       transaction_id,
       timestamp: new Date().toISOString(),
       message,
+      ...extraFields,
     });
 
     await this.publishResponse(response);
@@ -321,6 +348,7 @@ export class MQTTMessageHandler {
     message_id: string;
     message?: string;
     error_code?: string;
+    applied_config_hash?: string;
   }): Promise<void> {
     if (!this.lockerUuid) {
       throw new Error("Cannot send response: locker UUID not set");

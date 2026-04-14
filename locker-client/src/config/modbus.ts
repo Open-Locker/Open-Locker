@@ -1,39 +1,27 @@
 import { logger } from "../helper/logger";
-import { configLoader, ModbusClientConfig as ConfigModbusClient } from "./configLoader";
+import { configLoader } from "./configLoader";
 
-export interface ModbusClientConfig {
-  id: string;
+export interface ModbusConnectionConfig {
   port: string;
   baudRate: number;
   dataBits: 7 | 8;
   stopBits: 1 | 2;
   parity: "none" | "even" | "odd";
-  slaveId: number;
   timeout: number;
 }
 
-// Parse Modbus clients from configuration
-function parseModbusClients(): ModbusClientConfig[] {
-  const config = configLoader.loadConfig();
-  const modbusPort = config.modbus.port;
-  
-  return config.modbus.clients.map((client: ConfigModbusClient) => ({
-    id: client.id,
-    port: modbusPort, // Use the main MODBUS_PORT from config
-    baudRate: client.baudRate || 9600,
-    dataBits: (client.dataBits || 8) as 7 | 8,
-    stopBits: (client.stopBits || 1) as 1 | 2,
-    parity: (client.parity || "none") as "none" | "even" | "odd",
-    slaveId: client.slaveId,
-    timeout: client.timeout || 1000,
-  }));
-}
-
-function getModbusConfig() {
+export function getModbusConfig() {
   const config = configLoader.loadConfig();
   
   return {
-    clients: parseModbusClients(),
+    connection: {
+      port: config.modbus.port,
+      baudRate: config.modbus.baudRate || 9600,
+      dataBits: (config.modbus.dataBits || 8) as 7 | 8,
+      stopBits: (config.modbus.stopBits || 1) as 1 | 2,
+      parity: (config.modbus.parity || "none") as "none" | "even" | "odd",
+      timeout: config.modbus.timeout || 1000,
+    },
     
     // Locker-specific addresses
     addresses: {
@@ -44,10 +32,11 @@ function getModbusConfig() {
   };
 }
 
-export const modbusConfig = getModbusConfig();
+export function logCurrentModbusConfig(): void {
+  const modbusConfig = getModbusConfig();
 
-logger.debug("Modbus configuration loaded:", {
-  clientCount: modbusConfig.clients.length,
-  clients: modbusConfig.clients,
-  addresses: modbusConfig.addresses,
-});
+  logger.debug("Modbus configuration loaded:", {
+    connection: modbusConfig.connection,
+    addresses: modbusConfig.addresses,
+  });
+}

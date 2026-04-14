@@ -8,10 +8,11 @@ export class CommandHandler {
   private monitoringIntervals: Map<number, NodeJS.Timeout> = new Map();
   private readonly MONITORING_INTERVAL = 500; // 500ms polling interval
   private readonly DEFAULT_FLASH_DURATION_MS = 200;
+  private readonly LEGACY_DEFAULT_SLAVE_ID = 1;
 
   async handleOpenCompartment(
     compartmentID: number,
-    clientId?: string,
+    slaveId?: number,
   ): Promise<void> {
     // Check Modbus connection before attempting operation
     if (!modbusService.isModbusConnected()) {
@@ -26,26 +27,15 @@ export class CommandHandler {
       }
     }
 
-    // Use provided clientId or default to the first available client
-    let modbusClientId = clientId;
-    if (!modbusClientId) {
-      const availableClients = modbusService.getClientIds();
-      if (availableClients.length === 0) {
-        throw new Error("No Modbus clients available");
-      }
-      modbusClientId = availableClients[0];
-      logger.debug(
-        `No client ID specified, using first available: ${modbusClientId}`,
-      );
-    }
+    const fallbackSlaveId = slaveId ?? modbusService.getConfiguredSlaveIds()[0];
 
     logger.info(
-      `Opening compartment ${compartmentID} on client ${modbusClientId}`,
+      `Opening compartment ${compartmentID} on slave ${fallbackSlaveId}`,
     );
 
     try {
-      await this.openCompartment(compartmentID, modbusClientId);
-      await this.startCoilMonitoring(compartmentID, modbusClientId);
+      await this.openCompartment(compartmentID, fallbackSlaveId);
+      await this.startCoilMonitoring(compartmentID, fallbackSlaveId);
     } catch (error) {
       logger.error("Failed to execute command:", error);
 
@@ -66,9 +56,9 @@ export class CommandHandler {
     }
   }
 
-  private async openCompartment(compartmentID: number, clientId: string) {
-    const { relayAddress, targetClientId, targetSlaveId } =
-      this.resolveCompartmentTarget(compartmentID, clientId);
+  private async openCompartment(compartmentID: number, slaveId: number) {
+    const { relayAddress, targetSlaveId } =
+      this.resolveCompartmentTarget(compartmentID, slaveId);
     const flashDurationMs = this.getFlashDurationMs();
 
     logger.info(
@@ -78,17 +68,17 @@ export class CommandHandler {
     await modbusService.flashRelayOn(
       relayAddress,
       flashDurationMs,
-      targetClientId,
+      targetSlaveId,
     );
   }
 
   private async startCoilMonitoring(
     compartmentID: number,
-    clientId: string,
+    slaveId: number,
   ): Promise<void> {
-    const { relayAddress, targetClientId } = this.resolveCompartmentTarget(
+    const { relayAddress, targetSlaveId } = this.resolveCompartmentTarget(
       compartmentID,
-      clientId,
+      slaveId,
     );
 
     const monitorKey = compartmentID; // Use 1-based for monitoring map
@@ -97,7 +87,7 @@ export class CommandHandler {
     this.stopCoilMonitoring(monitorKey);
 
     logger.info(
-      `Starting relay monitoring for compartment ${compartmentID} (relay ${relayAddress} on client ${targetClientId})`,
+      `Starting relay monitoring for compartment ${compartmentID} (relay ${relayAddress} on slave ${targetSlaveId})`,
     );
 
     const monitorCoil = async () => {
@@ -115,7 +105,7 @@ export class CommandHandler {
         const relayStatus = await modbusService.readCoils(
           relayAddress,
           1,
-          targetClientId,
+          targetSlaveId,
         );
         const isRelayOn = relayStatus[0];
 
@@ -226,10 +216,9 @@ export class CommandHandler {
 
   private resolveCompartmentTarget(
     compartmentID: number,
-    fallbackClientId: string,
+    fallbackSlaveId: number,
   ): {
     relayAddress: number;
-    targetClientId: string;
     targetSlaveId: number;
   } {
     const compartmentConfig = configLoader.getCompartmentConfig(compartmentID);
@@ -246,38 +235,14 @@ export class CommandHandler {
         );
       }
 
-      const config = configLoader.getConfig();
-      const fallbackClient = config?.modbus.clients.find((client) =>
-        client.id === fallbackClientId
-      );
-
-      if (!fallbackClient) {
-        throw new Error(
-          `No Modbus client configured for client ID ${fallbackClientId}`,
-        );
-      }
-
       return {
         relayAddress,
-        targetClientId: fallbackClientId,
-        targetSlaveId: fallbackClient.slaveId,
+        targetSlaveId: fallbackSlaveId || this.LEGACY_DEFAULT_SLAVE_ID,
       };
-    }
-
-    const config = configLoader.getConfig();
-    const targetClient = config?.modbus.clients.find((client) =>
-      client.slaveId === compartmentConfig.slaveId
-    );
-
-    if (!targetClient) {
-      throw new Error(
-        `No Modbus client configured for slave ID ${compartmentConfig.slaveId}`,
-      );
     }
 
     return {
       relayAddress: compartmentConfig.address,
-      targetClientId: targetClient.id,
       targetSlaveId: compartmentConfig.slaveId,
     };
   }

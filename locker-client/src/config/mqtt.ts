@@ -52,25 +52,38 @@ function getCredentials(): { username?: string; password?: string } {
   return {};
 }
 
-function getMqttConfig() {
+function getRequiredEnv(name: string): string {
+  const value = process.env[name]?.trim();
+
+  if (!value) {
+    throw new Error(`${name} is required in the environment`);
+  }
+
+  return value;
+}
+
+export function getMqttConfig() {
   const config = configLoader.loadConfig();
   const credentials = getCredentials();
+  const heartbeatIntervalSeconds = config.mqtt?.heartbeatInterval ?? 15;
 
   return {
-    brokerUrl: config.mqtt.brokerUrl,
-    defaultUsername: config.mqtt.defaultUsername,
-    defaultPassword: config.mqtt.defaultPassword,
+    brokerUrl: getRequiredEnv("MQTT_BROKER_URL"),
+    defaultUsername: getRequiredEnv("MQTT_DEFAULT_USERNAME"),
+    defaultPassword: getRequiredEnv("MQTT_DEFAULT_PASSWORD"),
     ...credentials,
     clientId: getOrGenerateClientId(),
-    heartbeatInterval: (config.mqtt.heartbeatInterval || 15) * 1000, // Convert to milliseconds
+    heartbeatInterval: heartbeatIntervalSeconds * 1000,
   };
 }
 
-export const mqttConfig = getMqttConfig();
+export function logCurrentMqttConfig(): void {
+  const mqttConfig = getMqttConfig();
 
-logger.debug("MQTT configuration loaded:", {
-  brokerUrl: mqttConfig.brokerUrl,
-  username: mqttConfig.username || "(not set)",
-  clientId: mqttConfig.clientId,
-  heartbeatInterval: mqttConfig.heartbeatInterval,
-});
+  logger.debug("MQTT configuration loaded:", {
+    brokerUrl: mqttConfig.brokerUrl,
+    username: mqttConfig.username || "(not set)",
+    clientId: mqttConfig.clientId,
+    heartbeatInterval: mqttConfig.heartbeatInterval,
+  });
+}

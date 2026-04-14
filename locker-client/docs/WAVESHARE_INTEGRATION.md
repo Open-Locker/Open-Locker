@@ -109,30 +109,36 @@ Command execution is deduplicated by:
 
 ## Configuration
 
+Example `.env`:
+
+```env
+MQTT_BROKER_URL=mqtt://open-locker.cloud
+MQTT_DEFAULT_USERNAME=provisioning_client
+MQTT_DEFAULT_PASSWORD=a_public_password
+LOG_LEVEL=info
+```
+
 Example `locker-config.yml`:
 
 ```yaml
-mqtt:
-  brokerUrl: mqtt://open-locker.cloud
-  defaultUsername: provisioning_client
-  defaultPassword: a_public_password
-  heartbeatInterval: 15
-
 modbus:
   port: /dev/ttyACM0
+  baudRate: 9600
+  dataBits: 8
+  stopBits: 1
+  parity: none
+  timeout: 1000
   flashDurationMs: 200
-  clients:
-    - id: locker1
-      slaveId: 1
-    - id: locker2
-      slaveId: 2
 ```
 
 Notes:
 
 - `flashDurationMs` is converted to Waveshare units of `100ms`
 - if the configured duration is not aligned to `100ms`, the client rounds up
-- all configured clients share `modbus.port`
+- all configured boards on the bus share `modbus.port`
+- MQTT bootstrap values now come from `.env`
+- heartbeat interval and compartment mapping are now applied via backend
+  `apply_config` and stored separately from the base YAML
 
 ## Command Flow
 

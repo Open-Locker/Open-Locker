@@ -1,102 +1,22 @@
 # Locker Client Configuration File
 # This file should be mounted as a Docker volume at /config/locker-config.yml
-
-# MQTT Broker Configuration
-mqtt:
-  # MQTT broker URL (required)
-  brokerUrl: mqtt://open-locker.cloud
-  
-  # Default credentials for provisioning (required)
-  defaultUsername: provisioning_client
-  defaultPassword: a_public_password
-  
-  # Heartbeat interval in seconds (optional, default: 15)
-  heartbeatInterval: 15
+# It contains local device/bootstrap settings only.
+# Server-managed runtime values such as heartbeat interval and compartment mapping
+# are stored separately in the runtime config overlay under /data.
 
 # Modbus RTU Configuration
 modbus:
   # Serial port for Modbus communication (required)
-  # All Modbus clients will use this port
+  # All boards on the shared RS485 bus use this port
   port: /dev/ttyACM0
+
+  # Optional serial defaults for the shared bus
+  baudRate: 9600
+  dataBits: 8
+  stopBits: 1
+  parity: none
+  timeout: 1000
 
   # Relay pulse duration in milliseconds for native Waveshare flash commands
   # The board applies flash timing in 100ms steps, so values are rounded up
   flashDurationMs: 200
-  
-  # List of Modbus clients (required)
-  # Note: Each client uses the same port but different slave IDs
-  clients:
-    - id: locker1
-      slaveId: 1
-    - id: locker2
-      slaveId: 2
-    - id: locker3
-      slaveId: 3
-
-# Compartments Configuration
-compartments:
-  # Define compartments and map them to Modbus clients
-  # Each compartment specifies which slave it's connected to and its 0-based address
-  - id: 1
-    slaveId: 1        # Connected to locker1 (slave 1)
-    address: 0        # 0-based address on this slave
-  
-  - id: 2
-    slaveId: 1
-    address: 1
-  
-  - id: 3
-    slaveId: 1
-    address: 2
-  
-  - id: 4
-    slaveId: 1
-    address: 3
-  
-  - id: 5
-    slaveId: 1
-    address: 4
-  
-  - id: 6
-    slaveId: 2        # Connected to locker2 (slave 2)
-    address: 0        # 0-based address on this slave
-  
-  - id: 7
-    slaveId: 2
-    address: 1
-  
-  - id: 8
-    slaveId: 2
-    address: 2
-  
-  - id: 9
-    slaveId: 2
-    address: 3
-  
-  - id: 10
-    slaveId: 2
-    address: 4
-
-  - id: 11
-    slaveId: 3        # Connected to locker3 (slave 3)
-    address: 0        # 0-based address on this slave
-  
-  - id: 12
-    slaveId: 3
-    address: 1
-  
-  - id: 13
-    slaveId: 3
-    address: 2
-  
-  - id: 14
-    slaveId: 3
-    address: 3
-  
-  - id: 15
-    slaveId: 3
-    address: 4
-
-# Logging Configuration (optional)
-logging:
-  level: info  # Options: debug, info, warn, error

@@ -57,6 +57,7 @@ export interface MQTTCommandResponse extends MQTTMessageEnvelope {
   timestamp: string; // ISO 8601
   message?: string;
   error_code?: string;
+  applied_config_hash?: string;
 }
 
 /**
@@ -86,6 +87,7 @@ export enum MQTTErrorCode {
   HARDWARE_ERROR = "HARDWARE_ERROR",
   MODBUS_ERROR = "MODBUS_ERROR",
   INVALID_COMMAND = "INVALID_COMMAND",
+  INVALID_CONFIG = "INVALID_CONFIG",
   TIMEOUT = "TIMEOUT",
   UNKNOWN_ERROR = "UNKNOWN_ERROR",
 }

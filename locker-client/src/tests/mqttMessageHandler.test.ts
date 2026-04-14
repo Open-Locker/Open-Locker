@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { MQTTMessageHandler } from "../mqtt/mqttMessageHandler";
+import { ApplyConfigCommand } from "../types/mqtt";
 import { mqttService } from "../services/mqttService";
 import { mqttDedupService } from "../services/mqttDedupService";
 
@@ -49,8 +50,17 @@ function createDedupMock() {
 
 function createHandlerHarness() {
   let openCompartmentImpl: (compartmentID: number) => Promise<void> = async () => {};
+  let applyConfigImpl: (command: ApplyConfigCommand) => Promise<{
+    appliedConfigHash: string;
+    message: string;
+  }> = async () => ({
+    appliedConfigHash: "a".repeat(64),
+    message: "Config applied.",
+  });
   const handler = new MQTTMessageHandler(() => ({
     handleOpenCompartment: openCompartmentImpl,
+  }), () => ({
+    applyConfig: applyConfigImpl,
   }));
   const publishedMessages: PublishedMessage[] = [];
   const dedupMock = createDedupMock();
@@ -90,6 +100,14 @@ function createHandlerHarness() {
     publishedMessages,
     setOpenCompartmentMock(implementation: (compartmentID: number) => Promise<void>) {
       openCompartmentImpl = implementation;
+    },
+    setApplyConfigMock(
+      implementation: (command: ApplyConfigCommand) => Promise<{
+        appliedConfigHash: string;
+        message: string;
+      }>,
+    ) {
+      applyConfigImpl = implementation;
     },
     async handleCommand(command: Record<string, unknown>) {
       await (handler as any).handleCommand(JSON.stringify(command));
@@ -277,12 +295,17 @@ test("missing or empty transaction_id is rejected without side effects", async (
   }
 });
 
-test("apply_config uses the transaction-aware path and returns a deterministic error response", async () => {
+test("apply_config publishes success with top-level applied_config_hash", async () => {
   const harness = createHandlerHarness();
-  let openCount = 0;
+  let receivedCommand: ApplyConfigCommand | null = null;
 
-  harness.setOpenCompartmentMock(async () => {
-    openCount++;
+  harness.setApplyConfigMock(async (command) => {
+    receivedCommand = command;
+
+    return {
+      appliedConfigHash: "b".repeat(64),
+      message: "Config applied.",
+    };
   });
 
   try {
@@ -298,13 +321,48 @@ test("apply_config uses the transaction-aware path and returns a deterministic e
       },
     });
 
-    assert.equal(openCount, 0);
+    assert.ok(receivedCommand);
+    assert.equal(harness.publishedMessages.length, 1);
+    assert.equal(harness.publishedMessages[0]?.message.action, "apply_config");
+    assert.equal(harness.publishedMessages[0]?.message.result, "success");
+    assert.equal(
+      harness.publishedMessages[0]?.message.applied_config_hash,
+      "b".repeat(64),
+    );
+  } finally {
+    harness.restore();
+  }
+});
+
+test("apply_config publishes structured error responses when runtime apply fails", async () => {
+  const harness = createHandlerHarness();
+
+  harness.setApplyConfigMock(async () => {
+    const error = new Error("config_hash does not match");
+    (error as Error & { errorCode: string }).errorCode = "INVALID_CONFIG";
+    throw error;
+  });
+
+  try {
+    await harness.handleCommand({
+      action: "apply_config",
+      transaction_id: "txn-7",
+      message_id: "msg-7",
+      timestamp: "2026-04-11T10:00:00Z",
+      data: {
+        config_hash: "a".repeat(64),
+        heartbeat_interval_seconds: 15,
+        compartments: [{ id: 1, slaveId: 1, address: 0 }],
+      },
+    });
+
     assert.equal(harness.publishedMessages.length, 1);
     assert.equal(harness.publishedMessages[0]?.message.action, "apply_config");
     assert.equal(harness.publishedMessages[0]?.message.result, "error");
+    assert.equal(harness.publishedMessages[0]?.message.error_code, "INVALID_CONFIG");
     assert.equal(
       harness.publishedMessages[0]?.message.message,
-      "Action apply_config is not implemented yet.",
+      "config_hash does not match",
     );
   } finally {
     harness.restore();

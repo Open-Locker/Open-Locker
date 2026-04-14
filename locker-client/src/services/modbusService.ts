@@ -1,5 +1,6 @@
 import ModbusRTU from "modbus-serial";
-import { ModbusClientConfig, modbusConfig } from "../config/modbus";
+import { getModbusConfig } from "../config/modbus";
+import { configLoader } from "../config/configLoader";
 import { logger } from "../helper/logger";
 import { SerialOperationQueue } from "../helper/serialOperationQueue";
 
@@ -9,8 +10,6 @@ interface WaveshareCommandClient extends ModbusRTU {
 
 class ModbusService {
   private client: ModbusRTU | null = null;
-  private clientConfigs: Map<string, ModbusClientConfig> = new Map();
-  private slaveIdMap: Map<string, number> = new Map();
   private isConnecting: boolean = false;
   private operationQueue: SerialOperationQueue = new SerialOperationQueue(
     (operationName, error) => {
@@ -25,14 +24,7 @@ class ModbusService {
   private readonly ALL_RELAYS_ADDRESS = 0x00ff;
   private readonly FLASH_DURATION_STEP_MS = 100;
   private readonly FLASH_DURATION_MAX_STEPS = 0x7fff;
-
-  constructor() {
-    // Store client configurations and build slave ID mapping
-    modbusConfig.clients.forEach((config) => {
-      this.clientConfigs.set(config.id, config);
-      this.slaveIdMap.set(config.id, config.slaveId);
-    });
-  }
+  private readonly LEGACY_DEFAULT_SLAVE_ID = 1;
 
   async connect(): Promise<void> {
     return this.enqueueOperation("connect", () => this.connectInternal());
@@ -59,31 +51,24 @@ class ModbusService {
       // Create a new Modbus connection
       this.client = new ModbusRTU();
 
-      // Use configuration from the first client for connection settings
-      const firstConfig = Array.from(this.clientConfigs.values())[0];
-      if (!firstConfig) {
-        throw new Error("No Modbus client configurations found");
-      }
+      const modbusConfig = getModbusConfig();
+      const connectionConfig = modbusConfig.connection;
 
-      await this.client.connectRTUBuffered(firstConfig.port, {
-        baudRate: firstConfig.baudRate,
-        dataBits: firstConfig.dataBits,
-        stopBits: firstConfig.stopBits,
-        parity: firstConfig.parity,
+      await this.client.connectRTUBuffered(connectionConfig.port, {
+        baudRate: connectionConfig.baudRate,
+        dataBits: connectionConfig.dataBits,
+        stopBits: connectionConfig.stopBits,
+        parity: connectionConfig.parity,
       });
 
-      this.client.setTimeout(firstConfig.timeout);
+      this.client.setTimeout(connectionConfig.timeout);
 
       // Reset reconnect attempts on successful connection
       this.reconnectAttempts = 0;
 
-      logger.info(`Modbus RTU connected to ${firstConfig.port}`);
+      logger.info(`Modbus RTU connected to ${connectionConfig.port}`);
       logger.info(
-        `Configured slave IDs: ${
-          Array.from(this.slaveIdMap.entries()).map(([id, slaveId]) =>
-            `${id}=${slaveId}`
-          ).join(", ")
-        }`,
+        `Configured slave IDs: ${this.getConfiguredSlaveIds().join(", ")}`,
       );
     } catch (error) {
       logger.error(`Failed to connect Modbus RTU:`, error);
@@ -151,35 +136,50 @@ class ModbusService {
     this.reconnectAttempts = 0;
   }
 
-  getClient(clientId: string = "default"): ModbusRTU {
+  async reloadRuntimeConfig(): Promise<void> {
+    const wasConnected = this.isModbusConnected();
+
+    logger.info(
+      `Reloaded Modbus runtime config for slave IDs: ${this.getConfiguredSlaveIds().join(", ")}`,
+    );
+
+    if (wasConnected) {
+      await this.connect();
+    }
+  }
+
+  getClient(slaveId: number = this.LEGACY_DEFAULT_SLAVE_ID): ModbusRTU {
     if (!this.client) {
       throw new Error("Modbus client not connected");
     }
-
-    // Set the slave ID for this client
-    const slaveId = this.getSlaveId(clientId);
 
     this.client.setID(slaveId);
     return this.client;
   }
 
-  getClientIds(): string[] {
-    return Array.from(this.slaveIdMap.keys());
+  getConfiguredSlaveIds(): number[] {
+    const configuredCompartments = configLoader.getConfig()?.compartments;
+    if (!configuredCompartments || configuredCompartments.length === 0) {
+      return [this.LEGACY_DEFAULT_SLAVE_ID];
+    }
+
+    return [...new Set(configuredCompartments.map((compartment) => compartment.slaveId))]
+      .sort((left, right) => left - right);
   }
 
   async writeCoil(
     address: number,
     value: boolean,
-    clientId: string = "default",
+    slaveId: number = this.LEGACY_DEFAULT_SLAVE_ID,
   ): Promise<void> {
-    return this.enqueueOperation(`writeCoil:${clientId}:${address}`, async () => {
-      const client = this.getClient(clientId);
+    return this.enqueueOperation(`writeCoil:${slaveId}:${address}`, async () => {
+      const client = this.getClient(slaveId);
 
       try {
         await client.writeCoil(address, value);
-        logger.debug(`[${clientId}] Wrote coil ${address}: ${value}`);
+        logger.debug(`[slave:${slaveId}] Wrote coil ${address}: ${value}`);
       } catch (error) {
-        logger.error(`[${clientId}] Failed to write coil ${address}:`, error);
+        logger.error(`[slave:${slaveId}] Failed to write coil ${address}:`, error);
         throw error;
       }
     });
@@ -188,52 +188,54 @@ class ModbusService {
   async flashRelayOn(
     address: number,
     durationMs: number,
-    clientId: string = "default",
+    slaveId: number = this.LEGACY_DEFAULT_SLAVE_ID,
   ): Promise<void> {
     const flashAddress = this.FLASH_ON_BASE_ADDRESS + address;
     const flashDurationValue = this.toFlashDurationValue(durationMs);
 
-    await this.writeRawFC5(flashAddress, flashDurationValue, clientId);
+    await this.writeRawFC5(flashAddress, flashDurationValue, slaveId);
     logger.debug(
-      `[${clientId}] Triggered relay ${address} flash ON for ${flashDurationValue * this.FLASH_DURATION_STEP_MS}ms`,
+      `[slave:${slaveId}] Triggered relay ${address} flash ON for ${flashDurationValue * this.FLASH_DURATION_STEP_MS}ms`,
     );
   }
 
   async flashRelayOff(
     address: number,
     durationMs: number,
-    clientId: string = "default",
+    slaveId: number = this.LEGACY_DEFAULT_SLAVE_ID,
   ): Promise<void> {
     const flashAddress = this.FLASH_OFF_BASE_ADDRESS + address;
     const flashDurationValue = this.toFlashDurationValue(durationMs);
 
-    await this.writeRawFC5(flashAddress, flashDurationValue, clientId);
+    await this.writeRawFC5(flashAddress, flashDurationValue, slaveId);
     logger.debug(
-      `[${clientId}] Triggered relay ${address} flash OFF for ${flashDurationValue * this.FLASH_DURATION_STEP_MS}ms`,
+      `[slave:${slaveId}] Triggered relay ${address} flash OFF for ${flashDurationValue * this.FLASH_DURATION_STEP_MS}ms`,
     );
   }
 
-  async turnAllRelaysOff(clientId: string = "default"): Promise<void> {
-    await this.writeRawFC5(this.ALL_RELAYS_ADDRESS, 0x0000, clientId);
-    logger.info(`[${clientId}] Turned all relays OFF`);
+  async turnAllRelaysOff(
+    slaveId: number = this.LEGACY_DEFAULT_SLAVE_ID,
+  ): Promise<void> {
+    await this.writeRawFC5(this.ALL_RELAYS_ADDRESS, 0x0000, slaveId);
+    logger.info(`[slave:${slaveId}] Turned all relays OFF`);
   }
 
   async writeRegister(
     address: number,
     value: number,
-    clientId: string = "default",
+    slaveId: number = this.LEGACY_DEFAULT_SLAVE_ID,
   ): Promise<void> {
     return this.enqueueOperation(
-      `writeRegister:${clientId}:${address}`,
+      `writeRegister:${slaveId}:${address}`,
       async () => {
-        const client = this.getClient(clientId);
+        const client = this.getClient(slaveId);
 
         try {
           await client.writeRegister(address, value);
-          logger.debug(`[${clientId}] Wrote register ${address}: ${value}`);
+          logger.debug(`[slave:${slaveId}] Wrote register ${address}: ${value}`);
         } catch (error) {
           logger.error(
-            `[${clientId}] Failed to write register ${address}:`,
+            `[slave:${slaveId}] Failed to write register ${address}:`,
             error,
           );
           throw error;
@@ -245,17 +247,17 @@ class ModbusService {
   async readCoils(
     address: number,
     length: number,
-    clientId: string = "default",
+    slaveId: number = this.LEGACY_DEFAULT_SLAVE_ID,
   ): Promise<boolean[]> {
-    return this.enqueueOperation(`readCoils:${clientId}:${address}`, async () => {
-      const client = this.getClient(clientId);
+    return this.enqueueOperation(`readCoils:${slaveId}:${address}`, async () => {
+      const client = this.getClient(slaveId);
 
       try {
         const result = await client.readCoils(address, length);
         return result.data;
       } catch (error) {
         logger.error(
-          `[${clientId}] Failed to read coils from ${address}:`,
+          `[slave:${slaveId}] Failed to read coils from ${address}:`,
           error,
         );
         throw error;
@@ -266,19 +268,19 @@ class ModbusService {
   async readDiscreteInputs(
     address: number,
     length: number,
-    clientId: string = "default",
+    slaveId: number = this.LEGACY_DEFAULT_SLAVE_ID,
   ): Promise<boolean[]> {
     return this.enqueueOperation(
-      `readDiscreteInputs:${clientId}:${address}`,
+      `readDiscreteInputs:${slaveId}:${address}`,
       async () => {
-        const client = this.getClient(clientId);
+        const client = this.getClient(slaveId);
 
         try {
           const result = await client.readDiscreteInputs(address, length);
           return result.data;
         } catch (error) {
           logger.error(
-            `[${clientId}] Failed to read discrete inputs from ${address}:`,
+            `[slave:${slaveId}] Failed to read discrete inputs from ${address}:`,
             error,
           );
           throw error;
@@ -290,19 +292,19 @@ class ModbusService {
   async readHoldingRegisters(
     address: number,
     length: number,
-    clientId: string = "default",
+    slaveId: number = this.LEGACY_DEFAULT_SLAVE_ID,
   ): Promise<number[]> {
     return this.enqueueOperation(
-      `readHoldingRegisters:${clientId}:${address}`,
+      `readHoldingRegisters:${slaveId}:${address}`,
       async () => {
-        const client = this.getClient(clientId);
+        const client = this.getClient(slaveId);
 
         try {
           const result = await client.readHoldingRegisters(address, length);
           return result.data;
         } catch (error) {
           logger.error(
-            `[${clientId}] Failed to read holding registers from ${address}:`,
+            `[slave:${slaveId}] Failed to read holding registers from ${address}:`,
             error,
           );
           throw error;
@@ -311,7 +313,7 @@ class ModbusService {
     );
   }
 
-  isModbusConnected(clientId?: string): boolean {
+  isModbusConnected(_slaveId?: number): boolean {
     if (!this.client) {
       return false;
     }
@@ -321,9 +323,6 @@ class ModbusService {
       return false;
     }
 
-    if (clientId) {
-      return this.slaveIdMap.has(clientId);
-    }
     return true;
   }
 
@@ -343,22 +342,13 @@ class ModbusService {
     }
   }
 
-  private getSlaveId(clientId: string): number {
-    const slaveId = this.slaveIdMap.get(clientId);
-    if (slaveId === undefined) {
-      throw new Error(`Client '${clientId}' not found in configuration`);
-    }
-
-    return slaveId;
-  }
-
   private async writeRawFC5(
     dataAddress: number,
     value: number,
-    clientId: string,
+    slaveId: number,
   ): Promise<void> {
-    return this.enqueueOperation(`rawFC5:${clientId}:${dataAddress}`, async () => {
-      const client = this.getClient(clientId) as WaveshareCommandClient;
+    return this.enqueueOperation(`rawFC5:${slaveId}:${dataAddress}`, async () => {
+      const client = this.getClient(slaveId) as WaveshareCommandClient;
       if (typeof client.customFunction !== "function") {
         throw new Error(
           "modbus-serial customFunction API is unavailable. Install modbus-serial >= 8.0.23-no-serial-port.",
@@ -376,7 +366,7 @@ class ModbusService {
         await client.customFunction(0x05, payload);
       } catch (error) {
         logger.error(
-          `[${clientId}] Failed raw FC05 write to ${dataAddress}:`,
+          `[slave:${slaveId}] Failed raw FC05 write to ${dataAddress}:`,
           error,
         );
         throw error;

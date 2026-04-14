@@ -142,42 +142,51 @@ This keeps the default setup simple while still allowing controlled rollouts.
 
 ## Configuration
 
-Configuration is now managed via YAML files and Docker volumes instead of environment variables.
+Configuration is now split between environment variables and YAML files.
 
 ### Volume Structure
 
 - **`/config`** - Configuration files (mount read-only)
-  - `locker-config.yml` - Main configuration (required)
+  - `locker-config.yml` - Modbus/base hardware settings (required)
 
 - **`/data`** - Persistent runtime data (mount read-write)
   - `.mqtt-client-id` - Generated client identifier
   - `.mqtt-credentials.json` - Provisioned credentials
   - `.provisioning-state` - Provisioning status
 
-### Configuration File
+### Environment
+
+Create a `.env` file (see [.env.example](.env.example)):
+
+```env
+MQTT_BROKER_URL=mqtt://open-locker.cloud
+MQTT_DEFAULT_USERNAME=provisioning_client
+MQTT_DEFAULT_PASSWORD=a_public_password
+LOG_LEVEL=info
+```
+
+### Hardware Configuration File
 
 Create a `locker-config.yml` file (see [locker-config.yml.example](locker-config.yml.example)):
 
 ```yaml
-mqtt:
-  brokerUrl: mqtt://open-locker.cloud
-  defaultUsername: provisioning_client
-  defaultPassword: a_public_password
-  heartbeatInterval: 15
-
 modbus:
   port: /dev/ttyACM0
+  baudRate: 9600
+  dataBits: 8
+  stopBits: 1
+  parity: none
+  timeout: 1000
   flashDurationMs: 200
-  clients:
-    - id: locker1
-      slaveId: 1
-    - id: locker2
-      slaveId: 2
 ```
 
-**Note:** Modbus clients no longer have individual `port` properties. All clients use the port defined in `modbus.port`.
+**Note:** MQTT bootstrap values now come from `.env`. The YAML base config only
+contains shared bus settings. Compartment mapping and heartbeat interval are
+runtime values delivered by backend `apply_config`.
 `modbus.flashDurationMs` configures the hardware pulse duration for supported
 Waveshare boards with native flash support.
+Runtime values such as heartbeat interval and compartment mapping are applied by
+the backend via `apply_config` and stored separately from the base YAML config.
 
 ### Device Access
 

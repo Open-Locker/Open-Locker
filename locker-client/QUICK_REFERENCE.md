@@ -70,21 +70,30 @@ git push origin locker-client-v1.2.3
 
 ## Configuration Template
 
+**.env:**
+
+```env
+MQTT_BROKER_URL=mqtt://your-broker.com
+MQTT_DEFAULT_USERNAME=provisioning_client
+MQTT_DEFAULT_PASSWORD=your_password
+LOG_LEVEL=info
+```
+
 **config/locker-config.yml:**
 ```yaml
-mqtt:
-  brokerUrl: mqtt://your-broker.com
-  defaultUsername: provisioning_client
-  defaultPassword: your_password
-  heartbeatInterval: 15
-
 modbus:
   port: /dev/ttyACM0
+  baudRate: 9600
+  dataBits: 8
+  stopBits: 1
+  parity: none
+  timeout: 1000
   flashDurationMs: 200
-  clients:
-    - id: locker1
-      slaveId: 1
 ```
+
+`heartbeatInterval` and `compartments` are now server-managed runtime values and
+are not part of the base `locker-config.yml` anymore. MQTT bootstrap values are
+configured via `.env`.
 
 ## Docker Commands
 

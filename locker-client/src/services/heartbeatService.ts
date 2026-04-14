@@ -1,4 +1,4 @@
-import { mqttConfig } from "../config/mqtt";
+import { getMqttConfig } from "../config/mqtt";
 import { logger } from "../helper/logger";
 import { credentialsService } from "./credentialsService";
 import { mqttService } from "./mqttService";
@@ -24,6 +24,7 @@ class HeartbeatService {
       return;
     }
     this.lockerUuid = credentials.username;
+    const mqttConfig = getMqttConfig();
 
     logger.info(`Starting heartbeat service with interval: ${mqttConfig.heartbeatInterval / 1000}s`);
     
@@ -85,6 +86,15 @@ class HeartbeatService {
    */
   isRunning(): boolean {
     return this.intervalId !== null;
+  }
+
+  restart(): void {
+    if (!this.isRunning()) {
+      return;
+    }
+
+    this.stop();
+    this.start();
   }
 }
 

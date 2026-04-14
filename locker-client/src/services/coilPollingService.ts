@@ -5,9 +5,7 @@ import { mqttService } from "./mqttService";
 import { credentialsService } from "./credentialsService";
 
 interface PollingTarget {
-  clientId: string;
   slaveId: number;
-  clientIndex: number;
 }
 
 interface PolledClientSnapshot extends PollingTarget {
@@ -46,7 +44,7 @@ class CoilPollingService {
     }
 
     logger.info(
-      `Starting relay/input polling service with interval: ${this.pollingInterval / 1000}s for clients: ${pollingTargets.map((target) => target.clientId).join(", ")}`,
+      `Starting relay/input polling service with interval: ${this.pollingInterval / 1000}s for slave IDs: ${pollingTargets.map((target) => target.slaveId).join(", ")}`,
     );
 
     // Start polling at regular intervals
@@ -103,18 +101,18 @@ class CoilPollingService {
           const relayStates = await modbusService.readCoils(
             0x0000,
             this.NUM_CHANNELS,
-            target.clientId,
+            target.slaveId,
           );
 
           const inputStates = await modbusService.readDiscreteInputs(
             0x0000,
             this.NUM_CHANNELS,
-            target.clientId,
+            target.slaveId,
           );
 
-          logger.debug(`[${target.clientId}] Relay states:`, relayStates);
+          logger.debug(`[slave:${target.slaveId}] Relay states:`, relayStates);
           logger.debug(
-            `[${target.clientId}] Input states (door sensors):`,
+            `[slave:${target.slaveId}] Input states (door sensors):`,
             inputStates,
           );
 
@@ -125,7 +123,7 @@ class CoilPollingService {
           });
         } catch (error) {
           logger.error(
-            `[${target.clientId}] Error polling relay/input status:`,
+            `[slave:${target.slaveId}] Error polling relay/input status:`,
             error,
           );
 
@@ -199,28 +197,19 @@ class CoilPollingService {
     }
   }
 
+  restart(): void {
+    if (!this.intervalId) {
+      return;
+    }
+
+    this.stop();
+    this.start();
+  }
+
   private getPollingTargets(): PollingTarget[] {
-    const config = configLoader.getConfig();
-    const configuredClients = config?.modbus.clients ?? [];
-
-    return modbusService.getClientIds().flatMap((clientId, clientIndex) => {
-      const configuredClient = configuredClients.find((client) =>
-        client.id === clientId
-      );
-
-      if (!configuredClient) {
-        logger.warn(
-          `Skipping polling for client ${clientId}: no matching Modbus client configuration found`,
-        );
-        return [];
-      }
-
-      return [{
-        clientId,
-        slaveId: configuredClient.slaveId,
-        clientIndex,
-      }];
-    });
+    return modbusService.getConfiguredSlaveIds().map((slaveId) => ({
+      slaveId,
+    }));
   }
 
   private buildCompartmentPayload(
@@ -240,7 +229,9 @@ class CoilPollingService {
         .flatMap((snapshot) =>
           snapshot.relayStates.map((relayState, address) =>
             this.toCompartmentStatus(
-              snapshot.clientIndex * this.NUM_CHANNELS + address + 1,
+              snapshot.slaveId === 1
+                ? address + 1
+                : (snapshot.slaveId - 1) * this.NUM_CHANNELS + address + 1,
               relayState,
               snapshot.inputStates[address] ?? false,
             ),
