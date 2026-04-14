@@ -85,7 +85,7 @@ overlay.
 ### Risks
 
 - missing environment variables can break startup more abruptly than missing YAML
-  fields that operators were already used to editing
+fields that operators were already used to editing
 
 Mitigations:
 
@@ -95,7 +95,7 @@ Mitigations:
 
 ## References
 
-- Supersedes: `docs/adr/0009-locker-client-runtime-config-overlay.md`
 - Related docs:
+  - `docs/adr/0009-locker-client-runtime-config-overlay.md`
   - `docs/adr/0010-direct-slaveid-modbus-addressing.md`
   - `docs/mqtt_integration_plan.md`

@@ -4,6 +4,8 @@ import { logger } from "../helper/logger";
 import { RUNTIME_CONFIG_OVERLAY_FILE } from "./paths";
 import type { CompartmentConfig, LockerConfig } from "./configLoader";
 
+const MAX_RELAY_ADDRESS = 7;
+
 export interface RuntimeConfigOverlay {
   mqtt?: {
     heartbeatInterval?: number;
@@ -55,7 +57,8 @@ function sanitizeCompartments(value: unknown): CompartmentConfig[] {
         typeof compartment !== "object" ||
         !isPositiveInteger(compartment.id) ||
         !isPositiveInteger(compartment.slaveId) ||
-        !isNonNegativeInteger(compartment.address)
+        !isNonNegativeInteger(compartment.address) ||
+        compartment.address > MAX_RELAY_ADDRESS
       ) {
         throw new Error("runtime overlay contains an invalid compartment entry");
       }
