@@ -13,10 +13,10 @@ spacer_height   = 34;       // Höhe des Spacers
 notch_length    = 25;       // Länge Aussparung
 notch_width     = 8;        // Breite Aussparung
 
-hole_diameter   = 3.5;      // Durchmesser Schraubenloch
-hole2_diameter  = 5.8;      // Durchmesser Gewinde Nietmutter
-hole2_height    = 7;        // Höhe Gewinde Nietmutter
-hole3_diameter  = 8.3;      // Durchmesser Kragen Nietmutter
+hole_diameter   = 4;      // Durchmesser Schraubenloch
+hole2_diameter  = 6.5;      // Durchmesser Gewinde Nietmutter
+hole2_height    = 6;        // Höhe Gewinde Nietmutter
+hole3_diameter  = 11;        // Durchmesser Kragen Nietmutter
 hole3_height    = 1.5;       // Höhe Kragen Nietmutter
 
 hole_offset_x1      = 6.5;
@@ -30,7 +30,7 @@ module spacer() {
  $fn=50;
 
 // use the following line to smoothen. caution! will take some time to render!
-topBottomFillet(b = 0, t = spacer_height, r = 1, s = 10, e=1)    
+// topBottomFillet(b = 0, t = spacer_height, r = 1, s = 10, e=1)    
 
     difference(){
         cube([lock_len, lock_width, spacer_height], center=false);

@@ -11,11 +11,11 @@ spacer_len      = 40;       // Länge Verschlussplatte
 spacer_width    = 21;       // Breite Verschlussplatte
 spacer_height   = 17;       // Höhe des Spacers
 
-hole_diameter   = 4.5;      // Durchmesser Schraubenloch
-hole2_diameter  = 6.8;      // Durchmesser Gewinde Nietmutter
-hole2_height    = 9;        // Höhe Gewinde Nietmutter
-hole3_diameter  = 10.3;       // Durchmesser Kragen Nietmutter
-hole3_height    = 1.5;       // Höhe Kragen Nietmutter
+hole_diameter   = 5  ;      // Durchmesser Schraubenloch
+hole2_diameter  = 7  ;      // Durchmesser Gewinde Nietmutter
+hole2_height    = 6.5;      // Höhe Gewinde Nietmutter
+hole3_diameter  = 11;     // Durchmesser Kragen Nietmutter
+hole3_height    = 1.5;      // Höhe Kragen Nietmutter
 
 hole_offset_x      = 25;   // Abstand Bohrungen
 
