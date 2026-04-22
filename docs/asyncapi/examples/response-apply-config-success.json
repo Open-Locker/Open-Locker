@@ -1,0 +1,9 @@
+{
+  "message_id": "msg-resp-config-001",
+  "transaction_id": "txn-config-001",
+  "action": "apply_config",
+  "result": "success",
+  "timestamp": "2026-04-14T19:31:02Z",
+  "applied_config_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "message": "Config applied."
+}

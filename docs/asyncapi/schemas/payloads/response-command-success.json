@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "./response-command-success.json",
+  "title": "Successful command response",
+  "allOf": [
+    {
+      "$ref": "../messages/response.json"
+    },
+    {
+      "type": "object",
+      "required": [
+        "result",
+        "message"
+      ],
+      "properties": {
+        "result": {
+          "const": "success"
+        },
+        "message": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    }
+  ]
+}

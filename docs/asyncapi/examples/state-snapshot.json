@@ -1,0 +1,23 @@
+{
+  "message_id": "msg-state-snapshot-001",
+  "state": "snapshot",
+  "timestamp": "2026-04-14T19:33:05Z",
+  "data": {
+    "compartments": [
+      {
+        "compartment_id": 1,
+        "relay_state": "OFF",
+        "lock_state": "LOCKED",
+        "door_sensor": "IDLE",
+        "door_state": "CLOSED"
+      },
+      {
+        "compartment_id": 2,
+        "relay_state": "ON",
+        "lock_state": "UNLOCKED",
+        "door_sensor": "TRIGGERED",
+        "door_state": "OPEN"
+      }
+    ]
+  }
+}

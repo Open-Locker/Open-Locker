@@ -1,0 +1,9 @@
+{
+  "message_id": "msg-cmd-open-001",
+  "transaction_id": "txn-open-001",
+  "action": "open_compartment",
+  "timestamp": "2026-04-14T19:30:00Z",
+  "data": {
+    "compartment_number": 3
+  }
+}

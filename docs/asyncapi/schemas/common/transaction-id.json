@@ -1,0 +1,8 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "./transaction-id.json",
+  "title": "MQTT transaction_id",
+  "type": "string",
+  "minLength": 1,
+  "description": "Business correlation identifier for transaction-bound MQTT flows."
+}

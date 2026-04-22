@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "./command-open-compartment.json",
+  "title": "Open compartment command",
+  "allOf": [
+    {
+      "$ref": "../messages/command.json"
+    },
+    {
+      "type": "object",
+      "required": [
+        "action",
+        "data"
+      ],
+      "properties": {
+        "action": {
+          "const": "open_compartment"
+        },
+        "data": {
+          "type": "object",
+          "required": [
+            "compartment_number"
+          ],
+          "properties": {
+            "compartment_number": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          "additionalProperties": true
+        }
+      }
+    }
+  ]
+}

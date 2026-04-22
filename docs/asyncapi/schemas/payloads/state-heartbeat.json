@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "./state-heartbeat.json",
+  "title": "Heartbeat state",
+  "allOf": [
+    {
+      "$ref": "../messages/state.json"
+    },
+    {
+      "type": "object",
+      "required": [
+        "state",
+        "data"
+      ],
+      "properties": {
+        "state": {
+          "const": "heartbeat"
+        },
+        "data": {
+          "type": "object",
+          "required": [
+            "uptime_seconds"
+          ],
+          "properties": {
+            "uptime_seconds": {
+              "type": "integer",
+              "minimum": 0
+            }
+          },
+          "additionalProperties": true
+        }
+      }
+    }
+  ]
+}

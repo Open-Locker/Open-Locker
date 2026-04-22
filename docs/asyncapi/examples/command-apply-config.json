@@ -1,0 +1,22 @@
+{
+  "message_id": "msg-cmd-config-001",
+  "transaction_id": "txn-config-001",
+  "action": "apply_config",
+  "timestamp": "2026-04-14T19:31:00Z",
+  "data": {
+    "config_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "heartbeat_interval_seconds": 15,
+    "compartments": [
+      {
+        "id": 1,
+        "slaveId": 1,
+        "address": 0
+      },
+      {
+        "id": 2,
+        "slaveId": 1,
+        "address": 1
+      }
+    ]
+  }
+}

@@ -1,0 +1,9 @@
+{
+  "message_id": "msg-resp-open-err-001",
+  "transaction_id": "txn-open-001",
+  "action": "open_compartment",
+  "result": "error",
+  "timestamp": "2026-04-14T19:30:01Z",
+  "error_code": "DOOR_JAMMED",
+  "message": "Could not open compartment, mechanism is jammed."
+}

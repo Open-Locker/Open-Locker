@@ -1,0 +1,235 @@
+asyncapi: 3.1.0
+info:
+  title: Open-Locker MQTT Contract
+  version: 0.1.0-alpha
+  description: >-
+    Canonical MQTT contract for Open-Locker backend, locker-client, and
+    provisioning clients.
+servers:
+  localBroker:
+    host: localhost:1883
+    protocol: mqtt
+    description: Example local MQTT broker used for development.
+channels:
+  lockerCommand:
+    address: locker/{locker_uuid}/command
+    parameters:
+      locker_uuid:
+        $ref: '#/components/parameters/locker_uuid'
+    messages:
+      openCompartmentCommand:
+        $ref: '#/components/messages/openCompartmentCommand'
+      applyConfigCommand:
+        $ref: '#/components/messages/applyConfigCommand'
+  lockerResponse:
+    address: locker/{locker_uuid}/response
+    parameters:
+      locker_uuid:
+        $ref: '#/components/parameters/locker_uuid'
+    messages:
+      commandSuccessResponse:
+        $ref: '#/components/messages/commandSuccessResponse'
+      commandErrorResponse:
+        $ref: '#/components/messages/commandErrorResponse'
+  lockerEvent:
+    address: locker/{locker_uuid}/event
+    parameters:
+      locker_uuid:
+        $ref: '#/components/parameters/locker_uuid'
+    messages:
+      doorStateChangedEvent:
+        $ref: '#/components/messages/doorStateChangedEvent'
+  lockerState:
+    address: locker/{locker_uuid}/state
+    parameters:
+      locker_uuid:
+        $ref: '#/components/parameters/locker_uuid'
+    messages:
+      heartbeatState:
+        $ref: '#/components/messages/heartbeatState'
+      snapshotState:
+        $ref: '#/components/messages/snapshotState'
+      connectionLostState:
+        $ref: '#/components/messages/connectionLostState'
+  provisioningRegister:
+    address: locker/register/{provisioning_token}
+    parameters:
+      provisioning_token:
+        $ref: '#/components/parameters/provisioning_token'
+    messages:
+      provisioningRequest:
+        $ref: '#/components/messages/provisioningRequest'
+  provisioningReply:
+    address: locker/provisioning/reply/{client_id}
+    parameters:
+      client_id:
+        $ref: '#/components/parameters/client_id'
+    messages:
+      provisioningSuccessReply:
+        $ref: '#/components/messages/provisioningSuccessReply'
+      provisioningErrorReply:
+        $ref: '#/components/messages/provisioningErrorReply'
+operations:
+  backendSendLockerCommand:
+    action: send
+    channel:
+      $ref: '#/channels/lockerCommand'
+    summary: Backend publishes transaction-bound commands to one locker.
+    messages:
+      - $ref: '#/channels/lockerCommand/messages/openCompartmentCommand'
+      - $ref: '#/channels/lockerCommand/messages/applyConfigCommand'
+  backendReceiveLockerResponse:
+    action: receive
+    channel:
+      $ref: '#/channels/lockerResponse'
+    summary: Backend receives transaction-bound command responses.
+    messages:
+      - $ref: '#/channels/lockerResponse/messages/commandSuccessResponse'
+      - $ref: '#/channels/lockerResponse/messages/commandErrorResponse'
+  backendReceiveLockerEvent:
+    action: receive
+    channel:
+      $ref: '#/channels/lockerEvent'
+    summary: Backend receives spontaneous locker events.
+    messages:
+      - $ref: '#/channels/lockerEvent/messages/doorStateChangedEvent'
+  backendReceiveLockerState:
+    action: receive
+    channel:
+      $ref: '#/channels/lockerState'
+    summary: Backend receives retained device state and heartbeats.
+    messages:
+      - $ref: '#/channels/lockerState/messages/heartbeatState'
+      - $ref: '#/channels/lockerState/messages/snapshotState'
+      - $ref: '#/channels/lockerState/messages/connectionLostState'
+  provisioningClientSendRegisterRequest:
+    action: send
+    channel:
+      $ref: '#/channels/provisioningRegister'
+    summary: Provisioning client requests locker enrollment.
+    messages:
+      - $ref: '#/channels/provisioningRegister/messages/provisioningRequest'
+  provisioningClientReceiveReply:
+    action: receive
+    channel:
+      $ref: '#/channels/provisioningReply'
+    summary: Provisioning client receives enrollment result.
+    messages:
+      - $ref: '#/channels/provisioningReply/messages/provisioningSuccessReply'
+      - $ref: '#/channels/provisioningReply/messages/provisioningErrorReply'
+  lockerClientReceiveLockerCommand:
+    action: receive
+    channel:
+      $ref: '#/channels/lockerCommand'
+    summary: Locker-client receives backend commands.
+    messages:
+      - $ref: '#/channels/lockerCommand/messages/openCompartmentCommand'
+      - $ref: '#/channels/lockerCommand/messages/applyConfigCommand'
+  lockerClientSendLockerResponse:
+    action: send
+    channel:
+      $ref: '#/channels/lockerResponse'
+    summary: Locker-client sends transaction-bound command responses.
+    messages:
+      - $ref: '#/channels/lockerResponse/messages/commandSuccessResponse'
+      - $ref: '#/channels/lockerResponse/messages/commandErrorResponse'
+  lockerClientSendLockerEvent:
+    action: send
+    channel:
+      $ref: '#/channels/lockerEvent'
+    summary: Locker-client sends spontaneous device events.
+    messages:
+      - $ref: '#/channels/lockerEvent/messages/doorStateChangedEvent'
+  lockerClientSendLockerState:
+    action: send
+    channel:
+      $ref: '#/channels/lockerState'
+    summary: Locker-client sends current state, heartbeats, and LWT state.
+    messages:
+      - $ref: '#/channels/lockerState/messages/heartbeatState'
+      - $ref: '#/channels/lockerState/messages/snapshotState'
+      - $ref: '#/channels/lockerState/messages/connectionLostState'
+components:
+  parameters:
+    locker_uuid:
+      description: Stable locker UUID used as the MQTT namespace for one locker.
+      schema:
+        type: string
+        minLength: 1
+    provisioning_token:
+      description: One-time provisioning token for pre-provisioned locker enrollment.
+      schema:
+        type: string
+        minLength: 1
+    client_id:
+      description: Temporary provisioning client identifier used for reply isolation.
+      schema:
+        type: string
+        minLength: 1
+  messages:
+    openCompartmentCommand:
+      name: openCompartmentCommand
+      title: Open compartment command
+      contentType: application/json
+      payload:
+        $ref: './schemas/payloads/command-open-compartment.json'
+    applyConfigCommand:
+      name: applyConfigCommand
+      title: Apply runtime configuration command
+      contentType: application/json
+      payload:
+        $ref: './schemas/payloads/command-apply-config.json'
+    commandSuccessResponse:
+      name: commandSuccessResponse
+      title: Successful command response
+      contentType: application/json
+      payload:
+        $ref: './schemas/payloads/response-command-success.json'
+    commandErrorResponse:
+      name: commandErrorResponse
+      title: Failed command response
+      contentType: application/json
+      payload:
+        $ref: './schemas/payloads/response-command-error.json'
+    doorStateChangedEvent:
+      name: doorStateChangedEvent
+      title: Door state changed event
+      contentType: application/json
+      payload:
+        $ref: './schemas/payloads/event-door-state-changed.json'
+    heartbeatState:
+      name: heartbeatState
+      title: Periodic heartbeat state
+      contentType: application/json
+      payload:
+        $ref: './schemas/payloads/state-heartbeat.json'
+    snapshotState:
+      name: snapshotState
+      title: Aggregated retained locker snapshot
+      contentType: application/json
+      payload:
+        $ref: './schemas/payloads/state-snapshot.json'
+    connectionLostState:
+      name: connectionLostState
+      title: LWT connection lost state
+      contentType: application/json
+      payload:
+        $ref: './schemas/payloads/state-connection-lost.json'
+    provisioningRequest:
+      name: provisioningRequest
+      title: Provisioning registration request
+      contentType: application/json
+      payload:
+        $ref: './schemas/messages/provisioning-request.json'
+    provisioningSuccessReply:
+      name: provisioningSuccessReply
+      title: Successful provisioning reply
+      contentType: application/json
+      payload:
+        $ref: './schemas/payloads/provisioning-success.json'
+    provisioningErrorReply:
+      name: provisioningErrorReply
+      title: Failed provisioning reply
+      contentType: application/json
+      payload:
+        $ref: './schemas/payloads/provisioning-error.json'

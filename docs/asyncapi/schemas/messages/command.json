@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "./command.json",
+  "title": "MQTT command envelope",
+  "type": "object",
+  "required": [
+    "message_id",
+    "transaction_id",
+    "action",
+    "timestamp",
+    "data"
+  ],
+  "properties": {
+    "message_id": {
+      "$ref": "../common/message-id.json"
+    },
+    "transaction_id": {
+      "$ref": "../common/transaction-id.json"
+    },
+    "action": {
+      "type": "string",
+      "minLength": 1
+    },
+    "timestamp": {
+      "$ref": "../common/timestamp.json"
+    },
+    "data": {
+      "type": "object"
+    }
+  },
+  "additionalProperties": true
+}

@@ -1,0 +1,10 @@
+{
+  "message_id": "msg-evt-door-001",
+  "event_id": "evt-door-001",
+  "event": "door_state_changed",
+  "timestamp": "2026-04-14T19:32:00Z",
+  "data": {
+    "compartment_number": 3,
+    "state": "closed"
+  }
+}

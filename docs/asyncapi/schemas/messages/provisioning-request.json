@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "./provisioning-request.json",
+  "title": "Provisioning request",
+  "type": "object",
+  "required": [
+    "message_id",
+    "client_id",
+    "timestamp"
+  ],
+  "properties": {
+    "message_id": {
+      "$ref": "../common/message-id.json"
+    },
+    "client_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "timestamp": {
+      "$ref": "../common/timestamp.json"
+    }
+  },
+  "additionalProperties": true
+}

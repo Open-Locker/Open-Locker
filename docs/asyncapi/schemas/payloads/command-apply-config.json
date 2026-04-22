@@ -1,0 +1,67 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "./command-apply-config.json",
+  "title": "Apply config command",
+  "allOf": [
+    {
+      "$ref": "../messages/command.json"
+    },
+    {
+      "type": "object",
+      "required": [
+        "action",
+        "data"
+      ],
+      "properties": {
+        "action": {
+          "const": "apply_config"
+        },
+        "data": {
+          "type": "object",
+          "required": [
+            "config_hash",
+            "heartbeat_interval_seconds",
+            "compartments"
+          ],
+          "properties": {
+            "config_hash": {
+              "type": "string",
+              "pattern": "^[A-Fa-f0-9]{64}$"
+            },
+            "heartbeat_interval_seconds": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "compartments": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": [
+                  "id",
+                  "slaveId",
+                  "address"
+                ],
+                "properties": {
+                  "id": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "slaveId": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "address": {
+                    "type": "integer",
+                    "minimum": 0
+                  }
+                },
+                "additionalProperties": false
+              }
+            }
+          },
+          "additionalProperties": true
+        }
+      }
+    }
+  ]
+}

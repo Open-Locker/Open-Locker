@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "./provisioning-success.json",
+  "title": "Successful provisioning reply",
+  "allOf": [
+    {
+      "$ref": "../messages/provisioning-reply.json"
+    },
+    {
+      "type": "object",
+      "required": [
+        "status",
+        "data"
+      ],
+      "properties": {
+        "status": {
+          "const": "success"
+        },
+        "data": {
+          "type": "object",
+          "required": [
+            "mqtt_user",
+            "mqtt_password"
+          ],
+          "properties": {
+            "mqtt_user": {
+              "type": "string",
+              "minLength": 1
+            },
+            "mqtt_password": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "additionalProperties": false
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "./provisioning-reply.json",
+  "title": "Provisioning reply",
+  "type": "object",
+  "required": [
+    "message_id",
+    "status",
+    "timestamp"
+  ],
+  "properties": {
+    "message_id": {
+      "$ref": "../common/message-id.json"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "success",
+        "error"
+      ]
+    },
+    "timestamp": {
+      "$ref": "../common/timestamp.json"
+    },
+    "message": {
+      "type": "string"
+    },
+    "data": {
+      "type": "object"
+    }
+  },
+  "additionalProperties": true
+}

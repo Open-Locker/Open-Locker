@@ -1,0 +1,46 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "./response.json",
+  "title": "MQTT response envelope",
+  "type": "object",
+  "required": [
+    "message_id",
+    "transaction_id",
+    "action",
+    "result",
+    "timestamp"
+  ],
+  "properties": {
+    "message_id": {
+      "$ref": "../common/message-id.json"
+    },
+    "transaction_id": {
+      "$ref": "../common/transaction-id.json"
+    },
+    "action": {
+      "type": "string",
+      "minLength": 1
+    },
+    "result": {
+      "type": "string",
+      "enum": [
+        "success",
+        "error"
+      ]
+    },
+    "timestamp": {
+      "$ref": "../common/timestamp.json"
+    },
+    "message": {
+      "type": "string"
+    },
+    "error_code": {
+      "type": "string"
+    },
+    "applied_config_hash": {
+      "type": "string",
+      "pattern": "^[A-Fa-f0-9]{64}$"
+    }
+  },
+  "additionalProperties": true
+}

@@ -1,0 +1,8 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "./message-id.json",
+  "title": "MQTT message_id",
+  "type": "string",
+  "minLength": 1,
+  "description": "Technical packet identifier used for transport-level deduplication."
+}

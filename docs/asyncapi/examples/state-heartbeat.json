@@ -1,0 +1,8 @@
+{
+  "message_id": "msg-state-heartbeat-001",
+  "state": "heartbeat",
+  "timestamp": "2026-04-14T19:33:00Z",
+  "data": {
+    "uptime_seconds": 86400
+  }
+}

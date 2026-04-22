@@ -1,0 +1,39 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "./state-connection-lost.json",
+  "title": "Connection lost state",
+  "allOf": [
+    {
+      "$ref": "../messages/state.json"
+    },
+    {
+      "type": "object",
+      "required": [
+        "state",
+        "data"
+      ],
+      "properties": {
+        "state": {
+          "const": "connection_lost"
+        },
+        "data": {
+          "type": "object",
+          "required": [
+            "status",
+            "reason"
+          ],
+          "properties": {
+            "status": {
+              "const": "offline"
+            },
+            "reason": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "additionalProperties": true
+        }
+      }
+    }
+  ]
+}

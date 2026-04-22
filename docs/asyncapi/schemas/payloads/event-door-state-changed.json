@@ -1,0 +1,43 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "./event-door-state-changed.json",
+  "title": "Door state changed event",
+  "allOf": [
+    {
+      "$ref": "../messages/event.json"
+    },
+    {
+      "type": "object",
+      "required": [
+        "event",
+        "data"
+      ],
+      "properties": {
+        "event": {
+          "const": "door_state_changed"
+        },
+        "data": {
+          "type": "object",
+          "required": [
+            "compartment_number",
+            "state"
+          ],
+          "properties": {
+            "compartment_number": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "state": {
+              "type": "string",
+              "enum": [
+                "open",
+                "closed"
+              ]
+            }
+          },
+          "additionalProperties": true
+        }
+      }
+    }
+  ]
+}

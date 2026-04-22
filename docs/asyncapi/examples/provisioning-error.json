@@ -1,0 +1,6 @@
+{
+  "message_id": "msg-prov-reply-err-001",
+  "status": "error",
+  "timestamp": "2026-04-14T19:35:01Z",
+  "message": "Invalid or expired provisioning token."
+}
