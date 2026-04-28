@@ -29,6 +29,8 @@ channels:
     messages:
       commandSuccessResponse:
         $ref: '#/components/messages/commandSuccessResponse'
+      applyConfigSuccessResponse:
+        $ref: '#/components/messages/applyConfigSuccessResponse'
       commandErrorResponse:
         $ref: '#/components/messages/commandErrorResponse'
   lockerEvent:
@@ -85,6 +87,7 @@ operations:
     summary: Backend receives transaction-bound command responses.
     messages:
       - $ref: '#/channels/lockerResponse/messages/commandSuccessResponse'
+      - $ref: '#/channels/lockerResponse/messages/applyConfigSuccessResponse'
       - $ref: '#/channels/lockerResponse/messages/commandErrorResponse'
   backendReceiveLockerEvent:
     action: receive
@@ -132,6 +135,7 @@ operations:
     summary: Locker-client sends transaction-bound command responses.
     messages:
       - $ref: '#/channels/lockerResponse/messages/commandSuccessResponse'
+      - $ref: '#/channels/lockerResponse/messages/applyConfigSuccessResponse'
       - $ref: '#/channels/lockerResponse/messages/commandErrorResponse'
   lockerClientSendLockerEvent:
     action: send
@@ -185,6 +189,12 @@ components:
       contentType: application/json
       payload:
         $ref: './schemas/payloads/response-command-success.json'
+    applyConfigSuccessResponse:
+      name: applyConfigSuccessResponse
+      title: Successful apply_config response
+      contentType: application/json
+      payload:
+        $ref: './schemas/payloads/response-apply-config-success.json'
     commandErrorResponse:
       name: commandErrorResponse
       title: Failed command response

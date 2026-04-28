@@ -9,8 +9,7 @@
     {
       "type": "object",
       "required": [
-        "result",
-        "message"
+        "result"
       ],
       "properties": {
         "result": {
