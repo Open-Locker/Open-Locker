@@ -5,7 +5,7 @@ import { loadRuntimeConfigOverlay, mergeRuntimeConfig } from "./runtimeConfig";
 import { CONFIG_FILE } from "./paths";
 
 export interface CompartmentConfig {
-  id: number;
+  compartment_number: number;
   slaveId: number;
   address: number;
 }
@@ -81,7 +81,7 @@ class ConfigLoader {
         );
         this.config.compartments.forEach((compartment) => {
           logger.info(
-            `Compartment ${compartment.id}: SlaveID=${compartment.slaveId}, Address=${compartment.address}`,
+            `Compartment ${compartment.compartment_number}: SlaveID=${compartment.slaveId}, Address=${compartment.address}`,
           );
         });
       } else {
@@ -120,8 +120,8 @@ class ConfigLoader {
       return null;
     }
 
-    const compartment = this.config.compartments.find((c) =>
-      c.id === compartmentId
+    const compartment = this.config.compartments.find(
+      (c) => c.compartment_number === compartmentId,
     );
     return compartment || null;
   }

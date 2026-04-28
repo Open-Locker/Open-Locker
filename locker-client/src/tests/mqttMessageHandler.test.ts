@@ -354,7 +354,7 @@ test("apply_config publishes success with top-level applied_config_hash", async 
       data: {
         config_hash: "a".repeat(64),
         heartbeat_interval_seconds: 15,
-        compartments: [{ id: 1, slaveId: 1, address: 0 }],
+        compartments: [{ compartment_number: 1, slaveId: 1, address: 0 }],
       },
     });
 
@@ -392,7 +392,7 @@ test("invalid apply_config payload is rejected before runtime apply is called", 
       data: {
         config_hash: "not-a-sha",
         heartbeat_interval_seconds: 15,
-        compartments: [{ id: 1, slaveId: 1, address: 0 }],
+        compartments: [{ compartment_number: 1, slaveId: 1, address: 0 }],
       },
     });
 
@@ -430,7 +430,7 @@ test("apply_config publishes structured error responses when runtime apply fails
       data: {
         config_hash: "a".repeat(64),
         heartbeat_interval_seconds: 15,
-        compartments: [{ id: 1, slaveId: 1, address: 0 }],
+        compartments: [{ compartment_number: 1, slaveId: 1, address: 0 }],
       },
     });
 

@@ -126,16 +126,23 @@ export class ApplyConfigService implements RuntimeConfigApplier {
   }
 
   private validateCompartments(
-    compartments: { id: number; slaveId: number; address: number }[],
+    compartments: {
+      compartment_number: number;
+      slaveId: number;
+      address: number;
+    }[],
   ): void {
-    const seenCompartmentIds = new Set<number>();
+    const seenCompartmentNumbers = new Set<number>();
     const seenTargets = new Set<string>();
 
     for (const compartment of compartments) {
-      if (!Number.isInteger(compartment.id) || compartment.id <= 0) {
+      if (
+        !Number.isInteger(compartment.compartment_number) ||
+        compartment.compartment_number <= 0
+      ) {
         throw new ApplyConfigExecutionError(
           MQTTErrorCode.INVALID_CONFIG,
-          "compartment ids must be positive integers",
+          "compartment_number values must be positive integers",
         );
       }
 
@@ -157,10 +164,10 @@ export class ApplyConfigService implements RuntimeConfigApplier {
         );
       }
 
-      if (seenCompartmentIds.has(compartment.id)) {
+      if (seenCompartmentNumbers.has(compartment.compartment_number)) {
         throw new ApplyConfigExecutionError(
           MQTTErrorCode.INVALID_CONFIG,
-          `duplicate compartment id ${compartment.id} is not allowed`,
+          `duplicate compartment_number ${compartment.compartment_number} is not allowed`,
         );
       }
 
@@ -172,7 +179,7 @@ export class ApplyConfigService implements RuntimeConfigApplier {
         );
       }
 
-      seenCompartmentIds.add(compartment.id);
+      seenCompartmentNumbers.add(compartment.compartment_number);
       seenTargets.add(targetKey);
     }
   }

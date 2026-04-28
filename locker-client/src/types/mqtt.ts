@@ -44,7 +44,7 @@ export const openCompartmentCommandSchema = mqttCommandEnvelopeSchema.extend({
 export type OpenCompartmentCommand = z.infer<typeof openCompartmentCommandSchema>;
 
 const applyConfigCompartmentSchema = z.object({
-  id: positiveIntegerSchema,
+  compartment_number: positiveIntegerSchema,
   slaveId: positiveIntegerSchema,
   address: nonNegativeIntegerSchema,
 });

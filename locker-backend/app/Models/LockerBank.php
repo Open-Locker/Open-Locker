@@ -81,7 +81,7 @@ class LockerBank extends Model
     /**
      * Build the config payload that will be sent to the client.
      *
-     * @return array{config_hash:string, heartbeat_interval_seconds:int, compartments:array<int, array{id:int, slaveId:int, address:int}>}
+     * @return array{config_hash:string, heartbeat_interval_seconds:int, compartments:array<int, array{compartment_number:int, slaveId:int, address:int}>}
      */
     public function buildApplyConfigPayload(): array
     {
@@ -90,7 +90,7 @@ class LockerBank extends Model
             ->get(['number', 'slave_id', 'address'])
             ->map(static function (Compartment $compartment): array {
                 return [
-                    'id' => (int) $compartment->number,
+                    'compartment_number' => (int) $compartment->number,
                     'slaveId' => (int) $compartment->slave_id,
                     'address' => (int) $compartment->address,
                 ];

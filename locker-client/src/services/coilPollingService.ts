@@ -260,14 +260,14 @@ class CoilPollingService {
           compartment.address >= this.NUM_CHANNELS
         ) {
           logger.warn(
-            `Skipping compartment ${compartment.id}: address ${compartment.address} is outside the supported polling range`,
+            `Skipping compartment ${compartment.compartment_number}: address ${compartment.address} is outside the supported polling range`,
           );
           continue;
         }
 
         compartments.push(
           this.toCompartmentStatus(
-            compartment.id,
+            compartment.compartment_number,
             snapshot.relayStates[compartment.address] ?? false,
             snapshot.inputStates[compartment.address] ?? false,
           ),

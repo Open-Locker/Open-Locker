@@ -6,7 +6,7 @@ test("sanitizeRuntimeConfigOverlay rejects compartment addresses above the suppo
   assert.throws(
     () =>
       sanitizeRuntimeConfigOverlay({
-        compartments: [{ id: 1, slaveId: 1, address: 8 }],
+        compartments: [{ compartment_number: 1, slaveId: 1, address: 8 }],
       }),
     /invalid compartment entry/,
   );
@@ -15,14 +15,14 @@ test("sanitizeRuntimeConfigOverlay rejects compartment addresses above the suppo
 test("sanitizeRuntimeConfigOverlay accepts valid overlay data", () => {
   const overlay = sanitizeRuntimeConfigOverlay({
     mqtt: { heartbeatInterval: 15 },
-    compartments: [{ id: 1, slaveId: 1, address: 7 }],
+    compartments: [{ compartment_number: 1, slaveId: 1, address: 7 }],
     appliedConfigHash: "a".repeat(64),
     updatedAt: "2026-04-11T12:00:00Z",
   });
 
   assert.deepEqual(overlay, {
     mqtt: { heartbeatInterval: 15 },
-    compartments: [{ id: 1, slaveId: 1, address: 7 }],
+    compartments: [{ compartment_number: 1, slaveId: 1, address: 7 }],
     appliedConfigHash: "a".repeat(64),
     updatedAt: "2026-04-11T12:00:00Z",
   });

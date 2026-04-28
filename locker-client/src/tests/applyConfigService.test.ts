@@ -24,7 +24,7 @@ const baseConfig: LockerConfig = {
     timeout: 1000,
   },
   compartments: [
-    { id: 1, slaveId: 1, address: 0 },
+    { compartment_number: 1, slaveId: 1, address: 0 },
   ],
 };
 
@@ -71,8 +71,8 @@ test("applyConfig persists normalized overlay and restarts runtime services", as
   );
 
   const compartments = [
-    { id: 2, slaveId: 2, address: 0 },
-    { id: 1, slaveId: 1, address: 1 },
+    { compartment_number: 2, slaveId: 2, address: 0 },
+    { compartment_number: 1, slaveId: 1, address: 1 },
   ];
 
   const result = await service.applyConfig({
@@ -95,8 +95,8 @@ test("applyConfig persists normalized overlay and restarts runtime services", as
   assert.equal(pollingRestartCount, 1);
   assert.deepEqual((currentOverlay as any)?.mqtt, { heartbeatInterval: 30 });
   assert.deepEqual((currentOverlay as any)?.compartments, [
-    { id: 1, slaveId: 1, address: 1 },
-    { id: 2, slaveId: 2, address: 0 },
+    { compartment_number: 1, slaveId: 1, address: 1 },
+    { compartment_number: 2, slaveId: 2, address: 0 },
   ]);
   assert.equal(typeof (currentOverlay as any)?.updatedAt, "string");
 });
@@ -135,7 +135,7 @@ test("applyConfig rejects invalid config hashes before changing runtime state", 
       data: {
         config_hash: "0".repeat(64),
         heartbeat_interval_seconds: 30,
-        compartments: [{ id: 1, slaveId: 1, address: 0 }],
+        compartments: [{ compartment_number: 1, slaveId: 1, address: 0 }],
       },
     }),
     (error: unknown) => {
@@ -156,7 +156,7 @@ test("applyConfig rejects invalid config hashes before changing runtime state", 
 test("applyConfig restores the previous overlay when runtime reload fails", async () => {
   const previousOverlay: RuntimeConfigOverlay = {
     mqtt: { heartbeatInterval: 15 },
-    compartments: [{ id: 1, slaveId: 1, address: 0 }],
+    compartments: [{ compartment_number: 1, slaveId: 1, address: 0 }],
     appliedConfigHash: "c".repeat(64),
     updatedAt: "2026-04-11T11:00:00Z",
   };
@@ -202,9 +202,11 @@ test("applyConfig restores the previous overlay when runtime reload fails", asyn
       message_id: "msg-rollback",
       timestamp: "2026-04-11T12:00:00Z",
       data: {
-        config_hash: computeAppliedConfigHash([{ id: 2, slaveId: 2, address: 1 }]),
+        config_hash: computeAppliedConfigHash([
+          { compartment_number: 2, slaveId: 2, address: 1 },
+        ]),
         heartbeat_interval_seconds: 45,
-        compartments: [{ id: 2, slaveId: 2, address: 1 }],
+        compartments: [{ compartment_number: 2, slaveId: 2, address: 1 }],
       },
     }),
     (error: unknown) => {

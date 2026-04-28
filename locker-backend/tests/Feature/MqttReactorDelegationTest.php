@@ -44,7 +44,7 @@ class MqttReactorDelegationTest extends TestCase
             configHash: 'abc123',
             heartbeatIntervalSeconds: 15,
             compartments: [
-                ['compartment_number' => 1, 'slave_id' => 1, 'address' => 0],
+                ['compartment_number' => 1, 'slaveId' => 1, 'address' => 0],
             ],
         );
 

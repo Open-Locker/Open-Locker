@@ -25,8 +25,8 @@ The backend delivers compartment mapping via `apply_config`:
 ```json
 {
   "compartments": [
-    { "id": 1, "slaveId": 1, "address": 0 },
-    { "id": 2, "slaveId": 1, "address": 1 }
+    { "compartment_number": 1, "slaveId": 1, "address": 0 },
+    { "compartment_number": 2, "slaveId": 1, "address": 1 }
   ]
 }
 ```

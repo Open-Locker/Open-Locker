@@ -28,11 +28,11 @@ export function normalizeCompartments(
 ): CompartmentConfig[] {
   return [...compartments]
     .map((compartment) => ({
-      id: compartment.id,
+      compartment_number: compartment.compartment_number,
       slaveId: compartment.slaveId,
       address: compartment.address,
     }))
-    .sort((left, right) => left.id - right.id);
+    .sort((left, right) => left.compartment_number - right.compartment_number);
 }
 
 export function computeAppliedConfigHash(
@@ -55,7 +55,7 @@ function sanitizeCompartments(value: unknown): CompartmentConfig[] {
       if (
         compartment === null ||
         typeof compartment !== "object" ||
-        !isPositiveInteger(compartment.id) ||
+        !isPositiveInteger(compartment.compartment_number) ||
         !isPositiveInteger(compartment.slaveId) ||
         !isNonNegativeInteger(compartment.address) ||
         compartment.address > MAX_RELAY_ADDRESS
@@ -64,7 +64,7 @@ function sanitizeCompartments(value: unknown): CompartmentConfig[] {
       }
 
       return {
-        id: compartment.id,
+        compartment_number: compartment.compartment_number,
         slaveId: compartment.slaveId,
         address: compartment.address,
       };
