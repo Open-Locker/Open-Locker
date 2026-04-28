@@ -50,75 +50,62 @@ Damit bildet Laravel auch die frühere ACL-Logik ab:
 - **Backend (`laravel_backend` o.Ä.)**
   - Darf alle relevanten Topics lesen und schreiben, z.B. `locker/#`.
   - Kann Befehle an alle Locker senden und Status von allen empfangen.
-
 - **Einzelner Locker-Client**
   - Darf **nur seine eigenen Topics** verwenden, typischerweise:
     - lesen: `locker/{locker_id}/command`
     - schreiben: `locker/{locker_id}/response`, `locker/{locker_id}/event` und
-      `locker/{locker_id}/state`
+    `locker/{locker_id}/state`
   - Der effektive Namensraum wird aus der in der Datenbank hinterlegten
-    Locker-ID bzw. dem MQTT-Benutzernamen abgeleitet.
-
+  Locker-ID bzw. dem MQTT-Benutzernamen abgeleitet.
 - **Provisioning-Client (`provisioning_client`)**
   - Darf Registrierungen senden, z.B. auf `locker/register/+`.
   - Darf nur auf sein eigenes Antwort-Topic hören, z.B.
-    `locker/provisioning/reply/{client_id}`.
+  `locker/provisioning/reply/{client_id}`.
   - So kann ein Client nicht die Antworten eines anderen Clients abonnieren.
 
 ## 3. Laravel Backend Integration
 
 Wir verwenden das Paket
-[`php-mqtt/laravel-client`](https://github.com/php-mqtt/laravel-client) für eine
+`[php-mqtt/laravel-client](https://github.com/php-mqtt/laravel-client)` für eine
 nahtlose Integration.
 
 ### Installation & Konfiguration
 
 1. **Paket installieren**:
-   ```bash
+  ```bash
    composer require php-mqtt/laravel-client
-   ```
-
+  ```
 2. **Konfiguration publizieren**:
-   ```bash
+  ```bash
    php artisan vendor:publish --provider="PhpMqtt\Client\MqttClientServiceProvider" --tag="config"
-   ```
-
+  ```
 3. **Umgebungsvariablen anpassen (`.env`)**: In `config/mqtt-client.php` werden
-   wir die Konfiguration so anpassen, dass sie auf `.env`-Variablen zugreift.
-
-   ```ini
-   MQTT_HOST=mosquitto
-   MQTT_PORT=1883
-   MQTT_USER=laravel_backend
-   MQTT_PASSWORD=ein_sicheres_passwort
-   MQTT_LAST_WILL_TOPIC=server/status
-   MQTT_LAST_WILL_MESSAGE={"status": "offline"}
-   ```
+  wir die Konfiguration so anpassen, dass sie auf `.env`-Variablen zugreift.
 
 ### Implementierungsstrategie
 
 #### Zuverlässigkeit: QoS und "Last Will"
 
 - **Backend zu Client (Befehle):** Alle kritischen Befehle vom Backend an die
-  Clients werden mit **QoS Level 1** gesendet. QoS 1 bedeutet _at least once_:
-  Nachrichten können **dupliziert** zugestellt werden und müssen daher
-  **idempotent** verarbeitet werden.
+Clients werden mit **QoS Level 1** gesendet. QoS 1 bedeutet *at least once*:
+Nachrichten können **dupliziert** zugestellt werden und müssen daher
+**idempotent** verarbeitet werden.
 - **Client zu Backend (Responses/Events):** Wichtige Antworten und Events von
-  den Clients sollten ebenfalls mit **QoS Level 1** gesendet werden (ebenfalls
-  mit möglicher Duplikation).
+den Clients sollten ebenfalls mit **QoS Level 1** gesendet werden (ebenfalls
+mit möglicher Duplikation).
 - **Client-Verbindungen (persistente Session):** Die IoT-Clients müssen sich mit
-  der Einstellung **`clean_session = false`** (MQTT v3.1.1) verbinden, damit der
-  Broker ihre Abonnements und ggf. QoS>0 Nachrichten **für die Session** puffern
-  kann, während der Client offline ist.
+der Einstellung `**clean_session = false`** (MQTT v3.1.1) verbinden, damit der
+Broker ihre Abonnements und ggf. QoS>0 Nachrichten **für die Session** puffern
+kann, während der Client offline ist.
   - **locker-client (Stand Implementierung):** Standard ist `clean: false`
-    (override: `MQTT_CLEAN_SESSION` oder `mqtt.cleanSession` in der
-    Client-`config.yml`). Automatisches Reconnect ist standardmäßig **unbegrenzt**
-    (`MQTT_MAX_RECONNECT_ATTEMPTS=0`); der Client meldet dabei den Zustand
-    „reconnecting“ bis die Verbindung wieder steht (siehe ADR 0014).
+  (override: `MQTT_CLEAN_SESSION` oder `mqtt.cleanSession` in der
+  Client-`config.yml`). Automatisches Reconnect ist standardmäßig **unbegrenzt**
+  (`MQTT_MAX_RECONNECT_ATTEMPTS=0`); der Client meldet dabei den Zustand
+  „reconnecting“ bis die Verbindung wieder steht (siehe ADR 0014).
 - **Backend "Last Will"**: Der Laravel-Client (sowohl Listener als auch
-  Publisher) wird so konfiguriert, dass er einen "Last Will" auf dem Topic
-  `server/status` mit der Nachricht `{"status": "offline"}` setzt. Dies
-  informiert alle abonnierenden Clients, falls das Backend ausfällt.
+Publisher) wird so konfiguriert, dass er einen "Last Will" auf dem Topic
+`server/status` mit der Nachricht `{"status": "offline"}` setzt. Dies
+informiert alle abonnierenden Clients, falls das Backend ausfällt.
 
 #### Nachrichten Senden (Publishing)
 
@@ -126,26 +113,11 @@ Das Senden von Befehlen an die Locker (z.B. "Tür öffnen") erfolgt asynchron ü
 Laravel Queues, um die API-Antwortzeiten nicht zu beeinträchtigen.
 
 1. **Event/Trigger**: Ein API-Aufruf von der Mobile App (z.B.
-   `POST /api/lockers/{id}/open`).
+  `POST /api/lockers/{id}/open`).
 2. **Job Dispatching**: Der Controller validiert die Anfrage und dispatcht einen
-   Job in die Queue. `OpenCompartment::dispatch($locker);`
+  Job in die Queue. `OpenCompartment::dispatch($locker);`
 3. **Job Handler**: Der Job Handler nutzt die `MQTT`-Facade, um die Nachricht zu
-   publizieren.
-
-   ```php
-   // App/Jobs/OpenCompartment.php
-   use PhpMqtt\Client\Facades\MQTT;
-
-   public function handle()
-   {
-       $topic = "locker/{$this->lockerBank->id}/command";
-       $payload = json_encode([
-            'action' => 'open_compartment',
-            'data' => ['compartment' => $this->compartment->number]
-        ]);
-       MQTT::publish($topic, $payload, 1); // QoS Level 1
-   }
-   ```
+  publizieren.
 
 #### Nachrichten Empfangen (Subscribing)
 
@@ -153,27 +125,15 @@ Das Empfangen von Status-Nachrichten der Locker erfordert einen permanent
 laufenden Prozess.
 
 1. **Artisan Command**: Wir erstellen ein neues Command, z.B.
-   `php artisan mqtt:listen`.
+  `php artisan mqtt:listen`.
 2. **Subscriber-Logik**: Innerhalb des Commands wird eine Verbindung zum MQTT
-   Broker aufgebaut. Es abonniert die Wildcard-Topics für Responses, Events und
+  Broker aufgebaut. Es abonniert die Wildcard-Topics für Responses, Events und
    State:
-   - `locker/+/response` (Command Responses, transaktionsgebunden)
-   - `locker/+/event` (spontane Events, nicht transaktionsgebunden)
-   - `locker/+/state` (Snapshot/Telemetry, retained)
-   ```php
-   // App/Console/Commands/MqttListen.php
-   $mqtt = MQTT::connection();
-   $mqtt->subscribe('locker/+/response', function (string $topic, string $message) {
-       // Logik zur Verarbeitung der Nachricht:
-       // 1. Locker-UUID aus Topic extrahieren.
-       // 2. Status in der Datenbank aktualisieren.
-       // 3. Event für Echtzeit-Updates an die App senden (z.B. via Laravel Reverb).
-       Log::info("Received message on topic [$topic]: $message");
-   }, 1);
-   $mqtt->loop(true);
-   ```
+  - `locker/+/response` (Command Responses, transaktionsgebunden)
+  - `locker/+/event` (spontane Events, nicht transaktionsgebunden)
+  - `locker/+/state` (Snapshot/Telemetry, retained)
 3. **Prozess-Management**: In der Entwicklung und Produktion wird dieses Command
-   mit **Supervisor** gestartet und überwacht, um sicherzustellen, dass es immer
+  mit **Supervisor** gestartet und überwacht, um sicherzustellen, dass es immer
    läuft. Laravel Sail bringt eine `supervisor.conf` mit, die wir dafür anpassen
    können.
 
@@ -186,12 +146,12 @@ der Payloads für die verschiedenen Topics.
 
 - **Registrierung (Client → Backend)**: `locker/register/{provisioning_token}`
 - **Registrierung (Backend → Client)**:
-  `locker/provisioning/reply/{unique_client_id}`
+`locker/provisioning/reply/{unique_client_id}`
 - **Befehle (Backend → Client)**: `locker/{locker_uuid}/command`
 - **Responses (Client → Backend)**: `locker/{locker_uuid}/response`
 - **Events (Client → Backend)**: `locker/{locker_uuid}/event`
 - **State / Zustand (Client → Backend)**: `locker/{locker_uuid}/state`
-  (**retained**, für aktuelle Zustände/Telemetry/Heartbeats)
+(**retained**, für aktuelle Zustände/Telemetry/Heartbeats)
 
 > Hinweis: Für transaktionsgebundene Antworten nutzen wir ausschließlich
 > `.../response`. Spontane Ereignisse laufen über `.../event`.
@@ -217,11 +177,10 @@ Backend).
       "data": { "compartment_number": 3 }
     }
     ```
-
 - **Konfiguration anwenden (apply_config):**
   - Zweck: Backend übermittelt dem Client die Modbus-Zuordnung je Compartment
-    (`slaveId` + `address`). Der Client soll die Konfiguration anwenden und per
-    Response mit Hash bestätigen.
+  (`slaveId` + `address`). Der Client soll die Konfiguration anwenden und per
+  Response mit Hash bestätigen.
   - Topic: `locker/uuid-123/command`
   - Payload:
     ```json
@@ -252,8 +211,7 @@ Wichtig:
 - Responses sind **transaktionsgebunden** und haben **immer** `transaction_id`.
 - Jede Response hat zusätzlich **immer** eine `message_id`.
 - Spontane Ereignisse (z.B. "door_state_changed") werden **nicht** als Response
-  gesendet, sondern auf `.../event`.
-
+gesendet, sondern auf `.../event`.
 - **Antwort auf `open_door` (Erfolg):**
   - Topic: `locker/uuid-123/response`
   - Payload:
@@ -268,7 +226,6 @@ Wichtig:
       "message": "Compartment opened successfully."
     }
     ```
-
 - **Antwort auf `open_door` (Fehler):**
   - Topic: `locker/uuid-123/response`
   - Payload:
@@ -284,7 +241,6 @@ Wichtig:
       "message": "Could not open compartment, mechanism is jammed."
     }
     ```
-
 - **Antwort auf `apply_config` (Erfolg, Hash-Ack):**
   - Zweck: Client bestätigt, welche Konfiguration er tatsächlich angewendet hat.
   - Topic: `locker/uuid-123/response`
@@ -325,7 +281,6 @@ verwenden wir eine verpflichtende `message_id` für den globalen Dedup-Layer.
       }
     }
     ```
-
 - **Spontanes Event (Future: QR-Code am Locker gescannt):**
   - Topic: `locker/uuid-123/event`
   - Payload:
@@ -370,7 +325,7 @@ Das "Last Will and Testament"-Feature von MQTT wird genutzt, um unerwartete
 Verbindungsabbrüche zu melden.
 
 - **Konfiguration**: Der Client setzt beim Verbindungsaufbau seinen "letzten
-  Willen" (siehe oben).
+Willen" (siehe oben).
 - **Topic**: `locker/{locker_uuid}/state`
 - **Payload**:
   ```json
@@ -383,9 +338,9 @@ Verbindungsabbrüche zu melden.
   }
   ```
 - **Funktionsweise**: Wenn der Broker erkennt, dass der Client die Verbindung
-  unplanmäßig verloren hat, publiziert der Broker diese Nachricht automatisch im
-  Namen des Clients auf das angegebene Topic. Das Backend kann darauf lauschen
-  und den Status des Schranks auf "unreachable" setzen.
+unplanmäßig verloren hat, publiziert der Broker diese Nachricht automatisch im
+Namen des Clients auf das angegebene Topic. Das Backend kann darauf lauschen
+und den Status des Schranks auf "unreachable" setzen.
 
 ##### 4.5.1 Client-Implementierung (Last Will and Testament)
 
@@ -398,7 +353,7 @@ senden kann.
 - **Topic**: `locker/{locker_uuid}/state`
 - **QoS**: 1 (empfohlen)
 - **retained**: `false` (empfohlen, da es ein Moment-Event ist; der
-  Heartbeat-Timeout im Backend ist der Fallback)
+Heartbeat-Timeout im Backend ist der Fallback)
 
 Beispiel-Payload (JSON):
 
@@ -416,10 +371,10 @@ Beispiel-Payload (JSON):
 Hinweise:
 
 - Der Broker prüft ACLs auch für Last-Will-Publishes. Device-User müssen daher
-  auf `locker/%u/state` publishen dürfen (siehe ACL-Plan).
+auf `locker/%u/state` publishen dürfen (siehe ACL-Plan).
 - Last Will ist ein **Fast-Path** Signal; das Backend sollte zusätzlich
-  weiterhin zeitbasiert (Heartbeat-Timeout) offline erkennen, falls
-  Broker/Netzwerk Probleme haben.
+weiterhin zeitbasiert (Heartbeat-Timeout) offline erkennen, falls
+Broker/Netzwerk Probleme haben.
 
 #### 4.6 Registrierungsprozess (Pre-Provisioning Workflow)
 
@@ -427,48 +382,48 @@ Der Client wird im Backend vor-registriert ("pre-provisioned"), um maximale
 Sicherheit und Kontrolle zu gewährleisten.
 
 1. **Admin legt LockerBank an**: Ein Administrator erstellt im Filament-Backend
-   eine neue `LockerBank` und die zugehörigen `Compartment`s. Das System
+  eine neue `LockerBank` und die zugehörigen `Compartment`s. Das System
    generiert automatisch ein einmaliges `provisioning_token` für diese
    `LockerBank`.
 2. **Operator erhält Token**: Der Admin gibt dieses Token an den Techniker
-   weiter, der den IoT-Client installiert.
+  weiter, der den IoT-Client installiert.
 3. **Client startet**: Der Client startet, generiert eine einmalige Client-ID
-   und wird vom Techniker mit dem `provisioning_token` konfiguriert.
+  und wird vom Techniker mit dem `provisioning_token` konfiguriert.
 4. **Client meldet sich**: Der Client verbindet sich als `provisioning_client`
-   und sendet seine `client_id` an das Registrierungs-Topic, das das Token
+  und sendet seine `client_id` an das Registrierungs-Topic, das das Token
    enthält.
-   - Topic: `locker/register/das-ist-der-token-123`
-   - Payload:
-     `{"message_id":"msg-prov-001","client_id":"random-client-xyz789","timestamp":"2023-10-27T10:00:00Z"}`
-   - Gleichzeitig lauscht der Client auf seinem privaten Antwort-Topic:
-     `locker/provisioning/reply/random-client-xyz789`.
+  - Topic: `locker/register/das-ist-der-token-123`
+  - Payload:
+  `{"message_id":"msg-prov-001","client_id":"random-client-xyz789","timestamp":"2023-10-27T10:00:00Z"}`
+  - Gleichzeitig lauscht der Client auf seinem privaten Antwort-Topic:
+  `locker/provisioning/reply/random-client-xyz789`.
 5. **Backend verknüpft und provisioniert**:
-   - Der `MqttListen`-Befehl empfängt die Anfrage.
-   - Er sucht in der Datenbank nach der `LockerBank`, die zu dem
-     `provisioning_token` gehört.
-   - Er generiert permanente MQTT-Zugangsdaten (Username = `locker_bank_uuid`,
-     Passwort = sicheres, zufälliges Passwort).
-   - Er speichert den neuen MQTT-User im `password.conf` des Brokers.
+  - Der `MqttListen`-Befehl empfängt die Anfrage.
+  - Er sucht in der Datenbank nach der `LockerBank`, die zu dem
+  `provisioning_token` gehört.
+  - Er generiert permanente MQTT-Zugangsdaten (Username = `locker_bank_uuid`,
+  Passwort = sicheres, zufälliges Passwort).
+  - Er speichert den neuen MQTT-User im `password.conf` des Brokers.
 6. **Backend sendet Credentials (oder Ablehnung)**:
-   - **Bei Erfolg**: Das Backend sendet die neuen Zugangsdaten an den privaten
-     Antwortkanal des Clients.
-     - Topic: `locker/provisioning/reply/{unique_client_id}`
-     - Payload:
-       `{"message_id":"msg-prov-reply-001","status":"success","timestamp":"2023-10-27T10:00:01Z","data":{"mqtt_user":"...","mqtt_password":"..."}}`
-   - **Bei Fehler** (z.B. Token ungültig): Das Backend sendet eine
-     Fehlermeldung.
-     - Topic: `locker/provisioning/reply/{unique_client_id}`
-     - Payload:
-       ```json
-       {
-         "message_id": "msg-prov-reply-err-001",
-         "status": "error",
-         "timestamp": "2023-10-27T10:00:01Z",
-         "message": "Invalid or expired provisioning token."
-       }
-       ```
+  - **Bei Erfolg**: Das Backend sendet die neuen Zugangsdaten an den privaten
+   Antwortkanal des Clients.
+    - Topic: `locker/provisioning/reply/{unique_client_id}`
+    - Payload:
+    `{"message_id":"msg-prov-reply-001","status":"success","timestamp":"2023-10-27T10:00:01Z","data":{"mqtt_user":"...","mqtt_password":"..."}}`
+  - **Bei Fehler** (z.B. Token ungültig): Das Backend sendet eine
+  Fehlermeldung.
+    - Topic: `locker/provisioning/reply/{unique_client_id}`
+    - Payload:
+      ```json
+      {
+        "message_id": "msg-prov-reply-err-001",
+        "status": "error",
+        "timestamp": "2023-10-27T10:00:01Z",
+        "message": "Invalid or expired provisioning token."
+      }
+      ```
 7. **Client ist online**: Bei Erfolg speichert der Client die Zugangsdaten,
-   verbindet sich neu und ist einsatzbereit. Bei Fehler kann der Client eine
+  verbindet sich neu und ist einsatzbereit. Bei Fehler kann der Client eine
    entsprechende Meldung anzeigen.
 
 ## 5. Datenpersistenz mit Event Sourcing
@@ -481,19 +436,19 @@ Nachverfolgung und Fehlersuche. Wir verwenden dafür das Paket
 ### Kernkonzepte
 
 - **Events**: `LockerBankProvisioned`, `CompartmentOpeningRequested`,
-  `CompartmentOpened`
+`CompartmentOpened`
 - **Aggregate**: Das primäre Aggregat ist `LockerBankAggregate`. Es
-  repräsentiert einen ganzen Schrank.
+repräsentiert einen ganzen Schrank.
 - **Projectors**: Ein `LockerBankProjector` erstellt und aktualisiert die
-  Lese-Modelle für `locker_banks` und `compartments`.
+Lese-Modelle für `locker_banks` und `compartments`.
 - **Reactors**: Ein `MqttReactor` lauscht auf Events (z.B.
-  `CompartmentOpeningRequested`) und löst die MQTT-Kommunikation aus.
+`CompartmentOpeningRequested`) und löst die MQTT-Kommunikation aus.
 
 ### Beispielflow: "Fach öffnen" mit Event Sourcing
 
 1. **API-Request**: `POST /api/compartments/{id}/open` trifft ein.
 2. **Befehl an das Aggregat**: Der Controller lädt das zugehörige
-   `LockerBankAggregate` und sendet einen Befehl.
+  `LockerBankAggregate` und sendet einen Befehl.
 
 ```php
 // CompartmentController.php
@@ -503,10 +458,10 @@ LockerBankAggregate::retrieve($compartment->lockerBank->id)
     ->persist();
 ```
 
-3. **Event wird gespeichert**: Das Aggregat validiert die Anfrage und zeichnet
-   ein `CompartmentOpeningRequested`-Event auf.
-4. **Reaktion**: Ein **`MqttReactor`** fängt das Event ab und dispatcht einen
-   Job, der den `open_compartment`-Befehl an die
+1. **Event wird gespeichert**: Das Aggregat validiert die Anfrage und zeichnet
+  ein `CompartmentOpeningRequested`-Event auf.
+2. **Reaktion**: Ein `**MqttReactor`** fängt das Event ab und dispatcht einen
+  Job, der den `open_compartment`-Befehl an die
    `lockerbank/{uuid}/command`-Topic sendet.
 
 Dieser Ansatz entkoppelt die Annahme des Befehls sauber von der Ausführung der
@@ -514,7 +469,7 @@ Nebenwirkungen (MQTT-Kommunikation) und der Aktualisierung der Lese-Modelle.
 
 ## 6. Guard Layer, Deduplication & Idempotency (Konzept)
 
-Da QoS 1 _at least once_ ist, kann der Broker/Client Nachrichten erneut
+Da QoS 1 *at least once* ist, kann der Broker/Client Nachrichten erneut
 zustellen (z.B. bei Reconnect, fehlendem ACK). Deshalb müssen **Backend und
 IoT-Client** alle eingehenden MQTT-Nachrichten über eine gemeinsame
 Vorverarbeitungs-Schicht laufen lassen, bevor Domain-Logik ausgeführt wird.
@@ -536,15 +491,15 @@ Aufgaben des Guard Layers:
 ID-Regeln:
 
 - `message_id` ist für **alle** MQTT-Nachrichten verpflichtend (technische
-  Dedup-ID).
+Dedup-ID).
 - `transaction_id` ist zusätzlich verpflichtend für transaktionsgebundene
-  Nachrichten (`/command`, `/response`).
+Nachrichten (`/command`, `/response`).
 - `event_id` bleibt optional als fachliche Event-Korrelation.
 
 Reject-Regel:
 
 - Transaktionsgebundene Nachrichten ohne valide `transaction_id` werden
-  abgelehnt (keine Side-Effects).
+abgelehnt (keine Side-Effects).
 - Nachrichten ohne `message_id` werden abgelehnt (keine Side-Effects).
 
 ### 6.1 Command-Dedup auf dem IoT-Client (Pflicht)
@@ -553,7 +508,7 @@ Reject-Regel:
   - Key: `transaction_id`
   - Regel: Ein `transaction_id` darf **nicht** zweimal ausgeführt werden.
   - Der Client kann bei Duplikaten die **Response erneut senden**, aber die
-    eigentliche Hardware-Operation nur einmal ausführen.
+  eigentliche Hardware-Operation nur einmal ausführen.
   - Guard Layer dedupt zusätzlich technisch über `message_id`.
 
 ### 6.2 Response-Dedup im Backend (DB-gestützt, empfohlen)
@@ -565,9 +520,9 @@ Pattern (DB), das die Transaktionen eindeutig macht.
 - State-Machine (Beispiel): `pending -> success|error|timeout`
 - Verarbeitung:
   - Wenn `transaction_id` erstmals gesehen wird: verarbeiten und Domain-Event
-    erzeugen.
+  erzeugen.
   - Wenn bereits verarbeitet: als Duplicate ignorieren (optional: last_seen
-    loggen).
+  loggen).
 
 Damit verhindern wir doppelte Domain-Events im Event Store.
 
@@ -597,9 +552,9 @@ Empfehlung zur Speicherung:
   - publish erlauben: `locker/%u/state`, `locker/%u/response`, `locker/%u/event`
   - subscribe erlauben: `locker/%u/command`
 - Hinweis: MQTT Last Will wird vom Broker im Namen des Clients publiziert.
-  Deshalb muss `publish locker/%u/state` auch dafür erlaubt sein.
+Deshalb muss `publish locker/%u/state` auch dafür erlaubt sein.
 
-<!-- No /status migration: use /response for command responses -->
+
 
 ### 7.2 Laravel Listener (`mqtt:listen`)
 
@@ -619,25 +574,25 @@ Empfehlung zur Speicherung:
   - Tabelle `command_transactions`
   - Unique Index (`locker_uuid`, `transaction_id`)
   - Felder z.B.: `action`, `result`, `error_code`, `requested_at`,
-    `completed_at`, `payload_hash`, `last_seen_at`
+  `completed_at`, `payload_hash`, `last_seen_at`
 - Logik:
   - Guard Layer validiert `message_id` (alle Topics) und `transaction_id`
-    (`/response`).
+  (`/response`).
   - Response wird nur beim **ersten** Auftreten verarbeitet
-    (fachlich über `transaction_id`).
+  (fachlich über `transaction_id`).
   - Doppelte Packet-Zustellung mit neuer `message_id` aber gleicher
-    `transaction_id` bleibt fachlich dedupliziert.
+  `transaction_id` bleibt fachlich dedupliziert.
   - Doppelte Packet-Zustellung mit gleicher `message_id` wird direkt im Guard
-    Layer verworfen.
+  Layer verworfen.
   - Duplicates werden ignoriert (und/oder nur `last_seen_at` aktualisiert)
 
 ### 7.4 Domain-Integration (Event Sourcing)
 
 - Der `MqttReactor` nutzt weiterhin `transaction_id = commandId` (bereits
-  umgesetzt).
+umgesetzt).
 - `CommandResponseHandler` erzeugt nur dann Domain-Events (z.B.
-  `CompartmentOpened` / `CommandFailed`), wenn die Response “first seen” ist
-  (Tracker).
+`CompartmentOpened` / `CommandFailed`), wenn die Response “first seen” ist
+(Tracker).
 
 ### 7.5 IoT Client Anpassungen
 
@@ -651,18 +606,18 @@ Empfehlung zur Speicherung:
   - Für jeden Command genau eine Response auf `.../response` (success/error)
 - Events:
   - Spontane Events auf `.../event` mit verpflichtender `message_id`, optional
-    `event_id`
+  `event_id`
 - State:
   - State-Messages mit verpflichtender `message_id`
   - regelmäßige state/heartbeat Nachrichten auf `.../state` (retained)
 
 ### 7.6 Future Features (QR Scan & Update Command)
 
-<!-- QR scan flow intentionally omitted until concept is defined -->
+
 
 - **Update Command**:
   - Backend sendet `action=update_firmware` (oder `apply_config`) auf
-    `.../command` mit `transaction_id`
+  `.../command` mit `transaction_id`
   - Client dedupt strikt und antwortet via `.../response`
 
 ### 7.7 Tests & Rollout
@@ -671,8 +626,9 @@ Empfehlung zur Speicherung:
   - Guard Layer rejectet Messages ohne `message_id`
   - Guard Layer rejectet `/command` und `/response` ohne `transaction_id`
   - Doppelte `/state` und `/event` (gleiche `message_id`) erzeugen keine
-    doppelten Side-Effects
+  doppelten Side-Effects
   - Doppelte `/response` Nachrichten erzeugen **keine** doppelten Domain-Events
   - Dedup/Tracker verhält sich korrekt (first vs duplicate)
 - Rollout:
   - Direkt `.../response` verwenden (kein `.../status` Topic).
+

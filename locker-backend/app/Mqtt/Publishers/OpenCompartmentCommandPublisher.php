@@ -31,7 +31,6 @@ class OpenCompartmentCommandPublisher
             'transaction_id' => $event->commandId,
             'timestamp' => now()->toIso8601String(),
             'data' => [
-                'compartment_id' => $event->compartmentUuid,
                 'compartment_number' => $event->compartmentNumber,
             ],
         ]);

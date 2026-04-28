@@ -97,7 +97,7 @@ class CompartmentOpeningTest extends TestCase
         $this->assertIsString($timestamp);
         $this->assertNotEmpty($timestamp);
         \Carbon\CarbonImmutable::parse($timestamp); // should not throw
-        $this->assertSame($compartmentUuid, $decoded['data']['compartment_id'] ?? null);
+        $this->assertArrayNotHasKey('compartment_id', $decoded['data']);
         $this->assertSame($compartmentNumber, $decoded['data']['compartment_number'] ?? null);
     }
 }

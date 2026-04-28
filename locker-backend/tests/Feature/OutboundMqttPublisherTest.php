@@ -48,7 +48,7 @@ class OutboundMqttPublisherTest extends TestCase
         $this->assertIsString($payload['message_id'] ?? null);
         $this->assertSame('open_compartment', $payload['action'] ?? null);
         $this->assertSame('33333333-3333-3333-3333-333333333333', $payload['transaction_id'] ?? null);
-        $this->assertSame('22222222-2222-2222-2222-222222222222', $payload['data']['compartment_id'] ?? null);
+        $this->assertArrayNotHasKey('compartment_id', $payload['data']);
         $this->assertSame(7, $payload['data']['compartment_number'] ?? null);
     }
 
