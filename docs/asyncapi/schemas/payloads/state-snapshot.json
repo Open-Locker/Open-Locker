@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "./state-snapshot.json",
-  "title": "Aggregated retained locker snapshot",
+  "title": "Aggregated retained compartment snapshot",
   "allOf": [
     {
       "$ref": "../messages/state.json"
@@ -14,7 +14,7 @@
       ],
       "properties": {
         "state": {
-          "const": "snapshot"
+          "const": "compartment_snapshot"
         },
         "data": {
           "type": "object",
@@ -27,43 +27,20 @@
               "items": {
                 "type": "object",
                 "required": [
-                  "compartment_id",
-                  "relay_state",
-                  "lock_state",
-                  "door_sensor",
+                  "compartment_number",
                   "door_state"
                 ],
                 "properties": {
-                  "compartment_id": {
+                  "compartment_number": {
                     "type": "integer",
                     "minimum": 1
-                  },
-                  "relay_state": {
-                    "type": "string",
-                    "enum": [
-                      "ON",
-                      "OFF"
-                    ]
-                  },
-                  "lock_state": {
-                    "type": "string",
-                    "enum": [
-                      "UNLOCKED",
-                      "LOCKED"
-                    ]
-                  },
-                  "door_sensor": {
-                    "type": "string",
-                    "enum": [
-                      "TRIGGERED",
-                      "IDLE"
-                    ]
                   },
                   "door_state": {
                     "type": "string",
                     "enum": [
-                      "OPEN",
-                      "CLOSED"
+                      "open",
+                      "closed",
+                      "unknown"
                     ]
                   }
                 },

@@ -100,7 +100,10 @@ operations:
     action: receive
     channel:
       $ref: '#/channels/lockerState'
-    summary: Backend receives retained device state and heartbeats.
+    summary: Backend receives device state, heartbeats, and LWT state.
+    description: >-
+      `compartment_snapshot` messages are retained. `heartbeat` and
+      `connection_lost` messages are not retained.
     messages:
       - $ref: '#/channels/lockerState/messages/heartbeatState'
       - $ref: '#/channels/lockerState/messages/snapshotState'
@@ -149,6 +152,9 @@ operations:
     channel:
       $ref: '#/channels/lockerState'
     summary: Locker-client sends current state, heartbeats, and LWT state.
+    description: >-
+      Publish `compartment_snapshot` with MQTT retain=true. Publish `heartbeat`
+      and `connection_lost` with retain=false.
     messages:
       - $ref: '#/channels/lockerState/messages/heartbeatState'
       - $ref: '#/channels/lockerState/messages/snapshotState'
@@ -215,7 +221,7 @@ components:
         $ref: './schemas/payloads/state-heartbeat.json'
     snapshotState:
       name: snapshotState
-      title: Aggregated retained locker snapshot
+      title: Aggregated retained compartment snapshot
       contentType: application/json
       payload:
         $ref: './schemas/payloads/state-snapshot.json'
