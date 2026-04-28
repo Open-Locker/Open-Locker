@@ -8,12 +8,12 @@
     "heartbeat_interval_seconds": 15,
     "compartments": [
       {
-        "id": 1,
+        "compartment_number": 1,
         "slaveId": 1,
         "address": 0
       },
       {
-        "id": 2,
+        "compartment_number": 2,
         "slaveId": 1,
         "address": 1
       }

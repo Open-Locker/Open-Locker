@@ -37,12 +37,12 @@
               "items": {
                 "type": "object",
                 "required": [
-                  "id",
+                  "compartment_number",
                   "slaveId",
                   "address"
                 ],
                 "properties": {
-                  "id": {
+                  "compartment_number": {
                     "type": "integer",
                     "minimum": 1
                   },
