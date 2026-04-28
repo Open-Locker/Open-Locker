@@ -308,7 +308,7 @@ export class MQTTMessageHandler {
         transaction_id,
         action,
         result.message,
-        { applied_config_hash: result.appliedConfigHash },
+        result.appliedConfigHash,
       );
       mqttDedupService.markCommandCompleted(transaction_id, action);
     } catch (error) {
@@ -335,8 +335,8 @@ export class MQTTMessageHandler {
   private async sendSuccessResponse(
     transaction_id: string,
     action: string,
-    message: string,
-    extraFields: Partial<Pick<SuccessResponse, "applied_config_hash">> = {},
+    message?: string,
+    applied_config_hash?: string,
   ): Promise<SuccessResponse> {
     if (!this.lockerUuid) {
       throw new Error("Cannot send response: locker UUID not set");
@@ -348,8 +348,10 @@ export class MQTTMessageHandler {
       result: "success",
       transaction_id,
       timestamp: new Date().toISOString(),
-      message,
-      ...extraFields,
+      ...(message !== undefined ? { message } : {}),
+      ...(applied_config_hash !== undefined
+        ? { applied_config_hash }
+        : {}),
     });
 
     await this.publishResponse(response);

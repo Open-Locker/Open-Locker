@@ -35,7 +35,7 @@ abstract class AbstractInboundMqttHandler
             return;
         }
 
-        $validator = Validator::make($payload, $this->rules(), $this->messages(), $this->attributes());
+        $validator = $this->makeValidator($payload);
         if ($validator->fails()) {
             Log::warning('Rejected inbound MQTT payload due to validation errors.', [
                 'topic' => $topic,
@@ -58,6 +58,14 @@ abstract class AbstractInboundMqttHandler
     protected function receivedLogMessage(): string
     {
         return 'MQTT message received';
+    }
+
+    /**
+     * @param  array<string, mixed>  $payload
+     */
+    protected function makeValidator(array $payload): \Illuminate\Contracts\Validation\Validator
+    {
+        return Validator::make($payload, $this->rules(), $this->messages(), $this->attributes());
     }
 
     /**

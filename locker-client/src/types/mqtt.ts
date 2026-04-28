@@ -86,11 +86,11 @@ export interface MQTTCommandResponse extends MQTTMessageEnvelope {
 }
 
 /**
- * Success response for command execution
+ * Success response for command execution.
+ * Optional `message` is inherited from MQTTCommandResponse (AsyncAPI).
  */
 export interface SuccessResponse extends MQTTCommandResponse {
   result: "success";
-  message: string;
 }
 
 /**

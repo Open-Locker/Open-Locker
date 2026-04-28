@@ -7,7 +7,9 @@ namespace App\Mqtt\Handlers;
 use App\Mqtt\InboundMqttProtocolGuard;
 use App\Services\CommandResponseInboxService;
 use App\StorableEvents\CommandResponseReceived;
+use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Validator as ValidatorFacade;
 use Illuminate\Support\Str;
 
 class CommandResponseHandler extends AbstractInboundMqttHandler
@@ -49,6 +51,20 @@ class CommandResponseHandler extends AbstractInboundMqttHandler
             'data' => ['nullable', 'array'],
             'applied_config_hash' => ['nullable', 'string'],
         ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $payload
+     */
+    protected function makeValidator(array $payload): Validator
+    {
+        $rules = $this->rules();
+
+        if (($payload['action'] ?? '') === 'apply_config' && ($payload['result'] ?? '') === 'success') {
+            $rules['applied_config_hash'] = ['required', 'string', 'regex:/^[a-f0-9]{64}$/i'];
+        }
+
+        return ValidatorFacade::make($payload, $rules, $this->messages(), $this->attributes());
     }
 
     /**

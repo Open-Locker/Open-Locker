@@ -17,7 +17,8 @@ const MAX_RELAY_ADDRESS = 7;
 
 export interface ApplyConfigResult {
   appliedConfigHash: string;
-  message: string;
+  /** Optional human-readable confirmation (AsyncAPI success responses may omit `message`). */
+  message?: string;
 }
 
 export interface RuntimeConfigApplier {

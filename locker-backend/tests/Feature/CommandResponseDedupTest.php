@@ -158,4 +158,46 @@ class CommandResponseDedupTest extends TestCase
         $this->assertNotNull($derivedEvent);
         $this->assertSame($appliedConfigHash, $derivedEvent->event_properties['appliedConfigHash'] ?? null);
     }
+
+    public function test_success_command_response_without_message_is_accepted(): void
+    {
+        $handler = app(CommandResponseHandler::class);
+
+        $lockerUuid = '11111111-1111-1111-1111-111111111111';
+        $topic = "locker/{$lockerUuid}/response";
+
+        $handler->handleMessage($topic, (string) json_encode([
+            'message_id' => '77777777-7777-7777-7777-777777777777',
+            'type' => 'command_response',
+            'action' => 'open_compartment',
+            'result' => 'success',
+            'transaction_id' => '88888888-8888-8888-8888-888888888888',
+            'timestamp' => now()->toIso8601String(),
+        ]));
+
+        $this->assertDatabaseCount('command_transactions', 1);
+        $this->assertSame(1, EloquentStoredEvent::query()
+            ->where('event_class', CommandResponseReceived::class)
+            ->count());
+    }
+
+    public function test_apply_config_success_without_applied_config_hash_is_rejected(): void
+    {
+        $handler = app(CommandResponseHandler::class);
+
+        $topic = 'locker/11111111-1111-1111-1111-111111111111/response';
+
+        $handler->handleMessage($topic, (string) json_encode([
+            'message_id' => '99999999-9999-9999-9999-999999999999',
+            'type' => 'command_response',
+            'action' => 'apply_config',
+            'result' => 'success',
+            'transaction_id' => 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
+            'timestamp' => now()->toIso8601String(),
+            'message' => 'skipped hash',
+        ]));
+
+        $this->assertDatabaseCount('command_transactions', 0);
+        $this->assertSame(0, EloquentStoredEvent::query()->count());
+    }
 }

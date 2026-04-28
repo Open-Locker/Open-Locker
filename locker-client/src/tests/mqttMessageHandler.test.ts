@@ -56,7 +56,7 @@ function createHandlerHarness() {
   let openCompartmentImpl: (compartmentID: number) => Promise<void> = async () => {};
   let applyConfigImpl: (command: ApplyConfigCommand) => Promise<{
     appliedConfigHash: string;
-    message: string;
+    message?: string;
   }> = async () => ({
     appliedConfigHash: "a".repeat(64),
     message: "Config applied.",
@@ -108,7 +108,7 @@ function createHandlerHarness() {
     setApplyConfigMock(
       implementation: (command: ApplyConfigCommand) => Promise<{
         appliedConfigHash: string;
-        message: string;
+        message?: string;
       }>,
     ) {
       applyConfigImpl = implementation;
@@ -365,6 +365,44 @@ test("apply_config publishes success with top-level applied_config_hash", async 
     assert.equal(
       harness.publishedMessages[0]?.message.applied_config_hash,
       "b".repeat(64),
+    );
+  } finally {
+    harness.restore();
+  }
+});
+
+test("apply_config success includes applied_config_hash and may omit optional message", async () => {
+  const harness = createHandlerHarness();
+
+  harness.setApplyConfigMock(async () => ({
+    appliedConfigHash: "b".repeat(64),
+  }));
+
+  try {
+    await harness.handleCommand({
+      action: "apply_config",
+      transaction_id: "txn-6b",
+      message_id: "msg-6b",
+      timestamp: "2026-04-11T10:00:00Z",
+      data: {
+        config_hash: "a".repeat(64),
+        heartbeat_interval_seconds: 15,
+        compartments: [{ compartment_number: 1, slaveId: 1, address: 0 }],
+      },
+    });
+
+    assert.equal(harness.publishedMessages.length, 1);
+    assert.equal(harness.publishedMessages[0]?.message.result, "success");
+    assert.equal(
+      harness.publishedMessages[0]?.message.applied_config_hash,
+      "b".repeat(64),
+    );
+    assert.equal(
+      Object.prototype.hasOwnProperty.call(
+        harness.publishedMessages[0]?.message,
+        "message",
+      ),
+      false,
     );
   } finally {
     harness.restore();
