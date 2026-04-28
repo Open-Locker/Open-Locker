@@ -153,8 +153,13 @@ operations:
       $ref: '#/channels/lockerState'
     summary: Locker-client sends current state, heartbeats, and LWT state.
     description: >-
-      Publish `compartment_snapshot` with MQTT retain=true. Publish `heartbeat`
-      and `connection_lost` with retain=false.
+      Publish `compartment_snapshot` with MQTT retain=true. It is a full
+      snapshot of all configured compartments, not a delta. The locker-client
+      publishes it after the first successful state poll and afterwards only
+      when at least one effective compartment `door_state` changes. If a
+      configured compartment cannot be read reliably, report it as
+      `door_state=unknown`. Publish `heartbeat` and `connection_lost` with
+      retain=false.
     messages:
       - $ref: '#/channels/lockerState/messages/heartbeatState'
       - $ref: '#/channels/lockerState/messages/snapshotState'

@@ -2,6 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "./state-snapshot.json",
   "title": "Aggregated retained compartment snapshot",
+  "description": "A retained full snapshot of all configured compartments. Publish after the first successful state poll and afterwards only when at least one effective compartment door_state changes. Use door_state=unknown for configured compartments that cannot be read reliably.",
   "allOf": [
     {
       "$ref": "../messages/state.json"
