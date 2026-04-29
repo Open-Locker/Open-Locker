@@ -1,7 +1,5 @@
 import { logger } from "../helper/logger";
 import { modbusService } from "../services/modbusService";
-import { mqttService } from "../services/mqttService";
-import { credentialsService } from "../services/credentialsService";
 import { configLoader } from "../config/configLoader";
 
 export class CommandHandler {
@@ -115,9 +113,6 @@ export class CommandHandler {
           }`,
         );
 
-        // Publish status to MQTT
-        await this.publishCoilStatus(compartmentID, isRelayOn);
-
         // If relay is off (lock is engaged), stop monitoring
         if (!isRelayOn) {
           logger.info(
@@ -173,35 +168,6 @@ export class CommandHandler {
       logger.info(`Stopped monitoring for compartment ${compartmentID}`);
     });
     this.monitoringIntervals.clear();
-  }
-
-  private async publishCoilStatus(
-    compartmentID: number,
-    isRelayOn: boolean,
-  ): Promise<void> {
-    try {
-      const credentials = credentialsService.getCredentials();
-      if (!credentials || !credentials.username) {
-        logger.warn("No credentials available, skipping MQTT status publish");
-        return;
-      }
-
-      const lockerUuid = credentials.username;
-      const topic = `locker/${lockerUuid}/status`;
-
-      const statusPayload = {
-        compartment_id: compartmentID,
-        relay_state: isRelayOn ? "ON" : "OFF",
-        lock_state: isRelayOn ? "UNLOCKED" : "LOCKED",
-        timestamp: new Date().toISOString(),
-      };
-
-      await mqttService.publish(topic, statusPayload);
-      logger.debug(`Published relay status to ${topic}:`, statusPayload);
-    } catch (error) {
-      logger.error("Failed to publish relay status to MQTT:", error);
-      // Don't throw error - we don't want MQTT failures to stop monitoring
-    }
   }
 
   private getFlashDurationMs(): number {

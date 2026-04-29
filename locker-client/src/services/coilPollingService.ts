@@ -13,12 +13,29 @@ interface PolledClientSnapshot extends PollingTarget {
   inputStates: boolean[];
 }
 
-interface CompartmentStatusPayload {
-  compartment_id: number;
-  relay_state: "ON" | "OFF";
-  lock_state: "UNLOCKED" | "LOCKED";
-  door_sensor: "TRIGGERED" | "IDLE";
-  door_state: "OPEN" | "CLOSED";
+type MqttDoorState = "open" | "closed" | "unknown";
+
+export type CompartmentSnapshotEntry = {
+  compartment_number: number;
+  door_state: MqttDoorState;
+};
+
+/** Canonical JSON key for in-memory snapshot deduplication (sorted by compartment_number). */
+export function compartmentSnapshotKey(
+  entries: CompartmentSnapshotEntry[],
+): string {
+  const sorted = [...entries].sort(
+    (left, right) => left.compartment_number - right.compartment_number,
+  );
+  return JSON.stringify(sorted);
+}
+
+/** Whether the effective door-state vector differs from the last published snapshot key. */
+export function shouldPublishCompartmentSnapshot(
+  lastPublishedKey: string | null,
+  entries: CompartmentSnapshotEntry[],
+): boolean {
+  return compartmentSnapshotKey(entries) !== lastPublishedKey;
 }
 
 class CoilPollingService {
@@ -27,6 +44,8 @@ class CoilPollingService {
   private readonly NUM_CHANNELS = 8; // 8-channel relay board
   private hasWarnedAboutLegacyMultiBoardMapping: boolean = false;
   private isPolling: boolean = false;
+  /** Serialized last published snapshot for change detection */
+  private lastPublishedSnapshotKey: string | null = null;
 
   /**
    * Start polling relay and input status
@@ -72,7 +91,9 @@ class CoilPollingService {
    */
   private async pollStatus(): Promise<void> {
     if (this.isPolling) {
-      logger.warn("Skipping poll cycle because the previous cycle is still running");
+      logger.warn(
+        "Skipping poll cycle because the previous cycle is still running",
+      );
       return;
     }
 
@@ -143,21 +164,22 @@ class CoilPollingService {
       }
 
       if (snapshots.length === 0) {
-        logger.warn("No reachable Modbus boards responded during polling cycle");
+        logger.warn(
+          "No reachable Modbus boards responded during polling cycle",
+        );
         return;
       }
 
-      // Publish combined status across all reachable boards.
-      await this.publishStatus(snapshots);
+      await this.maybePublishSnapshot(snapshots);
     } finally {
       this.isPolling = false;
     }
   }
 
   /**
-   * Publish status to MQTT
+   * Publish retained compartment_snapshot only when door states change.
    */
-  private async publishStatus(
+  private async maybePublishSnapshot(
     snapshots: PolledClientSnapshot[],
   ): Promise<void> {
     try {
@@ -166,21 +188,27 @@ class CoilPollingService {
         return;
       }
 
-      const lockerUuid = credentials.username;
-      const topic = `locker/${lockerUuid}/state`;
-      const compartments = this.buildCompartmentPayload(snapshots);
+      const entries = this.buildCompartmentSnapshotEntries(snapshots);
+      if (entries.length === 0) {
+        return;
+      }
 
-      const statusPayload = {
-        event: "status_update",
-        data: {
-          timestamp: new Date().toISOString(),
-          compartments,
-        },
+      const key = compartmentSnapshotKey(entries);
+      if (key === this.lastPublishedSnapshotKey) {
+        return;
+      }
+
+      const lockerUuid = credentials.username;
+      const topic = `locker/${lockerUuid}/state/compartments`;
+      const payload = {
+        timestamp: new Date().toISOString(),
+        compartments: entries,
       };
 
-      await mqttService.publish(topic, statusPayload);
+      await mqttService.publish(topic, payload, { qos: 1, retain: true });
+      this.lastPublishedSnapshotKey = key;
     } catch (error) {
-      logger.error("Failed to publish status to MQTT:", error);
+      logger.error("Failed to publish compartment snapshot to MQTT:", error);
     }
   }
 
@@ -212,9 +240,9 @@ class CoilPollingService {
     }));
   }
 
-  private buildCompartmentPayload(
+  private buildCompartmentSnapshotEntries(
     snapshots: PolledClientSnapshot[],
-  ): CompartmentStatusPayload[] {
+  ): CompartmentSnapshotEntry[] {
     const configuredCompartments = configLoader.getConfig()?.compartments;
 
     if (
@@ -234,63 +262,73 @@ class CoilPollingService {
 
       return snapshots
         .flatMap((snapshot) =>
-          snapshot.relayStates.map((relayState, address) =>
-            this.toCompartmentStatus(
+          snapshot.relayStates.map((_, address) =>
+            this.entryFromSensor(
               snapshot.slaveId === 1
                 ? address + 1
                 : (snapshot.slaveId - 1) * this.NUM_CHANNELS + address + 1,
-              relayState,
-              snapshot.inputStates[address] ?? false,
+              snapshot.inputStates[address],
             ),
-          )
-        )
-        .sort((left, right) => left.compartment_id - right.compartment_id);
-    }
-
-    const compartments: CompartmentStatusPayload[] = [];
-
-    for (const snapshot of snapshots) {
-      for (const compartment of configuredCompartments) {
-        if (compartment.slaveId !== snapshot.slaveId) {
-          continue;
-        }
-
-        if (
-          compartment.address < 0 ||
-          compartment.address >= this.NUM_CHANNELS
-        ) {
-          logger.warn(
-            `Skipping compartment ${compartment.compartment_number}: address ${compartment.address} is outside the supported polling range`,
-          );
-          continue;
-        }
-
-        compartments.push(
-          this.toCompartmentStatus(
-            compartment.compartment_number,
-            snapshot.relayStates[compartment.address] ?? false,
-            snapshot.inputStates[compartment.address] ?? false,
           ),
+        )
+        .sort(
+          (left, right) => left.compartment_number - right.compartment_number,
         );
-      }
     }
 
-    return compartments.sort(
-      (left, right) => left.compartment_id - right.compartment_id,
+    const entries: CompartmentSnapshotEntry[] = [];
+
+    for (const compartment of configuredCompartments) {
+      const snapshot = snapshots.find((s) => s.slaveId === compartment.slaveId);
+      if (!snapshot) {
+        entries.push({
+          compartment_number: compartment.compartment_number,
+          door_state: "unknown",
+        });
+        continue;
+      }
+
+      if (
+        compartment.address < 0 ||
+        compartment.address >= this.NUM_CHANNELS
+      ) {
+        logger.warn(
+          `Skipping compartment ${compartment.compartment_number}: address ${compartment.address} is outside the supported polling range`,
+        );
+        entries.push({
+          compartment_number: compartment.compartment_number,
+          door_state: "unknown",
+        });
+        continue;
+      }
+
+      entries.push(
+        this.entryFromSensor(
+          compartment.compartment_number,
+          snapshot.inputStates[compartment.address],
+        ),
+      );
+    }
+
+    return entries.sort(
+      (left, right) => left.compartment_number - right.compartment_number,
     );
   }
 
-  private toCompartmentStatus(
-    compartmentId: number,
-    relayState: boolean,
-    inputState: boolean,
-  ): CompartmentStatusPayload {
+  private entryFromSensor(
+    compartmentNumber: number,
+    inputState: boolean | undefined,
+  ): CompartmentSnapshotEntry {
+    if (typeof inputState !== "boolean") {
+      return {
+        compartment_number: compartmentNumber,
+        door_state: "unknown",
+      };
+    }
+
     return {
-      compartment_id: compartmentId,
-      relay_state: relayState ? "ON" : "OFF",
-      lock_state: relayState ? "UNLOCKED" : "LOCKED",
-      door_sensor: inputState ? "TRIGGERED" : "IDLE",
-      door_state: inputState ? "OPEN" : "CLOSED",
+      compartment_number: compartmentNumber,
+      door_state: inputState ? "open" : "closed",
     };
   }
 }

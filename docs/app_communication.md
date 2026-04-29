@@ -31,16 +31,24 @@ contract is documented here.
 
 ### 3.1 Channel and Auth
 
-- **Private channel**: `users.{userId}.compartment-open`
+- **Private channel**: `users.{userId}.compartment-status`
 - **Broadcast auth endpoint**: `POST /broadcasting/auth`
 - Channel authorization is defined in `routes/channels.php`.
 
-### 3.2 Event
+### 3.2 Events
 
-- **Broadcast event name**: `.compartment.open.status.updated`
-- **Server event class**: `App\Events\CompartmentOpenStatusUpdated`
+All compartment-related push notifications use this channel:
 
-### 3.3 Event payload
+- **Open command progress**
+  - **Broadcast event name**: `.compartment.open.status.updated`
+  - **Server event class**: `App\Events\CompartmentOpenStatusUpdated`
+- **Door state (from MQTT snapshots and persistence)**
+  - **Broadcast event name**: `.compartment.door_state.updated`
+  - **Server event class**: `App\Events\CompartmentDoorStateUpdated`
+
+### 3.3 Payloads
+
+**Open status** (`.compartment.open.status.updated`):
 
 ```json
 {
@@ -52,13 +60,24 @@ contract is documented here.
 }
 ```
 
+**Door state** (`.compartment.door_state.updated`):
+
+```json
+{
+  "compartment_id": "uuid",
+  "door_state": "open|closed|unknown",
+  "door_state_changed_at": "nullable-ISO8601-string"
+}
+```
+
 ## 4) Recommended Client Flow
 
 1. Call `POST /api/compartments/{id}/open`.
 2. Use returned `command_id` as correlation ID in client state.
-3. Subscribe via Echo to `users.{userId}.compartment-open`.
+3. Subscribe via Echo to `users.{userId}.compartment-status`.
 4. Handle `.compartment.open.status.updated` events for this `command_id`.
-5. If websocket is unavailable, poll
+5. Handle `.compartment.door_state.updated` for live door state when implemented in the client.
+6. If websocket is unavailable, poll
    `GET /api/compartments/open-requests/{commandId}` until final state.
 
 Final states:

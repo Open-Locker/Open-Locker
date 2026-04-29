@@ -31,7 +31,7 @@ abstract class AbstractInboundMqttHandler
             return;
         }
 
-        if (! $this->guard->allow($topic, $payload, $this->requiresTransactionId())) {
+        if (! $this->guard->allow($topic, $payload, $this->requiresTransactionId(), $this->blocksInboundDuplicateMessageIds())) {
             return;
         }
 
@@ -48,6 +48,15 @@ abstract class AbstractInboundMqttHandler
         }
 
         $this->handleValidated($topic, $payload);
+    }
+
+    /**
+     * When false, {@see InboundMqttProtocolGuard} still requires message_id but does not suppress
+     * duplicate IDs (used for idempotent retained compartment snapshots).
+     */
+    protected function blocksInboundDuplicateMessageIds(): bool
+    {
+        return true;
     }
 
     protected function requiresTransactionId(): bool

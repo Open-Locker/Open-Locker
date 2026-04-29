@@ -57,10 +57,10 @@
 - Added Filament Realtime notification config:
   - `config/filament.php` with Echo/Reverb settings
   - test command `reverb:test-filament-notification`
-- Added compartment-open live toasts in Filament admin:
+- Added compartment status live toasts in Filament admin:
   - panel render hook in `AdminPanelProvider`
   - realtime listener view `filament/realtime-compartment-open-notifications`
-  - listens to `.compartment.open.status.updated` on `users.{id}.compartment-open`
+  - listens to `.compartment.open.status.updated` and `.compartment.door_state.updated` on `users.{id}.compartment-status`
 - Added app-side communication documentation:
   - `docs/app_communication.md` for REST + Realtime + polling fallback contract
   - linked from `docs/mqtt_integration_plan.md`

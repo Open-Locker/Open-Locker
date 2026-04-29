@@ -20,6 +20,7 @@ use Illuminate\Support\Str;
  * @property-read int $heartbeat_timeout_seconds
  * @property-read string $connection_status
  * @property-read \Illuminate\Support\CarbonImmutable|null $connection_status_changed_at
+ * @property-read \Illuminate\Support\CarbonImmutable|null $last_compartment_state_change_at
  * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\Compartment> $compartments
  * @property-read int|null $compartments_count
  */
@@ -37,6 +38,7 @@ class LockerBank extends Model
         'heartbeat_timeout_seconds',
         'connection_status',
         'connection_status_changed_at',
+        'last_compartment_state_change_at',
         'last_config_sent_at',
         'last_config_sent_hash',
         'last_config_ack_at',
@@ -47,6 +49,7 @@ class LockerBank extends Model
         'provisioned_at' => 'datetime',
         'last_heartbeat_at' => 'datetime',
         'connection_status_changed_at' => 'datetime',
+        'last_compartment_state_change_at' => 'datetime',
         'last_config_sent_at' => 'datetime',
         'last_config_ack_at' => 'datetime',
     ];

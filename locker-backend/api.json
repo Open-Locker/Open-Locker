@@ -71,14 +71,14 @@
                                         "message": {
                                             "anyOf": [
                                                 {
-                                                    "type": "string"
+                                                    "type": "null"
                                                 },
                                                 {
                                                     "type": "array",
                                                     "items": {}
                                                 },
                                                 {
-                                                    "type": "null"
+                                                    "type": "string"
                                                 }
                                             ]
                                         },
@@ -142,14 +142,14 @@
                                         "message": {
                                             "anyOf": [
                                                 {
-                                                    "type": "string"
+                                                    "type": "null"
                                                 },
                                                 {
                                                     "type": "array",
                                                     "items": {}
                                                 },
                                                 {
-                                                    "type": "null"
+                                                    "type": "string"
                                                 }
                                             ]
                                         },
@@ -360,14 +360,14 @@
                                         "message": {
                                             "anyOf": [
                                                 {
-                                                    "type": "string"
+                                                    "type": "null"
                                                 },
                                                 {
                                                     "type": "array",
                                                     "items": {}
                                                 },
                                                 {
-                                                    "type": "null"
+                                                    "type": "string"
                                                 }
                                             ]
                                         }
@@ -408,26 +408,7 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "type": "object",
-                                    "properties": {
-                                        "message": {
-                                            "anyOf": [
-                                                {
-                                                    "type": "string"
-                                                },
-                                                {
-                                                    "type": "array",
-                                                    "items": {}
-                                                },
-                                                {
-                                                    "type": "null"
-                                                }
-                                            ]
-                                        }
-                                    },
-                                    "required": [
-                                        "message"
-                                    ]
+                                    "type": "object"
                                 }
                             }
                         }
@@ -456,14 +437,14 @@
                                         "message": {
                                             "anyOf": [
                                                 {
-                                                    "type": "string"
+                                                    "type": "null"
                                                 },
                                                 {
                                                     "type": "array",
                                                     "items": {}
                                                 },
                                                 {
-                                                    "type": "null"
+                                                    "type": "string"
                                                 }
                                             ]
                                         }
@@ -570,14 +551,14 @@
                                         "message": {
                                             "anyOf": [
                                                 {
-                                                    "type": "string"
+                                                    "type": "null"
                                                 },
                                                 {
                                                     "type": "array",
                                                     "items": {}
                                                 },
                                                 {
-                                                    "type": "null"
+                                                    "type": "string"
                                                 }
                                             ]
                                         }
@@ -636,14 +617,14 @@
                                                 "message": {
                                                     "anyOf": [
                                                         {
-                                                            "type": "string"
+                                                            "type": "null"
                                                         },
                                                         {
                                                             "type": "array",
                                                             "items": {}
                                                         },
                                                         {
-                                                            "type": "null"
+                                                            "type": "string"
                                                         }
                                                     ]
                                                 }
@@ -692,14 +673,14 @@
                                                 "message": {
                                                     "anyOf": [
                                                         {
-                                                            "type": "string"
+                                                            "type": "null"
                                                         },
                                                         {
                                                             "type": "array",
                                                             "items": {}
                                                         },
                                                         {
-                                                            "type": "null"
+                                                            "type": "string"
                                                         }
                                                     ]
                                                 }
@@ -833,7 +814,7 @@
         "/compartments/{compartment}/open": {
             "post": {
                 "operationId": "compartments.open",
-                "description": "Dispatches an event-sourced open command and returns immediately.\n\nRealtime note:\nAfter this endpoint returns, clients should subscribe to\n`private-users.{userId}.compartment-open` and listen for\n`.compartment.open.status.updated` events.\nPayload fields: `command_id`, `compartment_id`, `status`,\n`error_code`, `message`.",
+                "description": "Dispatches an event-sourced open command and returns immediately.\n\nRealtime note:\nAfter this endpoint returns, clients should subscribe to\n`private-users.{userId}.compartment-status` and listen for\n`.compartment.open.status.updated` events.\nPayload fields: `command_id`, `compartment_id`, `status`,\n`error_code`, `message`.",
                 "summary": "Open a compartment for an authorized user",
                 "tags": [
                     "Compartment"
@@ -874,7 +855,7 @@
         "/compartments/open-requests/{commandId}": {
             "get": {
                 "operationId": "compartments.open-status",
-                "description": "Realtime note:\nThis endpoint is the polling fallback when websocket/reverb push is\nunavailable. Realtime push uses channel\n`private-users.{userId}.compartment-open` and event\n`.compartment.open.status.updated`.",
+                "description": "Realtime note:\nThis endpoint is the polling fallback when websocket/reverb push is\nunavailable. Realtime push uses channel\n`private-users.{userId}.compartment-status` and event\n`.compartment.open.status.updated`.",
                 "summary": "Return status information for a previously created open command",
                 "tags": [
                     "Compartment"
@@ -1173,14 +1154,14 @@
                                         "message": {
                                             "anyOf": [
                                                 {
-                                                    "type": "string"
+                                                    "type": "null"
                                                 },
                                                 {
                                                     "type": "array",
                                                     "items": {}
                                                 },
                                                 {
-                                                    "type": "null"
+                                                    "type": "string"
                                                 }
                                             ]
                                         },
@@ -1249,6 +1230,12 @@
                                         "null"
                                     ]
                                 },
+                                "last_compartment_state_change_at": {
+                                    "type": [
+                                        "string",
+                                        "null"
+                                    ]
+                                },
                                 "compartments": {
                                     "type": "array",
                                     "items": {
@@ -1259,6 +1246,25 @@
                                             },
                                             "number": {
                                                 "type": "integer"
+                                            },
+                                            "door_state": {
+                                                "anyOf": [
+                                                    {
+                                                        "type": "string"
+                                                    },
+                                                    {
+                                                        "type": "string",
+                                                        "enum": [
+                                                            "unknown"
+                                                        ]
+                                                    }
+                                                ]
+                                            },
+                                            "door_state_changed_at": {
+                                                "type": [
+                                                    "string",
+                                                    "null"
+                                                ]
                                             },
                                             "item": {
                                                 "type": [
@@ -1286,6 +1292,7 @@
                                         "required": [
                                             "id",
                                             "number",
+                                            "door_state",
                                             "item"
                                         ]
                                     }

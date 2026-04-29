@@ -60,7 +60,7 @@ class CompartmentController extends Controller
      *
      * Realtime note:
      * After this endpoint returns, clients should subscribe to
-     * `private-users.{userId}.compartment-open` and listen for
+     * `private-users.{userId}.compartment-status` and listen for
      * `.compartment.open.status.updated` events.
      * Payload fields: `command_id`, `compartment_id`, `status`,
      * `error_code`, `message`.
@@ -108,7 +108,7 @@ class CompartmentController extends Controller
      * Realtime note:
      * This endpoint is the polling fallback when websocket/reverb push is
      * unavailable. Realtime push uses channel
-     * `private-users.{userId}.compartment-open` and event
+     * `private-users.{userId}.compartment-status` and event
      * `.compartment.open.status.updated`.
      */
     public function openStatus(Request $request, string $commandId): JsonResponse

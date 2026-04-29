@@ -28,8 +28,10 @@ class HeartbeatService {
     this.lockerUuid = credentials.username;
     const mqttConfig = getMqttConfig();
 
-    logger.info(`Starting heartbeat service with interval: ${mqttConfig.heartbeatInterval / 1000}s`);
-    
+    logger.info(
+      `Starting heartbeat service with interval: ${mqttConfig.heartbeatInterval / 1000}s`,
+    );
+
     // Reset start time
     this.startTime = Date.now();
 
@@ -69,20 +71,19 @@ class HeartbeatService {
         return;
       }
 
-      const topic = `locker/${this.lockerUuid}/state`;
-      
+      const topic = `locker/${this.lockerUuid}/state/heartbeat`;
+
       const uptimeSeconds = Math.floor((Date.now() - this.startTime) / 1000);
-      
+
       const payload = {
-        event: "heartbeat",
-        data: {
-          timestamp: new Date().toISOString(),
-          uptime_seconds: uptimeSeconds,
-        },
+        timestamp: new Date().toISOString(),
+        uptime_seconds: uptimeSeconds,
       };
 
-      await mqttService.publish(topic, payload);
-      logger.debug(`Heartbeat sent to ${topic}`, { uptime_seconds: uptimeSeconds });
+      await mqttService.publish(topic, payload, { qos: 1, retain: false });
+      logger.debug(`Heartbeat sent to ${topic}`, {
+        uptime_seconds: uptimeSeconds,
+      });
     } catch (error) {
       logger.error("Failed to send heartbeat:", error);
     } finally {

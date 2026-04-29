@@ -25,7 +25,7 @@ class CompartmentOpenStatusUpdated implements ShouldBroadcastNow
 
     public function broadcastOn(): array
     {
-        return [new PrivateChannel("users.{$this->userId}.compartment-open")];
+        return [new PrivateChannel("users.{$this->userId}.compartment-status")];
     }
 
     public function broadcastAs(): string

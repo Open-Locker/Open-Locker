@@ -23,7 +23,7 @@ That model works, but the state kinds have different MQTT lifecycle semantics:
 - heartbeats are live liveness signals and should not be retained
 - compartment snapshots are current state and should be retained
 - connection lost signals are LWT/connection signals and should not be retained
-  for now
+for now
 
 Retain behavior is a property of an MQTT publish on a topic. Mixing retained and
 non-retained state kinds on one topic forces additional payload routing and
@@ -44,15 +44,13 @@ Topic semantics:
   - non-retained
   - liveness signal from the locker-client to the backend
   - payload contains `message_id`, `timestamp`, and `uptime_seconds`
-
 - `state/compartments`
   - retained
   - full current snapshot of all configured compartments
   - payload contains `message_id`, `timestamp`, and `compartments`
   - published after the first successful state poll and afterwards only when at
-    least one effective `door_state` changes
+  least one effective `door_state` changes
   - unreadable configured compartments are reported as `door_state = unknown`
-
 - `state/connection`
   - non-retained for now
   - LWT/connection signal such as unexpected disconnect
@@ -60,6 +58,12 @@ Topic semantics:
 
 Because the state type is now encoded in the topic, these payloads do not need a
 top-level `state` discriminator.
+
+### Backend handling (`state/connection`)
+
+Until Last Will / LWT semantics drive `**LockerBank.connection_status**`, the backend
+validates `**state/connection**` payloads per AsyncAPI and logs structured telemetry only.
+**Heartbeat timeout + heartbeat-initiated `LockerConnectionRestored`** remain authoritative for offline→online transitions.
 
 ## Alternatives Considered
 
@@ -74,7 +78,7 @@ top-level `state` discriminator.
   - retained snapshot replays need special handling beside heartbeat and LWT
 - Why not chosen:
   - lifecycle semantics differ enough that separate topics are clearer and
-    reduce special cases
+  reduce special cases
 
 ### Alternative B: Split only the retained snapshot topic
 
@@ -94,24 +98,24 @@ top-level `state` discriminator.
 - retain semantics become obvious from the topic
 - backend handlers can be smaller and have simpler validation rules
 - retained compartment snapshots can be idempotently reapplied without weakening
-  deduplication for commands, responses, events, provisioning, or connection
-  signals
+deduplication for commands, responses, events, provisioning, or connection
+signals
 - future ACLs can authorize state streams more precisely
 
 ### Negative
 
 - backend and locker-client implementations must update topic subscriptions and
-  publish targets
+publish targets
 - existing state-handler code must be migrated away from the single
-  `locker/+/state` topic
+`locker/+/state` topic
 - current docs and tests referencing `locker/{uuid}/state` need updating
 
 ### Risks
 
 - partial migration could leave clients publishing to old state topics while the
-  backend listens to new ones
+backend listens to new ones
 - retained snapshots on the old topic may remain in a broker until explicitly
-  cleared
+cleared
 
 Mitigations:
 
@@ -125,7 +129,7 @@ Mitigations:
 2. Update locker-client heartbeat, compartment snapshot, and LWT publish topics.
 3. Update backend MQTT listener subscriptions and state handlers.
 4. Remove legacy support for `event` on state payloads and the old
-   `locker/{uuid}/state` topic.
+  `locker/{uuid}/state` topic.
 5. Add focused contract tests for the three state topics.
 
 ## Supersedes / Superseded By

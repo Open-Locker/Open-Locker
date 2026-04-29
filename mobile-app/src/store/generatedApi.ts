@@ -221,7 +221,7 @@ export { injectedRtkApi as openLockerApi };
 export type GetAdminUsersApiResponse = /** status 200 Array of `User` */ User[];
 export type GetAdminUsersApiArg = void;
 export type PostAdminUsersByUserMakeAdminApiResponse = /** status 200  */ {
-  message: string | any[] | null;
+  message: null | any[] | string;
   user: User;
 };
 export type PostAdminUsersByUserMakeAdminApiArg = {
@@ -229,7 +229,7 @@ export type PostAdminUsersByUserMakeAdminApiArg = {
   user: number;
 };
 export type PostAdminUsersByUserRemoveAdminApiResponse = /** status 200  */ {
-  message: string | any[] | null;
+  message: null | any[] | string;
   user: User;
 };
 export type PostAdminUsersByUserRemoveAdminApiArg = {
@@ -265,19 +265,17 @@ export type PostLoginApiArg = {
   loginRequest: LoginRequest;
 };
 export type PostPasswordEmailApiResponse = /** status 200  */ {
-  message: string | any[] | null;
+  message: null | any[] | string;
 };
 export type PostPasswordEmailApiArg = {
   sendPasswordResetRequest: SendPasswordResetRequest;
 };
-export type PostResetPasswordApiResponse = /** status 200  */ {
-  message: string | any[] | null;
-};
+export type PostResetPasswordApiResponse = /** status 200  */ object;
 export type PostResetPasswordApiArg = {
   resetPasswordRequest: ResetPasswordRequest;
 };
 export type PostLogoutApiResponse = /** status 200  */ {
-  message: string | any[] | null;
+  message: null | any[] | string;
 };
 export type PostLogoutApiArg = void;
 export type GetUserApiResponse = /** status 200 `UserResource` */ User;
@@ -287,14 +285,14 @@ export type PutProfileApiArg = {
   updateProfileRequest: UpdateProfileRequest;
 };
 export type PutPasswordApiResponse = /** status 200  */ {
-  message: string | any[] | null;
+  message: null | any[] | string;
 };
 export type PutPasswordApiArg = {
   changePasswordRequest: ChangePasswordRequest;
 };
 export type GetVerifyEmailByIdAndHashApiResponse = /** status 200 `ApiError` */
   | {
-      message: string | any[] | null;
+      message: null | any[] | string;
     }
   | ApiError;
 export type GetVerifyEmailByIdAndHashApiArg = {
@@ -304,7 +302,7 @@ export type GetVerifyEmailByIdAndHashApiArg = {
 export type PostEmailVerificationNotificationApiResponse =
   /** status 200 `ApiError` */
     | {
-        message: string | any[] | null;
+        message: null | any[] | string;
       }
     | ApiError;
 export type PostEmailVerificationNotificationApiArg = void;
@@ -365,7 +363,7 @@ export type GetTermsCurrentApiResponse =
   /** status 200 `TermsCurrentResource` */ CurrentTerms;
 export type GetTermsCurrentApiArg = void;
 export type PostTermsAcceptApiResponse = /** status 200  */ {
-  message: string | any[] | null;
+  message: null | any[] | string;
   accepted_version: number;
   accepted_at: string;
 };
@@ -419,9 +417,12 @@ export type AccessibleCompartments = {
     id: string;
     name: string;
     location_description: string | null;
+    last_compartment_state_change_at?: string | null;
     compartments: {
       id: string;
       number: number;
+      door_state: string | "unknown";
+      door_state_changed_at?: string | null;
       item: {
         id: string;
         name: string;

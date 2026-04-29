@@ -54,7 +54,8 @@ Damit bildet Laravel auch die frühere ACL-Logik ab:
   - Darf **nur seine eigenen Topics** verwenden, typischerweise:
     - lesen: `locker/{locker_id}/command`
     - schreiben: `locker/{locker_id}/response`, `locker/{locker_id}/event` und
-    `locker/{locker_id}/state`
+    State-Untertopics unter `locker/{locker_id}/state/#` (z. B. `…/heartbeat`,
+    `…/compartments`, `…/connection`; siehe AsyncAPI / ADR-0017)
   - Der effektive Namensraum wird aus der in der Datenbank hinterlegten
   Locker-ID bzw. dem MQTT-Benutzernamen abgeleitet.
 - **Provisioning-Client (`provisioning_client`)**
@@ -131,7 +132,7 @@ laufenden Prozess.
    State:
   - `locker/+/response` (Command Responses, transaktionsgebunden)
   - `locker/+/event` (spontane Events, nicht transaktionsgebunden)
-  - `locker/+/state` (Snapshot/Telemetry, retained)
+  - `locker/+/state/#` (Heartbeat, Compartment-Snapshot mit Retain, LWT/Connection)
 3. **Prozess-Management**: In der Entwicklung und Produktion wird dieses Command
   mit **Supervisor** gestartet und überwacht, um sicherzustellen, dass es immer
    läuft. Laravel Sail bringt eine `supervisor.conf` mit, die wir dafür anpassen
@@ -150,8 +151,10 @@ der Payloads für die verschiedenen Topics.
 - **Befehle (Backend → Client)**: `locker/{locker_uuid}/command`
 - **Responses (Client → Backend)**: `locker/{locker_uuid}/response`
 - **Events (Client → Backend)**: `locker/{locker_uuid}/event`
-- **State / Zustand (Client → Backend)**: `locker/{locker_uuid}/state`
-(**retained**, für aktuelle Zustände/Telemetry/Heartbeats)
+- **State / Zustand (Client → Backend)** — aufgeteilt unter `locker/{locker_uuid}/state/`:
+  - `…/heartbeat` (Telemetry, **retain=false**)
+  - `…/compartments` (Voll-Snapshot aller Fächer, **retain=true**)
+  - `…/connection` (z. B. LWT „offline“, **retain=false**; Details AsyncAPI)
 
 > Hinweis: Für transaktionsgebundene Antworten nutzen wir ausschließlich
 > `.../response`. Spontane Ereignisse laufen über `.../event`.
@@ -298,43 +301,37 @@ verwenden wir eine verpflichtende `message_id` für den globalen Dedup-Layer.
     }
     ```
 
-#### 4.4 State / Zustand (Client sendet, retained)
+#### 4.4 State / Zustand (Client sendet)
 
-Für regelmäßige "Heartbeats", Telemetrie und **aktuelle Zustände**. Diese
-Nachrichten können **retained** sein, damit neue Subscriber sofort den letzten
-bekannten Zustand sehen.
+Heartbeats und Telemetrie sind **nicht retained**. Der **Compartment-Snapshot**
+(Vollbild aller Fächer) ist **retained**, damit neue Subscriber den letzten Zustand sehen.
 
 - **Regelmäßiger Heartbeat:**
-  - Topic: `locker/{uuid}/state`
+  - Topic: `locker/{uuid}/state/heartbeat`
   - Payload:
     ```json
     {
-      "type": "state",
       "message_id": "msg-state-001",
-      "state": "heartbeat",
-      "data": {
-        "timestamp": "2023-10-27T10:01:00Z",
-        "uptime_seconds": 86400
-      }
+      "timestamp": "2023-10-27T10:01:00Z",
+      "uptime_seconds": 86400
     }
     ```
 
-#### 4.5 "Last Will" - Client geht offline (State)
+#### 4.5 "Last Will" - Client geht offline (Connection)
 
 Das "Last Will and Testament"-Feature von MQTT wird genutzt, um unerwartete
 Verbindungsabbrüche zu melden.
 
 - **Konfiguration**: Der Client setzt beim Verbindungsaufbau seinen "letzten
 Willen" (siehe oben).
-- **Topic**: `locker/{locker_uuid}/state`
+- **Topic**: `locker/{locker_uuid}/state/connection`
 - **Payload**:
   ```json
   {
-    "type": "state",
     "message_id": "msg-lwt-001",
-    "state": "connection_lost",
+    "timestamp": "2023-10-27T10:00:00Z",
     "status": "offline",
-    "timestamp": "..."
+    "reason": "mqtt_last_will"
   }
   ```
 - **Funktionsweise**: Wenn der Broker erkennt, dass der Client die Verbindung
@@ -350,7 +347,7 @@ Broker publiziert diese Nachricht automatisch, wenn die Verbindung unerwartet
 abbricht (z.B. Stromausfall, Netzwerk weg), ohne dass der Client sie aktiv
 senden kann.
 
-- **Topic**: `locker/{locker_uuid}/state`
+- **Topic**: `locker/{locker_uuid}/state/connection`
 - **QoS**: 1 (empfohlen)
 - **retained**: `false` (empfohlen, da es ein Moment-Event ist; der
 Heartbeat-Timeout im Backend ist der Fallback)
@@ -359,11 +356,9 @@ Beispiel-Payload (JSON):
 
 ```json
 {
-  "type": "state",
   "message_id": "msg-lwt-002",
-  "state": "connection_lost",
-  "status": "offline",
   "timestamp": "2023-10-27T10:00:00Z",
+  "status": "offline",
   "reason": "mqtt_last_will"
 }
 ```
@@ -371,7 +366,7 @@ Beispiel-Payload (JSON):
 Hinweise:
 
 - Der Broker prüft ACLs auch für Last-Will-Publishes. Device-User müssen daher
-auf `locker/%u/state` publishen dürfen (siehe ACL-Plan).
+auf `locker/%u/state/#` publishen dürfen (siehe ACL-Plan).
 - Last Will ist ein **Fast-Path** Signal; das Backend sollte zusätzlich
 weiterhin zeitbasiert (Heartbeat-Timeout) offline erkennen, falls
 Broker/Netzwerk Probleme haben.
@@ -532,7 +527,8 @@ Für alle nicht transaktionsgebundenen Topics erfolgt Dedup im Guard Layer über
 `message_id`:
 
 - `locker/{uuid}/event`
-- `locker/{uuid}/state`
+- `locker/{uuid}/state/heartbeat`, `locker/{uuid}/state/connection` (strict)
+- `locker/{uuid}/state/compartments` (gleiche `message_id` bei Retained-Replay **nicht** blockieren — idempotent anwenden)
 - `locker/register/+`
 - `locker/provisioning/reply/{client_id}`
 
@@ -549,23 +545,21 @@ Empfehlung zur Speicherung:
 ### 7.1 Broker/ACL (Mosquitto go-auth)
 
 - ACL für Device-User erweitern:
-  - publish erlauben: `locker/%u/state`, `locker/%u/response`, `locker/%u/event`
+  - publish erlauben: `locker/%u/state/#`, `locker/%u/response`, `locker/%u/event`
   - subscribe erlauben: `locker/%u/command`
 - Hinweis: MQTT Last Will wird vom Broker im Namen des Clients publiziert.
-Deshalb muss `publish locker/%u/state` auch dafür erlaubt sein.
-
-
+Deshalb muss `publish locker/%u/state/#` auch dafür erlaubt sein.
 
 ### 7.2 Laravel Listener (`mqtt:listen`)
 
 - Subscribe ergänzen:
   - `locker/+/response`
   - `locker/+/event`
-  - `locker/+/state` bleibt
+  - `locker/+/state/#` (Heartbeat, Compartment-Snapshot, Connection/LWT)
 - Handler aufsplitten:
   - `CommandResponseHandler` (für `/response`)
   - `DeviceEventHandler` (für `/event`)
-  - `HeartbeatHandler` bleibt (für `/state`)
+  - dedizierte Handler für `state/heartbeat`, `state/compartments`, `state/connection`
 - Neu: `InboundMessageGuard` als erste Stufe vor allen spezifischen Handlern.
 
 ### 7.3 Dedup/Tracker im Backend
@@ -608,12 +602,11 @@ umgesetzt).
   - Spontane Events auf `.../event` mit verpflichtender `message_id`, optional
   `event_id`
 - State:
-  - State-Messages mit verpflichtender `message_id`
-  - regelmäßige state/heartbeat Nachrichten auf `.../state` (retained)
+  - Nachrichten mit verpflichtender `message_id` auf den jeweiligen State-Topics
+  - Heartbeat auf `…/state/heartbeat` (**retain=false**), Compartment-Snapshot auf
+  `…/state/compartments` (**retain=true**), optional Connection/LWT auf `…/state/connection`
 
 ### 7.6 Future Features (QR Scan & Update Command)
-
-
 
 - **Update Command**:
   - Backend sendet `action=update_firmware` (oder `apply_config`) auf
@@ -625,8 +618,9 @@ umgesetzt).
 - Feature Tests:
   - Guard Layer rejectet Messages ohne `message_id`
   - Guard Layer rejectet `/command` und `/response` ohne `transaction_id`
-  - Doppelte `/state` und `/event` (gleiche `message_id`) erzeugen keine
-  doppelten Side-Effects
+  - Doppelte `/state/heartbeat` und `/event` (gleiche `message_id`) erzeugen keine
+  doppelten Side-Effects; `/state/compartments` bleibt bei gleicher `message_id`
+  idempotent (Retained-Replay)
   - Doppelte `/response` Nachrichten erzeugen **keine** doppelten Domain-Events
   - Dedup/Tracker verhält sich korrekt (first vs duplicate)
 - Rollout:

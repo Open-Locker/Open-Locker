@@ -125,7 +125,7 @@ class MosquittoAuthController extends Controller
             $isReadAcc = in_array($acc, [self::ACC_READ, self::ACC_READWRITE, self::ACC_SUBSCRIBE], true);
 
             if ($isWriteAcc) { // publish (device -> backend)
-                $allow = $this->acl->topicMatches('locker/%u/state', $topic, $username, $clientId)
+                $allow = $this->acl->topicMatches('locker/%u/state/#', $topic, $username, $clientId)
                     || $this->acl->topicMatches('locker/%u/response', $topic, $username, $clientId)
                     || $this->acl->topicMatches('locker/%u/event', $topic, $username, $clientId);
 

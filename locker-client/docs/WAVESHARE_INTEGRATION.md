@@ -98,8 +98,9 @@ The client publishes MQTT payloads with a technical `message_id`.
 Relevant outbound topics:
 
 - `locker/{uuid}/response`
-- `locker/{uuid}/state`
-- `locker/{uuid}/status`
+- `locker/{uuid}/state/heartbeat`
+- `locker/{uuid}/state/compartments` (retained snapshot)
+- `locker/{uuid}/state/connection` (Last Will)
 - `locker/register/{token}`
 
 Command execution is deduplicated by:

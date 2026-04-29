@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Console\Commands;
 
 use Illuminate\Console\Command;
+use Illuminate\Support\Str;
 use PhpMqtt\Client\ConnectionSettings;
 use PhpMqtt\Client\Facades\MQTT;
 use PhpMqtt\Client\MqttClient;
@@ -117,7 +118,7 @@ class MqttClientSimulatorCommand extends Command
             $lockerUuid = (string) $provisionResult['user'];
             $lockerPassword = (string) $provisionResult['password'];
             $deviceClientId = 'device-test-'.uniqid();
-            $stateTopic = "locker/{$lockerUuid}/state";
+            $stateTopic = "locker/{$lockerUuid}/state/heartbeat";
             $commandTopic = "locker/{$lockerUuid}/command";
             $responseTopic = "locker/{$lockerUuid}/response";
 
@@ -247,11 +248,9 @@ class MqttClientSimulatorCommand extends Command
             // Continuous heartbeat loop
             while (true) {
                 $heartbeatPayload = json_encode([
-                    'type' => 'state',
-                    'state' => 'heartbeat',
-                    'data' => [
-                        'timestamp' => now()->toIso8601String(),
-                    ],
+                    'message_id' => (string) Str::uuid(),
+                    'timestamp' => now()->toIso8601String(),
+                    'uptime_seconds' => (int) max(0, (int) (microtime(true) - $loopStartedAt)),
                 ]);
 
                 $base->publish($stateTopic, (string) $heartbeatPayload, 1);

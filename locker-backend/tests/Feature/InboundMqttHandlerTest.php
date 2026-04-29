@@ -3,7 +3,7 @@
 namespace Tests\Feature;
 
 use App\Mqtt\Handlers\DeviceEventHandler;
-use App\Mqtt\Handlers\HeartbeatHandler;
+use App\Mqtt\Handlers\LockerHeartbeatHandler;
 use App\Mqtt\Handlers\RegistrationHandler;
 use App\StorableEvents\DeviceEventReceived;
 use Database\Factories\LockerBankFactory;
@@ -78,7 +78,7 @@ class InboundMqttHandlerTest extends TestCase
 
     public function test_missing_message_id_is_rejected_for_heartbeat_state(): void
     {
-        $handler = app(HeartbeatHandler::class);
+        $handler = app(LockerHeartbeatHandler::class);
         $lockerBank = LockerBankFactory::new()->create([
             'id' => '11111111-1111-1111-1111-111111111111',
             'connection_status' => 'offline',
@@ -86,12 +86,10 @@ class InboundMqttHandlerTest extends TestCase
         ]);
 
         $handler->handleMessage(
-            "locker/{$lockerBank->id}/state",
+            "locker/{$lockerBank->id}/state/heartbeat",
             (string) json_encode([
-                'event' => 'heartbeat',
-                'data' => [
-                    'timestamp' => now()->toIso8601String(),
-                ],
+                'timestamp' => now()->toIso8601String(),
+                'uptime_seconds' => 0,
             ]),
         );
 

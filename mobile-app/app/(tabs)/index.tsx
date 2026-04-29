@@ -75,9 +75,18 @@ function getCompartmentStatusFromApi(
   const candidate = compartment as CompartmentEntry & {
     state?: unknown;
     status?: unknown;
+    door_state?: unknown;
     is_open?: unknown;
     open?: unknown;
   };
+
+  const rawDoor = candidate.door_state;
+  if (typeof rawDoor === 'string') {
+    const n = rawDoor.trim().toLowerCase();
+    if (n === 'open') return 'open';
+    if (n === 'closed') return 'closed';
+    if (n === 'unknown') return 'unknown';
+  }
 
   const rawState = candidate.state ?? candidate.status;
   if (typeof rawState === 'string') {

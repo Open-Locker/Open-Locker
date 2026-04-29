@@ -88,6 +88,7 @@ exists for legacy compatibility and is not the preferred multi-board setup.
 
 ## References
 
+- `docs/adr/0016-retained-compartment-snapshot-and-door-state-persistence.md` (MQTT payload name `compartment_snapshot` supersedes historic `status_update` wording in this ADR)
 - `docs/adr/0006-best-effort-startup-failsafe-for-unreachable-modbus-boards.md`
 - `docs/adr/0004-waveshare-hardware-flash-and-supported-boards.md`
 - `locker-client/src/services/coilPollingService.ts`

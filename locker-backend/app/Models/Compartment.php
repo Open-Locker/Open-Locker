@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\CompartmentDoorState;
 use Database\Factories\CompartmentFactory;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
@@ -22,6 +23,8 @@ class Compartment extends Model
         'number',
         'slave_id',
         'address',
+        'door_state',
+        'door_state_changed_at',
         'last_opened_at',
         'last_open_failed_at',
         'last_open_transaction_id',
@@ -118,6 +121,8 @@ class Compartment extends Model
             'number' => 'integer',
             'slave_id' => 'integer',
             'address' => 'integer',
+            'door_state' => CompartmentDoorState::class,
+            'door_state_changed_at' => 'datetime',
             'last_opened_at' => 'datetime',
             'last_open_failed_at' => 'datetime',
         ];

@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace App\Projectors;
 
+use App\Enums\CompartmentDoorState;
 use App\Models\Compartment;
+use App\StorableEvents\CompartmentDoorStateChanged;
 use App\StorableEvents\CompartmentOpened;
 use App\StorableEvents\CompartmentOpeningFailed;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -13,6 +15,21 @@ use Spatie\EventSourcing\EventHandlers\Projectors\Projector;
 
 class CompartmentProjector extends Projector implements ShouldQueue
 {
+    public function onCompartmentDoorStateChanged(CompartmentDoorStateChanged $event): void
+    {
+        $compartment = Compartment::find($event->compartmentUuid);
+        if (! $compartment) {
+            return;
+        }
+
+        $ts = Carbon::parse($event->doorStateChangedAtIso8601);
+
+        $compartment->forceFill([
+            'door_state' => CompartmentDoorState::from($event->newDoorState),
+            'door_state_changed_at' => $ts,
+        ])->save();
+    }
+
     public function onCompartmentOpened(CompartmentOpened $event): void
     {
         $compartment = Compartment::find($event->compartmentUuid);

@@ -1,8 +1,11 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Projectors;
 
 use App\Models\LockerBank;
+use App\StorableEvents\CompartmentStateChangesApplied;
 use App\StorableEvents\LockerConfigAcknowledged;
 use App\StorableEvents\LockerConnectionLost;
 use App\StorableEvents\LockerConnectionRestored;
@@ -13,6 +16,25 @@ use Spatie\EventSourcing\EventHandlers\Projectors\Projector;
 
 class LockerBankProjector extends Projector implements ShouldQueue
 {
+    public function onCompartmentStateChangesApplied(CompartmentStateChangesApplied $event): void
+    {
+        $this->applyLastCompartmentStateChangeAt($event->lockerBankUuid, $event->changesObservedAtIso8601);
+    }
+
+    private function applyLastCompartmentStateChangeAt(string $lockerBankUuid, string $timestampIso8601): void
+    {
+        $lockerBank = LockerBank::find($lockerBankUuid);
+        if (! $lockerBank) {
+            return;
+        }
+
+        $ts = Carbon::parse($timestampIso8601);
+
+        $lockerBank->forceFill([
+            'last_compartment_state_change_at' => $ts,
+        ])->save();
+    }
+
     public function onLockerWasProvisioned(LockerWasProvisioned $event): void
     {
         $lockerBank = LockerBank::find($event->lockerBankUuid);
@@ -42,9 +64,11 @@ class LockerBankProjector extends Projector implements ShouldQueue
             return;
         }
 
+        $ts = Carbon::parse($event->restoredAtIso8601);
+
         $lockerBank->forceFill([
             'connection_status' => 'online',
-            'connection_status_changed_at' => $event->restoredAtIso8601,
+            'connection_status_changed_at' => $ts,
         ])->save();
     }
 

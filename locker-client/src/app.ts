@@ -11,6 +11,7 @@ import { credentialsService } from "./services/credentialsService";
 import { heartbeatService } from "./services/heartbeatService";
 import { coilPollingService } from "./services/coilPollingService";
 import { provisioningTokenService } from "./services/provisioningTokenService";
+import { connectionLostWillOptions } from "./helper/mqttWill";
 
 const mqttMessageHandler = new MQTTMessageHandler(() => commandHandler);
 
@@ -83,6 +84,7 @@ async function main() {
             username: newCredentials.username,
             password: newCredentials.password,
             clientId: mqttConfig.clientId,
+            ...connectionLostWillOptions(newCredentials.username),
           });
 
           logger.info("MQTT reconnected with provisioned credentials");
@@ -101,11 +103,17 @@ async function main() {
     } else {
       const mqttConfig = getMqttConfig();
 
+      if (!mqttConfig.username || !mqttConfig.password) {
+        logger.error("MQTT credentials missing; cannot connect");
+        process.exit(1);
+      }
+
       // Initialize MQTT connection with saved credentials
       await mqttClientManager.connect(mqttConfig.brokerUrl, {
         username: mqttConfig.username,
         password: mqttConfig.password,
         clientId: mqttConfig.clientId,
+        ...connectionLostWillOptions(mqttConfig.username),
       });
 
       logger.info("MQTT connection established");

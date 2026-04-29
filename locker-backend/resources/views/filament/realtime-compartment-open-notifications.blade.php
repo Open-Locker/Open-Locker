@@ -35,35 +35,46 @@
                 failed: 'danger',
             };
 
-            window.Echo.private(`users.${userId}.compartment-open`)
-                .listen('.compartment.open.status.updated', (payload) => {
-                    const status = payload?.status ?? 'sent';
-                    const commandId = payload?.command_id ?? 'n/a';
-                    const messageParts = [`Command: ${commandId}`];
+            const compartmentStatus = window.Echo.private(`users.${userId}.compartment-status`);
 
-                    if (payload?.compartment_id) {
-                        messageParts.push(`Compartment: ${payload.compartment_id}`);
-                    }
+            compartmentStatus.listen('.compartment.open.status.updated', (payload) => {
+                const status = payload?.status ?? 'sent';
+                const commandId = payload?.command_id ?? 'n/a';
+                const messageParts = [`Command: ${commandId}`];
 
-                    if (payload?.message) {
-                        messageParts.push(`Message: ${payload.message}`);
-                    }
+                if (payload?.compartment_id) {
+                    messageParts.push(`Compartment: ${payload.compartment_id}`);
+                }
 
-                    if (payload?.error_code) {
-                        messageParts.push(`Error: ${payload.error_code}`);
-                    }
+                if (payload?.message) {
+                    messageParts.push(`Message: ${payload.message}`);
+                }
 
-                    const notification = new window.FilamentNotification()
-                        .title(statusTitles[status] ?? 'Compartment status updated')
-                        .body(messageParts.join(' | '));
+                if (payload?.error_code) {
+                    messageParts.push(`Error: ${payload.error_code}`);
+                }
 
-                    const level = statusLevel[status] ?? 'info';
-                    if (typeof notification[level] === 'function') {
-                        notification[level]();
-                    }
+                const notification = new window.FilamentNotification()
+                    .title(statusTitles[status] ?? 'Compartment status updated')
+                    .body(messageParts.join(' | '));
 
-                    notification.send();
-                });
+                const level = statusLevel[status] ?? 'info';
+                if (typeof notification[level] === 'function') {
+                    notification[level]();
+                }
+
+                notification.send();
+            });
+
+            compartmentStatus.listen('.compartment.door_state.updated', (payload) => {
+                const door = payload?.door_state ?? 'unknown';
+                const compartmentId = payload?.compartment_id ?? 'n/a';
+                const notification = new window.FilamentNotification()
+                    .title('Compartment door state')
+                    .body(`Compartment: ${compartmentId} | Door: ${door}`)
+                    .info();
+                notification.send();
+            });
         })();
     </script>
 @endif

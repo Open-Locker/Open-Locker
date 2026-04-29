@@ -15,8 +15,12 @@ class InboundMqttProtocolGuard
     /**
      * @param  array<string, mixed>  $payload
      */
-    public function allow(string $topic, array $payload, bool $requiresTransactionId = false): bool
-    {
+    public function allow(
+        string $topic,
+        array $payload,
+        bool $requiresTransactionId = false,
+        bool $blockDuplicateMessageIds = true,
+    ): bool {
         $messageId = Arr::get($payload, 'message_id');
 
         if (! is_string($messageId) || trim($messageId) === '') {
@@ -41,6 +45,10 @@ class InboundMqttProtocolGuard
 
                 return false;
             }
+        }
+
+        if (! $blockDuplicateMessageIds) {
+            return true;
         }
 
         $cacheKey = sprintf('mqtt:inbound:message-id:%s', $messageId);

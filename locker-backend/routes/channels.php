@@ -6,6 +6,6 @@ Broadcast::channel('App.Models.User.{id}', function ($user, $id) {
     return (int) $user->id === (int) $id;
 });
 
-Broadcast::channel('users.{id}.compartment-open', function ($user, $id) {
+Broadcast::channel('users.{id}.compartment-status', function ($user, $id) {
     return (int) $user->id === (int) $id;
 });

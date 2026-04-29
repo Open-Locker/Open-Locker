@@ -4,8 +4,10 @@ namespace App\Console\Commands;
 
 use App\Mqtt\Handlers\AbstractInboundMqttHandler;
 use App\Mqtt\Handlers\CommandResponseHandler;
+use App\Mqtt\Handlers\CompartmentSnapshotHandler;
 use App\Mqtt\Handlers\DeviceEventHandler;
-use App\Mqtt\Handlers\HeartbeatHandler;
+use App\Mqtt\Handlers\LockerConnectionStateHandler;
+use App\Mqtt\Handlers\LockerHeartbeatHandler;
 use App\Mqtt\Handlers\RegistrationHandler;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Log;
@@ -22,7 +24,9 @@ class MqttListen extends Command
 
     public function __construct(
         private readonly RegistrationHandler $registrationHandler,
-        private readonly HeartbeatHandler $heartbeatHandler,
+        private readonly LockerHeartbeatHandler $lockerHeartbeatHandler,
+        private readonly CompartmentSnapshotHandler $compartmentSnapshotHandler,
+        private readonly LockerConnectionStateHandler $lockerConnectionStateHandler,
         private readonly CommandResponseHandler $commandResponseHandler,
         private readonly DeviceEventHandler $deviceEventHandler,
     ) {
@@ -59,7 +63,9 @@ class MqttListen extends Command
     {
         return [
             $this->registrationHandler,
-            $this->heartbeatHandler,
+            $this->lockerHeartbeatHandler,
+            $this->compartmentSnapshotHandler,
+            $this->lockerConnectionStateHandler,
             $this->commandResponseHandler,
             $this->deviceEventHandler,
         ];
