@@ -1,17 +1,14 @@
 {
   "message_id": "msg-state-snapshot-001",
-  "state": "compartment_snapshot",
   "timestamp": "2026-04-14T19:33:05Z",
-  "data": {
-    "compartments": [
-      {
-        "compartment_number": 1,
-        "door_state": "closed"
-      },
-      {
-        "compartment_number": 2,
-        "door_state": "open"
-      }
-    ]
-  }
+  "compartments": [
+    {
+      "compartment_number": 1,
+      "door_state": "closed"
+    },
+    {
+      "compartment_number": 2,
+      "door_state": "open"
+    }
+  ]
 }

@@ -9,29 +9,16 @@
     {
       "type": "object",
       "required": [
-        "state",
-        "data"
+        "status",
+        "reason"
       ],
       "properties": {
-        "state": {
-          "const": "connection_lost"
+        "status": {
+          "const": "offline"
         },
-        "data": {
-          "type": "object",
-          "required": [
-            "status",
-            "reason"
-          ],
-          "properties": {
-            "status": {
-              "const": "offline"
-            },
-            "reason": {
-              "type": "string",
-              "minLength": 1
-            }
-          },
-          "additionalProperties": true
+        "reason": {
+          "type": "string",
+          "minLength": 1
         }
       }
     }

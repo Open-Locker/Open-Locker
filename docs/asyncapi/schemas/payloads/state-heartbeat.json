@@ -9,25 +9,12 @@
     {
       "type": "object",
       "required": [
-        "state",
-        "data"
+        "uptime_seconds"
       ],
       "properties": {
-        "state": {
-          "const": "heartbeat"
-        },
-        "data": {
-          "type": "object",
-          "required": [
-            "uptime_seconds"
-          ],
-          "properties": {
-            "uptime_seconds": {
-              "type": "integer",
-              "minimum": 0
-            }
-          },
-          "additionalProperties": true
+        "uptime_seconds": {
+          "type": "integer",
+          "minimum": 0
         }
       }
     }

@@ -41,16 +41,28 @@ channels:
     messages:
       doorStateChangedEvent:
         $ref: '#/components/messages/doorStateChangedEvent'
-  lockerState:
-    address: locker/{locker_uuid}/state
+  lockerStateHeartbeat:
+    address: locker/{locker_uuid}/state/heartbeat
     parameters:
       locker_uuid:
         $ref: '#/components/parameters/locker_uuid'
     messages:
       heartbeatState:
         $ref: '#/components/messages/heartbeatState'
+  lockerStateCompartments:
+    address: locker/{locker_uuid}/state/compartments
+    parameters:
+      locker_uuid:
+        $ref: '#/components/parameters/locker_uuid'
+    messages:
       snapshotState:
         $ref: '#/components/messages/snapshotState'
+  lockerStateConnection:
+    address: locker/{locker_uuid}/state/connection
+    parameters:
+      locker_uuid:
+        $ref: '#/components/parameters/locker_uuid'
+    messages:
       connectionLostState:
         $ref: '#/components/messages/connectionLostState'
   provisioningRegister:
@@ -96,18 +108,30 @@ operations:
     summary: Backend receives spontaneous locker events.
     messages:
       - $ref: '#/channels/lockerEvent/messages/doorStateChangedEvent'
-  backendReceiveLockerState:
+  backendReceiveLockerHeartbeat:
     action: receive
     channel:
-      $ref: '#/channels/lockerState'
-    summary: Backend receives device state, heartbeats, and LWT state.
-    description: >-
-      `compartment_snapshot` messages are retained. `heartbeat` and
-      `connection_lost` messages are not retained.
+      $ref: '#/channels/lockerStateHeartbeat'
+    summary: Backend receives non-retained locker heartbeats.
     messages:
-      - $ref: '#/channels/lockerState/messages/heartbeatState'
-      - $ref: '#/channels/lockerState/messages/snapshotState'
-      - $ref: '#/channels/lockerState/messages/connectionLostState'
+      - $ref: '#/channels/lockerStateHeartbeat/messages/heartbeatState'
+  backendReceiveLockerCompartments:
+    action: receive
+    channel:
+      $ref: '#/channels/lockerStateCompartments'
+    summary: Backend receives retained compartment snapshots.
+    description: >-
+      Compartment snapshots are retained full snapshots of all configured
+      compartments, not deltas.
+    messages:
+      - $ref: '#/channels/lockerStateCompartments/messages/snapshotState'
+  backendReceiveLockerConnection:
+    action: receive
+    channel:
+      $ref: '#/channels/lockerStateConnection'
+    summary: Backend receives non-retained locker connection state signals.
+    messages:
+      - $ref: '#/channels/lockerStateConnection/messages/connectionLostState'
   provisioningClientSendRegisterRequest:
     action: send
     channel:
@@ -147,23 +171,35 @@ operations:
     summary: Locker-client sends spontaneous device events.
     messages:
       - $ref: '#/channels/lockerEvent/messages/doorStateChangedEvent'
-  lockerClientSendLockerState:
+  lockerClientSendLockerHeartbeat:
     action: send
     channel:
-      $ref: '#/channels/lockerState'
-    summary: Locker-client sends current state, heartbeats, and LWT state.
-    description: >-
-      Publish `compartment_snapshot` with MQTT retain=true. It is a full
-      snapshot of all configured compartments, not a delta. The locker-client
-      publishes it after the first successful state poll and afterwards only
-      when at least one effective compartment `door_state` changes. If a
-      configured compartment cannot be read reliably, report it as
-      `door_state=unknown`. Publish `heartbeat` and `connection_lost` with
-      retain=false.
+      $ref: '#/channels/lockerStateHeartbeat'
+    summary: Locker-client sends non-retained heartbeats.
+    description: Publish heartbeats with MQTT retain=false.
     messages:
-      - $ref: '#/channels/lockerState/messages/heartbeatState'
-      - $ref: '#/channels/lockerState/messages/snapshotState'
-      - $ref: '#/channels/lockerState/messages/connectionLostState'
+      - $ref: '#/channels/lockerStateHeartbeat/messages/heartbeatState'
+  lockerClientSendLockerCompartments:
+    action: send
+    channel:
+      $ref: '#/channels/lockerStateCompartments'
+    summary: Locker-client sends retained compartment snapshots.
+    description: >-
+      Publish with MQTT retain=true. This is a full snapshot of all configured
+      compartments, not a delta. The locker-client publishes it after the first
+      successful state poll and afterwards only when at least one effective
+      compartment `door_state` changes. If a configured compartment cannot be
+      read reliably, report it as `door_state=unknown`.
+    messages:
+      - $ref: '#/channels/lockerStateCompartments/messages/snapshotState'
+  lockerClientSendLockerConnection:
+    action: send
+    channel:
+      $ref: '#/channels/lockerStateConnection'
+    summary: Locker-client sends non-retained connection state signals.
+    description: Publish LWT connection state with MQTT retain=false.
+    messages:
+      - $ref: '#/channels/lockerStateConnection/messages/connectionLostState'
 components:
   parameters:
     locker_uuid:

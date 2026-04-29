@@ -5,22 +5,14 @@
   "type": "object",
   "required": [
     "message_id",
-    "state",
     "timestamp"
   ],
   "properties": {
     "message_id": {
       "$ref": "../common/message-id.json"
     },
-    "state": {
-      "type": "string",
-      "minLength": 1
-    },
     "timestamp": {
       "$ref": "../common/timestamp.json"
-    },
-    "data": {
-      "type": "object"
     }
   },
   "additionalProperties": true
