@@ -68,8 +68,11 @@ export default function ResetPasswordScreen() {
           password_confirmation: passwordConfirmation,
         },
       }).unwrap();
+      const resData = res as { message?: unknown };
       setSuccessMessage(
-        typeof res.message === 'string' ? res.message : t('passwordReset.passwordResetDone'),
+        typeof resData.message === 'string'
+          ? resData.message
+          : t('passwordReset.passwordResetDone'),
       );
     } catch (e) {
       setError(getErrorMessage(e, t));
