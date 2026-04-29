@@ -100,80 +100,108 @@ class CoilPollingService {
     this.isPolling = true;
 
     try {
-      // Check if Modbus is connected before attempting to poll
-      if (!modbusService.isModbusConnected()) {
-        logger.warn(
-          "Modbus not connected, skipping poll and attempting reconnection...",
-        );
-        await modbusService.ensureConnection();
-        return;
-      }
-
-      const pollingTargets = this.getPollingTargets();
-      if (pollingTargets.length === 0) {
-        logger.warn("No Modbus clients configured for polling");
-        return;
-      }
-
-      const snapshots: PolledClientSnapshot[] = [];
-
-      for (const target of pollingTargets) {
-        try {
-          const relayStates = await modbusService.readCoils(
-            0x0000,
-            this.NUM_CHANNELS,
-            target.slaveId,
-          );
-
-          const inputStates = await modbusService.readDiscreteInputs(
-            0x0000,
-            this.NUM_CHANNELS,
-            target.slaveId,
-          );
-
-          logger.debug(`[slave:${target.slaveId}] Relay states:`, relayStates);
-          logger.debug(
-            `[slave:${target.slaveId}] Input states (door sensors):`,
-            inputStates,
-          );
-
-          snapshots.push({
-            ...target,
-            relayStates,
-            inputStates,
-          });
-        } catch (error) {
-          logger.error(
-            `[slave:${target.slaveId}] Error polling relay/input status:`,
-            error,
-          );
-
-          // Reconnect only on transport failures. A board timeout should not
-          // reset polling for other boards on the same RS485 bus.
-          if (
-            error instanceof Error &&
-            (error.message.includes("Port Not Open") ||
-              error.message.includes("ECONNREFUSED"))
-          ) {
-            logger.warn("Port error detected, initiating reconnection...");
-            modbusService.reconnect().catch((reconnectError) => {
-              logger.error("Failed to initiate reconnection:", reconnectError);
-            });
-          }
-        }
-      }
-
-      if (snapshots.length === 0) {
-        logger.warn(
-          "No reachable Modbus boards responded during polling cycle",
-        );
-        return;
-      }
-
-      await this.maybePublishSnapshot(snapshots);
+      await this.runPollCycle(false);
     } finally {
       this.isPolling = false;
     }
+  }
+
+  /**
+   * Poll Modbus once and publish locker/.../state/compartments.
+   * Used after a successful open so the backend gets a fresh snapshot without
+   * waiting for the next interval. With `force: true`, republishes even when the
+   * door-state vector matches the last publish (new timestamp on retained message).
+   */
+  async publishSnapshotNow(options: { force?: boolean } = {}): Promise<void> {
+    if (this.isPolling) {
+      logger.debug(
+        "Skipping immediate compartment snapshot: poll cycle already in progress",
+      );
+      return;
+    }
+
+    this.isPolling = true;
+    try {
+      await this.runPollCycle(options.force === true);
+    } catch (error) {
+      logger.error("Immediate compartment snapshot poll failed:", error);
+    } finally {
+      this.isPolling = false;
+    }
+  }
+
+  private async runPollCycle(forcePublish: boolean): Promise<void> {
+    // Check if Modbus is connected before attempting to poll
+    if (!modbusService.isModbusConnected()) {
+      logger.warn(
+        "Modbus not connected, skipping poll and attempting reconnection...",
+      );
+      await modbusService.ensureConnection();
+      return;
+    }
+
+    const pollingTargets = this.getPollingTargets();
+    if (pollingTargets.length === 0) {
+      logger.warn("No Modbus clients configured for polling");
+      return;
+    }
+
+    const snapshots: PolledClientSnapshot[] = [];
+
+    for (const target of pollingTargets) {
+      try {
+        const relayStates = await modbusService.readCoils(
+          0x0000,
+          this.NUM_CHANNELS,
+          target.slaveId,
+        );
+
+        const inputStates = await modbusService.readDiscreteInputs(
+          0x0000,
+          this.NUM_CHANNELS,
+          target.slaveId,
+        );
+
+        logger.debug(`[slave:${target.slaveId}] Relay states:`, relayStates);
+        logger.debug(
+          `[slave:${target.slaveId}] Input states (door sensors):`,
+          inputStates,
+        );
+
+        snapshots.push({
+          ...target,
+          relayStates,
+          inputStates,
+        });
+      } catch (error) {
+        logger.error(
+          `[slave:${target.slaveId}] Error polling relay/input status:`,
+          error,
+        );
+
+        // Reconnect only on transport failures. A board timeout should not
+        // reset polling for other boards on the same RS485 bus.
+        if (
+          error instanceof Error &&
+          (error.message.includes("Port Not Open") ||
+            error.message.includes("ECONNREFUSED"))
+        ) {
+          logger.warn("Port error detected, initiating reconnection...");
+          modbusService.reconnect().catch((reconnectError) => {
+            logger.error("Failed to initiate reconnection:", reconnectError);
+          });
+        }
+      }
+    }
+
+    if (snapshots.length === 0) {
+      logger.warn(
+        "No reachable Modbus boards responded during polling cycle",
+      );
+      return;
+    }
+
+    await this.maybePublishSnapshot(snapshots, forcePublish);
   }
 
   /**
@@ -181,6 +209,7 @@ class CoilPollingService {
    */
   private async maybePublishSnapshot(
     snapshots: PolledClientSnapshot[],
+    forcePublish = false,
   ): Promise<void> {
     try {
       const credentials = credentialsService.getCredentials();
@@ -194,7 +223,7 @@ class CoilPollingService {
       }
 
       const key = compartmentSnapshotKey(entries);
-      if (key === this.lastPublishedSnapshotKey) {
+      if (!forcePublish && key === this.lastPublishedSnapshotKey) {
         return;
       }
 

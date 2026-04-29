@@ -5,6 +5,7 @@ import {
   applyConfigService,
   RuntimeConfigApplier,
 } from "../services/applyConfigService";
+import { coilPollingService } from "../services/coilPollingService";
 import { mqttDedupService } from "../services/mqttDedupService";
 import { mqttService } from "../services/mqttService";
 import {
@@ -247,6 +248,8 @@ export class MQTTMessageHandler {
       await this.commandExecutorFactory().handleOpenCompartment(
         compartment_number,
       );
+
+      await coilPollingService.publishSnapshotNow({ force: true });
 
       // Send success response
       await this.sendSuccessResponse(
