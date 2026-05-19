@@ -3,21 +3,45 @@ import { mqttClientManager } from "../mqtt/mqttClientManager";
 import { mqttService } from "./mqttService";
 import { credentialsService } from "./credentialsService";
 import { provisioningService as provisioningStateService } from "./provisioningService";
+import { z } from "zod";
 
-interface ProvisioningSuccessResponse {
-  status: "success";
-  data: {
-    mqtt_user: string;
-    mqtt_password: string;
-  };
+const nonEmptyStringSchema = z.string().trim().min(1);
+
+export const provisioningSuccessResponseSchema = z.object({
+  message_id: nonEmptyStringSchema,
+  status: z.literal("success"),
+  timestamp: nonEmptyStringSchema,
+  data: z.object({
+    mqtt_user: nonEmptyStringSchema,
+    mqtt_password: nonEmptyStringSchema,
+  }),
+});
+
+export const provisioningErrorResponseSchema = z.object({
+  message_id: nonEmptyStringSchema,
+  status: z.literal("error"),
+  timestamp: nonEmptyStringSchema,
+  message: nonEmptyStringSchema,
+});
+
+export const provisioningResponseSchema = z.discriminatedUnion("status", [
+  provisioningSuccessResponseSchema,
+  provisioningErrorResponseSchema,
+]);
+
+export type ProvisioningSuccessResponse = z.infer<typeof provisioningSuccessResponseSchema>;
+export type ProvisioningErrorResponse = z.infer<typeof provisioningErrorResponseSchema>;
+export type ProvisioningResponse = z.infer<typeof provisioningResponseSchema>;
+
+export function parseProvisioningResponse(response: unknown): ProvisioningResponse {
+  const parsed = provisioningResponseSchema.safeParse(response);
+  if (!parsed.success) {
+    logger.error("Received malformed provisioning response", parsed.error.flatten());
+    throw new Error("Malformed provisioning response");
+  }
+
+  return parsed.data;
 }
-
-interface ProvisioningErrorResponse {
-  status: "error";
-  message: string;
-}
-
-type ProvisioningResponse = ProvisioningSuccessResponse | ProvisioningErrorResponse;
 
 export class ProvisioningRegistrationService {
   private readonly PROVISIONING_TIMEOUT = 30000; // 30 seconds
@@ -41,6 +65,7 @@ export class ProvisioningRegistrationService {
       // Send registration request
       await mqttService.publish(registerTopic, {
         client_id: clientId,
+        timestamp: new Date().toISOString(),
       });
       logger.info(`Sent registration request to ${registerTopic}`);
 
@@ -66,7 +91,7 @@ export class ProvisioningRegistrationService {
         }
 
         try {
-          const response: ProvisioningResponse = JSON.parse(message.toString());
+          const response = parseProvisioningResponse(JSON.parse(message.toString()));
           logger.info("Received provisioning response:", response);
 
           cleanup();

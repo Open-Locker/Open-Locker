@@ -1,628 +1,392 @@
 # MQTT Integrationsplan
 
-Dieses Dokument beschreibt den Plan für die Integration von MQTT in das
-Open-Locker Backend, um eine verteilte Architektur zu ermöglichen.
+Dieses Dokument beschreibt den Integrations- und Migrationskontext für MQTT in
+Open-Locker. Es ist **nicht** mehr der verbindliche MQTT-Protokollvertrag.
+
+Der kanonische Vertrag liegt in:
+
+- `docs/asyncapi/mqtt.yaml`
+- `docs/asyncapi/schemas/`
+- `docs/asyncapi/examples/`
+
+Die Architekturentscheidungen dazu sind dokumentiert in:
+
+- `docs/adr/0015-define-mqtt-contract-via-asyncapi-and-json-schemas.md`
+- `docs/adr/0016-retained-compartment-snapshot-and-door-state-persistence.md`
+- `docs/adr/0017-split-mqtt-state-topics-by-lifecycle.md`
+
+Dieses Dokument bleibt als Überblick über Zielbild, Rollen, Betrieb und offene
+Migrationspunkte erhalten.
 
 ## 1. Komponentenübersicht
 
-- **MQTT Broker**: Mosquitto (via Docker)
-- **PHP MQTT Client**: `php-mqtt/laravel-client`
+- **MQTT Broker**: Mosquitto via Docker
+- **Broker Auth/ACL**: `mosquitto-go-auth` mit HTTP-Backend in Laravel
 - **Backend**: Laravel `locker-backend`
-- **IoT Client**: Node.js Service (Verantwortung bei anderem Teammitglied)
+- **Backend MQTT Client**: `php-mqtt/laravel-client`
+- **IoT Client**: Node.js `locker-client`
+- **Mobile App**: konsumiert Backend-API, nicht MQTT direkt
 
-## 2. MQTT Broker: Mosquitto Setup
+## 2. Broker, Auth und ACL
 
-Wir verwenden Mosquitto als Docker-Container in unserer `docker-compose.yml` und
-binden das Plugin **mosquitto-go-auth** ein, das die Authentifizierung und
-Autorisierung über das Laravel Backend per HTTP übernimmt.
+Mosquitto läuft als Broker und ruft Laravel für Authentifizierung und ACLs auf.
+Die Laravel-Endpunkte liegen im `MosquittoAuthController`:
 
-### Konfiguration (`mosquitto.conf`)
+- `/api/mosq/auth`
+- `/api/mosq/acl`
 
-Die Konfiguration wird in einer separaten Datei gemountet und beinhaltet u.a.:
+Die Rollen sind:
 
-```conf
-per_listener_settings true
-listener 1883 0.0.0.0
+- **Backend User**
+  - darf die relevanten MQTT-Topics lesen und schreiben
+  - wird für Publisher und Listener verwendet
+- **Locker Device User**
+  - entspricht dem jeweiligen `locker_uuid` / MQTT-Username
+  - darf seine eigenen Command-Topics lesen
+  - darf seine eigenen Response-, Event- und State-Topics schreiben
+- **Provisioning User**
+  - darf Registrierungsnachrichten publishen
+  - darf nur sein eigenes Provisioning-Reply-Topic abonnieren
 
-allow_anonymous false
+Aktuelle Device-Topic-ACLs orientieren sich an:
 
-auth_plugin /mosquitto/go-auth.so
-auth_opt_backends http
+- subscribe: `locker/%u/command`
+- publish: `locker/%u/response`
+- publish: `locker/%u/event`
+- publish: `locker/%u/state/#`
 
-auth_opt_http_host app
-auth_opt_http_port 8080
-auth_opt_http_getuser_uri /api/mosq/auth?mosq_secret=change_me_securely
-auth_opt_http_superuser_uri /api/mosq/superuser?mosq_secret=change_me_securely
-auth_opt_http_aclcheck_uri /api/mosq/acl?mosq_secret=change_me_securely
-auth_opt_http_with_tls false
-auth_opt_http_params_mode json
-```
+`locker/%u/state/#` umfasst:
 
-Die HTTP-Endpunkte werden im Laravel Backend über den `MosquittoAuthController`
-bereitgestellt und prüfen das Secret (`mosq_secret`) sowie:
+- `locker/%u/state/heartbeat`
+- `locker/%u/state/compartments`
+- `locker/%u/state/connection`
 
-- **Auth** (`/api/mosq/auth`) – Benutzername/Passwort
-- **Superuser** (`/api/mosq/superuser`) – Admin-Rechte für spezielle Clients
-- **ACL** (`/api/mosq/acl`) – Lese-/Schreibrechte auf Topics
+## 3. Zuverlässigkeit und Sessions
 
-Damit bildet Laravel auch die frühere ACL-Logik ab:
+Alle fachlich relevanten MQTT-Nachrichten werden mit QoS 1 gesendet. QoS 1
+bedeutet *at least once*: Nachrichten können erneut zugestellt werden.
+Empfänger müssen daher idempotent arbeiten.
 
-- **Backend (`laravel_backend` o.Ä.)**
-  - Darf alle relevanten Topics lesen und schreiben, z.B. `locker/#`.
-  - Kann Befehle an alle Locker senden und Status von allen empfangen.
-- **Einzelner Locker-Client**
-  - Darf **nur seine eigenen Topics** verwenden, typischerweise:
-    - lesen: `locker/{locker_id}/command`
-    - schreiben: `locker/{locker_id}/response`, `locker/{locker_id}/event` und
-    State-Untertopics unter `locker/{locker_id}/state/#` (z. B. `…/heartbeat`,
-    `…/compartments`, `…/connection`; siehe AsyncAPI / ADR-0017)
-  - Der effektive Namensraum wird aus der in der Datenbank hinterlegten
-  Locker-ID bzw. dem MQTT-Benutzernamen abgeleitet.
-- **Provisioning-Client (`provisioning_client`)**
-  - Darf Registrierungen senden, z.B. auf `locker/register/+`.
-  - Darf nur auf sein eigenes Antwort-Topic hören, z.B.
-  `locker/provisioning/reply/{client_id}`.
-  - So kann ein Client nicht die Antworten eines anderen Clients abonnieren.
+Der locker-client nutzt eine persistente MQTT-Session:
 
-## 3. Laravel Backend Integration
+- MQTT v3.1.1: `clean_session=false`
+- mqtt.js: `clean=false`
 
-Wir verwenden das Paket
-`[php-mqtt/laravel-client](https://github.com/php-mqtt/laravel-client)` für eine
-nahtlose Integration.
+Der Client reconnectet standardmäßig unbegrenzt. Details dazu sind in
+`docs/adr/0014-locker-client-mqtt-session-and-reconnect.md` dokumentiert.
 
-### Installation & Konfiguration
+## 4. Kanonische Topic-Struktur
 
-1. **Paket installieren**:
-  ```bash
-   composer require php-mqtt/laravel-client
-  ```
-2. **Konfiguration publizieren**:
-  ```bash
-   php artisan vendor:publish --provider="PhpMqtt\Client\MqttClientServiceProvider" --tag="config"
-  ```
-3. **Umgebungsvariablen anpassen (`.env`)**: In `config/mqtt-client.php` werden
-  wir die Konfiguration so anpassen, dass sie auf `.env`-Variablen zugreift.
+Die folgenden Topics sind die fachliche MQTT-Oberfläche. Details zu Payloads,
+Pflichtfeldern und Beispielen stehen in der AsyncAPI-Spezifikation.
 
-### Implementierungsstrategie
+### Runtime Topics
 
-#### Zuverlässigkeit: QoS und "Last Will"
 
-- **Backend zu Client (Befehle):** Alle kritischen Befehle vom Backend an die
-Clients werden mit **QoS Level 1** gesendet. QoS 1 bedeutet *at least once*:
-Nachrichten können **dupliziert** zugestellt werden und müssen daher
-**idempotent** verarbeitet werden.
-- **Client zu Backend (Responses/Events):** Wichtige Antworten und Events von
-den Clients sollten ebenfalls mit **QoS Level 1** gesendet werden (ebenfalls
-mit möglicher Duplikation).
-- **Client-Verbindungen (persistente Session):** Die IoT-Clients müssen sich mit
-der Einstellung `**clean_session = false`** (MQTT v3.1.1) verbinden, damit der
-Broker ihre Abonnements und ggf. QoS>0 Nachrichten **für die Session** puffern
-kann, während der Client offline ist.
-  - **locker-client (Stand Implementierung):** Standard ist `clean: false`
-  (override: `MQTT_CLEAN_SESSION` oder `mqtt.cleanSession` in der
-  Client-`config.yml`). Automatisches Reconnect ist standardmäßig **unbegrenzt**
-  (`MQTT_MAX_RECONNECT_ATTEMPTS=0`); der Client meldet dabei den Zustand
-  „reconnecting“ bis die Verbindung wieder steht (siehe ADR 0014).
-- **Backend "Last Will"**: Der Laravel-Client (sowohl Listener als auch
-Publisher) wird so konfiguriert, dass er einen "Last Will" auf dem Topic
-`server/status` mit der Nachricht `{"status": "offline"}` setzt. Dies
-informiert alle abonnierenden Clients, falls das Backend ausfällt.
+| Richtung          | Topic                                     | Zweck                                     |
+| ----------------- | ----------------------------------------- | ----------------------------------------- |
+| Backend -> Client | `locker/{locker_uuid}/command`            | transaktionsgebundene Commands            |
+| Client -> Backend | `locker/{locker_uuid}/response`           | transaktionsgebundene Command-Responses   |
+| Client -> Backend | `locker/{locker_uuid}/event`              | spontane Device-/Domain-Events            |
+| Client -> Backend | `locker/{locker_uuid}/state/heartbeat`    | nicht-retained Liveness-Heartbeat         |
+| Client -> Backend | `locker/{locker_uuid}/state/compartments` | retained Full Snapshot aller Compartments |
+| Client -> Backend | `locker/{locker_uuid}/state/connection`   | nicht-retained Connection-/LWT-Signal     |
 
-#### Nachrichten Senden (Publishing)
 
-Das Senden von Befehlen an die Locker (z.B. "Tür öffnen") erfolgt asynchron über
-Laravel Queues, um die API-Antwortzeiten nicht zu beeinträchtigen.
+### Provisioning Topics
 
-1. **Event/Trigger**: Ein API-Aufruf von der Mobile App (z.B.
-  `POST /api/lockers/{id}/open`).
-2. **Job Dispatching**: Der Controller validiert die Anfrage und dispatcht einen
-  Job in die Queue. `OpenCompartment::dispatch($locker);`
-3. **Job Handler**: Der Job Handler nutzt die `MQTT`-Facade, um die Nachricht zu
-  publizieren.
 
-#### Nachrichten Empfangen (Subscribing)
+| Richtung                       | Topic                                   | Zweck                |
+| ------------------------------ | --------------------------------------- | -------------------- |
+| Provisioning Client -> Backend | `locker/register/{provisioning_token}`  | Provisioning Request |
+| Backend -> Provisioning Client | `locker/provisioning/reply/{client_id}` | Provisioning Reply   |
 
-Das Empfangen von Status-Nachrichten der Locker erfordert einen permanent
-laufenden Prozess.
 
-1. **Artisan Command**: Wir erstellen ein neues Command, z.B.
-  `php artisan mqtt:listen`.
-2. **Subscriber-Logik**: Innerhalb des Commands wird eine Verbindung zum MQTT
-  Broker aufgebaut. Es abonniert die Wildcard-Topics für Responses, Events und
-   State:
-  - `locker/+/response` (Command Responses, transaktionsgebunden)
-  - `locker/+/event` (spontane Events, nicht transaktionsgebunden)
-  - `locker/+/state/#` (Heartbeat, Compartment-Snapshot mit Retain, LWT/Connection)
-3. **Prozess-Management**: In der Entwicklung und Produktion wird dieses Command
-  mit **Supervisor** gestartet und überwacht, um sicherzustellen, dass es immer
-   läuft. Laravel Sail bringt eine `supervisor.conf` mit, die wir dafür anpassen
-   können.
+### Entfernte Legacy Topics
 
-## 4. Kommunikationsprotokoll
+Diese Topics sind nicht mehr Teil des Vertrags:
 
-Wir verwenden JSON als Nachrichtenformat. Das Protokoll definiert die Struktur
-der Payloads für die verschiedenen Topics.
+- `locker/{locker_uuid}/status`
+- multiplexed `locker/{locker_uuid}/state` mit `state` oder `event` im Payload
 
-### Topic-Struktur
+## 5. Globale Payload-Regeln
 
-- **Registrierung (Client → Backend)**: `locker/register/{provisioning_token}`
-- **Registrierung (Backend → Client)**:
-`locker/provisioning/reply/{unique_client_id}`
-- **Befehle (Backend → Client)**: `locker/{locker_uuid}/command`
-- **Responses (Client → Backend)**: `locker/{locker_uuid}/response`
-- **Events (Client → Backend)**: `locker/{locker_uuid}/event`
-- **State / Zustand (Client → Backend)** — aufgeteilt unter `locker/{locker_uuid}/state/`:
-  - `…/heartbeat` (Telemetry, **retain=false**)
-  - `…/compartments` (Voll-Snapshot aller Fächer, **retain=true**)
-  - `…/connection` (z. B. LWT „offline“, **retain=false**; Details AsyncAPI)
+Für alle MQTT-Nachrichten gilt:
 
-> Hinweis: Für transaktionsgebundene Antworten nutzen wir ausschließlich
-> `.../response`. Spontane Ereignisse laufen über `.../event`.
+- `message_id` ist Pflicht
+- `timestamp` ist Pflicht und liegt top-level
+- `transaction_id` ist nur für `command` und `response` Pflicht
 
-### Nachrichten-Payloads (JSON-Beispiele)
+Für retained `state/compartments` gilt eine eng begrenzte Dedup-Ausnahme:
 
-#### 4.1 Befehle (Backend sendet)
+- `message_id` bleibt Pflicht
+- Retained-Replays dürfen nicht allein wegen gleicher `message_id` blockiert
+werden
+- Die Verarbeitung muss idempotent sein
 
-Ein Befehl enthält eine `action`, eine `transaction_id` zur fachlichen
-Nachverfolgung, eine `message_id` zur technischen Deduplication und einen
-`timestamp` (ISO 8601). Der `timestamp` wird vom **Sender** gesetzt (hier:
-Backend).
+Für Commands, Responses, Events, Provisioning, Heartbeats und Connection-Signale
+bleibt `message_id`-Dedup blockierend.
 
-- **Tür öffnen:**
-  - Topic: `locker/uuid-123/command`
-  - Payload:
-    ```json
-    {
-      "action": "open_compartment",
-      "transaction_id": "xyz-789",
-      "message_id": "msg-9b6c3a2e",
-      "timestamp": "2023-10-27T10:00:00Z",
-      "data": { "compartment_number": 3 }
-    }
-    ```
-- **Konfiguration anwenden (apply_config):**
-  - Zweck: Backend übermittelt dem Client die Modbus-Zuordnung je Compartment
-  (`slaveId` + `address`). Der Client soll die Konfiguration anwenden und per
-  Response mit Hash bestätigen.
-  - Topic: `locker/uuid-123/command`
-  - Payload:
-    ```json
-    {
-      "action": "apply_config",
-      "transaction_id": "cfg-123",
-      "message_id": "msg-47af02d1",
-      "timestamp": "2023-10-27T10:05:00Z",
-      "data": {
-        "config_hash": "2f4d3c...sha256hex...",
-        "heartbeat_interval_seconds": 5,
-        "compartments": [
-          { "id": 1, "slaveId": 1, "address": 0 },
-          { "id": 2, "slaveId": 1, "address": 1 }
-        ]
-      }
-    }
-    ```
+## 6. Commands
 
-#### 4.2 Responses (Client sendet)
+Commands laufen über:
 
-Eine **Response** referenziert die `transaction_id` der ursprünglichen Aktion,
-enthält eine eigene `message_id` (technische Message-Dedup) und zusätzlich
-einen `timestamp` (ISO 8601), gesetzt vom **Sender** (hier: Client).
+`locker/{locker_uuid}/command`
 
-Wichtig:
+Aktuelle Command-Actions:
 
-- Responses sind **transaktionsgebunden** und haben **immer** `transaction_id`.
-- Jede Response hat zusätzlich **immer** eine `message_id`.
-- Spontane Ereignisse (z.B. "door_state_changed") werden **nicht** als Response
-gesendet, sondern auf `.../event`.
-- **Antwort auf `open_door` (Erfolg):**
-  - Topic: `locker/uuid-123/response`
-  - Payload:
-    ```json
-    {
-      "type": "command_response",
-      "action": "open_compartment",
-      "result": "success",
-      "transaction_id": "xyz-789",
-      "message_id": "msg-f1d2d2f9",
-      "timestamp": "2023-10-27T10:00:01Z",
-      "message": "Compartment opened successfully."
-    }
-    ```
-- **Antwort auf `open_door` (Fehler):**
-  - Topic: `locker/uuid-123/response`
-  - Payload:
-    ```json
-    {
-      "type": "command_response",
-      "action": "open_compartment",
-      "result": "error",
-      "transaction_id": "xyz-789",
-      "message_id": "msg-b2e7f214",
-      "timestamp": "2023-10-27T10:00:01Z",
-      "error_code": "DOOR_JAMMED",
-      "message": "Could not open compartment, mechanism is jammed."
-    }
-    ```
-- **Antwort auf `apply_config` (Erfolg, Hash-Ack):**
-  - Zweck: Client bestätigt, welche Konfiguration er tatsächlich angewendet hat.
-  - Topic: `locker/uuid-123/response`
-  - Payload:
-    ```json
-    {
-      "type": "command_response",
-      "action": "apply_config",
-      "result": "success",
-      "transaction_id": "cfg-123",
-      "message_id": "msg-a91e0386",
-      "timestamp": "2023-10-27T10:05:02Z",
-      "applied_config_hash": "2f4d3c...sha256hex...",
-      "message": "Config applied."
-    }
-    ```
+- `open_compartment`
+- `apply_config`
 
-#### 4.3 Events (Client sendet)
+### `open_compartment`
 
-Spontane Events sind **nicht** transaktionsgebunden (kein `transaction_id`),
-sondern repräsentieren etwas, das “passiert ist”. Da QoS 1 Duplikate zulässt,
-verwenden wir eine verpflichtende `message_id` für den globalen Dedup-Layer.
-`event_id` bleibt optional als fachliche Korrelation.
-
-- **Spontanes Event (z.B. Tür wurde manuell geschlossen):**
-  - Topic: `locker/uuid-123/event`
-  - Payload:
-    ```json
-    {
-      "type": "event",
-      "event": "door_state_changed",
-      "message_id": "msg-evt-111",
-      "event_id": "evt-111",
-      "timestamp": "2023-10-27T10:00:00Z",
-      "data": {
-        "compartment_number": 3,
-        "state": "closed"
-      }
-    }
-    ```
-- **Spontanes Event (Future: QR-Code am Locker gescannt):**
-  - Topic: `locker/uuid-123/event`
-  - Payload:
-    ```json
-    {
-      "type": "event",
-      "event": "qr_scanned",
-      "message_id": "msg-evt-222",
-      "event_id": "evt-222",
-      "timestamp": "2023-10-27T10:02:00Z",
-      "data": {
-        "qr_payload": "....",
-        "scanner": "locker"
-      }
-    }
-    ```
-
-#### 4.4 State / Zustand (Client sendet)
-
-Heartbeats und Telemetrie sind **nicht retained**. Der **Compartment-Snapshot**
-(Vollbild aller Fächer) ist **retained**, damit neue Subscriber den letzten Zustand sehen.
-
-- **Regelmäßiger Heartbeat:**
-  - Topic: `locker/{uuid}/state/heartbeat`
-  - Payload:
-    ```json
-    {
-      "message_id": "msg-state-001",
-      "timestamp": "2023-10-27T10:01:00Z",
-      "uptime_seconds": 86400
-    }
-    ```
-
-#### 4.5 "Last Will" - Client geht offline (Connection)
-
-Das "Last Will and Testament"-Feature von MQTT wird genutzt, um unerwartete
-Verbindungsabbrüche zu melden.
-
-- **Konfiguration**: Der Client setzt beim Verbindungsaufbau seinen "letzten
-Willen" (siehe oben).
-- **Topic**: `locker/{locker_uuid}/state/connection`
-- **Payload**:
-  ```json
-  {
-    "message_id": "msg-lwt-001",
-    "timestamp": "2023-10-27T10:00:00Z",
-    "status": "offline",
-    "reason": "mqtt_last_will"
-  }
-  ```
-- **Funktionsweise**: Wenn der Broker erkennt, dass der Client die Verbindung
-unplanmäßig verloren hat, publiziert der Broker diese Nachricht automatisch im
-Namen des Clients auf das angegebene Topic. Das Backend kann darauf lauschen
-und den Status des Schranks auf "unreachable" setzen.
-
-##### 4.5.1 Client-Implementierung (Last Will and Testament)
-
-Damit das Backend Verbindungsabbrüche schnell erkennen kann, sollte der
-IoT-Client beim Verbindungsaufbau ein MQTT Last Will and Testament setzen. Der
-Broker publiziert diese Nachricht automatisch, wenn die Verbindung unerwartet
-abbricht (z.B. Stromausfall, Netzwerk weg), ohne dass der Client sie aktiv
-senden kann.
-
-- **Topic**: `locker/{locker_uuid}/state/connection`
-- **QoS**: 1 (empfohlen)
-- **retained**: `false` (empfohlen, da es ein Moment-Event ist; der
-Heartbeat-Timeout im Backend ist der Fallback)
-
-Beispiel-Payload (JSON):
+Der Client öffnet ein Fach anhand der fachlichen Fachnummer.
 
 ```json
 {
-  "message_id": "msg-lwt-002",
-  "timestamp": "2023-10-27T10:00:00Z",
+  "message_id": "msg-cmd-open-001",
+  "transaction_id": "txn-open-001",
+  "action": "open_compartment",
+  "timestamp": "2026-04-14T19:30:00Z",
+  "data": {
+    "compartment_number": 3
+  }
+}
+```
+
+`compartment_id` ist nicht Teil des MQTT-Contracts für diesen Command.
+
+### `apply_config`
+
+Das Backend übermittelt die serververwaltete Laufzeit-Konfiguration für die
+Compartment-Zuordnung.
+
+```json
+{
+  "message_id": "msg-cmd-config-001",
+  "transaction_id": "txn-config-001",
+  "action": "apply_config",
+  "timestamp": "2026-04-14T19:31:00Z",
+  "data": {
+    "config_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "heartbeat_interval_seconds": 15,
+    "compartments": [
+      {
+        "compartment_number": 1,
+        "slaveId": 1,
+        "address": 0
+      }
+    ]
+  }
+}
+```
+
+`compartment_number` bezeichnet dieselbe fachliche Nummer wie bei
+`open_compartment`.
+
+## 7. Responses
+
+Responses laufen über:
+
+`locker/{locker_uuid}/response`
+
+Responses sind transaktionsgebunden und referenzieren die ursprüngliche
+`transaction_id`.
+
+Bei Erfolg ist `message` optional:
+
+```json
+{
+  "message_id": "msg-resp-open-001",
+  "transaction_id": "txn-open-001",
+  "action": "open_compartment",
+  "result": "success",
+  "timestamp": "2026-04-14T19:30:01Z"
+}
+```
+
+Bei Fehlern sind `error_code` und `message` Pflicht:
+
+```json
+{
+  "message_id": "msg-resp-open-err-001",
+  "transaction_id": "txn-open-001",
+  "action": "open_compartment",
+  "result": "error",
+  "timestamp": "2026-04-14T19:30:01Z",
+  "error_code": "DOOR_JAMMED",
+  "message": "Could not open compartment, mechanism is jammed."
+}
+```
+
+Ein erfolgreicher `apply_config`-Response muss `applied_config_hash` enthalten.
+
+## 8. State Topics
+
+State ist nach Lifecycle und Retain-Semantik aufgeteilt.
+
+### Heartbeat
+
+Topic:
+
+`locker/{locker_uuid}/state/heartbeat`
+
+Retain:
+
+`false`
+
+Payload:
+
+```json
+{
+  "message_id": "msg-state-heartbeat-001",
+  "timestamp": "2026-04-14T19:33:00Z",
+  "uptime_seconds": 86400
+}
+```
+
+Heartbeat ist ein Liveness-Signal. Im Backend darf `last_heartbeat_at` als
+Telemetry/Liveness-Feld aktualisiert werden. Fachliche Statusübergänge wie
+offline -> online laufen über Stored Events und Projectors.
+
+### Compartment Snapshot
+
+Topic:
+
+`locker/{locker_uuid}/state/compartments`
+
+Retain:
+
+`true`
+
+Payload:
+
+```json
+{
+  "message_id": "msg-state-snapshot-001",
+  "timestamp": "2026-04-14T19:33:05Z",
+  "compartments": [
+    {
+      "compartment_number": 1,
+      "door_state": "closed"
+    },
+    {
+      "compartment_number": 2,
+      "door_state": "open"
+    }
+  ]
+}
+```
+
+Der Snapshot ist ein vollständiges Bild aller konfigurierten Compartments, kein
+Delta. Der Client sendet:
+
+- nach dem ersten erfolgreichen Poll
+- danach nur, wenn sich mindestens ein effektiver `door_state` ändert
+
+Erlaubte `door_state`-Werte:
+
+- `open`
+- `closed`
+- `unknown`
+
+Kann ein konfiguriertes Compartment nicht zuverlässig gelesen werden, wird es
+als `unknown` gemeldet.
+
+Backend-seitig werden effektive Türzustandsänderungen event-sourced:
+
+- `CompartmentDoorStateChanged`
+- `CompartmentStateChangesApplied`
+
+Projectors aktualisieren die Read Models:
+
+- `compartments.door_state`
+- `compartments.door_state_changed_at`
+- `locker_banks.last_compartment_state_change_at`
+
+Unveränderte retained Snapshot-Replays erzeugen keine Stored Events.
+
+### Connection / LWT
+
+Topic:
+
+`locker/{locker_uuid}/state/connection`
+
+Retain:
+
+`false`
+
+Payload:
+
+```json
+{
+  "message_id": "msg-state-lwt-001",
+  "timestamp": "2026-04-14T19:34:00Z",
   "status": "offline",
   "reason": "mqtt_last_will"
 }
 ```
 
-Hinweise:
+Das Backend validiert und loggt dieses Signal aktuell nur. Die Produktsemantik
+von MQTT Last Will ist noch nicht final entschieden. Heartbeat Timeout bleibt
+bis dahin die maßgebliche Offline-Erkennung.
 
-- Der Broker prüft ACLs auch für Last-Will-Publishes. Device-User müssen daher
-auf `locker/%u/state/#` publishen dürfen (siehe ACL-Plan).
-- Last Will ist ein **Fast-Path** Signal; das Backend sollte zusätzlich
-weiterhin zeitbasiert (Heartbeat-Timeout) offline erkennen, falls
-Broker/Netzwerk Probleme haben.
+## 9. Events
 
-#### 4.6 Registrierungsprozess (Pre-Provisioning Workflow)
+Events laufen über:
 
-Der Client wird im Backend vor-registriert ("pre-provisioned"), um maximale
-Sicherheit und Kontrolle zu gewährleisten.
+`locker/{locker_uuid}/event`
 
-1. **Admin legt LockerBank an**: Ein Administrator erstellt im Filament-Backend
-  eine neue `LockerBank` und die zugehörigen `Compartment`s. Das System
-   generiert automatisch ein einmaliges `provisioning_token` für diese
-   `LockerBank`.
-2. **Operator erhält Token**: Der Admin gibt dieses Token an den Techniker
-  weiter, der den IoT-Client installiert.
-3. **Client startet**: Der Client startet, generiert eine einmalige Client-ID
-  und wird vom Techniker mit dem `provisioning_token` konfiguriert.
-4. **Client meldet sich**: Der Client verbindet sich als `provisioning_client`
-  und sendet seine `client_id` an das Registrierungs-Topic, das das Token
-   enthält.
-  - Topic: `locker/register/das-ist-der-token-123`
-  - Payload:
-  `{"message_id":"msg-prov-001","client_id":"random-client-xyz789","timestamp":"2023-10-27T10:00:00Z"}`
-  - Gleichzeitig lauscht der Client auf seinem privaten Antwort-Topic:
-  `locker/provisioning/reply/random-client-xyz789`.
-5. **Backend verknüpft und provisioniert**:
-  - Der `MqttListen`-Befehl empfängt die Anfrage.
-  - Er sucht in der Datenbank nach der `LockerBank`, die zu dem
-  `provisioning_token` gehört.
-  - Er generiert permanente MQTT-Zugangsdaten (Username = `locker_bank_uuid`,
-  Passwort = sicheres, zufälliges Passwort).
-  - Er speichert den neuen MQTT-User im `password.conf` des Brokers.
-6. **Backend sendet Credentials (oder Ablehnung)**:
-  - **Bei Erfolg**: Das Backend sendet die neuen Zugangsdaten an den privaten
-   Antwortkanal des Clients.
-    - Topic: `locker/provisioning/reply/{unique_client_id}`
-    - Payload:
-    `{"message_id":"msg-prov-reply-001","status":"success","timestamp":"2023-10-27T10:00:01Z","data":{"mqtt_user":"...","mqtt_password":"..."}}`
-  - **Bei Fehler** (z.B. Token ungültig): Das Backend sendet eine
-  Fehlermeldung.
-    - Topic: `locker/provisioning/reply/{unique_client_id}`
-    - Payload:
-      ```json
-      {
-        "message_id": "msg-prov-reply-err-001",
-        "status": "error",
-        "timestamp": "2023-10-27T10:00:01Z",
-        "message": "Invalid or expired provisioning token."
-      }
-      ```
-7. **Client ist online**: Bei Erfolg speichert der Client die Zugangsdaten,
-  verbindet sich neu und ist einsatzbereit. Bei Fehler kann der Client eine
-   entsprechende Meldung anzeigen.
+Events sind nicht transaktionsgebunden. Sie enthalten `message_id`, `timestamp`
+und einen Event-Namen.
 
-## 5. Datenpersistenz mit Event Sourcing
+Der Event-Contract ist noch zu prüfen. Insbesondere ist zu klären, welche
+Device-Events nach Einführung von retained Compartment Snapshots noch benötigt
+werden.
 
-Um eine vollständige und unveränderliche Historie aller Aktionen zu
-gewährleisten, werden wir Event Sourcing implementieren. Dies ist ideal für die
-Nachverfolgung und Fehlersuche. Wir verwenden dafür das Paket
-`spatie/laravel-event-sourcing`.
+## 10. Provisioning
 
-### Kernkonzepte
+Provisioning bleibt ein separater Workflow und ist kein Runtime-Command.
 
-- **Events**: `LockerBankProvisioned`, `CompartmentOpeningRequested`,
-`CompartmentOpened`
-- **Aggregate**: Das primäre Aggregat ist `LockerBankAggregate`. Es
-repräsentiert einen ganzen Schrank.
-- **Projectors**: Ein `LockerBankProjector` erstellt und aktualisiert die
-Lese-Modelle für `locker_banks` und `compartments`.
-- **Reactors**: Ein `MqttReactor` lauscht auf Events (z.B.
-`CompartmentOpeningRequested`) und löst die MQTT-Kommunikation aus.
+Request:
 
-### Beispielflow: "Fach öffnen" mit Event Sourcing
+`locker/register/{provisioning_token}`
 
-1. **API-Request**: `POST /api/compartments/{id}/open` trifft ein.
-2. **Befehl an das Aggregat**: Der Controller lädt das zugehörige
-  `LockerBankAggregate` und sendet einen Befehl.
+Reply:
 
-```php
-// CompartmentController.php
-$compartment = Compartment::findOrFail($id);
-LockerBankAggregate::retrieve($compartment->lockerBank->id)
-    ->requestToOpenCompartment($compartment->uuid, $request->user()->id)
-    ->persist();
-```
+`locker/provisioning/reply/{client_id}`
 
-1. **Event wird gespeichert**: Das Aggregat validiert die Anfrage und zeichnet
-  ein `CompartmentOpeningRequested`-Event auf.
-2. **Reaktion**: Ein `**MqttReactor`** fängt das Event ab und dispatcht einen
-  Job, der den `open_compartment`-Befehl an die
-   `lockerbank/{uuid}/command`-Topic sendet.
+Der Provisioning-Contract ist als nächstes gezielt zu prüfen und gegen
+Backend/Client-Implementierung sowie AsyncAPI-Schemas abzugleichen.
 
-Dieser Ansatz entkoppelt die Annahme des Befehls sauber von der Ausführung der
-Nebenwirkungen (MQTT-Kommunikation) und der Aktualisierung der Lese-Modelle.
+## 11. Event Sourcing im Backend
 
-## 6. Guard Layer, Deduplication & Idempotency (Konzept)
+Open-Locker nutzt für relevante Domain-Änderungen Event Sourcing.
 
-Da QoS 1 *at least once* ist, kann der Broker/Client Nachrichten erneut
-zustellen (z.B. bei Reconnect, fehlendem ACK). Deshalb müssen **Backend und
-IoT-Client** alle eingehenden MQTT-Nachrichten über eine gemeinsame
-Vorverarbeitungs-Schicht laufen lassen, bevor Domain-Logik ausgeführt wird.
+Leitlinie:
 
-### 6.0 Globaler Message Guard Layer (Pflicht)
+- MQTT Handler validieren Payloads und erzeugen Stored Events für fachliche
+Änderungen.
+- Projectors aktualisieren Read Models.
+- Reactors lösen Side Effects aus, z.B. Realtime Broadcasts.
 
-Jede empfangene MQTT-Message (`register`, `command`, `response`, `event`,
-`state`) läuft zuerst durch einen Guard Layer.
+Für Compartment Door State gilt:
 
-Aufgaben des Guard Layers:
+- MQTT Snapshot -> effektive Änderung erkannt
+- Stored Events werden aufgezeichnet
+- Projectors aktualisieren `Compartment` und `LockerBank`
+- Reactor sendet `CompartmentDoorStateUpdated` für Mobile/Admin UI
 
-- JSON-Parsing + Schema-Basisvalidierung pro Topic
-- Pflichtfelder prüfen (inkl. ID-Felder)
-- Dedup-Key bestimmen
-- First-seen vs duplicate entscheiden
-- bei Invalid/Duplicate: früh abbrechen oder kontrolliert re-acknowledgen
-- strukturierte Logs/Metriken schreiben
+Broadcasts sind Side Effects und nicht Source of Truth.
 
-ID-Regeln:
+## 12. Offene Migrationspunkte
 
-- `message_id` ist für **alle** MQTT-Nachrichten verpflichtend (technische
-Dedup-ID).
-- `transaction_id` ist zusätzlich verpflichtend für transaktionsgebundene
-Nachrichten (`/command`, `/response`).
-- `event_id` bleibt optional als fachliche Event-Korrelation.
+Die folgenden Punkte sind noch offen oder in separaten Tickets abgebildet:
 
-Reject-Regel:
-
-- Transaktionsgebundene Nachrichten ohne valide `transaction_id` werden
-abgelehnt (keine Side-Effects).
-- Nachrichten ohne `message_id` werden abgelehnt (keine Side-Effects).
-
-### 6.1 Command-Dedup auf dem IoT-Client (Pflicht)
-
-- Commands auf `locker/{uuid}/command` sind **idempotent** zu behandeln:
-  - Key: `transaction_id`
-  - Regel: Ein `transaction_id` darf **nicht** zweimal ausgeführt werden.
-  - Der Client kann bei Duplikaten die **Response erneut senden**, aber die
-  eigentliche Hardware-Operation nur einmal ausführen.
-  - Guard Layer dedupt zusätzlich technisch über `message_id`.
-
-### 6.2 Response-Dedup im Backend (DB-gestützt, empfohlen)
-
-Für `locker/{uuid}/response` implementieren wir im Backend ein Inbox-/Tracker-
-Pattern (DB), das die Transaktionen eindeutig macht.
-
-- Unique Key: `locker_uuid + transaction_id`
-- State-Machine (Beispiel): `pending -> success|error|timeout`
-- Verarbeitung:
-  - Wenn `transaction_id` erstmals gesehen wird: verarbeiten und Domain-Event
-  erzeugen.
-  - Wenn bereits verarbeitet: als Duplicate ignorieren (optional: last_seen
-  loggen).
-
-Damit verhindern wir doppelte Domain-Events im Event Store.
-
-### 6.3 Event/State/Provisioning-Dedup (Pflicht im Guard Layer)
-
-Für alle nicht transaktionsgebundenen Topics erfolgt Dedup im Guard Layer über
-`message_id`:
-
-- `locker/{uuid}/event`
-- `locker/{uuid}/state/heartbeat`, `locker/{uuid}/state/connection` (strict)
-- `locker/{uuid}/state/compartments` (gleiche `message_id` bei Retained-Replay **nicht** blockieren — idempotent anwenden)
-- `locker/register/+`
-- `locker/provisioning/reply/{client_id}`
-
-Empfehlung zur Speicherung:
-
-- Redis (TTL) für Hot-Dedup + optional persistente DB-Ablage für Audit.
-
-## 7. Implementierungsplan (Umsetzung der Topic-Trennung + Dedup)
-
-> Ziel: `status` → `response` umbenennen, `event` einführen, `state` retained
-> nutzen und dedup robust implementieren (ohne doppelte Domain-Events), mit
-> einem globalen Guard Layer vor allen Handlern.
-
-### 7.1 Broker/ACL (Mosquitto go-auth)
-
-- ACL für Device-User erweitern:
-  - publish erlauben: `locker/%u/state/#`, `locker/%u/response`, `locker/%u/event`
-  - subscribe erlauben: `locker/%u/command`
-- Hinweis: MQTT Last Will wird vom Broker im Namen des Clients publiziert.
-Deshalb muss `publish locker/%u/state/#` auch dafür erlaubt sein.
-
-### 7.2 Laravel Listener (`mqtt:listen`)
-
-- Subscribe ergänzen:
-  - `locker/+/response`
-  - `locker/+/event`
-  - `locker/+/state/#` (Heartbeat, Compartment-Snapshot, Connection/LWT)
-- Handler aufsplitten:
-  - `CommandResponseHandler` (für `/response`)
-  - `DeviceEventHandler` (für `/event`)
-  - dedizierte Handler für `state/heartbeat`, `state/compartments`, `state/connection`
-- Neu: `InboundMessageGuard` als erste Stufe vor allen spezifischen Handlern.
-
-### 7.3 Dedup/Tracker im Backend
-
-- Datenmodell (Vorschlag):
-  - Tabelle `command_transactions`
-  - Unique Index (`locker_uuid`, `transaction_id`)
-  - Felder z.B.: `action`, `result`, `error_code`, `requested_at`,
-  `completed_at`, `payload_hash`, `last_seen_at`
-- Logik:
-  - Guard Layer validiert `message_id` (alle Topics) und `transaction_id`
-  (`/response`).
-  - Response wird nur beim **ersten** Auftreten verarbeitet
-  (fachlich über `transaction_id`).
-  - Doppelte Packet-Zustellung mit neuer `message_id` aber gleicher
-  `transaction_id` bleibt fachlich dedupliziert.
-  - Doppelte Packet-Zustellung mit gleicher `message_id` wird direkt im Guard
-  Layer verworfen.
-  - Duplicates werden ignoriert (und/oder nur `last_seen_at` aktualisiert)
-
-### 7.4 Domain-Integration (Event Sourcing)
-
-- Der `MqttReactor` nutzt weiterhin `transaction_id = commandId` (bereits
-umgesetzt).
-- `CommandResponseHandler` erzeugt nur dann Domain-Events (z.B.
-`CompartmentOpened` / `CommandFailed`), wenn die Response “first seen” ist
-(Tracker).
-
-### 7.5 IoT Client Anpassungen
-
-- Commands:
-  - Guard Layer validiert `message_id` + `transaction_id`
-  - Dedup nach `transaction_id` (persistenter Cache/DB)
-  - technische Dedup zusätzlich nach `message_id`
-  - Hardware-Operation nur einmal pro `transaction_id`
-- Responses:
-  - Jede Response enthält `message_id`
-  - Für jeden Command genau eine Response auf `.../response` (success/error)
-- Events:
-  - Spontane Events auf `.../event` mit verpflichtender `message_id`, optional
-  `event_id`
-- State:
-  - Nachrichten mit verpflichtender `message_id` auf den jeweiligen State-Topics
-  - Heartbeat auf `…/state/heartbeat` (**retain=false**), Compartment-Snapshot auf
-  `…/state/compartments` (**retain=true**), optional Connection/LWT auf `…/state/connection`
-
-### 7.6 Future Features (QR Scan & Update Command)
-
-- **Update Command**:
-  - Backend sendet `action=update_firmware` (oder `apply_config`) auf
-  `.../command` mit `transaction_id`
-  - Client dedupt strikt und antwortet via `.../response`
-
-### 7.7 Tests & Rollout
-
-- Feature Tests:
-  - Guard Layer rejectet Messages ohne `message_id`
-  - Guard Layer rejectet `/command` und `/response` ohne `transaction_id`
-  - Doppelte `/state/heartbeat` und `/event` (gleiche `message_id`) erzeugen keine
-  doppelten Side-Effects; `/state/compartments` bleibt bei gleicher `message_id`
-  idempotent (Retained-Replay)
-  - Doppelte `/response` Nachrichten erzeugen **keine** doppelten Domain-Events
-  - Dedup/Tracker verhält sich korrekt (first vs duplicate)
-- Rollout:
-  - Direkt `.../response` verwenden (kein `.../status` Topic).
+- Provisioning-Request/Reply gegen AsyncAPI prüfen und umsetzen
+- Event-Topic fachlich prüfen
+- Contract Tests gegen JSON Schemas einführen
+- AsyncAPI-Validierung in CI einhängen
+- Dieses Dokument weiter reduzieren, sobald alle historischen Migrationshinweise
+in ADRs oder Issues aufgegangen sind
 

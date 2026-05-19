@@ -9,8 +9,12 @@ export function prepareMQTTPayload(message: string | object): string {
 
   const envelope =
     "message_id" in message ? message : withMessageId(message);
+  const timestampedEnvelope =
+    "timestamp" in envelope
+      ? envelope
+      : { ...envelope, timestamp: new Date().toISOString() };
 
-  return JSON.stringify(envelope);
+  return JSON.stringify(timestampedEnvelope);
 }
 
 export class MQTTService {

@@ -116,6 +116,7 @@ class OutboundMqttPublisherTest extends TestCase
 
         $this->assertIsArray($payload);
         $this->assertIsString($payload['message_id'] ?? null);
+        $this->assertIsString($payload['timestamp'] ?? null);
         $this->assertSame('success', $payload['status'] ?? null);
         $this->assertSame('mqtt-user', $payload['data']['mqtt_user'] ?? null);
         $this->assertSame('mqtt-password', $payload['data']['mqtt_password'] ?? null);
@@ -144,6 +145,7 @@ class OutboundMqttPublisherTest extends TestCase
 
         $this->assertIsArray($payload);
         $this->assertIsString($payload['message_id'] ?? null);
+        $this->assertIsString($payload['timestamp'] ?? null);
         $this->assertSame('error', $payload['status'] ?? null);
         $this->assertSame('Provisioning rejected', $payload['message'] ?? null);
     }

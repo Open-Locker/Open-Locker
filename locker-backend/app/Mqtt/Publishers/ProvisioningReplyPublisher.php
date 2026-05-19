@@ -27,6 +27,7 @@ class ProvisioningReplyPublisher
 
         $this->mqttPublisher->publish($event->replyToTopic, [
             'status' => 'success',
+            'timestamp' => now()->toIso8601String(),
             'data' => [
                 'mqtt_user' => $mqttUser,
                 'mqtt_password' => $mqttPassword,
@@ -43,7 +44,21 @@ class ProvisioningReplyPublisher
 
         $this->mqttPublisher->publish($event->replyToTopic, [
             'status' => 'error',
+            'timestamp' => now()->toIso8601String(),
             'message' => $event->reason,
+        ]);
+    }
+
+    public function publishInvalidToken(string $replyToTopic): void
+    {
+        Log::info('[ProvisioningReplyPublisher] Publishing invalid token failure reply.', [
+            'topic' => $replyToTopic,
+        ]);
+
+        $this->mqttPublisher->publish($replyToTopic, [
+            'status' => 'error',
+            'timestamp' => now()->toIso8601String(),
+            'message' => 'Invalid or expired provisioning token.',
         ]);
     }
 }

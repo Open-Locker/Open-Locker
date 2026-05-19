@@ -7,13 +7,16 @@ namespace App\Mqtt\Handlers;
 use App\Aggregates\LockerBankAggregate;
 use App\Models\LockerBank;
 use App\Mqtt\InboundMqttProtocolGuard;
+use App\Mqtt\Publishers\ProvisioningReplyPublisher;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 
 class RegistrationHandler extends AbstractInboundMqttHandler
 {
-    public function __construct(InboundMqttProtocolGuard $guard)
-    {
+    public function __construct(
+        InboundMqttProtocolGuard $guard,
+        private readonly ProvisioningReplyPublisher $provisioningReplyPublisher,
+    ) {
         parent::__construct($guard);
     }
 
@@ -33,7 +36,8 @@ class RegistrationHandler extends AbstractInboundMqttHandler
     protected function rules(): array
     {
         return [
-            'client_id' => ['required', 'string'],
+            'client_id' => ['required', 'string', 'regex:/\A(?!\s*\z)[^\/+#]+\z/u'],
+            'timestamp' => ['required', 'string'],
         ];
     }
 
@@ -60,6 +64,8 @@ class RegistrationHandler extends AbstractInboundMqttHandler
             Log::warning('No LockerBank found for provisioning token', [
                 'token' => $provisioningToken,
             ]);
+
+            $this->provisioningReplyPublisher->publishInvalidToken($replyToTopic);
 
             return;
         }

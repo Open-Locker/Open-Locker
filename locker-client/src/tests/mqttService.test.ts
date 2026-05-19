@@ -24,19 +24,39 @@ test("prepareMQTTPayload adds message_id to heartbeat-style payloads", () => {
   assert.equal(decoded.state, undefined);
 });
 
-test("prepareMQTTPayload preserves existing message_id", () => {
+test("prepareMQTTPayload adds timestamp to object payloads", () => {
   const payload = prepareMQTTPayload({
-    message_id: "existing-id",
     action: "open_compartment",
   });
 
   const decoded = JSON.parse(payload) as {
     action: string;
     message_id?: string;
+    timestamp?: string;
+  };
+
+  assert.equal(decoded.action, "open_compartment");
+  assert.equal(typeof decoded.message_id, "string");
+  assert.equal(typeof decoded.timestamp, "string");
+  assert.ok(decoded.timestamp);
+});
+
+test("prepareMQTTPayload preserves existing message_id and timestamp", () => {
+  const payload = prepareMQTTPayload({
+    message_id: "existing-id",
+    action: "open_compartment",
+    timestamp: "2026-01-01T00:00:00.000Z",
+  });
+
+  const decoded = JSON.parse(payload) as {
+    action: string;
+    message_id?: string;
+    timestamp?: string;
   };
 
   assert.equal(decoded.action, "open_compartment");
   assert.equal(decoded.message_id, "existing-id");
+  assert.equal(decoded.timestamp, "2026-01-01T00:00:00.000Z");
 });
 
 test("prepareMQTTPayload leaves string payloads unchanged", () => {
