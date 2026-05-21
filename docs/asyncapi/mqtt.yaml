@@ -35,12 +35,17 @@ channels:
         $ref: '#/components/messages/commandErrorResponse'
   lockerEvent:
     address: locker/{locker_uuid}/event
+    description: >-
+      Non-retained spontaneous device events. No concrete runtime events are
+      implemented in the current contract. Future candidates include
+      `qr_scanned` and `tamper_detected`; current door state is reported through
+      `locker/{locker_uuid}/state/compartments` instead.
     parameters:
       locker_uuid:
         $ref: '#/components/parameters/locker_uuid'
     messages:
-      doorStateChangedEvent:
-        $ref: '#/components/messages/doorStateChangedEvent'
+      deviceEvent:
+        $ref: '#/components/messages/deviceEvent'
   lockerStateHeartbeat:
     address: locker/{locker_uuid}/state/heartbeat
     parameters:
@@ -106,8 +111,11 @@ operations:
     channel:
       $ref: '#/channels/lockerEvent'
     summary: Backend receives spontaneous locker events.
+    description: >-
+      Placeholder operation for future non-retained events such as `qr_scanned`
+      or `tamper_detected`.
     messages:
-      - $ref: '#/channels/lockerEvent/messages/doorStateChangedEvent'
+      - $ref: '#/channels/lockerEvent/messages/deviceEvent'
   backendReceiveLockerHeartbeat:
     action: receive
     channel:
@@ -169,8 +177,11 @@ operations:
     channel:
       $ref: '#/channels/lockerEvent'
     summary: Locker-client sends spontaneous device events.
+    description: >-
+      Reserved for future non-retained events. Do not use this topic for current
+      compartment door state; publish retained state on `state/compartments`.
     messages:
-      - $ref: '#/channels/lockerEvent/messages/doorStateChangedEvent'
+      - $ref: '#/channels/lockerEvent/messages/deviceEvent'
   lockerClientSendLockerHeartbeat:
     action: send
     channel:
@@ -248,12 +259,12 @@ components:
       contentType: application/json
       payload:
         $ref: './schemas/payloads/response-command-error.json'
-    doorStateChangedEvent:
-      name: doorStateChangedEvent
-      title: Door state changed event
+    deviceEvent:
+      name: deviceEvent
+      title: Generic non-retained device event
       contentType: application/json
       payload:
-        $ref: './schemas/payloads/event-door-state-changed.json'
+        $ref: './schemas/messages/event.json'
     heartbeatState:
       name: heartbeatState
       title: Periodic heartbeat state
