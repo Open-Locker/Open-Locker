@@ -10,7 +10,7 @@ graph LR
     end
 
     subgraph "Mobile App"
-        MobileApp["Flutter App"]
+        MobileApp["React Native App"]
     end
 
     subgraph "Cloud-Infrastruktur (open-locker.de)"

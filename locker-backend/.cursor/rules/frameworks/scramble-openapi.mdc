@@ -72,16 +72,24 @@ composer export:api
 php artisan scramble:export
 ```
 
-### Generate Client Code
+### Generate Mobile Client Code
+
+After exporting the OpenAPI spec, regenerate the React Native RTK Query client:
+
 ```bash
-# Generate Dart client for Flutter app
-composer generate:api-client
+# 1) Export OpenAPI spec from backend
+cd locker-backend && composer export:api
+
+# 2) Regenerate RTK Query API in mobile app
+cd ../mobile-app && pnpm run generate:api
 ```
 
-This command:
-1. Exports the OpenAPI specification to `api.json`
-2. Uses OpenAPI Generator to create Dart client in `packages/locker_api/`
-3. Configures client with project-specific settings
+This flow:
+1. Exports the OpenAPI specification to `locker-backend/api.json`
+2. Generates TypeScript RTK Query hooks in `mobile-app/src/store/generatedApi.ts`
+3. Runs TypeScript check to fail fast on type breaks (`generate:api` includes `typecheck`)
+
+For full post-generation quality checks in the mobile app, run `pnpm run quality:api`.
 
 ## API Design Guidelines
 

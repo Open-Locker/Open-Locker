@@ -13,8 +13,6 @@ This is a **monorepo** containing multiple interconnected components for the Ope
 Open-Locker/
 ├── locker-backend/           # Laravel 11 API + Admin Panel
 ├── mobile-app/              # React Native Mobile App
-├── mobile-app-legacy-flutter/ # Legacy Flutter Mobile App
-├── packages/locker_api/     # Generated Dart API Client
 ├── docs/                    # Project Documentation
 ├── docker-compose.yml       # Multi-service orchestration
 └── Justfile                 # Task runner configuration
@@ -33,18 +31,7 @@ Open-Locker/
 - **Technology**: React Native with Expo
 - **Purpose**: End-user interface for borrowing items
 - **Features**: Authentication, item browsing, locker interaction
-- **API Client**: Uses backend REST API directly
-
-### 📱 **Legacy Mobile App** (`mobile-app-legacy-flutter/`)
-- **Technology**: Flutter (cross-platform)
-- **Purpose**: Previous end-user interface implementation
-- **Status**: Legacy, retained for reference/migration support
-
-### 📦 **API Client** (`packages/locker_api/`)
-- **Technology**: Generated Dart package from OpenAPI
-- **Purpose**: Type-safe API communication for Flutter app
-- **Generation**: Automatically created from Laravel backend
-- **Updates**: Regenerated when API schema changes
+- **API Client**: RTK Query codegen from OpenAPI (`pnpm run generate:api`)
 
 ### 📡 **MQTT Broker** (Mosquitto)
 - **Technology**: Mosquitto with `mosquitto-go-auth` plugin
@@ -61,7 +48,7 @@ Open-Locker/
 
 ### **API-First Design**
 - Backend serves as pure API (no web frontend except admin)
-- Mobile app consumes REST API via generated client
+- Mobile app consumes REST API via RTK Query codegen from OpenAPI
 - Admin panel uses Filament for internal management
 
 ### **Hardware Abstraction**
@@ -70,8 +57,8 @@ Open-Locker/
 - Deployable on Raspberry Pi or standard servers
 
 ### **Code Generation**
-- OpenAPI spec auto-generated from Laravel code
-- Dart API client auto-generated from OpenAPI spec
+- OpenAPI spec auto-generated from Laravel code (`composer export:api`)
+- RTK Query client auto-generated in mobile app (`pnpm run generate:api`)
 - Reduces manual synchronization between components
 
 ## Development Workflow
@@ -82,9 +69,9 @@ We use `just` to automate common development tasks.
 - `just --list`: View all available commands.
 
 ### **Cross-Component Changes**
-1. **Backend API changes** → Run Scramble to update OpenAPI
-2. **OpenAPI updates** → Regenerate Dart client package  
-3. **Client updates** → Update mobile app dependencies
+1. **Backend API changes** → `cd locker-backend && composer export:api`
+2. **OpenAPI updates** → `cd mobile-app && pnpm run generate:api`
+3. **Mobile app updates** → Update consumer code (screens/hooks), not generated files
 4. **Testing** → Integration tests across all components
 
 ### **Environment Coordination**

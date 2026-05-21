@@ -16,7 +16,7 @@ Komponenten besteht:
 ```mermaid
 graph TB
     subgraph "Mobile App Layer"
-        FlutterApp["Mobile App<br/>(React Native)"]
+        MobileApp["Mobile App<br/>(React Native)"]
     end
     
     subgraph "API Layer"
@@ -69,7 +69,7 @@ graph TB
     end
     
     %% API Communication
-    FlutterApp -->|HTTP API Calls| LaravelAPI
+    MobileApp -->|HTTP API Calls| LaravelAPI
     FilamentPanel -->|Web Interface| LaravelAPI
     LaravelAPI --> AuthAPI
     LaravelAPI --> ItemAPI
@@ -114,7 +114,7 @@ graph TB
     classDef hardware fill:#fff3e0
     classDef background fill:#e8f5e8
     
-    class FlutterApp,LaravelAPI primary
+    class MobileApp,LaravelAPI primary
     class FilamentPanel,ScrambleDocs secondary
     class RaspberryPi,ModbusUnits,PhysicalLockers hardware
     class PollingCommand,QueueWorker background

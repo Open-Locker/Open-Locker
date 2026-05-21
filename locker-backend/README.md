@@ -221,8 +221,7 @@ composer test:coverage  # Run tests with coverage
 composer test:parallel  # Run tests in parallel
 
 # Documentation
-composer export:api         # Export OpenAPI spec
-composer generate:api-client # Generate Dart client
+composer export:api         # Export OpenAPI spec (for mobile-app RTK Query codegen)
 ```
 
 ## Production Deployment

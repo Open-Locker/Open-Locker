@@ -41,8 +41,6 @@ This is a **monorepo** containing multiple components:
 
 - **Backend** (`locker-backend/`): Laravel 11 API with Filament admin panel
 - **Mobile App** (`mobile-app/`): React Native (Expo) app for end users
-- **Legacy Mobile App** (`mobile-app-legacy-flutter/`): Previous Flutter app
-- **API Client** (`packages/locker_api/`): Auto-generated Dart client
 - **Hardware** (`hardware/`): KiCad designs and build kit references
 - **Documentation** (`docs/`): Project architecture and guides
 
@@ -116,10 +114,7 @@ Detailed system architecture documentation in
 Open-Locker/
 ├── locker-backend/     # Laravel API & Admin Panel
 ├── mobile-app/         # React Native Mobile App
-├── mobile-app-legacy-flutter/ # Legacy Flutter Mobile App
 ├── hardware/           # Hardware designs (KiCad) and related files
-├── packages/           # Shared packages
-│   └── locker_api/     # Auto-generated API client
 ├── docs/               # Project documentation
 ├── docker-compose.yml  # Development environment
 └── Justfile            # Task runner configuration

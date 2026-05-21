@@ -8,7 +8,6 @@ on:
       - 'locker-client-v*'
     paths:
       - 'locker-client/**'
-      - 'packages/locker_api/**'
       - '.github/workflows/build-locker-client.yml'
 
 jobs:
