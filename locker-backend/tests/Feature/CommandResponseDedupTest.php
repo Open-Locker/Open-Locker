@@ -101,6 +101,72 @@ class CommandResponseDedupTest extends TestCase
         $this->assertSame(0, EloquentStoredEvent::query()->count());
     }
 
+    public function test_command_response_with_empty_transaction_id_is_rejected_early(): void
+    {
+        $handler = app(CommandResponseHandler::class);
+
+        $lockerUuid = '11111111-1111-1111-1111-111111111111';
+        $topic = "locker/{$lockerUuid}/response";
+        $payload = [
+            'message_id' => 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
+            'type' => 'command_response',
+            'action' => 'open_compartment',
+            'result' => 'success',
+            'transaction_id' => '',
+            'timestamp' => now()->toIso8601String(),
+            'message' => 'ok',
+        ];
+
+        $handler->handleMessage($topic, (string) json_encode($payload));
+
+        $this->assertDatabaseCount('command_transactions', 0);
+        $this->assertSame(0, EloquentStoredEvent::query()->count());
+    }
+
+    public function test_command_response_with_whitespace_transaction_id_is_rejected_early(): void
+    {
+        $handler = app(CommandResponseHandler::class);
+
+        $lockerUuid = '11111111-1111-1111-1111-111111111111';
+        $topic = "locker/{$lockerUuid}/response";
+        $payload = [
+            'message_id' => 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb',
+            'type' => 'command_response',
+            'action' => 'open_compartment',
+            'result' => 'success',
+            'transaction_id' => ' ',
+            'timestamp' => now()->toIso8601String(),
+            'message' => 'ok',
+        ];
+
+        $handler->handleMessage($topic, (string) json_encode($payload));
+
+        $this->assertDatabaseCount('command_transactions', 0);
+        $this->assertSame(0, EloquentStoredEvent::query()->count());
+    }
+
+    public function test_command_response_with_numeric_transaction_id_is_rejected_early(): void
+    {
+        $handler = app(CommandResponseHandler::class);
+
+        $lockerUuid = '11111111-1111-1111-1111-111111111111';
+        $topic = "locker/{$lockerUuid}/response";
+        $payload = [
+            'message_id' => 'cccccccc-cccc-cccc-cccc-cccccccccccc',
+            'type' => 'command_response',
+            'action' => 'open_compartment',
+            'result' => 'success',
+            'transaction_id' => 123,
+            'timestamp' => now()->toIso8601String(),
+            'message' => 'ok',
+        ];
+
+        $handler->handleMessage($topic, (string) json_encode($payload));
+
+        $this->assertDatabaseCount('command_transactions', 0);
+        $this->assertSame(0, EloquentStoredEvent::query()->count());
+    }
+
     public function test_invalid_command_response_payload_is_rejected_by_handler_validation(): void
     {
         $handler = app(CommandResponseHandler::class);
