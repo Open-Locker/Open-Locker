@@ -9,7 +9,7 @@ This Laravel application provides:
 
 - **REST API** for mobile app communication
 - **Filament Admin Panel** for system administration
-- **Modbus Integration** for IoT hardware control
+- **MQTT Integration** for locker-client communication
 - **OpenAPI Documentation** via Scramble
 
 ## Tech Stack
@@ -18,7 +18,7 @@ This Laravel application provides:
 - **Admin Panel:** Filament 3.x
 - **Authentication:** Laravel Sanctum
 - **Database:** SQLite (development) / PostgreSQL (production)
-- **Hardware:** Modbus TCP/RTU via libmodbus
+- **IoT Bridge:** MQTT to locker-client (Modbus runs on the Pi)
 - **Documentation:** Scramble OpenAPI Generator
 - **PHP Version:** 8.4+
 
@@ -27,7 +27,7 @@ This Laravel application provides:
 ### Prerequisites
 
 - Docker & Docker Compose
-- PHP 8.4+ with FFI extension
+- PHP 8.4+
 - Composer
 
 ### Installation
@@ -96,9 +96,9 @@ This Laravel application provides:
 ### Project-Specific Rules
 
 - **API Only**: No public-facing views (except admin)
-- **Modbus Safety**: Always use locks for hardware operations
+- **MQTT Contracts**: Keep command/response payloads aligned with locker-client
 - **OpenAPI**: Document all endpoints with Scramble
-- **Testing**: Feature tests for workflows, mocks for hardware
+- **Testing**: Feature tests for workflows, mocks for MQTT/hardware side effects
 
 ## Key Components
 
@@ -111,8 +111,7 @@ This Laravel application provides:
 
 ### Services
 
-- `LockerService` - Hardware communication and lock management
-- Modbus integration via custom FFI package
+- MQTT handlers and publishers for locker-client commands and provisioning
 
 ### Controllers
 
@@ -171,35 +170,20 @@ composer test tests/Feature/ItemControllerTest.php
 
 ## Hardware Integration
 
-### Modbus Configuration
-
-```env
-# TCP Configuration
-MODBUS_DRIVER=tcp
-MODBUS_TCP_IP=127.0.0.1
-MODBUS_TCP_PORT=502
-
-# RTU Configuration (alternative)
-MODBUS_DRIVER=rtu
-MODBUS_RTU_DEVICE=/dev/ttyUSB0
-MODBUS_RTU_BAUD=9600
-```
+Physical Modbus control runs in **locker-client** on the Raspberry Pi. The
+backend publishes MQTT commands and processes structured responses.
 
 ### Safety Features
 
-- Connection locking prevents concurrent access
-- Pulse-based locker opening (prevents damage)
-- Automatic status polling and monitoring
-- Error handling with graceful degradation
+- Idempotent command handling and deduplication
+- Structured error responses from locker-client
+- Operational logging with transaction IDs
 
 ## Commands
 
 ### Artisan Commands
 
 ```bash
-# Poll locker status (background service)
-php artisan locker:poll-status
-
 # Generate API documentation
 php artisan scramble:export
 
@@ -229,7 +213,7 @@ composer export:api         # Export OpenAPI spec (for mobile-app RTK Query code
 ### Docker Configuration
 
 - Multi-stage builds for optimization
-- PHP 8.4 with FFI enabled
+- PHP 8.4
 - Supervisor for background tasks
 - Nginx reverse proxy
 
@@ -239,12 +223,10 @@ composer export:api         # Export OpenAPI spec (for mobile-app RTK Query code
 APP_ENV=production
 APP_DEBUG=false
 DB_CONNECTION=pgsql
-MODBUS_LIB_PATH=/usr/lib/libmodbus.so.5
 ```
 
 ### Background Services
 
-- `locker-poller` container for status monitoring
 - Queue workers for background jobs
 - Scheduled tasks for maintenance
 
@@ -261,7 +243,7 @@ MODBUS_LIB_PATH=/usr/lib/libmodbus.so.5
 This project uses Cursor Rules for development guidance:
 
 - **Scramble OpenAPI**: Documentation generation guidelines
-- **Modbus Integration**: Hardware communication patterns
+- **Hardware Integration**: MQTT bridge to locker-client
 - **Domain Guidelines**: Business logic conventions
 - **Testing Guidelines**: Feature test preferences
 

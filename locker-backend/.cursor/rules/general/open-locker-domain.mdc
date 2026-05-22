@@ -22,7 +22,7 @@ This project implements a digital locker sharing system for lending physical ite
 - **Business Rule**: Must be assigned to exactly one compartment
 
 #### Compartment
-- **Purpose**: Physical storage compartments controlled via Modbus
+- **Purpose**: Physical storage compartments controlled via locker-client over MQTT
 - **Key Attributes**: `locker_bank_id`, `number`, `slave_id`, `address`
 - **Relationships**: Has one `Item`
 - **Hardware Mapping**: Directly corresponds to a physical compartment in a locker bank
@@ -124,9 +124,8 @@ public function item(): HasOne
 ## Service Layer Patterns
 
 ### LockerService Responsibilities
-- Hardware communication (Modbus)
-- Status polling and updates
-- Locker opening operations
+- MQTT command publishing for compartment operations
+- Status updates from locker-client responses
 - Error handling and logging
 
 ### Controller Responsibilities  
@@ -145,9 +144,9 @@ public function item(): HasOne
 ### Hardware Errors
 ```php
 try {
-    $lockerService->openLocker($locker);
-} catch (ModbusIOException $e) {
-    Log::error("Hardware communication failed: " . $e->getMessage());
+    $lockerService->openCompartment($compartment);
+} catch (\Throwable $e) {
+    Log::error('Hardware command failed: '.$e->getMessage());
     return response()->json([
         'status' => false,
         'message' => __('Locker operation failed'),
@@ -240,8 +239,7 @@ public function test_user_can_borrow_available_item(): void
 7. Update API documentation (automatically via Scramble)
 
 ### Hardware Integration
-1. Define Modbus addresses in database
-2. Test with LockerService methods
-3. Handle errors gracefully
-4. Add logging for debugging
-5. Update status polling if needed
+1. Define compartment metadata in the database
+2. Publish commands via MQTT and handle responses in handlers
+3. Handle errors gracefully with structured logging
+4. Keep AsyncAPI/JSON schema contracts aligned with locker-client

@@ -13,10 +13,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     gnupg \
     libicu-dev \
-    libffi-dev \
-    libmodbus5 \
     && apt-get update \
-    && docker-php-ext-install intl exif ffi \
+    && docker-php-ext-install intl exif \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
@@ -25,7 +23,6 @@ WORKDIR /app
 # Erst alle notwendigen Dateien kopieren
 COPY composer.json composer.lock ./
 COPY . .
-COPY packages/OpenLocker/php-modbus-ffi /app/packages/OpenLocker/php-modbus-ffi
 
 # Dann als root die Berechtigungen für den gesamten App-Ordner setzen
 RUN chown -R www-data:www-data /app
@@ -47,15 +44,10 @@ USER root
 # libicu-dev wird für intl benötigt
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libicu-dev \
-    libffi-dev \
-    libmodbus5 \
     && apt-get update \
-    && docker-php-ext-install intl exif ffi \
+    && docker-php-ext-install intl exif \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
-
-# Füge www-data zur dialout-Gruppe hinzu (für Zugriff auf /dev/ttyACM0)
-RUN usermod -aG dialout www-data
 
 # Zurück zum Standardbenutzer für den Rest
 USER www-data

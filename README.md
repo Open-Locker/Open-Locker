@@ -48,7 +48,7 @@ This is a **monorepo** containing multiple components:
 
 The system consists of:
 
-- **IoT Hardware**: Raspberry Pi with Modbus communication to physical lockers
+- **IoT Hardware**: Raspberry Pi (locker-client) with Modbus to physical lockers
 - **MQTT Broker**: Mosquitto with HTTP Authentication (via Laravel backend)
 - **API Backend**: Laravel application managing items, users, and hardware
 - **Mobile App**: React Native app for borrowing and returning items
@@ -76,7 +76,7 @@ Comprehensive documentation available in
 
 - Development guidelines and coding standards
 - API endpoints and OpenAPI documentation
-- Hardware integration (Modbus) guidelines
+- Hardware integration (MQTT + locker-client) guidelines
 - Testing strategies and best practices
 - Deployment and production setup
 
@@ -104,7 +104,7 @@ Detailed system architecture documentation in
 - **Backend**: Laravel 11, Filament 3.x, Sanctum, SQLite
 - **Frontend**: React Native (Expo), TypeScript
 - **MQTT**: Mosquitto + mosquitto-go-auth (HTTP Backend)
-- **Hardware**: Modbus TCP/RTU, libmodbus, FFI
+- **Hardware**: Modbus on locker-client; MQTT between backend and Pi
 - **Documentation**: Scramble OpenAPI, Mermaid diagrams
 - **Development**: Docker, Laravel Sail, Cursor Rules, Just
 
