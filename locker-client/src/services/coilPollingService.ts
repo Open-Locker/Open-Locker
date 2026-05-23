@@ -1,4 +1,5 @@
 import { configLoader } from "../config/configLoader";
+import type { CompartmentConfig } from "../config/configLoader";
 import { logger } from "../helper/logger";
 import { modbusService } from "./modbusService";
 import { mqttService } from "./mqttService";
@@ -9,8 +10,8 @@ interface PollingTarget {
 }
 
 interface PolledClientSnapshot extends PollingTarget {
-  relayStates: boolean[];
-  inputStates: boolean[];
+  relayStates: Array<boolean | undefined>;
+  inputStates: Array<boolean | undefined>;
 }
 
 type MqttDoorState = "open" | "closed" | "unknown";
@@ -36,6 +37,36 @@ export function shouldPublishCompartmentSnapshot(
   entries: CompartmentSnapshotEntry[],
 ): boolean {
   return compartmentSnapshotKey(entries) !== lastPublishedKey;
+}
+
+export function getUniqueConfiguredAddressesForSlave(
+  compartments: CompartmentConfig[] | undefined,
+  slaveId: number,
+  numChannels: number,
+): number[] {
+  if (!compartments || compartments.length === 0) {
+    return [];
+  }
+
+  return [
+    ...new Set(
+      compartments
+        .filter((compartment) => compartment.slaveId === slaveId)
+        .map((compartment) => compartment.address)
+        .filter(
+          (address) =>
+            Number.isInteger(address) && address >= 0 && address < numChannels,
+        ),
+    ),
+  ].sort((left, right) => left - right);
+}
+
+export function isReconnectableModbusError(error: unknown): boolean {
+  return (
+    error instanceof Error &&
+    (error.message.includes("Port Not Open") ||
+      error.message.includes("ECONNREFUSED"))
+  );
 }
 
 class CoilPollingService {
@@ -150,17 +181,8 @@ class CoilPollingService {
 
     for (const target of pollingTargets) {
       try {
-        const relayStates = await modbusService.readCoils(
-          0x0000,
-          this.NUM_CHANNELS,
-          target.slaveId,
-        );
-
-        const inputStates = await modbusService.readDiscreteInputs(
-          0x0000,
-          this.NUM_CHANNELS,
-          target.slaveId,
-        );
+        const { relayStates, inputStates } =
+          await this.pollTargetSnapshot(target);
 
         logger.debug(`[slave:${target.slaveId}] Relay states:`, relayStates);
         logger.debug(
@@ -181,11 +203,7 @@ class CoilPollingService {
 
         // Reconnect only on transport failures. A board timeout should not
         // reset polling for other boards on the same RS485 bus.
-        if (
-          error instanceof Error &&
-          (error.message.includes("Port Not Open") ||
-            error.message.includes("ECONNREFUSED"))
-        ) {
+        if (isReconnectableModbusError(error)) {
           logger.warn("Port error detected, initiating reconnection...");
           modbusService.reconnect().catch((reconnectError) => {
             logger.error("Failed to initiate reconnection:", reconnectError);
@@ -202,6 +220,117 @@ class CoilPollingService {
     }
 
     await this.maybePublishSnapshot(snapshots, forcePublish);
+  }
+
+  private async pollTargetSnapshot(
+    target: PollingTarget,
+  ): Promise<Omit<PolledClientSnapshot, "slaveId">> {
+    const configuredAddresses = this.getConfiguredAddressesForSlave(
+      target.slaveId,
+    );
+
+    if (configuredAddresses.length === 0) {
+      return this.pollAllChannels(target.slaveId);
+    }
+
+    return this.pollConfiguredChannels(target.slaveId, configuredAddresses);
+  }
+
+  private async pollAllChannels(
+    slaveId: number,
+  ): Promise<Omit<PolledClientSnapshot, "slaveId">> {
+    const relayStates = await modbusService.readCoils(
+      0x0000,
+      this.NUM_CHANNELS,
+      slaveId,
+    );
+
+    const inputStates = await modbusService.readDiscreteInputs(
+      0x0000,
+      this.NUM_CHANNELS,
+      slaveId,
+    );
+
+    return { relayStates, inputStates };
+  }
+
+  private async pollConfiguredChannels(
+    slaveId: number,
+    addresses: number[],
+  ): Promise<Omit<PolledClientSnapshot, "slaveId">> {
+    const relayStates = this.createEmptyChannelStates();
+    const inputStates = this.createEmptyChannelStates();
+
+    for (const address of addresses) {
+      relayStates[address] = await this.readSingleCoil(slaveId, address);
+      inputStates[address] = await this.readSingleDiscreteInput(slaveId, address);
+    }
+
+    return { relayStates, inputStates };
+  }
+
+  private createEmptyChannelStates(): Array<boolean | undefined> {
+    return Array.from({ length: this.NUM_CHANNELS });
+  }
+
+  private async readSingleCoil(
+    slaveId: number,
+    address: number,
+  ): Promise<boolean | undefined> {
+    try {
+      const [state] = await modbusService.readCoils(address, 1, slaveId, {
+        logErrors: false,
+      });
+      return state;
+    } catch (error) {
+      if (isReconnectableModbusError(error)) {
+        throw error;
+      }
+
+      this.logPollingReadFailure("read_coil", slaveId, address, error);
+      return undefined;
+    }
+  }
+
+  private async readSingleDiscreteInput(
+    slaveId: number,
+    address: number,
+  ): Promise<boolean | undefined> {
+    try {
+      const [state] = await modbusService.readDiscreteInputs(
+        address,
+        1,
+        slaveId,
+        { logErrors: false },
+      );
+      return state;
+    } catch (error) {
+      if (isReconnectableModbusError(error)) {
+        throw error;
+      }
+
+      this.logPollingReadFailure("read_discrete_input", slaveId, address, error);
+      return undefined;
+    }
+  }
+
+  private logPollingReadFailure(
+    operation: "read_coil" | "read_discrete_input",
+    slaveId: number,
+    address: number,
+    error: unknown,
+  ): void {
+    logger.warn("Modbus polling read failed", {
+      operation,
+      slaveId,
+      address,
+      errorName: error instanceof Error ? error.name : undefined,
+      errorMessage: error instanceof Error ? error.message : String(error),
+      errno:
+        error && typeof error === "object" && "errno" in error
+          ? (error as { errno?: unknown }).errno
+          : undefined,
+    });
   }
 
   /**
@@ -267,6 +396,14 @@ class CoilPollingService {
     return modbusService.getConfiguredSlaveIds().map((slaveId) => ({
       slaveId,
     }));
+  }
+
+  private getConfiguredAddressesForSlave(slaveId: number): number[] {
+    return getUniqueConfiguredAddressesForSlave(
+      configLoader.getConfig()?.compartments,
+      slaveId,
+      this.NUM_CHANNELS,
+    );
   }
 
   private buildCompartmentSnapshotEntries(

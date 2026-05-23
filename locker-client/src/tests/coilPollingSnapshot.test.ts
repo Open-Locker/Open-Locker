@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   compartmentSnapshotKey,
+  getUniqueConfiguredAddressesForSlave,
+  isReconnectableModbusError,
   shouldPublishCompartmentSnapshot,
   type CompartmentSnapshotEntry,
 } from "../services/coilPollingService";
@@ -43,4 +45,27 @@ test("changed door_state implies publish again", () => {
     { compartment_number: 1, door_state: "open" },
   ];
   assert.equal(shouldPublishCompartmentSnapshot(last, second), true);
+});
+
+test("configured polling addresses are deduplicated and scoped by slave", () => {
+  const addresses = getUniqueConfiguredAddressesForSlave(
+    [
+      { compartment_number: 1, slaveId: 1, address: 0 },
+      { compartment_number: 2, slaveId: 2, address: 2 },
+      { compartment_number: 3, slaveId: 2, address: 1 },
+      { compartment_number: 4, slaveId: 2, address: 1 },
+      { compartment_number: 5, slaveId: 2, address: 8 },
+    ],
+    2,
+    8,
+  );
+
+  assert.deepEqual(addresses, [1, 2]);
+});
+
+test("reconnectable Modbus errors are limited to transport failures", () => {
+  assert.equal(isReconnectableModbusError(new Error("Port Not Open")), true);
+  assert.equal(isReconnectableModbusError(new Error("connect ECONNREFUSED")), true);
+  assert.equal(isReconnectableModbusError(new Error("Timed out")), false);
+  assert.equal(isReconnectableModbusError("ECONNREFUSED"), false);
 });

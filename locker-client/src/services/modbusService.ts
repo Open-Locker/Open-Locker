@@ -255,6 +255,7 @@ class ModbusService {
     address: number,
     length: number,
     slaveId: number = this.LEGACY_DEFAULT_SLAVE_ID,
+    options: { logErrors?: boolean } = {},
   ): Promise<boolean[]> {
     return this.enqueueOperation(`readCoils:${slaveId}:${address}`, async () => {
       const client = this.getClient(slaveId);
@@ -263,10 +264,12 @@ class ModbusService {
         const result = await client.readCoils(address, length);
         return result.data;
       } catch (error) {
-        logger.error(
-          `[slave:${slaveId}] Failed to read coils from ${address}:`,
-          error,
-        );
+        if (options.logErrors !== false) {
+          logger.error(
+            `[slave:${slaveId}] Failed to read coils from ${address}:`,
+            error,
+          );
+        }
         throw error;
       }
     });
@@ -276,6 +279,7 @@ class ModbusService {
     address: number,
     length: number,
     slaveId: number = this.LEGACY_DEFAULT_SLAVE_ID,
+    options: { logErrors?: boolean } = {},
   ): Promise<boolean[]> {
     return this.enqueueOperation(
       `readDiscreteInputs:${slaveId}:${address}`,
@@ -286,10 +290,12 @@ class ModbusService {
           const result = await client.readDiscreteInputs(address, length);
           return result.data;
         } catch (error) {
-          logger.error(
-            `[slave:${slaveId}] Failed to read discrete inputs from ${address}:`,
-            error,
-          );
+          if (options.logErrors !== false) {
+            logger.error(
+              `[slave:${slaveId}] Failed to read discrete inputs from ${address}:`,
+              error,
+            );
+          }
           throw error;
         }
       },
