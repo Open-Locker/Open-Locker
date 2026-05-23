@@ -18,7 +18,8 @@ class UserResource extends JsonResource
      *
      * @return array{
      *     id: int,
-     *     name: string,
+     *     first_name: string,
+     *     last_name: string|null,
      *     email: string,
      *     email_verified_at: \Illuminate\Support\Carbon|null,
      *     is_admin: bool,
@@ -33,7 +34,8 @@ class UserResource extends JsonResource
     {
         return [
             'id' => $this->resource->id,
-            'name' => $this->resource->name,
+            'first_name' => $this->resource->first_name,
+            'last_name' => $this->resource->last_name,
             'email' => $this->resource->email,
             'email_verified_at' => $this->resource->email_verified_at,
             'is_admin' => $this->resource->isAdmin(),
