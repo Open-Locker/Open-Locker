@@ -325,7 +325,7 @@ class CoilPollingService {
       slaveId,
       address,
       errorName: error instanceof Error ? error.name : undefined,
-      errorMessage: error instanceof Error ? error.message : String(error),
+      errorMessage: JSON.stringify(error),
       errno:
         error && typeof error === "object" && "errno" in error
           ? (error as { errno?: unknown }).errno
