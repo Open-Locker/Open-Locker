@@ -47,8 +47,10 @@ class LockerService
         $configHash = $payload['config_hash'];
 
         $missing = $lockerBank->compartments()
-            ->whereNull('slave_id')
-            ->orWhereNull('address')
+            ->where(function ($query): void {
+                $query->whereNull('slave_id')
+                    ->orWhereNull('address');
+            })
             ->count();
 
         if ($missing > 0) {
