@@ -26,7 +26,7 @@ A Docker-based CLI tool for configuring Waveshare Modbus RTU Relay (D) modules v
 
 ```bash
 cd utils/modbus-cli
-docker-compose build
+docker compose build
 ```
 
 ### 2. Identify Your USB Device
@@ -39,20 +39,20 @@ ls -l /dev/ttyUSB*
 dmesg | grep tty
 ```
 
-If your device is not `/dev/ttyACM0`, update the `docker-compose.yml` file accordingly.
+If your device is not `/dev/ttyACM0`, update the `docker compose.yml` file accordingly.
 
 ### 3. Usage Examples
 
 #### Read Current Configuration
 
 ```bash
-docker-compose run --rm modbus-cli config
+docker compose run --rm modbus-cli config
 ```
 
 With custom port:
 
 ```bash
-docker-compose run --rm modbus-cli config -p /dev/ttyUSB1
+docker compose run --rm modbus-cli config -p /dev/ttyUSB1
 ```
 
 #### Set Slave ID
@@ -60,7 +60,7 @@ docker-compose run --rm modbus-cli config -p /dev/ttyUSB1
 Set the device address to 5:
 
 ```bash
-docker-compose run --rm modbus-cli set-slave-id 5
+docker compose run --rm modbus-cli set-slave-id 5
 ```
 
 **Note:** You must power cycle the device after changing the slave ID.
@@ -70,13 +70,13 @@ docker-compose run --rm modbus-cli set-slave-id 5
 Set channel 1 to Linkage mode:
 
 ```bash
-docker-compose run --rm modbus-cli set-mode 1 linkage
+docker compose run --rm modbus-cli set-mode 1 linkage
 ```
 
 Set channel 3 to Toggle mode (with custom slave ID):
 
 ```bash
-docker-compose run --rm modbus-cli set-mode 3 toggle -s 5
+docker compose run --rm modbus-cli set-mode 3 toggle -s 5
 ```
 
 Available modes:
@@ -84,6 +84,14 @@ Available modes:
 - `linkage` - Relay status matches input channel status
 - `toggle` - Relay toggles on input pulse
 - `edge` - Relay changes on input level change
+
+#### Open a Compartment
+
+Open relay 2 on the board with slave ID 3:
+
+```bash
+docker compose run --rm modbus-cli open-compartment 2 -s 3
+```
 
 ## Commands Reference
 
@@ -97,7 +105,7 @@ Read and display the current device configuration.
 
 **Example:**
 ```bash
-docker-compose run --rm modbus-cli config
+docker compose run --rm modbus-cli config
 ```
 
 ### `set-slave-id <id>`
@@ -113,7 +121,7 @@ Set the slave ID (device address).
 
 **Example:**
 ```bash
-docker-compose run --rm modbus-cli set-slave-id 10
+docker compose run --rm modbus-cli set-slave-id 10
 ```
 
 ### `set-mode <channel> <mode>`
@@ -131,7 +139,24 @@ Set the operation mode for a specific channel.
 
 **Example:**
 ```bash
-docker-compose run --rm modbus-cli set-mode 2 toggle -s 1
+docker compose run --rm modbus-cli set-mode 2 toggle -s 1
+```
+
+### `open-compartment <relay>`
+
+Open a compartment by activating its relay for 100ms (uses the Waveshare timed flash command).
+
+**Arguments:**
+- `<relay>` - Relay number (1-8)
+
+**Options:**
+- `-p, --port <port>` - Serial port (default: `/dev/ttyACM0`)
+- `-b, --baudrate <baudrate>` - Baudrate (default: `9600`)
+- `-s, --slave-id <id>` - Slave ID (modbus client ID) of the board (default: `1`)
+
+**Example:**
+```bash
+docker compose run --rm modbus-cli open-compartment 2 -s 3
 ```
 
 ## Operation Modes Explained
@@ -154,7 +179,7 @@ If you get a permission error accessing the serial device:
 sudo usermod -a -G dialout $USER
 
 # Or run with sudo (less secure)
-sudo docker-compose run --rm modbus-cli config
+sudo docker compose run --rm modbus-cli config
 ```
 
 ### Device Not Found
@@ -165,7 +190,7 @@ Ensure your USB device is properly connected:
 ls -l /dev/ttyUSB*
 ```
 
-Update `docker-compose.yml` if your device has a different name.
+Update `docker compose.yml` if your device has a different name.
 
 ### No Response from Device
 
