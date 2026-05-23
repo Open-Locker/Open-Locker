@@ -6,7 +6,7 @@
     },
     "servers": [
         {
-            "url": "http://open-locker.test/api"
+            "url": "http://localhost/api"
         }
     ],
     "security": [
@@ -71,14 +71,14 @@
                                         "message": {
                                             "anyOf": [
                                                 {
-                                                    "type": "string"
+                                                    "type": "null"
                                                 },
                                                 {
                                                     "type": "array",
                                                     "items": {}
                                                 },
                                                 {
-                                                    "type": "null"
+                                                    "type": "string"
                                                 }
                                             ]
                                         },
@@ -142,14 +142,14 @@
                                         "message": {
                                             "anyOf": [
                                                 {
-                                                    "type": "string"
+                                                    "type": "null"
                                                 },
                                                 {
                                                     "type": "array",
                                                     "items": {}
                                                 },
                                                 {
-                                                    "type": "null"
+                                                    "type": "string"
                                                 }
                                             ]
                                         },
@@ -360,14 +360,14 @@
                                         "message": {
                                             "anyOf": [
                                                 {
-                                                    "type": "string"
+                                                    "type": "null"
                                                 },
                                                 {
                                                     "type": "array",
                                                     "items": {}
                                                 },
                                                 {
-                                                    "type": "null"
+                                                    "type": "string"
                                                 }
                                             ]
                                         }
@@ -408,26 +408,7 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "type": "object",
-                                    "properties": {
-                                        "message": {
-                                            "anyOf": [
-                                                {
-                                                    "type": "string"
-                                                },
-                                                {
-                                                    "type": "array",
-                                                    "items": {}
-                                                },
-                                                {
-                                                    "type": "null"
-                                                }
-                                            ]
-                                        }
-                                    },
-                                    "required": [
-                                        "message"
-                                    ]
+                                    "type": "object"
                                 }
                             }
                         }
@@ -456,14 +437,14 @@
                                         "message": {
                                             "anyOf": [
                                                 {
-                                                    "type": "string"
+                                                    "type": "null"
                                                 },
                                                 {
                                                     "type": "array",
                                                     "items": {}
                                                 },
                                                 {
-                                                    "type": "null"
+                                                    "type": "string"
                                                 }
                                             ]
                                         }
@@ -570,14 +551,14 @@
                                         "message": {
                                             "anyOf": [
                                                 {
-                                                    "type": "string"
+                                                    "type": "null"
                                                 },
                                                 {
                                                     "type": "array",
                                                     "items": {}
                                                 },
                                                 {
-                                                    "type": "null"
+                                                    "type": "string"
                                                 }
                                             ]
                                         }
@@ -636,14 +617,14 @@
                                                 "message": {
                                                     "anyOf": [
                                                         {
-                                                            "type": "string"
+                                                            "type": "null"
                                                         },
                                                         {
                                                             "type": "array",
                                                             "items": {}
                                                         },
                                                         {
-                                                            "type": "null"
+                                                            "type": "string"
                                                         }
                                                     ]
                                                 }
@@ -692,14 +673,14 @@
                                                 "message": {
                                                     "anyOf": [
                                                         {
-                                                            "type": "string"
+                                                            "type": "null"
                                                         },
                                                         {
                                                             "type": "array",
                                                             "items": {}
                                                         },
                                                         {
-                                                            "type": "null"
+                                                            "type": "string"
                                                         }
                                                     ]
                                                 }
@@ -736,8 +717,15 @@
                             "schema": {
                                 "type": "object",
                                 "properties": {
-                                    "name": {
+                                    "first_name": {
                                         "type": "string",
+                                        "maxLength": 255
+                                    },
+                                    "last_name": {
+                                        "type": [
+                                            "string",
+                                            "null"
+                                        ],
                                         "maxLength": 255
                                     },
                                     "email": {
@@ -753,7 +741,7 @@
                                     }
                                 },
                                 "required": [
-                                    "name",
+                                    "first_name",
                                     "email",
                                     "password",
                                     "password_confirmation"
@@ -1173,14 +1161,14 @@
                                         "message": {
                                             "anyOf": [
                                                 {
-                                                    "type": "string"
+                                                    "type": "null"
                                                 },
                                                 {
                                                     "type": "array",
                                                     "items": {}
                                                 },
                                                 {
-                                                    "type": "null"
+                                                    "type": "string"
                                                 }
                                             ]
                                         },
@@ -1617,8 +1605,14 @@
                     "token": {
                         "type": "string"
                     },
-                    "name": {
+                    "first_name": {
                         "type": "string"
+                    },
+                    "last_name": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
                     },
                     "verified": {
                         "type": "boolean"
@@ -1626,7 +1620,7 @@
                 },
                 "required": [
                     "token",
-                    "name",
+                    "first_name",
                     "verified"
                 ],
                 "title": "TokenResponse"
@@ -1634,8 +1628,15 @@
             "UpdateProfileRequest": {
                 "type": "object",
                 "properties": {
-                    "name": {
+                    "first_name": {
                         "type": "string",
+                        "maxLength": 255
+                    },
+                    "last_name": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
                         "maxLength": 255
                     },
                     "email": {
@@ -1644,7 +1645,7 @@
                     }
                 },
                 "required": [
-                    "name",
+                    "first_name",
                     "email"
                 ],
                 "title": "UpdateProfileRequest"
@@ -1655,8 +1656,14 @@
                     "id": {
                         "type": "integer"
                     },
-                    "name": {
+                    "first_name": {
                         "type": "string"
+                    },
+                    "last_name": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
                     },
                     "email": {
                         "type": "string"
@@ -1703,7 +1710,7 @@
                 },
                 "required": [
                     "id",
-                    "name",
+                    "first_name",
                     "email",
                     "is_admin",
                     "terms_current_accepted"
