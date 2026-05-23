@@ -2,6 +2,7 @@ import React from 'react';
 
 import { login as loginApi } from '@/src/api/authApi';
 import { deleteItem, getItem, setItem } from '@/src/auth/storage';
+import { formatUserName } from '@/src/utils/userName';
 
 type AuthState = {
   token: string | null;
@@ -40,8 +41,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signIn = React.useCallback(async (email: string, password: string) => {
     const res = await loginApi(email, password);
-    await Promise.all([setItem(TOKEN_KEY, res.token), setItem(USERNAME_KEY, res.name)]);
-    setState({ token: res.token, userName: res.name, isLoading: false });
+    const userName = formatUserName(res.first_name, res.last_name);
+    await Promise.all([setItem(TOKEN_KEY, res.token), setItem(USERNAME_KEY, userName)]);
+    setState({ token: res.token, userName, isLoading: false });
   }, []);
 
   const signOut = React.useCallback(async () => {

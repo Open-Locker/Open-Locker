@@ -221,7 +221,7 @@ export { injectedRtkApi as openLockerApi };
 export type GetAdminUsersApiResponse = /** status 200 Array of `User` */ User[];
 export type GetAdminUsersApiArg = void;
 export type PostAdminUsersByUserMakeAdminApiResponse = /** status 200  */ {
-  message: string | any[] | null;
+  message: null | any[] | string;
   user: User;
 };
 export type PostAdminUsersByUserMakeAdminApiArg = {
@@ -229,7 +229,7 @@ export type PostAdminUsersByUserMakeAdminApiArg = {
   user: number;
 };
 export type PostAdminUsersByUserRemoveAdminApiResponse = /** status 200  */ {
-  message: string | any[] | null;
+  message: null | any[] | string;
   user: User;
 };
 export type PostAdminUsersByUserRemoveAdminApiArg = {
@@ -265,19 +265,17 @@ export type PostLoginApiArg = {
   loginRequest: LoginRequest;
 };
 export type PostPasswordEmailApiResponse = /** status 200  */ {
-  message: string | any[] | null;
+  message: null | any[] | string;
 };
 export type PostPasswordEmailApiArg = {
   sendPasswordResetRequest: SendPasswordResetRequest;
 };
-export type PostResetPasswordApiResponse = /** status 200  */ {
-  message: string | any[] | null;
-};
+export type PostResetPasswordApiResponse = /** status 200  */ object;
 export type PostResetPasswordApiArg = {
   resetPasswordRequest: ResetPasswordRequest;
 };
 export type PostLogoutApiResponse = /** status 200  */ {
-  message: string | any[] | null;
+  message: null | any[] | string;
 };
 export type PostLogoutApiArg = void;
 export type GetUserApiResponse = /** status 200 `UserResource` */ User;
@@ -287,14 +285,14 @@ export type PutProfileApiArg = {
   updateProfileRequest: UpdateProfileRequest;
 };
 export type PutPasswordApiResponse = /** status 200  */ {
-  message: string | any[] | null;
+  message: null | any[] | string;
 };
 export type PutPasswordApiArg = {
   changePasswordRequest: ChangePasswordRequest;
 };
 export type GetVerifyEmailByIdAndHashApiResponse = /** status 200 `ApiError` */
   | {
-      message: string | any[] | null;
+      message: null | any[] | string;
     }
   | ApiError;
 export type GetVerifyEmailByIdAndHashApiArg = {
@@ -304,7 +302,7 @@ export type GetVerifyEmailByIdAndHashApiArg = {
 export type PostEmailVerificationNotificationApiResponse =
   /** status 200 `ApiError` */
     | {
-        message: string | any[] | null;
+        message: null | any[] | string;
       }
     | ApiError;
 export type PostEmailVerificationNotificationApiArg = void;
@@ -312,7 +310,8 @@ export type PostAdminUsersRegisterApiResponse =
   /** status 200 `TokenResponse` */ TokenResponse;
 export type PostAdminUsersRegisterApiArg = {
   body: {
-    name: string;
+    first_name: string;
+    last_name?: string | null;
     email: string;
     password: string;
     password_confirmation: string;
@@ -365,14 +364,15 @@ export type GetTermsCurrentApiResponse =
   /** status 200 `TermsCurrentResource` */ CurrentTerms;
 export type GetTermsCurrentApiArg = void;
 export type PostTermsAcceptApiResponse = /** status 200  */ {
-  message: string | any[] | null;
+  message: null | any[] | string;
   accepted_version: number;
   accepted_at: string;
 };
 export type PostTermsAcceptApiArg = void;
 export type User = {
   id: number;
-  name: string;
+  first_name: string;
+  last_name?: string | null;
   email: string;
   email_verified_at?: string | null;
   is_admin: boolean;
@@ -388,7 +388,8 @@ export type ApiError = {
 };
 export type TokenResponse = {
   token: string;
-  name: string;
+  first_name: string;
+  last_name?: string | null;
   verified: boolean;
 };
 export type LoginRequest = {
@@ -405,7 +406,8 @@ export type ResetPasswordRequest = {
   password_confirmation: string;
 };
 export type UpdateProfileRequest = {
-  name: string;
+  first_name: string;
+  last_name?: string | null;
   email: string;
 };
 export type ChangePasswordRequest = {
