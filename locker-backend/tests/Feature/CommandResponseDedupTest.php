@@ -247,6 +247,38 @@ class CommandResponseDedupTest extends TestCase
             ->count());
     }
 
+    public function test_schema_shaped_success_command_response_without_type_is_accepted(): void
+    {
+        $handler = app(CommandResponseHandler::class);
+
+        $lockerUuid = '11111111-1111-1111-1111-111111111111';
+        $topic = "locker/{$lockerUuid}/response";
+        $transactionId = '99999999-9999-9999-9999-999999999999';
+
+        $handler->handleMessage($topic, (string) json_encode([
+            'message_id' => 'aaaaaaaa-1111-1111-1111-aaaaaaaaaaaa',
+            'transaction_id' => $transactionId,
+            'action' => 'open_compartment',
+            'result' => 'success',
+            'timestamp' => now()->toIso8601String(),
+            'message' => 'Compartment opened successfully.',
+        ]));
+
+        $this->assertDatabaseHas('command_transactions', [
+            'locker_uuid' => $lockerUuid,
+            'transaction_id' => $transactionId,
+        ]);
+
+        $storedEvent = EloquentStoredEvent::query()
+            ->where('event_class', CommandResponseReceived::class)
+            ->latest('id')
+            ->first();
+
+        $this->assertNotNull($storedEvent);
+        $this->assertSame('open_compartment', $storedEvent->event_properties['action'] ?? null);
+        $this->assertSame('success', $storedEvent->event_properties['result'] ?? null);
+    }
+
     public function test_apply_config_success_without_applied_config_hash_is_rejected(): void
     {
         $handler = app(CommandResponseHandler::class);

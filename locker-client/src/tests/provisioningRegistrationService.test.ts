@@ -9,6 +9,7 @@ import {
   ProvisioningRegistrationService,
 } from "../services/provisioningRegistrationService";
 import { provisioningService as provisioningStateService } from "../services/provisioningService";
+import { assertMatchesSchema } from "./contracts/jsonSchema";
 
 class FakeMqttClient extends EventEmitter {
   connected = true;
@@ -136,6 +137,7 @@ test("register publishes provisioning request with top-level timestamp", async (
     assert.equal(typeof payload.message_id, "string");
     assert.equal(typeof payload.timestamp, "string");
     assert.ok(payload.timestamp);
+    assertMatchesSchema("messages/provisioning-request.json", payload);
     assert.deepEqual(savedCredentials, {
       username: "mqtt-user",
       password: "mqtt-password",

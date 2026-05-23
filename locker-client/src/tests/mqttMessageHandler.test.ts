@@ -8,6 +8,7 @@ import { mqttService } from "../services/mqttService";
 import { mqttDedupService } from "../services/mqttDedupService";
 import { credentialsService } from "../services/credentialsService";
 import { mqttClientManager } from "../mqtt/mqttClientManager";
+import { assertMatchesSchema } from "./contracts/jsonSchema";
 
 type CommandRecord = {
   action: string;
@@ -158,6 +159,10 @@ test("first valid open_compartment command executes once and publishes success",
     assert.equal(
       harness.publishedMessages[0]?.message.transaction_id,
       "txn-1",
+    );
+    assertMatchesSchema(
+      "payloads/response-command-success.json",
+      harness.publishedMessages[0]?.message,
     );
   } finally {
     harness.restore();
@@ -327,6 +332,10 @@ test("invalid open_compartment payload is rejected before hardware side effects"
       harness.publishedMessages[0]?.message.message,
       "Invalid open_compartment payload.",
     );
+    assertMatchesSchema(
+      "payloads/response-command-error.json",
+      harness.publishedMessages[0]?.message,
+    );
   } finally {
     harness.restore();
   }
@@ -365,6 +374,10 @@ test("apply_config publishes success with top-level applied_config_hash", async 
     assert.equal(
       harness.publishedMessages[0]?.message.applied_config_hash,
       "b".repeat(64),
+    );
+    assertMatchesSchema(
+      "payloads/response-apply-config-success.json",
+      harness.publishedMessages[0]?.message,
     );
   } finally {
     harness.restore();
@@ -479,6 +492,10 @@ test("apply_config publishes structured error responses when runtime apply fails
     assert.equal(
       harness.publishedMessages[0]?.message.message,
       "config_hash does not match",
+    );
+    assertMatchesSchema(
+      "payloads/response-command-error.json",
+      harness.publishedMessages[0]?.message,
     );
   } finally {
     harness.restore();

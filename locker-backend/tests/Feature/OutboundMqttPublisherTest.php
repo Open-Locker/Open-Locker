@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Tests\Feature;
 
 use App\Mqtt\Publishers\ApplyConfigCommandPublisher;
@@ -12,10 +14,12 @@ use App\StorableEvents\LockerWasProvisioned;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use PhpMqtt\Client\Facades\MQTT;
 use Tests\Fakes\FakeMqttClient;
+use Tests\Support\AssertsJsonSchemas;
 use Tests\TestCase;
 
 class OutboundMqttPublisherTest extends TestCase
 {
+    use AssertsJsonSchemas;
     use RefreshDatabase;
 
     public function test_open_compartment_publisher_builds_expected_payload(): void
@@ -42,10 +46,13 @@ class OutboundMqttPublisherTest extends TestCase
             $mqttClient->published[0]['topic'],
         );
 
-        $payload = json_decode($mqttClient->published[0]['payload'], true);
+        $payload = $this->assertPublishedPayloadMatchesSchema(
+            $mqttClient,
+            'payloads/command-open-compartment.json',
+        );
 
-        $this->assertIsArray($payload);
         $this->assertIsString($payload['message_id'] ?? null);
+        $this->assertIsString($payload['timestamp'] ?? null);
         $this->assertSame('open_compartment', $payload['action'] ?? null);
         $this->assertSame('33333333-3333-3333-3333-333333333333', $payload['transaction_id'] ?? null);
         $this->assertArrayNotHasKey('compartment_id', $payload['data']);
@@ -64,7 +71,7 @@ class OutboundMqttPublisherTest extends TestCase
         $event = new LockerConfigApplyRequested(
             lockerBankUuid: '11111111-1111-1111-1111-111111111111',
             commandId: '22222222-2222-2222-2222-222222222222',
-            configHash: 'abc123',
+            configHash: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
             heartbeatIntervalSeconds: 15,
             compartments: [
                 ['compartment_number' => 1, 'slaveId' => 1, 'address' => 0],
@@ -79,12 +86,18 @@ class OutboundMqttPublisherTest extends TestCase
             $mqttClient->published[0]['topic'],
         );
 
-        $payload = json_decode($mqttClient->published[0]['payload'], true);
+        $payload = $this->assertPublishedPayloadMatchesSchema(
+            $mqttClient,
+            'payloads/command-apply-config.json',
+        );
 
-        $this->assertIsArray($payload);
         $this->assertIsString($payload['message_id'] ?? null);
+        $this->assertIsString($payload['timestamp'] ?? null);
         $this->assertSame('apply_config', $payload['action'] ?? null);
-        $this->assertSame('abc123', $payload['data']['config_hash'] ?? null);
+        $this->assertSame(
+            'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+            $payload['data']['config_hash'] ?? null,
+        );
         $this->assertSame(15, $payload['data']['heartbeat_interval_seconds'] ?? null);
         $this->assertCount(1, $payload['data']['compartments'] ?? []);
     }
@@ -112,9 +125,11 @@ class OutboundMqttPublisherTest extends TestCase
         $this->assertCount(1, $mqttClient->published);
         $this->assertSame('locker/provisioning/reply/test-client', $mqttClient->published[0]['topic']);
 
-        $payload = json_decode($mqttClient->published[0]['payload'], true);
+        $payload = $this->assertPublishedPayloadMatchesSchema(
+            $mqttClient,
+            'payloads/provisioning-success.json',
+        );
 
-        $this->assertIsArray($payload);
         $this->assertIsString($payload['message_id'] ?? null);
         $this->assertIsString($payload['timestamp'] ?? null);
         $this->assertSame('success', $payload['status'] ?? null);
@@ -141,12 +156,32 @@ class OutboundMqttPublisherTest extends TestCase
         $this->assertCount(1, $mqttClient->published);
         $this->assertSame('locker/provisioning/reply/test-client', $mqttClient->published[0]['topic']);
 
-        $payload = json_decode($mqttClient->published[0]['payload'], true);
+        $payload = $this->assertPublishedPayloadMatchesSchema(
+            $mqttClient,
+            'payloads/provisioning-error.json',
+        );
 
-        $this->assertIsArray($payload);
         $this->assertIsString($payload['message_id'] ?? null);
         $this->assertIsString($payload['timestamp'] ?? null);
         $this->assertSame('error', $payload['status'] ?? null);
         $this->assertSame('Provisioning rejected', $payload['message'] ?? null);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function assertPublishedPayloadMatchesSchema(FakeMqttClient $mqttClient, string $schemaPath): array
+    {
+        $publishedPayload = json_decode($mqttClient->published[0]['payload'], true, flags: JSON_THROW_ON_ERROR);
+        $this->assertIsArray($publishedPayload);
+
+        foreach (['message_id', 'timestamp'] as $dynamicField) {
+            $this->assertArrayHasKey($dynamicField, $publishedPayload);
+            $this->assertIsString($publishedPayload[$dynamicField]);
+        }
+
+        $this->assertMatchesAsyncApiSchema($publishedPayload, $schemaPath);
+
+        return $publishedPayload;
     }
 }

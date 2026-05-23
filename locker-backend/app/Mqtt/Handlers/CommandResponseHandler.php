@@ -8,7 +8,6 @@ use App\Mqtt\InboundMqttProtocolGuard;
 use App\Services\CommandResponseInboxService;
 use App\StorableEvents\CommandResponseReceived;
 use Illuminate\Contracts\Validation\Validator;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator as ValidatorFacade;
 use Illuminate\Support\Str;
 
@@ -42,7 +41,6 @@ class CommandResponseHandler extends AbstractInboundMqttHandler
     protected function rules(): array
     {
         return [
-            'type' => ['required', 'string'],
             'action' => ['required', 'string'],
             'result' => ['required', 'string', 'in:success,error'],
             'timestamp' => ['required', 'string'],
@@ -84,7 +82,6 @@ class CommandResponseHandler extends AbstractInboundMqttHandler
             return; // dedup: do not create duplicate side effects
         }
 
-        $type = (string) $payload['type'];
         $action = (string) $payload['action'];
         $result = (string) $payload['result'];
         $timestamp = (string) $payload['timestamp'];
@@ -96,13 +93,6 @@ class CommandResponseHandler extends AbstractInboundMqttHandler
         // can derive domain-specific events without depending on the raw MQTT payload.
         if (isset($payload['applied_config_hash']) && is_string($payload['applied_config_hash']) && ! array_key_exists('applied_config_hash', $data)) {
             $data['applied_config_hash'] = $payload['applied_config_hash'];
-        }
-
-        if ($type !== 'command_response') {
-            Log::warning('Unexpected response type received; continuing anyway.', [
-                'topic' => $topic,
-                'type' => $type,
-            ]);
         }
 
         event(new CommandResponseReceived(

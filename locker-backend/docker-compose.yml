@@ -31,6 +31,7 @@ x-laravel-service-dev: &laravel_service_dev
         - "host.docker.internal:host-gateway"
     volumes:
         - ".:/var/www/html"
+        - "../docs/asyncapi:/var/www/docs/asyncapi:ro"
     networks:
         - sail
 
