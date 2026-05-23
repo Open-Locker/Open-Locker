@@ -7,6 +7,7 @@ import { configLoader, type LockerConfig } from "./configLoader";
 import { MQTT_CLIENT_ID_FILE } from "./paths";
 
 const CLIENT_ID_FILE = MQTT_CLIENT_ID_FILE;
+export const DEFAULT_MQTT_BROKER_URL = "mqtt://open-locker.cloud";
 
 function getOrGenerateClientId(): string {
   // First check if provided via environment variable
@@ -60,6 +61,10 @@ function getRequiredEnv(name: string): string {
   }
 
   return value;
+}
+
+function getEnv(name: string, fallback: string): string {
+  return process.env[name]?.trim() || fallback;
 }
 
 function parseOptionalEnvInt(name: string): number | undefined {
@@ -132,7 +137,7 @@ export function getMqttConfig() {
   const heartbeatIntervalSeconds = config.mqtt?.heartbeatInterval ?? 15;
 
   return {
-    brokerUrl: getRequiredEnv("MQTT_BROKER_URL"),
+    brokerUrl: getEnv("MQTT_BROKER_URL", DEFAULT_MQTT_BROKER_URL),
     defaultUsername: getRequiredEnv("MQTT_DEFAULT_USERNAME"),
     defaultPassword: getRequiredEnv("MQTT_DEFAULT_PASSWORD"),
     ...credentials,
