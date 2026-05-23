@@ -161,7 +161,8 @@ class TermsControllerTest extends TestCase
         $this->withHeaders([
             'Authorization' => 'Bearer '.$token,
         ])->putJson('/api/profile', [
-            'name' => 'Changed Name',
+            'first_name' => 'Changed',
+            'last_name' => 'Name',
             'email' => $user->email,
         ])->assertStatus(200);
     }

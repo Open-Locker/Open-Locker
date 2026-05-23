@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Filament\Resources\LockerBankResource\RelationManagers;
 
+use App\Models\CompartmentOpenRequest;
 use Filament\Resources\RelationManagers\RelationManager;
 use Filament\Schemas\Schema;
 use Filament\Tables;
@@ -42,10 +43,10 @@ class OpenRequestsRelationManager extends RelationManager
                     ->label('Compartment')
                     ->prefix('#')
                     ->sortable(),
-                Tables\Columns\TextColumn::make('actor.name')
+                Tables\Columns\TextColumn::make('actor_display_name')
                     ->label('Actor')
-                    ->placeholder('Unknown')
-                    ->searchable(),
+                    ->state(fn (CompartmentOpenRequest $record): ?string => $record->actor?->fullName())
+                    ->placeholder('Unknown'),
                 Tables\Columns\TextColumn::make('authorization_type')
                     ->label('Authorization')
                     ->placeholder('-')

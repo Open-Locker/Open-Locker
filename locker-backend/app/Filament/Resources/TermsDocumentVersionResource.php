@@ -75,8 +75,9 @@ class TermsDocumentVersionResource extends Resource
                 Tables\Columns\IconColumn::make('is_published')
                     ->boolean()
                     ->label('Published'),
-                Tables\Columns\TextColumn::make('createdByUser.name')
+                Tables\Columns\TextColumn::make('created_by_display_name')
                     ->label('Created by')
+                    ->state(fn (TermsDocumentVersion $record): ?string => $record->createdByUser?->fullName())
                     ->placeholder('-'),
                 Tables\Columns\TextColumn::make('published_at')
                     ->dateTime()

@@ -22,7 +22,7 @@ class TermsNotificationReactor extends Reactor implements ShouldQueue
         $documentName = $document?->name ?? 'Terms';
 
         User::query()
-            ->select(['id', 'email', 'name'])
+            ->select(['id', 'email'])
             ->chunkById(250, function ($users) use ($documentName, $event): void {
                 Notification::send(
                     $users,
