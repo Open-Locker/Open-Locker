@@ -19,14 +19,9 @@ services:
       # Stores persistent data: .mqtt-client-id, .mqtt-credentials.json, .provisioning-state
       - ./data:/data
 
-    # Environment variables
-    environment:
-      # Optional: Override default paths
-      # - CONFIG_DIR=/config
-      # - DATA_DIR=/data
-
-      # Please set the PROVISIONING_TOKEN environment variable before starting the container
-      PROVISIONING_TOKEN: ${PROVISIONING_TOKEN}
+    # Load deployment environment variables
+    env_file:
+      - .env
 
     # Restart policy
     restart: unless-stopped
