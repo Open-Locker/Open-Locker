@@ -139,4 +139,48 @@ program
     }
   });
 
+program
+  .command('open-compartment')
+  .description('Open a compartment by activating its relay')
+  .argument('<relay>', 'Relay number (1-8)')
+  .option('-p, --port <port>', 'Serial port (e.g., /dev/ttyACM0)', '/dev/ttyACM0')
+  .option('-b, --baudrate <baudrate>', 'Baudrate', '9600')
+  .option('-s, --slave-id <id>', 'Slave ID (modbus client ID) of the board', '1')
+  .option('-d, --duration <ms>', 'Auto-close duration in milliseconds (uses Waveshare flash command). If omitted, relay is turned ON permanently.')
+  .action(async (relay, options) => {
+    const relayNum = parseInt(relay);
+
+    if (relayNum < 1 || relayNum > 8) {
+      console.error(chalk.red('Error: Relay must be between 1 and 8'));
+      process.exit(1);
+    }
+
+    const slaveId = parseInt(options.slaveId);
+    const client = new ModbusClient(options.port, parseInt(options.baudrate), slaveId);
+
+    try {
+      await client.connect();
+      console.log(chalk.green('✓ Connected to device'));
+
+      if (options.duration !== undefined) {
+        const durationMs = parseInt(options.duration);
+        if (isNaN(durationMs) || durationMs <= 0) {
+          console.error(chalk.red('Error: Duration must be a positive number in milliseconds'));
+          process.exit(1);
+        }
+        await client.flashRelayOn(relayNum, durationMs);
+        console.log(chalk.green(`✓ Relay ${relayNum} opened (slave ID ${slaveId}), will close after ${durationMs}ms`));
+      } else {
+        await client.writeCoil(relayNum - 1, true); 
+        console.log(chalk.green(`✓ Relay ${relayNum} opened (slave ID ${slaveId})`));
+        console.log(chalk.yellow('⚠️  Relay remains ON. Use writeCoil or power cycle to close.'));
+      }
+
+      await client.disconnect();
+    } catch (error) {
+      console.error(chalk.red(`Error: ${(error as Error).message}`));
+      process.exit(1);
+    }
+  });
+
 program.parse(process.argv);

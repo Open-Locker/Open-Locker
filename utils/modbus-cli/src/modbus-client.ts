@@ -117,6 +117,44 @@ export class ModbusClient {
   }
 
   /**
+   * Write a single coil (relay)
+   * @param address Coil address (0-based)
+   * @param value true = ON, false = OFF
+   */
+  async writeCoil(address: number, value: boolean): Promise<void> {
+    await this.client.writeCoil(address, value);
+  }
+
+  /**
+   * Flash a relay ON for a specified duration (Waveshare FC5 extension)
+   * @param relay Relay number (1-based)
+   * @param durationMs Duration in milliseconds (steps of 100ms, max ~54 min)
+   */
+  async flashRelayOn(relay: number, durationMs: number): Promise<void> {
+    const FLASH_ON_BASE_ADDRESS = 0x0200;
+    const FLASH_DURATION_STEP_MS = 100;
+    const FLASH_DURATION_MAX_STEPS = 0x7fff;
+
+    const address = relay - 1; // convert to 0-based
+    const flashAddress = FLASH_ON_BASE_ADDRESS + address;
+    const steps = Math.ceil(durationMs / FLASH_DURATION_STEP_MS);
+
+    if (steps > FLASH_DURATION_MAX_STEPS) {
+      throw new Error(`Duration exceeds maximum (${FLASH_DURATION_MAX_STEPS * FLASH_DURATION_STEP_MS}ms)`);
+    }
+
+    const payload = Buffer.from([
+      (flashAddress >> 8) & 0xff,
+      flashAddress & 0xff,
+      (steps >> 8) & 0xff,
+      steps & 0xff,
+    ]);
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await (this.client as any).customFunction(0x05, payload);
+  }
+
+  /**
    * Set baudrate for the device
    * @param baudrate Baudrate value (4800, 9600, 19200, 38400, 57600, 115200, 128000, 256000)
    * @param parity Parity mode (0=None, 1=Even, 2=Odd)
