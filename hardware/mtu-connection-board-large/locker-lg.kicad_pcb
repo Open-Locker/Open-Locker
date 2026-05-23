@@ -11585,7 +11585,7 @@
 			(justify left bottom)
 		)
 	)
-	(gr_text "12V"
+	(gr_text "+12V"
 		(at 200 94.2895 0)
 		(layer "F.SilkS")
 		(uuid "198e86c7-c3e7-46a3-ab85-26531a1ae5d3")
@@ -11597,7 +11597,7 @@
 			(justify left bottom)
 		)
 	)
-	(gr_text "12V"
+	(gr_text "+12V"
 		(at 159.5 94.2895 0)
 		(layer "F.SilkS")
 		(uuid "20e16393-98b6-41ba-849b-3c87c66db856")
@@ -11669,7 +11669,7 @@
 			(justify left bottom)
 		)
 	)
-	(gr_text "12V"
+	(gr_text "+12V"
 		(at 139 94.2895 0)
 		(layer "F.SilkS")
 		(uuid "294311b1-3d37-49c0-90fc-d911643120b0")
@@ -11717,7 +11717,7 @@
 			(justify left bottom)
 		)
 	)
-	(gr_text "12V"
+	(gr_text "+12V"
 		(at 104.5 135.5 270)
 		(layer "F.SilkS")
 		(uuid "34aed1fd-8a17-4cdd-b2d3-aa992a58bc22")
@@ -11897,7 +11897,7 @@
 			(justify left bottom)
 		)
 	)
-	(gr_text "12V"
+	(gr_text "+12V"
 		(at 139 135.5 270)
 		(layer "F.SilkS")
 		(uuid "5b6dba4e-9917-4379-9979-7681e45acfd1")
@@ -12065,7 +12065,7 @@
 			(justify left bottom)
 		)
 	)
-	(gr_text "12V"
+	(gr_text "+12V"
 		(at 210.5 94.2895 0)
 		(layer "F.SilkS")
 		(uuid "8cff0b0b-3e8f-4aaa-a813-f6ed92ac6c3e")
@@ -12101,7 +12101,7 @@
 			(justify left bottom)
 		)
 	)
-	(gr_text "12V"
+	(gr_text "+12V"
 		(at 69.5 135.5 270)
 		(layer "F.SilkS")
 		(uuid "950f61d4-d53b-4353-a638-78c248b6f6d5")
@@ -12209,7 +12209,7 @@
 			(justify left bottom)
 		)
 	)
-	(gr_text "12V"
+	(gr_text "+12V"
 		(at 124 135.5 270)
 		(layer "F.SilkS")
 		(uuid "aaa4e3ee-0b37-49a1-8727-d18cb029a512")
@@ -12233,7 +12233,7 @@
 			(justify left bottom)
 		)
 	)
-	(gr_text "12V"
+	(gr_text "+12V"
 		(at 169.5 94.2895 0)
 		(layer "F.SilkS")
 		(uuid "b00b5c1b-4c92-417b-ac60-6ba2fcae0618")
@@ -12257,7 +12257,7 @@
 			(justify left bottom)
 		)
 	)
-	(gr_text "12V"
+	(gr_text "+12V"
 		(at 190 94.2895 0)
 		(layer "F.SilkS")
 		(uuid "b9a17d94-bf00-4ec5-affb-3b5a1cab5286")
@@ -12305,7 +12305,7 @@
 			(justify left bottom)
 		)
 	)
-	(gr_text "12V"
+	(gr_text "+12V"
 		(at 149 94.2895 0)
 		(layer "F.SilkS")
 		(uuid "c3a8dcc8-5984-4c92-88cb-1572de83128b")
@@ -12353,7 +12353,7 @@
 			(justify left bottom)
 		)
 	)
-	(gr_text "12V"
+	(gr_text "+12V"
 		(at 84 135.5 270)
 		(layer "F.SilkS")
 		(uuid "e2190ac2-e80c-4a63-b851-b3f363303645")
@@ -12437,7 +12437,7 @@
 			(justify left bottom)
 		)
 	)
-	(gr_text "12V"
+	(gr_text "+12V"
 		(at 179.5 94.2895 0)
 		(layer "F.SilkS")
 		(uuid "fe96b78f-40a4-4fae-aefd-5a7352841175")

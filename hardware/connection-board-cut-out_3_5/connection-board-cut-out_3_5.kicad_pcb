@@ -20439,7 +20439,7 @@
 		(layer "Edge.Cuts")
 		(uuid "7eba8f3b-4538-4db5-bc61-f7bc81b66b6f")
 	)
-	(gr_text "12V"
+	(gr_text "+12V"
 		(at 76 118.472 0)
 		(layer "F.SilkS")
 		(uuid "950f61d4-d53b-4353-a638-78c248b6f6d5")
@@ -20475,7 +20475,7 @@
 			(justify left bottom)
 		)
 	)
-	(gr_text "12V"
+	(gr_text "+12V"
 		(at 92.085714 118.472 0)
 		(layer "F.SilkS")
 		(uuid "e2190ac2-e80c-4a63-b851-b3f363303645")
@@ -20523,7 +20523,7 @@
 			(justify left bottom)
 		)
 	)
-	(gr_text "12V"
+	(gr_text "+12V"
 		(at 107.185714 118.472 0)
 		(layer "F.SilkS")
 		(uuid "34aed1fd-8a17-4cdd-b2d3-aa992a58bc22")
@@ -20559,7 +20559,7 @@
 			(justify left bottom)
 		)
 	)
-	(gr_text "12V"
+	(gr_text "+12V"
 		(at 122.190357 118.472 0)
 		(layer "F.SilkS")
 		(uuid "5b6dba4e-9917-4379-9979-7681e45acfd1")
@@ -20619,7 +20619,7 @@
 			(justify left bottom)
 		)
 	)
-	(gr_text "12V"
+	(gr_text "+12V"
 		(at 137.785714 118.572 0)
 		(layer "F.SilkS")
 		(uuid "aaa4e3ee-0b37-49a1-8727-d18cb029a512")
@@ -20631,7 +20631,7 @@
 			(justify left bottom)
 		)
 	)
-	(gr_text "12V Main \npower supply\n"
+	(gr_text "+12V Main \npower supply\n"
 		(at 83.9 112.7 0)
 		(layer "F.SilkS")
 		(uuid "3ac4dbef-e594-4b44-bb9b-b0ff00bf0fae")
@@ -20719,7 +20719,7 @@
 			)
 		)
 	)
-	(gr_text "Open Locker Connector Board\n\nVersion: 1.2.0 (Terminal Block 3.50 mm)\n\nPower supply: 12V\nBus: Modbus RTU\n\nDocs: https://github.com/Open-Locker/Open-Locker\nDesigned for: https://www.waveshare.com/wiki/Modbus_RTU_Relay_(D)"
+	(gr_text "Open Locker Connector Board\n\nVersion: 1.2.0 (Terminal Block 3.50 mm)\n\nPower supply: +12V\nBus: Modbus RTU\n\nDocs: https://github.com/Open-Locker/Open-Locker\nDesigned for: https://www.waveshare.com/wiki/Modbus_RTU_Relay_(D)"
 		(at 219 122 90)
 		(layer "F.SilkS")
 		(uuid "6174dad1-29ab-40ad-933b-1b06f156588e")
