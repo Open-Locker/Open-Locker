@@ -19,6 +19,9 @@ services:
       # Stores persistent data: .mqtt-client-id, .mqtt-credentials.json, .provisioning-state
       - ./data:/data
 
+      # Log volume (read-write)
+      - ./log:/log
+
     # Load deployment environment variables
     env_file:
       - .env
