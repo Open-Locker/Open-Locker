@@ -53,18 +53,33 @@ function getCredentials(): { username?: string; password?: string } {
   return {};
 }
 
-function getRequiredEnv(name: string): string {
-  const value = process.env[name]?.trim();
-
-  if (!value) {
-    throw new Error(`${name} is required in the environment`);
-  }
-
-  return value;
-}
-
 function getEnv(name: string, fallback: string): string {
   return process.env[name]?.trim() || fallback;
+}
+
+function getRequiredMqttDefaults(): {
+  defaultUsername: string;
+  defaultPassword: string;
+} {
+  const requiredEnvNames = [
+    "MQTT_DEFAULT_USERNAME",
+    "MQTT_DEFAULT_PASSWORD",
+  ] as const;
+  const values = Object.fromEntries(
+    requiredEnvNames.map((name) => [name, process.env[name]?.trim()]),
+  );
+  const missing = requiredEnvNames.filter((name) => !values[name]);
+
+  if (missing.length > 0) {
+    throw new Error(
+      `Missing required MQTT environment variables: ${missing.join(", ")}`,
+    );
+  }
+
+  return {
+    defaultUsername: values.MQTT_DEFAULT_USERNAME as string,
+    defaultPassword: values.MQTT_DEFAULT_PASSWORD as string,
+  };
 }
 
 function parseOptionalEnvInt(name: string): number | undefined {
@@ -135,11 +150,11 @@ export function getMqttConfig() {
   const config = configLoader.loadConfig();
   const credentials = getCredentials();
   const heartbeatIntervalSeconds = config.mqtt?.heartbeatInterval ?? 15;
+  const mqttDefaults = getRequiredMqttDefaults();
 
   return {
     brokerUrl: getEnv("MQTT_BROKER_URL", DEFAULT_MQTT_BROKER_URL),
-    defaultUsername: getRequiredEnv("MQTT_DEFAULT_USERNAME"),
-    defaultPassword: getRequiredEnv("MQTT_DEFAULT_PASSWORD"),
+    ...mqttDefaults,
     ...credentials,
     clientId: getOrGenerateClientId(),
     heartbeatInterval: heartbeatIntervalSeconds * 1000,
