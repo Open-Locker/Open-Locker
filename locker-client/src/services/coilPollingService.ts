@@ -69,6 +69,35 @@ export function isReconnectableModbusError(error: unknown): boolean {
   );
 }
 
+export function getModbusPollingErrorDetails(error: unknown): {
+  errorName?: string;
+  errorMessage: string;
+  errno?: unknown;
+} {
+  if (error instanceof Error) {
+    return {
+      errorName: error.name,
+      errorMessage: error.message,
+      errno:
+        "errno" in error ? (error as Error & { errno?: unknown }).errno : undefined,
+    };
+  }
+
+  if (error && typeof error === "object") {
+    const record = error as Record<string, unknown>;
+    return {
+      errorName: typeof record.name === "string" ? record.name : undefined,
+      errorMessage:
+        typeof record.message === "string" ? record.message : JSON.stringify(record),
+      errno: record.errno,
+    };
+  }
+
+  return {
+    errorMessage: String(error),
+  };
+}
+
 class CoilPollingService {
   private intervalId: NodeJS.Timeout | null = null;
   private pollingInterval: number = 5000; // 5 seconds
@@ -262,7 +291,6 @@ class CoilPollingService {
     const inputStates = this.createEmptyChannelStates();
 
     for (const address of addresses) {
-      relayStates[address] = await this.readSingleCoil(slaveId, address);
       inputStates[address] = await this.readSingleDiscreteInput(slaveId, address);
     }
 
@@ -271,25 +299,6 @@ class CoilPollingService {
 
   private createEmptyChannelStates(): Array<boolean | undefined> {
     return Array.from({ length: this.NUM_CHANNELS });
-  }
-
-  private async readSingleCoil(
-    slaveId: number,
-    address: number,
-  ): Promise<boolean | undefined> {
-    try {
-      const [state] = await modbusService.readCoils(address, 1, slaveId, {
-        logErrors: false,
-      });
-      return state;
-    } catch (error) {
-      if (isReconnectableModbusError(error)) {
-        throw error;
-      }
-
-      this.logPollingReadFailure("read_coil", slaveId, address, error);
-      return undefined;
-    }
   }
 
   private async readSingleDiscreteInput(
@@ -309,27 +318,23 @@ class CoilPollingService {
         throw error;
       }
 
-      this.logPollingReadFailure("read_discrete_input", slaveId, address, error);
+      this.logPollingReadFailure(slaveId, address, error);
       return undefined;
     }
   }
 
   private logPollingReadFailure(
-    operation: "read_coil" | "read_discrete_input",
     slaveId: number,
     address: number,
     error: unknown,
   ): void {
+    const errorDetails = getModbusPollingErrorDetails(error);
+
     logger.warn("Modbus polling read failed", {
-      operation,
+      operation: "read_discrete_input",
       slaveId,
       address,
-      errorName: error instanceof Error ? error.name : undefined,
-      errorMessage: JSON.stringify(error),
-      errno:
-        error && typeof error === "object" && "errno" in error
-          ? (error as { errno?: unknown }).errno
-          : undefined,
+      ...errorDetails,
     });
   }
 

@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   compartmentSnapshotKey,
+  getModbusPollingErrorDetails,
   getUniqueConfiguredAddressesForSlave,
   isReconnectableModbusError,
   shouldPublishCompartmentSnapshot,
@@ -68,4 +69,19 @@ test("reconnectable Modbus errors are limited to transport failures", () => {
   assert.equal(isReconnectableModbusError(new Error("connect ECONNREFUSED")), true);
   assert.equal(isReconnectableModbusError(new Error("Timed out")), false);
   assert.equal(isReconnectableModbusError("ECONNREFUSED"), false);
+});
+
+test("polling error details keep message fields from plain Modbus error objects", () => {
+  assert.deepEqual(
+    getModbusPollingErrorDetails({
+      name: "TransactionTimedOutError",
+      message: "Timed out",
+      errno: "ETIMEDOUT",
+    }),
+    {
+      errorName: "TransactionTimedOutError",
+      errorMessage: "Timed out",
+      errno: "ETIMEDOUT",
+    },
+  );
 });
