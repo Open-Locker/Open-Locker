@@ -1,0 +1,99 @@
+name: MQTT Test CI
+
+on:
+  pull_request:
+    paths:
+      - 'docs/asyncapi/**'
+      - 'locker-backend/app/**'
+      - 'locker-backend/bootstrap/**'
+      - 'locker-backend/composer.json'
+      - 'locker-backend/composer.lock'
+      - 'locker-backend/config/**'
+      - 'locker-backend/database/**'
+      - 'locker-backend/phpunit.xml'
+      - 'locker-backend/tests/**'
+      - 'locker-client/package.json'
+      - 'locker-client/pnpm-lock.yaml'
+      - 'locker-client/src/**'
+      - '.github/workflows/mqtt-contract-ci.yml'
+  push:
+    branches:
+      - main
+    paths:
+      - 'docs/asyncapi/**'
+      - 'locker-backend/app/**'
+      - 'locker-backend/bootstrap/**'
+      - 'locker-backend/composer.json'
+      - 'locker-backend/composer.lock'
+      - 'locker-backend/config/**'
+      - 'locker-backend/database/**'
+      - 'locker-backend/phpunit.xml'
+      - 'locker-backend/tests/**'
+      - 'locker-client/package.json'
+      - 'locker-client/pnpm-lock.yaml'
+      - 'locker-client/src/**'
+      - '.github/workflows/mqtt-contract-ci.yml'
+
+jobs:
+  backend:
+    name: Backend test suite
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    env:
+      APP_CONFIG_CACHE: ${{ github.workspace }}/locker-backend/storage/framework/ci-config.php
+      APP_EVENTS_CACHE: ${{ github.workspace }}/locker-backend/storage/framework/ci-events.php
+      APP_PACKAGES_CACHE: ${{ github.workspace }}/locker-backend/storage/framework/ci-packages.php
+      APP_ROUTES_CACHE: ${{ github.workspace }}/locker-backend/storage/framework/ci-routes.php
+      APP_SERVICES_CACHE: ${{ github.workspace }}/locker-backend/storage/framework/ci-services.php
+    defaults:
+      run:
+        working-directory: locker-backend
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          tools: composer
+          extensions: sqlite3
+
+      - name: Install Composer dependencies
+        run: composer install --no-interaction --prefer-dist --no-progress
+
+      - name: Run backend test suite
+        run: composer test
+
+  locker-client:
+    name: Locker-client test suite
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    defaults:
+      run:
+        working-directory: locker-client
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: locker-client/pnpm-lock.yaml
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run locker-client test suite
+        run: pnpm test

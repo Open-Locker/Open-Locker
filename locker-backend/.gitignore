@@ -4,6 +4,8 @@
 /public/hot
 /public/storage
 /storage/*.key
+/storage/framework/ol-test-*.php
+/storage/framework/ci-*.php
 /storage/pail
 /vendor
 .env

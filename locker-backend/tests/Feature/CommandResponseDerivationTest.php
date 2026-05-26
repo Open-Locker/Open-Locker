@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Mqtt\Publishers\OpenCompartmentCommandPublisher;
 use App\StorableEvents\CommandResponseReceived;
 use App\StorableEvents\CompartmentOpened;
 use App\StorableEvents\CompartmentOpeningRequested;
@@ -18,6 +19,10 @@ class CommandResponseDerivationTest extends TestCase
         $lockerUuid = '11111111-1111-1111-1111-111111111111';
         $transactionId = '22222222-2222-2222-2222-222222222222';
         $compartmentUuid = '33333333-3333-3333-3333-333333333333';
+
+        $this->mock(OpenCompartmentCommandPublisher::class, function ($mock): void {
+            $mock->shouldReceive('publish')->once();
+        });
 
         event(new CompartmentOpeningRequested(
             lockerBankUuid: $lockerUuid,
