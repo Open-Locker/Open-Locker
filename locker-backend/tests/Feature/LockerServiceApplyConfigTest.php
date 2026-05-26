@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Mqtt\Publishers\ApplyConfigCommandPublisher;
 use App\Services\LockerService;
 use App\StorableEvents\LockerConfigApplyRequested;
 use Database\Factories\CompartmentFactory;
@@ -31,6 +32,10 @@ class LockerServiceApplyConfigTest extends TestCase
             'slave_id' => null,
             'address' => null,
         ]);
+
+        $this->mock(ApplyConfigCommandPublisher::class, function ($mock): void {
+            $mock->shouldReceive('publish')->once();
+        });
 
         app(LockerService::class)->applyConfig($completeBank);
 
