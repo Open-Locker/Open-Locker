@@ -189,11 +189,7 @@ export default function AccountScreen() {
             value={firstName}
             onChangeText={setFirstName}
           />
-          <AppTextInput
-            label={t('account.lastName')}
-            value={lastName}
-            onChangeText={setLastName}
-          />
+          <AppTextInput label={t('account.lastName')} value={lastName} onChangeText={setLastName} />
           <AppTextInput
             label={t('auth.email')}
             value={email}
