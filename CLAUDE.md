@@ -37,10 +37,10 @@ Do **not** mutate read-model state directly when an aggregate/event path exists 
 **Modbus lives only in `locker-client/`, not the backend.** Hardware comms were moved out of Laravel (the old `php-modbus-ffi` dependency and `ModbusServiceProvider` were removed). The backend never speaks Modbus: `app/Services/LockerService.php` records an event, a Reactor publishes MQTT, and the `locker-client` (`src/modbus/`, using the `modbus-serial` package) issues the actual Modbus command. Modbus operations are serialized/lock-guarded and tolerate unreachable boards on the client side (ADR-0006/0007).
 
 **The codegen pipeline is a real cross-component contract:**
-1. Backend API changes → regenerate OpenAPI: `composer export:api` (writes `locker-backend/api.json`)
-2. Mobile app consumes it → `pnpm generate:api` in `mobile-app/` (RTK Query codegen, configured in `openapi-codegen.config.json`)
+1. The backend exposes the OpenAPI spec **live** via Scramble at `/docs/api.json` (generated from the controllers per request — there is no committed `api.json`).
+2. Mobile app regenerates its client → `pnpm generate:api` in `mobile-app/` (RTK Query codegen, configured in `openapi-codegen.config.js`, which fetches the spec from the running backend at `EXPO_PUBLIC_API_BASE_URL`).
 
-Changing an API response shape means regenerating the client, or the mobile app's types drift.
+Changing an API response shape means regenerating the client **with the backend running**, or the mobile app's types drift. (See ADR for why we dropped the committed `api.json` in favor of the live URL.)
 
 ## Commands
 
@@ -56,7 +56,7 @@ composer test:coverage    # Tests with coverage
 composer format           # Pint (PSR-12 autofix); format-check for CI
 composer analyse          # PHPStan (level 6, 1G memory limit)
 composer quality          # format-check + analyse + test (run before pushing)
-composer export:api       # Regenerate OpenAPI spec into api.json
+composer export:api       # Dump OpenAPI spec to api.json (untracked; the spec is also served live at /docs/api.json)
 php artisan locker:poll-status   # Background locker status poller
 ```
 Dev runs on **PostgreSQL** (the `db` service in the Docker stack); `php artisan migrate --seed` for schema + test data. Sail (`./vendor/bin/sail`) wraps the Docker-based runs.
@@ -67,7 +67,7 @@ pnpm start            # Expo dev client; start:go for Expo Go
 pnpm ios | android    # Native builds
 pnpm check            # typecheck + lint + format:check + expo-doctor (run before pushing)
 pnpm test:ci          # Jest once (CI mode); pnpm test watches
-pnpm generate:api     # Regenerate RTK Query client from backend api.json
+pnpm generate:api     # Regenerate RTK Query client from the live backend OpenAPI URL (backend must be running)
 pnpm typecheck        # tsc --noEmit
 ```
 

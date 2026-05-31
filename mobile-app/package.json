@@ -17,7 +17,7 @@
     "typecheck": "tsc --noEmit",
     "doctor": "npx expo-doctor",
     "check": "pnpm run typecheck && pnpm run lint && pnpm run format:check && pnpm run doctor",
-    "generate:api": "rtk-query-codegen-openapi openapi-codegen.config.json && pnpm run typecheck",
+    "generate:api": "rtk-query-codegen-openapi openapi-codegen.config.js && pnpm run typecheck",
     "quality:api": "pnpm run generate:api && pnpm run lint && pnpm run format:check"
   },
   "dependencies": {
