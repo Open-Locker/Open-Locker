@@ -90,6 +90,11 @@ Recommended variant:
 This is the 3.5 mm terminal variant. It is easier to wire and service than
 direct point-to-point wiring.
 
+For the next hardware simplification step, see the integrated carrier PCB draft:
+
+- [`docs/Hardware-Integration-Concept.md`](Hardware-Integration-Concept.md)
+- [`docs/adr/0018-integrated-carrier-pcb-first.md`](adr/0018-integrated-carrier-pcb-first.md)
+
 Per Modbus board / connection board, this design typically uses:
 
 - 10x 2-pin PCB screw terminal connectors
