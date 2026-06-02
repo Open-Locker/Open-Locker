@@ -57,8 +57,8 @@ Open-Locker/
 - Deployable on Raspberry Pi or standard servers
 
 ### **Code Generation**
-- OpenAPI spec auto-generated from Laravel code (`composer export:api`)
-- RTK Query client auto-generated in mobile app (`pnpm run generate:api`)
+- OpenAPI spec auto-generated from Laravel code and served live by Scramble at `/docs/api.json` (no committed `api.json`)
+- RTK Query client auto-generated in mobile app (`pnpm run generate:api`), fetching the spec from the live backend URL (`EXPO_PUBLIC_API_BASE_URL`)
 - Reduces manual synchronization between components
 
 ## Development Workflow
@@ -69,8 +69,8 @@ We use `just` to automate common development tasks.
 - `just --list`: View all available commands.
 
 ### **Cross-Component Changes**
-1. **Backend API changes** → `cd locker-backend && composer export:api`
-2. **OpenAPI updates** → `cd mobile-app && pnpm run generate:api`
+1. **Backend API changes** → exposed automatically via Scramble's live `/docs/api.json` (keep endpoints documented so it stays accurate)
+2. **Regenerate the client** → `cd mobile-app && pnpm run generate:api` (with the backend running)
 3. **Mobile app updates** → Update consumer code (screens/hooks), not generated files
 4. **Testing** → Integration tests across all components
 
