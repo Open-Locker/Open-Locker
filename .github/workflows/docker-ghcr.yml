@@ -4,9 +4,17 @@
 name: Backend CI
 
 on:
+  pull_request:
+    branches:
+      - main
+      - dev
+    paths:
+      - "locker-backend/**"
+      - ".github/workflows/docker-ghcr.yml"
   push:
     branches:
       - main
+      - dev
     tags:
       - "v*"
     paths:
@@ -60,6 +68,17 @@ jobs:
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
+
+      - name: Build Docker image (verify)
+        if: github.event_name == 'pull_request' || github.ref == 'refs/heads/dev'
+        uses: docker/build-push-action@v6
+        with:
+          context: ./locker-backend
+          file: ./locker-backend/docker/8.4/Dockerfile
+          push: false
+          platforms: linux/amd64
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
       - name: Build and push Docker image (main)
         if: github.ref == 'refs/heads/main'

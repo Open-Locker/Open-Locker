@@ -1,9 +1,17 @@
 name: Build Locker Client
 
 on:
+  pull_request:
+    branches:
+      - main
+      - dev
+    paths:
+      - 'locker-client/**'
+      - '.github/workflows/build-locker-client.yml'
   push:
     branches:
       - main
+      - dev
     tags:
       - 'locker-client-v*'
     paths:
@@ -51,7 +59,7 @@ jobs:
           context: ./locker-client
           file: ./locker-client/Dockerfile
           platforms: linux/amd64,linux/arm64
-          push: true
+          push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
