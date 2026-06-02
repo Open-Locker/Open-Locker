@@ -16,6 +16,7 @@
     "format:check": "prettier --check .",
     "typecheck": "tsc --noEmit",
     "doctor": "npx expo-doctor",
+    "react-doctor": "npx react-doctor@latest --full --verbose",
     "check": "pnpm run typecheck && pnpm run lint && pnpm run format:check && pnpm run doctor",
     "generate:api": "rtk-query-codegen-openapi openapi-codegen.config.js && pnpm run typecheck",
     "quality:api": "pnpm run generate:api && pnpm run lint && pnpm run format:check"

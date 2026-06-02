@@ -12,6 +12,7 @@ Use these tools consistently for all changes in `mobile-app/`:
 - Prettier for formatting
 - TypeScript type checks (`tsc --noEmit`)
 - Expo Doctor for SDK/dependency health checks
+- React Doctor for static code-health checks (state & effects, performance, React Native, dead code, security) — advisory, non-blocking
 
 ## Required scripts
 
@@ -27,6 +28,7 @@ Use these tools consistently for all changes in `mobile-app/`:
 2. Before opening a PR, run `pnpm run check`.
 3. Before opening a PR, run `pnpm run test:ci`.
 4. For API regeneration, use `pnpm run quality:api` after backend spec updates.
+5. To verify your changes for state/effect, performance, architecture, dead-code and security issues, run `pnpm run react-doctor`. Treat its findings as advisory — fix what is relevant; it does not gate CI.
 
 ## CI expectations
 
