@@ -23,7 +23,8 @@ class AuthControllerTest extends TestCase
         $token = $adminUser->createToken('auth_token')->plainTextToken;
 
         $userData = [
-            'name' => $this->faker->name,
+            'first_name' => $this->faker->firstName,
+            'last_name' => $this->faker->lastName,
             'email' => $this->faker->unique()->safeEmail,
             'password' => 'password123',
             'password_confirmation' => 'password123',
@@ -36,12 +37,14 @@ class AuthControllerTest extends TestCase
         $response->assertStatus(201)
             ->assertJsonStructure([
                 'token',
-                'name',
+                'first_name',
+                'last_name',
             ]);
 
         $this->assertDatabaseHas('users', [
             'email' => $userData['email'],
-            'name' => $userData['name'],
+            'first_name' => $userData['first_name'],
+            'last_name' => $userData['last_name'],
         ]);
     }
 
@@ -55,7 +58,8 @@ class AuthControllerTest extends TestCase
         $token = $regularUser->createToken('auth_token')->plainTextToken;
 
         $userData = [
-            'name' => $this->faker->name,
+            'first_name' => $this->faker->firstName,
+            'last_name' => $this->faker->lastName,
             'email' => $this->faker->unique()->safeEmail,
             'password' => 'password123',
             'password_confirmation' => 'password123',
@@ -77,7 +81,8 @@ class AuthControllerTest extends TestCase
         $existingUser = User::factory()->create();
 
         $userData = [
-            'name' => $this->faker->name,
+            'first_name' => $this->faker->firstName,
+            'last_name' => $this->faker->lastName,
             'email' => $existingUser->email,
             'password' => 'password123',
             'password_confirmation' => 'password123',
@@ -99,7 +104,8 @@ class AuthControllerTest extends TestCase
         $adminUser->makeAdmin();
 
         $userData = [
-            'name' => $this->faker->name,
+            'first_name' => $this->faker->firstName,
+            'last_name' => $this->faker->lastName,
             'email' => $this->faker->unique()->safeEmail,
             'password' => 'password123',
             'password_confirmation' => 'password123',
@@ -140,7 +146,8 @@ class AuthControllerTest extends TestCase
         $response->assertStatus(200)
             ->assertJsonStructure([
                 'token',
-                'name',
+                'first_name',
+                'last_name',
             ]);
     }
 
@@ -189,7 +196,8 @@ class AuthControllerTest extends TestCase
         $response->assertStatus(200)
             ->assertJson([
                 'id' => $user->id,
-                'name' => $user->name,
+                'first_name' => $user->first_name,
+                'last_name' => $user->last_name,
                 'email' => $user->email,
 
             ]);
@@ -221,14 +229,51 @@ class AuthControllerTest extends TestCase
         $response = $this->withHeaders([
             'Authorization' => 'Bearer '.$token,
         ])->postJson('/api/admin/users/register', [
-            'name' => '',
+            'first_name' => '',
             'email' => 'not-an-email',
             'password' => '123',
             'password_confirmation' => '456',
         ]);
 
         $response->assertStatus(422)
-            ->assertJsonValidationErrors(['name', 'email', 'password']);
+            ->assertJsonValidationErrors(['first_name', 'last_name', 'email', 'password']);
+    }
+
+    public function test_registration_requires_last_name(): void
+    {
+        $adminUser = User::factory()->create();
+        $adminUser->makeAdmin();
+        $token = $adminUser->createToken('auth_token')->plainTextToken;
+
+        $response = $this->withHeaders([
+            'Authorization' => 'Bearer '.$token,
+        ])->postJson('/api/admin/users/register', [
+            'first_name' => $this->faker->firstName,
+            'email' => $this->faker->unique()->safeEmail,
+            'password' => 'password123',
+            'password_confirmation' => 'password123',
+        ]);
+
+        $response->assertStatus(422)
+            ->assertJsonValidationErrors(['last_name']);
+    }
+
+    public function test_profile_update_requires_last_name(): void
+    {
+        $user = User::factory()->create([
+            'last_name' => null,
+        ]);
+        $token = $user->createToken('auth_token')->plainTextToken;
+
+        $response = $this->withHeaders([
+            'Authorization' => 'Bearer '.$token,
+        ])->putJson('/api/profile', [
+            'first_name' => 'Updated',
+            'email' => $user->email,
+        ]);
+
+        $response->assertStatus(422)
+            ->assertJsonValidationErrors(['last_name']);
     }
 
     public function test_login_validation_rules()
@@ -496,19 +541,22 @@ class AuthControllerTest extends TestCase
         $response = $this->withHeaders([
             'Authorization' => 'Bearer '.$token,
         ])->putJson('/api/profile', [
-            'name' => 'Updated Name',
+            'first_name' => 'Updated',
+            'last_name' => 'Name',
             'email' => 'updated@example.com',
         ]);
 
         $response->assertStatus(200)
             ->assertJson([
-                'name' => 'Updated Name',
+                'first_name' => 'Updated',
+                'last_name' => 'Name',
                 'email' => 'updated@example.com',
             ]);
 
         $this->assertDatabaseHas('users', [
             'id' => $user->id,
-            'name' => 'Updated Name',
+            'first_name' => 'Updated',
+            'last_name' => 'Name',
             'email' => 'updated@example.com',
         ]);
     }
@@ -522,7 +570,8 @@ class AuthControllerTest extends TestCase
         $response = $this->withHeaders([
             'Authorization' => 'Bearer '.$token,
         ])->putJson('/api/profile', [
-            'name' => 'Updated Name',
+            'first_name' => 'Updated',
+            'last_name' => 'Name',
             'email' => $other->email,
         ]);
 
@@ -542,13 +591,15 @@ class AuthControllerTest extends TestCase
         $response = $this->withHeaders([
             'Authorization' => 'Bearer '.$token,
         ])->putJson('/api/profile', [
-            'name' => 'Updated Name',
+            'first_name' => 'Updated',
+            'last_name' => 'Name',
             'email' => 'new-address@example.com',
         ]);
 
         $response->assertStatus(200)
             ->assertJson([
-                'name' => 'Updated Name',
+                'first_name' => 'Updated',
+                'last_name' => 'Name',
                 'email' => 'new-address@example.com',
             ]);
 

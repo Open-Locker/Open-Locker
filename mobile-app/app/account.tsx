@@ -44,7 +44,8 @@ export default function AccountScreen() {
   const [changePassword, changePasswordState] = usePutPasswordMutation();
   const [logoutCurrentSession] = usePostLogoutMutation();
 
-  const [name, setName] = React.useState('');
+  const [firstName, setFirstName] = React.useState('');
+  const [lastName, setLastName] = React.useState('');
   const [email, setEmail] = React.useState('');
   const [currentPassword, setCurrentPassword] = React.useState('');
   const [newPassword, setNewPassword] = React.useState('');
@@ -55,7 +56,8 @@ export default function AccountScreen() {
 
   React.useEffect(() => {
     if (user) {
-      setName(user.name);
+      setFirstName(user.first_name);
+      setLastName(user.last_name ?? '');
       setEmail(user.email);
     }
   }, [user]);
@@ -78,12 +80,22 @@ export default function AccountScreen() {
 
   const onSaveProfile = React.useCallback(async () => {
     setProfileMessage(null);
+    const trimmedFirstName = firstName.trim();
+    const trimmedLastName = lastName.trim();
+    if (!trimmedFirstName || !trimmedLastName) {
+      setProfileMessage(t('account.profileNamesRequired'));
+      return;
+    }
     const normalizedNewEmail = email.trim().toLowerCase();
     const previousEmail = user?.email?.trim().toLowerCase() ?? null;
     const emailChanged = previousEmail !== null && previousEmail !== normalizedNewEmail;
     try {
       await updateProfile({
-        updateProfileRequest: { name: name.trim(), email: email.trim() },
+        updateProfileRequest: {
+          first_name: trimmedFirstName,
+          last_name: trimmedLastName,
+          email: email.trim(),
+        },
       }).unwrap();
       await refetch();
       setProfileMessage(
@@ -92,7 +104,7 @@ export default function AccountScreen() {
     } catch (error) {
       setProfileMessage(getErrorMessage(error, t));
     }
-  }, [email, name, refetch, t, updateProfile, user?.email]);
+  }, [email, firstName, lastName, refetch, t, updateProfile, user?.email]);
 
   const onChangePassword = React.useCallback(async () => {
     setPasswordMessage(null);
@@ -178,7 +190,12 @@ export default function AccountScreen() {
           <Text variant="titleSmall" style={styles.sectionTitle}>
             {t('account.profile')}
           </Text>
-          <AppTextInput label={t('account.name')} value={name} onChangeText={setName} />
+          <AppTextInput
+            label={t('account.firstName')}
+            value={firstName}
+            onChangeText={setFirstName}
+          />
+          <AppTextInput label={t('account.lastName')} value={lastName} onChangeText={setLastName} />
           <AppTextInput
             label={t('auth.email')}
             value={email}

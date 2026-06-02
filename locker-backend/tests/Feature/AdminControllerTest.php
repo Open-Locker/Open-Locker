@@ -180,7 +180,8 @@ class AdminControllerTest extends TestCase
     public function test_admin_can_register_new_user()
     {
         $userData = [
-            'name' => $this->faker->name,
+            'first_name' => $this->faker->firstName,
+            'last_name' => $this->faker->lastName,
             'email' => $this->faker->unique()->safeEmail,
             'password' => 'password123',
             'password_confirmation' => 'password123',

@@ -19,7 +19,8 @@ class DatabaseSeeder extends Seeder
         // User::factory(10)->create();
 
         $admin = User::factory()->create([
-            'name' => 'Admin User',
+            'first_name' => 'Admin',
+            'last_name' => 'User',
             'email' => 'user@example.com',
             'password' => bcrypt('string'),
         ]);
@@ -49,7 +50,8 @@ class DatabaseSeeder extends Seeder
         }
 
         $testUser = User::factory()->create([
-            'name' => 'Locker Test User',
+            'first_name' => 'Locker',
+            'last_name' => 'Test User',
             'email' => 'locker-test-user@example.com',
             'password' => bcrypt('password'),
         ]);

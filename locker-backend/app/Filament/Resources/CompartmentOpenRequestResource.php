@@ -45,10 +45,10 @@ class CompartmentOpenRequestResource extends Resource
                         default => 'gray',
                     })
                     ->sortable(),
-                Tables\Columns\TextColumn::make('actor.name')
+                Tables\Columns\TextColumn::make('actor_display_name')
                     ->label('Actor')
-                    ->placeholder('Unknown')
-                    ->searchable(),
+                    ->state(fn (CompartmentOpenRequest $record): ?string => $record->actor?->fullName())
+                    ->placeholder('Unknown'),
                 Tables\Columns\TextColumn::make('compartment.lockerBank.name')
                     ->label('Locker bank')
                     ->placeholder('Unknown')

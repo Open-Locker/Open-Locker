@@ -310,7 +310,8 @@ export type PostAdminUsersRegisterApiResponse =
   /** status 200 `TokenResponse` */ TokenResponse;
 export type PostAdminUsersRegisterApiArg = {
   body: {
-    name: string;
+    first_name: string;
+    last_name: string;
     email: string;
     password: string;
     password_confirmation: string;
@@ -370,7 +371,8 @@ export type PostTermsAcceptApiResponse = /** status 200  */ {
 export type PostTermsAcceptApiArg = void;
 export type User = {
   id: number;
-  name: string;
+  first_name: string;
+  last_name?: string | null;
   email: string;
   email_verified_at?: string | null;
   is_admin: boolean;
@@ -386,7 +388,8 @@ export type ApiError = {
 };
 export type TokenResponse = {
   token: string;
-  name: string;
+  first_name: string;
+  last_name?: string | null;
   verified: boolean;
 };
 export type LoginRequest = {
@@ -403,7 +406,8 @@ export type ResetPasswordRequest = {
   password_confirmation: string;
 };
 export type UpdateProfileRequest = {
-  name: string;
+  first_name: string;
+  last_name: string;
   email: string;
 };
 export type ChangePasswordRequest = {

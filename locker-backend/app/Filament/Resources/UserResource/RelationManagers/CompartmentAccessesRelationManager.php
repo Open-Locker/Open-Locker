@@ -40,8 +40,9 @@ class CompartmentAccessesRelationManager extends RelationManager
                 Tables\Columns\TextColumn::make('granted_at')
                     ->dateTime()
                     ->sortable(),
-                Tables\Columns\TextColumn::make('grantedByUser.name')
+                Tables\Columns\TextColumn::make('granted_by_display_name')
                     ->label('Granted by')
+                    ->state(fn (CompartmentAccess $record): ?string => $record->grantedByUser?->fullName())
                     ->placeholder('System')
                     ->toggleable(),
                 Tables\Columns\TextColumn::make('expires_at')
@@ -52,8 +53,9 @@ class CompartmentAccessesRelationManager extends RelationManager
                     ->dateTime()
                     ->placeholder('Active')
                     ->sortable(),
-                Tables\Columns\TextColumn::make('revokedByUser.name')
+                Tables\Columns\TextColumn::make('revoked_by_display_name')
                     ->label('Revoked by')
+                    ->state(fn (CompartmentAccess $record): ?string => $record->revokedByUser?->fullName())
                     ->placeholder('-')
                     ->toggleable(),
                 Tables\Columns\TextColumn::make('compartment.latestOpenRequest.status')
