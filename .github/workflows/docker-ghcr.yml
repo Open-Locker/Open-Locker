@@ -33,7 +33,7 @@ jobs:
 
       - name: Composer audit
         working-directory: locker-backend
-        run: composer audit
+        run: composer audit --locked
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
