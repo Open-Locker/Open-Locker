@@ -6,6 +6,7 @@ use App\Notifications\Auth\WebResetPasswordNotification;
 use App\Notifications\Auth\WebVerifyEmailNotification;
 use Database\Factories\UserFactory;
 use Filament\Models\Contracts\FilamentUser;
+use Filament\Models\Contracts\HasName;
 use Filament\Panel;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Builder;
@@ -17,7 +18,7 @@ use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Facades\Password;
 use Laravel\Sanctum\HasApiTokens;
 
-class User extends Authenticatable implements FilamentUser, MustVerifyEmail
+class User extends Authenticatable implements FilamentUser, HasName, MustVerifyEmail
 {
     /** @use HasFactory<UserFactory> */
     use HasApiTokens, HasFactory, Notifiable;
@@ -28,7 +29,8 @@ class User extends Authenticatable implements FilamentUser, MustVerifyEmail
      * @var list<string>
      */
     protected $fillable = [
-        'name',
+        'first_name',
+        'last_name',
         'email',
         'password',
     ];
@@ -134,6 +136,16 @@ class User extends Authenticatable implements FilamentUser, MustVerifyEmail
         return $this->activeCompartmentAccesses()
             ->where('compartment_id', $compartment->id)
             ->exists();
+    }
+
+    public function fullName(): string
+    {
+        return trim($this->first_name.' '.($this->last_name ?? ''));
+    }
+
+    public function getFilamentName(): string
+    {
+        return $this->fullName();
     }
 
     /**

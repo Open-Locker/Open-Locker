@@ -109,4 +109,16 @@ class FilamentAdminSmokeTest extends TestCase
 
         $response->assertForbidden();
     }
+
+    public function test_admin_can_load_filament_profile_page_with_split_name_fields(): void
+    {
+        $user = User::factory()->create();
+        $user->makeAdmin();
+
+        $response = $this->actingAs($user)->get(route('filament.admin.auth.profile'));
+
+        $response->assertOk();
+        $response->assertSee('data.first_name', false);
+        $response->assertSee('data.last_name', false);
+    }
 }

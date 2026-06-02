@@ -11,6 +11,7 @@ import {
   useGetUserQuery,
   usePostEmailVerificationNotificationMutation,
 } from '@/src/store/generatedApi';
+import { formatUserName } from '@/src/utils/userName';
 
 function SmallBottomNotice({
   message,
@@ -48,7 +49,9 @@ export default function TabLayout() {
   const needsTermsAcceptance = !!user && !user.terms_current_accepted;
   const needsVerification = !!user && !user.email_verified_at;
   const [verificationMessage, setVerificationMessage] = React.useState<string | null>(null);
-  const accountInitial = (user?.name?.trim().charAt(0) || 'A').toUpperCase();
+  const accountInitial = (
+    formatUserName(user?.first_name, user?.last_name).charAt(0) || 'A'
+  ).toUpperCase();
 
   if (isLoadingUser) {
     return (

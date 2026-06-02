@@ -21,6 +21,7 @@ import { openLockerApi, useIdentifyQuery, usePostLoginMutation } from '@/src/sto
 import { useAppDispatch } from '@/src/store/hooks';
 import { OPEN_LOCKER_DESIGN_TOKENS } from '@/src/theme/tokens';
 import { AppButton, AppTextInput } from '@/src/ui';
+import { formatUserName } from '@/src/utils/userName';
 
 function getErrorMessage(
   error: unknown,
@@ -81,8 +82,9 @@ export default function SignInScreen() {
         },
       }).unwrap();
 
-      await persistAuth(res.token, res.name);
-      dispatch(setCredentials({ token: res.token, userName: res.name }));
+      const userName = formatUserName(res.first_name, res.last_name);
+      await persistAuth(res.token, userName);
+      dispatch(setCredentials({ token: res.token, userName }));
 
       const userRequest = dispatch(openLockerApi.endpoints.getUser.initiate());
       const user = await userRequest.unwrap();
