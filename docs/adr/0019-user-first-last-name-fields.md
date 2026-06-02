@@ -35,20 +35,25 @@ and makes exports and support workflows harder to standardize.
 
 Replace `users.name` with:
 
-- `first_name` — required, non-empty string (max 255)
-- `last_name` — optional string (max 255), nullable for migration and partial
-  profiles
+- `first_name` — required string (max 255) at API and application level
+- `last_name` — required string (max 255) on **register** and **profile update**
+- `last_name` column remains **nullable in the database** only so migrated legacy
+  rows are not blocked at the schema layer; API validation enforces both names
+  for all new writes and profile edits
 
 Expose both fields on the REST API (`User` resource, `TokenResponse`, register
-and profile update payloads). Provide `User::fullName()` (trimmed
-`first_name` + `last_name`) for display in Filament and other read-only contexts.
+and profile update payloads). Responses may still return `last_name: null` for
+legacy accounts until they complete their profile. Provide `User::fullName()`
+(trimmed `first_name` + `last_name`) for display in Filament and other read-only
+contexts.
 
 **Data migration:** copy existing `name` into `first_name`; set `last_name` to
 `NULL`. No automatic splitting of combined strings (e.g. `"Max Mustermann"` stays
-in `first_name` until the user updates their profile).
+in `first_name` until the user updates their profile and supplies a family name).
 
-**Mobile:** collect and edit first and last name separately; use `formatUserName()`
-for display strings (avatar initial, stored greeting name).
+**Mobile:** collect and edit first and last name separately; require both before
+saving the profile; use `formatUserName()` for display strings (avatar initial,
+stored greeting name).
 
 ## Rationale
 
@@ -56,9 +61,9 @@ for display strings (avatar initial, stored greeting name).
   family name.
 - `fullName()` gives one canonical display string without duplicating logic in
   Filament columns.
-- Required `first_name` preserves a minimum identity on every account; optional
-  `last_name` avoids blocking login for legacy rows until users complete their
-  profile.
+- API-level requirement on register/profile ensures legally relevant actions are
+  tied to identifiable persons going forward, without a `NOT NULL` constraint that
+  would complicate one-shot migration of existing rows.
 - Event-sourced audit continues to use `user_id`; name fields live on the
   current `users` row and reflect the identity at the time of later lookups
   (profile updates change the row, not historical event payloads — same as
@@ -78,32 +83,33 @@ for display strings (avatar initial, stored greeting name).
 - Cons: Still unstructured; duplicates the old problem.
 - Why not chosen: Split fields are clearer for forms and i18n (Vorname/Nachname).
 
-### Alternative C: Require `last_name` for all new registrations immediately
+### Alternative C: `NOT NULL` on `last_name` in the database
 
-- Pros: Strongest traceability from day one.
-- Cons: Blocks migrated users with only `first_name` populated; stricter mobile UX.
-- Why not chosen: Deferred; can be tightened later once data is migrated and UX
-  copy is updated.
+- Pros: Strongest schema enforcement.
+- Cons: Migration must backfill or fail for every legacy row with missing family
+  name; blocks deploy until data is cleaned.
+- Why not chosen: Nullable column + required API validation gives the same
+  behavior for new data without blocking migration.
 
 ## Consequences
 
 ### Positive
 
-- API and admin UI expose identifiable given and family names where collected.
-- Filament tables use `fullName()` for actor/grantor columns.
-- Mobile profile matches backend validation.
+- Register and profile flows always capture given and family name.
+- Filament user forms require both fields for admin-created users.
+- Legacy users can still log in and must set `last_name` on next profile save.
 
 ### Negative
 
 - **Breaking API change:** clients must send/read `first_name` and `last_name`
   instead of `name` (coordinate backend + mobile deploy).
-- Legacy users may have empty `last_name` until they edit their profile.
 - Migrated combined names remain entirely in `first_name` until corrected manually.
+- `GET /user` may return `last_name: null` until legacy users update their profile.
 
 ### Risks
 
-- Incomplete identity if users leave `last_name` empty — mitigate with admin
-  review, future validation, or onboarding copy stressing legal name requirement.
+- Legacy accounts with `last_name = null` cannot pass profile validation until
+  they provide a family name — acceptable gate for legal completeness.
 - Historical events do not snapshot name text — rely on `user_id` + current user
   row (documented limitation, unchanged from prior model).
 
@@ -111,11 +117,11 @@ for display strings (avatar initial, stored greeting name).
 
 1. Run migration `2026_05_23_000001_split_user_name_fields`.
 2. Deploy backend (API + Filament).
-3. Deploy mobile app build that uses `first_name` / `last_name`.
+3. Deploy mobile app build that requires both name fields on profile save.
 4. Regenerate mobile client: `pnpm generate:api` against live `/docs/api.json`
    (see [ADR-0018](0018-codegen-from-live-openapi-url.md)).
-5. Communicate to operators: verify migrated accounts and prompt users to add
-   family name where missing.
+5. Communicate to operators: migrated accounts must add family name on next login
+   / profile edit; verify admin-created users include both names.
 
 ## Supersedes / Superseded By
 

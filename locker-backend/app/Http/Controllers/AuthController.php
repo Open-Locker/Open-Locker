@@ -40,7 +40,7 @@ class AuthController extends Controller
     {
         $request->validate([
             'first_name' => 'required|string|max:255',
-            'last_name' => 'nullable|string|max:255',
+            'last_name' => 'required|string|max:255',
             'email' => 'required|string|lowercase|email|max:255|unique:'.User::class,
             'password' => ['required', 'confirmed', Rules\Password::defaults()],
         ]);
@@ -240,7 +240,7 @@ class AuthController extends Controller
         $user = $request->user();
         $user->fill([
             'first_name' => $validated['first_name'],
-            'last_name' => $validated['last_name'] ?? null,
+            'last_name' => $validated['last_name'],
             'email' => $validated['email'],
         ]);
 

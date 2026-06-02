@@ -236,7 +236,44 @@ class AuthControllerTest extends TestCase
         ]);
 
         $response->assertStatus(422)
-            ->assertJsonValidationErrors(['first_name', 'email', 'password']);
+            ->assertJsonValidationErrors(['first_name', 'last_name', 'email', 'password']);
+    }
+
+    public function test_registration_requires_last_name(): void
+    {
+        $adminUser = User::factory()->create();
+        $adminUser->makeAdmin();
+        $token = $adminUser->createToken('auth_token')->plainTextToken;
+
+        $response = $this->withHeaders([
+            'Authorization' => 'Bearer '.$token,
+        ])->postJson('/api/admin/users/register', [
+            'first_name' => $this->faker->firstName,
+            'email' => $this->faker->unique()->safeEmail,
+            'password' => 'password123',
+            'password_confirmation' => 'password123',
+        ]);
+
+        $response->assertStatus(422)
+            ->assertJsonValidationErrors(['last_name']);
+    }
+
+    public function test_profile_update_requires_last_name(): void
+    {
+        $user = User::factory()->create([
+            'last_name' => null,
+        ]);
+        $token = $user->createToken('auth_token')->plainTextToken;
+
+        $response = $this->withHeaders([
+            'Authorization' => 'Bearer '.$token,
+        ])->putJson('/api/profile', [
+            'first_name' => 'Updated',
+            'email' => $user->email,
+        ]);
+
+        $response->assertStatus(422)
+            ->assertJsonValidationErrors(['last_name']);
     }
 
     public function test_login_validation_rules()

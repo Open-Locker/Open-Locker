@@ -2,6 +2,8 @@
 
 namespace App\Providers\Filament;
 
+use App\Filament\Pages\Auth\EditProfile;
+use App\Filament\Pages\Auth\Register;
 use App\Models\User;
 use Filament\Http\Middleware\Authenticate;
 use Filament\Http\Middleware\AuthenticateSession;
@@ -31,7 +33,7 @@ class AdminPanelProvider extends PanelProvider
     {
         try {
             if (Schema::hasTable('users') && User::count() === 0) {
-                $panel->registration();
+                $panel->registration(Register::class);
             }
         } catch (QueryException|PDOException) {
             // During image builds/package discovery, database access may be unavailable.
@@ -44,7 +46,7 @@ class AdminPanelProvider extends PanelProvider
             ->login()
             ->emailVerification()
             ->passwordReset()
-            ->profile()
+            ->profile(EditProfile::class)
             ->colors([
                 'primary' => [
                     50 => 'oklch(0.97 0.03 263.785)',

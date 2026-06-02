@@ -311,7 +311,7 @@ export type PostAdminUsersRegisterApiResponse =
 export type PostAdminUsersRegisterApiArg = {
   body: {
     first_name: string;
-    last_name?: string | null;
+    last_name: string;
     email: string;
     password: string;
     password_confirmation: string;
@@ -407,7 +407,7 @@ export type ResetPasswordRequest = {
 };
 export type UpdateProfileRequest = {
   first_name: string;
-  last_name?: string | null;
+  last_name: string;
   email: string;
 };
 export type ChangePasswordRequest = {

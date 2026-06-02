@@ -80,14 +80,20 @@ export default function AccountScreen() {
 
   const onSaveProfile = React.useCallback(async () => {
     setProfileMessage(null);
+    const trimmedFirstName = firstName.trim();
+    const trimmedLastName = lastName.trim();
+    if (!trimmedFirstName || !trimmedLastName) {
+      setProfileMessage(t('account.profileNamesRequired'));
+      return;
+    }
     const normalizedNewEmail = email.trim().toLowerCase();
     const previousEmail = user?.email?.trim().toLowerCase() ?? null;
     const emailChanged = previousEmail !== null && previousEmail !== normalizedNewEmail;
     try {
       await updateProfile({
         updateProfileRequest: {
-          first_name: firstName.trim(),
-          last_name: lastName.trim() || null,
+          first_name: trimmedFirstName,
+          last_name: trimmedLastName,
           email: email.trim(),
         },
       }).unwrap();

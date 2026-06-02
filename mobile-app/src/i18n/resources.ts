@@ -70,6 +70,7 @@ export const resources = {
         languageGerman: 'German',
         firstName: 'First name',
         lastName: 'Last name',
+        profileNamesRequired: 'First name and last name are required.',
         saveProfile: 'Save profile',
         profileUpdated: 'Profile updated.',
         profileUpdatedVerifyEmail: 'Profile updated. Please verify your new email address.',
@@ -194,6 +195,7 @@ export const resources = {
         languageGerman: 'Deutsch',
         firstName: 'Vorname',
         lastName: 'Nachname',
+        profileNamesRequired: 'Vorname und Nachname sind erforderlich.',
         saveProfile: 'Profil speichern',
         profileUpdated: 'Profil aktualisiert.',
         profileUpdatedVerifyEmail:
