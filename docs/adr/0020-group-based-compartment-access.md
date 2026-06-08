@@ -1,8 +1,8 @@
-I have# ADR-0020: Group-based compartment access (event-sourced) with a projected effective-access read model
+# ADR-0020: Group-based compartment access (event-sourced) with a projected effective-access read model
 
 ## Status
 
-Proposed
+Accepted
 
 ## Date
 
@@ -41,11 +41,21 @@ and resolve effective access through a **projected read model**.
 - `user_group_compartment_accesses` — **projected effective table**: the flattened (user ↔ compartment)
   access derived from `membership × group grants`. Direct access stays in `compartment_accesses`;
   **effective = the union of the two**, evaluated as one extra indexed lookup (no multi-join).
+  Unique on `(user_id, compartment_id)`; index pattern mirrors `compartment_accesses`. Optional
+  `group_id` column for audit (which group contributed the derived row). Projected `expires_at` =
+  earliest non-null of membership `expires_at` and group grant `expires_at`; enforce expiry at read
+  time via the existing `active()` scope.
 
 **Event sourcing:** a single `GroupAggregate` per group (the consistency boundary) records
 `GroupCreated`, `UserAddedToGroup`, `UserRemovedFromGroup`, `GroupCompartmentAccessGranted`,
 `GroupCompartmentAccessRevoked`. A `GroupProjector` maintains all four tables and **recomputes**
-`user_group_compartment_accesses` whenever a membership or group-grant event fires.
+`user_group_compartment_accesses` whenever a membership or group-grant event fires — scoped to the
+affected group/members only (incremental recompute, not a full-table rebuild). Register
+`GroupProjector` in `config/event-sourcing.php` (Slice 1).
+
+**v1 lifecycle:** groups **cannot be deleted** — no Filament delete action, no `GroupDeleted` event.
+Archiving (event-sourced `GroupArchived`, read-model update, ending effective access) is tracked in
+#106.
 
 **Semantics — additive / union:** a user has access if **any** active source grants it. Revoking one
 source (a direct grant, a group grant, or a membership) removes only that source; other active
@@ -54,10 +64,13 @@ sources still apply. Each source respects its own `revoked_at` / `expires_at` vi
 
 **Integration (hot paths):**
 - `hasActiveAccess()` returns true if an active row exists in `compartment_accesses` **or**
-  `user_group_compartment_accesses`; `requestOpen()` records `authorizationType:'group_access'` when
-  the authorizing access is group-derived (keeps `'granted_access'` for direct) for audit clarity.
+  `user_group_compartment_accesses`.
+- `requestOpen()` sets `authorizationType` by checking direct access first (`'granted_access'`), then
+  group-derived access (`'group_access'`) for audit clarity.
 - `CompartmentController::accessible()` includes compartments reachable directly **or** via a group;
   the `AccessibleCompartmentsResource` shape is unchanged (mobile transparent).
+- `CompartmentStatusBroadcastService::recipientUserIdsForCompartment()` unions direct and
+  group-derived access (Slice 2).
 
 **Authorization:** management (create group, membership, group grants) stays **admin-only** for now,
 reusing `CompartmentAccessService::ensureCanManageAccess()`. Manager-role support (#95) is out of scope.
@@ -99,7 +112,8 @@ and the new access just as auditable as direct access.
 ### Negative
 
 - The projector must **recompute** `user_group_compartment_accesses` on membership and group-grant
-  changes — an O(members × granted-compartments) write-time cost per change.
+  changes — an O(members × granted-compartments) write-time cost per change (scoped per affected
+  group/members, not a full-table rebuild).
 - A second access source means more authorization branches and a larger test surface.
 
 ### Risks
@@ -113,10 +127,13 @@ and the new access just as auditable as direct access.
 ## Rollout / Migration
 
 Deliver in reviewable slices after this ADR is accepted:
-1. Domain core — migrations + models + `GroupAggregate` + events + `GroupProjector` + `GroupAccessService`.
-2. Effective-access wiring — `hasActiveAccess()` + `accessible()`; feature-test the union/expiry/revoke matrix.
+1. Domain core — migrations + models + `GroupAggregate` + events + `GroupProjector` (registered in
+   `config/event-sourcing.php`) + `GroupAccessService`.
+2. Effective-access wiring — `hasActiveAccess()` + `accessible()` +
+   `CompartmentStatusBroadcastService::recipientUserIdsForCompartment()`; feature-test the
+   union/expiry/revoke matrix.
 3. Filament UI — `GroupResource` + members and compartment-access relation managers (routed through
-   `GroupAccessService`, never direct model writes).
+   `GroupAccessService`, never direct model writes); no delete action in the admin UI (v1).
 
 No data migration of existing direct access is required; direct access keeps working unchanged.
 
@@ -127,7 +144,8 @@ No data migration of existing direct access is required; direct access keeps wor
 
 ## References
 
-- Related issues: #46 (builds on the direct-access model; complements #48 navigation, relates to #55)
+- Related issues: #46 (builds on the direct-access model; complements #48 navigation, relates to #55),
+  #106 (group archiving follow-up)
 - Related code: `app/Aggregates/CompartmentAccessAggregate.php`, `app/Projectors/CompartmentAccessProjector.php`,
   `app/Services/CompartmentAccessService.php`, `app/Models/CompartmentAccess.php`,
   `app/Http/Controllers/CompartmentController.php`
