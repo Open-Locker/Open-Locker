@@ -40,7 +40,7 @@ function mockFetchWithStatus(status: number): jest.Mock {
         }, 0);
       }),
   );
-  global.fetch = mock as unknown as typeof fetch;
+  globalThis.fetch = mock as unknown as typeof fetch;
   return mock;
 }
 
