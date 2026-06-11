@@ -36,15 +36,22 @@ class CompartmentController extends Controller
                     ->orderBy('number'),
             ]);
         } else {
+            // A compartment is accessible if reachable directly OR via a group.
+            $accessibleToUser = function ($query) use ($user): void {
+                $query
+                    ->whereHas('accesses', function ($accessQuery) use ($user): void {
+                        $accessQuery->where('user_id', $user->id)->active();
+                    })
+                    ->orWhereHas('userGroupAccesses', function ($groupQuery) use ($user): void {
+                        $groupQuery->where('user_id', $user->id)->active();
+                    });
+            };
+
             $lockerBanksQuery
-                ->whereHas('compartments.accesses', function ($query) use ($user): void {
-                    $query->where('user_id', $user->id)->active();
-                })
+                ->whereHas('compartments', $accessibleToUser)
                 ->with([
                     'compartments' => fn ($query) => $query
-                        ->whereHas('accesses', function ($accessQuery) use ($user): void {
-                            $accessQuery->where('user_id', $user->id)->active();
-                        })
+                        ->where($accessibleToUser)
                         ->with('item')
                         ->orderBy('number'),
                 ]);
