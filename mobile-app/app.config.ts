@@ -68,11 +68,6 @@ export default ({ config }: ConfigContext): ExpoConfig => {
     scheme: 'open-locker',
     userInterfaceStyle: 'automatic',
     newArchEnabled: true,
-    splash: {
-      image: './assets/images/splash-icon.png',
-      resizeMode: 'contain',
-      backgroundColor: '#ffffff',
-    },
     runtimeVersion: {
       policy: 'appVersion',
     },
@@ -109,6 +104,19 @@ export default ({ config }: ConfigContext): ExpoConfig => {
     },
     plugins: [
       'expo-router',
+      [
+        'expo-splash-screen',
+        {
+          image: './assets/images/splash-icon.png',
+          imageWidth: 200,
+          resizeMode: 'contain',
+          backgroundColor: '#ffffff',
+          dark: {
+            image: './assets/images/splash-icon-dark.png',
+            backgroundColor: '#151718',
+          },
+        },
+      ],
       [
         'expo-localization',
         {
