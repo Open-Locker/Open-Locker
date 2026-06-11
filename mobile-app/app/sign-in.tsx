@@ -18,7 +18,7 @@ import { getApiBaseUrl } from '@/src/api/baseUrl';
 import { persistAuth } from '@/src/store/authStorage';
 import { setCredentials } from '@/src/store/authSlice';
 import { openLockerApi, useIdentifyQuery, usePostLoginMutation } from '@/src/store/generatedApi';
-import { useAppDispatch } from '@/src/store/hooks';
+import { useAppDispatch, useAppSelector } from '@/src/store/hooks';
 import { OPEN_LOCKER_DESIGN_TOKENS } from '@/src/theme/tokens';
 import { AppButton, AppTextInput } from '@/src/ui';
 import { formatUserName } from '@/src/utils/userName';
@@ -49,6 +49,8 @@ export default function SignInScreen() {
     isError: isIdentifyError,
   } = useIdentifyQuery();
   const theme = useTheme();
+
+  const sessionExpired = useAppSelector((state) => state.auth.sessionExpired);
 
   const [email, setEmail] = React.useState('');
   const [password, setPassword] = React.useState('');
@@ -157,8 +159,8 @@ export default function SignInScreen() {
             style={styles.input}
           />
 
-          <HelperText type="error" visible={!!error}>
-            {error}
+          <HelperText type="error" visible={!!error || (sessionExpired && !isSubmitting)}>
+            {error ?? t('auth.sessionExpired')}
           </HelperText>
 
           <AppButton
