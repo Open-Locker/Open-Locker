@@ -43,7 +43,8 @@ jobs:
           images: ghcr.io/${{ github.repository_owner }}/locker-client
           tags: |
             type=ref,event=branch
-            type=sha,prefix={{branch}}-
+            type=ref,event=pr
+            type=sha,prefix={{branch}}-,enable=${{ github.event_name != 'pull_request' }}
             type=match,pattern=locker-client-v(.*),group=1
             type=raw,value=latest,enable={{is_default_branch}}
 
