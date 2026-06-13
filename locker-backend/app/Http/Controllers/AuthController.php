@@ -181,6 +181,8 @@ class AuthController extends Controller
 
     /**
      * Reset Password with Token
+     *
+     * @response array{message: string}
      */
     public function storeNewPassword(ResetPasswordRequest $request): JsonResponse|RedirectResponse
     {
@@ -221,7 +223,7 @@ class AuthController extends Controller
             }
 
             return response()->json([
-                'message' => __($status),
+                'message' => __('Your password has been reset.'),
             ]);
         }
 
