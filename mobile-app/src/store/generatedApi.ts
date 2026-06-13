@@ -270,7 +270,9 @@ export type PostPasswordEmailApiResponse = /** status 200  */ {
 export type PostPasswordEmailApiArg = {
   sendPasswordResetRequest: SendPasswordResetRequest;
 };
-export type PostResetPasswordApiResponse = /** status 200  */ object;
+export type PostResetPasswordApiResponse = /** status 200  */ {
+  message: string;
+};
 export type PostResetPasswordApiArg = {
   resetPasswordRequest: ResetPasswordRequest;
 };
