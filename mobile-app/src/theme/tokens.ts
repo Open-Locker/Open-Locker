@@ -11,6 +11,16 @@ export const OPEN_LOCKER_DARK_SURFACE = '#111938';
 export const OPEN_LOCKER_DARK_SURFACE_VARIANT = '#1a2240';
 export const OPEN_LOCKER_DARK_OUTLINE = '#4f66c8';
 
+// Warning (amber). MD3 has no semantic "warning" slot, so we define our own
+// light/dark pair for status surfaces such as the "unknown" compartment badge.
+export const OPEN_LOCKER_LIGHT_WARNING = '#B7791F';
+export const OPEN_LOCKER_LIGHT_WARNING_OUTLINE = '#D69E2E';
+export const OPEN_LOCKER_LIGHT_WARNING_CONTAINER = '#FFF6E8';
+
+export const OPEN_LOCKER_DARK_WARNING = '#F2C66B';
+export const OPEN_LOCKER_DARK_WARNING_OUTLINE = '#8A6D2E';
+export const OPEN_LOCKER_DARK_WARNING_CONTAINER = '#3A2E12';
+
 export const OPEN_LOCKER_DESIGN_TOKENS = {
   radius: {
     sm: 8,
