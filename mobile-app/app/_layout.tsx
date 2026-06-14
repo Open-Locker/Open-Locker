@@ -31,7 +31,7 @@ export {
 } from 'expo-router';
 
 export const unstable_settings = {
-  // Ensure that reloading on `/modal` keeps a back button present.
+  // Anchor deep links to the tab navigator so a back button is always present.
   initialRouteName: '(tabs)',
 };
 
@@ -116,7 +116,6 @@ function RootLayoutNav() {
                 name="terms"
                 options={{ title: t('navigation.terms'), presentation: 'modal' }}
               />
-              <Stack.Screen name="modal" options={{ presentation: 'modal' }} />
             </Stack.Protected>
 
             <Stack.Protected guard={!token}>

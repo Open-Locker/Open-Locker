@@ -273,7 +273,7 @@ export default function CompartmentsScreen() {
         </Animated.View>
       </Animated.View>
       {errorMessage ? (
-        <Text style={styles.error} accessibilityRole="alert">
+        <Text style={[styles.error, { color: theme.colors.error }]} accessibilityRole="alert">
           {errorMessage}
         </Text>
       ) : null}
@@ -558,7 +558,7 @@ const styles = StyleSheet.create({
   bankChipText: {
     fontFamily: 'Inter_500Medium',
   },
-  error: { color: '#b00020', paddingHorizontal: 16, paddingTop: 12 },
+  error: { paddingHorizontal: 16, paddingTop: 12 },
   gridItem: {
     flex: 1,
   },
