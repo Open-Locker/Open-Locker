@@ -1,4 +1,4 @@
-import type { DedupStorePort } from "../../ports/mqtt.port";
+import type { DedupStorePort } from '../../ports/mqtt.port';
 
 export interface InboundGuardOptions {
   requiresTransactionId?: boolean;
@@ -8,21 +8,18 @@ export interface InboundGuardOptions {
 export class InboundProtocolGuard {
   constructor(private readonly dedup: DedupStorePort) {}
 
-  allow(
-    payload: Record<string, unknown>,
-    options: InboundGuardOptions = {},
-  ): boolean {
+  allow(payload: Record<string, unknown>, options: InboundGuardOptions = {}): boolean {
     const requiresTransactionId = options.requiresTransactionId ?? true;
     const blockDuplicateMessageIds = options.blockDuplicateMessageIds ?? true;
 
     const messageId = payload.message_id;
-    if (typeof messageId !== "string" || messageId.trim() === "") {
+    if (typeof messageId !== 'string' || messageId.trim() === '') {
       return false;
     }
 
     if (requiresTransactionId) {
       const transactionId = payload.transaction_id;
-      if (typeof transactionId !== "string" || transactionId.trim() === "") {
+      if (typeof transactionId !== 'string' || transactionId.trim() === '') {
         return false;
       }
     }

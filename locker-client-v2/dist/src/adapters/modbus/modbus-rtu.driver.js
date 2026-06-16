@@ -55,14 +55,14 @@ class ModbusRtuDriver {
     }
     getClient() {
         if (!this.client?.isOpen) {
-            throw new Error("Port Not Open");
+            throw new Error('Port Not Open');
         }
         return this.client;
     }
     getWaveshareClient() {
         const client = this.getClient();
-        if (typeof client.customFunction !== "function") {
-            throw new Error("modbus-serial customFunction API is unavailable");
+        if (typeof client.customFunction !== 'function') {
+            throw new Error('modbus-serial customFunction API is unavailable');
         }
         return client;
     }

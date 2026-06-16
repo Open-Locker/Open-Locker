@@ -22,7 +22,7 @@ class CommandDispatcher {
             return;
         }
         const action = payload.action;
-        if (typeof action !== "string") {
+        if (typeof action !== 'string') {
             return;
         }
         const handler = this.handlers.get(action);
@@ -37,14 +37,12 @@ class CommandDispatcher {
         const parsed = handler.schema.safeParse(payload);
         if (!parsed.success) {
             await this.outbound.publishCommandResponse({
-                type: "command_response",
+                type: 'command_response',
                 action,
-                result: "error",
-                transaction_id: typeof payload.transaction_id === "string"
-                    ? payload.transaction_id
-                    : "unknown",
-                error_code: "INVALID_COMMAND",
-                message: "Command validation failed",
+                result: 'error',
+                transaction_id: typeof payload.transaction_id === 'string' ? payload.transaction_id : 'unknown',
+                error_code: 'INVALID_COMMAND',
+                message: 'Command validation failed',
             });
             return;
         }
@@ -54,19 +52,18 @@ class CommandDispatcher {
         }
         catch (error) {
             await this.outbound.publishCommandResponse({
-                type: "command_response",
+                type: 'command_response',
                 action,
-                result: "error",
-                transaction_id: parsed.data
-                    .transaction_id,
+                result: 'error',
+                transaction_id: parsed.data.transaction_id,
                 error_code: (0, errors_1.mapErrorToMqttCode)(error),
-                message: error instanceof Error ? error.message : "Unknown error",
+                message: error instanceof Error ? error.message : 'Unknown error',
             });
         }
     }
 }
 exports.CommandDispatcher = CommandDispatcher;
 function extractLockerUuid(topic) {
-    const parts = topic.split("/");
-    return parts[1] ?? "";
+    const parts = topic.split('/');
+    return parts[1] ?? '';
 }

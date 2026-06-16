@@ -34,7 +34,7 @@ class ReconnectCoordinator {
     }
     async runInternal(reconnectFn) {
         if (this.maxAttempts > 0 && this.attempts >= this.maxAttempts) {
-            throw new Error("Max reconnect attempts reached");
+            throw new Error('Max reconnect attempts reached');
         }
         this.attempts++;
         try {

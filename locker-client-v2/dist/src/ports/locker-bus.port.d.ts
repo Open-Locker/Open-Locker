@@ -1,11 +1,11 @@
-import type { CompartmentTarget, DoorState } from "../domain/compartment";
+import type { CompartmentTarget, DoorState } from '../domain/compartment';
 export declare enum BusPriority {
     COMMAND = 4,
     SNAPSHOT = 3,
     POLL = 2,
     MAINTENANCE = 1
 }
-export type ConnectionState = "disconnected" | "connecting" | "connected";
+export type ConnectionState = 'disconnected' | 'connecting' | 'connected';
 export interface LockerBusPort {
     connect(): Promise<void>;
     disconnect(): Promise<void>;

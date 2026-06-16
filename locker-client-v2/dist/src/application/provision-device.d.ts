@@ -1,5 +1,5 @@
-import type { MessageTransportPort } from "../ports/mqtt.port";
-import { FileCredentialStore } from "../adapters/persistence/file-credential.store";
+import type { MessageTransportPort } from '../ports/mqtt.port';
+import { FileCredentialStore } from '../adapters/persistence/file-credential.store';
 export declare const DEFAULT_MQTT_BROKER_URL = "mqtt://open-locker.cloud";
 export declare function getOrCreateClientId(): string;
 export declare function getRequiredProvisioningDefaults(): {

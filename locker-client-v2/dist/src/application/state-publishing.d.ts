@@ -1,7 +1,7 @@
-import type { DoorState } from "../domain/compartment";
-import type { ConfigRepositoryPort } from "../ports/config.port";
-import type { LockerBusPort } from "../ports/locker-bus.port";
-import type { OutboundMqttPort } from "../ports/mqtt.port";
+import type { DoorState } from '../domain/compartment';
+import type { ConfigRepositoryPort } from '../ports/config.port';
+import type { LockerBusPort } from '../ports/locker-bus.port';
+import type { OutboundMqttPort } from '../ports/mqtt.port';
 export interface CompartmentSnapshotEntry {
     compartment_number: number;
     door_state: DoorState;

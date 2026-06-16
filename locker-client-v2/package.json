@@ -2,13 +2,19 @@
   "name": "locker-client-v2",
   "version": "2.0.0",
   "description": "Open Locker Client v2 — hexagonal MQTT/Modbus bridge",
-  "packageManager": "pnpm@9.0.0",
   "license": "MIT",
   "scripts": {
     "dev": "ts-node src/main.ts",
     "build": "tsc",
     "test": "pnpm run build && node --test dist/tests/**/*.test.js",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "lint": "oxlint .",
+    "lint:fix": "oxlint --fix .",
+    "format": "oxfmt",
+    "format:check": "oxfmt --check",
+    "check": "pnpm run typecheck && pnpm run format:check && pnpm run lint",
+    "fallow": "fallow audit",
+    "fallow:boundaries": "fallow dead-code --boundary-violations"
   },
   "dependencies": {
     "dotenv": "^16.5.0",
@@ -26,7 +32,11 @@
     "@types/node": "^24.0.3",
     "ajv": "^8.20.0",
     "ajv-formats": "^3.0.1",
+    "fallow": "^2.96.0",
+    "oxfmt": "^0.55.0",
+    "oxlint": "^1.70.0",
     "ts-node": "^10.9.2",
     "typescript": "^5.8.3"
-  }
+  },
+  "packageManager": "pnpm@9.0.0"
 }

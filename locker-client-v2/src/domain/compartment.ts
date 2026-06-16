@@ -8,7 +8,7 @@ export interface CompartmentTarget {
   relayAddress: RelayAddress;
 }
 
-export type DoorState = "open" | "closed" | "unknown";
+export type DoorState = 'open' | 'closed' | 'unknown';
 
 export interface CompartmentConfig {
   compartment_number: number;
@@ -21,21 +21,15 @@ export const MAX_FLASH_DURATION_MS = 500;
 export const DEFAULT_FLASH_DURATION_MS = 200;
 export const FLASH_DURATION_STEP_MS = 100;
 
-export function normalizeFlashDurationMs(
-  configured: number | undefined,
-): number {
+export function normalizeFlashDurationMs(configured: number | undefined): number {
   const value = configured ?? DEFAULT_FLASH_DURATION_MS;
 
   if (!Number.isFinite(value) || value < MIN_FLASH_DURATION_MS) {
-    throw new Error(
-      `flashDurationMs must be at least ${MIN_FLASH_DURATION_MS}ms`,
-    );
+    throw new Error(`flashDurationMs must be at least ${MIN_FLASH_DURATION_MS}ms`);
   }
 
   if (value > MAX_FLASH_DURATION_MS) {
-    throw new Error(
-      `flashDurationMs must not exceed ${MAX_FLASH_DURATION_MS}ms`,
-    );
+    throw new Error(`flashDurationMs must not exceed ${MAX_FLASH_DURATION_MS}ms`);
   }
 
   return value;

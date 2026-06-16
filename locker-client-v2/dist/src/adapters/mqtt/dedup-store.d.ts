@@ -1,5 +1,5 @@
-import type { DedupStorePort } from "../../ports/mqtt.port";
-type CommandStatus = "in_progress" | "completed";
+import type { DedupStorePort } from '../../ports/mqtt.port';
+type CommandStatus = 'in_progress' | 'completed';
 interface CommandRecord {
     action: string;
     status: CommandStatus;

@@ -1,5 +1,5 @@
-import type { CompartmentTarget, DoorState } from "../../src/domain/compartment";
-import type { LockerBusPort } from "../../src/ports/locker-bus.port";
+import type { CompartmentTarget, DoorState } from '../../src/domain/compartment';
+import type { LockerBusPort } from '../../src/ports/locker-bus.port';
 
 export class FakeLockerBus implements LockerBusPort {
   readonly flashCalls: Array<{
@@ -30,17 +30,14 @@ export class FakeLockerBus implements LockerBusPort {
   }
 
   getConnectionState() {
-    return this.connected ? ("connected" as const) : ("disconnected" as const);
+    return this.connected ? ('connected' as const) : ('disconnected' as const);
   }
 
   async ensureConnected(): Promise<boolean> {
     return this.connected;
   }
 
-  async flashRelay(
-    target: CompartmentTarget,
-    durationMs: number,
-  ): Promise<void> {
+  async flashRelay(target: CompartmentTarget, durationMs: number): Promise<void> {
     this.flashCalls.push({ target, durationMs });
     this.relayStates.set(this.key(target), true);
   }
@@ -54,7 +51,7 @@ export class FakeLockerBus implements LockerBusPort {
   }
 
   async readDoorSensor(target: CompartmentTarget): Promise<DoorState> {
-    return this.doorStates.get(this.key(target)) ?? "closed";
+    return this.doorStates.get(this.key(target)) ?? 'closed';
   }
 
   async turnAllRelaysOff(slaveId: number): Promise<void> {

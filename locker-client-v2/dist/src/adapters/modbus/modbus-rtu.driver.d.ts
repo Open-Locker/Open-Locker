@@ -1,10 +1,10 @@
-import type { ModbusDriver } from "./bus-actor";
+import type { ModbusDriver } from './bus-actor';
 interface ModbusConnectionConfig {
     port: string;
     baudRate: number;
     dataBits: 7 | 8;
     stopBits: 1 | 2;
-    parity: "none" | "even" | "odd";
+    parity: 'none' | 'even' | 'odd';
     timeout: number;
 }
 export declare class ModbusRtuDriver implements ModbusDriver {

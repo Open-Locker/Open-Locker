@@ -1,11 +1,11 @@
-import fs from "fs";
-import { load } from "js-yaml";
-import type { LockerConfig, RuntimeConfigOverlay } from "../../domain/config";
-import { normalizeFlashDurationMs } from "../../domain/compartment";
-import type { ConfigRepositoryPort } from "../../ports/config.port";
-import type { MqttTransportSettings } from "../../ports/mqtt.port";
-import { CONFIG_FILE } from "../../infrastructure/paths";
-import { FileRuntimeOverlayStore } from "./runtime-overlay.store";
+import fs from 'fs';
+import { load } from 'js-yaml';
+import type { LockerConfig, RuntimeConfigOverlay } from '../../domain/config';
+import { normalizeFlashDurationMs } from '../../domain/compartment';
+import type { ConfigRepositoryPort } from '../../ports/config.port';
+import type { MqttTransportSettings } from '../../ports/mqtt.port';
+import { CONFIG_FILE } from '../../infrastructure/paths';
+import { FileRuntimeOverlayStore } from './runtime-overlay.store';
 
 function mergeRuntimeConfig(
   base: LockerConfig,
@@ -17,9 +17,8 @@ function mergeRuntimeConfig(
   return {
     ...base,
     mqtt: {
-      ...(base.mqtt ?? {}),
-      heartbeatInterval:
-        overlay.mqtt?.heartbeatInterval ?? base.mqtt?.heartbeatInterval,
+      ...base.mqtt,
+      heartbeatInterval: overlay.mqtt?.heartbeatInterval ?? base.mqtt?.heartbeatInterval,
     },
     compartments: overlay.compartments ?? base.compartments,
   };
@@ -29,9 +28,7 @@ export class YamlConfigRepository implements ConfigRepositoryPort {
   private config: LockerConfig | null = null;
   private explicitRuntimeCompartments = false;
 
-  constructor(
-    private readonly overlayStore = new FileRuntimeOverlayStore(),
-  ) {}
+  constructor(private readonly overlayStore = new FileRuntimeOverlayStore()) {}
 
   load(): LockerConfig {
     if (this.config) {
@@ -42,11 +39,11 @@ export class YamlConfigRepository implements ConfigRepositoryPort {
       throw new Error(`Configuration file not found: ${CONFIG_FILE}`);
     }
 
-    const parsed = (load(fs.readFileSync(CONFIG_FILE, "utf8")) as LockerConfig) ?? {};
+    const parsed = (load(fs.readFileSync(CONFIG_FILE, 'utf8')) as LockerConfig) ?? {};
     parsed.mqtt = parsed.mqtt ?? {};
 
     if (!parsed.modbus?.port) {
-      throw new Error("modbus.port is required");
+      throw new Error('modbus.port is required');
     }
 
     normalizeFlashDurationMs(parsed.modbus.flashDurationMs);
@@ -65,11 +62,7 @@ export class YamlConfigRepository implements ConfigRepositoryPort {
 
   getCompartmentConfig(compartmentNumber: number) {
     const config = this.load();
-    return (
-      config.compartments?.find(
-        (c) => c.compartment_number === compartmentNumber,
-      ) ?? null
-    );
+    return config.compartments?.find((c) => c.compartment_number === compartmentNumber) ?? null;
   }
 
   hasExplicitRuntimeCompartments(): boolean {

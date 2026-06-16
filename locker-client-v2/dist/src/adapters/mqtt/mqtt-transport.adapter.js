@@ -7,7 +7,7 @@ exports.MqttTransportAdapter = void 0;
 const mqtt_1 = __importDefault(require("mqtt"));
 class MqttTransportAdapter {
     client = null;
-    connectionState = "disconnected";
+    connectionState = 'disconnected';
     intentionalShutdown = false;
     reconnectExhausted = false;
     reconnectAttempts = 0;
@@ -41,7 +41,7 @@ class MqttTransportAdapter {
         }
         return new Promise((resolve) => {
             this.intentionalShutdown = true;
-            this.connectionState = "disconnected";
+            this.connectionState = 'disconnected';
             this.client.end(false, () => {
                 this.client = null;
                 this.intentionalShutdown = false;
@@ -76,13 +76,13 @@ class MqttTransportAdapter {
     onMessage(handler) {
         this.messageHandler = handler;
         if (this.client) {
-            this.client.on("message", handler);
+            this.client.on('message', handler);
         }
     }
     connectInternal(brokerUrl, options) {
         this.intentionalShutdown = false;
         this.reconnectExhausted = false;
-        this.connectionState = "connecting";
+        this.connectionState = 'connecting';
         return new Promise((resolve, reject) => {
             const clientOptions = {
                 keepalive: this.transport.keepalive,
@@ -94,22 +94,22 @@ class MqttTransportAdapter {
             this.client = mqtt_1.default.connect(brokerUrl, clientOptions);
             let initialConnectSettled = false;
             if (this.messageHandler) {
-                this.client.on("message", this.messageHandler);
+                this.client.on('message', this.messageHandler);
             }
-            this.client.on("connect", () => {
+            this.client.on('connect', () => {
                 this.reconnectAttempts = 0;
-                this.connectionState = "connected";
+                this.connectionState = 'connected';
                 initialConnectSettled = true;
                 resolve();
             });
-            this.client.on("error", (error) => {
+            this.client.on('error', (error) => {
                 if (!initialConnectSettled) {
-                    this.connectionState = "disconnected";
+                    this.connectionState = 'disconnected';
                     reject(error);
                 }
             });
-            this.client.on("reconnect", () => {
-                this.connectionState = "reconnecting";
+            this.client.on('reconnect', () => {
+                this.connectionState = 'reconnecting';
                 this.reconnectAttempts++;
                 const max = this.transport.maxReconnectAttempts;
                 if (max > 0 && this.reconnectAttempts >= max) {
@@ -117,29 +117,29 @@ class MqttTransportAdapter {
                     this.client?.end(true);
                 }
             });
-            this.client.on("close", () => {
+            this.client.on('close', () => {
                 if (this.intentionalShutdown) {
-                    this.connectionState = "disconnected";
+                    this.connectionState = 'disconnected';
                     return;
                 }
                 if (this.reconnectExhausted) {
-                    this.connectionState = "disconnected";
+                    this.connectionState = 'disconnected';
                     return;
                 }
                 if (this.transport.reconnectPeriod === 0) {
-                    this.connectionState = "disconnected";
+                    this.connectionState = 'disconnected';
                     return;
                 }
-                this.connectionState = "reconnecting";
+                this.connectionState = 'reconnecting';
             });
-            this.client.on("offline", () => {
-                this.connectionState = "reconnecting";
+            this.client.on('offline', () => {
+                this.connectionState = 'reconnecting';
             });
         });
     }
     requireClient() {
         if (!this.client || !this.client.connected) {
-            throw new Error("MQTT client is not connected");
+            throw new Error('MQTT client is not connected');
         }
         return this.client;
     }

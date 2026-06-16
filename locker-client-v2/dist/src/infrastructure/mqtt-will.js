@@ -10,8 +10,8 @@ function connectionLostWillOptions(lockerUuid, nowIso = () => new Date().toISOSt
     const payload = JSON.stringify({
         message_id: (0, crypto_1.randomUUID)(),
         timestamp: nowIso(),
-        status: "offline",
-        reason: "mqtt_last_will",
+        status: 'offline',
+        reason: 'mqtt_last_will',
     });
     return {
         will: {

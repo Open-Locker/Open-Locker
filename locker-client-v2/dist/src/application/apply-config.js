@@ -12,12 +12,12 @@ function normalizeCompartments(compartments) {
         slaveId: c.slaveId,
         address: c.address,
     }))
-        .sort((a, b) => a.compartment_number - b.compartment_number);
+        .toSorted((a, b) => a.compartment_number - b.compartment_number);
 }
 function computeAppliedConfigHash(compartments) {
-    return (0, crypto_1.createHash)("sha256")
+    return (0, crypto_1.createHash)('sha256')
         .update(JSON.stringify(normalizeCompartments(compartments)))
-        .digest("hex");
+        .digest('hex');
 }
 class ApplyConfigUseCase {
     deps;
@@ -35,7 +35,7 @@ class ApplyConfigUseCase {
             this.deps.restartPolling();
             return {
                 appliedConfigHash: overlay.appliedConfigHash,
-                message: "Config applied.",
+                message: 'Config applied.',
             };
         }
         catch (error) {
@@ -48,7 +48,7 @@ class ApplyConfigUseCase {
         this.validateCompartments(normalized);
         const hash = computeAppliedConfigHash(normalized);
         if (hash.toLowerCase() !== command.data.config_hash.toLowerCase()) {
-            throw new errors_1.LockerError(errors_1.MqttErrorCode.INVALID_CONFIG, "config_hash does not match the provided compartments mapping");
+            throw new errors_1.LockerError(errors_1.MqttErrorCode.INVALID_CONFIG, 'config_hash does not match the provided compartments mapping');
         }
         return {
             mqtt: { heartbeatInterval: command.data.heartbeat_interval_seconds },
@@ -62,7 +62,7 @@ class ApplyConfigUseCase {
         const seenTargets = new Set();
         for (const c of compartments) {
             if (c.address > 7) {
-                throw new errors_1.LockerError(errors_1.MqttErrorCode.INVALID_CONFIG, "compartment addresses must be between 0 and 7");
+                throw new errors_1.LockerError(errors_1.MqttErrorCode.INVALID_CONFIG, 'compartment addresses must be between 0 and 7');
             }
             if (seenNumbers.has(c.compartment_number)) {
                 throw new errors_1.LockerError(errors_1.MqttErrorCode.INVALID_CONFIG, `duplicate compartment_number ${c.compartment_number}`);

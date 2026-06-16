@@ -1,8 +1,8 @@
-import fs from "fs";
-import type { DedupStorePort } from "../../ports/mqtt.port";
-import { MQTT_DEDUP_STATE_FILE } from "../../infrastructure/paths";
+import fs from 'fs';
+import type { DedupStorePort } from '../../ports/mqtt.port';
+import { MQTT_DEDUP_STATE_FILE } from '../../infrastructure/paths';
 
-type CommandStatus = "in_progress" | "completed";
+type CommandStatus = 'in_progress' | 'completed';
 
 interface CommandRecord {
   action: string;
@@ -38,7 +38,7 @@ export class FileDedupStore implements DedupStorePort {
     const state = this.loadState();
     state.commandRecords[transactionId] = {
       action,
-      status: "in_progress",
+      status: 'in_progress',
       updatedAt: new Date().toISOString(),
     };
     this.saveState(state);
@@ -48,7 +48,7 @@ export class FileDedupStore implements DedupStorePort {
     const state = this.loadState();
     state.commandRecords[transactionId] = {
       action,
-      status: "completed",
+      status: 'completed',
       updatedAt: new Date().toISOString(),
     };
     this.saveState(state);
@@ -66,7 +66,7 @@ export class FileDedupStore implements DedupStorePort {
     }
 
     const parsed = JSON.parse(
-      fs.readFileSync(MQTT_DEDUP_STATE_FILE, "utf8"),
+      fs.readFileSync(MQTT_DEDUP_STATE_FILE, 'utf8'),
     ) as Partial<DedupState>;
     this.state = {
       seenMessageIds: parsed.seenMessageIds ?? {},
@@ -77,11 +77,7 @@ export class FileDedupStore implements DedupStorePort {
 
   private saveState(state: DedupState): void {
     this.state = state;
-    fs.writeFileSync(
-      MQTT_DEDUP_STATE_FILE,
-      JSON.stringify(state, null, 2),
-      "utf8",
-    );
+    fs.writeFileSync(MQTT_DEDUP_STATE_FILE, JSON.stringify(state, null, 2), 'utf8');
   }
 }
 
@@ -104,7 +100,7 @@ export class InMemoryDedupStore implements DedupStorePort {
   markCommandInProgress(transactionId: string, action: string): void {
     this.commandRecords.set(transactionId, {
       action,
-      status: "in_progress",
+      status: 'in_progress',
       updatedAt: new Date().toISOString(),
     });
   }
@@ -112,7 +108,7 @@ export class InMemoryDedupStore implements DedupStorePort {
   markCommandCompleted(transactionId: string, action: string): void {
     this.commandRecords.set(transactionId, {
       action,
-      status: "completed",
+      status: 'completed',
       updatedAt: new Date().toISOString(),
     });
   }

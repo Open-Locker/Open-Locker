@@ -1,22 +1,21 @@
-import assert from "node:assert/strict";
-import { test } from "node:test";
-import { createApplyConfigHandler } from "../../src/adapters/mqtt/handlers/apply-config.handler";
-import { ApplyConfigUseCase } from "../../src/application/apply-config";
-import { OutboundMqttAdapter } from "../../src/adapters/mqtt/outbound-mqtt.adapter";
-import { FakeLockerBus } from "../helpers/fake-locker-bus";
-import type { ConfigRepositoryPort } from "../../src/ports/config.port";
-import type { RuntimeOverlayStorePort } from "../../src/ports/config.port";
-import { computeAppliedConfigHash } from "../../src/application/apply-config";
+import assert from 'node:assert/strict';
+import { test } from 'node:test';
+import { createApplyConfigHandler } from '../../src/adapters/mqtt/handlers/apply-config.handler';
+import { ApplyConfigUseCase } from '../../src/application/apply-config';
+import { OutboundMqttAdapter } from '../../src/adapters/mqtt/outbound-mqtt.adapter';
+import { FakeLockerBus } from '../helpers/fake-locker-bus';
+import type { ConfigRepositoryPort } from '../../src/ports/config.port';
+import type { RuntimeOverlayStorePort } from '../../src/ports/config.port';
+import { computeAppliedConfigHash } from '../../src/application/apply-config';
 
 class MemoryOverlayStore implements RuntimeOverlayStorePort {
-  private overlay: import("../../src/domain/config").RuntimeConfigOverlay | null =
-    null;
+  private overlay: import('../../src/domain/config').RuntimeConfigOverlay | null = null;
 
   load() {
     return this.overlay;
   }
 
-  save(overlay: import("../../src/domain/config").RuntimeConfigOverlay) {
+  save(overlay: import('../../src/domain/config').RuntimeConfigOverlay) {
     this.overlay = overlay;
     return overlay;
   }
@@ -33,12 +32,12 @@ function createApplyConfigHarness() {
   const overlayStore = new MemoryOverlayStore();
   const config: ConfigRepositoryPort = {
     load: () => ({
-      modbus: { port: "/dev/null", flashDurationMs: 200 },
+      modbus: { port: '/dev/null', flashDurationMs: 200 },
       mqtt: { heartbeatInterval: 15 },
       compartments,
     }),
     reload: () => ({
-      modbus: { port: "/dev/null", flashDurationMs: 200 },
+      modbus: { port: '/dev/null', flashDurationMs: 200 },
       mqtt: { heartbeatInterval: 15 },
       compartments,
     }),
@@ -60,8 +59,8 @@ function createApplyConfigHarness() {
     async (_topic, payload) => {
       published.push(payload);
     },
-    "locker/test/response",
-    () => "2026-06-16T12:00:00.000Z",
+    'locker/test/response',
+    () => '2026-06-16T12:00:00.000Z',
   );
 
   const applyConfig = new ApplyConfigUseCase({
@@ -77,17 +76,17 @@ function createApplyConfigHarness() {
   return { handler, published, overlayStore };
 }
 
-test("apply_config handler publishes success with applied_config_hash", async () => {
+test('apply_config handler publishes success with applied_config_hash', async () => {
   const { handler, published, overlayStore } = createApplyConfigHarness();
   const configHash = computeAppliedConfigHash(compartments);
 
   await handler.handle(
-    { lockerUuid: "test" },
+    { lockerUuid: 'test' },
     {
-      action: "apply_config",
-      message_id: "msg-1",
-      transaction_id: "tx-1",
-      timestamp: "2026-06-16T12:00:00.000Z",
+      action: 'apply_config',
+      message_id: 'msg-1',
+      transaction_id: 'tx-1',
+      timestamp: '2026-06-16T12:00:00.000Z',
       data: {
         config_hash: configHash,
         heartbeat_interval_seconds: 30,
@@ -103,25 +102,25 @@ test("apply_config handler publishes success with applied_config_hash", async ()
     result: string;
     applied_config_hash: string;
   };
-  assert.equal(response.action, "apply_config");
-  assert.equal(response.result, "success");
+  assert.equal(response.action, 'apply_config');
+  assert.equal(response.result, 'success');
   assert.equal(response.applied_config_hash, configHash);
 });
 
-test("apply_config handler propagates runtime apply failures", async () => {
+test('apply_config handler propagates runtime apply failures', async () => {
   const bus = new FakeLockerBus([1]);
   bus.reloadRuntimeConfig = async () => {
-    throw new Error("modbus reconnect failed");
+    throw new Error('modbus reconnect failed');
   };
 
   const overlayStore = new MemoryOverlayStore();
   const config: ConfigRepositoryPort = {
     load: () => ({
-      modbus: { port: "/dev/null", flashDurationMs: 200 },
+      modbus: { port: '/dev/null', flashDurationMs: 200 },
       mqtt: { heartbeatInterval: 15 },
     }),
     reload: () => ({
-      modbus: { port: "/dev/null", flashDurationMs: 200 },
+      modbus: { port: '/dev/null', flashDurationMs: 200 },
       mqtt: { heartbeatInterval: 15 },
     }),
     getCompartmentConfig: () => null,
@@ -145,18 +144,18 @@ test("apply_config handler propagates runtime apply failures", async () => {
       restartHeartbeat: () => undefined,
       restartPolling: () => undefined,
     }),
-    outbound: new OutboundMqttAdapter(async () => undefined, "locker/test/response"),
+    outbound: new OutboundMqttAdapter(async () => undefined, 'locker/test/response'),
   });
 
   await assert.rejects(
     () =>
       handler.handle(
-        { lockerUuid: "test" },
+        { lockerUuid: 'test' },
         {
-          action: "apply_config",
-          message_id: "msg-2",
-          transaction_id: "tx-2",
-          timestamp: "2026-06-16T12:00:00.000Z",
+          action: 'apply_config',
+          message_id: 'msg-2',
+          transaction_id: 'tx-2',
+          timestamp: '2026-06-16T12:00:00.000Z',
           data: {
             config_hash: computeAppliedConfigHash(compartments),
             heartbeat_interval_seconds: 30,

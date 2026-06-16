@@ -1,7 +1,7 @@
-import type { LockerConfig } from "../../domain/config";
-import type { ConfigRepositoryPort } from "../../ports/config.port";
-import type { MqttTransportSettings } from "../../ports/mqtt.port";
-import { FileRuntimeOverlayStore } from "./runtime-overlay.store";
+import type { LockerConfig } from '../../domain/config';
+import type { ConfigRepositoryPort } from '../../ports/config.port';
+import type { MqttTransportSettings } from '../../ports/mqtt.port';
+import { FileRuntimeOverlayStore } from './runtime-overlay.store';
 export declare class YamlConfigRepository implements ConfigRepositoryPort {
     private readonly overlayStore;
     private config;

@@ -48,7 +48,7 @@ class PollCompartmentStateUseCase {
             catch {
                 entries.push({
                     compartment_number: compartment.compartment_number,
-                    door_state: "unknown",
+                    door_state: 'unknown',
                 });
             }
         }

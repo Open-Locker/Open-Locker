@@ -1,4 +1,4 @@
-import { z } from "zod";
+import { z } from 'zod';
 
 const nonEmptyString = z.string().trim().min(1);
 
@@ -10,18 +10,16 @@ export const mqttCommandEnvelopeSchema = z.object({
 });
 
 export const openCompartmentCommandSchema = mqttCommandEnvelopeSchema.extend({
-  action: z.literal("open_compartment"),
+  action: z.literal('open_compartment'),
   data: z.object({
     compartment_number: z.number().int().positive(),
   }),
 });
 
-export type OpenCompartmentCommand = z.infer<
-  typeof openCompartmentCommandSchema
->;
+export type OpenCompartmentCommand = z.infer<typeof openCompartmentCommandSchema>;
 
 export const applyConfigCommandSchema = mqttCommandEnvelopeSchema.extend({
-  action: z.literal("apply_config"),
+  action: z.literal('apply_config'),
   data: z.object({
     config_hash: z.string().regex(/^[a-f0-9]{64}$/i),
     heartbeat_interval_seconds: z.number().int().positive(),

@@ -10,26 +10,26 @@ exports.provisionDevice = provisionDevice;
 const crypto_1 = require("crypto");
 const fs_1 = __importDefault(require("fs"));
 const paths_1 = require("../infrastructure/paths");
-exports.DEFAULT_MQTT_BROKER_URL = "mqtt://open-locker.cloud";
+exports.DEFAULT_MQTT_BROKER_URL = 'mqtt://open-locker.cloud';
 function getOrCreateClientId() {
     if (process.env.MQTT_CLIENT_ID) {
         return process.env.MQTT_CLIENT_ID;
     }
     if (fs_1.default.existsSync(paths_1.MQTT_CLIENT_ID_FILE)) {
-        const existing = fs_1.default.readFileSync(paths_1.MQTT_CLIENT_ID_FILE, "utf8").trim();
+        const existing = fs_1.default.readFileSync(paths_1.MQTT_CLIENT_ID_FILE, 'utf8').trim();
         if (existing) {
             return existing;
         }
     }
-    const clientId = `locker-client-${(0, crypto_1.randomBytes)(4).toString("hex")}`;
-    fs_1.default.writeFileSync(paths_1.MQTT_CLIENT_ID_FILE, clientId, "utf8");
+    const clientId = `locker-client-${(0, crypto_1.randomBytes)(4).toString('hex')}`;
+    fs_1.default.writeFileSync(paths_1.MQTT_CLIENT_ID_FILE, clientId, 'utf8');
     return clientId;
 }
 function getRequiredProvisioningDefaults() {
     const username = process.env.MQTT_DEFAULT_USERNAME?.trim();
     const password = process.env.MQTT_DEFAULT_PASSWORD?.trim();
     if (!username || !password) {
-        throw new Error("Missing MQTT_DEFAULT_USERNAME or MQTT_DEFAULT_PASSWORD environment variables");
+        throw new Error('Missing MQTT_DEFAULT_USERNAME or MQTT_DEFAULT_PASSWORD environment variables');
     }
     return { defaultUsername: username, defaultPassword: password };
 }
@@ -51,7 +51,7 @@ async function provisionDevice(options) {
 function waitForProvisioningReply(transport, replyTopic, registerTopic, clientId) {
     return new Promise((resolve, reject) => {
         const timeout = setTimeout(() => {
-            reject(new Error("Provisioning timed out"));
+            reject(new Error('Provisioning timed out'));
         }, 30_000);
         transport.onMessage((topic, payload) => {
             if (topic !== replyTopic) {
@@ -60,11 +60,11 @@ function waitForProvisioningReply(transport, replyTopic, registerTopic, clientId
             try {
                 const message = JSON.parse(payload.toString());
                 clearTimeout(timeout);
-                if (message.result === "success" && message.username && message.password) {
+                if (message.result === 'success' && message.username && message.password) {
                     resolve({ username: message.username, password: message.password });
                     return;
                 }
-                reject(new Error(message.message ?? "Provisioning failed"));
+                reject(new Error(message.message ?? 'Provisioning failed'));
             }
             catch (error) {
                 reject(error);

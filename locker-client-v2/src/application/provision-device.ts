@@ -1,10 +1,10 @@
-import { randomBytes, randomUUID } from "crypto";
-import fs from "fs";
-import type { MessageTransportPort } from "../ports/mqtt.port";
-import { FileCredentialStore } from "../adapters/persistence/file-credential.store";
-import { MQTT_CLIENT_ID_FILE } from "../infrastructure/paths";
+import { randomBytes, randomUUID } from 'crypto';
+import fs from 'fs';
+import type { MessageTransportPort } from '../ports/mqtt.port';
+import { FileCredentialStore } from '../adapters/persistence/file-credential.store';
+import { MQTT_CLIENT_ID_FILE } from '../infrastructure/paths';
 
-export const DEFAULT_MQTT_BROKER_URL = "mqtt://open-locker.cloud";
+export const DEFAULT_MQTT_BROKER_URL = 'mqtt://open-locker.cloud';
 
 export function getOrCreateClientId(): string {
   if (process.env.MQTT_CLIENT_ID) {
@@ -12,14 +12,14 @@ export function getOrCreateClientId(): string {
   }
 
   if (fs.existsSync(MQTT_CLIENT_ID_FILE)) {
-    const existing = fs.readFileSync(MQTT_CLIENT_ID_FILE, "utf8").trim();
+    const existing = fs.readFileSync(MQTT_CLIENT_ID_FILE, 'utf8').trim();
     if (existing) {
       return existing;
     }
   }
 
-  const clientId = `locker-client-${randomBytes(4).toString("hex")}`;
-  fs.writeFileSync(MQTT_CLIENT_ID_FILE, clientId, "utf8");
+  const clientId = `locker-client-${randomBytes(4).toString('hex')}`;
+  fs.writeFileSync(MQTT_CLIENT_ID_FILE, clientId, 'utf8');
   return clientId;
 }
 
@@ -30,9 +30,7 @@ export function getRequiredProvisioningDefaults(): {
   const username = process.env.MQTT_DEFAULT_USERNAME?.trim();
   const password = process.env.MQTT_DEFAULT_PASSWORD?.trim();
   if (!username || !password) {
-    throw new Error(
-      "Missing MQTT_DEFAULT_USERNAME or MQTT_DEFAULT_PASSWORD environment variables",
-    );
+    throw new Error('Missing MQTT_DEFAULT_USERNAME or MQTT_DEFAULT_PASSWORD environment variables');
   }
   return { defaultUsername: username, defaultPassword: password };
 }
@@ -76,7 +74,7 @@ function waitForProvisioningReply(
 ): Promise<{ username: string; password: string }> {
   return new Promise((resolve, reject) => {
     const timeout = setTimeout(() => {
-      reject(new Error("Provisioning timed out"));
+      reject(new Error('Provisioning timed out'));
     }, 30_000);
 
     transport.onMessage((topic, payload) => {
@@ -94,12 +92,12 @@ function waitForProvisioningReply(
 
         clearTimeout(timeout);
 
-        if (message.result === "success" && message.username && message.password) {
+        if (message.result === 'success' && message.username && message.password) {
           resolve({ username: message.username, password: message.password });
           return;
         }
 
-        reject(new Error(message.message ?? "Provisioning failed"));
+        reject(new Error(message.message ?? 'Provisioning failed'));
       } catch (error) {
         reject(error);
       }

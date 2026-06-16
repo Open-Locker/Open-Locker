@@ -1,4 +1,4 @@
-import type { CommandResponseBody, OutboundMqttPort, OutboundPublishOptions } from "../../ports/mqtt.port";
+import type { CommandResponseBody, OutboundMqttPort, OutboundPublishOptions } from '../../ports/mqtt.port';
 export declare class OutboundMqttAdapter implements OutboundMqttPort {
     private readonly publishRaw;
     private readonly responseTopic;

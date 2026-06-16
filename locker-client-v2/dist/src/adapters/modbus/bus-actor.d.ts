@@ -1,6 +1,6 @@
-import PQueue from "p-queue";
-import type { CompartmentTarget, DoorState } from "../../domain/compartment";
-import { ConnectionState, LockerBusPort } from "../../ports/locker-bus.port";
+import PQueue from 'p-queue';
+import type { CompartmentTarget, DoorState } from '../../domain/compartment';
+import { ConnectionState, LockerBusPort } from '../../ports/locker-bus.port';
 export interface ModbusDriver {
     connect(): Promise<void>;
     disconnect(): Promise<void>;

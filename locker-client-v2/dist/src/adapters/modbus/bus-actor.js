@@ -11,7 +11,7 @@ class ModbusBusActor {
     driver;
     configuredSlaveIds;
     queue = new p_queue_1.default({ concurrency: 1 });
-    connectionState = "disconnected";
+    connectionState = 'disconnected';
     reconnect;
     constructor(driver, reconnectOptions, configuredSlaveIds = [1]) {
         this.driver = driver;
@@ -28,7 +28,7 @@ class ModbusBusActor {
         this.reconnect.cancelScheduled();
         this.queue.clear();
         await this.driver.disconnect();
-        this.connectionState = "disconnected";
+        this.connectionState = 'disconnected';
     }
     getConnectionState() {
         return this.connectionState;
@@ -46,10 +46,10 @@ class ModbusBusActor {
     async readDoorSensor(target) {
         try {
             const values = await this.run(() => this.driver.readDiscreteInputs(target.slaveId, target.relayAddress, 1), locker_bus_port_1.BusPriority.POLL);
-            return values[0] ? "open" : "closed";
+            return values[0] ? 'open' : 'closed';
         }
         catch {
-            return "unknown";
+            return 'unknown';
         }
     }
     async turnAllRelaysOff(slaveId) {
@@ -71,9 +71,9 @@ class ModbusBusActor {
         return this.queue;
     }
     async connectInternal() {
-        this.connectionState = "connecting";
+        this.connectionState = 'connecting';
         await this.driver.connect();
-        this.connectionState = "connected";
+        this.connectionState = 'connected';
         this.reconnect.resetAttempts();
     }
     run(operation, priority) {

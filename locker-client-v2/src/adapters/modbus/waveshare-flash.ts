@@ -1,7 +1,4 @@
-import {
-  DEFAULT_FLASH_DURATION_MS,
-  toFlashDurationSteps,
-} from "../../domain/compartment";
+import { DEFAULT_FLASH_DURATION_MS, toFlashDurationSteps } from '../../domain/compartment';
 
 export const FLASH_ON_BASE_ADDRESS = 0x0200;
 export const FLASH_OFF_BASE_ADDRESS = 0x0400;

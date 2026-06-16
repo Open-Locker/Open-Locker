@@ -11,16 +11,12 @@ const scheduler_1 = require("../../src/infrastructure/scheduler");
 function createConfigStub(overrides = {}) {
     return {
         load: () => ({
-            modbus: { port: "/dev/null", flashDurationMs: 200 },
-            compartments: [
-                { compartment_number: 1, slaveId: 1, address: 0 },
-            ],
+            modbus: { port: '/dev/null', flashDurationMs: 200 },
+            compartments: [{ compartment_number: 1, slaveId: 1, address: 0 }],
         }),
         reload: () => ({
-            modbus: { port: "/dev/null", flashDurationMs: 200 },
-            compartments: [
-                { compartment_number: 1, slaveId: 1, address: 0 },
-            ],
+            modbus: { port: '/dev/null', flashDurationMs: 200 },
+            compartments: [{ compartment_number: 1, slaveId: 1, address: 0 }],
         }),
         getCompartmentConfig: (n) => n === 1 ? { compartment_number: 1, slaveId: 1, address: 0 } : null,
         hasExplicitRuntimeCompartments: () => true,
@@ -36,7 +32,7 @@ function createConfigStub(overrides = {}) {
         ...overrides,
     };
 }
-(0, node_test_1.test)("OpenCompartmentUseCase uses hardware flash only", async () => {
+(0, node_test_1.test)('OpenCompartmentUseCase uses hardware flash only', async () => {
     const bus = new fake_locker_bus_1.FakeLockerBus([1]);
     const useCase = new open_compartment_1.OpenCompartmentUseCase(bus, createConfigStub(), new scheduler_1.RunAfterCompleteScheduler());
     await useCase.execute(1);
@@ -45,13 +41,16 @@ function createConfigStub(overrides = {}) {
     strict_1.default.equal(bus.flashCalls[0]?.durationMs, 200);
     strict_1.default.equal(bus.writeCoilCalls.length, 0);
 });
-(0, node_test_1.test)("runStartupFailsafe commands all relays off per board", async () => {
+(0, node_test_1.test)('runStartupFailsafe commands all relays off per board', async () => {
     const bus = new fake_locker_bus_1.FakeLockerBus([1, 2]);
     await (0, open_compartment_1.runStartupFailsafe)(bus);
     strict_1.default.deepEqual(bus.turnAllOffCalls, [1, 2]);
 });
-(0, node_test_1.test)("OpenCompartmentUseCase throws when compartment not configured", async () => {
+(0, node_test_1.test)('OpenCompartmentUseCase throws when compartment not configured', async () => {
     const bus = new fake_locker_bus_1.FakeLockerBus([1]);
-    const useCase = new open_compartment_1.OpenCompartmentUseCase(bus, createConfigStub({ hasExplicitRuntimeCompartments: () => true, getCompartmentConfig: () => null }), new scheduler_1.RunAfterCompleteScheduler());
+    const useCase = new open_compartment_1.OpenCompartmentUseCase(bus, createConfigStub({
+        hasExplicitRuntimeCompartments: () => true,
+        getCompartmentConfig: () => null,
+    }), new scheduler_1.RunAfterCompleteScheduler());
     await strict_1.default.rejects(() => useCase.execute(99), /not configured/);
 });

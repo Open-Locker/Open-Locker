@@ -1,4 +1,4 @@
-import type { CredentialStorePort } from "../../ports/config.port";
+import type { CredentialStorePort } from '../../ports/config.port';
 export declare class FileCredentialStore implements CredentialStorePort {
     getCredentials(): {
         username: string;

@@ -5,9 +5,7 @@ export class ReconnectCoordinator {
   private readonly maxAttempts: number;
   private readonly delayMs: number;
 
-  constructor(
-    options: { maxAttempts?: number; delayMs?: number } = {},
-  ) {
+  constructor(options: { maxAttempts?: number; delayMs?: number } = {}) {
     this.maxAttempts = options.maxAttempts ?? 0;
     this.delayMs = options.delayMs ?? 5000;
   }
@@ -41,7 +39,7 @@ export class ReconnectCoordinator {
 
   private async runInternal(reconnectFn: () => Promise<void>): Promise<void> {
     if (this.maxAttempts > 0 && this.attempts >= this.maxAttempts) {
-      throw new Error("Max reconnect attempts reached");
+      throw new Error('Max reconnect attempts reached');
     }
 
     this.attempts++;

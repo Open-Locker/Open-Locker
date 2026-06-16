@@ -2,8 +2,8 @@ import type {
   CommandResponseBody,
   OutboundMqttPort,
   OutboundPublishOptions,
-} from "../../ports/mqtt.port";
-import { serializeOutboundPayload } from "./outbound-envelope";
+} from '../../ports/mqtt.port';
+import { serializeOutboundPayload } from './outbound-envelope';
 
 export class OutboundMqttAdapter implements OutboundMqttPort {
   constructor(

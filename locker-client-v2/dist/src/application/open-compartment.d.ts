@@ -1,6 +1,6 @@
-import type { ConfigRepositoryPort } from "../ports/config.port";
-import type { LockerBusPort } from "../ports/locker-bus.port";
-import type { SchedulerPort } from "../ports/config.port";
+import type { ConfigRepositoryPort } from '../ports/config.port';
+import type { LockerBusPort } from '../ports/locker-bus.port';
+import type { SchedulerPort } from '../ports/config.port';
 export declare class OpenCompartmentUseCase {
     private readonly bus;
     private readonly config;

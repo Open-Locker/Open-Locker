@@ -16,18 +16,18 @@ class FileCredentialStore {
         if (!fs_1.default.existsSync(paths_1.MQTT_CREDENTIALS_FILE)) {
             return null;
         }
-        const raw = JSON.parse(fs_1.default.readFileSync(paths_1.MQTT_CREDENTIALS_FILE, "utf8"));
+        const raw = JSON.parse(fs_1.default.readFileSync(paths_1.MQTT_CREDENTIALS_FILE, 'utf8'));
         const parsed = credentialsSchema.safeParse(raw);
         return parsed.success ? parsed.data : null;
     }
     saveCredentials(credentials) {
-        fs_1.default.writeFileSync(paths_1.MQTT_CREDENTIALS_FILE, JSON.stringify(credentials, null, 2), "utf8");
+        fs_1.default.writeFileSync(paths_1.MQTT_CREDENTIALS_FILE, JSON.stringify(credentials, null, 2), 'utf8');
     }
     isProvisioned() {
         return fs_1.default.existsSync(paths_1.PROVISIONING_STATE_FILE);
     }
     markProvisioned() {
-        fs_1.default.writeFileSync(paths_1.PROVISIONING_STATE_FILE, "provisioned", "utf8");
+        fs_1.default.writeFileSync(paths_1.PROVISIONING_STATE_FILE, 'provisioned', 'utf8');
     }
 }
 exports.FileCredentialStore = FileCredentialStore;

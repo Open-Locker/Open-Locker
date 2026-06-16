@@ -1,8 +1,8 @@
-import type { CompartmentTarget } from "../domain/compartment";
-import { LockerError, MqttErrorCode } from "../domain/errors";
-import type { ConfigRepositoryPort } from "../ports/config.port";
-import type { LockerBusPort } from "../ports/locker-bus.port";
-import type { SchedulerPort } from "../ports/config.port";
+import type { CompartmentTarget } from '../domain/compartment';
+import { LockerError, MqttErrorCode } from '../domain/errors';
+import type { ConfigRepositoryPort } from '../ports/config.port';
+import type { LockerBusPort } from '../ports/locker-bus.port';
+import type { SchedulerPort } from '../ports/config.port';
 
 export class OpenCompartmentUseCase {
   private readonly monitoringKeys = new Set<number>();
@@ -15,11 +15,13 @@ export class OpenCompartmentUseCase {
   ) {}
 
   async execute(compartmentNumber: number): Promise<void> {
-    const connected = await (this.bus as { ensureConnected?: () => Promise<boolean> }).ensureConnected?.();
+    const connected = await (
+      this.bus as { ensureConnected?: () => Promise<boolean> }
+    ).ensureConnected?.();
     if (connected === false) {
       throw new LockerError(
         MqttErrorCode.MODBUS_ERROR,
-        "Cannot open compartment: Modbus connection unavailable",
+        'Cannot open compartment: Modbus connection unavailable',
       );
     }
 
@@ -95,9 +97,7 @@ export class OpenCompartmentUseCase {
   }
 }
 
-export async function runStartupFailsafe(
-  bus: LockerBusPort,
-): Promise<void> {
+export async function runStartupFailsafe(bus: LockerBusPort): Promise<void> {
   const slaveIds = bus.getConfiguredSlaveIds();
   let successCount = 0;
 
@@ -111,6 +111,6 @@ export async function runStartupFailsafe(
   }
 
   if (successCount === 0 && slaveIds.length > 0) {
-    throw new Error("Startup failsafe: all Modbus boards unreachable");
+    throw new Error('Startup failsafe: all Modbus boards unreachable');
   }
 }

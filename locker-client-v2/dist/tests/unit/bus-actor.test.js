@@ -11,11 +11,11 @@ class FakeModbusDriver {
     operations = [];
     open = false;
     async connect() {
-        this.operations.push("connect");
+        this.operations.push('connect');
         this.open = true;
     }
     async disconnect() {
-        this.operations.push("disconnect");
+        this.operations.push('disconnect');
         this.open = false;
     }
     isOpen() {
@@ -26,19 +26,19 @@ class FakeModbusDriver {
         await delay(20);
     }
     async readCoils(_slaveId, _address, _length) {
-        this.operations.push("readCoils");
+        this.operations.push('readCoils');
         await delay(20);
         return [false];
     }
     async readDiscreteInputs(_slaveId, _address, _length) {
-        this.operations.push("readDiscreteInputs");
+        this.operations.push('readDiscreteInputs');
         return [true];
     }
     async turnAllRelaysOff(slaveId) {
         this.operations.push(`allOff:${slaveId}`);
     }
 }
-(0, node_test_1.test)("BusActor serializes concurrent operations", async () => {
+(0, node_test_1.test)('BusActor serializes concurrent operations', async () => {
     const driver = new FakeModbusDriver();
     const bus = new bus_actor_1.ModbusBusActor(driver, { maxAttempts: 0 }, [1]);
     await bus.connect();
@@ -46,25 +46,25 @@ class FakeModbusDriver {
     const first = bus.flashRelay(target, 200);
     const second = bus.readRelayState(target);
     await Promise.all([first, second]);
-    const flashIndex = driver.operations.indexOf("flash:1:0:200");
-    const readIndex = driver.operations.indexOf("readCoils");
+    const flashIndex = driver.operations.indexOf('flash:1:0:200');
+    const readIndex = driver.operations.indexOf('readCoils');
     strict_1.default.ok(flashIndex >= 0);
     strict_1.default.ok(readIndex > flashIndex);
 });
-(0, node_test_1.test)("BusActor command priority runs before poll reads", async () => {
+(0, node_test_1.test)('BusActor command priority runs before poll reads', async () => {
     const driver = new FakeModbusDriver();
     const bus = new bus_actor_1.ModbusBusActor(driver, { maxAttempts: 0 }, [1]);
     await bus.connect();
     const target = { compartmentNumber: 1, slaveId: 1, relayAddress: 0 };
     const queue = bus.getQueue();
     void queue.add(async () => {
-        driver.operations.push("slowPoll");
+        driver.operations.push('slowPoll');
         await delay(50);
     }, { priority: locker_bus_port_1.BusPriority.POLL });
     await delay(5);
     await bus.flashRelay(target, 200);
-    const slowPollIndex = driver.operations.indexOf("slowPoll");
-    const flashIndex = driver.operations.findIndex((op) => op.startsWith("flash:"));
+    const slowPollIndex = driver.operations.indexOf('slowPoll');
+    const flashIndex = driver.operations.findIndex((op) => op.startsWith('flash:'));
     strict_1.default.ok(slowPollIndex >= 0);
     strict_1.default.ok(flashIndex > slowPollIndex);
 });

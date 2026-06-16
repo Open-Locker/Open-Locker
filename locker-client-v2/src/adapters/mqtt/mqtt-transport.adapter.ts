@@ -1,20 +1,19 @@
-import mqtt, { MqttClient } from "mqtt";
+import mqtt, { MqttClient } from 'mqtt';
 import type {
   MessageTransportPort,
   MqttConnectionState,
   MqttTransportSettings,
   OutboundPublishOptions,
-} from "../../ports/mqtt.port";
+} from '../../ports/mqtt.port';
 
 export class MqttTransportAdapter implements MessageTransportPort {
   private client: MqttClient | null = null;
-  private connectionState: MqttConnectionState = "disconnected";
+  private connectionState: MqttConnectionState = 'disconnected';
   private intentionalShutdown = false;
   private reconnectExhausted = false;
   private reconnectAttempts = 0;
   private connectInFlight: Promise<void> | null = null;
-  private messageHandler: ((topic: string, payload: Buffer) => void) | null =
-    null;
+  private messageHandler: ((topic: string, payload: Buffer) => void) | null = null;
   private readonly transport: MqttTransportSettings;
 
   constructor(transport: MqttTransportSettings) {
@@ -29,10 +28,7 @@ export class MqttTransportAdapter implements MessageTransportPort {
     return this.connectionState;
   }
 
-  async connect(
-    brokerUrl: string,
-    options: Record<string, unknown> = {},
-  ): Promise<void> {
+  async connect(brokerUrl: string, options: Record<string, unknown> = {}): Promise<void> {
     if (this.client?.connected) {
       return;
     }
@@ -41,11 +37,9 @@ export class MqttTransportAdapter implements MessageTransportPort {
       return this.connectInFlight;
     }
 
-    this.connectInFlight = this.connectInternal(brokerUrl, options).finally(
-      () => {
-        this.connectInFlight = null;
-      },
-    );
+    this.connectInFlight = this.connectInternal(brokerUrl, options).finally(() => {
+      this.connectInFlight = null;
+    });
 
     return this.connectInFlight;
   }
@@ -57,7 +51,7 @@ export class MqttTransportAdapter implements MessageTransportPort {
 
     return new Promise((resolve) => {
       this.intentionalShutdown = true;
-      this.connectionState = "disconnected";
+      this.connectionState = 'disconnected';
       this.client!.end(false, () => {
         this.client = null;
         this.intentionalShutdown = false;
@@ -104,17 +98,14 @@ export class MqttTransportAdapter implements MessageTransportPort {
   onMessage(handler: (topic: string, payload: Buffer) => void): void {
     this.messageHandler = handler;
     if (this.client) {
-      this.client.on("message", handler);
+      this.client.on('message', handler);
     }
   }
 
-  private connectInternal(
-    brokerUrl: string,
-    options: Record<string, unknown>,
-  ): Promise<void> {
+  private connectInternal(brokerUrl: string, options: Record<string, unknown>): Promise<void> {
     this.intentionalShutdown = false;
     this.reconnectExhausted = false;
-    this.connectionState = "connecting";
+    this.connectionState = 'connecting';
 
     return new Promise((resolve, reject) => {
       const clientOptions = {
@@ -129,25 +120,25 @@ export class MqttTransportAdapter implements MessageTransportPort {
       let initialConnectSettled = false;
 
       if (this.messageHandler) {
-        this.client.on("message", this.messageHandler);
+        this.client.on('message', this.messageHandler);
       }
 
-      this.client.on("connect", () => {
+      this.client.on('connect', () => {
         this.reconnectAttempts = 0;
-        this.connectionState = "connected";
+        this.connectionState = 'connected';
         initialConnectSettled = true;
         resolve();
       });
 
-      this.client.on("error", (error) => {
+      this.client.on('error', (error) => {
         if (!initialConnectSettled) {
-          this.connectionState = "disconnected";
+          this.connectionState = 'disconnected';
           reject(error);
         }
       });
 
-      this.client.on("reconnect", () => {
-        this.connectionState = "reconnecting";
+      this.client.on('reconnect', () => {
+        this.connectionState = 'reconnecting';
         this.reconnectAttempts++;
         const max = this.transport.maxReconnectAttempts;
         if (max > 0 && this.reconnectAttempts >= max) {
@@ -156,31 +147,31 @@ export class MqttTransportAdapter implements MessageTransportPort {
         }
       });
 
-      this.client.on("close", () => {
+      this.client.on('close', () => {
         if (this.intentionalShutdown) {
-          this.connectionState = "disconnected";
+          this.connectionState = 'disconnected';
           return;
         }
         if (this.reconnectExhausted) {
-          this.connectionState = "disconnected";
+          this.connectionState = 'disconnected';
           return;
         }
         if (this.transport.reconnectPeriod === 0) {
-          this.connectionState = "disconnected";
+          this.connectionState = 'disconnected';
           return;
         }
-        this.connectionState = "reconnecting";
+        this.connectionState = 'reconnecting';
       });
 
-      this.client.on("offline", () => {
-        this.connectionState = "reconnecting";
+      this.client.on('offline', () => {
+        this.connectionState = 'reconnecting';
       });
     });
   }
 
   private requireClient(): MqttClient {
     if (!this.client || !this.client.connected) {
-      throw new Error("MQTT client is not connected");
+      throw new Error('MQTT client is not connected');
     }
     return this.client;
   }

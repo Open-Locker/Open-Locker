@@ -1,18 +1,18 @@
-import assert from "node:assert/strict";
-import fs from "node:fs";
-import path from "node:path";
-import { pathToFileURL } from "node:url";
-import Ajv2020 from "ajv/dist/2020";
-import addFormats from "ajv-formats";
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import path from 'node:path';
+import { pathToFileURL } from 'node:url';
+import Ajv2020 from 'ajv/dist/2020';
+import addFormats from 'ajv-formats';
 
 type JsonSchema = Record<string, unknown>;
 
-const repoRoot = path.resolve(process.cwd(), "..");
-const asyncApiRoot = path.join(repoRoot, "docs", "asyncapi");
-const schemaRoot = path.join(asyncApiRoot, "schemas");
+const repoRoot = path.resolve(process.cwd(), '..');
+const asyncApiRoot = path.join(repoRoot, 'docs', 'asyncapi');
+const schemaRoot = path.join(asyncApiRoot, 'schemas');
 
 function readJson(filePath: string): unknown {
-  return JSON.parse(fs.readFileSync(filePath, "utf8"));
+  return JSON.parse(fs.readFileSync(filePath, 'utf8'));
 }
 
 function listJsonFiles(directory: string): string[] {
@@ -25,7 +25,7 @@ function listJsonFiles(directory: string): string[] {
       return listJsonFiles(entryPath);
     }
 
-    return entry.isFile() && entry.name.endsWith(".json") ? [entryPath] : [];
+    return entry.isFile() && entry.name.endsWith('.json') ? [entryPath] : [];
   });
 }
 
@@ -50,20 +50,13 @@ function createAjv() {
 }
 
 export function readAsyncApiExample(exampleFileName: string): unknown {
-  return readJson(path.join(asyncApiRoot, "examples", exampleFileName));
+  return readJson(path.join(asyncApiRoot, 'examples', exampleFileName));
 }
 
-export function assertMatchesSchema(
-  schemaRelativePath: string,
-  payload: unknown,
-): void {
+export function assertMatchesSchema(schemaRelativePath: string, payload: unknown): void {
   const schemaPath = path.join(schemaRoot, schemaRelativePath);
   const validate = createAjv().getSchema(pathToFileURL(schemaPath).href);
 
   assert.ok(validate, `Schema not loaded: ${schemaRelativePath}`);
-  assert.equal(
-    validate(payload),
-    true,
-    JSON.stringify(validate.errors, null, 2),
-  );
+  assert.equal(validate(payload), true, JSON.stringify(validate.errors, null, 2));
 }

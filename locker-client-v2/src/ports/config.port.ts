@@ -1,5 +1,5 @@
-import type { CompartmentConfig } from "../domain/compartment";
-import type { LockerConfig, RuntimeConfigOverlay } from "../domain/config";
+import type { CompartmentConfig } from '../domain/compartment';
+import type { LockerConfig, RuntimeConfigOverlay } from '../domain/config';
 
 export interface ConfigRepositoryPort {
   load(): LockerConfig;
@@ -8,7 +8,7 @@ export interface ConfigRepositoryPort {
   hasExplicitRuntimeCompartments(): boolean;
   getFlashDurationMs(): number;
   getHeartbeatIntervalSeconds(): number;
-  getMqttTransportSettings(): import("./mqtt.port").MqttTransportSettings;
+  getMqttTransportSettings(): import('./mqtt.port').MqttTransportSettings;
 }
 
 export interface RuntimeOverlayStorePort {
@@ -19,10 +19,7 @@ export interface RuntimeOverlayStorePort {
 
 export interface CredentialStorePort {
   getCredentials(): { username: string; password: string } | null;
-  saveCredentials(credentials: {
-    username: string;
-    password: string;
-  }): void;
+  saveCredentials(credentials: { username: string; password: string }): void;
   isProvisioned(): boolean;
   markProvisioned(): void;
 }

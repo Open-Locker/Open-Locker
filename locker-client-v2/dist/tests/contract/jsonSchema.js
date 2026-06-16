@@ -11,11 +11,11 @@ const node_path_1 = __importDefault(require("node:path"));
 const node_url_1 = require("node:url");
 const _2020_1 = __importDefault(require("ajv/dist/2020"));
 const ajv_formats_1 = __importDefault(require("ajv-formats"));
-const repoRoot = node_path_1.default.resolve(process.cwd(), "..");
-const asyncApiRoot = node_path_1.default.join(repoRoot, "docs", "asyncapi");
-const schemaRoot = node_path_1.default.join(asyncApiRoot, "schemas");
+const repoRoot = node_path_1.default.resolve(process.cwd(), '..');
+const asyncApiRoot = node_path_1.default.join(repoRoot, 'docs', 'asyncapi');
+const schemaRoot = node_path_1.default.join(asyncApiRoot, 'schemas');
 function readJson(filePath) {
-    return JSON.parse(node_fs_1.default.readFileSync(filePath, "utf8"));
+    return JSON.parse(node_fs_1.default.readFileSync(filePath, 'utf8'));
 }
 function listJsonFiles(directory) {
     const entries = node_fs_1.default.readdirSync(directory, { withFileTypes: true });
@@ -24,7 +24,7 @@ function listJsonFiles(directory) {
         if (entry.isDirectory()) {
             return listJsonFiles(entryPath);
         }
-        return entry.isFile() && entry.name.endsWith(".json") ? [entryPath] : [];
+        return entry.isFile() && entry.name.endsWith('.json') ? [entryPath] : [];
     });
 }
 function schemaWithFileId(filePath) {
@@ -43,7 +43,7 @@ function createAjv() {
     return ajv;
 }
 function readAsyncApiExample(exampleFileName) {
-    return readJson(node_path_1.default.join(asyncApiRoot, "examples", exampleFileName));
+    return readJson(node_path_1.default.join(asyncApiRoot, 'examples', exampleFileName));
 }
 function assertMatchesSchema(schemaRelativePath, payload) {
     const schemaPath = node_path_1.default.join(schemaRoot, schemaRelativePath);

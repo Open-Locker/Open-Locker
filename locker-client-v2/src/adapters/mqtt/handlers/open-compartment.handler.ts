@@ -1,9 +1,9 @@
-import type { CommandContext, InboundCommandHandler } from "../command-dispatcher";
-import { openCompartmentCommandSchema } from "../../../domain/mqtt-schemas";
-import type { OpenCompartmentUseCase } from "../../../application/open-compartment";
-import type { OutboundMqttPort } from "../../../ports/mqtt.port";
-import type { DedupStorePort } from "../../../ports/mqtt.port";
-import type { PollCompartmentStateUseCase } from "../../../application/state-publishing";
+import type { CommandContext, InboundCommandHandler } from '../command-dispatcher';
+import { openCompartmentCommandSchema } from '../../../domain/mqtt-schemas';
+import type { OpenCompartmentUseCase } from '../../../application/open-compartment';
+import type { OutboundMqttPort } from '../../../ports/mqtt.port';
+import type { DedupStorePort } from '../../../ports/mqtt.port';
+import type { PollCompartmentStateUseCase } from '../../../application/state-publishing';
 
 export function createOpenCompartmentHandler(deps: {
   openCompartment: OpenCompartmentUseCase;
@@ -12,23 +12,23 @@ export function createOpenCompartmentHandler(deps: {
   pollSnapshot: PollCompartmentStateUseCase;
 }): InboundCommandHandler<unknown> {
   return {
-    action: "open_compartment",
+    action: 'open_compartment',
     schema: openCompartmentCommandSchema,
     requiresTransactionId: () => true,
     async handle(_ctx: CommandContext, payload: unknown) {
       const command = openCompartmentCommandSchema.parse(payload);
       const existing = deps.dedup.getCommandRecord(command.transaction_id);
-      if (existing?.status === "completed") {
+      if (existing?.status === 'completed') {
         await deps.outbound.publishCommandResponse({
-          type: "command_response",
+          type: 'command_response',
           action: command.action,
-          result: "success",
+          result: 'success',
           transaction_id: command.transaction_id,
-          message: "Duplicate command ignored (already completed).",
+          message: 'Duplicate command ignored (already completed).',
         });
         return;
       }
-      if (existing?.status === "in_progress") {
+      if (existing?.status === 'in_progress') {
         return;
       }
 
@@ -38,11 +38,11 @@ export function createOpenCompartmentHandler(deps: {
       deps.dedup.markCommandCompleted(command.transaction_id, command.action);
 
       await deps.outbound.publishCommandResponse({
-        type: "command_response",
+        type: 'command_response',
         action: command.action,
-        result: "success",
+        result: 'success',
         transaction_id: command.transaction_id,
-        message: "Compartment opened.",
+        message: 'Compartment opened.',
       });
     },
   };

@@ -25,7 +25,7 @@ class FileDedupStore {
         const state = this.loadState();
         state.commandRecords[transactionId] = {
             action,
-            status: "in_progress",
+            status: 'in_progress',
             updatedAt: new Date().toISOString(),
         };
         this.saveState(state);
@@ -34,7 +34,7 @@ class FileDedupStore {
         const state = this.loadState();
         state.commandRecords[transactionId] = {
             action,
-            status: "completed",
+            status: 'completed',
             updatedAt: new Date().toISOString(),
         };
         this.saveState(state);
@@ -48,7 +48,7 @@ class FileDedupStore {
             this.state = empty;
             return empty;
         }
-        const parsed = JSON.parse(fs_1.default.readFileSync(paths_1.MQTT_DEDUP_STATE_FILE, "utf8"));
+        const parsed = JSON.parse(fs_1.default.readFileSync(paths_1.MQTT_DEDUP_STATE_FILE, 'utf8'));
         this.state = {
             seenMessageIds: parsed.seenMessageIds ?? {},
             commandRecords: parsed.commandRecords ?? {},
@@ -57,7 +57,7 @@ class FileDedupStore {
     }
     saveState(state) {
         this.state = state;
-        fs_1.default.writeFileSync(paths_1.MQTT_DEDUP_STATE_FILE, JSON.stringify(state, null, 2), "utf8");
+        fs_1.default.writeFileSync(paths_1.MQTT_DEDUP_STATE_FILE, JSON.stringify(state, null, 2), 'utf8');
     }
 }
 exports.FileDedupStore = FileDedupStore;
@@ -76,14 +76,14 @@ class InMemoryDedupStore {
     markCommandInProgress(transactionId, action) {
         this.commandRecords.set(transactionId, {
             action,
-            status: "in_progress",
+            status: 'in_progress',
             updatedAt: new Date().toISOString(),
         });
     }
     markCommandCompleted(transactionId, action) {
         this.commandRecords.set(transactionId, {
             action,
-            status: "completed",
+            status: 'completed',
             updatedAt: new Date().toISOString(),
         });
     }

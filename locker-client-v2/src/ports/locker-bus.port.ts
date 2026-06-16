@@ -1,4 +1,4 @@
-import type { CompartmentTarget, DoorState } from "../domain/compartment";
+import type { CompartmentTarget, DoorState } from '../domain/compartment';
 
 export enum BusPriority {
   COMMAND = 4,
@@ -7,7 +7,7 @@ export enum BusPriority {
   MAINTENANCE = 1,
 }
 
-export type ConnectionState = "disconnected" | "connecting" | "connected";
+export type ConnectionState = 'disconnected' | 'connecting' | 'connected';
 
 export interface LockerBusPort {
   connect(): Promise<void>;
@@ -21,13 +21,6 @@ export interface LockerBusPort {
 }
 
 export interface BusOperationRecorder {
-  recordFlashRelay(
-    target: CompartmentTarget,
-    durationMs: number,
-  ): Promise<void>;
-  recordWriteCoil?(
-    slaveId: number,
-    address: number,
-    value: boolean,
-  ): Promise<void>;
+  recordFlashRelay(target: CompartmentTarget, durationMs: number): Promise<void>;
+  recordWriteCoil?(slaveId: number, address: number, value: boolean): Promise<void>;
 }

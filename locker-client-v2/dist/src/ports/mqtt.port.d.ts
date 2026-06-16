@@ -3,9 +3,9 @@ export interface OutboundPublishOptions {
     retain?: boolean;
 }
 export interface CommandResponseBody {
-    type: "command_response";
+    type: 'command_response';
     action: string;
-    result: "success" | "error";
+    result: 'success' | 'error';
     transaction_id: string;
     message?: string;
     error_code?: string;
@@ -15,7 +15,7 @@ export interface OutboundMqttPort {
     publishJson(topic: string, body: Record<string, unknown>, options?: OutboundPublishOptions): Promise<void>;
     publishCommandResponse(body: CommandResponseBody): Promise<void>;
 }
-export type MqttConnectionState = "disconnected" | "connecting" | "connected" | "reconnecting";
+export type MqttConnectionState = 'disconnected' | 'connecting' | 'connected' | 'reconnecting';
 export interface MessageTransportPort {
     connect(brokerUrl: string, options: Record<string, unknown>): Promise<void>;
     disconnect(): Promise<void>;
@@ -37,7 +37,7 @@ export interface DedupStorePort {
     rememberMessageId(messageId: string): void;
     getCommandRecord(transactionId: string): {
         action: string;
-        status: "in_progress" | "completed";
+        status: 'in_progress' | 'completed';
     } | null;
     markCommandInProgress(transactionId: string, action: string): void;
     markCommandCompleted(transactionId: string, action: string): void;

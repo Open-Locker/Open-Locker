@@ -10,10 +10,10 @@ async function main() {
         await app.shutdown();
         process.exit(0);
     };
-    process.on("SIGINT", () => void shutdown("SIGINT"));
-    process.on("SIGTERM", () => void shutdown("SIGTERM"));
+    process.on('SIGINT', () => void shutdown('SIGINT'));
+    process.on('SIGTERM', () => void shutdown('SIGTERM'));
 }
 main().catch((error) => {
-    logging_1.logger.error("Fatal startup error", error);
+    logging_1.logger.error('Fatal startup error', error);
     process.exit(1);
 });

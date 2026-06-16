@@ -19,21 +19,20 @@ class LockerError extends Error {
     constructor(code, message) {
         super(message);
         this.code = code;
-        this.name = "LockerError";
+        this.name = 'LockerError';
     }
 }
 exports.LockerError = LockerError;
 class ModbusTransportError extends LockerError {
     constructor(message) {
         super(MqttErrorCode.MODBUS_ERROR, message);
-        this.name = "ModbusTransportError";
+        this.name = 'ModbusTransportError';
     }
 }
 exports.ModbusTransportError = ModbusTransportError;
 function isReconnectableModbusError(error) {
     return (error instanceof Error &&
-        (error.message.includes("Port Not Open") ||
-            error.message.includes("ECONNREFUSED")));
+        (error.message.includes('Port Not Open') || error.message.includes('ECONNREFUSED')));
 }
 function mapErrorToMqttCode(error) {
     if (error instanceof LockerError) {
@@ -41,16 +40,16 @@ function mapErrorToMqttCode(error) {
     }
     if (error instanceof Error) {
         const msg = error.message.toLowerCase();
-        if (msg.includes("jammed")) {
+        if (msg.includes('jammed')) {
             return MqttErrorCode.DOOR_JAMMED;
         }
-        if (msg.includes("not found") || msg.includes("not configured")) {
+        if (msg.includes('not found') || msg.includes('not configured')) {
             return MqttErrorCode.COMPARTMENT_NOT_FOUND;
         }
-        if (msg.includes("modbus") || msg.includes("port not open")) {
+        if (msg.includes('modbus') || msg.includes('port not open')) {
             return MqttErrorCode.MODBUS_ERROR;
         }
-        if (msg.includes("invalid config") || msg.includes("config_hash")) {
+        if (msg.includes('invalid config') || msg.includes('config_hash')) {
             return MqttErrorCode.INVALID_CONFIG;
         }
     }

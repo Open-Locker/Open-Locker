@@ -1,4 +1,4 @@
-import type { ClockPort, SchedulerPort } from "../ports/config.port";
+import type { ClockPort, SchedulerPort } from '../ports/config.port';
 export declare class SystemClock implements ClockPort {
     nowIso(): string;
 }

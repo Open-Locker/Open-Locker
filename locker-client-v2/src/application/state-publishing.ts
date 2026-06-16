@@ -1,7 +1,7 @@
-import type { CompartmentConfig, CompartmentTarget, DoorState } from "../domain/compartment";
-import type { ConfigRepositoryPort } from "../ports/config.port";
-import type { LockerBusPort } from "../ports/locker-bus.port";
-import type { OutboundMqttPort } from "../ports/mqtt.port";
+import type { CompartmentTarget, DoorState } from '../domain/compartment';
+import type { ConfigRepositoryPort } from '../ports/config.port';
+import type { LockerBusPort } from '../ports/locker-bus.port';
+import type { OutboundMqttPort } from '../ports/mqtt.port';
 
 export interface CompartmentSnapshotEntry {
   compartment_number: number;
@@ -60,7 +60,7 @@ export class PollCompartmentStateUseCase {
       } catch {
         entries.push({
           compartment_number: compartment.compartment_number,
-          door_state: "unknown",
+          door_state: 'unknown',
         });
       }
     }
@@ -103,10 +103,6 @@ export class HeartbeatUseCase {
 
   private async publish(): Promise<void> {
     const uptimeSeconds = Math.floor((Date.now() - this.startTime) / 1000);
-    await this.outbound.publishJson(
-      this.topic,
-      { uptime_seconds: uptimeSeconds },
-      { qos: 1 },
-    );
+    await this.outbound.publishJson(this.topic, { uptime_seconds: uptimeSeconds }, { qos: 1 });
   }
 }

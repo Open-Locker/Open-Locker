@@ -1,7 +1,7 @@
-import type { CompartmentConfig } from "../domain/compartment";
-import type { ApplyConfigCommand } from "../domain/mqtt-schemas";
-import type { ConfigRepositoryPort, RuntimeOverlayStorePort } from "../ports/config.port";
-import type { LockerBusPort } from "../ports/locker-bus.port";
+import type { CompartmentConfig } from '../domain/compartment';
+import type { ApplyConfigCommand } from '../domain/mqtt-schemas';
+import type { ConfigRepositoryPort, RuntimeOverlayStorePort } from '../ports/config.port';
+import type { LockerBusPort } from '../ports/locker-bus.port';
 export interface ApplyConfigResult {
     appliedConfigHash: string;
     message?: string;

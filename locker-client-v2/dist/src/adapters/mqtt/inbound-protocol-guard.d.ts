@@ -1,4 +1,4 @@
-import type { DedupStorePort } from "../../ports/mqtt.port";
+import type { DedupStorePort } from '../../ports/mqtt.port';
 export interface InboundGuardOptions {
     requiresTransactionId?: boolean;
     blockDuplicateMessageIds?: boolean;

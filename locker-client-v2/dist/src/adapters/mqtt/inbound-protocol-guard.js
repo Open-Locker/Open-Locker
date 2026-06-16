@@ -10,12 +10,12 @@ class InboundProtocolGuard {
         const requiresTransactionId = options.requiresTransactionId ?? true;
         const blockDuplicateMessageIds = options.blockDuplicateMessageIds ?? true;
         const messageId = payload.message_id;
-        if (typeof messageId !== "string" || messageId.trim() === "") {
+        if (typeof messageId !== 'string' || messageId.trim() === '') {
             return false;
         }
         if (requiresTransactionId) {
             const transactionId = payload.transaction_id;
-            if (typeof transactionId !== "string" || transactionId.trim() === "") {
+            if (typeof transactionId !== 'string' || transactionId.trim() === '') {
                 return false;
             }
         }

@@ -19,7 +19,7 @@ class FakeLockerBus {
         this.connected = false;
     }
     getConnectionState() {
-        return this.connected ? "connected" : "disconnected";
+        return this.connected ? 'connected' : 'disconnected';
     }
     async ensureConnected() {
         return this.connected;
@@ -35,7 +35,7 @@ class FakeLockerBus {
         return this.relayStates.get(this.key(target)) ?? false;
     }
     async readDoorSensor(target) {
-        return this.doorStates.get(this.key(target)) ?? "closed";
+        return this.doorStates.get(this.key(target)) ?? 'closed';
     }
     async turnAllRelaysOff(slaveId) {
         this.turnAllOffCalls.push(slaveId);

@@ -1,4 +1,4 @@
-import { z } from "zod";
+import { z } from 'zod';
 export declare const mqttCommandEnvelopeSchema: z.ZodObject<{
     action: z.ZodString;
     message_id: z.ZodString;

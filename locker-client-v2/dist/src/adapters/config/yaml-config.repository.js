@@ -16,7 +16,7 @@ function mergeRuntimeConfig(base, overlay) {
     return {
         ...base,
         mqtt: {
-            ...(base.mqtt ?? {}),
+            ...base.mqtt,
             heartbeatInterval: overlay.mqtt?.heartbeatInterval ?? base.mqtt?.heartbeatInterval,
         },
         compartments: overlay.compartments ?? base.compartments,
@@ -36,10 +36,10 @@ class YamlConfigRepository {
         if (!fs_1.default.existsSync(paths_1.CONFIG_FILE)) {
             throw new Error(`Configuration file not found: ${paths_1.CONFIG_FILE}`);
         }
-        const parsed = (0, js_yaml_1.load)(fs_1.default.readFileSync(paths_1.CONFIG_FILE, "utf8")) ?? {};
+        const parsed = (0, js_yaml_1.load)(fs_1.default.readFileSync(paths_1.CONFIG_FILE, 'utf8')) ?? {};
         parsed.mqtt = parsed.mqtt ?? {};
         if (!parsed.modbus?.port) {
-            throw new Error("modbus.port is required");
+            throw new Error('modbus.port is required');
         }
         (0, compartment_1.normalizeFlashDurationMs)(parsed.modbus.flashDurationMs);
         const overlay = this.overlayStore.load();
@@ -54,7 +54,7 @@ class YamlConfigRepository {
     }
     getCompartmentConfig(compartmentNumber) {
         const config = this.load();
-        return (config.compartments?.find((c) => c.compartment_number === compartmentNumber) ?? null);
+        return config.compartments?.find((c) => c.compartment_number === compartmentNumber) ?? null;
     }
     hasExplicitRuntimeCompartments() {
         this.load();

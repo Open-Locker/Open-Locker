@@ -1,4 +1,4 @@
-import type { MessageTransportPort, MqttConnectionState, MqttTransportSettings, OutboundPublishOptions } from "../../src/ports/mqtt.port";
+import type { MessageTransportPort, MqttConnectionState, MqttTransportSettings, OutboundPublishOptions } from '../../src/ports/mqtt.port';
 export declare class FakeMqttTransport implements MessageTransportPort {
     readonly published: Array<{
         topic: string;

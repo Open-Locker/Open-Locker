@@ -1,5 +1,5 @@
-import { randomUUID } from "crypto";
-import type { IClientOptions } from "mqtt";
+import { randomUUID } from 'crypto';
+import type { IClientOptions } from 'mqtt';
 
 /**
  * Last Will for unexpected disconnect (AsyncAPI: locker/{uuid}/state/connection).
@@ -7,13 +7,13 @@ import type { IClientOptions } from "mqtt";
 export function connectionLostWillOptions(
   lockerUuid: string,
   nowIso: () => string = () => new Date().toISOString(),
-): Pick<IClientOptions, "will"> {
+): Pick<IClientOptions, 'will'> {
   const topic = `locker/${lockerUuid}/state/connection`;
   const payload = JSON.stringify({
     message_id: randomUUID(),
     timestamp: nowIso(),
-    status: "offline",
-    reason: "mqtt_last_will",
+    status: 'offline',
+    reason: 'mqtt_last_will',
   });
 
   return {

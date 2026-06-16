@@ -29,12 +29,12 @@ function createApplyConfigHarness() {
     const overlayStore = new MemoryOverlayStore();
     const config = {
         load: () => ({
-            modbus: { port: "/dev/null", flashDurationMs: 200 },
+            modbus: { port: '/dev/null', flashDurationMs: 200 },
             mqtt: { heartbeatInterval: 15 },
             compartments,
         }),
         reload: () => ({
-            modbus: { port: "/dev/null", flashDurationMs: 200 },
+            modbus: { port: '/dev/null', flashDurationMs: 200 },
             mqtt: { heartbeatInterval: 15 },
             compartments,
         }),
@@ -53,7 +53,7 @@ function createApplyConfigHarness() {
     const published = [];
     const outbound = new outbound_mqtt_adapter_1.OutboundMqttAdapter(async (_topic, payload) => {
         published.push(payload);
-    }, "locker/test/response", () => "2026-06-16T12:00:00.000Z");
+    }, 'locker/test/response', () => '2026-06-16T12:00:00.000Z');
     const applyConfig = new apply_config_1.ApplyConfigUseCase({
         overlayStore,
         config,
@@ -64,14 +64,14 @@ function createApplyConfigHarness() {
     const handler = (0, apply_config_handler_1.createApplyConfigHandler)({ applyConfig, outbound });
     return { handler, published, overlayStore };
 }
-(0, node_test_1.test)("apply_config handler publishes success with applied_config_hash", async () => {
+(0, node_test_1.test)('apply_config handler publishes success with applied_config_hash', async () => {
     const { handler, published, overlayStore } = createApplyConfigHarness();
     const configHash = (0, apply_config_2.computeAppliedConfigHash)(compartments);
-    await handler.handle({ lockerUuid: "test" }, {
-        action: "apply_config",
-        message_id: "msg-1",
-        transaction_id: "tx-1",
-        timestamp: "2026-06-16T12:00:00.000Z",
+    await handler.handle({ lockerUuid: 'test' }, {
+        action: 'apply_config',
+        message_id: 'msg-1',
+        transaction_id: 'tx-1',
+        timestamp: '2026-06-16T12:00:00.000Z',
         data: {
             config_hash: configHash,
             heartbeat_interval_seconds: 30,
@@ -81,23 +81,23 @@ function createApplyConfigHarness() {
     strict_1.default.ok(overlayStore.load()?.appliedConfigHash);
     strict_1.default.equal(published.length, 1);
     const response = JSON.parse(published[0]);
-    strict_1.default.equal(response.action, "apply_config");
-    strict_1.default.equal(response.result, "success");
+    strict_1.default.equal(response.action, 'apply_config');
+    strict_1.default.equal(response.result, 'success');
     strict_1.default.equal(response.applied_config_hash, configHash);
 });
-(0, node_test_1.test)("apply_config handler propagates runtime apply failures", async () => {
+(0, node_test_1.test)('apply_config handler propagates runtime apply failures', async () => {
     const bus = new fake_locker_bus_1.FakeLockerBus([1]);
     bus.reloadRuntimeConfig = async () => {
-        throw new Error("modbus reconnect failed");
+        throw new Error('modbus reconnect failed');
     };
     const overlayStore = new MemoryOverlayStore();
     const config = {
         load: () => ({
-            modbus: { port: "/dev/null", flashDurationMs: 200 },
+            modbus: { port: '/dev/null', flashDurationMs: 200 },
             mqtt: { heartbeatInterval: 15 },
         }),
         reload: () => ({
-            modbus: { port: "/dev/null", flashDurationMs: 200 },
+            modbus: { port: '/dev/null', flashDurationMs: 200 },
             mqtt: { heartbeatInterval: 15 },
         }),
         getCompartmentConfig: () => null,
@@ -120,13 +120,13 @@ function createApplyConfigHarness() {
             restartHeartbeat: () => undefined,
             restartPolling: () => undefined,
         }),
-        outbound: new outbound_mqtt_adapter_1.OutboundMqttAdapter(async () => undefined, "locker/test/response"),
+        outbound: new outbound_mqtt_adapter_1.OutboundMqttAdapter(async () => undefined, 'locker/test/response'),
     });
-    await strict_1.default.rejects(() => handler.handle({ lockerUuid: "test" }, {
-        action: "apply_config",
-        message_id: "msg-2",
-        transaction_id: "tx-2",
-        timestamp: "2026-06-16T12:00:00.000Z",
+    await strict_1.default.rejects(() => handler.handle({ lockerUuid: 'test' }, {
+        action: 'apply_config',
+        message_id: 'msg-2',
+        transaction_id: 'tx-2',
+        timestamp: '2026-06-16T12:00:00.000Z',
         data: {
             config_hash: (0, apply_config_2.computeAppliedConfigHash)(compartments),
             heartbeat_interval_seconds: 30,

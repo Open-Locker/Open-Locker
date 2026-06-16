@@ -31,7 +31,7 @@ async function createApp() {
         baudRate: config.modbus.baudRate ?? 9600,
         dataBits: config.modbus.dataBits ?? 8,
         stopBits: config.modbus.stopBits ?? 1,
-        parity: config.modbus.parity ?? "none",
+        parity: config.modbus.parity ?? 'none',
         timeout: config.modbus.timeout ?? 1000,
     });
     const bus = new bus_actor_1.ModbusBusActor(driver, { maxAttempts: 0, delayMs: 5000 }, configRepo.getConfiguredSlaveIds());
@@ -41,7 +41,7 @@ async function createApp() {
     if (!credentialStore.isProvisioned()) {
         const token = process.env.PROVISIONING_TOKEN?.trim();
         if (!token) {
-            throw new Error("PROVISIONING_TOKEN is required for first-time provisioning");
+            throw new Error('PROVISIONING_TOKEN is required for first-time provisioning');
         }
         await (0, provision_device_1.provisionDevice)({
             transport,
@@ -54,7 +54,7 @@ async function createApp() {
     }
     const credentials = credentialStore.getCredentials();
     if (!credentials) {
-        throw new Error("MQTT credentials unavailable after provisioning");
+        throw new Error('MQTT credentials unavailable after provisioning');
     }
     await transport.connect(brokerUrl, {
         username: credentials.username,
@@ -101,7 +101,7 @@ async function createApp() {
     const pollTimer = setInterval(() => {
         void pollSnapshot.pollAndPublish();
     }, pollIntervalMs);
-    logging_1.logger.info("locker-client-v2 started", { lockerUuid, clientId });
+    logging_1.logger.info('locker-client-v2 started', { lockerUuid, clientId });
     return {
         async shutdown() {
             clearInterval(pollTimer);

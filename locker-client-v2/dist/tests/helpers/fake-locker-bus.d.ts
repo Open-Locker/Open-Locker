@@ -1,5 +1,5 @@
-import type { CompartmentTarget, DoorState } from "../../src/domain/compartment";
-import type { LockerBusPort } from "../../src/ports/locker-bus.port";
+import type { CompartmentTarget, DoorState } from '../../src/domain/compartment';
+import type { LockerBusPort } from '../../src/ports/locker-bus.port';
 export declare class FakeLockerBus implements LockerBusPort {
     readonly flashCalls: Array<{
         target: CompartmentTarget;

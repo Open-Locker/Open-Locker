@@ -1,12 +1,9 @@
-import { createHash } from "crypto";
-import type { CompartmentConfig } from "../domain/compartment";
-import { LockerError, MqttErrorCode } from "../domain/errors";
-import type { ApplyConfigCommand } from "../domain/mqtt-schemas";
-import type {
-  ConfigRepositoryPort,
-  RuntimeOverlayStorePort,
-} from "../ports/config.port";
-import type { LockerBusPort } from "../ports/locker-bus.port";
+import { createHash } from 'crypto';
+import type { CompartmentConfig } from '../domain/compartment';
+import { LockerError, MqttErrorCode } from '../domain/errors';
+import type { ApplyConfigCommand } from '../domain/mqtt-schemas';
+import type { ConfigRepositoryPort, RuntimeOverlayStorePort } from '../ports/config.port';
+import type { LockerBusPort } from '../ports/locker-bus.port';
 
 export interface ApplyConfigResult {
   appliedConfigHash: string;
@@ -21,24 +18,20 @@ export interface ApplyConfigDependencies {
   restartPolling: () => void;
 }
 
-export function normalizeCompartments(
-  compartments: CompartmentConfig[],
-): CompartmentConfig[] {
+export function normalizeCompartments(compartments: CompartmentConfig[]): CompartmentConfig[] {
   return [...compartments]
     .map((c) => ({
       compartment_number: c.compartment_number,
       slaveId: c.slaveId,
       address: c.address,
     }))
-    .sort((a, b) => a.compartment_number - b.compartment_number);
+    .toSorted((a, b) => a.compartment_number - b.compartment_number);
 }
 
-export function computeAppliedConfigHash(
-  compartments: CompartmentConfig[],
-): string {
-  return createHash("sha256")
+export function computeAppliedConfigHash(compartments: CompartmentConfig[]): string {
+  return createHash('sha256')
     .update(JSON.stringify(normalizeCompartments(compartments)))
-    .digest("hex");
+    .digest('hex');
 }
 
 export class ApplyConfigUseCase {
@@ -57,7 +50,7 @@ export class ApplyConfigUseCase {
 
       return {
         appliedConfigHash: overlay.appliedConfigHash!,
-        message: "Config applied.",
+        message: 'Config applied.',
       };
     } catch (error) {
       await this.rollback(previous);
@@ -73,7 +66,7 @@ export class ApplyConfigUseCase {
     if (hash.toLowerCase() !== command.data.config_hash.toLowerCase()) {
       throw new LockerError(
         MqttErrorCode.INVALID_CONFIG,
-        "config_hash does not match the provided compartments mapping",
+        'config_hash does not match the provided compartments mapping',
       );
     }
 
@@ -93,7 +86,7 @@ export class ApplyConfigUseCase {
       if (c.address > 7) {
         throw new LockerError(
           MqttErrorCode.INVALID_CONFIG,
-          "compartment addresses must be between 0 and 7",
+          'compartment addresses must be between 0 and 7',
         );
       }
       if (seenNumbers.has(c.compartment_number)) {
@@ -104,19 +97,14 @@ export class ApplyConfigUseCase {
       }
       const target = `${c.slaveId}:${c.address}`;
       if (seenTargets.has(target)) {
-        throw new LockerError(
-          MqttErrorCode.INVALID_CONFIG,
-          `duplicate relay target ${target}`,
-        );
+        throw new LockerError(MqttErrorCode.INVALID_CONFIG, `duplicate relay target ${target}`);
       }
       seenNumbers.add(c.compartment_number);
       seenTargets.add(target);
     }
   }
 
-  private async rollback(
-    previous: ReturnType<RuntimeOverlayStorePort["load"]>,
-  ): Promise<void> {
+  private async rollback(previous: ReturnType<RuntimeOverlayStorePort['load']>): Promise<void> {
     if (previous) {
       this.deps.overlayStore.save(previous);
     } else {

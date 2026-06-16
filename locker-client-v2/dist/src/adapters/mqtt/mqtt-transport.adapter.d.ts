@@ -1,4 +1,4 @@
-import type { MessageTransportPort, MqttConnectionState, MqttTransportSettings, OutboundPublishOptions } from "../../ports/mqtt.port";
+import type { MessageTransportPort, MqttConnectionState, MqttTransportSettings, OutboundPublishOptions } from '../../ports/mqtt.port';
 export declare class MqttTransportAdapter implements MessageTransportPort {
     private client;
     private connectionState;

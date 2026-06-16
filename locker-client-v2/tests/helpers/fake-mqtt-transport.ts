@@ -3,14 +3,13 @@ import type {
   MqttConnectionState,
   MqttTransportSettings,
   OutboundPublishOptions,
-} from "../../src/ports/mqtt.port";
+} from '../../src/ports/mqtt.port';
 
 export class FakeMqttTransport implements MessageTransportPort {
   readonly published: Array<{ topic: string; payload: string }> = [];
   readonly subscriptions: string[] = [];
-  private state: MqttConnectionState = "disconnected";
-  private messageHandler: ((topic: string, payload: Buffer) => void) | null =
-    null;
+  private state: MqttConnectionState = 'disconnected';
+  private messageHandler: ((topic: string, payload: Buffer) => void) | null = null;
   private readonly transport: MqttTransportSettings;
 
   constructor(
@@ -34,31 +33,27 @@ export class FakeMqttTransport implements MessageTransportPort {
   }
 
   async connect(): Promise<void> {
-    this.state = "connecting";
-    this.state = "connected";
+    this.state = 'connecting';
+    this.state = 'connected';
   }
 
   async disconnect(): Promise<void> {
-    this.state = "disconnected";
+    this.state = 'disconnected';
   }
 
   simulateBrokerDrop(): void {
-    this.state = "reconnecting";
+    this.state = 'reconnecting';
   }
 
   simulateBrokerRestore(): void {
-    this.state = "connected";
+    this.state = 'connected';
   }
 
   async subscribe(topic: string): Promise<void> {
     this.subscriptions.push(topic);
   }
 
-  async publish(
-    topic: string,
-    payload: string,
-    _options?: OutboundPublishOptions,
-  ): Promise<void> {
+  async publish(topic: string, payload: string, _options?: OutboundPublishOptions): Promise<void> {
     this.published.push({ topic, payload });
   }
 

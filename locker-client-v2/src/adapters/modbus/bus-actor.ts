@@ -1,36 +1,21 @@
-import PQueue from "p-queue";
-import type {
-  CompartmentTarget,
-  DoorState,
-} from "../../domain/compartment";
-import {
-  BusPriority,
-  ConnectionState,
-  LockerBusPort,
-} from "../../ports/locker-bus.port";
-import { ReconnectCoordinator } from "./reconnect-coordinator";
+import PQueue from 'p-queue';
+import type { CompartmentTarget, DoorState } from '../../domain/compartment';
+import { BusPriority, ConnectionState, LockerBusPort } from '../../ports/locker-bus.port';
+import { ReconnectCoordinator } from './reconnect-coordinator';
 
 export interface ModbusDriver {
   connect(): Promise<void>;
   disconnect(): Promise<void>;
   isOpen(): boolean;
-  flashRelayOn(
-    slaveId: number,
-    address: number,
-    durationMs: number,
-  ): Promise<void>;
+  flashRelayOn(slaveId: number, address: number, durationMs: number): Promise<void>;
   readCoils(slaveId: number, address: number, length: number): Promise<boolean[]>;
-  readDiscreteInputs(
-    slaveId: number,
-    address: number,
-    length: number,
-  ): Promise<boolean[]>;
+  readDiscreteInputs(slaveId: number, address: number, length: number): Promise<boolean[]>;
   turnAllRelaysOff(slaveId: number): Promise<void>;
 }
 
 export class ModbusBusActor implements LockerBusPort {
   private queue = new PQueue({ concurrency: 1 });
-  private connectionState: ConnectionState = "disconnected";
+  private connectionState: ConnectionState = 'disconnected';
   private readonly reconnect: ReconnectCoordinator;
 
   constructor(
@@ -52,7 +37,7 @@ export class ModbusBusActor implements LockerBusPort {
     this.reconnect.cancelScheduled();
     this.queue.clear();
     await this.driver.disconnect();
-    this.connectionState = "disconnected";
+    this.connectionState = 'disconnected';
   }
 
   getConnectionState(): ConnectionState {
@@ -63,25 +48,16 @@ export class ModbusBusActor implements LockerBusPort {
     return [...this.configuredSlaveIds];
   }
 
-  async flashRelay(
-    target: CompartmentTarget,
-    durationMs: number,
-  ): Promise<void> {
+  async flashRelay(target: CompartmentTarget, durationMs: number): Promise<void> {
     return this.run(
-      () =>
-        this.driver.flashRelayOn(
-          target.slaveId,
-          target.relayAddress,
-          durationMs,
-        ),
+      () => this.driver.flashRelayOn(target.slaveId, target.relayAddress, durationMs),
       BusPriority.COMMAND,
     );
   }
 
   async readRelayState(target: CompartmentTarget): Promise<boolean> {
     const values = await this.run(
-      () =>
-        this.driver.readCoils(target.slaveId, target.relayAddress, 1),
+      () => this.driver.readCoils(target.slaveId, target.relayAddress, 1),
       BusPriority.POLL,
     );
     return values[0] ?? false;
@@ -90,25 +66,17 @@ export class ModbusBusActor implements LockerBusPort {
   async readDoorSensor(target: CompartmentTarget): Promise<DoorState> {
     try {
       const values = await this.run(
-        () =>
-          this.driver.readDiscreteInputs(
-            target.slaveId,
-            target.relayAddress,
-            1,
-          ),
+        () => this.driver.readDiscreteInputs(target.slaveId, target.relayAddress, 1),
         BusPriority.POLL,
       );
-      return values[0] ? "open" : "closed";
+      return values[0] ? 'open' : 'closed';
     } catch {
-      return "unknown";
+      return 'unknown';
     }
   }
 
   async turnAllRelaysOff(slaveId: number): Promise<void> {
-    return this.run(
-      () => this.driver.turnAllRelaysOff(slaveId),
-      BusPriority.MAINTENANCE,
-    );
+    return this.run(() => this.driver.turnAllRelaysOff(slaveId), BusPriority.MAINTENANCE);
   }
 
   async ensureConnected(): Promise<boolean> {
@@ -129,16 +97,13 @@ export class ModbusBusActor implements LockerBusPort {
   }
 
   private async connectInternal(): Promise<void> {
-    this.connectionState = "connecting";
+    this.connectionState = 'connecting';
     await this.driver.connect();
-    this.connectionState = "connected";
+    this.connectionState = 'connected';
     this.reconnect.resetAttempts();
   }
 
-  private run<T>(
-    operation: () => Promise<T>,
-    priority: BusPriority,
-  ): Promise<T> {
+  private run<T>(operation: () => Promise<T>, priority: BusPriority): Promise<T> {
     return this.queue.add(operation, { priority }) as Promise<T>;
   }
 }

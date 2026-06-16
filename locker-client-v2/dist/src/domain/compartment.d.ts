@@ -6,7 +6,7 @@ export interface CompartmentTarget {
     slaveId: SlaveId;
     relayAddress: RelayAddress;
 }
-export type DoorState = "open" | "closed" | "unknown";
+export type DoorState = 'open' | 'closed' | 'unknown';
 export interface CompartmentConfig {
     compartment_number: number;
     slaveId: number;

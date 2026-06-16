@@ -1,4 +1,4 @@
-import { randomUUID } from "crypto";
+import { randomUUID } from 'crypto';
 
 export interface MqttEnvelope {
   message_id: string;
@@ -11,11 +11,11 @@ export function createEnvelope(
 ): Record<string, unknown> {
   const envelope: Record<string, unknown> = { ...body };
 
-  if (!("message_id" in envelope) || typeof envelope.message_id !== "string") {
+  if (!('message_id' in envelope) || typeof envelope.message_id !== 'string') {
     envelope.message_id = randomUUID();
   }
 
-  if (!("timestamp" in envelope) || typeof envelope.timestamp !== "string") {
+  if (!('timestamp' in envelope) || typeof envelope.timestamp !== 'string') {
     envelope.timestamp = nowIso();
   }
 

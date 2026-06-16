@@ -4,7 +4,7 @@ exports.FakeMqttTransport = void 0;
 class FakeMqttTransport {
     published = [];
     subscriptions = [];
-    state = "disconnected";
+    state = 'disconnected';
     messageHandler = null;
     transport;
     constructor(transport = {
@@ -23,17 +23,17 @@ class FakeMqttTransport {
         return this.transport;
     }
     async connect() {
-        this.state = "connecting";
-        this.state = "connected";
+        this.state = 'connecting';
+        this.state = 'connected';
     }
     async disconnect() {
-        this.state = "disconnected";
+        this.state = 'disconnected';
     }
     simulateBrokerDrop() {
-        this.state = "reconnecting";
+        this.state = 'reconnecting';
     }
     simulateBrokerRestore() {
-        this.state = "connected";
+        this.state = 'connected';
     }
     async subscribe(topic) {
         this.subscriptions.push(topic);

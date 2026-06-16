@@ -1,17 +1,13 @@
-import ModbusRTU from "modbus-serial";
-import type { ModbusDriver } from "./bus-actor";
-import {
-  flashRelayOn,
-  turnAllRelaysOff,
-  type WaveshareModbusClient,
-} from "./waveshare-flash";
+import ModbusRTU from 'modbus-serial';
+import type { ModbusDriver } from './bus-actor';
+import { flashRelayOn, turnAllRelaysOff, type WaveshareModbusClient } from './waveshare-flash';
 
 interface ModbusConnectionConfig {
   port: string;
   baudRate: number;
   dataBits: 7 | 8;
   stopBits: 1 | 2;
-  parity: "none" | "even" | "odd";
+  parity: 'none' | 'even' | 'odd';
   timeout: number;
 }
 
@@ -50,34 +46,17 @@ export class ModbusRtuDriver implements ModbusDriver {
     return Boolean(this.client?.isOpen);
   }
 
-  async flashRelayOn(
-    slaveId: number,
-    address: number,
-    durationMs: number,
-  ): Promise<void> {
-    await flashRelayOn(
-      this.getWaveshareClient(),
-      slaveId,
-      address,
-      durationMs,
-    );
+  async flashRelayOn(slaveId: number, address: number, durationMs: number): Promise<void> {
+    await flashRelayOn(this.getWaveshareClient(), slaveId, address, durationMs);
   }
 
-  async readCoils(
-    slaveId: number,
-    address: number,
-    length: number,
-  ): Promise<boolean[]> {
+  async readCoils(slaveId: number, address: number, length: number): Promise<boolean[]> {
     this.getClient().setID(slaveId);
     const result = await this.getClient().readCoils(address, length);
     return result.data;
   }
 
-  async readDiscreteInputs(
-    slaveId: number,
-    address: number,
-    length: number,
-  ): Promise<boolean[]> {
+  async readDiscreteInputs(slaveId: number, address: number, length: number): Promise<boolean[]> {
     this.getClient().setID(slaveId);
     const result = await this.getClient().readDiscreteInputs(address, length);
     return result.data;
@@ -89,15 +68,15 @@ export class ModbusRtuDriver implements ModbusDriver {
 
   private getClient(): ModbusRTU {
     if (!this.client?.isOpen) {
-      throw new Error("Port Not Open");
+      throw new Error('Port Not Open');
     }
     return this.client;
   }
 
   private getWaveshareClient(): WaveshareModbusClient {
     const client = this.getClient() as ModbusRTU & WaveshareModbusClient;
-    if (typeof client.customFunction !== "function") {
-      throw new Error("modbus-serial customFunction API is unavailable");
+    if (typeof client.customFunction !== 'function') {
+      throw new Error('modbus-serial customFunction API is unavailable');
     }
     return client;
   }

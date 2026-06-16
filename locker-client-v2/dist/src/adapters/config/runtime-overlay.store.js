@@ -18,17 +18,17 @@ function normalizeCompartments(compartments) {
         slaveId: c.slaveId,
         address: c.address,
     }))
-        .sort((a, b) => a.compartment_number - b.compartment_number);
+        .toSorted((a, b) => a.compartment_number - b.compartment_number);
 }
 function computeAppliedConfigHash(compartments) {
-    return (0, crypto_1.createHash)("sha256")
+    return (0, crypto_1.createHash)('sha256')
         .update(JSON.stringify(normalizeCompartments(compartments)))
-        .digest("hex");
+        .digest('hex');
 }
 function sanitizeRuntimeConfigOverlay(value) {
     const overlay = value;
-    if (overlay === null || typeof overlay !== "object") {
-        throw new Error("runtime config overlay must be an object");
+    if (overlay === null || typeof overlay !== 'object') {
+        throw new Error('runtime config overlay must be an object');
     }
     const sanitized = {};
     if (overlay.mqtt !== undefined) {
@@ -48,15 +48,15 @@ function sanitizeRuntimeConfigOverlay(value) {
                 !Number.isInteger(entry.address) ||
                 entry.address < 0 ||
                 entry.address > MAX_RELAY_ADDRESS) {
-                throw new Error("invalid compartment entry in overlay");
+                throw new Error('invalid compartment entry in overlay');
             }
             return entry;
         }));
     }
     if (overlay.appliedConfigHash !== undefined) {
-        if (typeof overlay.appliedConfigHash !== "string" ||
+        if (typeof overlay.appliedConfigHash !== 'string' ||
             !/^[a-f0-9]{64}$/i.test(overlay.appliedConfigHash)) {
-            throw new Error("invalid appliedConfigHash");
+            throw new Error('invalid appliedConfigHash');
         }
         sanitized.appliedConfigHash = overlay.appliedConfigHash;
     }
@@ -70,7 +70,7 @@ class FileRuntimeOverlayStore {
         if (!fs_1.default.existsSync(paths_1.RUNTIME_CONFIG_OVERLAY_FILE)) {
             return null;
         }
-        const raw = fs_1.default.readFileSync(paths_1.RUNTIME_CONFIG_OVERLAY_FILE, "utf8").trim();
+        const raw = fs_1.default.readFileSync(paths_1.RUNTIME_CONFIG_OVERLAY_FILE, 'utf8').trim();
         if (!raw) {
             return null;
         }
@@ -78,7 +78,7 @@ class FileRuntimeOverlayStore {
     }
     save(overlay) {
         const sanitized = sanitizeRuntimeConfigOverlay(overlay);
-        fs_1.default.writeFileSync(paths_1.RUNTIME_CONFIG_OVERLAY_FILE, JSON.stringify(sanitized, null, 2), "utf8");
+        fs_1.default.writeFileSync(paths_1.RUNTIME_CONFIG_OVERLAY_FILE, JSON.stringify(sanitized, null, 2), 'utf8');
         return sanitized;
     }
     clear() {
