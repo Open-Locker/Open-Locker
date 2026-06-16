@@ -1,0 +1,19 @@
+# Locker Client v2 Configuration — mount at /config/locker-config.yml
+
+modbus:
+  port: /dev/ttyACM0
+  baudRate: 9600
+  dataBits: 8
+  stopBits: 1
+  parity: none
+  timeout: 1000
+  # Waveshare flash pulse (100ms steps, min 100ms, max 500ms enforced in v2)
+  flashDurationMs: 200
+
+mqtt:
+  cleanSession: false
+  keepaliveSeconds: 60
+  reconnectPeriodMs: 5000
+  connectTimeoutMs: 30000
+  maxReconnectAttempts: 0
+  heartbeatInterval: 15

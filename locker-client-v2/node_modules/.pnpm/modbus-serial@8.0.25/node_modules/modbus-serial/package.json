@@ -1,0 +1,72 @@
+{
+  "name": "modbus-serial",
+  "version": "8.0.25",
+  "description": "A pure JavaScript implementation of MODBUS-RTU (Serial and TCP) for NodeJS. The serialport package is an optional dependency (use npm install --no-optional to skip).",
+  "main": "index.js",
+  "types": "index.d.ts",
+  "files": [
+    "index.js",
+    "apis",
+    "ports",
+    "servers",
+    "utils",
+    "worker",
+    "index.d.ts",
+    "ModbusRTU.d.ts",
+    "ServerTCP.d.ts",
+    "ServerSerial.d.ts",
+    "TestPort.d.ts",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "test": "nyc --reporter=lcov --reporter=text mocha --recursive",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "clean": "node scripts/clean.js",
+    "build": "node scripts/build-modbus-serial.js",
+    "doc": "jsdoc -c jsdoc.json",
+    "doc:examples": "node scripts/copy-doc-examples.js",
+    "docs": "npm run doc && npm run doc:examples",
+    "publish:prepare": "npm run build && npm run docs"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/yaacov/node-modbus-serial.git"
+  },
+  "keywords": [
+    "modbus",
+    "rtu",
+    "serial",
+    "port",
+    "com",
+    "arduino"
+  ],
+  "author": "Yaacov Zamir <kobi.zamir@gmail.com>",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/yaacov/node-modbus-serial/issues"
+  },
+  "homepage": "https://github.com/yaacov/node-modbus-serial#readme",
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "chai": "^6.2.2",
+    "chai-as-promised": "^8.0.2",
+    "clean-jsdoc-theme": "^4.3.0",
+    "eslint": "^10.0.3",
+    "globals": "^17.4.0",
+    "jsdoc": "^4.0.5",
+    "mocha": "^11.7.5",
+    "mockery": "^2.1.0",
+    "nyc": "^18.0.0",
+    "sinon": "^21.0.3",
+    "web-bluetooth-mock": "^1.2.0",
+    "webbluetooth": "^3.6.0"
+  },
+  "dependencies": {
+    "debug": "^4.4.3"
+  },
+  "optionalDependencies": {
+    "serialport": "^13.0.0"
+  }
+}
