@@ -88,6 +88,133 @@ test('BusActor command priority runs before poll reads', async () => {
   assert.ok(flashIndex > slowPollIndex);
 });
 
+test('concurrent flashRelay and ensureConnected never interleave driver calls', async () => {
+  const driver = new InterleavingGuardDriver();
+  const bus = new ModbusBusActor(driver, { maxAttempts: 0 }, [1]);
+  await bus.connect();
+
+  const target = { compartmentNumber: 1, slaveId: 1, relayAddress: 0 };
+  driver.markClosed();
+
+  await Promise.all([bus.flashRelay(target, 200), bus.ensureConnected()]);
+
+  assert.equal(driver.hadInterleavedCalls, false);
+  assert.ok(driver.operations.includes('connect'));
+  assert.ok(driver.operations.some((op) => op.startsWith('flash:')));
+});
+
+test('BusActor retries once after reconnectable transport failure', async () => {
+  const driver = new ReconnectableFailureDriver();
+  const bus = new ModbusBusActor(driver, { maxAttempts: 0 }, [1]);
+  await bus.connect();
+
+  const target = { compartmentNumber: 1, slaveId: 1, relayAddress: 0 };
+  await bus.flashRelay(target, 200);
+
+  assert.equal(driver.flashAttempts, 2);
+  assert.ok(driver.operations.includes('disconnect'));
+  assert.ok(driver.operations.filter((op) => op === 'connect').length >= 2);
+});
+
+class InterleavingGuardDriver implements ModbusDriver {
+  readonly operations: string[] = [];
+  private open = false;
+  private activeOperation: string | null = null;
+  hadInterleavedCalls = false;
+
+  async connect(): Promise<void> {
+    await this.runExclusive('connect', async () => {
+      this.open = true;
+    });
+  }
+
+  async disconnect(): Promise<void> {
+    await this.runExclusive('disconnect', async () => {
+      this.open = false;
+    });
+  }
+
+  isOpen(): boolean {
+    return this.open;
+  }
+
+  markClosed(): void {
+    this.open = false;
+  }
+
+  async flashRelayOn(slaveId: number, address: number, durationMs: number): Promise<void> {
+    await this.runExclusive(`flash:${slaveId}:${address}:${durationMs}`, async () => {
+      await delay(30);
+    });
+  }
+
+  async readCoils(): Promise<boolean[]> {
+    return [false];
+  }
+
+  async readDiscreteInputs(): Promise<boolean[]> {
+    return [true];
+  }
+
+  async turnAllRelaysOff(slaveId: number): Promise<void> {
+    this.operations.push(`allOff:${slaveId}`);
+  }
+
+  private async runExclusive(label: string, fn: () => Promise<void>): Promise<void> {
+    if (this.activeOperation !== null) {
+      this.hadInterleavedCalls = true;
+    }
+
+    this.activeOperation = label;
+    this.operations.push(label);
+    try {
+      await fn();
+    } finally {
+      this.activeOperation = null;
+    }
+  }
+}
+
+class ReconnectableFailureDriver implements ModbusDriver {
+  readonly operations: string[] = [];
+  flashAttempts = 0;
+  private open = false;
+
+  async connect(): Promise<void> {
+    this.operations.push('connect');
+    this.open = true;
+  }
+
+  async disconnect(): Promise<void> {
+    this.operations.push('disconnect');
+    this.open = false;
+  }
+
+  isOpen(): boolean {
+    return this.open;
+  }
+
+  async flashRelayOn(slaveId: number, address: number, durationMs: number): Promise<void> {
+    this.flashAttempts++;
+    if (this.flashAttempts === 1) {
+      throw new Error('Port Not Open');
+    }
+    this.operations.push(`flash:${slaveId}:${address}:${durationMs}`);
+  }
+
+  async readCoils(): Promise<boolean[]> {
+    return [false];
+  }
+
+  async readDiscreteInputs(): Promise<boolean[]> {
+    return [true];
+  }
+
+  async turnAllRelaysOff(slaveId: number): Promise<void> {
+    this.operations.push(`allOff:${slaveId}`);
+  }
+}
+
 function delay(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }

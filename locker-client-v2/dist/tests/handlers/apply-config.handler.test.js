@@ -8,48 +8,15 @@ const node_test_1 = require("node:test");
 const apply_config_handler_1 = require("../../src/adapters/mqtt/handlers/apply-config.handler");
 const apply_config_1 = require("../../src/application/apply-config");
 const outbound_mqtt_adapter_1 = require("../../src/adapters/mqtt/outbound-mqtt.adapter");
+const config_normalization_1 = require("../../src/domain/config-normalization");
 const fake_locker_bus_1 = require("../helpers/fake-locker-bus");
-const apply_config_2 = require("../../src/application/apply-config");
-class MemoryOverlayStore {
-    overlay = null;
-    load() {
-        return this.overlay;
-    }
-    save(overlay) {
-        this.overlay = overlay;
-        return overlay;
-    }
-    clear() {
-        this.overlay = null;
-    }
-}
+const memory_overlay_store_1 = require("../helpers/memory-overlay-store");
+const test_config_repository_1 = require("../helpers/test-config-repository");
 const compartments = [{ compartment_number: 1, slaveId: 1, address: 0 }];
 function createApplyConfigHarness() {
     const bus = new fake_locker_bus_1.FakeLockerBus([1]);
-    const overlayStore = new MemoryOverlayStore();
-    const config = {
-        load: () => ({
-            modbus: { port: '/dev/null', flashDurationMs: 200 },
-            mqtt: { heartbeatInterval: 15 },
-            compartments,
-        }),
-        reload: () => ({
-            modbus: { port: '/dev/null', flashDurationMs: 200 },
-            mqtt: { heartbeatInterval: 15 },
-            compartments,
-        }),
-        getCompartmentConfig: () => compartments[0],
-        hasExplicitRuntimeCompartments: () => true,
-        getFlashDurationMs: () => 200,
-        getHeartbeatIntervalSeconds: () => 15,
-        getMqttTransportSettings: () => ({
-            clean: false,
-            keepalive: 60,
-            reconnectPeriod: 5000,
-            connectTimeout: 30000,
-            maxReconnectAttempts: 0,
-        }),
-    };
+    const overlayStore = new memory_overlay_store_1.MemoryOverlayStore();
+    const config = (0, test_config_repository_1.createTestConfigRepository)({ compartments });
     const published = [];
     const outbound = new outbound_mqtt_adapter_1.OutboundMqttAdapter(async (_topic, payload) => {
         published.push(payload);
@@ -66,7 +33,7 @@ function createApplyConfigHarness() {
 }
 (0, node_test_1.test)('apply_config handler publishes success with applied_config_hash', async () => {
     const { handler, published, overlayStore } = createApplyConfigHarness();
-    const configHash = (0, apply_config_2.computeAppliedConfigHash)(compartments);
+    const configHash = (0, config_normalization_1.computeAppliedConfigHash)(compartments);
     await handler.handle({ lockerUuid: 'test' }, {
         action: 'apply_config',
         message_id: 'msg-1',
@@ -90,32 +57,11 @@ function createApplyConfigHarness() {
     bus.reloadRuntimeConfig = async () => {
         throw new Error('modbus reconnect failed');
     };
-    const overlayStore = new MemoryOverlayStore();
-    const config = {
-        load: () => ({
-            modbus: { port: '/dev/null', flashDurationMs: 200 },
-            mqtt: { heartbeatInterval: 15 },
-        }),
-        reload: () => ({
-            modbus: { port: '/dev/null', flashDurationMs: 200 },
-            mqtt: { heartbeatInterval: 15 },
-        }),
-        getCompartmentConfig: () => null,
-        hasExplicitRuntimeCompartments: () => false,
-        getFlashDurationMs: () => 200,
-        getHeartbeatIntervalSeconds: () => 15,
-        getMqttTransportSettings: () => ({
-            clean: false,
-            keepalive: 60,
-            reconnectPeriod: 5000,
-            connectTimeout: 30000,
-            maxReconnectAttempts: 0,
-        }),
-    };
+    const overlayStore = new memory_overlay_store_1.MemoryOverlayStore();
     const handler = (0, apply_config_handler_1.createApplyConfigHandler)({
         applyConfig: new apply_config_1.ApplyConfigUseCase({
             overlayStore,
-            config,
+            config: (0, test_config_repository_1.createTestConfigRepository)(),
             bus,
             restartHeartbeat: () => undefined,
             restartPolling: () => undefined,
@@ -128,7 +74,7 @@ function createApplyConfigHarness() {
         transaction_id: 'tx-2',
         timestamp: '2026-06-16T12:00:00.000Z',
         data: {
-            config_hash: (0, apply_config_2.computeAppliedConfigHash)(compartments),
+            config_hash: (0, config_normalization_1.computeAppliedConfigHash)(compartments),
             heartbeat_interval_seconds: 30,
             compartments,
         },

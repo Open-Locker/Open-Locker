@@ -1,25 +1,24 @@
 import { randomBytes, randomUUID } from 'crypto';
 import fs from 'fs';
+import type { CredentialStorePort } from '../ports/config.port';
 import type { MessageTransportPort } from '../ports/mqtt.port';
-import { FileCredentialStore } from '../adapters/persistence/file-credential.store';
-import { MQTT_CLIENT_ID_FILE } from '../infrastructure/paths';
 
 export const DEFAULT_MQTT_BROKER_URL = 'mqtt://open-locker.cloud';
 
-export function getOrCreateClientId(): string {
+export function getOrCreateClientId(clientIdFilePath: string): string {
   if (process.env.MQTT_CLIENT_ID) {
     return process.env.MQTT_CLIENT_ID;
   }
 
-  if (fs.existsSync(MQTT_CLIENT_ID_FILE)) {
-    const existing = fs.readFileSync(MQTT_CLIENT_ID_FILE, 'utf8').trim();
+  if (fs.existsSync(clientIdFilePath)) {
+    const existing = fs.readFileSync(clientIdFilePath, 'utf8').trim();
     if (existing) {
       return existing;
     }
   }
 
   const clientId = `locker-client-${randomBytes(4).toString('hex')}`;
-  fs.writeFileSync(MQTT_CLIENT_ID_FILE, clientId, 'utf8');
+  fs.writeFileSync(clientIdFilePath, clientId, 'utf8');
   return clientId;
 }
 
@@ -40,7 +39,7 @@ export async function provisionDevice(options: {
   brokerUrl: string;
   clientId: string;
   provisioningToken: string;
-  credentialStore: FileCredentialStore;
+  credentialStore: CredentialStorePort;
 }): Promise<void> {
   const { defaultUsername, defaultPassword } = getRequiredProvisioningDefaults();
   const replyTopic = `locker/provisioning/reply/${options.clientId}`;

@@ -9,20 +9,19 @@ exports.getRequiredProvisioningDefaults = getRequiredProvisioningDefaults;
 exports.provisionDevice = provisionDevice;
 const crypto_1 = require("crypto");
 const fs_1 = __importDefault(require("fs"));
-const paths_1 = require("../infrastructure/paths");
 exports.DEFAULT_MQTT_BROKER_URL = 'mqtt://open-locker.cloud';
-function getOrCreateClientId() {
+function getOrCreateClientId(clientIdFilePath) {
     if (process.env.MQTT_CLIENT_ID) {
         return process.env.MQTT_CLIENT_ID;
     }
-    if (fs_1.default.existsSync(paths_1.MQTT_CLIENT_ID_FILE)) {
-        const existing = fs_1.default.readFileSync(paths_1.MQTT_CLIENT_ID_FILE, 'utf8').trim();
+    if (fs_1.default.existsSync(clientIdFilePath)) {
+        const existing = fs_1.default.readFileSync(clientIdFilePath, 'utf8').trim();
         if (existing) {
             return existing;
         }
     }
     const clientId = `locker-client-${(0, crypto_1.randomBytes)(4).toString('hex')}`;
-    fs_1.default.writeFileSync(paths_1.MQTT_CLIENT_ID_FILE, clientId, 'utf8');
+    fs_1.default.writeFileSync(clientIdFilePath, clientId, 'utf8');
     return clientId;
 }
 function getRequiredProvisioningDefaults() {

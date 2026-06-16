@@ -24,12 +24,14 @@ export declare class ModbusBusActor implements LockerBusPort {
     disconnect(): Promise<void>;
     getConnectionState(): ConnectionState;
     getConfiguredSlaveIds(): number[];
+    ensureConnected(): Promise<boolean>;
+    reloadRuntimeConfig(): Promise<void>;
     flashRelay(target: CompartmentTarget, durationMs: number): Promise<void>;
     readRelayState(target: CompartmentTarget): Promise<boolean>;
     readDoorSensor(target: CompartmentTarget): Promise<DoorState>;
     turnAllRelaysOff(slaveId: number): Promise<void>;
-    ensureConnected(): Promise<boolean>;
     getQueue(): PQueue;
     private connectInternal;
     private run;
+    private runWithReconnectRetry;
 }

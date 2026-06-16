@@ -5,6 +5,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.ModbusBusActor = void 0;
 const p_queue_1 = __importDefault(require("p-queue"));
+const errors_1 = require("../../domain/errors");
 const locker_bus_port_1 = require("../../ports/locker-bus.port");
 const reconnect_coordinator_1 = require("./reconnect-coordinator");
 class ModbusBusActor {
@@ -36,6 +37,27 @@ class ModbusBusActor {
     getConfiguredSlaveIds() {
         return [...this.configuredSlaveIds];
     }
+    async ensureConnected() {
+        return this.run(async () => {
+            if (this.driver.isOpen()) {
+                return true;
+            }
+            try {
+                await this.reconnect.run(() => this.connectInternal());
+                return this.driver.isOpen();
+            }
+            catch {
+                return false;
+            }
+        }, locker_bus_port_1.BusPriority.MAINTENANCE);
+    }
+    async reloadRuntimeConfig() {
+        return this.run(async () => {
+            if (!this.driver.isOpen()) {
+                await this.connectInternal();
+            }
+        }, locker_bus_port_1.BusPriority.MAINTENANCE);
+    }
     async flashRelay(target, durationMs) {
         return this.run(() => this.driver.flashRelayOn(target.slaveId, target.relayAddress, durationMs), locker_bus_port_1.BusPriority.COMMAND);
     }
@@ -55,18 +77,6 @@ class ModbusBusActor {
     async turnAllRelaysOff(slaveId) {
         return this.run(() => this.driver.turnAllRelaysOff(slaveId), locker_bus_port_1.BusPriority.MAINTENANCE);
     }
-    async ensureConnected() {
-        if (this.driver.isOpen()) {
-            return true;
-        }
-        try {
-            await this.reconnect.run(() => this.connectInternal());
-            return this.driver.isOpen();
-        }
-        catch {
-            return false;
-        }
-    }
     getQueue() {
         return this.queue;
     }
@@ -77,7 +87,23 @@ class ModbusBusActor {
         this.reconnect.resetAttempts();
     }
     run(operation, priority) {
-        return this.queue.add(operation, { priority });
+        return this.queue.add(async () => this.runWithReconnectRetry(operation), {
+            priority,
+        });
+    }
+    async runWithReconnectRetry(operation) {
+        try {
+            return await operation();
+        }
+        catch (error) {
+            if (!(0, errors_1.isReconnectableModbusError)(error)) {
+                throw error;
+            }
+            await this.driver.disconnect();
+            this.connectionState = 'disconnected';
+            await this.reconnect.run(() => this.connectInternal());
+            return operation();
+        }
     }
 }
 exports.ModbusBusActor = ModbusBusActor;

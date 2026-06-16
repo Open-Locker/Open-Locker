@@ -1,7 +1,7 @@
+import type { CredentialStorePort } from '../ports/config.port';
 import type { MessageTransportPort } from '../ports/mqtt.port';
-import { FileCredentialStore } from '../adapters/persistence/file-credential.store';
 export declare const DEFAULT_MQTT_BROKER_URL = "mqtt://open-locker.cloud";
-export declare function getOrCreateClientId(): string;
+export declare function getOrCreateClientId(clientIdFilePath: string): string;
 export declare function getRequiredProvisioningDefaults(): {
     defaultUsername: string;
     defaultPassword: string;
@@ -11,5 +11,5 @@ export declare function provisionDevice(options: {
     brokerUrl: string;
     clientId: string;
     provisioningToken: string;
-    credentialStore: FileCredentialStore;
+    credentialStore: CredentialStorePort;
 }): Promise<void>;

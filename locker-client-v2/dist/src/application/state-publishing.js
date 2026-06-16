@@ -1,6 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.HeartbeatUseCase = exports.PollCompartmentStateUseCase = void 0;
+const logging_1 = require("../infrastructure/logging");
 class PollCompartmentStateUseCase {
     bus;
     config;
@@ -21,6 +22,11 @@ class PollCompartmentStateUseCase {
         try {
             const entries = await this.collectSnapshots();
             await this.outbound.publishJson(this.snapshotTopic, { compartments: entries }, { qos: 1, retain: true });
+        }
+        catch (error) {
+            logging_1.logger.warn('Compartment snapshot publish failed', {
+                error: error instanceof Error ? error.message : String(error),
+            });
         }
         finally {
             this.polling = false;
@@ -88,7 +94,14 @@ class HeartbeatUseCase {
     }
     async publish() {
         const uptimeSeconds = Math.floor((Date.now() - this.startTime) / 1000);
-        await this.outbound.publishJson(this.topic, { uptime_seconds: uptimeSeconds }, { qos: 1 });
+        try {
+            await this.outbound.publishJson(this.topic, { uptime_seconds: uptimeSeconds }, { qos: 1 });
+        }
+        catch (error) {
+            logging_1.logger.warn('Heartbeat publish failed', {
+                error: error instanceof Error ? error.message : String(error),
+            });
+        }
     }
 }
 exports.HeartbeatUseCase = HeartbeatUseCase;

@@ -10,6 +10,8 @@ export interface LockerBusPort {
     connect(): Promise<void>;
     disconnect(): Promise<void>;
     getConnectionState(): ConnectionState;
+    ensureConnected(): Promise<boolean>;
+    reloadRuntimeConfig(): Promise<void>;
     flashRelay(target: CompartmentTarget, durationMs: number): Promise<void>;
     readRelayState(target: CompartmentTarget): Promise<boolean>;
     readDoorSensor(target: CompartmentTarget): Promise<DoorState>;

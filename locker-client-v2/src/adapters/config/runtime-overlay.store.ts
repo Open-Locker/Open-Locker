@@ -1,26 +1,10 @@
 import fs from 'fs';
-import { createHash } from 'crypto';
 import type { CompartmentConfig } from '../../domain/compartment';
 import type { RuntimeConfigOverlay } from '../../domain/config';
+import { normalizeCompartments } from '../../domain/config-normalization';
 import { RUNTIME_CONFIG_OVERLAY_FILE } from '../../infrastructure/paths';
 
 const MAX_RELAY_ADDRESS = 7;
-
-export function normalizeCompartments(compartments: CompartmentConfig[]): CompartmentConfig[] {
-  return [...compartments]
-    .map((c) => ({
-      compartment_number: c.compartment_number,
-      slaveId: c.slaveId,
-      address: c.address,
-    }))
-    .toSorted((a, b) => a.compartment_number - b.compartment_number);
-}
-
-export function computeAppliedConfigHash(compartments: CompartmentConfig[]): string {
-  return createHash('sha256')
-    .update(JSON.stringify(normalizeCompartments(compartments)))
-    .digest('hex');
-}
 
 export function sanitizeRuntimeConfigOverlay(value: unknown): RuntimeConfigOverlay {
   const overlay = value as Record<string, unknown> | null;

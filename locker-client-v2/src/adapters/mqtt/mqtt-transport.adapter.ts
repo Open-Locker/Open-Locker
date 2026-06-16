@@ -5,6 +5,7 @@ import type {
   MqttTransportSettings,
   OutboundPublishOptions,
 } from '../../ports/mqtt.port';
+import { logger } from '../../infrastructure/logging';
 
 export class MqttTransportAdapter implements MessageTransportPort {
   private client: MqttClient | null = null;
@@ -78,7 +79,15 @@ export class MqttTransportAdapter implements MessageTransportPort {
     payload: string,
     options: OutboundPublishOptions = {},
   ): Promise<void> {
-    const client = this.requireClient();
+    if (!this.client?.connected) {
+      logger.warn('MQTT publish skipped while disconnected', {
+        topic,
+        connectionState: this.connectionState,
+      });
+      return;
+    }
+
+    const client = this.client;
     return new Promise((resolve, reject) => {
       client.publish(
         topic,

@@ -68,6 +68,108 @@ class FakeModbusDriver {
     strict_1.default.ok(slowPollIndex >= 0);
     strict_1.default.ok(flashIndex > slowPollIndex);
 });
+(0, node_test_1.test)('concurrent flashRelay and ensureConnected never interleave driver calls', async () => {
+    const driver = new InterleavingGuardDriver();
+    const bus = new bus_actor_1.ModbusBusActor(driver, { maxAttempts: 0 }, [1]);
+    await bus.connect();
+    const target = { compartmentNumber: 1, slaveId: 1, relayAddress: 0 };
+    driver.markClosed();
+    await Promise.all([bus.flashRelay(target, 200), bus.ensureConnected()]);
+    strict_1.default.equal(driver.hadInterleavedCalls, false);
+    strict_1.default.ok(driver.operations.includes('connect'));
+    strict_1.default.ok(driver.operations.some((op) => op.startsWith('flash:')));
+});
+(0, node_test_1.test)('BusActor retries once after reconnectable transport failure', async () => {
+    const driver = new ReconnectableFailureDriver();
+    const bus = new bus_actor_1.ModbusBusActor(driver, { maxAttempts: 0 }, [1]);
+    await bus.connect();
+    const target = { compartmentNumber: 1, slaveId: 1, relayAddress: 0 };
+    await bus.flashRelay(target, 200);
+    strict_1.default.equal(driver.flashAttempts, 2);
+    strict_1.default.ok(driver.operations.includes('disconnect'));
+    strict_1.default.ok(driver.operations.filter((op) => op === 'connect').length >= 2);
+});
+class InterleavingGuardDriver {
+    operations = [];
+    open = false;
+    activeOperation = null;
+    hadInterleavedCalls = false;
+    async connect() {
+        await this.runExclusive('connect', async () => {
+            this.open = true;
+        });
+    }
+    async disconnect() {
+        await this.runExclusive('disconnect', async () => {
+            this.open = false;
+        });
+    }
+    isOpen() {
+        return this.open;
+    }
+    markClosed() {
+        this.open = false;
+    }
+    async flashRelayOn(slaveId, address, durationMs) {
+        await this.runExclusive(`flash:${slaveId}:${address}:${durationMs}`, async () => {
+            await delay(30);
+        });
+    }
+    async readCoils() {
+        return [false];
+    }
+    async readDiscreteInputs() {
+        return [true];
+    }
+    async turnAllRelaysOff(slaveId) {
+        this.operations.push(`allOff:${slaveId}`);
+    }
+    async runExclusive(label, fn) {
+        if (this.activeOperation !== null) {
+            this.hadInterleavedCalls = true;
+        }
+        this.activeOperation = label;
+        this.operations.push(label);
+        try {
+            await fn();
+        }
+        finally {
+            this.activeOperation = null;
+        }
+    }
+}
+class ReconnectableFailureDriver {
+    operations = [];
+    flashAttempts = 0;
+    open = false;
+    async connect() {
+        this.operations.push('connect');
+        this.open = true;
+    }
+    async disconnect() {
+        this.operations.push('disconnect');
+        this.open = false;
+    }
+    isOpen() {
+        return this.open;
+    }
+    async flashRelayOn(slaveId, address, durationMs) {
+        this.flashAttempts++;
+        if (this.flashAttempts === 1) {
+            throw new Error('Port Not Open');
+        }
+        this.operations.push(`flash:${slaveId}:${address}:${durationMs}`);
+    }
+    async readCoils() {
+        return [false];
+    }
+    async readDiscreteInputs() {
+        return [true];
+    }
+    async turnAllRelaysOff(slaveId) {
+        this.operations.push(`allOff:${slaveId}`);
+    }
+}
 function delay(ms) {
     return new Promise((resolve) => setTimeout(resolve, ms));
 }

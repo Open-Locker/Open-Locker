@@ -2,6 +2,7 @@ import type { CompartmentTarget, DoorState } from '../domain/compartment';
 import type { ConfigRepositoryPort } from '../ports/config.port';
 import type { LockerBusPort } from '../ports/locker-bus.port';
 import type { OutboundMqttPort } from '../ports/mqtt.port';
+import { logger } from '../infrastructure/logging';
 
 export interface CompartmentSnapshotEntry {
   compartment_number: number;
@@ -31,6 +32,10 @@ export class PollCompartmentStateUseCase {
         { compartments: entries },
         { qos: 1, retain: true },
       );
+    } catch (error) {
+      logger.warn('Compartment snapshot publish failed', {
+        error: error instanceof Error ? error.message : String(error),
+      });
     } finally {
       this.polling = false;
     }
@@ -103,6 +108,12 @@ export class HeartbeatUseCase {
 
   private async publish(): Promise<void> {
     const uptimeSeconds = Math.floor((Date.now() - this.startTime) / 1000);
-    await this.outbound.publishJson(this.topic, { uptime_seconds: uptimeSeconds }, { qos: 1 });
+    try {
+      await this.outbound.publishJson(this.topic, { uptime_seconds: uptimeSeconds }, { qos: 1 });
+    } catch (error) {
+      logger.warn('Heartbeat publish failed', {
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
   }
 }

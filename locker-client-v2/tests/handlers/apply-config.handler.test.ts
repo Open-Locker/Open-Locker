@@ -3,56 +3,17 @@ import { test } from 'node:test';
 import { createApplyConfigHandler } from '../../src/adapters/mqtt/handlers/apply-config.handler';
 import { ApplyConfigUseCase } from '../../src/application/apply-config';
 import { OutboundMqttAdapter } from '../../src/adapters/mqtt/outbound-mqtt.adapter';
+import { computeAppliedConfigHash } from '../../src/domain/config-normalization';
 import { FakeLockerBus } from '../helpers/fake-locker-bus';
-import type { ConfigRepositoryPort } from '../../src/ports/config.port';
-import type { RuntimeOverlayStorePort } from '../../src/ports/config.port';
-import { computeAppliedConfigHash } from '../../src/application/apply-config';
-
-class MemoryOverlayStore implements RuntimeOverlayStorePort {
-  private overlay: import('../../src/domain/config').RuntimeConfigOverlay | null = null;
-
-  load() {
-    return this.overlay;
-  }
-
-  save(overlay: import('../../src/domain/config').RuntimeConfigOverlay) {
-    this.overlay = overlay;
-    return overlay;
-  }
-
-  clear() {
-    this.overlay = null;
-  }
-}
+import { MemoryOverlayStore } from '../helpers/memory-overlay-store';
+import { createTestConfigRepository } from '../helpers/test-config-repository';
 
 const compartments = [{ compartment_number: 1, slaveId: 1, address: 0 }];
 
 function createApplyConfigHarness() {
   const bus = new FakeLockerBus([1]);
   const overlayStore = new MemoryOverlayStore();
-  const config: ConfigRepositoryPort = {
-    load: () => ({
-      modbus: { port: '/dev/null', flashDurationMs: 200 },
-      mqtt: { heartbeatInterval: 15 },
-      compartments,
-    }),
-    reload: () => ({
-      modbus: { port: '/dev/null', flashDurationMs: 200 },
-      mqtt: { heartbeatInterval: 15 },
-      compartments,
-    }),
-    getCompartmentConfig: () => compartments[0]!,
-    hasExplicitRuntimeCompartments: () => true,
-    getFlashDurationMs: () => 200,
-    getHeartbeatIntervalSeconds: () => 15,
-    getMqttTransportSettings: () => ({
-      clean: false,
-      keepalive: 60,
-      reconnectPeriod: 5000,
-      connectTimeout: 30000,
-      maxReconnectAttempts: 0,
-    }),
-  };
+  const config = createTestConfigRepository({ compartments });
 
   const published: string[] = [];
   const outbound = new OutboundMqttAdapter(
@@ -114,32 +75,10 @@ test('apply_config handler propagates runtime apply failures', async () => {
   };
 
   const overlayStore = new MemoryOverlayStore();
-  const config: ConfigRepositoryPort = {
-    load: () => ({
-      modbus: { port: '/dev/null', flashDurationMs: 200 },
-      mqtt: { heartbeatInterval: 15 },
-    }),
-    reload: () => ({
-      modbus: { port: '/dev/null', flashDurationMs: 200 },
-      mqtt: { heartbeatInterval: 15 },
-    }),
-    getCompartmentConfig: () => null,
-    hasExplicitRuntimeCompartments: () => false,
-    getFlashDurationMs: () => 200,
-    getHeartbeatIntervalSeconds: () => 15,
-    getMqttTransportSettings: () => ({
-      clean: false,
-      keepalive: 60,
-      reconnectPeriod: 5000,
-      connectTimeout: 30000,
-      maxReconnectAttempts: 0,
-    }),
-  };
-
   const handler = createApplyConfigHandler({
     applyConfig: new ApplyConfigUseCase({
       overlayStore,
-      config,
+      config: createTestConfigRepository(),
       bus,
       restartHeartbeat: () => undefined,
       restartPolling: () => undefined,

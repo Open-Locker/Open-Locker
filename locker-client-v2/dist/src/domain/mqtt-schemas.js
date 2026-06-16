@@ -1,6 +1,8 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.applyConfigCommandSchema = exports.openCompartmentCommandSchema = exports.mqttCommandEnvelopeSchema = void 0;
+exports.knownMQTTCommandSchema = exports.applyConfigCommandSchema = exports.openCompartmentCommandSchema = exports.mqttCommandEnvelopeSchema = void 0;
+exports.parseKnownMQTTCommand = parseKnownMQTTCommand;
+exports.parseInboundCommand = parseInboundCommand;
 const zod_1 = require("zod");
 const nonEmptyString = zod_1.z.string().trim().min(1);
 exports.mqttCommandEnvelopeSchema = zod_1.z.object({
@@ -27,3 +29,14 @@ exports.applyConfigCommandSchema = exports.mqttCommandEnvelopeSchema.extend({
         })),
     }),
 });
+exports.knownMQTTCommandSchema = zod_1.z.discriminatedUnion('action', [
+    exports.openCompartmentCommandSchema,
+    exports.applyConfigCommandSchema,
+]);
+function parseKnownMQTTCommand(cmd) {
+    const result = exports.knownMQTTCommandSchema.safeParse(cmd);
+    return result.success ? result.data : null;
+}
+function parseInboundCommand(cmd) {
+    return parseKnownMQTTCommand(cmd);
+}

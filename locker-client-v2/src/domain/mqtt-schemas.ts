@@ -34,3 +34,20 @@ export const applyConfigCommandSchema = mqttCommandEnvelopeSchema.extend({
 });
 
 export type ApplyConfigCommand = z.infer<typeof applyConfigCommandSchema>;
+
+export const knownMQTTCommandSchema = z.discriminatedUnion('action', [
+  openCompartmentCommandSchema,
+  applyConfigCommandSchema,
+]);
+
+export type KnownMQTTCommand = z.infer<typeof knownMQTTCommandSchema>;
+export type InboundCommand = KnownMQTTCommand;
+
+export function parseKnownMQTTCommand(cmd: unknown): KnownMQTTCommand | null {
+  const result = knownMQTTCommandSchema.safeParse(cmd);
+  return result.success ? result.data : null;
+}
+
+export function parseInboundCommand(cmd: unknown): InboundCommand | null {
+  return parseKnownMQTTCommand(cmd);
+}

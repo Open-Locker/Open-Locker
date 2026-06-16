@@ -15,10 +15,8 @@ export class OpenCompartmentUseCase {
   ) {}
 
   async execute(compartmentNumber: number): Promise<void> {
-    const connected = await (
-      this.bus as { ensureConnected?: () => Promise<boolean> }
-    ).ensureConnected?.();
-    if (connected === false) {
+    const connected = await this.bus.ensureConnected();
+    if (!connected) {
       throw new LockerError(
         MqttErrorCode.MODBUS_ERROR,
         'Cannot open compartment: Modbus connection unavailable',

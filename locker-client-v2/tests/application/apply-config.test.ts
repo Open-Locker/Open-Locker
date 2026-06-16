@@ -2,57 +2,18 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { ApplyConfigUseCase } from '../../src/application/apply-config';
 import type { ApplyConfigCommand } from '../../src/domain/mqtt-schemas';
-import { computeAppliedConfigHash } from '../../src/application/apply-config';
+import { computeAppliedConfigHash } from '../../src/domain/config-normalization';
 import { FakeLockerBus } from '../helpers/fake-locker-bus';
-import type { ConfigRepositoryPort } from '../../src/ports/config.port';
-import type { RuntimeOverlayStorePort } from '../../src/ports/config.port';
-
-class MemoryOverlayStore implements RuntimeOverlayStorePort {
-  private overlay: import('../../src/domain/config').RuntimeConfigOverlay | null = null;
-
-  load() {
-    return this.overlay;
-  }
-
-  save(overlay: import('../../src/domain/config').RuntimeConfigOverlay) {
-    this.overlay = overlay;
-    return overlay;
-  }
-
-  clear() {
-    this.overlay = null;
-  }
-}
+import { MemoryOverlayStore } from '../helpers/memory-overlay-store';
+import { createTestConfigRepository } from '../helpers/test-config-repository';
 
 test('apply config rejects mismatched config_hash', async () => {
   const bus = new FakeLockerBus([1]);
   const overlayStore = new MemoryOverlayStore();
 
-  const config: ConfigRepositoryPort = {
-    load: () => ({
-      modbus: { port: '/dev/null', flashDurationMs: 200 },
-      mqtt: { heartbeatInterval: 15 },
-    }),
-    reload: () => ({
-      modbus: { port: '/dev/null', flashDurationMs: 200 },
-      mqtt: { heartbeatInterval: 15 },
-    }),
-    getCompartmentConfig: () => null,
-    hasExplicitRuntimeCompartments: () => false,
-    getFlashDurationMs: () => 200,
-    getHeartbeatIntervalSeconds: () => 15,
-    getMqttTransportSettings: () => ({
-      clean: false,
-      keepalive: 60,
-      reconnectPeriod: 5000,
-      connectTimeout: 30000,
-      maxReconnectAttempts: 0,
-    }),
-  };
-
   const useCase = new ApplyConfigUseCase({
     overlayStore,
-    config,
+    config: createTestConfigRepository(),
     bus,
     restartHeartbeat: () => undefined,
     restartPolling: () => undefined,
@@ -94,12 +55,8 @@ test('apply config restores previous overlay when runtime reload fails', async (
   };
 
   let reloadCount = 0;
-  const config: ConfigRepositoryPort = {
-    load: () => ({
-      modbus: { port: '/dev/null', flashDurationMs: 200 },
-      mqtt: { heartbeatInterval: 15 },
-      compartments: previousOverlay.compartments,
-    }),
+  const config = createTestConfigRepository({
+    compartments: previousOverlay.compartments,
     reload: () => {
       reloadCount++;
       return {
@@ -108,18 +65,7 @@ test('apply config restores previous overlay when runtime reload fails', async (
         compartments: previousOverlay.compartments,
       };
     },
-    getCompartmentConfig: () => previousOverlay.compartments![0]!,
-    hasExplicitRuntimeCompartments: () => true,
-    getFlashDurationMs: () => 200,
-    getHeartbeatIntervalSeconds: () => 15,
-    getMqttTransportSettings: () => ({
-      clean: false,
-      keepalive: 60,
-      reconnectPeriod: 5000,
-      connectTimeout: 30000,
-      maxReconnectAttempts: 0,
-    }),
-  };
+  });
 
   const useCase = new ApplyConfigUseCase({
     overlayStore,

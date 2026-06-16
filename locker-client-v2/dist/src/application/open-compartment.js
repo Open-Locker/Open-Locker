@@ -16,8 +16,8 @@ class OpenCompartmentUseCase {
         this.monitoringIntervalMs = monitoringIntervalMs;
     }
     async execute(compartmentNumber) {
-        const connected = await this.bus.ensureConnected?.();
-        if (connected === false) {
+        const connected = await this.bus.ensureConnected();
+        if (!connected) {
             throw new errors_1.LockerError(errors_1.MqttErrorCode.MODBUS_ERROR, 'Cannot open compartment: Modbus connection unavailable');
         }
         const target = this.resolveTarget(compartmentNumber);

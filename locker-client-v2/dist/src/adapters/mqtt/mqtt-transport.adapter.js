@@ -5,6 +5,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.MqttTransportAdapter = void 0;
 const mqtt_1 = __importDefault(require("mqtt"));
+const logging_1 = require("../../infrastructure/logging");
 class MqttTransportAdapter {
     client = null;
     connectionState = 'disconnected';
@@ -62,7 +63,14 @@ class MqttTransportAdapter {
         });
     }
     async publish(topic, payload, options = {}) {
-        const client = this.requireClient();
+        if (!this.client?.connected) {
+            logging_1.logger.warn('MQTT publish skipped while disconnected', {
+                topic,
+                connectionState: this.connectionState,
+            });
+            return;
+        }
+        const client = this.client;
         return new Promise((resolve, reject) => {
             client.publish(topic, payload, { qos: options.qos ?? 1, retain: options.retain ?? false }, (error) => {
                 if (error) {

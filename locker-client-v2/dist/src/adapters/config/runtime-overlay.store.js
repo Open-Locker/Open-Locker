@@ -4,27 +4,11 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.FileRuntimeOverlayStore = void 0;
-exports.normalizeCompartments = normalizeCompartments;
-exports.computeAppliedConfigHash = computeAppliedConfigHash;
 exports.sanitizeRuntimeConfigOverlay = sanitizeRuntimeConfigOverlay;
 const fs_1 = __importDefault(require("fs"));
-const crypto_1 = require("crypto");
+const config_normalization_1 = require("../../domain/config-normalization");
 const paths_1 = require("../../infrastructure/paths");
 const MAX_RELAY_ADDRESS = 7;
-function normalizeCompartments(compartments) {
-    return [...compartments]
-        .map((c) => ({
-        compartment_number: c.compartment_number,
-        slaveId: c.slaveId,
-        address: c.address,
-    }))
-        .toSorted((a, b) => a.compartment_number - b.compartment_number);
-}
-function computeAppliedConfigHash(compartments) {
-    return (0, crypto_1.createHash)('sha256')
-        .update(JSON.stringify(normalizeCompartments(compartments)))
-        .digest('hex');
-}
 function sanitizeRuntimeConfigOverlay(value) {
     const overlay = value;
     if (overlay === null || typeof overlay !== 'object') {
@@ -40,7 +24,7 @@ function sanitizeRuntimeConfigOverlay(value) {
         }
     }
     if (overlay.compartments !== undefined) {
-        sanitized.compartments = normalizeCompartments(overlay.compartments.map((entry) => {
+        sanitized.compartments = (0, config_normalization_1.normalizeCompartments)(overlay.compartments.map((entry) => {
             if (!Number.isInteger(entry.compartment_number) ||
                 entry.compartment_number <= 0 ||
                 !Number.isInteger(entry.slaveId) ||

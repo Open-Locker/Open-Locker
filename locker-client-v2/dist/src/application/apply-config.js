@@ -1,24 +1,8 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.ApplyConfigUseCase = void 0;
-exports.normalizeCompartments = normalizeCompartments;
-exports.computeAppliedConfigHash = computeAppliedConfigHash;
-const crypto_1 = require("crypto");
+const config_normalization_1 = require("../domain/config-normalization");
 const errors_1 = require("../domain/errors");
-function normalizeCompartments(compartments) {
-    return [...compartments]
-        .map((c) => ({
-        compartment_number: c.compartment_number,
-        slaveId: c.slaveId,
-        address: c.address,
-    }))
-        .toSorted((a, b) => a.compartment_number - b.compartment_number);
-}
-function computeAppliedConfigHash(compartments) {
-    return (0, crypto_1.createHash)('sha256')
-        .update(JSON.stringify(normalizeCompartments(compartments)))
-        .digest('hex');
-}
 class ApplyConfigUseCase {
     deps;
     constructor(deps) {
@@ -31,7 +15,7 @@ class ApplyConfigUseCase {
             this.deps.overlayStore.save(overlay);
             this.deps.config.reload();
             this.deps.restartHeartbeat();
-            await this.deps.bus.reloadRuntimeConfig?.();
+            await this.deps.bus.reloadRuntimeConfig();
             this.deps.restartPolling();
             return {
                 appliedConfigHash: overlay.appliedConfigHash,
@@ -44,9 +28,9 @@ class ApplyConfigUseCase {
         }
     }
     buildOverlay(command) {
-        const normalized = normalizeCompartments(command.data.compartments);
+        const normalized = (0, config_normalization_1.normalizeCompartments)(command.data.compartments);
         this.validateCompartments(normalized);
-        const hash = computeAppliedConfigHash(normalized);
+        const hash = (0, config_normalization_1.computeAppliedConfigHash)(normalized);
         if (hash.toLowerCase() !== command.data.config_hash.toLowerCase()) {
             throw new errors_1.LockerError(errors_1.MqttErrorCode.INVALID_CONFIG, 'config_hash does not match the provided compartments mapping');
         }
@@ -84,7 +68,7 @@ class ApplyConfigUseCase {
         }
         this.deps.config.reload();
         this.deps.restartHeartbeat();
-        await this.deps.bus.reloadRuntimeConfig?.();
+        await this.deps.bus.reloadRuntimeConfig();
         this.deps.restartPolling();
     }
 }

@@ -1,5 +1,6 @@
 import PQueue from 'p-queue';
 import type { CompartmentTarget, DoorState } from '../../domain/compartment';
+import { isReconnectableModbusError } from '../../domain/errors';
 import { BusPriority, ConnectionState, LockerBusPort } from '../../ports/locker-bus.port';
 import { ReconnectCoordinator } from './reconnect-coordinator';
 
@@ -48,6 +49,29 @@ export class ModbusBusActor implements LockerBusPort {
     return [...this.configuredSlaveIds];
   }
 
+  async ensureConnected(): Promise<boolean> {
+    return this.run(async () => {
+      if (this.driver.isOpen()) {
+        return true;
+      }
+
+      try {
+        await this.reconnect.run(() => this.connectInternal());
+        return this.driver.isOpen();
+      } catch {
+        return false;
+      }
+    }, BusPriority.MAINTENANCE);
+  }
+
+  async reloadRuntimeConfig(): Promise<void> {
+    return this.run(async () => {
+      if (!this.driver.isOpen()) {
+        await this.connectInternal();
+      }
+    }, BusPriority.MAINTENANCE);
+  }
+
   async flashRelay(target: CompartmentTarget, durationMs: number): Promise<void> {
     return this.run(
       () => this.driver.flashRelayOn(target.slaveId, target.relayAddress, durationMs),
@@ -79,19 +103,6 @@ export class ModbusBusActor implements LockerBusPort {
     return this.run(() => this.driver.turnAllRelaysOff(slaveId), BusPriority.MAINTENANCE);
   }
 
-  async ensureConnected(): Promise<boolean> {
-    if (this.driver.isOpen()) {
-      return true;
-    }
-
-    try {
-      await this.reconnect.run(() => this.connectInternal());
-      return this.driver.isOpen();
-    } catch {
-      return false;
-    }
-  }
-
   getQueue(): PQueue {
     return this.queue;
   }
@@ -104,6 +115,23 @@ export class ModbusBusActor implements LockerBusPort {
   }
 
   private run<T>(operation: () => Promise<T>, priority: BusPriority): Promise<T> {
-    return this.queue.add(operation, { priority }) as Promise<T>;
+    return this.queue.add(async () => this.runWithReconnectRetry(operation), {
+      priority,
+    }) as Promise<T>;
+  }
+
+  private async runWithReconnectRetry<T>(operation: () => Promise<T>): Promise<T> {
+    try {
+      return await operation();
+    } catch (error) {
+      if (!isReconnectableModbusError(error)) {
+        throw error;
+      }
+
+      await this.driver.disconnect();
+      this.connectionState = 'disconnected';
+      await this.reconnect.run(() => this.connectInternal());
+      return operation();
+    }
   }
 }

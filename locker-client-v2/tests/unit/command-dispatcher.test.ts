@@ -5,10 +5,15 @@ import { InboundProtocolGuard } from '../../src/adapters/mqtt/inbound-protocol-g
 import { InMemoryDedupStore } from '../../src/adapters/mqtt/dedup-store';
 import { OutboundMqttAdapter } from '../../src/adapters/mqtt/outbound-mqtt.adapter';
 import { createOpenCompartmentHandler } from '../../src/adapters/mqtt/handlers/open-compartment.handler';
+import { createApplyConfigHandler } from '../../src/adapters/mqtt/handlers/apply-config.handler';
 import { OpenCompartmentUseCase } from '../../src/application/open-compartment';
+import { ApplyConfigUseCase } from '../../src/application/apply-config';
 import { PollCompartmentStateUseCase } from '../../src/application/state-publishing';
 import { RunAfterCompleteScheduler } from '../../src/infrastructure/scheduler';
+import { computeAppliedConfigHash } from '../../src/domain/config-normalization';
 import { FakeLockerBus } from '../helpers/fake-locker-bus';
+import { MemoryOverlayStore } from '../helpers/memory-overlay-store';
+import { createTestConfigRepository } from '../helpers/test-config-repository';
 import type { ConfigRepositoryPort } from '../../src/ports/config.port';
 
 const configStub: ConfigRepositoryPort = {
@@ -33,8 +38,7 @@ const configStub: ConfigRepositoryPort = {
   }),
 };
 
-function createDispatcherHarness() {
-  const bus = new FakeLockerBus([1]);
+function createDispatcherHarness(bus = new FakeLockerBus([1])) {
   const dedup = new InMemoryDedupStore();
   const published: string[] = [];
   const outbound = new OutboundMqttAdapter(
@@ -55,12 +59,11 @@ function createDispatcherHarness() {
     outbound,
     'locker/test/state/compartments',
   );
-  const dispatcher = new CommandDispatcher(new InboundProtocolGuard(dedup), outbound);
+  const dispatcher = new CommandDispatcher(new InboundProtocolGuard(dedup), outbound, dedup);
   dispatcher.register(
     createOpenCompartmentHandler({
       openCompartment,
       outbound,
-      dedup,
       pollSnapshot,
     }),
   );
@@ -72,6 +75,15 @@ function createDispatcherHarness() {
     openCompartment,
     published,
   };
+}
+
+function commandResponses(published: string[]) {
+  return published
+    .map(
+      (payload) =>
+        JSON.parse(payload) as { type?: string; result?: string; transaction_id?: string },
+    )
+    .filter((message) => message.type === 'command_response');
 }
 
 test('dispatcher executes valid open_compartment once', async () => {
@@ -90,10 +102,7 @@ test('dispatcher executes valid open_compartment once', async () => {
 
   openCompartment.stopAllMonitoring();
   assert.equal(bus.flashCalls.length, 1);
-  const response = published
-    .map((payload) => JSON.parse(payload) as { type?: string; result?: string })
-    .find((message) => message.type === 'command_response');
-  assert.equal(response?.result, 'success');
+  assert.equal(commandResponses(published)[0]?.result, 'success');
 });
 
 test('dispatcher ignores duplicate message_id before side effects', async () => {
@@ -115,12 +124,7 @@ test('dispatcher ignores duplicate message_id before side effects', async () => 
 
   openCompartment.stopAllMonitoring();
   assert.equal(bus.flashCalls.length, 1);
-  assert.equal(
-    published.filter(
-      (payload) => (JSON.parse(payload) as { type?: string }).type === 'command_response',
-    ).length,
-    1,
-  );
+  assert.equal(commandResponses(published).length, 1);
 });
 
 test('dispatcher rejects invalid payload with structured error', async () => {
@@ -165,4 +169,110 @@ test('dispatcher rejects missing transaction_id without side effects', async () 
   openCompartment.stopAllMonitoring();
   assert.equal(bus.flashCalls.length, 0);
   assert.equal(published.length, 0);
+});
+
+test('failed open clears in_progress so retry gets a response', async () => {
+  const bus = new FakeLockerBus([1]);
+  let flashAttempts = 0;
+  const originalFlash = bus.flashRelay.bind(bus);
+  bus.flashRelay = async (target, durationMs) => {
+    flashAttempts++;
+    if (flashAttempts === 1) {
+      throw new Error('modbus failed');
+    }
+    return originalFlash(target, durationMs);
+  };
+
+  const { dedup, dispatcher, openCompartment, published } = createDispatcherHarness(bus);
+
+  await dispatcher.dispatch(
+    'locker/test/command',
+    JSON.stringify({
+      action: 'open_compartment',
+      transaction_id: 'txn-retry',
+      message_id: 'msg-fail',
+      timestamp: '2026-04-11T10:00:00Z',
+      data: { compartment_number: 1 },
+    }),
+  );
+
+  await dispatcher.dispatch(
+    'locker/test/command',
+    JSON.stringify({
+      action: 'open_compartment',
+      transaction_id: 'txn-retry',
+      message_id: 'msg-retry',
+      timestamp: '2026-04-11T10:00:00Z',
+      data: { compartment_number: 1 },
+    }),
+  );
+
+  openCompartment.stopAllMonitoring();
+
+  const responses = commandResponses(published);
+  assert.equal(published.length, 2, `expected two publishes, got ${published.length}`);
+  assert.equal(responses.length, 2);
+  assert.equal(responses[0]?.result, 'error');
+  assert.equal(responses[1]?.result, 'success');
+  assert.equal(flashAttempts, 1);
+  assert.equal(dedup.getCommandRecord('txn-retry')?.status, 'completed');
+});
+
+test('duplicate completed open_compartment re-ACKs without re-running hardware', async () => {
+  const { bus, dedup, dispatcher, openCompartment, published } = createDispatcherHarness();
+  dedup.markCommandCompleted('txn-dup', 'open_compartment');
+
+  await dispatcher.dispatch(
+    'locker/test/command',
+    JSON.stringify({
+      action: 'open_compartment',
+      transaction_id: 'txn-dup',
+      message_id: 'msg-dup',
+      timestamp: '2026-04-11T10:00:00Z',
+      data: { compartment_number: 1 },
+    }),
+  );
+
+  openCompartment.stopAllMonitoring();
+  assert.equal(bus.flashCalls.length, 0);
+  assert.equal(commandResponses(published)[0]?.result, 'success');
+});
+
+test('apply_config deduplicates completed transaction without re-running', async () => {
+  const bus = new FakeLockerBus([1]);
+  const dedup = new InMemoryDedupStore();
+  const published: string[] = [];
+  const outbound = new OutboundMqttAdapter(async (_topic, payload) => {
+    published.push(payload);
+  }, 'locker/test/response');
+  const compartments = [{ compartment_number: 1, slaveId: 1, address: 0 }];
+  const configHash = computeAppliedConfigHash(compartments);
+  const applyConfig = new ApplyConfigUseCase({
+    overlayStore: new MemoryOverlayStore(),
+    config: createTestConfigRepository({ compartments }),
+    bus,
+    restartHeartbeat: () => undefined,
+    restartPolling: () => undefined,
+  });
+  const dispatcher = new CommandDispatcher(new InboundProtocolGuard(dedup), outbound, dedup);
+  dispatcher.register(createApplyConfigHandler({ applyConfig, outbound }));
+
+  dedup.markCommandCompleted('txn-apply-dup', 'apply_config');
+
+  await dispatcher.dispatch(
+    'locker/test/command',
+    JSON.stringify({
+      action: 'apply_config',
+      transaction_id: 'txn-apply-dup',
+      message_id: 'msg-apply-dup',
+      timestamp: '2026-04-11T10:00:00Z',
+      data: {
+        config_hash: configHash,
+        heartbeat_interval_seconds: 30,
+        compartments,
+      },
+    }),
+  );
+
+  assert.equal(commandResponses(published).length, 0);
 });

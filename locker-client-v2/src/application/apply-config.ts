@@ -1,5 +1,5 @@
-import { createHash } from 'crypto';
 import type { CompartmentConfig } from '../domain/compartment';
+import { computeAppliedConfigHash, normalizeCompartments } from '../domain/config-normalization';
 import { LockerError, MqttErrorCode } from '../domain/errors';
 import type { ApplyConfigCommand } from '../domain/mqtt-schemas';
 import type { ConfigRepositoryPort, RuntimeOverlayStorePort } from '../ports/config.port';
@@ -18,22 +18,6 @@ export interface ApplyConfigDependencies {
   restartPolling: () => void;
 }
 
-export function normalizeCompartments(compartments: CompartmentConfig[]): CompartmentConfig[] {
-  return [...compartments]
-    .map((c) => ({
-      compartment_number: c.compartment_number,
-      slaveId: c.slaveId,
-      address: c.address,
-    }))
-    .toSorted((a, b) => a.compartment_number - b.compartment_number);
-}
-
-export function computeAppliedConfigHash(compartments: CompartmentConfig[]): string {
-  return createHash('sha256')
-    .update(JSON.stringify(normalizeCompartments(compartments)))
-    .digest('hex');
-}
-
 export class ApplyConfigUseCase {
   constructor(private readonly deps: ApplyConfigDependencies) {}
 
@@ -45,7 +29,7 @@ export class ApplyConfigUseCase {
       this.deps.overlayStore.save(overlay);
       this.deps.config.reload();
       this.deps.restartHeartbeat();
-      await (this.deps.bus as ModbusBusActorLike).reloadRuntimeConfig?.();
+      await this.deps.bus.reloadRuntimeConfig();
       this.deps.restartPolling();
 
       return {
@@ -112,11 +96,7 @@ export class ApplyConfigUseCase {
     }
     this.deps.config.reload();
     this.deps.restartHeartbeat();
-    await (this.deps.bus as ModbusBusActorLike).reloadRuntimeConfig?.();
+    await this.deps.bus.reloadRuntimeConfig();
     this.deps.restartPolling();
   }
-}
-
-interface ModbusBusActorLike {
-  reloadRuntimeConfig?(): Promise<void>;
 }

@@ -6,48 +6,16 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const strict_1 = __importDefault(require("node:assert/strict"));
 const node_test_1 = require("node:test");
 const apply_config_1 = require("../../src/application/apply-config");
-const apply_config_2 = require("../../src/application/apply-config");
+const config_normalization_1 = require("../../src/domain/config-normalization");
 const fake_locker_bus_1 = require("../helpers/fake-locker-bus");
-class MemoryOverlayStore {
-    overlay = null;
-    load() {
-        return this.overlay;
-    }
-    save(overlay) {
-        this.overlay = overlay;
-        return overlay;
-    }
-    clear() {
-        this.overlay = null;
-    }
-}
+const memory_overlay_store_1 = require("../helpers/memory-overlay-store");
+const test_config_repository_1 = require("../helpers/test-config-repository");
 (0, node_test_1.test)('apply config rejects mismatched config_hash', async () => {
     const bus = new fake_locker_bus_1.FakeLockerBus([1]);
-    const overlayStore = new MemoryOverlayStore();
-    const config = {
-        load: () => ({
-            modbus: { port: '/dev/null', flashDurationMs: 200 },
-            mqtt: { heartbeatInterval: 15 },
-        }),
-        reload: () => ({
-            modbus: { port: '/dev/null', flashDurationMs: 200 },
-            mqtt: { heartbeatInterval: 15 },
-        }),
-        getCompartmentConfig: () => null,
-        hasExplicitRuntimeCompartments: () => false,
-        getFlashDurationMs: () => 200,
-        getHeartbeatIntervalSeconds: () => 15,
-        getMqttTransportSettings: () => ({
-            clean: false,
-            keepalive: 60,
-            reconnectPeriod: 5000,
-            connectTimeout: 30000,
-            maxReconnectAttempts: 0,
-        }),
-    };
+    const overlayStore = new memory_overlay_store_1.MemoryOverlayStore();
     const useCase = new apply_config_1.ApplyConfigUseCase({
         overlayStore,
-        config,
+        config: (0, test_config_repository_1.createTestConfigRepository)(),
         bus,
         restartHeartbeat: () => undefined,
         restartPolling: () => undefined,
@@ -73,7 +41,7 @@ class MemoryOverlayStore {
         appliedConfigHash: 'c'.repeat(64),
         updatedAt: '2026-04-11T11:00:00Z',
     };
-    const overlayStore = new MemoryOverlayStore();
+    const overlayStore = new memory_overlay_store_1.MemoryOverlayStore();
     overlayStore.save(previousOverlay);
     const bus = new fake_locker_bus_1.FakeLockerBus([1]);
     let modbusReloadAttempts = 0;
@@ -84,12 +52,8 @@ class MemoryOverlayStore {
         }
     };
     let reloadCount = 0;
-    const config = {
-        load: () => ({
-            modbus: { port: '/dev/null', flashDurationMs: 200 },
-            mqtt: { heartbeatInterval: 15 },
-            compartments: previousOverlay.compartments,
-        }),
+    const config = (0, test_config_repository_1.createTestConfigRepository)({
+        compartments: previousOverlay.compartments,
         reload: () => {
             reloadCount++;
             return {
@@ -98,18 +62,7 @@ class MemoryOverlayStore {
                 compartments: previousOverlay.compartments,
             };
         },
-        getCompartmentConfig: () => previousOverlay.compartments[0],
-        hasExplicitRuntimeCompartments: () => true,
-        getFlashDurationMs: () => 200,
-        getHeartbeatIntervalSeconds: () => 15,
-        getMqttTransportSettings: () => ({
-            clean: false,
-            keepalive: 60,
-            reconnectPeriod: 5000,
-            connectTimeout: 30000,
-            maxReconnectAttempts: 0,
-        }),
-    };
+    });
     const useCase = new apply_config_1.ApplyConfigUseCase({
         overlayStore,
         config,
@@ -124,7 +77,7 @@ class MemoryOverlayStore {
         transaction_id: 'tx-rollback',
         timestamp: '2026-04-11T12:00:00Z',
         data: {
-            config_hash: (0, apply_config_2.computeAppliedConfigHash)(newCompartments),
+            config_hash: (0, config_normalization_1.computeAppliedConfigHash)(newCompartments),
             heartbeat_interval_seconds: 45,
             compartments: newCompartments,
         },

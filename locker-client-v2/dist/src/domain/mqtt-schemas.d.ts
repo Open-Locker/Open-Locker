@@ -31,3 +31,30 @@ export declare const applyConfigCommandSchema: z.ZodObject<{
     }, z.core.$strip>;
 }, z.core.$strip>;
 export type ApplyConfigCommand = z.infer<typeof applyConfigCommandSchema>;
+export declare const knownMQTTCommandSchema: z.ZodDiscriminatedUnion<[z.ZodObject<{
+    message_id: z.ZodString;
+    transaction_id: z.ZodString;
+    timestamp: z.ZodString;
+    action: z.ZodLiteral<"open_compartment">;
+    data: z.ZodObject<{
+        compartment_number: z.ZodNumber;
+    }, z.core.$strip>;
+}, z.core.$strip>, z.ZodObject<{
+    message_id: z.ZodString;
+    transaction_id: z.ZodString;
+    timestamp: z.ZodString;
+    action: z.ZodLiteral<"apply_config">;
+    data: z.ZodObject<{
+        config_hash: z.ZodString;
+        heartbeat_interval_seconds: z.ZodNumber;
+        compartments: z.ZodArray<z.ZodObject<{
+            compartment_number: z.ZodNumber;
+            slaveId: z.ZodNumber;
+            address: z.ZodNumber;
+        }, z.core.$strip>>;
+    }, z.core.$strip>;
+}, z.core.$strip>], "action">;
+export type KnownMQTTCommand = z.infer<typeof knownMQTTCommandSchema>;
+export type InboundCommand = KnownMQTTCommand;
+export declare function parseKnownMQTTCommand(cmd: unknown): KnownMQTTCommand | null;
+export declare function parseInboundCommand(cmd: unknown): InboundCommand | null;

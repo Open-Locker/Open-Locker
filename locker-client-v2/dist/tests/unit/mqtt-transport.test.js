@@ -16,7 +16,9 @@ const mqtt_transport_adapter_1 = require("../../src/adapters/mqtt/mqtt-transport
     });
     strict_1.default.equal(transport.getTransportSettings().maxReconnectAttempts, 0);
 });
-(0, node_test_1.test)('MqttTransportAdapter enters reconnecting on simulated broker drop', () => {
+// Full broker reconnect integration (aedes + live mqtt.connect) is not wired in CI yet.
+// These tests cover the observable contract: connection state transitions and graceful publish skip.
+(0, node_test_1.test)('MqttTransportAdapter reports reconnecting after simulated broker drop', () => {
     const transport = new mqtt_transport_adapter_1.MqttTransportAdapter({
         clean: false,
         keepalive: 60,
@@ -28,7 +30,7 @@ const mqtt_transport_adapter_1 = require("../../src/adapters/mqtt/mqtt-transport
     transport.connectionState = 'reconnecting';
     strict_1.default.equal(transport.getConnectionState(), 'reconnecting');
 });
-(0, node_test_1.test)('MqttTransportAdapter restores connected state after broker returns', () => {
+(0, node_test_1.test)('MqttTransportAdapter publish skips gracefully while disconnected', async () => {
     const transport = new mqtt_transport_adapter_1.MqttTransportAdapter({
         clean: false,
         keepalive: 60,
@@ -36,7 +38,6 @@ const mqtt_transport_adapter_1 = require("../../src/adapters/mqtt/mqtt-transport
         connectTimeout: 30000,
         maxReconnectAttempts: 0,
     });
-    transport.connectionState = 'reconnecting';
-    transport.connectionState = 'connected';
-    strict_1.default.equal(transport.getConnectionState(), 'connected');
+    await strict_1.default.doesNotReject(() => transport.publish('locker/test/state/heartbeat', JSON.stringify({ uptime_seconds: 1 })));
+    strict_1.default.equal(transport.getConnectionState(), 'disconnected');
 });

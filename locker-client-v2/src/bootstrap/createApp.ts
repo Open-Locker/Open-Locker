@@ -21,6 +21,7 @@ import {
 } from '../application/provision-device';
 import { connectionLostWillOptions } from '../infrastructure/mqtt-will';
 import { logger } from '../infrastructure/logging';
+import { MQTT_CLIENT_ID_FILE } from '../infrastructure/paths';
 
 export interface AppContext {
   shutdown(): Promise<void>;
@@ -48,7 +49,7 @@ export async function createApp(): Promise<AppContext> {
     configRepo.getConfiguredSlaveIds(),
   );
 
-  const clientId = getOrCreateClientId();
+  const clientId = getOrCreateClientId(MQTT_CLIENT_ID_FILE);
   const lockerUuid = process.env.LOCKER_UUID?.trim() || clientId;
   const brokerUrl = process.env.MQTT_BROKER_URL?.trim() || DEFAULT_MQTT_BROKER_URL;
 
@@ -101,19 +102,22 @@ export async function createApp(): Promise<AppContext> {
   const applyConfig = new ApplyConfigUseCase({
     overlayStore: new FileRuntimeOverlayStore(),
     config: configRepo,
-    bus: extendBusForReload(bus, configRepo, driver),
+    bus,
     restartHeartbeat: () => heartbeat.restart(configRepo.getHeartbeatIntervalSeconds() * 1000),
     restartPolling: () => {
       void pollSnapshot.pollAndPublish(true);
     },
   });
 
-  const dispatcher = new CommandDispatcher(new InboundProtocolGuard(dedupStore), outbound);
+  const dispatcher = new CommandDispatcher(
+    new InboundProtocolGuard(dedupStore),
+    outbound,
+    dedupStore,
+  );
   dispatcher.register(
     createOpenCompartmentHandler({
       openCompartment,
       outbound,
-      dedup: dedupStore,
       pollSnapshot,
     }),
   );
@@ -147,21 +151,6 @@ export async function createApp(): Promise<AppContext> {
       await transport.disconnect();
     },
   };
-}
-
-function extendBusForReload(
-  bus: ModbusBusActor,
-  configRepo: YamlConfigRepository,
-  driver: ModbusRtuDriver,
-): ModbusBusActor & { reloadRuntimeConfig(): Promise<void> } {
-  return Object.assign(bus, {
-    async reloadRuntimeConfig() {
-      configRepo.reload();
-      if (!driver.isOpen()) {
-        await bus.connect();
-      }
-    },
-  });
 }
 
 function sleep(ms: number): Promise<void> {

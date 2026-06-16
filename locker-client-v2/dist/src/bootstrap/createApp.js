@@ -20,6 +20,7 @@ const scheduler_1 = require("../infrastructure/scheduler");
 const provision_device_1 = require("../application/provision-device");
 const mqtt_will_1 = require("../infrastructure/mqtt-will");
 const logging_1 = require("../infrastructure/logging");
+const paths_1 = require("../infrastructure/paths");
 async function createApp() {
     const configRepo = new yaml_config_repository_1.YamlConfigRepository(new runtime_overlay_store_1.FileRuntimeOverlayStore());
     const config = configRepo.load();
@@ -35,7 +36,7 @@ async function createApp() {
         timeout: config.modbus.timeout ?? 1000,
     });
     const bus = new bus_actor_1.ModbusBusActor(driver, { maxAttempts: 0, delayMs: 5000 }, configRepo.getConfiguredSlaveIds());
-    const clientId = (0, provision_device_1.getOrCreateClientId)();
+    const clientId = (0, provision_device_1.getOrCreateClientId)(paths_1.MQTT_CLIENT_ID_FILE);
     const lockerUuid = process.env.LOCKER_UUID?.trim() || clientId;
     const brokerUrl = process.env.MQTT_BROKER_URL?.trim() || provision_device_1.DEFAULT_MQTT_BROKER_URL;
     if (!credentialStore.isProvisioned()) {
@@ -74,17 +75,16 @@ async function createApp() {
     const applyConfig = new apply_config_1.ApplyConfigUseCase({
         overlayStore: new runtime_overlay_store_1.FileRuntimeOverlayStore(),
         config: configRepo,
-        bus: extendBusForReload(bus, configRepo, driver),
+        bus,
         restartHeartbeat: () => heartbeat.restart(configRepo.getHeartbeatIntervalSeconds() * 1000),
         restartPolling: () => {
             void pollSnapshot.pollAndPublish(true);
         },
     });
-    const dispatcher = new command_dispatcher_1.CommandDispatcher(new inbound_protocol_guard_1.InboundProtocolGuard(dedupStore), outbound);
+    const dispatcher = new command_dispatcher_1.CommandDispatcher(new inbound_protocol_guard_1.InboundProtocolGuard(dedupStore), outbound, dedupStore);
     dispatcher.register((0, open_compartment_handler_1.createOpenCompartmentHandler)({
         openCompartment,
         outbound,
-        dedup: dedupStore,
         pollSnapshot,
     }));
     dispatcher.register((0, apply_config_handler_1.createApplyConfigHandler)({ applyConfig, outbound }));
@@ -111,16 +111,6 @@ async function createApp() {
             await transport.disconnect();
         },
     };
-}
-function extendBusForReload(bus, configRepo, driver) {
-    return Object.assign(bus, {
-        async reloadRuntimeConfig() {
-            configRepo.reload();
-            if (!driver.isOpen()) {
-                await bus.connect();
-            }
-        },
-    });
 }
 function sleep(ms) {
     return new Promise((resolve) => setTimeout(resolve, ms));
