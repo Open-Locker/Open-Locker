@@ -31,11 +31,9 @@ class AccessibleCompartmentsResource extends JsonResource
                             'number' => (int) $compartment->number,
                             'door_state' => $compartment->door_state?->value ?? 'unknown',
                             'door_state_changed_at' => $compartment->door_state_changed_at?->toIso8601String(),
-                            'item' => $compartment->item ? [
-                                'id' => $compartment->item->id,
-                                'name' => $compartment->item->name,
-                                'description' => $compartment->item->description,
-                            ] : null,
+                            'content_note' => $compartment->content_note,
+                            'content_note_updated_at' => $compartment->content_note_updated_at?->toIso8601String(),
+                            'content_note_updated_by_user_id' => $compartment->content_note_updated_by_user_id,
                         ]
                     )->values()->all(),
                 ]

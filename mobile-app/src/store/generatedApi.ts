@@ -4,7 +4,6 @@ export const addTagTypes = [
   "AppInfo",
   "Auth",
   "Compartment",
-  "Item",
   "LockerBankStatus",
   "MosquittoAuth",
   "Terms",
@@ -160,6 +159,17 @@ const injectedRtkApi = api
         }),
         invalidatesTags: ["Compartment"],
       }),
+      putCompartmentsByCompartmentContentNote: build.mutation<
+        PutCompartmentsByCompartmentContentNoteApiResponse,
+        PutCompartmentsByCompartmentContentNoteApiArg
+      >({
+        query: (queryArg) => ({
+          url: `/compartments/${queryArg.compartment}/content-note`,
+          method: "PUT",
+          body: queryArg.updateCompartmentContentNoteRequest,
+        }),
+        invalidatesTags: ["Compartment"],
+      }),
       getCompartmentsOpenRequestsByCommandId: build.query<
         GetCompartmentsOpenRequestsByCommandIdApiResponse,
         GetCompartmentsOpenRequestsByCommandIdApiArg
@@ -168,10 +178,6 @@ const injectedRtkApi = api
           url: `/compartments/open-requests/${queryArg.commandId}`,
         }),
         providesTags: ["Compartment"],
-      }),
-      getItems: build.query<GetItemsApiResponse, GetItemsApiArg>({
-        query: () => ({ url: `/items` }),
-        providesTags: ["Item"],
       }),
       getLockerBanksByLockerBankStatus: build.query<
         GetLockerBanksByLockerBankStatusApiResponse,
@@ -240,8 +246,6 @@ export type GetAdminStatisticsApiResponse = /** status 200  */ {
   statistics: {
     /** Total number of users */
     total_users: number;
-    /** Total number of items */
-    total_items: number;
     /** Total number of access grants */
     total_compartment_accesses: number;
     /** Number of currently active grants */
@@ -331,14 +335,18 @@ export type PostCompartmentsByCompartmentOpenApiArg = {
   /** The compartment ID */
   compartment: string;
 };
+export type PutCompartmentsByCompartmentContentNoteApiResponse =
+  /** status 200 `CompartmentContentNoteResource` */ CompartmentContentNote;
+export type PutCompartmentsByCompartmentContentNoteApiArg = {
+  /** The compartment ID */
+  compartment: string;
+  updateCompartmentContentNoteRequest: UpdateCompartmentContentNoteRequest;
+};
 export type GetCompartmentsOpenRequestsByCommandIdApiResponse =
   /** status 200 `CompartmentOpenStatusResource` */ CompartmentOpenStatus;
 export type GetCompartmentsOpenRequestsByCommandIdApiArg = {
   commandId: string;
 };
-export type GetItemsApiResponse =
-  /** status 200 Array of `ItemResource` */ Item[];
-export type GetItemsApiArg = void;
 export type GetLockerBanksByLockerBankStatusApiResponse = /** status 200  */ {
   id: string;
   connection_status: string;
@@ -429,13 +437,21 @@ export type AccessibleCompartments = {
       number: number;
       door_state: string | "unknown";
       door_state_changed_at?: string | null;
-      item: {
-        id: string;
-        name: string;
-        description: string;
-      } | null;
+      content_note?: string | null;
+      content_note_updated_at?: string | null;
+      content_note_updated_by_user_id?: string | null;
     }[];
   }[];
+};
+export type CompartmentContentNote = {
+  status: boolean;
+  compartment_id: string;
+  content_note?: string | null;
+  content_note_updated_at: string;
+  content_note_updated_by_user_id?: number | null;
+};
+export type UpdateCompartmentContentNoteRequest = {
+  note?: string | null;
 };
 export type CompartmentOpenStatus = {
   status: boolean;
@@ -452,15 +468,6 @@ export type CompartmentOpenStatus = {
   sent_at?: string | null;
   opened_at?: string | null;
   failed_at?: string | null;
-};
-export type Item = {
-  id: number;
-  name: string;
-  description: string;
-  image_url?: string | null;
-  compartment_id?: string | null;
-  created_at?: string | null;
-  updated_at?: string | null;
 };
 export type AuthRequest = {
   username: string;
@@ -499,8 +506,8 @@ export const {
   useGetCompartmentsQuery,
   useGetCompartmentsAccessibleQuery,
   usePostCompartmentsByCompartmentOpenMutation,
+  usePutCompartmentsByCompartmentContentNoteMutation,
   useGetCompartmentsOpenRequestsByCommandIdQuery,
-  useGetItemsQuery,
   useGetLockerBanksByLockerBankStatusQuery,
   usePostMosqAuthMutation,
   usePostMosqAclMutation,

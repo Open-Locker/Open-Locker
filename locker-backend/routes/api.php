@@ -4,7 +4,6 @@ use App\Http\Controllers\AdminController;
 use App\Http\Controllers\AppInfoController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\CompartmentController;
-use App\Http\Controllers\ItemController;
 use App\Http\Controllers\LockerBankStatusController;
 use App\Http\Controllers\Mqtt\MosquittoAuthController;
 use App\Http\Controllers\TermsController;
@@ -52,13 +51,11 @@ Route::middleware(['auth:sanctum', 'terms.accepted'])->group(function () {
             ->name('verification.send');
 
     });
-    Route::controller(ItemController::class)->prefix('/items')->group(function () {
-        Route::get('', 'index')->name('items.index');
-    });
 
     Route::controller(CompartmentController::class)->prefix('/compartments')->group(function () {
         Route::get('accessible', 'accessible')->name('compartments.accessible');
         Route::post('{compartment}/open', 'open')->middleware('verified.api')->name('compartments.open');
+        Route::put('{compartment}/content-note', 'updateContentNote')->middleware('verified.api')->name('compartments.content-note.update');
         Route::get('open-requests/{commandId}', 'openStatus')->name('compartments.open-status');
     });
 

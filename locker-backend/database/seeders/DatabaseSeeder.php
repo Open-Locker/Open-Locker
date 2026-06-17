@@ -4,7 +4,6 @@ namespace Database\Seeders;
 
 use App\Models\Compartment;
 use App\Models\CompartmentAccess;
-use App\Models\Item;
 use App\Models\LockerBank;
 use App\Models\User;
 use Illuminate\Database\Seeder;
@@ -32,11 +31,6 @@ class DatabaseSeeder extends Seeder
 
         // Create compartments for the locker bank
         $compartments = Compartment::factory()->count(10)->for($lockerBank)->create();
-
-        // Create items and assign them to compartments
-        $compartments->each(function (Compartment $compartment) {
-            Item::factory()->create(['compartment_id' => $compartment->id]);
-        });
 
         // Create some users
         $users = User::factory()->count(5)->create();
@@ -75,8 +69,6 @@ class DatabaseSeeder extends Seeder
             ->merge($createCompartmentsForLocker($testLockerBankB, 4));
 
         $testCompartments->each(function (Compartment $compartment) use ($testUser, $admin): void {
-            Item::factory()->create(['compartment_id' => $compartment->id]);
-
             CompartmentAccess::factory()->create([
                 'user_id' => $testUser->id,
                 'compartment_id' => $compartment->id,

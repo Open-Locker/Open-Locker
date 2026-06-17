@@ -4,14 +4,17 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\UpdateCompartmentContentNoteRequest;
 use App\Http\Resources\AccessibleCompartmentsResource;
 use App\Http\Resources\ApiErrorResource;
+use App\Http\Resources\CompartmentContentNoteResource;
 use App\Http\Resources\CompartmentOpenDecisionResource;
 use App\Http\Resources\CompartmentOpenStatusResource;
 use App\Models\Compartment;
 use App\Models\CompartmentOpenRequest;
 use App\Models\LockerBank;
 use App\Services\CompartmentAccessService;
+use App\Services\CompartmentService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -32,7 +35,6 @@ class CompartmentController extends Controller
         if ($user->isAdmin()) {
             $lockerBanksQuery->with([
                 'compartments' => fn ($query) => $query
-                    ->with('item')
                     ->orderBy('number'),
             ]);
         } else {
@@ -52,7 +54,6 @@ class CompartmentController extends Controller
                 ->with([
                     'compartments' => fn ($query) => $query
                         ->where($accessibleToUser)
-                        ->with('item')
                         ->orderBy('number'),
                 ]);
         }
@@ -107,6 +108,29 @@ class CompartmentController extends Controller
             'state' => 'pending',
             'message' => __('Compartment open request accepted'),
         ]))->response()->setStatusCode(202);
+    }
+
+    /**
+     * Update the free-text content note for a compartment.
+     *
+     * Any user with active access (direct or via a group) — or an admin — may set
+     * the note describing what is stored inside. Send an empty/blank `note` to
+     * clear it. The change is event-sourced and auditable (who/when).
+     *
+     * @response CompartmentContentNoteResource
+     */
+    public function updateContentNote(
+        UpdateCompartmentContentNoteRequest $request,
+        Compartment $compartment,
+        CompartmentService $compartmentService,
+    ): JsonResponse {
+        $compartment = $compartmentService->updateContentNote(
+            $request->user(),
+            $compartment,
+            $request->validated('note'),
+        );
+
+        return (new CompartmentContentNoteResource($compartment))->response();
     }
 
     /**

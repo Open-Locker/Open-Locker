@@ -8,7 +8,12 @@ import {
   StyleSheet,
   View,
 } from 'react-native';
-import { BottomSheetBackdrop, BottomSheetModal, BottomSheetView } from '@gorhom/bottom-sheet';
+import {
+  BottomSheetBackdrop,
+  BottomSheetModal,
+  BottomSheetTextInput,
+  BottomSheetView,
+} from '@gorhom/bottom-sheet';
 import { CircleHelp, CircleUserRound, Lock, LockOpen, WifiOff } from 'lucide-react-native';
 import type { FetchBaseQueryError } from '@reduxjs/toolkit/query';
 import { skipToken } from '@reduxjs/toolkit/query';
@@ -21,6 +26,7 @@ import {
   type GetCompartmentsAccessibleApiResponse,
   useGetCompartmentsAccessibleQuery,
   usePostCompartmentsByCompartmentOpenMutation,
+  usePutCompartmentsByCompartmentContentNoteMutation,
 } from '@/src/store/generatedApi';
 import { useAppSelector } from '@/src/store/hooks';
 import {
@@ -42,6 +48,8 @@ type VisibleCompartmentEntry = {
   key: string;
   compartment: CompartmentEntry;
 };
+
+const CONTENT_NOTE_MAX_LENGTH = 80;
 
 function mapLockerBanks(
   response: GetCompartmentsAccessibleApiResponse | undefined,
@@ -122,6 +130,8 @@ export default function CompartmentsScreen() {
   const insets = useSafeAreaInsets();
   const scrollY = React.useRef(new Animated.Value(0)).current;
   const [requestOpen, requestOpenState] = usePostCompartmentsByCompartmentOpenMutation();
+  const [updateContentNote, updateContentNoteState] =
+    usePutCompartmentsByCompartmentContentNoteMutation();
   const {
     data,
     error,
@@ -135,6 +145,8 @@ export default function CompartmentsScreen() {
   const [selectedLockerBankId, setSelectedLockerBankId] = React.useState<string>('');
   const [modalError, setModalError] = React.useState<string | null>(null);
   const [modalInfo, setModalInfo] = React.useState<string | null>(null);
+  const [isEditingNote, setIsEditingNote] = React.useState(false);
+  const [noteDraft, setNoteDraft] = React.useState('');
   const compartmentSheetRef = React.useRef<BottomSheetModal>(null);
   const [sheetContentHeight, setSheetContentHeight] = React.useState(320);
   const sheetSnapPoints = React.useMemo(
@@ -156,11 +168,37 @@ export default function CompartmentsScreen() {
   const openCompartmentSheet = React.useCallback((compartment: CompartmentEntry) => {
     setModalError(null);
     setModalInfo(null);
+    setIsEditingNote(false);
+    setNoteDraft(compartment.content_note ?? '');
     setSelectedCompartment(compartment);
     requestAnimationFrame(() => {
       compartmentSheetRef.current?.present();
     });
   }, []);
+
+  const saveContentNote = React.useCallback(() => {
+    if (!selectedCompartment) return;
+    const nextNote = noteDraft.trim() === '' ? null : noteDraft.trim();
+    void (async () => {
+      setModalError(null);
+      setModalInfo(null);
+      try {
+        await updateContentNote({
+          compartment: selectedCompartment.id,
+          updateCompartmentContentNoteRequest: { note: nextNote },
+        }).unwrap();
+        setSelectedCompartment((prev) => (prev ? { ...prev, content_note: nextNote } : prev));
+        setIsEditingNote(false);
+        setModalInfo(t('compartments.noteSaved'));
+        void refetchCompartments();
+      } catch (e) {
+        setModalError(getErrorMessage(e, t));
+      }
+    })();
+  }, [noteDraft, selectedCompartment, updateContentNote, refetchCompartments, t]);
+
+  const noteHasChanges = noteDraft.trim() !== (selectedCompartment?.content_note ?? '').trim();
+  const canSaveNote = noteHasChanges && !updateContentNoteState.isLoading;
 
   const closeCompartmentSheet = React.useCallback(() => {
     compartmentSheetRef.current?.dismiss();
@@ -374,7 +412,10 @@ export default function CompartmentsScreen() {
         index={0}
         snapPoints={sheetSnapPoints}
         enableDynamicSizing={false}
-        onDismiss={() => setSelectedCompartment(null)}
+        onDismiss={() => {
+          setSelectedCompartment(null);
+          setIsEditingNote(false);
+        }}
         backdropComponent={sheetBackdrop}
         enablePanDownToClose
         handleIndicatorStyle={[styles.bottomSheetHandle, { backgroundColor: theme.colors.outline }]}
@@ -427,18 +468,79 @@ export default function CompartmentsScreen() {
             {t('compartments.compartmentNumber', { number: selectedCompartment?.number ?? '' })}
           </Text>
           <Text variant="bodyMedium" style={styles.modalSubtitle}>
-            {t('compartments.storedItemLabel')}
+            {t('compartments.contentNoteLabel')}
           </Text>
-          <View style={[styles.sheetStoredItemCard, { borderColor: theme.colors.outlineVariant }]}>
-            <Text variant="titleSmall" style={styles.modalStoredItemName}>
-              {selectedCompartment?.item?.name?.trim() || t('compartments.noItemStored')}
-            </Text>
-            {!!selectedCompartment?.item?.description?.trim() && (
-              <Text variant="bodyMedium" style={styles.modalStoredItemDescription}>
-                {selectedCompartment.item.description.trim()}
+          {isEditingNote ? (
+            <View style={styles.noteEditWrap}>
+              <BottomSheetTextInput
+                value={noteDraft}
+                onChangeText={setNoteDraft}
+                placeholder={t('compartments.contentNotePlaceholder')}
+                placeholderTextColor={theme.colors.onSurfaceVariant}
+                multiline
+                maxLength={CONTENT_NOTE_MAX_LENGTH}
+                editable={!updateContentNoteState.isLoading}
+                style={[
+                  styles.noteInput,
+                  { borderColor: theme.colors.outlineVariant, color: theme.colors.onSurface },
+                ]}
+              />
+              <Text variant="bodySmall" style={styles.noteCounter}>
+                {t('compartments.contentNoteCounter', {
+                  count: noteDraft.length,
+                  max: CONTENT_NOTE_MAX_LENGTH,
+                })}
               </Text>
-            )}
-          </View>
+              <View style={styles.noteEditActions}>
+                <Button
+                  mode="text"
+                  compact
+                  disabled={updateContentNoteState.isLoading}
+                  onPress={() => {
+                    setIsEditingNote(false);
+                    setNoteDraft(selectedCompartment?.content_note ?? '');
+                  }}
+                >
+                  {t('common.cancel')}
+                </Button>
+                <Button
+                  mode="contained"
+                  compact
+                  loading={updateContentNoteState.isLoading}
+                  disabled={!canSaveNote}
+                  onPress={saveContentNote}
+                >
+                  {t('compartments.saveNote')}
+                </Button>
+              </View>
+            </View>
+          ) : (
+            <View style={[styles.sheetNoteCard, { borderColor: theme.colors.outlineVariant }]}>
+              <View style={styles.noteViewRow}>
+                <Text
+                  variant="bodyMedium"
+                  style={[
+                    styles.noteText,
+                    !selectedCompartment?.content_note?.trim() && styles.noteTextEmpty,
+                  ]}
+                >
+                  {selectedCompartment?.content_note?.trim() || t('compartments.contentNoteEmpty')}
+                </Text>
+                <Button
+                  mode="text"
+                  compact
+                  onPress={() => {
+                    setModalError(null);
+                    setModalInfo(null);
+                    setNoteDraft(selectedCompartment?.content_note ?? '');
+                    setIsEditingNote(true);
+                  }}
+                >
+                  {t('compartments.editNote')}
+                </Button>
+              </View>
+            </View>
+          )}
           <Text variant="bodySmall" style={styles.modalHint}>
             {t('compartments.openCommandHint')}
           </Text>
@@ -611,14 +713,39 @@ const styles = StyleSheet.create({
   },
   modalTitle: { fontWeight: '700' },
   modalSubtitle: { opacity: 0.8, marginTop: 2 },
-  sheetStoredItemCard: {
+  sheetNoteCard: {
     borderWidth: 1,
     borderRadius: 12,
     paddingHorizontal: 12,
     paddingVertical: 10,
     gap: 4,
   },
-  modalStoredItemName: { fontFamily: 'Inter_600SemiBold' },
-  modalStoredItemDescription: { opacity: 0.84, lineHeight: 20 },
   modalHint: { opacity: 0.7, marginBottom: 6 },
+  noteViewRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 8,
+  },
+  noteText: { flex: 1, lineHeight: 20 },
+  noteTextEmpty: { opacity: 0.6, fontStyle: 'italic' },
+  noteEditWrap: { gap: 6 },
+  noteInput: {
+    minHeight: 76,
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontFamily: 'Inter_500Medium',
+    fontSize: 14,
+    lineHeight: 20,
+    textAlignVertical: 'top',
+  },
+  noteCounter: { alignSelf: 'flex-end', opacity: 0.6 },
+  noteEditActions: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    alignItems: 'center',
+    gap: 4,
+  },
 });
