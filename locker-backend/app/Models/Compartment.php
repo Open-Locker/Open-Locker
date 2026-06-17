@@ -13,6 +13,11 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Validation\ValidationException;
 
+/**
+ * @property string|null $content_note
+ * @property \Illuminate\Support\Carbon|null $content_note_updated_at
+ * @property int|null $content_note_updated_by_user_id
+ */
 class Compartment extends Model
 {
     /** @use HasFactory<CompartmentFactory> */
@@ -30,6 +35,9 @@ class Compartment extends Model
         'last_open_transaction_id',
         'last_open_error_code',
         'last_open_error_message',
+        'content_note',
+        'content_note_updated_at',
+        'content_note_updated_by_user_id',
     ];
 
     public static function booted(): void
@@ -61,11 +69,6 @@ class Compartment extends Model
                 ]);
             }
         });
-    }
-
-    public function item(): HasOne
-    {
-        return $this->hasOne(Item::class);
     }
 
     /**
@@ -135,6 +138,8 @@ class Compartment extends Model
             'door_state_changed_at' => 'datetime',
             'last_opened_at' => 'datetime',
             'last_open_failed_at' => 'datetime',
+            'content_note_updated_at' => 'datetime',
+            'content_note_updated_by_user_id' => 'integer',
         ];
     }
 }

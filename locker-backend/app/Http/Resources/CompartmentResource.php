@@ -24,7 +24,6 @@ class CompartmentResource extends JsonResource
     public function toArray(Request $request): array
     {
         $lockerBank = $this->resource->lockerBank;
-        $item = $this->resource->item;
 
         return [
             'id' => (string) $this->resource->id,
@@ -39,7 +38,6 @@ class CompartmentResource extends JsonResource
                 'name' => (string) $lockerBank->name,
                 'location_description' => (string) $lockerBank->location_description,
             ] : null,
-            'item' => $item ? new ItemResource($item) : null,
         ];
     }
 }

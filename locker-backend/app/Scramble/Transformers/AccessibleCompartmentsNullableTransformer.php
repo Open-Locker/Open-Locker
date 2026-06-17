@@ -48,6 +48,9 @@ final class AccessibleCompartmentsNullableTransformer
             }
 
             self::nullableProp($compartmentItem, 'door_state_changed_at');
+            self::nullableProp($compartmentItem, 'content_note');
+            self::nullableProp($compartmentItem, 'content_note_updated_at');
+            self::nullableProp($compartmentItem, 'content_note_updated_by_user_id');
         }
     }
 

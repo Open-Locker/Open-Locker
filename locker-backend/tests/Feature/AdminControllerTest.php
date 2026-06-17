@@ -3,7 +3,6 @@
 namespace Tests\Feature;
 
 use App\Models\CompartmentAccess;
-use App\Models\Item;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Foundation\Testing\WithFaker;
@@ -138,9 +137,7 @@ class AdminControllerTest extends TestCase
 
     public function test_admin_can_get_statistics()
     {
-        // Erstelle einige Items und Zugriffsrechte für die Statistiken
-        $items = Item::factory()->count(5)->create();
-
+        // Erstelle einige Zugriffsrechte für die Statistiken
         CompartmentAccess::factory()->count(3)->create([
             'user_id' => $this->regularUser->id,
             'revoked_at' => null,
@@ -161,7 +158,6 @@ class AdminControllerTest extends TestCase
         $response->assertJsonStructure([
             'statistics' => [
                 'total_users',
-                'total_items',
                 'total_compartment_accesses',
                 'active_compartment_accesses',
             ],
@@ -170,7 +166,6 @@ class AdminControllerTest extends TestCase
         $response->assertJson([
             'statistics' => [
                 'total_users' => 2, // Admin + Regular
-                'total_items' => 5,
                 'total_compartment_accesses' => 5,
                 'active_compartment_accesses' => 3,
             ],

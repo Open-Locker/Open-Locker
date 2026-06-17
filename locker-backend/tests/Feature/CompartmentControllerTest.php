@@ -3,7 +3,6 @@
 namespace Tests\Feature;
 
 use App\Models\Compartment;
-use App\Models\Item;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -23,15 +22,12 @@ class CompartmentControllerTest extends TestCase
     {
         $user = User::factory()->create();
 
-        /** @var Compartment $compartmentWithItem */
-        $compartmentWithItem = Compartment::factory()->create();
-        Item::factory()->create([
-            'compartment_id' => $compartmentWithItem->id,
-        ]);
+        /** @var Compartment $firstCompartment */
+        $firstCompartment = Compartment::factory()->create();
 
-        /** @var Compartment $emptyCompartment */
-        $emptyCompartment = Compartment::factory()->create([
-            'locker_bank_id' => $compartmentWithItem->locker_bank_id,
+        /** @var Compartment $secondCompartment */
+        $secondCompartment = Compartment::factory()->create([
+            'locker_bank_id' => $firstCompartment->locker_bank_id,
         ]);
 
         $response = $this->actingAs($user)->getJson('/api/compartments');
@@ -49,14 +45,16 @@ class CompartmentControllerTest extends TestCase
                 'compartments' => [[
                     'id',
                     'number',
-                    'item',
+                    'content_note',
                 ]],
             ]],
         ]);
 
+        $response->assertJsonMissingPath('locker_banks.0.compartments.0.item');
+
         $response->assertJsonFragment([
-            'id' => (string) $emptyCompartment->id,
-            'item' => null,
+            'id' => (string) $secondCompartment->id,
+            'content_note' => null,
         ]);
     }
 }
