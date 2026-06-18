@@ -53,15 +53,6 @@ class CommandDispatcher {
         if (handler.requiresTransactionId()) {
             const dedupResult = await this.guardTransactionExecution(action, command.transaction_id);
             if (dedupResult === 'duplicate_completed') {
-                if (action === 'open_compartment') {
-                    await this.outbound.publishCommandResponse({
-                        type: 'command_response',
-                        action,
-                        result: 'success',
-                        transaction_id: command.transaction_id,
-                        message: 'Duplicate command ignored (already completed).',
-                    });
-                }
                 return;
             }
             if (dedupResult === 'duplicate_in_progress') {

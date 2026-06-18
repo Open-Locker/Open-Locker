@@ -1,4 +1,7 @@
-import { ModbusBusActor } from '../adapters/modbus/bus-actor';
+import {
+  DEFAULT_MODBUS_MAX_RECONNECT_ATTEMPTS,
+  ModbusBusActor,
+} from '../adapters/modbus/bus-actor';
 import { ModbusRtuDriver } from '../adapters/modbus/modbus-rtu.driver';
 import { YamlConfigRepository } from '../adapters/config/yaml-config.repository';
 import { FileRuntimeOverlayStore } from '../adapters/config/runtime-overlay.store';
@@ -21,6 +24,7 @@ import {
 } from '../application/provision-device';
 import { connectionLostWillOptions } from '../infrastructure/mqtt-will';
 import { logger } from '../infrastructure/logging';
+import { createWinstonLoggerPort } from '../infrastructure/winston-logger.adapter';
 import { MQTT_CLIENT_ID_FILE } from '../infrastructure/paths';
 
 export interface AppContext {
@@ -45,7 +49,7 @@ export async function createApp(): Promise<AppContext> {
 
   const bus = new ModbusBusActor(
     driver,
-    { maxAttempts: 0, delayMs: 5000 },
+    { maxAttempts: DEFAULT_MODBUS_MAX_RECONNECT_ATTEMPTS, delayMs: 5000 },
     configRepo.getConfiguredSlaveIds(),
   );
 
@@ -91,12 +95,20 @@ export async function createApp(): Promise<AppContext> {
   );
 
   const scheduler = new RunAfterCompleteScheduler();
+  const appLogger = createWinstonLoggerPort();
   const openCompartment = new OpenCompartmentUseCase(bus, configRepo, scheduler);
-  const pollSnapshot = new PollCompartmentStateUseCase(bus, configRepo, outbound, snapshotTopic);
+  const pollSnapshot = new PollCompartmentStateUseCase(
+    bus,
+    configRepo,
+    outbound,
+    snapshotTopic,
+    appLogger,
+  );
   const heartbeat = new HeartbeatUseCase(
     outbound,
     heartbeatTopic,
     configRepo.getHeartbeatIntervalSeconds() * 1000,
+    appLogger,
   );
 
   const applyConfig = new ApplyConfigUseCase({

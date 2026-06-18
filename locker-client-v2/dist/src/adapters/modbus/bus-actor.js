@@ -3,11 +3,13 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.ModbusBusActor = void 0;
+exports.ModbusBusActor = exports.DEFAULT_MODBUS_MAX_RECONNECT_ATTEMPTS = void 0;
 const p_queue_1 = __importDefault(require("p-queue"));
 const errors_1 = require("../../domain/errors");
 const locker_bus_port_1 = require("../../ports/locker-bus.port");
 const reconnect_coordinator_1 = require("./reconnect-coordinator");
+/** Matches v1 `modbusService.maxReconnectAttempts`. */
+exports.DEFAULT_MODBUS_MAX_RECONNECT_ATTEMPTS = 5;
 class ModbusBusActor {
     driver;
     configuredSlaveIds;
@@ -18,7 +20,7 @@ class ModbusBusActor {
         this.driver = driver;
         this.configuredSlaveIds = configuredSlaveIds;
         this.reconnect = new reconnect_coordinator_1.ReconnectCoordinator({
-            maxAttempts: reconnectOptions?.maxAttempts ?? 0,
+            maxAttempts: reconnectOptions?.maxAttempts ?? exports.DEFAULT_MODBUS_MAX_RECONNECT_ATTEMPTS,
             delayMs: reconnectOptions?.delayMs ?? 5000,
         });
     }

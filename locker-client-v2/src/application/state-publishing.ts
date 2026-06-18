@@ -2,7 +2,7 @@ import type { CompartmentTarget, DoorState } from '../domain/compartment';
 import type { ConfigRepositoryPort } from '../ports/config.port';
 import type { LockerBusPort } from '../ports/locker-bus.port';
 import type { OutboundMqttPort } from '../ports/mqtt.port';
-import { logger } from '../infrastructure/logging';
+import { noopLogger, type LoggerPort } from '../ports/logging.port';
 
 export interface CompartmentSnapshotEntry {
   compartment_number: number;
@@ -17,6 +17,7 @@ export class PollCompartmentStateUseCase {
     private readonly config: ConfigRepositoryPort,
     private readonly outbound: OutboundMqttPort,
     private readonly snapshotTopic: string,
+    private readonly log: LoggerPort = noopLogger,
   ) {}
 
   async pollAndPublish(force = false): Promise<void> {
@@ -33,7 +34,7 @@ export class PollCompartmentStateUseCase {
         { qos: 1, retain: true },
       );
     } catch (error) {
-      logger.warn('Compartment snapshot publish failed', {
+      this.log.warn('Compartment snapshot publish failed', {
         error: error instanceof Error ? error.message : String(error),
       });
     } finally {
@@ -82,6 +83,7 @@ export class HeartbeatUseCase {
     private readonly outbound: OutboundMqttPort,
     private readonly topic: string,
     private intervalMs: number,
+    private readonly log: LoggerPort = noopLogger,
   ) {}
 
   start(): void {
@@ -111,7 +113,7 @@ export class HeartbeatUseCase {
     try {
       await this.outbound.publishJson(this.topic, { uptime_seconds: uptimeSeconds }, { qos: 1 });
     } catch (error) {
-      logger.warn('Heartbeat publish failed', {
+      this.log.warn('Heartbeat publish failed', {
         error: error instanceof Error ? error.message : String(error),
       });
     }

@@ -1,6 +1,8 @@
 import PQueue from 'p-queue';
 import type { CompartmentTarget, DoorState } from '../../domain/compartment';
 import { ConnectionState, LockerBusPort } from '../../ports/locker-bus.port';
+/** Matches v1 `modbusService.maxReconnectAttempts`. */
+export declare const DEFAULT_MODBUS_MAX_RECONNECT_ATTEMPTS = 5;
 export interface ModbusDriver {
     connect(): Promise<void>;
     disconnect(): Promise<void>;

@@ -88,6 +88,16 @@ test('BusActor command priority runs before poll reads', async () => {
   assert.ok(flashIndex > slowPollIndex);
 });
 
+test('ensureConnected returns false after max reconnect attempts', async () => {
+  const driver = new FailingConnectDriver();
+  const bus = new ModbusBusActor(driver, { maxAttempts: 3, delayMs: 1 }, [1]);
+
+  const result = await bus.ensureConnected();
+
+  assert.equal(result, false);
+  assert.equal(driver.connectAttempts, 3);
+});
+
 test('concurrent flashRelay and ensureConnected never interleave driver calls', async () => {
   const driver = new InterleavingGuardDriver();
   const bus = new ModbusBusActor(driver, { maxAttempts: 0 }, [1]);
@@ -115,6 +125,33 @@ test('BusActor retries once after reconnectable transport failure', async () => 
   assert.ok(driver.operations.includes('disconnect'));
   assert.ok(driver.operations.filter((op) => op === 'connect').length >= 2);
 });
+
+class FailingConnectDriver implements ModbusDriver {
+  connectAttempts = 0;
+
+  async connect(): Promise<void> {
+    this.connectAttempts++;
+    throw new Error('connect failed');
+  }
+
+  async disconnect(): Promise<void> {}
+
+  isOpen(): boolean {
+    return false;
+  }
+
+  async flashRelayOn(): Promise<void> {}
+
+  async readCoils(): Promise<boolean[]> {
+    return [false];
+  }
+
+  async readDiscreteInputs(): Promise<boolean[]> {
+    return [true];
+  }
+
+  async turnAllRelaysOff(): Promise<void> {}
+}
 
 class InterleavingGuardDriver implements ModbusDriver {
   readonly operations: string[] = [];

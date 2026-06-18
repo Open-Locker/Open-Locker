@@ -124,7 +124,7 @@ function commandResponses(published) {
     strict_1.default.equal(bus.flashCalls.length, 0);
     strict_1.default.equal(published.length, 0);
 });
-(0, node_test_1.test)('failed open clears in_progress so retry gets a response', async () => {
+(0, node_test_1.test)('failed open marks completed and duplicate retry is silently ignored', async () => {
     const bus = new fake_locker_bus_1.FakeLockerBus([1]);
     let flashAttempts = 0;
     const originalFlash = bus.flashRelay.bind(bus);
@@ -152,14 +152,12 @@ function commandResponses(published) {
     }));
     openCompartment.stopAllMonitoring();
     const responses = commandResponses(published);
-    strict_1.default.equal(published.length, 2, `expected two publishes, got ${published.length}`);
-    strict_1.default.equal(responses.length, 2);
+    strict_1.default.equal(responses.length, 1);
     strict_1.default.equal(responses[0]?.result, 'error');
-    strict_1.default.equal(responses[1]?.result, 'success');
     strict_1.default.equal(flashAttempts, 1);
     strict_1.default.equal(dedup.getCommandRecord('txn-retry')?.status, 'completed');
 });
-(0, node_test_1.test)('duplicate completed open_compartment re-ACKs without re-running hardware', async () => {
+(0, node_test_1.test)('duplicate completed open_compartment is silently ignored', async () => {
     const { bus, dedup, dispatcher, openCompartment, published } = createDispatcherHarness();
     dedup.markCommandCompleted('txn-dup', 'open_compartment');
     await dispatcher.dispatch('locker/test/command', JSON.stringify({
@@ -171,7 +169,7 @@ function commandResponses(published) {
     }));
     openCompartment.stopAllMonitoring();
     strict_1.default.equal(bus.flashCalls.length, 0);
-    strict_1.default.equal(commandResponses(published)[0]?.result, 'success');
+    strict_1.default.equal(commandResponses(published).length, 0);
 });
 (0, node_test_1.test)('apply_config deduplicates completed transaction without re-running', async () => {
     const bus = new fake_locker_bus_1.FakeLockerBus([1]);

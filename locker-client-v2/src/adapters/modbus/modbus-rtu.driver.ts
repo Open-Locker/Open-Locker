@@ -21,14 +21,27 @@ export class ModbusRtuDriver implements ModbusDriver {
       return;
     }
 
+    if (this.client) {
+      try {
+        await this.disconnect();
+      } catch {
+        this.client = null;
+      }
+    }
+
     this.client = new ModbusRTU();
-    await this.client.connectRTUBuffered(this.connection.port, {
-      baudRate: this.connection.baudRate,
-      dataBits: this.connection.dataBits,
-      stopBits: this.connection.stopBits,
-      parity: this.connection.parity,
-    });
-    this.client.setTimeout(this.connection.timeout);
+    try {
+      await this.client.connectRTUBuffered(this.connection.port, {
+        baudRate: this.connection.baudRate,
+        dataBits: this.connection.dataBits,
+        stopBits: this.connection.stopBits,
+        parity: this.connection.parity,
+      });
+      this.client.setTimeout(this.connection.timeout);
+    } catch (error) {
+      this.client = null;
+      throw error;
+    }
   }
 
   async disconnect(): Promise<void> {

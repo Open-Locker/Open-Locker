@@ -68,6 +68,13 @@ class FakeModbusDriver {
     strict_1.default.ok(slowPollIndex >= 0);
     strict_1.default.ok(flashIndex > slowPollIndex);
 });
+(0, node_test_1.test)('ensureConnected returns false after max reconnect attempts', async () => {
+    const driver = new FailingConnectDriver();
+    const bus = new bus_actor_1.ModbusBusActor(driver, { maxAttempts: 3, delayMs: 1 }, [1]);
+    const result = await bus.ensureConnected();
+    strict_1.default.equal(result, false);
+    strict_1.default.equal(driver.connectAttempts, 3);
+});
 (0, node_test_1.test)('concurrent flashRelay and ensureConnected never interleave driver calls', async () => {
     const driver = new InterleavingGuardDriver();
     const bus = new bus_actor_1.ModbusBusActor(driver, { maxAttempts: 0 }, [1]);
@@ -89,6 +96,25 @@ class FakeModbusDriver {
     strict_1.default.ok(driver.operations.includes('disconnect'));
     strict_1.default.ok(driver.operations.filter((op) => op === 'connect').length >= 2);
 });
+class FailingConnectDriver {
+    connectAttempts = 0;
+    async connect() {
+        this.connectAttempts++;
+        throw new Error('connect failed');
+    }
+    async disconnect() { }
+    isOpen() {
+        return false;
+    }
+    async flashRelayOn() { }
+    async readCoils() {
+        return [false];
+    }
+    async readDiscreteInputs() {
+        return [true];
+    }
+    async turnAllRelaysOff() { }
+}
 class InterleavingGuardDriver {
     operations = [];
     open = false;

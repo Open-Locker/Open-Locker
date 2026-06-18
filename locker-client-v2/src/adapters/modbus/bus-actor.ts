@@ -4,6 +4,9 @@ import { isReconnectableModbusError } from '../../domain/errors';
 import { BusPriority, ConnectionState, LockerBusPort } from '../../ports/locker-bus.port';
 import { ReconnectCoordinator } from './reconnect-coordinator';
 
+/** Matches v1 `modbusService.maxReconnectAttempts`. */
+export const DEFAULT_MODBUS_MAX_RECONNECT_ATTEMPTS = 5;
+
 export interface ModbusDriver {
   connect(): Promise<void>;
   disconnect(): Promise<void>;
@@ -25,7 +28,7 @@ export class ModbusBusActor implements LockerBusPort {
     private readonly configuredSlaveIds: number[] = [1],
   ) {
     this.reconnect = new ReconnectCoordinator({
-      maxAttempts: reconnectOptions?.maxAttempts ?? 0,
+      maxAttempts: reconnectOptions?.maxAttempts ?? DEFAULT_MODBUS_MAX_RECONNECT_ATTEMPTS,
       delayMs: reconnectOptions?.delayMs ?? 5000,
     });
   }

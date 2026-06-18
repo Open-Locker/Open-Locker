@@ -171,7 +171,7 @@ test('dispatcher rejects missing transaction_id without side effects', async () 
   assert.equal(published.length, 0);
 });
 
-test('failed open clears in_progress so retry gets a response', async () => {
+test('failed open marks completed and duplicate retry is silently ignored', async () => {
   const bus = new FakeLockerBus([1]);
   let flashAttempts = 0;
   const originalFlash = bus.flashRelay.bind(bus);
@@ -210,15 +210,13 @@ test('failed open clears in_progress so retry gets a response', async () => {
   openCompartment.stopAllMonitoring();
 
   const responses = commandResponses(published);
-  assert.equal(published.length, 2, `expected two publishes, got ${published.length}`);
-  assert.equal(responses.length, 2);
+  assert.equal(responses.length, 1);
   assert.equal(responses[0]?.result, 'error');
-  assert.equal(responses[1]?.result, 'success');
   assert.equal(flashAttempts, 1);
   assert.equal(dedup.getCommandRecord('txn-retry')?.status, 'completed');
 });
 
-test('duplicate completed open_compartment re-ACKs without re-running hardware', async () => {
+test('duplicate completed open_compartment is silently ignored', async () => {
   const { bus, dedup, dispatcher, openCompartment, published } = createDispatcherHarness();
   dedup.markCommandCompleted('txn-dup', 'open_compartment');
 
@@ -235,7 +233,7 @@ test('duplicate completed open_compartment re-ACKs without re-running hardware',
 
   openCompartment.stopAllMonitoring();
   assert.equal(bus.flashCalls.length, 0);
-  assert.equal(commandResponses(published)[0]?.result, 'success');
+  assert.equal(commandResponses(published).length, 0);
 });
 
 test('apply_config deduplicates completed transaction without re-running', async () => {

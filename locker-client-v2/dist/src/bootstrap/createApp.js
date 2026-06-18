@@ -20,6 +20,7 @@ const scheduler_1 = require("../infrastructure/scheduler");
 const provision_device_1 = require("../application/provision-device");
 const mqtt_will_1 = require("../infrastructure/mqtt-will");
 const logging_1 = require("../infrastructure/logging");
+const winston_logger_adapter_1 = require("../infrastructure/winston-logger.adapter");
 const paths_1 = require("../infrastructure/paths");
 async function createApp() {
     const configRepo = new yaml_config_repository_1.YamlConfigRepository(new runtime_overlay_store_1.FileRuntimeOverlayStore());
@@ -35,7 +36,7 @@ async function createApp() {
         parity: config.modbus.parity ?? 'none',
         timeout: config.modbus.timeout ?? 1000,
     });
-    const bus = new bus_actor_1.ModbusBusActor(driver, { maxAttempts: 0, delayMs: 5000 }, configRepo.getConfiguredSlaveIds());
+    const bus = new bus_actor_1.ModbusBusActor(driver, { maxAttempts: bus_actor_1.DEFAULT_MODBUS_MAX_RECONNECT_ATTEMPTS, delayMs: 5000 }, configRepo.getConfiguredSlaveIds());
     const clientId = (0, provision_device_1.getOrCreateClientId)(paths_1.MQTT_CLIENT_ID_FILE);
     const lockerUuid = process.env.LOCKER_UUID?.trim() || clientId;
     const brokerUrl = process.env.MQTT_BROKER_URL?.trim() || provision_device_1.DEFAULT_MQTT_BROKER_URL;
@@ -69,9 +70,10 @@ async function createApp() {
     const snapshotTopic = `locker/${lockerUuid}/state/compartments`;
     const outbound = new outbound_mqtt_adapter_1.OutboundMqttAdapter((topic, payload, options) => transport.publish(topic, payload, options), responseTopic);
     const scheduler = new scheduler_1.RunAfterCompleteScheduler();
+    const appLogger = (0, winston_logger_adapter_1.createWinstonLoggerPort)();
     const openCompartment = new open_compartment_1.OpenCompartmentUseCase(bus, configRepo, scheduler);
-    const pollSnapshot = new state_publishing_1.PollCompartmentStateUseCase(bus, configRepo, outbound, snapshotTopic);
-    const heartbeat = new state_publishing_1.HeartbeatUseCase(outbound, heartbeatTopic, configRepo.getHeartbeatIntervalSeconds() * 1000);
+    const pollSnapshot = new state_publishing_1.PollCompartmentStateUseCase(bus, configRepo, outbound, snapshotTopic, appLogger);
+    const heartbeat = new state_publishing_1.HeartbeatUseCase(outbound, heartbeatTopic, configRepo.getHeartbeatIntervalSeconds() * 1000, appLogger);
     const applyConfig = new apply_config_1.ApplyConfigUseCase({
         overlayStore: new runtime_overlay_store_1.FileRuntimeOverlayStore(),
         config: configRepo,
