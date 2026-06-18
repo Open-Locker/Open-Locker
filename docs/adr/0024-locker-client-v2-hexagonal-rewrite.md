@@ -1,4 +1,4 @@
-# ADR-0021: locker-client v2 hexagonal rewrite
+# ADR-0024: locker-client v2 hexagonal rewrite
 
 ## Status
 

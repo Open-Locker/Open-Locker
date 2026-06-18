@@ -3,7 +3,7 @@
 Hexagonal rewrite of the Open-Locker edge client. See:
 
 - [Implementation plan](../docs/plans/locker-client-v2-rewrite.md)
-- [ADR-0021](../docs/adr/0021-locker-client-v2-hexagonal-rewrite.md)
+- [ADR-0024](../docs/adr/0024-locker-client-v2-hexagonal-rewrite.md)
 
 ## Hardware warning
 

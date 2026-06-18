@@ -1,16 +1,16 @@
 # locker-client v2 — Implementation Plan
 
-Living document for the parallel rewrite. Architecture decision: [ADR-0021](../adr/0021-locker-client-v2-hexagonal-rewrite.md).
+Living document for the parallel rewrite. Architecture decision: [ADR-0024](../adr/0024-locker-client-v2-hexagonal-rewrite.md).
 
 ## Branch
 
-`feat/locker-client-v2` — scope: `locker-client-v2/`, this file, ADR-0021.
+`feat/locker-client-v2` — scope: `locker-client-v2/`, this file, ADR-0024.
 
 ## Phases
 
 ### Phase 0 — Fundament
 
-- [x] ADR-0021
+- [x] ADR-0024
 - [x] This plan
 - [x] `locker-client-v2/` scaffold (package.json, TS strict, Dockerfile)
 - [x] TDD: OutboundEnvelope, InboundProtocolGuard, BusActor
@@ -79,10 +79,10 @@ It is **not** an actor framework, message bus, MQTT router, or Modbus concurrenc
 | Modbus request serialization | `ModbusBusActor` + `p-queue` concurrency 1 + `BusPriority` | **No** — Fallow does not execute or queue Modbus operations |
 | Reconnect storms / single-flight | `ReconnectCoordinator` inside `BusActor` | **No** — no runtime networking |
 | MQTT command routing | `CommandDispatcher` + per-action `InboundCommandHandler` + `InboundProtocolGuard` | **No** — not a message router; plan already rejects generic MQTT router packages for different reasons |
-| Hexagonal layer discipline | Manual ports/adapters + ADR-0021 | **Partial (CI only)** — `boundaries.preset: "hexagonal"` could gate import violations in PRs, but does not replace runtime design |
+| Hexagonal layer discipline | Manual ports/adapters + ADR-0024 | **Partial (CI only)** — `boundaries.preset: "hexagonal"` could gate import violations in PRs, but does not replace runtime design |
 | Lost requests under load | Priority queue + serialized bus actor | **No** |
 
-`p-queue` + `ModbusBusActor` directly address ADR-0021's concurrency requirements. Fallow operates in a completely orthogonal layer (developer tooling).
+`p-queue` + `ModbusBusActor` directly address ADR-0024's concurrency requirements. Fallow operates in a completely orthogonal layer (developer tooling).
 
 ### Integration cost
 
@@ -90,7 +90,7 @@ It is **not** an actor framework, message bus, MQTT router, or Modbus concurrenc
 | --- | --- |
 | Language | Analyzer core is Rust (~90%); npm wrapper shells out to native binary — **not embeddable as in-process runtime logic** |
 | Pi / ARM deployment | Production image would need an extra native binary or dev-only CI install; **no benefit on the Pi runtime path** |
-| Team stack | TypeScript service; adding Rust tooling to the **runtime** path conflicts with ADR-0021 (explicit TS rewrite, rejected Rust rewrite for delivery reasons) |
+| Team stack | TypeScript service; adding Rust tooling to the **runtime** path conflicts with ADR-0024 (explicit TS rewrite, rejected Rust rewrite for delivery reasons) |
 | Maturity | Mature OSS (3.7k+ stars, active releases, MIT); **mature as a linter, irrelevant as a bus actor** |
 | Operational footprint | One-shot CLI, not a long-running service — correct for CI, wrong for Modbus/MQTT orchestration |
 
@@ -98,15 +98,15 @@ It is **not** an actor framework, message bus, MQTT router, or Modbus concurrenc
 
 | Option | Pros | Cons |
 | --- | --- | --- |
-| **Reject (chosen)** | Keeps runtime deps minimal per ADR-0021; no confusion between static analysis and hardware bridge; `p-queue` + `BusActor` already solve serialization | No automated boundary enforcement in CI |
+| **Reject (chosen)** | Keeps runtime deps minimal per ADR-0024; no confusion between static analysis and hardware bridge; `p-queue` + `BusActor` already solve serialization | No automated boundary enforcement in CI |
 | Runtime integration | — | Category error; Fallow cannot serialize Modbus or route MQTT |
 | Dev-only CI (`fallow audit` + hexagonal preset) | Could catch `domain → adapters` import leaks early; fast, zero-config | Extra devDependency; syntactic-only (no types); team must triage false positives; **out of scope for edge runtime** |
 
 ### Recommendation
 
-- **Runtime:** **No.** Continue with `ModbusBusActor` + `p-queue` + `CommandDispatcher` as decided in ADR-0021.
+- **Runtime:** **No.** Continue with `ModbusBusActor` + `p-queue` + `CommandDispatcher` as decided in ADR-0024.
 - **Optional follow-up (separate task):** Add `fallow` as a `devDependency` in `locker-client-v2` with `.fallowrc.json` `boundaries.preset: "hexagonal"` for CI `fallow audit` on PRs. That is quality tooling, not a substitute for the bus actor.
 
 ## Agent hook
 
-New sessions: read this file + ADR-0021 before editing `locker-client-v2/`.
+New sessions: read this file + ADR-0024 before editing `locker-client-v2/`.
