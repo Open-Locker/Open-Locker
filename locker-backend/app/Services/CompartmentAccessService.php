@@ -6,6 +6,7 @@ namespace App\Services;
 
 use App\Aggregates\CompartmentAccessAggregate;
 use App\Aggregates\CompartmentOpenAggregate;
+use App\Enums\Permission;
 use App\Models\Compartment;
 use App\Models\CompartmentAccess;
 use App\Models\User;
@@ -91,7 +92,9 @@ class CompartmentAccessService
 
     /**
      * Record an open request and authorization decision via event sourcing.
-     * Admins are always authorized.
+     * Admins and managers are always authorized.
+     *
+     * @return array{authorized: bool, command_id: string}
      */
     public function requestOpen(User $user, Compartment $compartment): array
     {
@@ -123,6 +126,22 @@ class CompartmentAccessService
                 actorUserId: $user->id,
                 compartmentUuid: (string) $compartment->id,
                 authorizationType: 'admin_override'
+            )->persist();
+
+            return [
+                'authorized' => true,
+                'command_id' => $commandId,
+            ];
+        }
+
+        // Managers may open any compartment operationally (ADR-0021 / #95),
+        // recorded as a distinct authorization type for audit clarity.
+        if ($user->can(Permission::CompartmentOpen->value)) {
+            $aggregate->authorize(
+                commandId: $commandId,
+                actorUserId: $user->id,
+                compartmentUuid: (string) $compartment->id,
+                authorizationType: 'manager_override'
             )->persist();
 
             return [
@@ -179,7 +198,11 @@ class CompartmentAccessService
     private function ensureCanManageAccess(?User $actor): User
     {
         $resolvedActor = $this->resolveActor($actor);
-        throw_unless($resolvedActor?->isAdmin(), AuthorizationException::class, 'Only admins can grant or revoke compartment access.');
+        throw_unless(
+            $resolvedActor?->can(Permission::CompartmentAccessManage->value),
+            AuthorizationException::class,
+            'You are not allowed to grant or revoke compartment access.'
+        );
 
         return $resolvedActor;
     }

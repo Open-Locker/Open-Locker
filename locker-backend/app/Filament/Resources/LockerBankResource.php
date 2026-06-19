@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources;
 
+use App\Enums\Permission;
 use App\Filament\Resources\LockerBankResource\Pages;
 use App\Filament\Resources\LockerBankResource\RelationManagers;
 use App\Models\LockerBank;
@@ -18,6 +19,12 @@ class LockerBankResource extends Resource
     protected static ?string $model = LockerBank::class;
 
     protected static \BackedEnum|string|null $navigationIcon = 'heroicon-o-squares-2x2';
+
+    public static function canAccess(): bool
+    {
+        // Locker bank + Modbus technical config is admin-only (#95).
+        return auth()->user()?->can(Permission::LockerBankConfigure->value) ?? false;
+    }
 
     public static function form(Schema $form): Schema
     {

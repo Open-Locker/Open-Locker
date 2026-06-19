@@ -60,8 +60,7 @@ class GroupAdminUiTest extends TestCase
     {
         User::factory()->create();
         $user = User::factory()->create();
-        $user->is_admin_since = null;
-        $user->save();
+        $user->removeAdmin();
 
         $this->actingAs($user)->get(GroupResource::getUrl('index'))->assertForbidden();
     }
