@@ -23,8 +23,7 @@ class GroupEffectiveAccessTest extends TestCase
         User::factory()->create(); // first user may become admin automatically
 
         $user = User::factory()->create();
-        $user->is_admin_since = null;
-        $user->save();
+        $user->removeAdmin();
 
         return $user;
     }

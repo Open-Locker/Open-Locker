@@ -2,6 +2,10 @@
 
 namespace App\Models;
 
+use App\Aggregates\UserRoleAggregate;
+use App\Enums\Permission;
+use App\Enums\Role;
+use App\Models\Concerns\HasPermissions;
 use App\Notifications\Auth\WebResetPasswordNotification;
 use App\Notifications\Auth\WebVerifyEmailNotification;
 use Database\Factories\UserFactory;
@@ -21,7 +25,7 @@ use Laravel\Sanctum\HasApiTokens;
 class User extends Authenticatable implements FilamentUser, HasName, MustVerifyEmail
 {
     /** @use HasFactory<UserFactory> */
-    use HasApiTokens, HasFactory, Notifiable;
+    use HasApiTokens, HasFactory, HasPermissions, Notifiable;
 
     /**
      * The attributes that are mass assignable.
@@ -153,25 +157,44 @@ class User extends Authenticatable implements FilamentUser, HasName, MustVerifyE
      */
     public function isAdmin(): bool
     {
-        return $this->is_admin_since !== null;
+        return $this->hasRole(Role::Admin->value);
     }
 
     /**
-     * Make user an admin
+     * Make user an admin.
+     *
+     * Transitional dual-write (ADR-0021): keeps the legacy `is_admin_since`
+     * column in sync while also recording the role grant as an event so the
+     * `user_roles` read model is populated. `isAdmin()` still reads the legacy
+     * column until the enforcement slice flips it to `hasRole('admin')`.
      */
-    public function makeAdmin(): void
+    public function makeAdmin(?int $actorUserId = null): void
     {
-        $this->is_admin_since = now();
-        $this->save();
+        if ($this->is_admin_since === null) {
+            $this->is_admin_since = now();
+            $this->save();
+        }
+
+        UserRoleAggregate::retrieve(UserRoleAggregate::aggregateUuidFor($this->id))
+            ->grantRole($this->id, Role::Admin->value, $actorUserId, now())
+            ->persist();
+
+        $this->flushPermissionCache();
     }
 
     /**
-     * Remove admin privileges from user
+     * Remove admin privileges from user (dual-write; see makeAdmin()).
      */
-    public function removeAdmin(): void
+    public function removeAdmin(?int $actorUserId = null): void
     {
         $this->is_admin_since = null;
         $this->save();
+
+        UserRoleAggregate::retrieve(UserRoleAggregate::aggregateUuidFor($this->id))
+            ->revokeRole($this->id, Role::Admin->value, $actorUserId, now())
+            ->persist();
+
+        $this->flushPermissionCache();
     }
 
     /**
@@ -209,15 +232,16 @@ class User extends Authenticatable implements FilamentUser, HasName, MustVerifyE
 
     public function canAccessPanel(Panel $panel): bool
     {
-        return $this->isAdmin();
+        return $this->can(Permission::PanelAccess->value);
     }
 
     protected static function booted()
     {
         static::created(function (User $user) {
+            // First registered user becomes admin — recorded as an auditable
+            // system event via makeAdmin() (dual-writes the role). See ADR-0021.
             if (User::count() === 1) {
-                $user->is_admin_since = now();
-                $user->save();
+                $user->makeAdmin();
             }
         });
 

@@ -2,9 +2,14 @@
 
 namespace App\Filament\Resources\UserResource\Pages;
 
+use App\Aggregates\UserRoleAggregate;
+use App\Enums\Permission;
+use App\Enums\Role;
 use App\Filament\Resources\UserResource;
 use App\Models\User;
+use App\Support\Authorization\AuthorizationCatalog;
 use Filament\Actions;
+use Filament\Forms\Components\CheckboxList;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\EditRecord;
 use Illuminate\Support\Facades\Password;
@@ -68,6 +73,7 @@ class EditUser extends EditRecord
                             ->send();
                     }),
                 Actions\Action::make('setAsAdmin')
+                    ->visible(fn (): bool => auth()->user()?->can(Permission::RolesManage->value) ?? false)
                     ->hidden(fn (User $record): bool => $record->isAdmin())
                     ->label('zum Admin machen')
                     ->icon('heroicon-o-shield-check')
@@ -85,6 +91,7 @@ class EditUser extends EditRecord
                             ->send();
                     }),
                 Actions\Action::make('removeAdmin')
+                    ->visible(fn (): bool => auth()->user()?->can(Permission::RolesManage->value) ?? false)
                     ->hidden(fn (User $record): bool => ! $record->isAdmin())
                     ->label('Adminrechte entziehen')
                     ->icon('heroicon-o-shield-exclamation')
@@ -116,6 +123,43 @@ class EditUser extends EditRecord
                             ->success()
                             ->send();
                     }),
+                Actions\Action::make('manageRoles')
+                    ->visible(fn (): bool => auth()->user()?->can(Permission::RolesManage->value) ?? false)
+                    ->label('Rollen verwalten')
+                    ->icon('heroicon-o-identification')
+                    ->fillForm(fn (User $record): array => [
+                        'roles' => array_values(array_intersect($record->roleNames(), self::assignableRoles())),
+                    ])
+                    ->form([
+                        CheckboxList::make('roles')
+                            ->label('Rollen')
+                            ->options(fn (): array => array_combine(self::assignableRoles(), self::assignableRoles())),
+                    ])
+                    ->action(function (User $record, array $data): void {
+                        $selected = $data['roles'] ?? [];
+                        $assignable = self::assignableRoles();
+                        $current = array_values(array_intersect($record->roleNames(), $assignable));
+                        $actor = auth()->id();
+
+                        foreach (array_diff($selected, $current) as $role) {
+                            UserRoleAggregate::retrieve(UserRoleAggregate::aggregateUuidFor($record->id))
+                                ->grantRole($record->id, $role, $actor, now())
+                                ->persist();
+                        }
+
+                        foreach (array_diff($current, $selected) as $role) {
+                            UserRoleAggregate::retrieve(UserRoleAggregate::aggregateUuidFor($record->id))
+                                ->revokeRole($record->id, $role, $actor, now())
+                                ->persist();
+                        }
+
+                        $record->flushPermissionCache();
+
+                        Notification::make()
+                            ->title('Rollen aktualisiert')
+                            ->success()
+                            ->send();
+                    }),
             ])
                 ->label('Aktionen')
                 ->icon('heroicon-o-ellipsis-horizontal')
@@ -135,5 +179,19 @@ class EditUser extends EditRecord
                     }
                 }),
         ];
+    }
+
+    /**
+     * Catalog roles that can be toggled here. `admin` is handled by its own
+     * guarded actions; `user` is the no-role default.
+     *
+     * @return list<string>
+     */
+    private static function assignableRoles(): array
+    {
+        return array_values(array_diff(
+            app(AuthorizationCatalog::class)->roles(),
+            [Role::Admin->value, Role::User->value],
+        ));
     }
 }

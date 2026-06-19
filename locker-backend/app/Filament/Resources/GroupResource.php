@@ -20,6 +20,12 @@ class GroupResource extends Resource
 
     protected static \BackedEnum|string|null $navigationIcon = 'heroicon-o-user-group';
 
+    public static function canAccess(): bool
+    {
+        // Group management is admin-only; managers manage direct access only (#95).
+        return auth()->user()?->isAdmin() ?? false;
+    }
+
     public static function form(Schema $form): Schema
     {
         // Name/description are set at creation via GroupCreated. v1 defines no

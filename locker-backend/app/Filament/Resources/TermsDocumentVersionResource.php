@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Filament\Resources;
 
+use App\Enums\Permission;
 use App\Filament\Resources\TermsDocumentVersionResource\Pages;
 use App\Models\TermsDocumentVersion;
 use App\Models\User;
@@ -27,6 +28,12 @@ class TermsDocumentVersionResource extends Resource
     protected static ?string $navigationLabel = 'Terms & Policies';
 
     protected static string|\UnitEnum|null $navigationGroup = 'Legal';
+
+    public static function canAccess(): bool
+    {
+        // Legal / system configuration is admin-only (#95).
+        return auth()->user()?->can(Permission::SystemConfigure->value) ?? false;
+    }
 
     protected static ?string $modelLabel = 'legal document version';
 

@@ -5,6 +5,7 @@ namespace App\Providers;
 use App\Scramble\Transformers\AcceptLanguageHeaderTransformer;
 use App\Scramble\Transformers\AccessibleCompartmentsNullableTransformer;
 use App\Scramble\Transformers\NullableFieldsTransformer;
+use App\Support\Authorization\AuthorizationCatalog;
 use Carbon\CarbonImmutable;
 use Dedoc\Scramble\Scramble;
 use Dedoc\Scramble\Support\Generator\OpenApi;
@@ -19,7 +20,15 @@ class AppServiceProvider extends ServiceProvider
     /**
      * Register any application services.
      */
-    public function register(): void {}
+    public function register(): void
+    {
+        // The authorization catalog (roles + permissions) is static, developer-owned
+        // config; parse and validate the YAML once per process. See ADR-0021.
+        $this->app->singleton(
+            AuthorizationCatalog::class,
+            static fn (): AuthorizationCatalog => new AuthorizationCatalog(config_path('authorization.yaml')),
+        );
+    }
 
     /**
      * Bootstrap any application services.
