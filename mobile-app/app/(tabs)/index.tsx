@@ -205,6 +205,17 @@ export default function CompartmentsScreen() {
   }, []);
 
   const lockerBanks = React.useMemo(() => mapLockerBanks(data, t), [data, t]);
+  // The bottom sheet holds a snapshot of the tapped compartment, so re-read the
+  // live entry from the query cache by id. This keeps the sheet's door status in
+  // sync with realtime `door_state` updates instead of the value at open time.
+  const selectedCompartmentLive = React.useMemo(() => {
+    if (!selectedCompartment) return null;
+    for (const bank of data?.locker_banks ?? []) {
+      const match = bank.compartments?.find((c) => c.id === selectedCompartment.id);
+      if (match) return match;
+    }
+    return selectedCompartment;
+  }, [selectedCompartment, data]);
   const effectiveLockerBankId = React.useMemo(() => {
     if (lockerBanks.length === 0) return '';
 
@@ -242,8 +253,8 @@ export default function CompartmentsScreen() {
     error && 'status' in error
       ? t('compartments.loadFailed', { status: String(error.status) })
       : null;
-  const selectedCompartmentStatus = selectedCompartment
-    ? getCompartmentStatusFromApi(selectedCompartment)
+  const selectedCompartmentStatus = selectedCompartmentLive
+    ? getCompartmentStatusFromApi(selectedCompartmentLive)
     : null;
   const accountInitial = (userName?.trim().charAt(0) || 'A').toUpperCase();
   const selectedCompartmentStatusLabel =
@@ -567,9 +578,17 @@ export default function CompartmentsScreen() {
               })();
             }}
             loading={requestOpenState.isLoading}
-            disabled={!selectedCompartment || requestOpenState.isLoading}
+            disabled={
+              !selectedCompartment ||
+              requestOpenState.isLoading ||
+              // A confirmed-open door cannot be opened again; `unknown`/`closed`
+              // stay actionable since the real state isn't known to be open.
+              selectedCompartmentStatus === 'open'
+            }
           >
-            {t('compartments.openCompartment')}
+            {selectedCompartmentStatus === 'open'
+              ? t('compartments.openCompartmentDisabledOpen')
+              : t('compartments.openCompartment')}
           </Button>
           <Button mode="text" onPress={closeCompartmentSheet}>
             {t('common.close')}

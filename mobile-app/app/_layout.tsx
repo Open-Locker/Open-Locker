@@ -19,6 +19,7 @@ import { PaperProvider } from 'react-native-paper';
 import { useColorScheme } from '@/components/useColorScheme';
 import { hydrateApiBaseUrl } from '@/src/api/baseUrl';
 import { hydrateAppLanguage } from '@/src/i18n';
+import { RealtimeBridge } from '@/src/features/realtime';
 import { loadPersistedAuth } from '@/src/store/authStorage';
 import { restoreAuth } from '@/src/store/authSlice';
 import { useAppDispatch, useAppSelector } from '@/src/store/hooks';
@@ -108,6 +109,7 @@ function RootLayoutNav() {
     <PaperProvider theme={paperTheme}>
       <ThemeProvider value={navigationTheme}>
         <BottomSheetModalProvider>
+          {token ? <RealtimeBridge /> : null}
           <Stack>
             <Stack.Protected guard={!!token}>
               <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
