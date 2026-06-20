@@ -20,7 +20,6 @@ export function createOpenCompartmentHandler(deps: {
       await deps.pollSnapshot.pollAndPublish(true);
 
       await deps.outbound.publishCommandResponse({
-        type: 'command_response',
         action: command.action,
         result: 'success',
         transaction_id: command.transaction_id,

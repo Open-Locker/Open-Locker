@@ -50,8 +50,8 @@ test('open compartment handler responds success and preserves transaction_id', a
   openCompartment.stopAllMonitoring();
   assert.equal(bus.flashCalls.length, 1);
   const responsePayload = published
-    .map((payload) => JSON.parse(payload) as { type?: string })
-    .find((message) => message.type === 'command_response');
+    .map((payload) => JSON.parse(payload) as { result?: string })
+    .find((message) => message.result === 'success');
   assert.ok(responsePayload);
   const response = responsePayload as {
     result: string;

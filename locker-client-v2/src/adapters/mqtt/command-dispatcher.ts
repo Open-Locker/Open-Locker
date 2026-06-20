@@ -60,7 +60,6 @@ export class CommandDispatcher {
     const parsed = handler.schema.safeParse(payload);
     if (!parsed.success) {
       await this.outbound.publishCommandResponse({
-        type: 'command_response',
         action,
         result: 'error',
         transaction_id:
@@ -94,7 +93,6 @@ export class CommandDispatcher {
         this.dedup.markCommandCompleted(command.transaction_id, action);
       }
       await this.outbound.publishCommandResponse({
-        type: 'command_response',
         action,
         result: 'error',
         transaction_id: command.transaction_id,

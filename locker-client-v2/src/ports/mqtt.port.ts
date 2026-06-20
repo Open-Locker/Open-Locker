@@ -4,7 +4,6 @@ export interface OutboundPublishOptions {
 }
 
 export interface CommandResponseBody {
-  type: 'command_response';
   action: string;
   result: 'success' | 'error';
   transaction_id: string;

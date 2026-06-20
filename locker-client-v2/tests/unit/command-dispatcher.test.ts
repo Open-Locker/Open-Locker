@@ -81,9 +81,9 @@ function commandResponses(published: string[]) {
   return published
     .map(
       (payload) =>
-        JSON.parse(payload) as { type?: string; result?: string; transaction_id?: string },
+        JSON.parse(payload) as { result?: string; transaction_id?: string },
     )
-    .filter((message) => message.type === 'command_response');
+    .filter((message) => message.result === 'success' || message.result === 'error');
 }
 
 test('dispatcher executes valid open_compartment once', async () => {

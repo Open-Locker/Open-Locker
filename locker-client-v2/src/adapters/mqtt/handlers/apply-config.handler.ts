@@ -16,7 +16,6 @@ export function createApplyConfigHandler(deps: {
       const result = await deps.applyConfig.execute(command);
 
       await deps.outbound.publishCommandResponse({
-        type: 'command_response',
         action: command.action,
         result: 'success',
         transaction_id: command.transaction_id,
