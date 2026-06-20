@@ -2,7 +2,11 @@ import type { RuntimeConfigOverlay } from '../../src/domain/config';
 import type { RuntimeOverlayStorePort } from '../../src/ports/config.port';
 
 export class MemoryOverlayStore implements RuntimeOverlayStorePort {
-  private overlay: RuntimeConfigOverlay | null = null;
+  private overlay: RuntimeConfigOverlay | null;
+
+  constructor(initial: RuntimeConfigOverlay | null = null) {
+    this.overlay = initial;
+  }
 
   load() {
     return this.overlay;

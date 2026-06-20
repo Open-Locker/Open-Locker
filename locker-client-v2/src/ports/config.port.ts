@@ -1,11 +1,11 @@
 import type { CompartmentConfig } from '../domain/compartment';
-import type { LockerConfig, RuntimeConfigOverlay } from '../domain/config';
+import type { EffectiveLockerConfig, RuntimeConfigOverlay } from '../domain/config';
 
 export interface ConfigRepositoryPort {
-  load(): LockerConfig;
-  reload(): LockerConfig;
+  load(): EffectiveLockerConfig;
+  reload(): EffectiveLockerConfig;
   getCompartmentConfig(compartmentNumber: number): CompartmentConfig | null;
-  hasExplicitRuntimeCompartments(): boolean;
+  getConfiguredSlaveIds(): number[];
   getFlashDurationMs(): number;
   getHeartbeatIntervalSeconds(): number;
   getMqttTransportSettings(): import('./mqtt.port').MqttTransportSettings;

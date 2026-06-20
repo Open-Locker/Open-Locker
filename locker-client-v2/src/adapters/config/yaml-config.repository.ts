@@ -1,6 +1,11 @@
 import fs from 'fs';
 import { load } from 'js-yaml';
-import type { LockerConfig, RuntimeConfigOverlay } from '../../domain/config';
+import type {
+  BaseLockerConfig,
+  EffectiveLockerConfig,
+  RuntimeConfigOverlay,
+} from '../../domain/config';
+import { deriveConfiguredSlaveIds } from '../../domain/config';
 import { normalizeFlashDurationMs } from '../../domain/compartment';
 import type { ConfigRepositoryPort } from '../../ports/config.port';
 import type { MqttTransportSettings } from '../../ports/mqtt.port';
@@ -8,55 +13,79 @@ import { CONFIG_FILE } from '../../infrastructure/paths';
 import { FileRuntimeOverlayStore } from './runtime-overlay.store';
 
 function mergeRuntimeConfig(
-  base: LockerConfig,
+  base: BaseLockerConfig,
   overlay: RuntimeConfigOverlay | null,
-): LockerConfig {
-  if (!overlay) {
-    return base;
+): EffectiveLockerConfig {
+  const effective: EffectiveLockerConfig = {
+    modbus: base.modbus,
+    mqtt: base.mqtt ? { ...base.mqtt } : undefined,
+  };
+
+  if (overlay?.mqtt?.heartbeatInterval !== undefined) {
+    effective.mqtt = {
+      ...effective.mqtt,
+      heartbeatInterval: overlay.mqtt.heartbeatInterval,
+    };
   }
+
+  if (overlay?.compartments !== undefined) {
+    effective.compartments = overlay.compartments;
+  }
+
+  return effective;
+}
+
+function parseBaseConfig(raw: unknown): BaseLockerConfig {
+  const parsed = (raw as Record<string, unknown>) ?? {};
+  const mqtt = parsed.mqtt as BaseLockerConfig['mqtt'] | undefined;
+
   return {
-    ...base,
-    mqtt: {
-      ...base.mqtt,
-      heartbeatInterval: overlay.mqtt?.heartbeatInterval ?? base.mqtt?.heartbeatInterval,
-    },
-    compartments: overlay.compartments ?? base.compartments,
+    modbus: parsed.modbus as BaseLockerConfig['modbus'],
+    mqtt: mqtt
+      ? {
+          cleanSession: mqtt.cleanSession,
+          keepaliveSeconds: mqtt.keepaliveSeconds,
+          reconnectPeriodMs: mqtt.reconnectPeriodMs,
+          connectTimeoutMs: mqtt.connectTimeoutMs,
+          maxReconnectAttempts: mqtt.maxReconnectAttempts,
+        }
+      : undefined,
   };
 }
 
 export class YamlConfigRepository implements ConfigRepositoryPort {
-  private config: LockerConfig | null = null;
-  private explicitRuntimeCompartments = false;
+  private config: EffectiveLockerConfig | null = null;
 
-  constructor(private readonly overlayStore = new FileRuntimeOverlayStore()) {}
+  constructor(
+    private readonly overlayStore = new FileRuntimeOverlayStore(),
+    private readonly configFilePath: string = CONFIG_FILE,
+  ) {}
 
-  load(): LockerConfig {
+  load(): EffectiveLockerConfig {
     if (this.config) {
       return this.config;
     }
 
-    if (!fs.existsSync(CONFIG_FILE)) {
-      throw new Error(`Configuration file not found: ${CONFIG_FILE}`);
+    if (!fs.existsSync(this.configFilePath)) {
+      throw new Error(`Configuration file not found: ${this.configFilePath}`);
     }
 
-    const parsed = (load(fs.readFileSync(CONFIG_FILE, 'utf8')) as LockerConfig) ?? {};
-    parsed.mqtt = parsed.mqtt ?? {};
+    const base = parseBaseConfig(load(fs.readFileSync(this.configFilePath, 'utf8')));
+    base.mqtt = base.mqtt ?? {};
 
-    if (!parsed.modbus?.port) {
+    if (!base.modbus?.port) {
       throw new Error('modbus.port is required');
     }
 
-    normalizeFlashDurationMs(parsed.modbus.flashDurationMs);
+    normalizeFlashDurationMs(base.modbus.flashDurationMs);
 
     const overlay = this.overlayStore.load();
-    this.explicitRuntimeCompartments = overlay?.compartments !== undefined;
-    this.config = mergeRuntimeConfig(parsed, overlay);
+    this.config = mergeRuntimeConfig(base, overlay);
     return this.config;
   }
 
-  reload(): LockerConfig {
+  reload(): EffectiveLockerConfig {
     this.config = null;
-    this.explicitRuntimeCompartments = false;
     return this.load();
   }
 
@@ -65,9 +94,8 @@ export class YamlConfigRepository implements ConfigRepositoryPort {
     return config.compartments?.find((c) => c.compartment_number === compartmentNumber) ?? null;
   }
 
-  hasExplicitRuntimeCompartments(): boolean {
-    this.load();
-    return this.explicitRuntimeCompartments;
+  getConfiguredSlaveIds(): number[] {
+    return deriveConfiguredSlaveIds(this.load().compartments);
   }
 
   getFlashDurationMs(): number {
@@ -79,25 +107,13 @@ export class YamlConfigRepository implements ConfigRepositoryPort {
   }
 
   getMqttTransportSettings(): MqttTransportSettings {
-    const m = this.load().mqtt ?? {};
+    const mqtt = this.load().mqtt ?? {};
     return {
-      clean: m.cleanSession ?? false,
-      keepalive: m.keepaliveSeconds ?? 60,
-      reconnectPeriod: m.reconnectPeriodMs ?? 5000,
-      connectTimeout: m.connectTimeoutMs ?? 30000,
-      maxReconnectAttempts: m.maxReconnectAttempts ?? 0,
+      clean: mqtt.cleanSession ?? false,
+      keepalive: mqtt.keepaliveSeconds ?? 60,
+      reconnectPeriod: mqtt.reconnectPeriodMs ?? 5000,
+      connectTimeout: mqtt.connectTimeoutMs ?? 30000,
+      maxReconnectAttempts: mqtt.maxReconnectAttempts ?? 0,
     };
-  }
-
-  getConfiguredSlaveIds(): number[] {
-    const config = this.load();
-    const ids = new Set<number>();
-    for (const c of config.compartments ?? []) {
-      ids.add(c.slaveId);
-    }
-    if (ids.size === 0) {
-      ids.add(1);
-    }
-    return [...ids];
   }
 }

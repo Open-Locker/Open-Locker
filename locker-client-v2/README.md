@@ -21,6 +21,13 @@ pnpm dev
 Requires `/config/locker-config.yml` and `/data` volumes (or env `CONFIG_DIR` /
 `DATA_DIR`).
 
+Compartment mapping and heartbeat interval are **not** part of the base YAML.
+The backend pushes them via MQTT `apply_config`; the client persists the result
+in `/data/.runtime-config-overlay.json`. Until that first apply completes,
+`open_compartment` commands fail and compartment snapshots stay empty.
+
+See [ADR-0025](../docs/adr/0025-locker-client-v2-runtime-only-compartment-mapping.md).
+
 ## MQTT resilience
 
 Per ADR-0014: persistent session (`clean: false`), unlimited automatic reconnect.

@@ -1,4 +1,7 @@
 # Locker Client v2 Configuration — mount at /config/locker-config.yml
+#
+# Compartment mapping and heartbeat interval are server-managed via MQTT
+# apply_config and persisted in the runtime overlay under DATA_DIR.
 
 modbus:
   port: /dev/ttyACM0
@@ -16,4 +19,3 @@ mqtt:
   reconnectPeriodMs: 5000
   connectTimeoutMs: 30000
   maxReconnectAttempts: 0
-  heartbeatInterval: 15

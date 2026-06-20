@@ -36,30 +36,23 @@ export class OpenCompartmentUseCase {
   }
 
   private resolveTarget(compartmentNumber: number): CompartmentTarget {
-    const compartment = this.config.getCompartmentConfig(compartmentNumber);
+    const effective = this.config.load();
 
+    if (effective.compartments === undefined) {
+      throw new LockerError(
+        MqttErrorCode.RUNTIME_CONFIG_NOT_APPLIED,
+        'Compartment mapping is not available until apply_config has been applied',
+      );
+    }
+
+    const compartment = effective.compartments.find(
+      (entry) => entry.compartment_number === compartmentNumber,
+    );
     if (!compartment) {
-      if (this.config.hasExplicitRuntimeCompartments()) {
-        throw new LockerError(
-          MqttErrorCode.COMPARTMENT_NOT_FOUND,
-          `Compartment ${compartmentNumber} is not configured on this client`,
-        );
-      }
-
-      const relayAddress = compartmentNumber - 1;
-      if (relayAddress < 0 || relayAddress > 7) {
-        throw new LockerError(
-          MqttErrorCode.COMPARTMENT_NOT_FOUND,
-          `Invalid compartment number: ${compartmentNumber}`,
-        );
-      }
-
-      const slaveIds = this.bus.getConfiguredSlaveIds();
-      return {
-        compartmentNumber,
-        relayAddress,
-        slaveId: slaveIds[0] ?? 1,
-      };
+      throw new LockerError(
+        MqttErrorCode.COMPARTMENT_NOT_FOUND,
+        `Compartment ${compartmentNumber} is not configured on this client`,
+      );
     }
 
     return {
