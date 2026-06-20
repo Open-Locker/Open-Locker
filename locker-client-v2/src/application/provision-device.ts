@@ -1,7 +1,43 @@
 import { randomBytes, randomUUID } from 'crypto';
 import fs from 'fs';
+import { z } from 'zod';
 import type { CredentialStorePort } from '../ports/config.port';
 import type { MessageTransportPort } from '../ports/mqtt.port';
+
+const nonEmptyStringSchema = z.string().trim().min(1);
+
+export const provisioningSuccessResponseSchema = z.object({
+  message_id: nonEmptyStringSchema,
+  status: z.literal('success'),
+  timestamp: nonEmptyStringSchema,
+  data: z.object({
+    mqtt_user: nonEmptyStringSchema,
+    mqtt_password: nonEmptyStringSchema,
+  }),
+});
+
+export const provisioningErrorResponseSchema = z.object({
+  message_id: nonEmptyStringSchema,
+  status: z.literal('error'),
+  timestamp: nonEmptyStringSchema,
+  message: nonEmptyStringSchema,
+});
+
+export const provisioningResponseSchema = z.discriminatedUnion('status', [
+  provisioningSuccessResponseSchema,
+  provisioningErrorResponseSchema,
+]);
+
+export type ProvisioningResponse = z.infer<typeof provisioningResponseSchema>;
+
+export function parseProvisioningResponse(response: unknown): ProvisioningResponse {
+  const parsed = provisioningResponseSchema.safeParse(response);
+  if (!parsed.success) {
+    throw new Error('Malformed provisioning response');
+  }
+
+  return parsed.data;
+}
 
 export const DEFAULT_MQTT_BROKER_URL = 'mqtt://open-locker.cloud';
 
@@ -82,22 +118,21 @@ function waitForProvisioningReply(
       }
 
       try {
-        const message = JSON.parse(payload.toString()) as {
-          result?: string;
-          username?: string;
-          password?: string;
-          message?: string;
-        };
+        const response = parseProvisioningResponse(JSON.parse(payload.toString()));
 
         clearTimeout(timeout);
 
-        if (message.result === 'success' && message.username && message.password) {
-          resolve({ username: message.username, password: message.password });
+        if (response.status === 'success') {
+          resolve({
+            username: response.data.mqtt_user,
+            password: response.data.mqtt_password,
+          });
           return;
         }
 
-        reject(new Error(message.message ?? 'Provisioning failed'));
+        reject(new Error(response.message));
       } catch (error) {
+        clearTimeout(timeout);
         reject(error);
       }
     });
