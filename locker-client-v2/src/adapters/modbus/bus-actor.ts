@@ -96,7 +96,7 @@ export class ModbusBusActor implements LockerBusPort {
         () => this.driver.readDiscreteInputs(target.slaveId, target.relayAddress, 1),
         BusPriority.POLL,
       );
-      return values[0] ? 'open' : 'closed';
+      return values[0] ? 'closed' : 'open';
     } catch {
       return 'unknown';
     }

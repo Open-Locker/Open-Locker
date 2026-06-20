@@ -113,6 +113,18 @@ test('concurrent flashRelay and ensureConnected never interleave driver calls', 
   assert.ok(driver.operations.some((op) => op.startsWith('flash:')));
 });
 
+test('readDoorSensor maps discrete input high to closed and low to open', async () => {
+  const driver = new ConfigurableDiscreteInputDriver(true);
+  const bus = new ModbusBusActor(driver, { maxAttempts: 0 }, [1]);
+  await bus.connect();
+
+  const target = { compartmentNumber: 1, slaveId: 1, relayAddress: 0 };
+  assert.equal(await bus.readDoorSensor(target), 'closed');
+
+  driver.setInputState(false);
+  assert.equal(await bus.readDoorSensor(target), 'open');
+});
+
 test('BusActor retries once after reconnectable transport failure', async () => {
   const driver = new ReconnectableFailureDriver();
   const bus = new ModbusBusActor(driver, { maxAttempts: 0 }, [1]);
@@ -125,6 +137,40 @@ test('BusActor retries once after reconnectable transport failure', async () => 
   assert.ok(driver.operations.includes('disconnect'));
   assert.ok(driver.operations.filter((op) => op === 'connect').length >= 2);
 });
+
+class ConfigurableDiscreteInputDriver implements ModbusDriver {
+  private open = false;
+
+  constructor(private inputState: boolean) {}
+
+  setInputState(value: boolean): void {
+    this.inputState = value;
+  }
+
+  async connect(): Promise<void> {
+    this.open = true;
+  }
+
+  async disconnect(): Promise<void> {
+    this.open = false;
+  }
+
+  isOpen(): boolean {
+    return this.open;
+  }
+
+  async flashRelayOn(): Promise<void> {}
+
+  async readCoils(): Promise<boolean[]> {
+    return [false];
+  }
+
+  async readDiscreteInputs(): Promise<boolean[]> {
+    return [this.inputState];
+  }
+
+  async turnAllRelaysOff(): Promise<void> {}
+}
 
 class FailingConnectDriver implements ModbusDriver {
   connectAttempts = 0;
