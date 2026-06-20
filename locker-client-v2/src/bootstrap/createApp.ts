@@ -1,37 +1,31 @@
 import {
   DEFAULT_MODBUS_MAX_RECONNECT_ATTEMPTS,
   ModbusBusActor,
-} from "../adapters/modbus/bus-actor";
-import { ModbusRtuDriver } from "../adapters/modbus/modbus-rtu.driver";
-import { YamlConfigRepository } from "../adapters/config/yaml-config.repository";
-import { FileRuntimeOverlayStore } from "../adapters/config/runtime-overlay.store";
-import { FileCredentialStore } from "../adapters/persistence/file-credential.store";
-import { FileDedupStore } from "../adapters/mqtt/dedup-store";
-import { MqttTransportAdapter } from "../adapters/mqtt/mqtt-transport.adapter";
-import { OutboundMqttAdapter } from "../adapters/mqtt/outbound-mqtt.adapter";
-import { InboundProtocolGuard } from "../adapters/mqtt/inbound-protocol-guard";
-import { CommandDispatcher } from "../adapters/mqtt/command-dispatcher";
-import { createOpenCompartmentHandler } from "../adapters/mqtt/handlers/open-compartment.handler";
-import { createApplyConfigHandler } from "../adapters/mqtt/handlers/apply-config.handler";
-import {
-  OpenCompartmentUseCase,
-  runStartupFailsafe,
-} from "../application/open-compartment";
-import { ApplyConfigUseCase } from "../application/apply-config";
-import {
-  HeartbeatUseCase,
-  PollCompartmentStateUseCase,
-} from "../application/state-publishing";
-import { RunAfterCompleteScheduler } from "../infrastructure/scheduler";
+} from '../adapters/modbus/bus-actor';
+import { ModbusRtuDriver } from '../adapters/modbus/modbus-rtu.driver';
+import { YamlConfigRepository } from '../adapters/config/yaml-config.repository';
+import { FileRuntimeOverlayStore } from '../adapters/config/runtime-overlay.store';
+import { FileCredentialStore } from '../adapters/persistence/file-credential.store';
+import { FileDedupStore } from '../adapters/mqtt/dedup-store';
+import { MqttTransportAdapter } from '../adapters/mqtt/mqtt-transport.adapter';
+import { OutboundMqttAdapter } from '../adapters/mqtt/outbound-mqtt.adapter';
+import { InboundProtocolGuard } from '../adapters/mqtt/inbound-protocol-guard';
+import { CommandDispatcher } from '../adapters/mqtt/command-dispatcher';
+import { createOpenCompartmentHandler } from '../adapters/mqtt/handlers/open-compartment.handler';
+import { createApplyConfigHandler } from '../adapters/mqtt/handlers/apply-config.handler';
+import { OpenCompartmentUseCase, runStartupFailsafe } from '../application/open-compartment';
+import { ApplyConfigUseCase } from '../application/apply-config';
+import { HeartbeatUseCase, PollCompartmentStateUseCase } from '../application/state-publishing';
+import { RunAfterCompleteScheduler } from '../infrastructure/scheduler';
 import {
   DEFAULT_MQTT_BROKER_URL,
   getOrCreateClientId,
   provisionDevice,
-} from "../application/provision-device";
-import { connectionLostWillOptions } from "../infrastructure/mqtt-will";
-import { logger } from "../infrastructure/logging";
-import { createWinstonLoggerPort } from "../infrastructure/winston-logger.adapter";
-import { MQTT_CLIENT_ID_FILE } from "../infrastructure/paths";
+} from '../application/provision-device';
+import { connectionLostWillOptions } from '../infrastructure/mqtt-will';
+import { logger } from '../infrastructure/logging';
+import { createWinstonLoggerPort } from '../infrastructure/winston-logger.adapter';
+import { MQTT_CLIENT_ID_FILE } from '../infrastructure/paths';
 
 export interface AppContext {
   shutdown(): Promise<void>;
@@ -42,16 +36,14 @@ export async function createApp(): Promise<AppContext> {
   const config = configRepo.load();
   const credentialStore = new FileCredentialStore();
   const dedupStore = new FileDedupStore();
-  const transport = new MqttTransportAdapter(
-    configRepo.getMqttTransportSettings(),
-  );
+  const transport = new MqttTransportAdapter(configRepo.getMqttTransportSettings());
 
   const driver = new ModbusRtuDriver({
     port: config.modbus.port,
     baudRate: config.modbus.baudRate ?? 9600,
     dataBits: config.modbus.dataBits ?? 8,
     stopBits: config.modbus.stopBits ?? 1,
-    parity: config.modbus.parity ?? "none",
+    parity: config.modbus.parity ?? 'none',
     timeout: config.modbus.timeout ?? 1000,
   });
 
@@ -62,15 +54,12 @@ export async function createApp(): Promise<AppContext> {
   );
 
   const clientId = getOrCreateClientId(MQTT_CLIENT_ID_FILE);
-  const brokerUrl = process.env.MQTT_BROKER_URL?.trim() ||
-    DEFAULT_MQTT_BROKER_URL;
+  const brokerUrl = process.env.MQTT_BROKER_URL?.trim() || DEFAULT_MQTT_BROKER_URL;
 
   if (!credentialStore.isProvisioned()) {
     const token = process.env.PROVISIONING_TOKEN?.trim();
     if (!token) {
-      throw new Error(
-        "PROVISIONING_TOKEN is required for first-time provisioning",
-      );
+      throw new Error('PROVISIONING_TOKEN is required for first-time provisioning');
     }
     await provisionDevice({
       transport,
@@ -84,13 +73,13 @@ export async function createApp(): Promise<AppContext> {
 
   const credentials = credentialStore.getCredentials();
   if (!credentials) {
-    throw new Error("MQTT credentials unavailable after provisioning");
+    throw new Error('MQTT credentials unavailable after provisioning');
   }
 
   // MQTT username is the locker bank UUID; all locker topics use this namespace.
   const lockerUuid = credentials.username.trim();
   if (!lockerUuid) {
-    throw new Error("MQTT credentials username (locker UUID) is empty");
+    throw new Error('MQTT credentials username (locker UUID) is empty');
   }
 
   await transport.connect(brokerUrl, {
@@ -112,11 +101,7 @@ export async function createApp(): Promise<AppContext> {
 
   const scheduler = new RunAfterCompleteScheduler();
   const appLogger = createWinstonLoggerPort();
-  const openCompartment = new OpenCompartmentUseCase(
-    bus,
-    configRepo,
-    scheduler,
-  );
+  const openCompartment = new OpenCompartmentUseCase(bus, configRepo, scheduler);
   const pollSnapshot = new PollCompartmentStateUseCase(
     bus,
     configRepo,
@@ -135,8 +120,7 @@ export async function createApp(): Promise<AppContext> {
     overlayStore: new FileRuntimeOverlayStore(),
     config: configRepo,
     bus,
-    restartHeartbeat: () =>
-      heartbeat.restart(configRepo.getHeartbeatIntervalSeconds() * 1000),
+    restartHeartbeat: () => heartbeat.restart(configRepo.getHeartbeatIntervalSeconds() * 1000),
     restartPolling: () => {
       void pollSnapshot.pollAndPublish(true);
     },
@@ -173,7 +157,7 @@ export async function createApp(): Promise<AppContext> {
     void pollSnapshot.pollAndPublish();
   }, pollIntervalMs);
 
-  logger.info("locker-client-v2 started", { lockerUuid, clientId });
+  logger.info('locker-client-v2 started', { lockerUuid, clientId });
 
   return {
     async shutdown() {

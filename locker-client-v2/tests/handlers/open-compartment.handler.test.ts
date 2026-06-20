@@ -22,11 +22,7 @@ test('open compartment handler responds success and preserves transaction_id', a
   const config = createTestConfigRepository({
     compartments: [{ compartment_number: 1, slaveId: 1, address: 0 }],
   });
-  const openCompartment = new OpenCompartmentUseCase(
-    bus,
-    config,
-    new RunAfterCompleteScheduler(),
-  );
+  const openCompartment = new OpenCompartmentUseCase(bus, config, new RunAfterCompleteScheduler());
   const pollSnapshot = new PollCompartmentStateUseCase(
     bus,
     config,

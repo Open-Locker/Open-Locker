@@ -79,10 +79,7 @@ function createDispatcherHarness(bus = new FakeLockerBus([1])) {
 
 function commandResponses(published: string[]) {
   return published
-    .map(
-      (payload) =>
-        JSON.parse(payload) as { result?: string; transaction_id?: string },
-    )
+    .map((payload) => JSON.parse(payload) as { result?: string; transaction_id?: string })
     .filter((message) => message.result === 'success' || message.result === 'error');
 }
 

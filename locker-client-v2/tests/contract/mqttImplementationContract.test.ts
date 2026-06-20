@@ -130,9 +130,7 @@ test('dispatcher-built validation error matches AsyncAPI schema', async () => {
   );
   const dedup = new InMemoryDedupStore();
   const dispatcher = new CommandDispatcher(new InboundProtocolGuard(dedup), outbound, dedup);
-  dispatcher.register(
-    createOpenCompartmentHandler({ openCompartment, outbound, pollSnapshot }),
-  );
+  dispatcher.register(createOpenCompartmentHandler({ openCompartment, outbound, pollSnapshot }));
 
   await dispatcher.dispatch(
     'locker/test/command',
@@ -176,9 +174,7 @@ test('dispatcher-built handler error matches AsyncAPI schema', async () => {
   );
   const dedup = new InMemoryDedupStore();
   const dispatcher = new CommandDispatcher(new InboundProtocolGuard(dedup), outbound, dedup);
-  dispatcher.register(
-    createOpenCompartmentHandler({ openCompartment, outbound, pollSnapshot }),
-  );
+  dispatcher.register(createOpenCompartmentHandler({ openCompartment, outbound, pollSnapshot }));
 
   await dispatcher.dispatch(
     'locker/test/command',
@@ -218,13 +214,18 @@ test('handler-built compartment snapshot matches AsyncAPI schema', async () => {
 
   await pollSnapshot.pollAndPublish(true);
 
-  const snapshot = published.map(parsePublishedPayload).find((message) => 'compartments' in message);
+  const snapshot = published
+    .map(parsePublishedPayload)
+    .find((message) => 'compartments' in message);
   assert.ok(snapshot);
   assertMatchesSchema('payloads/state-snapshot.json', snapshot);
 });
 
 test('every AsyncAPI inbound command example validates with runtime Zod schema', () => {
-  for (const exampleFile of ['command-open-compartment.json', 'command-apply-config.json'] as const) {
+  for (const exampleFile of [
+    'command-open-compartment.json',
+    'command-apply-config.json',
+  ] as const) {
     const example = readAsyncApiExample(exampleFile);
     assert.equal(
       knownMQTTCommandSchema.safeParse(example).success,

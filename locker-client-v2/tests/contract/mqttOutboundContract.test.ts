@@ -1,4 +1,3 @@
-import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { serializeOutboundPayload } from '../../src/adapters/mqtt/outbound-envelope';
 import { connectionLostWillOptions } from '../../src/infrastructure/mqtt-will';
