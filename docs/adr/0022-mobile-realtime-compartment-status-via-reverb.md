@@ -49,18 +49,28 @@ Implement the **client** side of the existing broadcast contract as follows.
 3. **Private-channel auth**: use a custom Echo authorizer that POSTs to the
    backend `/broadcasting/auth` with the same `Bearer <token>` the API uses. The
    backend `/broadcasting/auth` endpoint must authenticate via the **token guard
-   (sanctum/api)**, not a web session.
+   (sanctum/api)**, not a web session. The route was not registered before this
+   change; it is now added in `bootstrap/app.php` via
+   `->withBroadcasting(routes/channels.php, ['middleware' => ['auth:sanctum']])`,
+   which both loads the channel authorizers and exposes the handshake on the
+   sanctum guard.
 4. **Subscription + cache update**: subscribe to
    `private-users.{userId}.compartment-status`, listen for
    `.compartment.door_state.updated`, and patch the RTK Query cache in place via
    `generatedApi.util.updateQueryData('getCompartmentsAccessible', …)` —
    matching the compartment by `compartment_id` and setting `door_state` /
    `door_state_changed_at`. The card and detail sheet re-render without a
-   refetch. The API response remains the source of truth on initial load.
+   refetch. The API response remains the source of truth on initial load. The
+   detail sheet re-reads the selected compartment from the cache by id (rather
+   than the snapshot taken when it opened) so its status reflects realtime
+   updates while open.
 5. **Command vs. state separation**: `door_state` is sourced only from the API
    and `.compartment.door_state.updated`. Open-command feedback
    (pending/success/failure) stays on the existing open-request path and is
-   **not** derived from door-state events.
+   **not** derived from door-state events. The Open action is disabled only when
+   `door_state` is *confirmed* `open` (opening an open door is a no-op); `closed`
+   and `unknown` stay actionable, since the lock has no close command — closing
+   is a physical act reported back later via a door-state snapshot.
 6. **Fallback**: when realtime is unavailable, refresh `getCompartmentsAccessible`
    — on `AppState` returning to `active`, and when the socket reports
    disconnected/unavailable — so the UI converges to the latest known state
