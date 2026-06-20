@@ -26,7 +26,7 @@ const configStub: ConfigRepositoryPort = {
     compartments: [{ compartment_number: 1, slaveId: 1, address: 0 }],
   }),
   getCompartmentConfig: (n) => (n === 1 ? { compartment_number: 1, slaveId: 1, address: 0 } : null),
-  hasExplicitRuntimeCompartments: () => true,
+  getConfiguredSlaveIds: () => [1],
   getFlashDurationMs: () => 200,
   getHeartbeatIntervalSeconds: () => 15,
   getMqttTransportSettings: () => ({

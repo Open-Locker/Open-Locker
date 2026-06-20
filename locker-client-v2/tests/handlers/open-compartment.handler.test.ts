@@ -19,14 +19,17 @@ test('open compartment handler responds success and preserves transaction_id', a
     () => '2026-06-16T12:00:00.000Z',
   );
 
+  const config = createTestConfigRepository({
+    compartments: [{ compartment_number: 1, slaveId: 1, address: 0 }],
+  });
   const openCompartment = new OpenCompartmentUseCase(
     bus,
-    createTestConfigRepository(),
+    config,
     new RunAfterCompleteScheduler(),
   );
   const pollSnapshot = new PollCompartmentStateUseCase(
     bus,
-    createTestConfigRepository(),
+    config,
     outbound,
     'locker/test/state/compartments',
   );
