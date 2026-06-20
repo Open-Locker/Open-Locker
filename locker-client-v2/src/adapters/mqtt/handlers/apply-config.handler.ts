@@ -1,18 +1,17 @@
 import type { CommandContext, InboundCommandHandler } from '../command-dispatcher';
-import { applyConfigCommandSchema } from '../../../domain/mqtt-schemas';
+import { applyConfigCommandSchema, type ApplyConfigCommand } from '../../../domain/mqtt-schemas';
 import type { ApplyConfigUseCase } from '../../../application/apply-config';
 import type { OutboundMqttPort } from '../../../ports/mqtt.port';
 
 export function createApplyConfigHandler(deps: {
   applyConfig: ApplyConfigUseCase;
   outbound: OutboundMqttPort;
-}): InboundCommandHandler<unknown> {
+}): InboundCommandHandler<ApplyConfigCommand> {
   return {
     action: 'apply_config',
     schema: applyConfigCommandSchema,
     requiresTransactionId: () => true,
-    async handle(_ctx: CommandContext, payload: unknown) {
-      const command = applyConfigCommandSchema.parse(payload);
+    async handle(_ctx: CommandContext, command: ApplyConfigCommand) {
       const result = await deps.applyConfig.execute(command);
 
       await deps.outbound.publishCommandResponse({

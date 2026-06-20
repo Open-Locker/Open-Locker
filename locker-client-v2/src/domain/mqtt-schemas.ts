@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-const nonEmptyString = z.string().trim().min(1);
+export const nonEmptyString = z.string().trim().min(1);
 
 export const mqttCommandEnvelopeSchema = z.object({
   action: nonEmptyString,
@@ -41,13 +41,35 @@ export const knownMQTTCommandSchema = z.discriminatedUnion('action', [
 ]);
 
 export type KnownMQTTCommand = z.infer<typeof knownMQTTCommandSchema>;
-export type InboundCommand = KnownMQTTCommand;
 
-export function parseKnownMQTTCommand(cmd: unknown): KnownMQTTCommand | null {
-  const result = knownMQTTCommandSchema.safeParse(cmd);
-  return result.success ? result.data : null;
-}
+export const provisioningRequestSchema = z.object({
+  message_id: nonEmptyString,
+  client_id: nonEmptyString,
+  timestamp: nonEmptyString,
+});
 
-export function parseInboundCommand(cmd: unknown): InboundCommand | null {
-  return parseKnownMQTTCommand(cmd);
-}
+export type ProvisioningRequest = z.infer<typeof provisioningRequestSchema>;
+
+export const provisioningSuccessResponseSchema = z.object({
+  message_id: nonEmptyString,
+  status: z.literal('success'),
+  timestamp: nonEmptyString,
+  data: z.object({
+    mqtt_user: nonEmptyString,
+    mqtt_password: nonEmptyString,
+  }),
+});
+
+export const provisioningErrorResponseSchema = z.object({
+  message_id: nonEmptyString,
+  status: z.literal('error'),
+  timestamp: nonEmptyString,
+  message: nonEmptyString,
+});
+
+export const provisioningResponseSchema = z.discriminatedUnion('status', [
+  provisioningSuccessResponseSchema,
+  provisioningErrorResponseSchema,
+]);
+
+export type ProvisioningResponse = z.infer<typeof provisioningResponseSchema>;

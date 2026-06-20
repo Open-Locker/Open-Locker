@@ -11,7 +11,7 @@ import { ApplyConfigUseCase } from '../../src/application/apply-config';
 import { PollCompartmentStateUseCase } from '../../src/application/state-publishing';
 import { RunAfterCompleteScheduler } from '../../src/infrastructure/scheduler';
 import { computeAppliedConfigHash } from '../../src/domain/config-normalization';
-import { parseProvisioningResponse } from '../../src/application/provision-device';
+import { parseProvisioningResponse } from '../../src/domain/mqtt-parsing';
 import { knownMQTTCommandSchema } from '../../src/domain/mqtt-schemas';
 import { FakeLockerBus } from '../helpers/fake-locker-bus';
 import { MemoryOverlayStore } from '../helpers/memory-overlay-store';

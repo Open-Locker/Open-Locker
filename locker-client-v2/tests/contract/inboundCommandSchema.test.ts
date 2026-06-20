@@ -7,8 +7,12 @@ import {
   knownMQTTCommandSchema,
   mqttCommandEnvelopeSchema,
   openCompartmentCommandSchema,
-  parseKnownMQTTCommand,
+  provisioningErrorResponseSchema,
+  provisioningRequestSchema,
+  provisioningResponseSchema,
+  provisioningSuccessResponseSchema,
 } from '../../src/domain/mqtt-schemas';
+import { parseKnownMQTTCommand } from '../../src/domain/mqtt-parsing';
 import { readAsyncApiExample } from '../contract/jsonSchema';
 
 const commandExampleFiles = ['command-open-compartment.json', 'command-apply-config.json'] as const;
@@ -79,4 +83,21 @@ test('every AsyncAPI command example validates against knownMQTTCommandSchema', 
       `${fileName} must validate as a known inbound command with transaction_id`,
     );
   }
+});
+
+test('provisioning-request.json validates against provisioningRequestSchema', () => {
+  const example = readAsyncApiExample('provisioning-request.json');
+  assert.equal(provisioningRequestSchema.safeParse(example).success, true);
+});
+
+test('provisioning-success.json validates against provisioningSuccessResponseSchema', () => {
+  const example = readAsyncApiExample('provisioning-success.json');
+  assert.equal(provisioningSuccessResponseSchema.safeParse(example).success, true);
+  assert.equal(provisioningResponseSchema.safeParse(example).success, true);
+});
+
+test('provisioning-error.json validates against provisioningErrorResponseSchema', () => {
+  const example = readAsyncApiExample('provisioning-error.json');
+  assert.equal(provisioningErrorResponseSchema.safeParse(example).success, true);
+  assert.equal(provisioningResponseSchema.safeParse(example).success, true);
 });

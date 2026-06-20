@@ -1,43 +1,10 @@
 import { randomBytes, randomUUID } from 'crypto';
 import fs from 'fs';
-import { z } from 'zod';
+import { provisioningRequestSchema } from '../domain/mqtt-schemas';
+import { MqttSchemaValidationError, parseProvisioningResponse } from '../domain/mqtt-parsing';
 import type { CredentialStorePort } from '../ports/config.port';
 import type { MessageTransportPort } from '../ports/mqtt.port';
-
-const nonEmptyStringSchema = z.string().trim().min(1);
-
-export const provisioningSuccessResponseSchema = z.object({
-  message_id: nonEmptyStringSchema,
-  status: z.literal('success'),
-  timestamp: nonEmptyStringSchema,
-  data: z.object({
-    mqtt_user: nonEmptyStringSchema,
-    mqtt_password: nonEmptyStringSchema,
-  }),
-});
-
-export const provisioningErrorResponseSchema = z.object({
-  message_id: nonEmptyStringSchema,
-  status: z.literal('error'),
-  timestamp: nonEmptyStringSchema,
-  message: nonEmptyStringSchema,
-});
-
-export const provisioningResponseSchema = z.discriminatedUnion('status', [
-  provisioningSuccessResponseSchema,
-  provisioningErrorResponseSchema,
-]);
-
-export type ProvisioningResponse = z.infer<typeof provisioningResponseSchema>;
-
-export function parseProvisioningResponse(response: unknown): ProvisioningResponse {
-  const parsed = provisioningResponseSchema.safeParse(response);
-  if (!parsed.success) {
-    throw new Error('Malformed provisioning response');
-  }
-
-  return parsed.data;
-}
+import { logger } from '../infrastructure/logging';
 
 export const DEFAULT_MQTT_BROKER_URL = 'mqtt://open-locker.cloud';
 
@@ -132,20 +99,22 @@ function waitForProvisioningReply(
         reject(new Error(response.message));
       } catch (error) {
         clearTimeout(timeout);
+        if (error instanceof MqttSchemaValidationError) {
+          logger.error('Malformed provisioning response', {
+            topic: replyTopic,
+            validationErrors: error.validationErrors,
+          });
+        }
         reject(error);
       }
     });
 
-    void transport
-      .publish(
-        registerTopic,
-        JSON.stringify({
-          client_id: clientId,
-          message_id: randomUUID(),
-          timestamp: new Date().toISOString(),
-        }),
-        { qos: 1 },
-      )
-      .catch(reject);
+    const request = provisioningRequestSchema.parse({
+      client_id: clientId,
+      message_id: randomUUID(),
+      timestamp: new Date().toISOString(),
+    });
+
+    void transport.publish(registerTopic, JSON.stringify(request), { qos: 1 }).catch(reject);
   });
 }

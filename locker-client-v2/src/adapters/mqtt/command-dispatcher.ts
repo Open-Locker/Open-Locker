@@ -2,6 +2,8 @@ import type { z } from 'zod';
 import { InboundProtocolGuard } from './inbound-protocol-guard';
 import type { DedupStorePort, OutboundMqttPort } from '../../ports/mqtt.port';
 import { mapErrorToMqttCode } from '../../domain/errors';
+import { formatZodValidationError } from '../../domain/mqtt-parsing';
+import { logger } from '../../infrastructure/logging';
 
 export interface CommandContext {
   lockerUuid: string;
@@ -36,29 +38,41 @@ export class CommandDispatcher {
     try {
       payload = JSON.parse(rawMessage) as Record<string, unknown>;
     } catch {
+      logger.warn('Dropped inbound MQTT command with invalid JSON', { topic });
       return;
     }
 
     const action = payload.action;
     if (typeof action !== 'string') {
+      logger.warn('Dropped inbound MQTT command without action', { topic });
       return;
     }
 
     const handler = this.handlers.get(action);
     if (!handler) {
+      logger.warn('Dropped inbound MQTT command with unknown action', { topic, action });
       return;
     }
 
-    if (
-      !this.guard.allow(payload, {
-        requiresTransactionId: handler.requiresTransactionId(),
-      })
-    ) {
+    const guardResult = this.guard.allow(payload, {
+      requiresTransactionId: handler.requiresTransactionId(),
+    });
+    if (!guardResult.ok) {
+      logger.warn('Dropped inbound MQTT command due to protocol guard', {
+        topic,
+        action,
+        reason: guardResult.reason,
+      });
       return;
     }
 
     const parsed = handler.schema.safeParse(payload);
     if (!parsed.success) {
+      logger.warn('Rejected inbound MQTT command due to schema validation', {
+        topic,
+        action,
+        validationErrors: formatZodValidationError(parsed.error),
+      });
       await this.outbound.publishCommandResponse({
         action,
         result: 'error',

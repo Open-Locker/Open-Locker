@@ -1,6 +1,10 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { parseProvisioningResponse, provisionDevice } from '../../src/application/provision-device';
+import { provisionDevice } from '../../src/application/provision-device';
+import {
+  MqttSchemaValidationError,
+  parseProvisioningResponse,
+} from '../../src/domain/mqtt-parsing';
 import type { CredentialStorePort } from '../../src/ports/config.port';
 import type { MessageTransportPort, MqttTransportSettings } from '../../src/ports/mqtt.port';
 import { assertMatchesSchema, readAsyncApiExample } from '../contract/jsonSchema';
@@ -95,7 +99,12 @@ test('parseProvisioningResponse rejects malformed replies', () => {
           mqtt_user: 'mqtt-user',
         },
       }),
-    /Malformed provisioning response/,
+    (error: unknown) => {
+      assert.ok(error instanceof MqttSchemaValidationError);
+      assert.match(error.message, /Malformed provisioning response/);
+      assert.ok('fieldErrors' in error.validationErrors || 'formErrors' in error.validationErrors);
+      return true;
+    },
   );
 });
 
