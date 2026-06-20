@@ -1,7 +1,7 @@
 import fs from 'fs';
 import { z } from 'zod';
 import type { CredentialStorePort } from '../../ports/config.port';
-import { MQTT_CREDENTIALS_FILE, PROVISIONING_STATE_FILE } from '../../infrastructure/paths';
+import { MQTT_CREDENTIALS_FILE } from '../../infrastructure/paths';
 
 const credentialsSchema = z.object({
   username: z.string().min(1),
@@ -23,10 +23,6 @@ export class FileCredentialStore implements CredentialStorePort {
   }
 
   isProvisioned(): boolean {
-    return fs.existsSync(PROVISIONING_STATE_FILE);
-  }
-
-  markProvisioned(): void {
-    fs.writeFileSync(PROVISIONING_STATE_FILE, 'provisioned', 'utf8');
+    return this.getCredentials() !== null;
   }
 }

@@ -97,7 +97,6 @@ export async function provisionDevice(options: {
   );
 
   options.credentialStore.saveCredentials(credentials);
-  options.credentialStore.markProvisioned();
   await options.transport.disconnect();
 }
 

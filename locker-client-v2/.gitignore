@@ -10,4 +10,3 @@ config/
 data/
 .mqtt-client-id
 .mqtt-credentials.json
-.provisioning-state

@@ -21,7 +21,6 @@ export interface CredentialStorePort {
   getCredentials(): { username: string; password: string } | null;
   saveCredentials(credentials: { username: string; password: string }): void;
   isProvisioned(): boolean;
-  markProvisioned(): void;
 }
 
 export interface ClockPort {

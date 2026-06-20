@@ -1,9 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import {
-  parseProvisioningResponse,
-  provisionDevice,
-} from '../../src/application/provision-device';
+import { parseProvisioningResponse, provisionDevice } from '../../src/application/provision-device';
 import type { CredentialStorePort } from '../../src/ports/config.port';
 import type { MessageTransportPort, MqttTransportSettings } from '../../src/ports/mqtt.port';
 import { assertMatchesSchema, readAsyncApiExample } from '../contract/jsonSchema';
@@ -47,7 +44,6 @@ class FakeMessageTransport implements MessageTransportPort {
 
 class FakeCredentialStore implements CredentialStorePort {
   savedCredentials: { username: string; password: string } | null = null;
-  provisioned = false;
 
   getCredentials() {
     return this.savedCredentials;
@@ -58,11 +54,7 @@ class FakeCredentialStore implements CredentialStorePort {
   }
 
   isProvisioned(): boolean {
-    return this.provisioned;
-  }
-
-  markProvisioned(): void {
-    this.provisioned = true;
+    return this.savedCredentials !== null;
   }
 }
 
@@ -156,7 +148,7 @@ test('provisionDevice saves credentials from contract-shaped success reply', asy
       username: 'mqtt-user',
       password: 'mqtt-password',
     });
-    assert.equal(credentialStore.provisioned, true);
+    assert.equal(credentialStore.isProvisioned(), true);
   } finally {
     if (previousUsername === undefined) {
       delete process.env.MQTT_DEFAULT_USERNAME;
