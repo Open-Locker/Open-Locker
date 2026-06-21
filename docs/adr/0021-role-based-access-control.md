@@ -289,25 +289,6 @@ a capability (the last-admin guard, the `is_admin` API field, "is the *edited* u
 admin"), and for admin-only super-user **bypasses** in compartment open/edit, where
 converting to a shared permission would change *who* is allowed.
 
-### 2026-06-23 — Soft-revoke role→permission bindings + audit trail (#95)
-
-The original `RoleProjector` **deleted** the `role_permissions` row on
-`RolePermissionRevoked`, so a revoked binding left no trace. Building the
-admin role-permission management screen (per-role grant/revoke, mirroring the
-compartment-access screens) required showing *when/by whom* a permission was
-granted **and** revoked.
-
-Changed the `role_permissions` read model to **soft-revoke**: revocation now
-sets `revoked_at` / `revoked_by_user_id` and keeps the row (new migration adds
-both columns), instead of deleting it. **Active = `revoked_at IS NULL`**, so
-`HasPermissions::permissionNames()` now filters `whereNull('revoked_at')`. A
-re-grant clears the revoke audit and reactivates the row (`updateOrCreate`).
-
-This is a **read-model / projector change only** — no new events, no aggregate
-or stored-event changes, so the event log is untouched and the table remains
-rebuildable by replay. It refines decision 8's "permission toggle" surface into
-a grant/revoke action table with a granted/revoked audit.
-
 ## Supersedes / Superseded By
 
 - Supersedes: none (first authorization-model ADR; extends the binary `is_admin_since` flag). Revises an

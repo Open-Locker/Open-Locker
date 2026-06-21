@@ -12,6 +12,7 @@
 permissions:
   - panel.access            # may sign in to the Filament admin panel
   - users.manage            # view / manage regular user records
+  - groups.manage           # view / manage groups, membership & group compartment access
   - compartment.access.manage  # grant / revoke compartment access for users
   - compartment.open        # operationally open any compartment
   - roles.manage            # grant / revoke user roles and role permissions

@@ -14,6 +14,7 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Validation\ValidationException;
 
 /**
+ * @property CompartmentDoorState|null $door_state
  * @property string|null $content_note
  * @property \Illuminate\Support\Carbon|null $content_note_updated_at
  * @property int|null $content_note_updated_by_user_id
@@ -98,6 +99,16 @@ class Compartment extends Model
     public function accesses(): HasMany
     {
         return $this->hasMany(CompartmentAccess::class);
+    }
+
+    /**
+     * Group-level access grants for this compartment (managed via GroupAccessService).
+     *
+     * @return HasMany<GroupCompartmentAccess, Compartment>
+     */
+    public function groupAccesses(): HasMany
+    {
+        return $this->hasMany(GroupCompartmentAccess::class);
     }
 
     /**

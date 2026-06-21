@@ -15,6 +15,7 @@ enum Permission: string
 {
     case PanelAccess = 'panel.access';
     case UsersManage = 'users.manage';
+    case GroupsManage = 'groups.manage';
     case CompartmentAccessManage = 'compartment.access.manage';
     case CompartmentOpen = 'compartment.open';
     case RolesManage = 'roles.manage';
