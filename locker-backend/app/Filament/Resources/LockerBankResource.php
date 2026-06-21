@@ -20,6 +20,10 @@ class LockerBankResource extends Resource
 
     protected static \BackedEnum|string|null $navigationIcon = 'heroicon-o-squares-2x2';
 
+    protected static string|\UnitEnum|null $navigationGroup = 'Setup';
+
+    protected static ?int $navigationSort = 10;
+
     public static function canAccess(): bool
     {
         // Locker bank + Modbus technical config is admin-only (#95).

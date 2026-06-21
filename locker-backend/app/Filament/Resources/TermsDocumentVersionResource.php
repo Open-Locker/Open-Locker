@@ -27,7 +27,9 @@ class TermsDocumentVersionResource extends Resource
 
     protected static ?string $navigationLabel = 'Terms & Policies';
 
-    protected static string|\UnitEnum|null $navigationGroup = 'Legal';
+    protected static string|\UnitEnum|null $navigationGroup = 'Docs/Legal';
+
+    protected static ?int $navigationSort = 10;
 
     public static function canAccess(): bool
     {
@@ -46,7 +48,7 @@ class TermsDocumentVersionResource extends Resource
 
     public static function getNavigationGroup(): ?string
     {
-        return __('Legal');
+        return __('Docs/Legal');
     }
 
     public static function getModelLabel(): string

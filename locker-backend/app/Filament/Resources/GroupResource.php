@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Filament\Resources;
 
+use App\Enums\Permission;
 use App\Filament\Resources\GroupResource\Pages;
 use App\Filament\Resources\GroupResource\RelationManagers\CompartmentAccessesRelationManager;
 use App\Filament\Resources\GroupResource\RelationManagers\MembersRelationManager;
@@ -20,10 +21,15 @@ class GroupResource extends Resource
 
     protected static \BackedEnum|string|null $navigationIcon = 'heroicon-o-user-group';
 
+    protected static string|\UnitEnum|null $navigationGroup = 'Operations';
+
+    protected static ?int $navigationSort = 30;
+
     public static function canAccess(): bool
     {
         // Group management is admin-only; managers manage direct access only (#95).
-        return auth()->user()?->isAdmin() ?? false;
+        // Admin-only is expressed via the admin-exclusive `groups.manage` permission (#48).
+        return auth()->user()?->can(Permission::GroupsManage->value) ?? false;
     }
 
     public static function form(Schema $form): Schema

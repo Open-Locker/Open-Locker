@@ -64,6 +64,7 @@ exists*:
 permissions:
   - panel.access
   - users.manage
+  - groups.manage         # manage groups, membership & group compartment access (see Amendments)
   - compartment.access.manage
   - compartment.open
   - roles.manage          # grant/revoke user roles
@@ -261,6 +262,32 @@ Deliver in reviewable slices after this ADR is accepted:
    resources), event-sourced binding + replay, bootstrap-still-creates-admin, and the catalog-coverage test.
 
 Fallback: until slice 3 lands, `isAdmin()` shims keep current behavior, so slices 1–2 are non-breaking.
+
+## Amendments
+
+### 2026-06-21 — `groups.manage` permission (#48)
+
+The original migration (slice 3) left **group administration** gated by the
+`isAdmin()` shim rather than a permission, because no group-scoped capability existed
+in the catalog. While building the operations-oriented Filament navigation (#48) — in
+particular a compartment-centric access screen with a "Groups" access tab — this gap
+became a concrete inconsistency.
+
+Added a `groups.manage` permission to the catalog and replaced the remaining
+group-admin `isAdmin()` checks with `can(Permission::GroupsManage->value)` in:
+`GroupResource::canAccess`, its `MembersRelationManager` and
+`CompartmentAccessesRelationManager`, the new
+`CompartmentResource\RelationManagers\GroupAccessesRelationManager`, and the
+domain-layer gate `GroupAccessService::ensureCanManageAccess()`.
+
+`groups.manage` is **not** in the `manager` default binding, so behaviour is unchanged
+(group administration stays admin-only) — admins hold it via the super-role expansion
+(decision 5), so no re-seed or data migration is required.
+
+`isAdmin()` is intentionally retained where it expresses **role identity** rather than
+a capability (the last-admin guard, the `is_admin` API field, "is the *edited* user an
+admin"), and for admin-only super-user **bypasses** in compartment open/edit, where
+converting to a shared permission would change *who* is allowed.
 
 ## Supersedes / Superseded By
 

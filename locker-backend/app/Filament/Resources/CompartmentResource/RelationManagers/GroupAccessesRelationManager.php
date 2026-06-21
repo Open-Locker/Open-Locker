@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\Filament\Resources\GroupResource\RelationManagers;
+namespace App\Filament\Resources\CompartmentResource\RelationManagers;
 
 use App\Enums\Permission;
 use App\Models\Compartment;
@@ -18,11 +18,11 @@ use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Support\Carbon;
 
-class CompartmentAccessesRelationManager extends RelationManager
+class GroupAccessesRelationManager extends RelationManager
 {
-    protected static string $relationship = 'compartmentAccesses';
+    protected static string $relationship = 'groupAccesses';
 
-    protected static ?string $title = 'Compartment access';
+    protected static ?string $title = 'Groups';
 
     public function form(Schema $form): Schema
     {
@@ -34,12 +34,9 @@ class CompartmentAccessesRelationManager extends RelationManager
         return $table
             ->recordTitleAttribute('id')
             ->columns([
-                Tables\Columns\TextColumn::make('compartment.number')
-                    ->label('Compartment')
-                    ->prefix('#')
-                    ->sortable(),
-                Tables\Columns\TextColumn::make('compartment.lockerBank.name')
-                    ->label('Locker bank')
+                Tables\Columns\TextColumn::make('group.name')
+                    ->label('Group')
+                    ->searchable()
                     ->sortable(),
                 Tables\Columns\TextColumn::make('granted_at')
                     ->dateTime()
@@ -58,27 +55,18 @@ class CompartmentAccessesRelationManager extends RelationManager
             ])
             ->headerActions([
                 \Filament\Actions\Action::make('grantAccess')
-                    ->label('Grant access')
+                    ->label('Grant group access')
                     ->icon('heroicon-m-key')
-                    ->visible(fn (): bool => $this->currentUserCanManageGroups())
+                    ->visible(fn (): bool => $this->currentUserCanManageAccess())
                     ->form([
-                        Forms\Components\Select::make('compartment_id')
-                            ->label('Compartment')
+                        Forms\Components\Select::make('group_id')
+                            ->label('Group')
                             ->required()
                             ->searchable()
-                            ->options(
-                                Compartment::query()
-                                    ->with('lockerBank')
-                                    ->get()
-                                    ->mapWithKeys(fn (Compartment $compartment): array => [
-                                        (string) $compartment->id => sprintf(
-                                            '%s / #%d',
-                                            $compartment->lockerBank?->name ?? 'Unknown locker bank',
-                                            (int) $compartment->number
-                                        ),
-                                    ])
-                                    ->all()
-                            ),
+                            ->options(fn (): array => Group::query()
+                                ->orderBy('name')
+                                ->pluck('name', 'id')
+                                ->all()),
                         Forms\Components\DateTimePicker::make('expires_at')
                             ->label('Expires at')
                             ->seconds(false),
@@ -87,12 +75,12 @@ class CompartmentAccessesRelationManager extends RelationManager
                             ->maxLength(2000),
                     ])
                     ->action(function (array $data): void {
-                        /** @var Group $group */
-                        $group = $this->getOwnerRecord();
+                        /** @var Compartment $compartment */
+                        $compartment = $this->getOwnerRecord();
                         /** @var User|null $actor */
                         $actor = Filament::auth()->user();
-                        /** @var Compartment $compartment */
-                        $compartment = Compartment::query()->findOrFail($data['compartment_id']);
+                        /** @var Group $group */
+                        $group = Group::query()->findOrFail($data['group_id']);
 
                         $expiresAt = filled($data['expires_at'])
                             ? Carbon::parse($data['expires_at'])
@@ -111,20 +99,20 @@ class CompartmentAccessesRelationManager extends RelationManager
             ])
             ->actions([
                 \Filament\Actions\Action::make('revokeAccess')
-                    ->label('Revoke access')
+                    ->label('Revoke')
                     ->color('danger')
                     ->icon('heroicon-m-no-symbol')
-                    ->visible(fn (): bool => $this->currentUserCanManageGroups())
+                    ->visible(fn (GroupCompartmentAccess $record): bool => $this->currentUserCanManageAccess() && $record->revoked_at === null)
                     ->requiresConfirmation()
                     ->action(function (GroupCompartmentAccess $record): void {
-                        /** @var Group $group */
-                        $group = $this->getOwnerRecord();
+                        /** @var Compartment $compartment */
+                        $compartment = $this->getOwnerRecord();
                         /** @var User|null $actor */
                         $actor = Filament::auth()->user();
 
                         app(GroupAccessService::class)->revokeCompartmentAccess(
-                            group: $group,
-                            compartment: $record->compartment,
+                            group: $record->group,
+                            compartment: $compartment,
                             actor: $actor,
                         );
 
@@ -133,8 +121,9 @@ class CompartmentAccessesRelationManager extends RelationManager
             ]);
     }
 
-    private function currentUserCanManageGroups(): bool
+    private function currentUserCanManageAccess(): bool
     {
+        // Group-level compartment access is admin-only, gated by `groups.manage` (#48).
         $user = Filament::auth()->user();
 
         return $user instanceof User && $user->can(Permission::GroupsManage->value);

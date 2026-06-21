@@ -20,6 +20,10 @@ class UserResource extends Resource
 
     protected static \BackedEnum|string|null $navigationIcon = 'heroicon-o-rectangle-stack';
 
+    protected static string|\UnitEnum|null $navigationGroup = 'Operations';
+
+    protected static ?int $navigationSort = 20;
+
     public static function canAccess(): bool
     {
         return auth()->user()?->can(Permission::UsersManage->value) ?? false;

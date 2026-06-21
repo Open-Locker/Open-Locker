@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services;
 
 use App\Aggregates\GroupAggregate;
+use App\Enums\Permission;
 use App\Models\Compartment;
 use App\Models\Group;
 use App\Models\User;
@@ -115,7 +116,11 @@ class GroupAccessService
     private function ensureCanManageAccess(?User $actor): User
     {
         $resolvedActor = $this->resolveActor($actor);
-        throw_unless($resolvedActor?->isAdmin(), AuthorizationException::class, 'Only admins can manage groups and group access.');
+        throw_unless(
+            $resolvedActor?->can(Permission::GroupsManage->value),
+            AuthorizationException::class,
+            'Only admins can manage groups and group access.'
+        );
 
         return $resolvedActor;
     }
