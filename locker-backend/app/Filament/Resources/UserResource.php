@@ -87,7 +87,7 @@ class UserResource extends Resource
                     \Filament\Actions\DeleteBulkAction::make()
                         ->before(function (\Filament\Actions\DeleteBulkAction $action, Collection $records) {
                             $adminCount = User::whereNotNull('is_admin_since')->count();
-                            $deletedAdmins = $records->filter(fn (User $record) => $record->is_admin_since)->count();
+                            $deletedAdmins = $records->whereNotNull('is_admin_since')->count();
 
                             if ($adminCount - $deletedAdmins < 1) {
                                 Notification::make()

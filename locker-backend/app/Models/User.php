@@ -22,6 +22,9 @@ use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Facades\Password;
 use Laravel\Sanctum\HasApiTokens;
 
+/**
+ * @property \Carbon\CarbonImmutable|null $email_verified_at
+ */
 class User extends Authenticatable implements FilamentUser, HasName, MustVerifyEmail
 {
     /** @use HasFactory<UserFactory> */

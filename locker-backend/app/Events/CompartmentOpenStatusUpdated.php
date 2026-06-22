@@ -33,6 +33,9 @@ class CompartmentOpenStatusUpdated implements ShouldBroadcastNow
         return 'compartment.open.status.updated';
     }
 
+    /**
+     * @return array<string, mixed>
+     */
     public function broadcastWith(): array
     {
         return [

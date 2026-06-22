@@ -103,7 +103,7 @@ class MosquittoAuthController extends Controller
             // NOTE: Some backends use acc=1 for subscribe, others acc=4 or other values.
             // For provisioning user, anything that is not an explicit publish (acc===2)
             // is treated as a subscribe/other read operation.
-            if ($isReadAcc && ! $isWriteAcc) { // subscribe / unsubscribe / other read-style access
+            if ($isReadAcc) { // subscribe / unsubscribe / other read-style access (write already handled above)
                 $allowed = $this->acl->topicMatches('locker/provisioning/reply/%c', $topic, $username, $clientId);
                 Log::info('ACL Provisioning Subscribe: '.($allowed ? 'Allowed' : 'Denied'));
 
@@ -136,7 +136,7 @@ class MosquittoAuthController extends Controller
             }
 
             // For device users, treat read-style acc values as subscribe-like (without double-counting readwrite).
-            if ($isReadAcc && ! $isWriteAcc) { // subscribe / unsubscribe / other read-style access
+            if ($isReadAcc) { // subscribe / unsubscribe / other read-style access (write already handled above)
                 $allow = $this->acl->topicMatches('locker/%u/command', $topic, $username, $clientId);
 
                 return response()->json([

@@ -55,7 +55,7 @@ class LockerBankResource extends Resource
                     ->helperText('Backend marks the locker offline when no heartbeat is received within this timeout.'),
                 Placeholder::make('provisioning_token')
                     ->label('Provisioning token')
-                    ->content(fn (?LockerBank $record): string => $record?->provisioning_token ?? '—'),
+                    ->content(fn (?LockerBank $record): string => $record !== null ? $record->provisioning_token : '—'),
                 Placeholder::make('provisioned_at')
                     ->label('Provisioned at')
                     ->content(fn (?LockerBank $record): string => $record?->provisioned_at?->toDateTimeString() ?? '—'),
@@ -105,7 +105,7 @@ class LockerBankResource extends Resource
                     ->badge()
                     ->state(fn (LockerBank $record): string => $record->isConfigDirty() ? 'Dirty' : 'Clean')
                     ->color(fn (string $state): string => $state === 'Dirty' ? 'warning' : 'success')
-                    ->tooltip(fn (LockerBank $record): ?string => $record->last_config_ack_at
+                    ->tooltip(fn (LockerBank $record): string => $record->last_config_ack_at
                         ? 'Last ack: '.$record->last_config_ack_at->toDateTimeString()
                         : 'No config ack received yet'),
                 TextColumn::make('location_description')

@@ -73,7 +73,7 @@ class CompartmentAccessesRelationManager extends RelationManager
                                     ->mapWithKeys(fn (Compartment $compartment): array => [
                                         (string) $compartment->id => sprintf(
                                             '%s / #%d',
-                                            $compartment->lockerBank?->name ?? 'Unknown locker bank',
+                                            $compartment->lockerBank->name,
                                             (int) $compartment->number
                                         ),
                                     ])
