@@ -341,7 +341,7 @@ class AuthControllerTest extends TestCase
         $response = $this->get($verificationUrl);
 
         $response->assertOk()
-            ->assertSee('E-Mail erfolgreich bestaetigt')
+            ->assertSee('E-Mail erfolgreich bestätigt')
             ->assertSee($user->email);
 
         $this->assertTrue($user->fresh()->hasVerifiedEmail());
@@ -383,11 +383,13 @@ class AuthControllerTest extends TestCase
 
         $this->actingAs($user);
 
-        $response = $this->postJson('/api/email/verification-notification');
+        $response = $this->postJson('/api/email/verification-notification', [], [
+            'Accept-Language' => 'de',
+        ]);
 
         $response->assertStatus(200)
             ->assertJson([
-                'message' => 'E-Mail bereits bestaetigt',
+                'message' => 'E-Mail bereits bestätigt',
             ]);
     }
 
@@ -473,7 +475,7 @@ class AuthControllerTest extends TestCase
         $response = $this->get('/reset-password?token=test-token&email=user@example.com');
 
         $response->assertOk()
-            ->assertSee('Setze dein Passwort zurueck')
+            ->assertSee('Setze dein Passwort zurück')
             ->assertSee('user@example.com')
             ->assertSee('test-token', false);
     }
@@ -484,7 +486,7 @@ class AuthControllerTest extends TestCase
 
         $user = User::factory()->unverified()->create();
 
-        $this->post(route('password.email'), ['email' => $user->email]);
+        $this->post(route('password.email'), ['email' => $user->email], ['Accept-Language' => 'de']);
 
         Notification::assertSentTo($user, WebResetPasswordNotification::class, function ($notification) use ($user) {
             $response = $this->followingRedirects()->from(route('password.reset.form', [
@@ -498,7 +500,7 @@ class AuthControllerTest extends TestCase
             ]);
 
             $response->assertOk()
-                ->assertSee('Passwort erfolgreich zurueckgesetzt')
+                ->assertSee('Passwort erfolgreich zurückgesetzt')
                 ->assertDontSee('name="email"', false)
                 ->assertDontSee('<form', false);
 

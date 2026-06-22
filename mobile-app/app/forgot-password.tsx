@@ -8,7 +8,7 @@ import { HelperText, Text, useTheme } from 'react-native-paper';
 
 import { usePostPasswordEmailMutation } from '@/src/store/generatedApi';
 import { OPEN_LOCKER_DESIGN_TOKENS } from '@/src/theme/tokens';
-import { AppButton, AppTextInput } from '@/src/ui';
+import { AppButton, AppTextInput, LanguageToggle } from '@/src/ui';
 
 function getErrorMessage(
   error: unknown,
@@ -95,6 +95,8 @@ export default function ForgotPasswordScreen() {
             {t('passwordReset.backToSignIn')}
           </AppButton>
         </View>
+
+        <LanguageToggle variant="inline" style={styles.languageToggle} />
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
@@ -115,5 +117,10 @@ const styles = StyleSheet.create({
   actions: {
     marginTop: OPEN_LOCKER_DESIGN_TOKENS.spacing.sm,
     gap: OPEN_LOCKER_DESIGN_TOKENS.spacing.sm,
+  },
+  languageToggle: {
+    alignSelf: 'center',
+    marginTop: 'auto',
+    marginBottom: OPEN_LOCKER_DESIGN_TOKENS.spacing.lg,
   },
 });
