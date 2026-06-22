@@ -8,8 +8,12 @@
     },
     "pnpm": {
         "overrides": {
+            "esbuild": ">=0.28.1",
+            "shell-quote": ">=1.8.4",
             "socket.io-parser": "^4.2.6",
-            "vite-plugin-full-reload>picomatch": "^2.3.2"
+            "vite-plugin-full-reload>picomatch": "^2.3.2",
+            "ws": ">=8.21.0",
+            "form-data": ">=4.0.6"
         }
     },
     "devDependencies": {
@@ -20,6 +24,6 @@
         "laravel-vite-plugin": "^3.0.0",
         "pusher-js": "^8.4.0",
         "tailwindcss": "^4.2.2",
-        "vite": "^8.0.8"
+        "vite": "^8.0.16"
     }
 }

@@ -1,9 +1,17 @@
 name: Build Locker Client
 
 on:
+  pull_request:
+    branches:
+      - main
+      - dev
+    paths:
+      - 'locker-client/**'
+      - '.github/workflows/build-locker-client.yml'
   push:
     branches:
       - main
+      - dev
     tags:
       - 'locker-client-v*'
     paths:
@@ -35,7 +43,8 @@ jobs:
           images: ghcr.io/${{ github.repository_owner }}/locker-client
           tags: |
             type=ref,event=branch
-            type=sha,prefix={{branch}}-
+            type=ref,event=pr
+            type=sha,prefix={{branch}}-,enable=${{ github.event_name != 'pull_request' }}
             type=match,pattern=locker-client-v(.*),group=1
             type=raw,value=latest,enable={{is_default_branch}}
 
@@ -51,7 +60,7 @@ jobs:
           context: ./locker-client
           file: ./locker-client/Dockerfile
           platforms: linux/amd64,linux/arm64
-          push: true
+          push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
