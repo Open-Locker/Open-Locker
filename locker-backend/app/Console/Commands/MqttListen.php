@@ -10,6 +10,7 @@ use App\Mqtt\Handlers\LockerConnectionStateHandler;
 use App\Mqtt\Handlers\LockerHeartbeatHandler;
 use App\Mqtt\Handlers\RegistrationHandler;
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 use PhpMqtt\Client\Contracts\MqttClient;
 use PhpMqtt\Client\Facades\MQTT;
@@ -45,6 +46,8 @@ class MqttListen extends Command
                 $this->subscribe($mqtt, $handler);
             }
 
+            $this->registerHeartbeat($mqtt);
+
             // Keep the client loop alive and allow internal sleep to avoid busy-waiting
             $mqtt->loop(true);
 
@@ -54,6 +57,25 @@ class MqttListen extends Command
 
             return Command::FAILURE;
         }
+    }
+
+    /**
+     * Emit a liveness pulse on each loop iteration (throttled), so mqtt:health
+     * can detect a wedged-but-running listener. See ADR-0025.
+     */
+    private function registerHeartbeat(MqttClient $mqtt): void
+    {
+        $key = (string) config('mqtt-client.heartbeat.cache_key');
+        $interval = (int) config('mqtt-client.heartbeat.interval');
+        $lastBeat = 0.0;
+
+        $mqtt->registerLoopEventHandler(function () use ($key, $interval, &$lastBeat): void {
+            $now = microtime(true);
+            if ($now - $lastBeat >= $interval) {
+                Cache::put($key, time(), now()->addMinute());
+                $lastBeat = $now;
+            }
+        });
     }
 
     /**
