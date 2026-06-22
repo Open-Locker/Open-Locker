@@ -2,6 +2,7 @@
 
 namespace App\Providers;
 
+use App\Scramble\Transformers\AcceptLanguageHeaderTransformer;
 use App\Scramble\Transformers\AccessibleCompartmentsNullableTransformer;
 use App\Scramble\Transformers\NullableFieldsTransformer;
 use Carbon\CarbonImmutable;
@@ -39,6 +40,7 @@ class AppServiceProvider extends ServiceProvider
         Scramble::configure()->withDocumentTransformers([
             new AccessibleCompartmentsNullableTransformer,
             new NullableFieldsTransformer,
+            new AcceptLanguageHeaderTransformer,
         ]);
 
         // Use CarbonImmutable for all date instances. Prevents date mutability.

@@ -2,6 +2,7 @@ import type { BaseQueryFn, FetchArgs, FetchBaseQueryError } from '@reduxjs/toolk
 import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react';
 
 import { getApiBaseUrl } from '@/src/api/baseUrl';
+import { getCurrentAppLanguage } from '@/src/i18n';
 import { markSessionExpired } from '@/src/store/authSlice';
 import { clearPersistedAuth } from '@/src/store/authStorage';
 import type { RootState } from '@/src/store/store';
@@ -25,6 +26,10 @@ const rawBaseQuery = fetchBaseQuery({
     }
 
     headers.set('accept', 'application/json');
+    // Tell the backend which language to render server-side strings in
+    // (API messages, web pages, queued emails) per ADR-0024. Tracks the
+    // user's settings-screen language switch, falling back to device locale.
+    headers.set('accept-language', getCurrentAppLanguage());
     return headers;
   },
 });
