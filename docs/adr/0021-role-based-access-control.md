@@ -64,6 +64,7 @@ exists*:
 permissions:
   - panel.access
   - users.manage
+  - groups.manage         # manage groups, membership & group compartment access (see Amendments)
   - compartment.access.manage
   - compartment.open
   - roles.manage          # grant/revoke user roles
@@ -261,6 +262,51 @@ Deliver in reviewable slices after this ADR is accepted:
    resources), event-sourced binding + replay, bootstrap-still-creates-admin, and the catalog-coverage test.
 
 Fallback: until slice 3 lands, `isAdmin()` shims keep current behavior, so slices 1–2 are non-breaking.
+
+## Amendments
+
+### 2026-06-21 — `groups.manage` permission (#48)
+
+The original migration (slice 3) left **group administration** gated by the
+`isAdmin()` shim rather than a permission, because no group-scoped capability existed
+in the catalog. While building the operations-oriented Filament navigation (#48) — in
+particular a compartment-centric access screen with a "Groups" access tab — this gap
+became a concrete inconsistency.
+
+Added a `groups.manage` permission to the catalog and replaced the remaining
+group-admin `isAdmin()` checks with `can(Permission::GroupsManage->value)` in:
+`GroupResource::canAccess`, its `MembersRelationManager` and
+`CompartmentAccessesRelationManager`, the new
+`CompartmentResource\RelationManagers\GroupAccessesRelationManager`, and the
+domain-layer gate `GroupAccessService::ensureCanManageAccess()`.
+
+`groups.manage` is **not** in the `manager` default binding, so behaviour is unchanged
+(group administration stays admin-only) — admins hold it via the super-role expansion
+(decision 5), so no re-seed or data migration is required.
+
+`isAdmin()` is intentionally retained where it expresses **role identity** rather than
+a capability (the last-admin guard, the `is_admin` API field, "is the *edited* user an
+admin"), and for admin-only super-user **bypasses** in compartment open/edit, where
+converting to a shared permission would change *who* is allowed.
+
+### 2026-06-23 — Soft-revoke role→permission bindings + audit trail (#95)
+
+The original `RoleProjector` **deleted** the `role_permissions` row on
+`RolePermissionRevoked`, so a revoked binding left no trace. Building the
+admin role-permission management screen (per-role grant/revoke, mirroring the
+compartment-access screens) required showing *when/by whom* a permission was
+granted **and** revoked.
+
+Changed the `role_permissions` read model to **soft-revoke**: revocation now
+sets `revoked_at` / `revoked_by_user_id` and keeps the row (new migration adds
+both columns), instead of deleting it. **Active = `revoked_at IS NULL`**, so
+`HasPermissions::permissionNames()` now filters `whereNull('revoked_at')`. A
+re-grant clears the revoke audit and reactivates the row (`updateOrCreate`).
+
+This is a **read-model / projector change only** — no new events, no aggregate
+or stored-event changes, so the event log is untouched and the table remains
+rebuildable by replay. It refines decision 8's "permission toggle" surface into
+a grant/revoke action table with a granted/revoked audit.
 
 ## Supersedes / Superseded By
 
