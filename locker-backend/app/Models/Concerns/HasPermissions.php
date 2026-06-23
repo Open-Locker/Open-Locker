@@ -62,6 +62,7 @@ trait HasPermissions
 
         return $this->cachedPermissionNames = RolePermission::query()
             ->whereIn('role', $roles)
+            ->whereNull('revoked_at')
             ->pluck('permission')
             ->unique()
             ->values()

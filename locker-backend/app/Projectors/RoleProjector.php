@@ -18,6 +18,7 @@ class RoleProjector extends Projector
 {
     public function onRolePermissionGranted(RolePermissionGranted $event): void
     {
+        // (Re)activate the binding, clearing any prior revoke audit.
         RolePermission::query()->updateOrCreate(
             [
                 'role' => $event->role,
@@ -26,15 +27,21 @@ class RoleProjector extends Projector
             [
                 'granted_by_user_id' => $event->actorUserId,
                 'granted_at' => Carbon::parse($event->grantedAt),
+                'revoked_by_user_id' => null,
+                'revoked_at' => null,
             ]
         );
     }
 
     public function onRolePermissionRevoked(RolePermissionRevoked $event): void
     {
+        // Soft revoke: keep the row for the audit trail (active = revoked_at IS NULL).
         RolePermission::query()
             ->where('role', $event->role)
             ->where('permission', $event->permission)
-            ->delete();
+            ->update([
+                'revoked_by_user_id' => $event->actorUserId,
+                'revoked_at' => Carbon::parse($event->revokedAt),
+            ]);
     }
 }
