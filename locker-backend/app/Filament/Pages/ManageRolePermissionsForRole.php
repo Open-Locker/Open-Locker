@@ -22,7 +22,7 @@ use Illuminate\Contracts\Support\Htmlable;
 /**
  * Per-role detail screen (reached from {@see ManageRolePermissions}): lists every
  * catalog permission with its grant/revoke audit and a single contextual action —
- * green "Gewähren" when inactive, red "Entziehen" when active — mirroring the
+ * green "Grant" when inactive, red "Revoke" when active — mirroring the
  * compartment-access screens (ADR-0021, ADR-0026).
  *
  * Actions record RolePermissionGranted/Revoked via {@see RoleAggregate}; the
@@ -60,7 +60,7 @@ class ManageRolePermissionsForRole extends Page implements HasTable
 
     public function getTitle(): string|Htmlable
     {
-        return 'Berechtigungen: '.self::roleLabel($this->role);
+        return __('Permissions: :role', ['role' => self::roleLabel($this->role)]);
     }
 
     /**
@@ -69,7 +69,7 @@ class ManageRolePermissionsForRole extends Page implements HasTable
     public function getBreadcrumbs(): array
     {
         return [
-            ManageRolePermissions::getUrl() => 'Rollen & Berechtigungen',
+            ManageRolePermissions::getUrl() => __('Roles & Permissions'),
             self::roleLabel($this->role),
         ];
     }
@@ -83,33 +83,33 @@ class ManageRolePermissionsForRole extends Page implements HasTable
             ->records(fn (): array => $this->buildRecords($role, $isAdmin))
             ->columns([
                 TextColumn::make('permission')
-                    ->label('Berechtigung')
+                    ->label(__('Permission'))
                     ->description(fn (array $record): ?string => $record['description'])
                     ->weight('medium')
                     ->badge()
                     ->color(fn (array $record): string => $record['active'] ? 'success' : 'gray'),
                 TextColumn::make('granted_at')
-                    ->label('Gewährt am')
+                    ->label(__('Granted at'))
                     ->placeholder('—'),
                 TextColumn::make('granted_by')
-                    ->label('Gewährt von')
-                    ->placeholder('System'),
+                    ->label(__('Granted by'))
+                    ->placeholder(__('System')),
                 TextColumn::make('revoked_at')
-                    ->label('Entzogen am')
+                    ->label(__('Revoked at'))
                     ->placeholder('—'),
                 TextColumn::make('revoked_by')
-                    ->label('Entzogen von')
+                    ->label(__('Revoked by'))
                     ->placeholder('—'),
             ])
             ->recordActions([
                 Action::make('grant')
-                    ->label('Gewähren')
+                    ->label(__('Grant'))
                     ->color('success')
                     ->icon('heroicon-m-key')
                     ->visible(fn (array $record): bool => ! $isAdmin && self::currentUserCanManage() && ! $record['active'])
                     ->action(fn (array $record) => $this->applyToggle($role, (string) $record['permission'], true)),
                 Action::make('revoke')
-                    ->label('Entziehen')
+                    ->label(__('Revoke'))
                     ->color('danger')
                     ->icon('heroicon-m-no-symbol')
                     ->requiresConfirmation()
@@ -187,9 +187,9 @@ class ManageRolePermissionsForRole extends Page implements HasTable
     private static function roleLabel(string $role): string
     {
         return match ($role) {
-            Role::User->value => 'Nutzer',
-            Role::Manager->value => 'Manager',
-            Role::Admin->value => 'Admin',
+            Role::User->value => __('User role'),
+            Role::Manager->value => __('Manager'),
+            Role::Admin->value => __('Admin'),
             default => ucfirst($role),
         };
     }
@@ -200,14 +200,14 @@ class ManageRolePermissionsForRole extends Page implements HasTable
     private static function permissionDescriptions(): array
     {
         return [
-            Permission::PanelAccess->value => 'Darf sich am Admin-Panel anmelden.',
-            Permission::UsersManage->value => 'Nutzerdatensätze ansehen / verwalten.',
-            Permission::GroupsManage->value => 'Gruppen, Mitgliedschaften und Gruppen-Fachzugriffe verwalten.',
-            Permission::CompartmentAccessManage->value => 'Fachzugriffe für Nutzer gewähren / entziehen.',
-            Permission::CompartmentOpen->value => 'Beliebige Fächer operativ öffnen.',
-            Permission::RolesManage->value => 'Rollen und Rollen-Berechtigungen gewähren / entziehen.',
-            Permission::LockerBankConfigure->value => 'Technische Konfiguration (Modbus slave_id/address, Provisioning, Heartbeat).',
-            Permission::SystemConfigure->value => 'Rechtliche / systemweite Konfigurationsressourcen.',
+            Permission::PanelAccess->value => __('May log in to the admin panel.'),
+            Permission::UsersManage->value => __('View and manage user records.'),
+            Permission::GroupsManage->value => __('Manage groups, memberships and group compartment accesses.'),
+            Permission::CompartmentAccessManage->value => __('Grant and revoke compartment accesses for users.'),
+            Permission::CompartmentOpen->value => __('Operationally open any compartment.'),
+            Permission::RolesManage->value => __('Grant and revoke roles and role permissions.'),
+            Permission::LockerBankConfigure->value => __('Technical configuration (Modbus slave_id/address, provisioning, heartbeat).'),
+            Permission::SystemConfigure->value => __('Legal and system-wide configuration resources.'),
         ];
     }
 }

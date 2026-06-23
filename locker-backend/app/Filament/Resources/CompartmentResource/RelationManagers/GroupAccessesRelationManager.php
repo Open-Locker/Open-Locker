@@ -22,7 +22,10 @@ class GroupAccessesRelationManager extends RelationManager
 {
     protected static string $relationship = 'groupAccesses';
 
-    protected static ?string $title = 'Groups';
+    public static function getTitle(\Illuminate\Database\Eloquent\Model $ownerRecord, string $pageClass): string
+    {
+        return __('Groups');
+    }
 
     public function form(Schema $form): Schema
     {
@@ -35,32 +38,36 @@ class GroupAccessesRelationManager extends RelationManager
             ->recordTitleAttribute('id')
             ->columns([
                 Tables\Columns\TextColumn::make('group.name')
-                    ->label('Group')
+                    ->label(__('Group'))
                     ->searchable()
                     ->sortable(),
                 Tables\Columns\TextColumn::make('granted_at')
+                    ->label(__('Granted at'))
                     ->dateTime()
                     ->sortable(),
                 Tables\Columns\TextColumn::make('expires_at')
+                    ->label(__('Expires at'))
                     ->dateTime()
-                    ->placeholder('Never')
+                    ->placeholder(__('Never'))
                     ->sortable(),
                 Tables\Columns\TextColumn::make('revoked_at')
+                    ->label(__('Revoked at'))
                     ->dateTime()
-                    ->placeholder('Active')
+                    ->placeholder(__('Active'))
                     ->sortable(),
                 Tables\Columns\TextColumn::make('notes')
+                    ->label(__('Notes'))
                     ->limit(40)
                     ->toggleable(),
             ])
             ->headerActions([
                 \Filament\Actions\Action::make('grantAccess')
-                    ->label('Grant group access')
+                    ->label(__('Grant group access'))
                     ->icon('heroicon-m-key')
                     ->visible(fn (): bool => $this->currentUserCanManageAccess())
                     ->form([
                         Forms\Components\Select::make('group_id')
-                            ->label('Group')
+                            ->label(__('Group'))
                             ->required()
                             ->searchable()
                             ->options(fn (): array => Group::query()
@@ -68,9 +75,10 @@ class GroupAccessesRelationManager extends RelationManager
                                 ->pluck('name', 'id')
                                 ->all()),
                         Forms\Components\DateTimePicker::make('expires_at')
-                            ->label('Expires at')
+                            ->label(__('Expires at'))
                             ->seconds(false),
                         Forms\Components\Textarea::make('notes')
+                            ->label(__('Notes'))
                             ->rows(3)
                             ->maxLength(2000),
                     ])
@@ -99,7 +107,7 @@ class GroupAccessesRelationManager extends RelationManager
             ])
             ->actions([
                 \Filament\Actions\Action::make('revokeAccess')
-                    ->label('Revoke')
+                    ->label(__('Revoke'))
                     ->color('danger')
                     ->icon('heroicon-m-no-symbol')
                     ->visible(fn (GroupCompartmentAccess $record): bool => $this->currentUserCanManageAccess() && $record->revoked_at === null)

@@ -184,7 +184,7 @@ class ManagerAuthorizationTest extends TestCase
                 'pageClass' => \App\Filament\Resources\UserResource\Pages\EditUser::class,
             ])
             ->assertSuccessful()
-            ->assertSee('Grant access');
+            ->assertSee(__('Grant access'));
     }
 
     public function test_regular_user_does_not_see_grant_access_action(): void
@@ -197,7 +197,7 @@ class ManagerAuthorizationTest extends TestCase
                 'ownerRecord' => $target,
                 'pageClass' => \App\Filament\Resources\UserResource\Pages\EditUser::class,
             ])
-            ->assertDontSee('Grant access');
+            ->assertDontSee(__('Grant access'));
     }
 
     public function test_manager_cannot_see_role_management_action(): void

@@ -22,7 +22,10 @@ class CompartmentAccessesRelationManager extends RelationManager
 {
     protected static string $relationship = 'compartmentAccesses';
 
-    protected static ?string $title = 'Compartment access';
+    public static function getTitle(\Illuminate\Database\Eloquent\Model $ownerRecord, string $pageClass): string
+    {
+        return __('Compartment access');
+    }
 
     public function form(Schema $form): Schema
     {
@@ -35,35 +38,39 @@ class CompartmentAccessesRelationManager extends RelationManager
             ->recordTitleAttribute('id')
             ->columns([
                 Tables\Columns\TextColumn::make('compartment.number')
-                    ->label('Compartment')
+                    ->label(__('Compartment'))
                     ->prefix('#')
                     ->sortable(),
                 Tables\Columns\TextColumn::make('compartment.lockerBank.name')
-                    ->label('Locker bank')
+                    ->label(__('Locker bank'))
                     ->sortable(),
                 Tables\Columns\TextColumn::make('granted_at')
+                    ->label(__('Granted at'))
                     ->dateTime()
                     ->sortable(),
                 Tables\Columns\TextColumn::make('expires_at')
+                    ->label(__('Expires at'))
                     ->dateTime()
-                    ->placeholder('Never')
+                    ->placeholder(__('Never'))
                     ->sortable(),
                 Tables\Columns\TextColumn::make('revoked_at')
+                    ->label(__('Revoked at'))
                     ->dateTime()
-                    ->placeholder('Active')
+                    ->placeholder(__('Active'))
                     ->sortable(),
                 Tables\Columns\TextColumn::make('notes')
+                    ->label(__('Notes'))
                     ->limit(40)
                     ->toggleable(),
             ])
             ->headerActions([
                 \Filament\Actions\Action::make('grantAccess')
-                    ->label('Grant access')
+                    ->label(__('Grant access'))
                     ->icon('heroicon-m-key')
                     ->visible(fn (): bool => $this->currentUserCanManageGroups())
                     ->form([
                         Forms\Components\Select::make('compartment_id')
-                            ->label('Compartment')
+                            ->label(__('Compartment'))
                             ->required()
                             ->searchable()
                             ->options(
@@ -80,9 +87,10 @@ class CompartmentAccessesRelationManager extends RelationManager
                                     ->all()
                             ),
                         Forms\Components\DateTimePicker::make('expires_at')
-                            ->label('Expires at')
+                            ->label(__('Expires at'))
                             ->seconds(false),
                         Forms\Components\Textarea::make('notes')
+                            ->label(__('Notes'))
                             ->rows(3)
                             ->maxLength(2000),
                     ])
@@ -111,7 +119,7 @@ class CompartmentAccessesRelationManager extends RelationManager
             ])
             ->actions([
                 \Filament\Actions\Action::make('revokeAccess')
-                    ->label('Revoke access')
+                    ->label(__('Revoke access'))
                     ->color('danger')
                     ->icon('heroicon-m-no-symbol')
                     ->visible(fn (): bool => $this->currentUserCanManageGroups())

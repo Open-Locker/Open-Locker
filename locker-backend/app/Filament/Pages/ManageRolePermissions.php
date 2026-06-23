@@ -28,17 +28,28 @@ class ManageRolePermissions extends Page implements HasTable
 {
     use InteractsWithTable;
 
-    protected static string|UnitEnum|null $navigationGroup = 'Setup';
+    protected static string|UnitEnum|null $navigationGroup = null;
 
     protected static string|BackedEnum|null $navigationIcon = 'heroicon-o-shield-check';
-
-    protected static ?string $navigationLabel = 'Rollen & Berechtigungen';
-
-    protected static ?string $title = 'Rollen & Berechtigungen';
 
     protected static ?int $navigationSort = 11;
 
     protected string $view = 'filament.pages.manage-role-permissions';
+
+    public static function getNavigationGroup(): ?string
+    {
+        return __('Setup');
+    }
+
+    public static function getNavigationLabel(): string
+    {
+        return __('Roles & Permissions');
+    }
+
+    public function getTitle(): string
+    {
+        return __('Roles & Permissions');
+    }
 
     public static function canAccess(): bool
     {
@@ -51,10 +62,10 @@ class ManageRolePermissions extends Page implements HasTable
             ->records(fn (): array => $this->buildRecords())
             ->columns([
                 TextColumn::make('label')
-                    ->label('Rolle')
+                    ->label(__('Role'))
                     ->badge(),
                 TextColumn::make('permission_count')
-                    ->label('Berechtigungen')
+                    ->label(__('Permissions'))
                     ->badge()
                     ->color('gray'),
                 TextColumn::make('note')
@@ -64,7 +75,7 @@ class ManageRolePermissions extends Page implements HasTable
             ])
             ->recordActions([
                 Action::make('manage')
-                    ->label('Berechtigungen verwalten')
+                    ->label(__('Manage permissions'))
                     ->icon('heroicon-m-key')
                     ->visible(fn (): bool => self::currentUserCanManage())
                     ->url(fn (array $record): string => ManageRolePermissionsForRole::getUrl(['role' => $record['role']])),
@@ -95,7 +106,7 @@ class ManageRolePermissions extends Page implements HasTable
                         ? $totalPermissions
                         : (int) ($counts[$role] ?? 0),
                     'note' => $role === Role::Admin->value
-                        ? 'Super-Rolle – immer alle Berechtigungen (schreibgeschützt)'
+                        ? __('Super role – always all permissions (read-only)')
                         : null,
                 ],
             ])
@@ -113,9 +124,9 @@ class ManageRolePermissions extends Page implements HasTable
     private static function roleLabel(string $role): string
     {
         return match ($role) {
-            Role::User->value => 'Nutzer',
-            Role::Manager->value => 'Manager',
-            Role::Admin->value => 'Admin',
+            Role::User->value => __('User role'),
+            Role::Manager->value => __('Manager'),
+            Role::Admin->value => __('Admin'),
             default => ucfirst($role),
         };
     }

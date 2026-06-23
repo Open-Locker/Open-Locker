@@ -12,6 +12,7 @@
         "php": "^8.2",
         "dedoc/scramble": "^0.13.22",
         "filament/filament": "^5.3.5",
+        "laravel-lang/common": "*",
         "laravel/framework": "^12.0",
         "laravel/reverb": "^1.0",
         "laravel/sanctum": "^4.0",

@@ -14,7 +14,10 @@ class OpenRequestsRelationManager extends RelationManager
 {
     protected static string $relationship = 'openRequests';
 
-    protected static ?string $title = 'Open command history';
+    public static function getTitle(\Illuminate\Database\Eloquent\Model $ownerRecord, string $pageClass): string
+    {
+        return __('Open command history');
+    }
 
     public function form(Schema $form): Schema
     {
@@ -27,10 +30,11 @@ class OpenRequestsRelationManager extends RelationManager
             ->defaultSort('requested_at', 'desc')
             ->columns([
                 Tables\Columns\TextColumn::make('command_id')
-                    ->label('Command ID')
+                    ->label(__('Command ID'))
                     ->copyable()
                     ->searchable(),
                 Tables\Columns\TextColumn::make('status')
+                    ->label(__('Status'))
                     ->badge()
                     ->color(fn (?string $state): string => match ($state) {
                         'opened' => 'success',
@@ -38,17 +42,18 @@ class OpenRequestsRelationManager extends RelationManager
                         'sent', 'accepted', 'requested' => 'warning',
                         default => 'gray',
                     })
+                    ->formatStateUsing(fn (?string $state): string => $state ? __($state) : '')
                     ->sortable(),
                 Tables\Columns\TextColumn::make('compartment.number')
-                    ->label('Compartment')
+                    ->label(__('Compartment'))
                     ->prefix('#')
                     ->sortable(),
                 Tables\Columns\TextColumn::make('actor_display_name')
-                    ->label('Actor')
+                    ->label(__('Actor'))
                     ->state(fn (CompartmentOpenRequest $record): ?string => $record->actor?->fullName())
-                    ->placeholder('Unknown'),
+                    ->placeholder(__('Unknown')),
                 Tables\Columns\TextColumn::make('authorization_type')
-                    ->label('Authorization')
+                    ->label(__('Authorization'))
                     ->placeholder('-')
                     ->toggleable(),
                 Tables\Columns\TextColumn::make('error_code')
@@ -59,35 +64,38 @@ class OpenRequestsRelationManager extends RelationManager
                     ->placeholder('-')
                     ->toggleable(),
                 Tables\Columns\TextColumn::make('requested_at')
+                    ->label(__('Requested at'))
                     ->dateTime()
                     ->sortable(),
                 Tables\Columns\TextColumn::make('opened_at')
+                    ->label(__('Opened at'))
                     ->dateTime()
                     ->placeholder('-')
                     ->toggleable(),
                 Tables\Columns\TextColumn::make('failed_at')
+                    ->label(__('Failed at'))
                     ->dateTime()
                     ->placeholder('-')
                     ->toggleable(),
             ])
             ->filters([
                 Tables\Filters\SelectFilter::make('compartment_id')
-                    ->label('Compartment')
+                    ->label(__('Compartment'))
                     ->relationship('compartment', 'number'),
                 Tables\Filters\Filter::make('failed_only')
-                    ->label('Failed only')
+                    ->label(__('Failed only'))
                     ->query(fn ($query) => $query->where('status', 'failed')),
                 Tables\Filters\Filter::make('denied_only')
-                    ->label('Denied only')
+                    ->label(__('Denied only'))
                     ->query(fn ($query) => $query->where('status', 'denied')),
                 Tables\Filters\SelectFilter::make('status')
                     ->options([
-                        'requested' => 'requested',
-                        'accepted' => 'accepted',
-                        'sent' => 'sent',
-                        'opened' => 'opened',
-                        'failed' => 'failed',
-                        'denied' => 'denied',
+                        'requested' => __('requested'),
+                        'accepted' => __('accepted'),
+                        'sent' => __('sent'),
+                        'opened' => __('opened'),
+                        'failed' => __('failed'),
+                        'denied' => __('denied'),
                     ]),
             ])
             ->actions([])

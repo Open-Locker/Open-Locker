@@ -31,28 +31,29 @@ class MembersRelationManager extends RelationManager
             ->recordTitleAttribute('email')
             ->columns([
                 Tables\Columns\TextColumn::make('name')
-                    ->label('Name')
+                    ->label(__('Name'))
                     ->state(fn (User $record): string => $record->fullName())
                     ->searchable(['first_name', 'last_name']),
                 Tables\Columns\TextColumn::make('email')
+                    ->label(__('Email'))
                     ->searchable(),
                 Tables\Columns\TextColumn::make('pivot.expires_at')
-                    ->label('Expires at')
+                    ->label(__('Expires at'))
                     ->dateTime()
-                    ->placeholder('Never'),
+                    ->placeholder(__('Never')),
                 Tables\Columns\TextColumn::make('pivot.revoked_at')
-                    ->label('Removed at')
+                    ->label(__('Removed at'))
                     ->dateTime()
-                    ->placeholder('Active'),
+                    ->placeholder(__('Active')),
             ])
             ->headerActions([
                 \Filament\Actions\Action::make('addMember')
-                    ->label('Add member')
+                    ->label(__('Add member'))
                     ->icon('heroicon-m-user-plus')
                     ->visible(fn (): bool => $this->currentUserCanManageGroups())
                     ->form([
                         Forms\Components\Select::make('user_id')
-                            ->label('User')
+                            ->label(__('User'))
                             ->required()
                             ->searchable()
                             ->options(
@@ -65,7 +66,7 @@ class MembersRelationManager extends RelationManager
                                     ->all()
                             ),
                         Forms\Components\DateTimePicker::make('expires_at')
-                            ->label('Expires at')
+                            ->label(__('Expires at'))
                             ->seconds(false),
                     ])
                     ->action(function (array $data): void {
@@ -92,7 +93,7 @@ class MembersRelationManager extends RelationManager
             ])
             ->actions([
                 \Filament\Actions\Action::make('removeMember')
-                    ->label('Remove')
+                    ->label(__('Remove'))
                     ->color('danger')
                     ->icon('heroicon-m-user-minus')
                     ->visible(fn (): bool => $this->currentUserCanManageGroups())

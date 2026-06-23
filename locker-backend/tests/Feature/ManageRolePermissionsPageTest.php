@@ -44,9 +44,9 @@ class ManageRolePermissionsPageTest extends TestCase
 
         Livewire::test(ManageRolePermissions::class)
             ->assertOk()
-            ->assertSee('Nutzer')
-            ->assertSee('Manager')
-            ->assertSee('Admin');
+            ->assertSee(__('User role'))
+            ->assertSee(__('Manager'))
+            ->assertSee(__('Admin'));
     }
 
     public function test_grant_action_grants_an_inactive_permission(): void

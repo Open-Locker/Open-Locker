@@ -4,11 +4,13 @@ namespace App\Providers\Filament;
 
 use App\Filament\Pages\Auth\EditProfile;
 use App\Filament\Pages\Auth\Register;
+use App\Http\Middleware\SetPanelLocale;
 use App\Models\User;
 use Filament\Http\Middleware\Authenticate;
 use Filament\Http\Middleware\AuthenticateSession;
 use Filament\Http\Middleware\DisableBladeIconComponents;
 use Filament\Http\Middleware\DispatchServingFilamentEvent;
+use Filament\Navigation\NavigationGroup;
 use Filament\Pages;
 use Filament\Panel;
 use Filament\PanelProvider;
@@ -29,7 +31,16 @@ use PDOException;
 
 class AdminPanelProvider extends PanelProvider
 {
+    protected string $locale = 'en';
+
     public function panel(Panel $panel): Panel
+    {
+        return $this->configurePanel(
+            $panel->default()->id('admin')->path('en/admin'),
+        );
+    }
+
+    protected function configurePanel(Panel $panel): Panel
     {
         try {
             if (Schema::hasTable('users') && User::count() === 0) {
@@ -40,9 +51,6 @@ class AdminPanelProvider extends PanelProvider
         }
 
         return $panel
-            ->default()
-            ->id('admin')
-            ->path('admin')
             ->login()
             ->emailVerification()
             ->passwordReset()
@@ -68,9 +76,9 @@ class AdminPanelProvider extends PanelProvider
             ->favicon(asset('storage/assets/logo.svg', App::isProduction()))
             ->maxContentWidth(Width::Full)
             ->navigationGroups([
-                'Operations',
-                'Setup',
-                'Docs/Legal',
+                NavigationGroup::make(fn () => __('Operations')),
+                NavigationGroup::make(fn () => __('Setup')),
+                NavigationGroup::make(fn () => __('Docs/Legal')),
             ])
             ->sidebarWidth('300px')
             ->discoverResources(in: app_path('Filament/Resources'), for: 'App\\Filament\\Resources')
@@ -81,8 +89,11 @@ class AdminPanelProvider extends PanelProvider
             ->discoverWidgets(in: app_path('Filament/Widgets'), for: 'App\\Filament\\Widgets')
             ->widgets([
                 Widgets\AccountWidget::class,
-                Widgets\FilamentInfoWidget::class,
             ])
+            ->renderHook(
+                PanelsRenderHook::USER_MENU_BEFORE,
+                fn (): \Illuminate\Contracts\View\View => view('filament.locale-switcher', ['locale' => $this->locale])
+            )
             ->renderHook(
                 PanelsRenderHook::BODY_END,
                 fn (): \Illuminate\Contracts\View\View => view('filament.realtime-compartment-open-notifications')
@@ -101,6 +112,7 @@ class AdminPanelProvider extends PanelProvider
                 SubstituteBindings::class,
                 DisableBladeIconComponents::class,
                 DispatchServingFilamentEvent::class,
+                SetPanelLocale::class,
             ])
             ->authMiddleware([
                 Authenticate::class,
