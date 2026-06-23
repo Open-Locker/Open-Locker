@@ -22,8 +22,8 @@ type CompartmentCardProps = {
 export function CompartmentCard({ compartment, status, onPress }: CompartmentCardProps) {
   const { t } = useTranslation();
   const theme = useTheme();
-  const isEmpty = !compartment.item;
-  const storedItemName = compartment.item?.name?.trim();
+  const contentNote = compartment.content_note?.trim();
+  const isEmpty = !contentNote;
   const displayNumber = String(compartment.number).padStart(2, '0');
   const statusLabel =
     status === 'open'
@@ -62,7 +62,7 @@ export function CompartmentCard({ compartment, status, onPress }: CompartmentCar
                 numberOfLines={2}
                 style={[styles.subtitle, { color: subtitleTextColor }]}
               >
-                {storedItemName ?? t('compartments.unnamedItem')}
+                {contentNote}
               </Text>
             ) : null}
           </View>

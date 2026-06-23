@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use App\Filament\Resources\CompartmentOpenRequestResource;
-use App\Filament\Resources\ItemResource;
 use App\Filament\Resources\LockerBankResource;
 use App\Filament\Resources\TermsDocumentVersionResource;
 use App\Filament\Resources\UserResource;
@@ -29,7 +28,6 @@ class FilamentAdminSmokeTest extends TestCase
     {
         $livewire = $this->createMock(HasTable::class);
 
-        $this->assertInstanceOf(Table::class, ItemResource::table(Table::make($livewire)));
         $this->assertInstanceOf(Table::class, UserResource::table(Table::make($livewire)));
         $this->assertInstanceOf(Table::class, LockerBankResource::table(Table::make($livewire)));
         $this->assertInstanceOf(Table::class, TermsDocumentVersionResource::table(Table::make($livewire)));

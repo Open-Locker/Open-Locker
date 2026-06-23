@@ -6,17 +6,25 @@ namespace App\Filament\Resources\LockerBankResource\RelationManagers;
 
 use App\Models\Compartment;
 use App\Models\LockerBank;
+use App\Models\User;
 use App\Services\CompartmentAccessService;
 use App\Services\LockerService;
+use App\StorableEvents\CompartmentContentNoteUpdated;
 use Filament\Actions\Action;
 use Filament\Facades\Filament;
 use Filament\Forms;
+use Filament\Infolists\Components\RepeatableEntry;
+use Filament\Infolists\Components\TextEntry;
 use Filament\Notifications\Notification;
 use Filament\Resources\RelationManagers\RelationManager;
 use Filament\Schemas\Schema;
+use Filament\Support\Enums\FontWeight;
+use Filament\Support\Enums\Width;
 use Filament\Tables;
 use Filament\Tables\Table;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Log;
+use Spatie\EventSourcing\StoredEvents\Models\EloquentStoredEvent;
 
 class CompartmentsRelationManager extends RelationManager
 {
@@ -52,6 +60,35 @@ class CompartmentsRelationManager extends RelationManager
             ]);
     }
 
+    /**
+     * Build the content-note change history for a compartment from the event store.
+     *
+     * @return list<array{changed_at: string, actor: string, note: ?string}>
+     */
+    private function noteHistoryFor(Compartment $record): array
+    {
+        $events = EloquentStoredEvent::query()
+            ->where('event_class', CompartmentContentNoteUpdated::class)
+            ->where('aggregate_uuid', $record->id)
+            ->orderByDesc('id')
+            ->get();
+
+        $actorIds = $events->pluck('event_properties.actorUserId')->filter()->unique();
+        $actorNames = User::query()->whereIn('id', $actorIds)->get()
+            ->mapWithKeys(fn (User $user): array => [$user->id => $user->fullName()]);
+
+        return $events->map(function (EloquentStoredEvent $event) use ($actorNames): array {
+            $properties = $event->event_properties;
+            $actorId = $properties['actorUserId'] ?? null;
+
+            return [
+                'changed_at' => Carbon::parse($event->created_at)->toDayDateTimeString(),
+                'actor' => $actorNames[$actorId] ?? "User #{$actorId}",
+                'note' => $properties['note'] ?? null,
+            ];
+        })->all();
+    }
+
     public function table(Table $table): Table
     {
         return $table
@@ -71,6 +108,50 @@ class CompartmentsRelationManager extends RelationManager
                     ->label('Address')
                     ->rules(['nullable', 'integer', 'min:0'])
                     ->tooltip('0-based relay address. Used for both coil and input.'),
+                Tables\Columns\TextColumn::make('content_note')
+                    ->label('Note')
+                    ->placeholder('No note')
+                    ->limit(40)
+                    ->wrap()
+                    ->tooltip(fn (Compartment $record): ?string => $record->content_note)
+                    ->description(fn (Compartment $record): ?string => $record->content_note_updated_at
+                        ? 'Updated '.$record->content_note_updated_at->diffForHumans()
+                        : null)
+                    ->action(
+                        Action::make('noteHistory')
+                            ->label('Note history')
+                            ->icon('heroicon-m-clock')
+                            ->modalHeading(fn (Compartment $record): string => "Note history — compartment #{$record->number}")
+                            ->modalSubmitAction(false)
+                            ->modalCancelActionLabel('Close')
+                            ->modalWidth(Width::Medium)
+                            ->infolist([
+                                RepeatableEntry::make('noteHistory')
+                                    ->hiddenLabel()
+                                    ->state(fn (Compartment $record): array => $this->noteHistoryFor($record))
+                                    ->schema([
+                                        TextEntry::make('note')
+                                            ->hiddenLabel()
+                                            ->placeholder('Note cleared')
+                                            ->weight(FontWeight::Medium)
+                                            ->columnSpanFull(),
+                                        TextEntry::make('actor')
+                                            ->hiddenLabel()
+                                            ->icon('heroicon-m-user')
+                                            ->size('sm')
+                                            ->color('gray')
+                                            ->columnSpanFull(),
+                                        TextEntry::make('changed_at')
+                                            ->hiddenLabel()
+                                            ->icon('heroicon-m-clock')
+                                            ->size('sm')
+                                            ->color('gray')
+                                            ->columnSpanFull(),
+                                    ])
+                                    ->gap(false)
+                                    ->extraAttributes(['style' => 'max-height: 60vh; overflow-y: auto;']),
+                            ]),
+                    ),
                 Tables\Columns\TextColumn::make('latestOpenRequest.status')
                     ->label('Last open status')
                     ->badge()

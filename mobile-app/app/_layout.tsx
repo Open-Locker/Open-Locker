@@ -19,6 +19,7 @@ import { PaperProvider } from 'react-native-paper';
 import { useColorScheme } from '@/components/useColorScheme';
 import { hydrateApiBaseUrl } from '@/src/api/baseUrl';
 import { hydrateAppLanguage } from '@/src/i18n';
+import { RealtimeBridge } from '@/src/features/realtime';
 import { loadPersistedAuth } from '@/src/store/authStorage';
 import { restoreAuth } from '@/src/store/authSlice';
 import { useAppDispatch, useAppSelector } from '@/src/store/hooks';
@@ -31,7 +32,7 @@ export {
 } from 'expo-router';
 
 export const unstable_settings = {
-  // Ensure that reloading on `/modal` keeps a back button present.
+  // Anchor deep links to the tab navigator so a back button is always present.
   initialRouteName: '(tabs)',
 };
 
@@ -108,6 +109,7 @@ function RootLayoutNav() {
     <PaperProvider theme={paperTheme}>
       <ThemeProvider value={navigationTheme}>
         <BottomSheetModalProvider>
+          {token ? <RealtimeBridge /> : null}
           <Stack>
             <Stack.Protected guard={!!token}>
               <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
@@ -116,7 +118,6 @@ function RootLayoutNav() {
                 name="terms"
                 options={{ title: t('navigation.terms'), presentation: 'modal' }}
               />
-              <Stack.Screen name="modal" options={{ presentation: 'modal' }} />
             </Stack.Protected>
 
             <Stack.Protected guard={!token}>

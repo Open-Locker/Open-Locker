@@ -106,7 +106,7 @@ class MqttClientSimulatorCommand extends Command
             $this->info('Waiting for provisioning response... (Press CTRL+C to abort)');
             $mqtt->loop(true);
 
-            if (! is_array($provisionResult) || ($provisionResult['status'] ?? null) !== 'success') {
+            if (! is_array($provisionResult) || $provisionResult['status'] !== 'success') {
                 $this->warn('No success credentials to test. Exiting.');
 
                 return Command::SUCCESS;
@@ -245,7 +245,8 @@ class MqttClientSimulatorCommand extends Command
 
             $this->info(">>> Publishing heartbeat to [{$stateTopic}] every {$heartbeatIntervalSeconds}s (QoS 1). Press CTRL+C to stop.");
 
-            // Continuous heartbeat loop
+            // Continuous heartbeat loop (runs until the operator sends CTRL+C / SIGINT)
+            // @phpstan-ignore while.alwaysTrue
             while (true) {
                 $heartbeatPayload = json_encode([
                     'message_id' => (string) Str::uuid(),

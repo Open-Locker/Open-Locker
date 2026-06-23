@@ -7,13 +7,14 @@ namespace App\Http\Middleware;
 use Closure;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
+use Symfony\Component\HttpFoundation\Response;
 
 class VerifyMosqHttpAuth
 {
     /**
      * Ensure requests come from Mosquitto HTTP auth plugin using Secret Token.
      */
-    public function handle(Request $request, Closure $next)
+    public function handle(Request $request, Closure $next): Response
     {
         // We use the MOSQ_HTTP_PASS as the shared secret token
         $expectedSecret = (string) config('mqtt-client.webhooks.pass');

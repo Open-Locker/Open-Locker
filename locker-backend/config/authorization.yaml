@@ -1,0 +1,34 @@
+# Authorization catalog — the single source of truth for WHICH roles and
+# permissions exist. Developer-owned and version-controlled; there is no UI to
+# edit this. See ADR-0021.
+#
+# - permissions: every capability the code may check (`$user->can('...')`).
+# - roles: every role that may be assigned to a user.
+# - default_bindings: the role -> permission map used ONLY to seed the dynamic
+#   `role_permissions` table on a fresh install. After seeding, admins edit the
+#   bindings at runtime (event-sourced); this file is just the starting point.
+#   `'*'` means "every permission" (used for the admin super-role baseline).
+
+permissions:
+  - panel.access            # may sign in to the Filament admin panel
+  - users.manage            # view / manage regular user records
+  - groups.manage           # view / manage groups, membership & group compartment access
+  - compartment.access.manage  # grant / revoke compartment access for users
+  - compartment.open        # operationally open any compartment
+  - roles.manage            # grant / revoke user roles and role permissions
+  - lockerbank.configure    # Modbus slave_id/address, provisioning, heartbeat
+  - system.configure        # legal / system configuration resources
+
+roles:
+  - user
+  - manager
+  - admin
+
+default_bindings:
+  user: []
+  manager:
+    - panel.access
+    - users.manage
+    - compartment.access.manage
+    - compartment.open
+  admin: '*'

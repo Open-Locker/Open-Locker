@@ -7,6 +7,7 @@ namespace App\Services;
 use App\Models\Compartment;
 use App\Models\CompartmentAccess;
 use App\Models\User;
+use App\Models\UserGroupCompartmentAccess;
 
 class CompartmentStatusBroadcastService
 {
@@ -24,11 +25,17 @@ class CompartmentStatusBroadcastService
             ->pluck('user_id')
             ->all();
 
+        $groupAccessUserIds = UserGroupCompartmentAccess::query()
+            ->where('compartment_id', $compartment->id)
+            ->active()
+            ->pluck('user_id')
+            ->all();
+
         $adminIds = User::query()
             ->whereNotNull('is_admin_since')
             ->pluck('id')
             ->all();
 
-        return array_values(array_unique(array_merge($accessUserIds, $adminIds)));
+        return array_values(array_unique(array_merge($accessUserIds, $groupAccessUserIds, $adminIds)));
     }
 }

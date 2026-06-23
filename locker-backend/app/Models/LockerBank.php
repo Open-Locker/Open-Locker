@@ -13,20 +13,23 @@ use Illuminate\Support\Str;
  * @property-read string $id
  * @property-read string $name
  * @property-read string $location_description
- * @property-read string $provisioning_token
- * @property-read \Illuminate\Support\CarbonImmutable|null $provisioned_at
- * @property-read \Illuminate\Support\CarbonImmutable|null $last_heartbeat_at
+ * @property string $provisioning_token
+ * @property-read \Carbon\CarbonImmutable|null $provisioned_at
+ * @property-read \Carbon\CarbonImmutable|null $last_heartbeat_at
  * @property-read int $heartbeat_interval_seconds
  * @property-read int $heartbeat_timeout_seconds
  * @property-read string $connection_status
- * @property-read \Illuminate\Support\CarbonImmutable|null $connection_status_changed_at
- * @property-read \Illuminate\Support\CarbonImmutable|null $last_compartment_state_change_at
+ * @property-read \Carbon\CarbonImmutable|null $connection_status_changed_at
+ * @property-read \Carbon\CarbonImmutable|null $last_compartment_state_change_at
  * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\Compartment> $compartments
  * @property-read int|null $compartments_count
  */
 class LockerBank extends Model
 {
-    use HasFactory, HasUuids;
+    /** @use HasFactory<\Database\Factories\LockerBankFactory> */
+    use HasFactory;
+
+    use HasUuids;
 
     protected $fillable = [
         'name',
@@ -61,6 +64,9 @@ class LockerBank extends Model
         });
     }
 
+    /**
+     * @return HasMany<Compartment, $this>
+     */
     public function compartments(): HasMany
     {
         return $this->hasMany(Compartment::class);

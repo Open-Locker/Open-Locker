@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Filament\Resources\UserResource\RelationManagers;
 
+use App\Enums\Permission;
 use App\Models\Compartment;
 use App\Models\CompartmentAccess;
 use App\Models\User;
@@ -82,7 +83,7 @@ class CompartmentAccessesRelationManager extends RelationManager
                 \Filament\Actions\Action::make('grantAccess')
                     ->label('Grant access')
                     ->icon('heroicon-m-key')
-                    ->visible(fn (): bool => $this->currentUserIsAdmin())
+                    ->visible(fn (): bool => $this->currentUserCanManageAccess())
                     ->form([
                         Forms\Components\Select::make('compartment_id')
                             ->label('Compartment')
@@ -95,7 +96,7 @@ class CompartmentAccessesRelationManager extends RelationManager
                                     ->mapWithKeys(fn (Compartment $compartment): array => [
                                         (string) $compartment->id => sprintf(
                                             '%s / #%d',
-                                            $compartment->lockerBank?->name ?? 'Unknown locker bank',
+                                            $compartment->lockerBank->name,
                                             (int) $compartment->number
                                         ),
                                     ])
@@ -136,7 +137,7 @@ class CompartmentAccessesRelationManager extends RelationManager
                     ->label('Revoke access')
                     ->color('danger')
                     ->icon('heroicon-m-no-symbol')
-                    ->visible(fn (): bool => $this->currentUserIsAdmin())
+                    ->visible(fn (): bool => $this->currentUserCanManageAccess())
                     ->requiresConfirmation()
                     ->action(function (CompartmentAccess $record): void {
                         /** @var User $user */
@@ -155,10 +156,10 @@ class CompartmentAccessesRelationManager extends RelationManager
             ]);
     }
 
-    private function currentUserIsAdmin(): bool
+    private function currentUserCanManageAccess(): bool
     {
         $user = Filament::auth()->user();
 
-        return $user instanceof User && $user->isAdmin();
+        return $user instanceof User && $user->can(Permission::CompartmentAccessManage->value);
     }
 }

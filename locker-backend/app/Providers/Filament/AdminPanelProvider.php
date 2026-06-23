@@ -67,8 +67,12 @@ class AdminPanelProvider extends PanelProvider
             ->brandLogoHeight('3rem')
             ->favicon(asset('storage/assets/logo.svg', App::isProduction()))
             ->maxContentWidth(Width::Full)
-            ->sidebarCollapsibleOnDesktop()
-            ->sidebarWidth(300)
+            ->navigationGroups([
+                'Operations',
+                'Setup',
+                'Docs/Legal',
+            ])
+            ->sidebarWidth('300px')
             ->discoverResources(in: app_path('Filament/Resources'), for: 'App\\Filament\\Resources')
             ->discoverPages(in: app_path('Filament/Pages'), for: 'App\\Filament\\Pages')
             ->pages([

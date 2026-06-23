@@ -6,7 +6,6 @@ namespace Tests\Feature;
 
 use App\Models\Compartment;
 use App\Models\CompartmentAccess;
-use App\Models\Item;
 use App\Models\LockerBank;
 use App\Models\User;
 use App\Services\CompartmentAccessService;
@@ -28,8 +27,7 @@ class CompartmentAccessControllerTest extends TestCase
         User::factory()->create(); // first user may become admin automatically
 
         $user = User::factory()->create();
-        $user->is_admin_since = null;
-        $user->save();
+        $user->removeAdmin();
 
         return $user;
     }
@@ -373,13 +371,6 @@ class CompartmentAccessControllerTest extends TestCase
             'number' => 3,
         ]);
 
-        Item::query()->create([
-            'name' => 'Test Item',
-            'description' => 'Assigned to allowed compartment',
-            'image_path' => null,
-            'compartment_id' => $allowedCompartmentA->id,
-        ]);
-
         $service = app(CompartmentAccessService::class);
         $service->grantAccess($user, $allowedCompartmentA, actor: $admin);
         $service->grantAccess($user, $allowedCompartmentB, actor: $admin);
@@ -398,7 +389,6 @@ class CompartmentAccessControllerTest extends TestCase
         $this->assertCount(1, $response->json('locker_banks.1.compartments'));
         $this->assertSame((string) $allowedCompartmentA->id, $response->json('locker_banks.0.compartments.0.id'));
         $this->assertSame((string) $allowedCompartmentB->id, $response->json('locker_banks.1.compartments.0.id'));
-        $this->assertSame('Test Item', $response->json('locker_banks.0.compartments.0.item.name'));
     }
 
     public function test_accessible_compartments_returns_all_compartments_for_admin(): void

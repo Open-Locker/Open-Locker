@@ -48,6 +48,9 @@ final class AccessibleCompartmentsNullableTransformer
             }
 
             self::nullableProp($compartmentItem, 'door_state_changed_at');
+            self::nullableProp($compartmentItem, 'content_note');
+            self::nullableProp($compartmentItem, 'content_note_updated_at');
+            self::nullableProp($compartmentItem, 'content_note_updated_by_user_id');
         }
     }
 
@@ -55,6 +58,9 @@ final class AccessibleCompartmentsNullableTransformer
     {
         $items = $array->items;
 
+        // Scramble PHPDocs ArrayType::$items as Type, but setItems() is untyped and may hold a
+        // Schema at runtime; keep this branch as a defensive guard.
+        // @phpstan-ignore instanceof.alwaysFalse, booleanAnd.alwaysFalse
         if ($items instanceof Schema && $items->type instanceof ObjectType) {
             return $items->type;
         }

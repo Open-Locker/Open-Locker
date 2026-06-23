@@ -26,7 +26,10 @@ return [
         App\Projectors\CompartmentProjector::class,
         App\Projectors\CompartmentAccessProjector::class,
         App\Projectors\CompartmentOpenRequestProjector::class,
+        App\Projectors\GroupProjector::class,
         App\Projectors\TermsProjector::class,
+        App\Projectors\UserRoleProjector::class,
+        App\Projectors\RoleProjector::class,
     ],
 
     /*

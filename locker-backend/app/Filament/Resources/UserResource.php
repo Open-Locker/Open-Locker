@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources;
 
+use App\Enums\Permission;
 use App\Filament\Resources\UserResource\Pages;
 use App\Filament\Resources\UserResource\RelationManagers\CompartmentAccessesRelationManager;
 use App\Models\User;
@@ -18,6 +19,15 @@ class UserResource extends Resource
     protected static ?string $model = User::class;
 
     protected static \BackedEnum|string|null $navigationIcon = 'heroicon-o-rectangle-stack';
+
+    protected static string|\UnitEnum|null $navigationGroup = 'Operations';
+
+    protected static ?int $navigationSort = 20;
+
+    public static function canAccess(): bool
+    {
+        return auth()->user()?->can(Permission::UsersManage->value) ?? false;
+    }
 
     public static function form(Schema $form): Schema
     {
@@ -77,7 +87,7 @@ class UserResource extends Resource
                     \Filament\Actions\DeleteBulkAction::make()
                         ->before(function (\Filament\Actions\DeleteBulkAction $action, Collection $records) {
                             $adminCount = User::whereNotNull('is_admin_since')->count();
-                            $deletedAdmins = $records->filter(fn (User $record) => $record->is_admin_since)->count();
+                            $deletedAdmins = $records->whereNotNull('is_admin_since')->count();
 
                             if ($adminCount - $deletedAdmins < 1) {
                                 Notification::make()

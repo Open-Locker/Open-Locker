@@ -147,7 +147,7 @@ class TermsControllerTest extends TestCase
 
         $this->withHeaders([
             'Authorization' => 'Bearer '.$token,
-        ])->getJson('/api/items')
+        ])->getJson('/api/compartments')
             ->assertStatus(200);
 
         $this->withHeaders([

@@ -18,9 +18,9 @@ import { getApiBaseUrl } from '@/src/api/baseUrl';
 import { persistAuth } from '@/src/store/authStorage';
 import { setCredentials } from '@/src/store/authSlice';
 import { openLockerApi, useIdentifyQuery, usePostLoginMutation } from '@/src/store/generatedApi';
-import { useAppDispatch } from '@/src/store/hooks';
+import { useAppDispatch, useAppSelector } from '@/src/store/hooks';
 import { OPEN_LOCKER_DESIGN_TOKENS } from '@/src/theme/tokens';
-import { AppButton, AppTextInput } from '@/src/ui';
+import { AppButton, AppTextInput, LanguageToggle } from '@/src/ui';
 import { formatUserName } from '@/src/utils/userName';
 
 function getErrorMessage(
@@ -50,6 +50,8 @@ export default function SignInScreen() {
   } = useIdentifyQuery();
   const theme = useTheme();
 
+  const sessionExpired = useAppSelector((state) => state.auth.sessionExpired);
+
   const [email, setEmail] = React.useState('');
   const [password, setPassword] = React.useState('');
   const [isSubmitting, setIsSubmitting] = React.useState(false);
@@ -70,6 +72,7 @@ export default function SignInScreen() {
   );
 
   const canSubmit = email.trim().length > 0 && password.length > 0 && !isSubmitting;
+  const showError = !!error || (sessionExpired && !isSubmitting);
 
   const onSubmit = React.useCallback(async () => {
     setError(null);
@@ -157,8 +160,8 @@ export default function SignInScreen() {
             style={styles.input}
           />
 
-          <HelperText type="error" visible={!!error}>
-            {error}
+          <HelperText type="error" visible={showError}>
+            {showError ? (error ?? t('auth.sessionExpired')) : ''}
           </HelperText>
 
           <AppButton
@@ -183,6 +186,7 @@ export default function SignInScreen() {
         </View>
 
         <View style={[styles.metaBlock, isCompactLayout && styles.metaBlockCompact]}>
+          <LanguageToggle variant="inline" style={styles.languageToggle} />
           <Text
             variant="bodySmall"
             style={[styles.currentServer, isCompactLayout && styles.currentServerCompact]}
@@ -270,6 +274,10 @@ const styles = StyleSheet.create({
   metaBlock: {
     marginTop: 'auto',
     gap: OPEN_LOCKER_DESIGN_TOKENS.spacing.xs - 2,
+  },
+  languageToggle: {
+    alignSelf: 'center',
+    marginBottom: OPEN_LOCKER_DESIGN_TOKENS.spacing.sm,
   },
   metaBlockCompact: {
     gap: 1,

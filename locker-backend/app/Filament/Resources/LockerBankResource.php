@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources;
 
+use App\Enums\Permission;
 use App\Filament\Resources\LockerBankResource\Pages;
 use App\Filament\Resources\LockerBankResource\RelationManagers;
 use App\Models\LockerBank;
@@ -18,6 +19,16 @@ class LockerBankResource extends Resource
     protected static ?string $model = LockerBank::class;
 
     protected static \BackedEnum|string|null $navigationIcon = 'heroicon-o-squares-2x2';
+
+    protected static string|\UnitEnum|null $navigationGroup = 'Setup';
+
+    protected static ?int $navigationSort = 10;
+
+    public static function canAccess(): bool
+    {
+        // Locker bank + Modbus technical config is admin-only (#95).
+        return auth()->user()?->can(Permission::LockerBankConfigure->value) ?? false;
+    }
 
     public static function form(Schema $form): Schema
     {
@@ -44,7 +55,7 @@ class LockerBankResource extends Resource
                     ->helperText('Backend marks the locker offline when no heartbeat is received within this timeout.'),
                 Placeholder::make('provisioning_token')
                     ->label('Provisioning token')
-                    ->content(fn (?LockerBank $record): string => $record?->provisioning_token ?? '—'),
+                    ->content(fn (?LockerBank $record): string => $record !== null ? $record->provisioning_token : '—'),
                 Placeholder::make('provisioned_at')
                     ->label('Provisioned at')
                     ->content(fn (?LockerBank $record): string => $record?->provisioned_at?->toDateTimeString() ?? '—'),
@@ -94,7 +105,7 @@ class LockerBankResource extends Resource
                     ->badge()
                     ->state(fn (LockerBank $record): string => $record->isConfigDirty() ? 'Dirty' : 'Clean')
                     ->color(fn (string $state): string => $state === 'Dirty' ? 'warning' : 'success')
-                    ->tooltip(fn (LockerBank $record): ?string => $record->last_config_ack_at
+                    ->tooltip(fn (LockerBank $record): string => $record->last_config_ack_at
                         ? 'Last ack: '.$record->last_config_ack_at->toDateTimeString()
                         : 'No config ack received yet'),
                 TextColumn::make('location_description')

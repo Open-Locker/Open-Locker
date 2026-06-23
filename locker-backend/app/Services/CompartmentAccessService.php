@@ -6,9 +6,11 @@ namespace App\Services;
 
 use App\Aggregates\CompartmentAccessAggregate;
 use App\Aggregates\CompartmentOpenAggregate;
+use App\Enums\Permission;
 use App\Models\Compartment;
 use App\Models\CompartmentAccess;
 use App\Models\User;
+use App\Models\UserGroupCompartmentAccess;
 use Carbon\CarbonInterface;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Support\Facades\Auth;
@@ -61,7 +63,16 @@ class CompartmentAccessService
             ->persist();
     }
 
+    /**
+     * Effective access: direct grant OR group-derived access.
+     */
     public function hasActiveAccess(User $user, Compartment $compartment): bool
+    {
+        return $this->hasActiveDirectAccess($user, $compartment)
+            || $this->hasActiveGroupAccess($user, $compartment);
+    }
+
+    public function hasActiveDirectAccess(User $user, Compartment $compartment): bool
     {
         return CompartmentAccess::query()
             ->where('user_id', $user->id)
@@ -70,9 +81,20 @@ class CompartmentAccessService
             ->exists();
     }
 
+    public function hasActiveGroupAccess(User $user, Compartment $compartment): bool
+    {
+        return UserGroupCompartmentAccess::query()
+            ->where('user_id', $user->id)
+            ->where('compartment_id', $compartment->id)
+            ->active()
+            ->exists();
+    }
+
     /**
      * Record an open request and authorization decision via event sourcing.
-     * Admins are always authorized.
+     * Admins and managers are always authorized.
+     *
+     * @return array{authorized: bool, command_id: string}
      */
     public function requestOpen(User $user, Compartment $compartment): array
     {
@@ -112,12 +134,43 @@ class CompartmentAccessService
             ];
         }
 
-        if ($this->hasActiveAccess($user, $compartment)) {
+        // Managers may open any compartment operationally (ADR-0021 / #95),
+        // recorded as a distinct authorization type for audit clarity.
+        if ($user->can(Permission::CompartmentOpen->value)) {
+            $aggregate->authorize(
+                commandId: $commandId,
+                actorUserId: $user->id,
+                compartmentUuid: (string) $compartment->id,
+                authorizationType: 'manager_override'
+            )->persist();
+
+            return [
+                'authorized' => true,
+                'command_id' => $commandId,
+            ];
+        }
+
+        // Check direct access first so its authorizationType takes precedence.
+        if ($this->hasActiveDirectAccess($user, $compartment)) {
             $aggregate->authorize(
                 commandId: $commandId,
                 actorUserId: $user->id,
                 compartmentUuid: (string) $compartment->id,
                 authorizationType: 'granted_access'
+            )->persist();
+
+            return [
+                'authorized' => true,
+                'command_id' => $commandId,
+            ];
+        }
+
+        if ($this->hasActiveGroupAccess($user, $compartment)) {
+            $aggregate->authorize(
+                commandId: $commandId,
+                actorUserId: $user->id,
+                compartmentUuid: (string) $compartment->id,
+                authorizationType: 'group_access'
             )->persist();
 
             return [
@@ -145,7 +198,11 @@ class CompartmentAccessService
     private function ensureCanManageAccess(?User $actor): User
     {
         $resolvedActor = $this->resolveActor($actor);
-        throw_unless($resolvedActor?->isAdmin(), AuthorizationException::class, 'Only admins can grant or revoke compartment access.');
+        throw_unless(
+            $resolvedActor?->can(Permission::CompartmentAccessManage->value),
+            AuthorizationException::class,
+            'You are not allowed to grant or revoke compartment access.'
+        );
 
         return $resolvedActor;
     }
