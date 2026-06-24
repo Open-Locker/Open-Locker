@@ -5,6 +5,7 @@ namespace App\Providers;
 use App\Scramble\Transformers\AcceptLanguageHeaderTransformer;
 use App\Scramble\Transformers\AccessibleCompartmentsNullableTransformer;
 use App\Scramble\Transformers\NullableFieldsTransformer;
+use App\Support\Audit\AuditEventPresenter;
 use App\Support\Authorization\AuthorizationCatalog;
 use Carbon\CarbonImmutable;
 use Dedoc\Scramble\Scramble;
@@ -28,6 +29,10 @@ class AppServiceProvider extends ServiceProvider
             AuthorizationCatalog::class,
             static fn (): AuthorizationCatalog => new AuthorizationCatalog(config_path('authorization.yaml')),
         );
+
+        // Shared per-request so the audit log's actor/compartment/group lookups
+        // are memoised across rows when rendering a page. See ADR-0026.
+        $this->app->singleton(AuditEventPresenter::class);
     }
 
     /**
