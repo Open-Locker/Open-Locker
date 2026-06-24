@@ -5,10 +5,16 @@ import { AppState } from 'react-native';
 import { openLockerApi, useGetUserQuery } from '@/src/store/generatedApi';
 import { useAppDispatch, useAppSelector } from '@/src/store/hooks';
 
+import { applyContentNote } from './applyContentNote';
 import { applyDoorState } from './applyDoorState';
-import { createEcho, type CompartmentDoorStateUpdatedPayload } from './echo';
+import {
+  createEcho,
+  type CompartmentDoorStateUpdatedPayload,
+  type CompartmentNoteUpdatedPayload,
+} from './echo';
 
-const EVENT_NAME = '.compartment.door_state.updated';
+const DOOR_STATE_EVENT = '.compartment.door_state.updated';
+const CONTENT_NOTE_EVENT = '.compartment.content_note.updated';
 
 /**
  * Subscribes the signed-in user to their private compartment-status channel and
@@ -16,6 +22,8 @@ const EVENT_NAME = '.compartment.door_state.updated';
  *
  * - On `.compartment.door_state.updated`, patches the matching compartment's
  *   `door_state` in place (no refetch).
+ * - On `.compartment.content_note.updated`, patches the matching compartment's
+ *   `content_note` fields in place (no refetch).
  * - Falls back to a REST refetch when realtime is untrustworthy: the socket
  *   reports unavailable/disconnected, or the app returns to the foreground
  *   (events sent while backgrounded are not replayed).
@@ -45,12 +53,23 @@ export function useCompartmentStatusRealtime(): void {
       );
     };
 
+    const handleContentNote = (payload: CompartmentNoteUpdatedPayload) => {
+      dispatch(
+        openLockerApi.util.updateQueryData('getCompartmentsAccessible', undefined, (draft) => {
+          applyContentNote(draft, payload);
+        }),
+      );
+    };
+
     // Independent of the socket: a plain REST refetch to reconcile missed events.
     const refetchFallback = () => {
       dispatch(openLockerApi.util.invalidateTags(['Compartment']));
     };
 
-    echo.private(channelName).listen(EVENT_NAME, handleDoorState);
+    echo
+      .private(channelName)
+      .listen(DOOR_STATE_EVENT, handleDoorState)
+      .listen(CONTENT_NOTE_EVENT, handleContentNote);
 
     const connection = (echo.connector as { pusher: { connection: PusherConnection } }).pusher
       .connection;

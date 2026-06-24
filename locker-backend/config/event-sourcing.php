@@ -43,6 +43,7 @@ return [
         App\Reactors\CompartmentOpenAuthorizationReactor::class,
         App\Reactors\CompartmentOpenStatusBroadcastReactor::class,
         App\Reactors\CompartmentDoorStateBroadcastReactor::class,
+        App\Reactors\CompartmentContentNoteBroadcastReactor::class,
         App\Reactors\TermsNotificationReactor::class,
     ],
 

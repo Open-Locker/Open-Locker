@@ -18,6 +18,13 @@ export type CompartmentDoorStateUpdatedPayload = {
   door_state_changed_at: string | null;
 };
 
+export type CompartmentNoteUpdatedPayload = {
+  compartment_id: string;
+  content_note: string | null;
+  content_note_updated_at: string | null;
+  content_note_updated_by_user_id: string | null;
+};
+
 /**
  * Host the API base URL resolves to (e.g. `localhost` on iOS, `10.0.2.2` on the
  * Android emulator, or a remote host). Reverb runs on the same machine as the
