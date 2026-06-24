@@ -1,4 +1,4 @@
-<div style="display:flex;align-items:center;gap:4px;padding:0 12px;font-size:0.875rem;">
+<div style="display:flex;align-items:center;gap:4px;font-size:0.875rem;justify-content:{{ ($center ?? false) ? 'center' : 'flex-start' }};padding:{{ ($center ?? false) ? '20px 0 0' : '0 12px' }};">
     @foreach(config('app.supported_locales', ['en']) as $i => $loc)
         @if($i > 0)
             <span style="color:#9ca3af;">|</span>

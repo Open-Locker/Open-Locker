@@ -86,7 +86,7 @@ class CompartmentResource extends Resource
             TextEntry::make('door_state')
                 ->label(__('Door'))
                 ->badge()
-                ->formatStateUsing(fn (CompartmentDoorState $state): string => $state->value)
+                ->formatStateUsing(fn (CompartmentDoorState $state): string => $state->label())
                 ->color(fn (CompartmentDoorState $state): string => match ($state) {
                     CompartmentDoorState::Open => 'warning',
                     CompartmentDoorState::Closed => 'success',
@@ -119,7 +119,7 @@ class CompartmentResource extends Resource
                 Tables\Columns\TextColumn::make('door_state')
                     ->label(__('Door'))
                     ->badge()
-                    ->formatStateUsing(fn (CompartmentDoorState $state): string => $state->value)
+                    ->formatStateUsing(fn (CompartmentDoorState $state): string => $state->label())
                     ->color(fn (CompartmentDoorState $state): string => match ($state) {
                         CompartmentDoorState::Open => 'warning',
                         CompartmentDoorState::Closed => 'success',

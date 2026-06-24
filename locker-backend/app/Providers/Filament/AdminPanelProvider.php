@@ -94,6 +94,13 @@ class AdminPanelProvider extends PanelProvider
                 PanelsRenderHook::USER_MENU_BEFORE,
                 fn (): \Illuminate\Contracts\View\View => view('filament.locale-switcher', ['locale' => $this->locale])
             )
+            // The user menu does not exist on the pre-auth SimplePage layout
+            // (login, password reset, register, email verification), so render
+            // the switcher there too.
+            ->renderHook(
+                PanelsRenderHook::SIMPLE_PAGE_END,
+                fn (): \Illuminate\Contracts\View\View => view('filament.locale-switcher', ['locale' => $this->locale, 'center' => true])
+            )
             ->renderHook(
                 PanelsRenderHook::BODY_END,
                 fn (): \Illuminate\Contracts\View\View => view('filament.realtime-compartment-open-notifications')
