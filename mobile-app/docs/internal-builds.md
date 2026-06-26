@@ -93,6 +93,44 @@ This writes (all **gitignored**, never commit): `credentials.json`,
   accept a TestFlight invite. (Ad-hoc install would need device UDIDs registered
   — not set up.)
 
+## Installing a build (for testers)
+
+### Android (anyone — device or emulator)
+
+The Android job uploads an installable `.apk` as a GitHub Actions artifact.
+
+1. Open the workflow run: GitHub → **Actions** → **Mobile App Build** → the run.
+2. Scroll to **Artifacts** → download **`openlocker-android`** (a zip).
+3. Unzip it to get `openlocker-android.apk`.
+4. Install it:
+   - **Real device:** transfer the `.apk` to the phone and tap it (allow
+     "install from unknown sources" when prompted), **or** with USB debugging on:
+     ```bash
+     adb install openlocker-android.apk
+     ```
+   - **Emulator:** start the emulator, then `adb install openlocker-android.apk`
+     (or drag-and-drop the `.apk` onto the emulator window).
+
+   Download the artifact from the CLI instead of the browser:
+   ```bash
+   gh run download <run-id> -n openlocker-android -D ./apk
+   adb install ./apk/openlocker-android.apk
+   ```
+
+### iOS (real iPhone only, via TestFlight)
+
+Apple does not allow sideloading an `.ipa`; iOS testers install through
+TestFlight. The iOS job runs `eas submit`, which uploads the build to TestFlight.
+
+1. In **App Store Connect** → the app → **TestFlight**, add the tester as an
+   **internal tester** (their Apple ID email).
+2. The tester installs the **TestFlight** app from the App Store on their iPhone.
+3. They accept the invite (email / redeem code) → the build appears in TestFlight
+   → tap **Install**.
+
+> The iOS Simulator cannot run this `.ipa` (it is a device build). iOS testing
+> requires a real iPhone via TestFlight.
+
 ## Manual rebuild
 
 From the GitHub Actions tab use **Run workflow** (`workflow_dispatch`), or locally:
@@ -102,6 +140,14 @@ APP_ID_BASE=de.merona.openlocker eas build --local --profile production --platfo
 APP_ID_BASE=de.merona.openlocker eas build --local --profile production --platform ios
 ```
 (Local builds need Java/Android SDK for Android and Xcode for iOS.)
+
+## Prerequisites on the Apple side (one-time)
+
+iOS `eas submit` will fail with *"A required agreement is missing or has
+expired"* until the **Account Holder/Admin** signs the pending agreement in
+**App Store Connect → Business** (Agreements, Tax, and Banking). This is an
+Apple-account action, not a pipeline change. After signing, re-run the workflow
+and the TestFlight submit completes.
 
 ## Credential rotation
 
@@ -117,4 +163,6 @@ APP_ID_BASE=de.merona.openlocker eas build --local --profile production --platfo
 - [ ] Validate via `workflow_dispatch`, then a real push to `main`.
 - [x] iOS `eas submit` needs the App Store Connect app id in CI — set
       `submit.production.ios.ascAppId: "6743854342"` in `eas.json` (public, not secret).
-- [ ] ≥1 teammate installs a CI-produced build on a device (issue #19 acceptance).
+- [x] Android: CI-produced APK installed on a device (issue #19 acceptance, Android side).
+- [ ] iOS: Account Holder signs the App Store Connect agreement, then TestFlight submit succeeds.
+- [ ] iOS: teammate installs via TestFlight (issue #19 acceptance, iOS side).
