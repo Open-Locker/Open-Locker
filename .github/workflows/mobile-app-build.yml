@@ -122,6 +122,7 @@ jobs:
         if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/feat/19-mobile-internal-builds'
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+          APP_VARIANT: production   # so app.config.ts resolves the production bundle id (no .dev suffix)
         run: |
           pnpm dlx eas-cli@latest submit \
             --non-interactive \
