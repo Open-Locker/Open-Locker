@@ -115,6 +115,6 @@ APP_ID_BASE=de.merona.openlocker eas build --local --profile production --platfo
 - [x] iOS: TestFlight upload step added (`eas submit` in the workflow).
 - [ ] Add `EXPO_TOKEN` secret to the GitHub repo.
 - [ ] Validate via `workflow_dispatch`, then a real push to `main`.
-- [ ] iOS first run: if `eas submit` asks for the app's numeric id, set
-      `submit.production.ios.ascAppId` in `eas.json`.
+- [x] iOS `eas submit` needs the App Store Connect app id in CI — set
+      `submit.production.ios.ascAppId: "6743854342"` in `eas.json` (public, not secret).
 - [ ] ≥1 teammate installs a CI-produced build on a device (issue #19 acceptance).
