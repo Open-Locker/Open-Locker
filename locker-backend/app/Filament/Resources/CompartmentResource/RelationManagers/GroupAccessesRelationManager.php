@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Filament\Resources\CompartmentResource\RelationManagers;
 
 use App\Enums\Permission;
+use App\Filament\Support\AccessPickerOptions;
 use App\Models\Compartment;
 use App\Models\Group;
 use App\Models\GroupCompartmentAccess;
@@ -16,6 +17,7 @@ use Filament\Resources\RelationManagers\RelationManager;
 use Filament\Schemas\Schema;
 use Filament\Tables;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Carbon;
 
 class GroupAccessesRelationManager extends RelationManager
@@ -66,14 +68,12 @@ class GroupAccessesRelationManager extends RelationManager
                     ->icon('heroicon-m-key')
                     ->visible(fn (): bool => $this->currentUserCanManageAccess())
                     ->form([
-                        Forms\Components\Select::make('group_id')
-                            ->label(__('Group'))
+                        Forms\Components\Select::make('group_ids')
+                            ->label(__('Groups'))
                             ->required()
+                            ->multiple()
                             ->searchable()
-                            ->options(fn (): array => Group::query()
-                                ->orderBy('name')
-                                ->pluck('name', 'id')
-                                ->all()),
+                            ->options(fn (): array => $this->grantableGroupOptions()),
                         Forms\Components\DateTimePicker::make('expires_at')
                             ->label(__('Expires at'))
                             ->seconds(false),
@@ -87,20 +87,26 @@ class GroupAccessesRelationManager extends RelationManager
                         $compartment = $this->getOwnerRecord();
                         /** @var User|null $actor */
                         $actor = Filament::auth()->user();
-                        /** @var Group $group */
-                        $group = Group::query()->findOrFail($data['group_id']);
 
                         $expiresAt = filled($data['expires_at'])
                             ? Carbon::parse($data['expires_at'])
                             : null;
 
-                        app(GroupAccessService::class)->grantCompartmentAccess(
-                            group: $group,
-                            compartment: $compartment,
-                            expiresAt: $expiresAt,
-                            notes: $data['notes'] ?? null,
-                            actor: $actor,
-                        );
+                        $service = app(GroupAccessService::class);
+
+                        $groups = Group::query()
+                            ->whereIn('id', $data['group_ids'])
+                            ->get();
+
+                        foreach ($groups as $group) {
+                            $service->grantCompartmentAccess(
+                                group: $group,
+                                compartment: $compartment,
+                                expiresAt: $expiresAt,
+                                notes: $data['notes'] ?? null,
+                                actor: $actor,
+                            );
+                        }
 
                         $this->resetTable();
                     }),
@@ -127,6 +133,31 @@ class GroupAccessesRelationManager extends RelationManager
                         $this->resetTable();
                     }),
             ]);
+    }
+
+    /**
+     * Groups that can be granted access to the owner compartment: excludes
+     * groups that already have active access to it.
+     *
+     * @return array<string, string>
+     */
+    private function grantableGroupOptions(): array
+    {
+        /** @var Compartment $compartment */
+        $compartment = $this->getOwnerRecord();
+
+        return AccessPickerOptions::groups(
+            Group::query()->whereDoesntHave(
+                'compartmentAccesses',
+                fn (Builder $query): Builder => $query
+                    ->where('compartment_id', $compartment->id)
+                    ->whereNull('revoked_at')
+                    ->where(function (Builder $builder): void {
+                        $builder->whereNull('expires_at')
+                            ->orWhere('expires_at', '>', now());
+                    })
+            )
+        );
     }
 
     private function currentUserCanManageAccess(): bool
