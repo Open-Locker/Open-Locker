@@ -9,6 +9,7 @@ use App\StorableEvents\CompartmentStateChangesApplied;
 use App\StorableEvents\LockerConfigAcknowledged;
 use App\StorableEvents\LockerConnectionLost;
 use App\StorableEvents\LockerConnectionRestored;
+use App\StorableEvents\LockerProvisioningReset;
 use App\StorableEvents\LockerWasProvisioned;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Support\Carbon;
@@ -41,6 +42,18 @@ class LockerBankProjector extends Projector implements ShouldQueue
 
         if ($lockerBank) {
             $lockerBank->update(['provisioned_at' => now()]);
+        }
+    }
+
+    public function onLockerProvisioningReset(LockerProvisioningReset $event): void
+    {
+        $lockerBank = LockerBank::find($event->lockerBankUuid);
+
+        if ($lockerBank) {
+            $lockerBank->forceFill([
+                'provisioning_token' => $event->newProvisioningToken,
+                'provisioned_at' => null,
+            ])->save();
         }
     }
 
