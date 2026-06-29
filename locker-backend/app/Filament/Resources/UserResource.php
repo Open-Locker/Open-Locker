@@ -20,11 +20,11 @@ class UserResource extends Resource
 
     protected static \BackedEnum|string|null $navigationIcon = 'heroicon-o-rectangle-stack';
 
-    protected static ?int $navigationSort = 20;
+    protected static ?int $navigationSort = 10;
 
     public static function getNavigationGroup(): ?string
     {
-        return __('Operations');
+        return __('Access management');
     }
 
     public static function getNavigationLabel(): string
