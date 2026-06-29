@@ -74,7 +74,7 @@ jobs:
           retention-days: 14
 
   ios:
-    runs-on: macos-latest
+    runs-on: macos-26   # Xcode 26 / iOS 26 SDK — required by App Store Connect for uploads
     defaults:
       run:
         working-directory: mobile-app
