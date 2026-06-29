@@ -98,6 +98,16 @@ class Compartment extends Model
     }
 
     /**
+     * Derived effective access via groups (read model maintained by GroupProjector).
+     *
+     * @return HasMany<UserGroupCompartmentAccess, Compartment>
+     */
+    public function userGroupAccesses(): HasMany
+    {
+        return $this->hasMany(UserGroupCompartmentAccess::class);
+    }
+
+    /**
      * @return HasMany<CompartmentAccess, Compartment>
      */
     public function activeAccesses(): HasMany

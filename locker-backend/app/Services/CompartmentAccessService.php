@@ -9,6 +9,7 @@ use App\Aggregates\CompartmentOpenAggregate;
 use App\Models\Compartment;
 use App\Models\CompartmentAccess;
 use App\Models\User;
+use App\Models\UserGroupCompartmentAccess;
 use Carbon\CarbonInterface;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Support\Facades\Auth;
@@ -61,9 +62,27 @@ class CompartmentAccessService
             ->persist();
     }
 
+    /**
+     * Effective access: direct grant OR group-derived access.
+     */
     public function hasActiveAccess(User $user, Compartment $compartment): bool
     {
+        return $this->hasActiveDirectAccess($user, $compartment)
+            || $this->hasActiveGroupAccess($user, $compartment);
+    }
+
+    public function hasActiveDirectAccess(User $user, Compartment $compartment): bool
+    {
         return CompartmentAccess::query()
+            ->where('user_id', $user->id)
+            ->where('compartment_id', $compartment->id)
+            ->active()
+            ->exists();
+    }
+
+    public function hasActiveGroupAccess(User $user, Compartment $compartment): bool
+    {
+        return UserGroupCompartmentAccess::query()
             ->where('user_id', $user->id)
             ->where('compartment_id', $compartment->id)
             ->active()
@@ -112,12 +131,27 @@ class CompartmentAccessService
             ];
         }
 
-        if ($this->hasActiveAccess($user, $compartment)) {
+        // Check direct access first so its authorizationType takes precedence.
+        if ($this->hasActiveDirectAccess($user, $compartment)) {
             $aggregate->authorize(
                 commandId: $commandId,
                 actorUserId: $user->id,
                 compartmentUuid: (string) $compartment->id,
                 authorizationType: 'granted_access'
+            )->persist();
+
+            return [
+                'authorized' => true,
+                'command_id' => $commandId,
+            ];
+        }
+
+        if ($this->hasActiveGroupAccess($user, $compartment)) {
+            $aggregate->authorize(
+                commandId: $commandId,
+                actorUserId: $user->id,
+                compartmentUuid: (string) $compartment->id,
+                authorizationType: 'group_access'
             )->persist();
 
             return [
