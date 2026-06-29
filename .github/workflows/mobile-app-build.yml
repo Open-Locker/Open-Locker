@@ -115,7 +115,7 @@ jobs:
       # If ASC requires the app's numeric id, set submit.production.ios.ascAppId
       # in eas.json.
       - name: Submit to TestFlight
-        if: github.ref == 'refs/heads/main'   # only submit from main; build-only on other branches
+        if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/feat/19-mobile-internal-builds'   # TEMP: allow TestFlight submit from feat/19 for testing
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
           APP_VARIANT: production   # so app.config.ts resolves the production bundle id (no .dev suffix)
