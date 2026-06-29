@@ -14,11 +14,17 @@ use Filament\Resources\RelationManagers\RelationManager;
 use Filament\Schemas\Schema;
 use Filament\Tables;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Carbon;
 
 class MembersRelationManager extends RelationManager
 {
     protected static string $relationship = 'members';
+
+    public static function getTitle(Model $ownerRecord, string $pageClass): string
+    {
+        return __('Members');
+    }
 
     public function form(Schema $form): Schema
     {

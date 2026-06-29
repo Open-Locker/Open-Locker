@@ -5,6 +5,7 @@ namespace App\Filament\Resources;
 use App\Enums\Permission;
 use App\Filament\Resources\UserResource\Pages;
 use App\Filament\Resources\UserResource\RelationManagers\CompartmentAccessesRelationManager;
+use App\Filament\Resources\UserResource\RelationManagers\GroupMembershipsRelationManager;
 use App\Models\User;
 use Filament\Forms;
 use Filament\Notifications\Notification;
@@ -133,6 +134,7 @@ class UserResource extends Resource
     {
         return [
             CompartmentAccessesRelationManager::class,
+            GroupMembershipsRelationManager::class,
         ];
     }
 

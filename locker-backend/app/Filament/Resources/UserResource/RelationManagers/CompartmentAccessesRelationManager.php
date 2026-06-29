@@ -15,11 +15,17 @@ use Filament\Resources\RelationManagers\RelationManager;
 use Filament\Schemas\Schema;
 use Filament\Tables;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Carbon;
 
 class CompartmentAccessesRelationManager extends RelationManager
 {
     protected static string $relationship = 'compartmentAccesses';
+
+    public static function getTitle(Model $ownerRecord, string $pageClass): string
+    {
+        return __('Compartment accesses');
+    }
 
     public function form(Schema $form): Schema
     {
@@ -48,10 +54,12 @@ class CompartmentAccessesRelationManager extends RelationManager
                     ->placeholder(__('System'))
                     ->toggleable(),
                 Tables\Columns\TextColumn::make('expires_at')
+                    ->label(__('Expires at'))
                     ->dateTime()
                     ->placeholder(__('Never'))
                     ->sortable(),
                 Tables\Columns\TextColumn::make('revoked_at')
+                    ->label(__('Revoked at'))
                     ->dateTime()
                     ->placeholder(__('Active'))
                     ->sortable(),
