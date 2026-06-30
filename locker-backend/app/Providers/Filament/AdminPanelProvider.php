@@ -91,6 +91,12 @@ class AdminPanelProvider extends PanelProvider
                 PanelsRenderHook::USER_MENU_BEFORE,
                 fn (): \Illuminate\Contracts\View\View => view('filament.locale-switcher', ['locale' => $this->locale])
             )
+            // The topbar user menu shows only an avatar; surface the signed-in
+            // user's name + email as a hover tooltip on it.
+            ->renderHook(
+                PanelsRenderHook::USER_MENU_AFTER,
+                fn (): \Illuminate\Contracts\View\View => view('filament.user-menu-tooltip')
+            )
             // The user menu does not exist on the pre-auth SimplePage layout
             // (login, password reset, register, email verification), so render
             // the switcher there too.
