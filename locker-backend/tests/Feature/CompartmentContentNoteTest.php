@@ -97,6 +97,22 @@ class CompartmentContentNoteTest extends TestCase
         ]);
     }
 
+    public function test_user_without_access_gets_localized_error_message(): void
+    {
+        $user = $this->createRegularUser();
+        $compartment = Compartment::factory()->create();
+
+        $response = $this->actingAs($user)
+            ->withHeader('Accept-Language', 'de')
+            ->putJson(
+                route('compartments.content-note.update', $compartment->id),
+                ['note' => 'Should be rejected']
+            );
+
+        $response->assertStatus(403)
+            ->assertJsonPath('message', 'Du hast keinen Zugriff auf dieses Fach');
+    }
+
     public function test_blank_note_clears_the_note(): void
     {
         $user = $this->createRegularUser();

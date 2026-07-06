@@ -16,12 +16,11 @@ return Application::configure(basePath: dirname(__DIR__))
         commands: __DIR__.'/../routes/console.php',
         health: '/up',
     )
-    // Mobile clients authenticate with a Sanctum bearer token, so the
-    // private-channel handshake at /broadcasting/auth must use the token
-    // guard rather than the default web/session guard.
+    // Mobile clients authenticate with a Sanctum bearer token, while Filament
+    // uses the session-backed web guard. Keep both stacks on /broadcasting/auth.
     ->withBroadcasting(
         __DIR__.'/../routes/channels.php',
-        ['middleware' => ['auth:sanctum']],
+        ['middleware' => ['web', 'auth:sanctum']],
     )
     ->withMiddleware(function (Middleware $middleware) {
         $middleware->trustProxies(at: '*');

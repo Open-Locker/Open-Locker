@@ -122,7 +122,7 @@ export default function SignInScreen() {
               },
             ]}
           >
-            <LogoOpenLocker width={58} height={58} />
+            <LogoOpenLocker width={58} height={58} color={theme.colors.onSurface} />
           </View>
           <Text variant="headlineMedium" style={styles.title}>
             Open Locker

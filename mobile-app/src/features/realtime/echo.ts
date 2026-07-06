@@ -29,7 +29,7 @@ export type CompartmentNoteUpdatedPayload = {
  * Host the API base URL resolves to (e.g. `localhost` on iOS, `10.0.2.2` on the
  * Android emulator, or a remote host). Reverb runs on the same machine as the
  * API in every environment, so defaulting the socket host to this keeps it
- * platform-correct without a separate per-platform Reverb config.
+ * platform-correct without a separate per-platform Reverb host config.
  */
 function apiHost(): string {
   try {
@@ -43,13 +43,13 @@ function apiHost(): string {
  * Reverb speaks the Pusher protocol, so the app connects with pusher-js
  * pointed at the Reverb host/port. The host defaults to the API host (so the
  * Android emulator's `10.0.2.2` is handled automatically); the port defaults to
- * the local dev stack (Reverb published on :48080). Production overrides via
+ * the local Sail dev stack (Reverb published on :8080). Production overrides via
  * EXPO_PUBLIC_REVERB_*.
  */
 function reverbConfig() {
   const scheme = process.env.EXPO_PUBLIC_REVERB_SCHEME ?? 'http';
   const forceTLS = scheme === 'https';
-  const port = Number(process.env.EXPO_PUBLIC_REVERB_PORT ?? '48080');
+  const port = Number(process.env.EXPO_PUBLIC_REVERB_PORT ?? '8080');
 
   return {
     key: process.env.EXPO_PUBLIC_REVERB_KEY ?? 'open-locker-key',

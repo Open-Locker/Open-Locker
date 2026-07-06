@@ -72,6 +72,6 @@ class CompartmentService
     {
         $canEdit = $actor->isAdmin() || $this->accessService->hasActiveAccess($actor, $compartment);
 
-        throw_unless($canEdit, AuthorizationException::class, 'You do not have access to this compartment.');
+        throw_unless($canEdit, AuthorizationException::class, __('You do not have access to this compartment'));
     }
 }
