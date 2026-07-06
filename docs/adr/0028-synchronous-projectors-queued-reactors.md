@@ -114,7 +114,7 @@ The relevant mechanics, verified in the Spatie source
   models to appear.
 - **Follow-up.** Hard atomicity (transactional event-sourced write paths +
   `after_commit` reactors) and a uniform Filament error-notification UX are
-  tracked as a separate reliability-hardening ticket.
+  tracked in #139.
 
 ## References
 
