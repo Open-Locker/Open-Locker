@@ -308,6 +308,29 @@ or stored-event changes, so the event log is untouched and the table remains
 rebuildable by replay. It refines decision 8's "permission toggle" surface into
 a grant/revoke action table with a granted/revoked audit.
 
+### 2026-07-06 — Seed default bindings only on a fresh install
+
+Decision 2 specified that `default_bindings` seed the initial `role_permissions`
+rows **on a fresh install**, "after that the DB is authoritative." The
+`AuthorizationSeeder` as first shipped diverged: it ran the default-binding grants
+unconditionally on every invocation, relying on `RoleAggregate::grantPermission`'s
+idempotency. That idempotency only skips a *currently-active* binding — a default
+binding an admin had **revoked** at runtime is unset in the aggregate, so a
+re-run (e.g. `db:seed` on deploy) recorded a fresh grant and **resurrected the
+revocation**, contradicting "the DB is authoritative" and silently undoing an
+admin's audited change.
+
+Fixed the seeder to seed a role's defaults **only when that role has no binding
+history** (`role_permissions` has zero rows for it). Because revocations
+soft-delete (2026-06-23 amendment), a granted-then-revoked role keeps its row and
+correctly reads as "already seeded," so it is left alone. Net effect: defaults
+seed once per role, ever; subsequent deploys never touch bindings; runtime
+grants **and** revocations persist. The `is_admin_since` backfill is unchanged
+(one-time migration, deduped by the user-role aggregate).
+
+This makes permanently removing a default permission from `manager` a plain
+runtime admin action that survives deploys — previously impossible.
+
 ## Supersedes / Superseded By
 
 - Supersedes: none (first authorization-model ADR; extends the binary `is_admin_since` flag). Revises an
