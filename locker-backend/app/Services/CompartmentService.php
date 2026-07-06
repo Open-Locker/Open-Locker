@@ -38,8 +38,9 @@ class CompartmentService
      * Record an auditable update to a compartment's free-text content note.
      *
      * The actor must have active access (direct or via a group) or be an admin.
-     * A null note clears the note. Returns the compartment with the new values
-     * applied in memory (the read model is updated by CompartmentProjector).
+     * A null note clears the note. CompartmentProjector runs synchronously
+     * (ADR-0028), so the read model is already persisted when this returns; we
+     * reload it rather than faking the response with in-memory values.
      *
      * @throws AuthorizationException
      */
@@ -47,22 +48,16 @@ class CompartmentService
     {
         $this->ensureCanEditNote($actor, $compartment);
 
-        $updatedAt = now();
-
         CompartmentContentNoteAggregate::retrieve((string) $compartment->id)
             ->updateNote(
                 actorUserId: $actor->id,
                 compartmentUuid: (string) $compartment->id,
                 note: $note,
-                updatedAt: $updatedAt,
+                updatedAt: now(),
             )
             ->persist();
 
-        return $compartment->forceFill([
-            'content_note' => $note,
-            'content_note_updated_at' => $updatedAt,
-            'content_note_updated_by_user_id' => $actor->id,
-        ]);
+        return $compartment->refresh();
     }
 
     /**
