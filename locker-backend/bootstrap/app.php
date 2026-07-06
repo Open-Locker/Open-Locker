@@ -2,6 +2,7 @@
 
 use App\Http\Middleware\EnsureVerifiedEmailApi;
 use App\Http\Middleware\RequireAcceptedTerms;
+use App\Http\Middleware\SetLocale;
 use Illuminate\Auth\AuthenticationException;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
@@ -13,11 +14,19 @@ return Application::configure(basePath: dirname(__DIR__))
         web: __DIR__.'/../routes/web.php',
         api: __DIR__.'/../routes/api.php',
         commands: __DIR__.'/../routes/console.php',
-        channels: __DIR__.'/../routes/channels.php',
         health: '/up',
+    )
+    // Mobile clients authenticate with a Sanctum bearer token, while Filament
+    // uses the session-backed web guard. Keep both stacks on /broadcasting/auth.
+    ->withBroadcasting(
+        __DIR__.'/../routes/channels.php',
+        ['middleware' => ['web', 'auth:sanctum']],
     )
     ->withMiddleware(function (Middleware $middleware) {
         $middleware->trustProxies(at: '*');
+        // Resolve request locale from Accept-Language early (ADR-0024) so
+        // localized API messages, web pages, and queued emails all match.
+        $middleware->api(prepend: [SetLocale::class]);
         $middleware->redirectGuestsTo(function (Request $request): ?string {
             if ($request->is('api/*')) {
                 return null;

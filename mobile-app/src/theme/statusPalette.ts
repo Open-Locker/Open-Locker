@@ -1,5 +1,14 @@
 import type { MD3Theme } from 'react-native-paper';
 
+import {
+  OPEN_LOCKER_DARK_WARNING,
+  OPEN_LOCKER_DARK_WARNING_CONTAINER,
+  OPEN_LOCKER_DARK_WARNING_OUTLINE,
+  OPEN_LOCKER_LIGHT_WARNING,
+  OPEN_LOCKER_LIGHT_WARNING_CONTAINER,
+  OPEN_LOCKER_LIGHT_WARNING_OUTLINE,
+} from '@/src/theme/tokens';
+
 export type CompartmentVisualStatus = 'open' | 'closed' | 'unknown';
 export type LockerVisualStatus = 'online' | 'offline';
 
@@ -29,11 +38,17 @@ export function getCompartmentStatusPalette(
     };
   }
 
-  return {
-    color: '#B7791F',
-    borderColor: '#D69E2E',
-    backgroundColor: '#FFF6E8',
-  };
+  return theme.dark
+    ? {
+        color: OPEN_LOCKER_DARK_WARNING,
+        borderColor: OPEN_LOCKER_DARK_WARNING_OUTLINE,
+        backgroundColor: OPEN_LOCKER_DARK_WARNING_CONTAINER,
+      }
+    : {
+        color: OPEN_LOCKER_LIGHT_WARNING,
+        borderColor: OPEN_LOCKER_LIGHT_WARNING_OUTLINE,
+        backgroundColor: OPEN_LOCKER_LIGHT_WARNING_CONTAINER,
+      };
 }
 
 export function getLockerStatusPalette(
@@ -51,9 +66,9 @@ export function getLockerStatusPalette(
 
   if (status === 'offline') {
     return {
-      color: '#A34747',
-      borderColor: '#E08A8A',
-      backgroundColor: '#FFF3F3',
+      color: theme.colors.error,
+      borderColor: theme.colors.error,
+      backgroundColor: theme.colors.errorContainer,
     };
   }
 

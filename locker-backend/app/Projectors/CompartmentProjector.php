@@ -6,6 +6,7 @@ namespace App\Projectors;
 
 use App\Enums\CompartmentDoorState;
 use App\Models\Compartment;
+use App\StorableEvents\CompartmentContentNoteUpdated;
 use App\StorableEvents\CompartmentDoorStateChanged;
 use App\StorableEvents\CompartmentOpened;
 use App\StorableEvents\CompartmentOpeningFailed;
@@ -62,6 +63,20 @@ class CompartmentProjector extends Projector implements ShouldQueue
             'last_open_transaction_id' => $event->transactionId,
             'last_open_error_code' => $event->errorCode,
             'last_open_error_message' => $event->message,
+        ])->save();
+    }
+
+    public function onCompartmentContentNoteUpdated(CompartmentContentNoteUpdated $event): void
+    {
+        $compartment = Compartment::find($event->compartmentUuid);
+        if (! $compartment) {
+            return;
+        }
+
+        $compartment->forceFill([
+            'content_note' => $event->note,
+            'content_note_updated_at' => Carbon::parse($event->updatedAtIso8601),
+            'content_note_updated_by_user_id' => $event->actorUserId,
         ])->save();
     }
 }

@@ -5,7 +5,6 @@ namespace App\Http\Controllers;
 use App\Http\Resources\ApiErrorResource;
 use App\Http\Resources\UserResource;
 use App\Models\CompartmentAccess;
-use App\Models\Item;
 use App\Models\User;
 use Dedoc\Scramble\Attributes\Response;
 use Illuminate\Http\JsonResponse;
@@ -76,7 +75,6 @@ class AdminController extends Controller
     public function getStatistics(): JsonResponse
     {
         $totalUsers = User::count();
-        $totalItems = Item::count();
         $totalCompartmentAccesses = CompartmentAccess::count();
         $activeCompartmentAccesses = CompartmentAccess::active()->count();
 
@@ -84,8 +82,6 @@ class AdminController extends Controller
             'statistics' => [
                 /** @var int $totalUsers Total number of users */
                 'total_users' => $totalUsers,
-                /** @var int $totalItems Total number of items */
-                'total_items' => $totalItems,
                 /** @var int $totalCompartmentAccesses Total number of access grants */
                 'total_compartment_accesses' => $totalCompartmentAccesses,
                 /** @var int $activeCompartmentAccesses Number of currently active grants */

@@ -96,6 +96,10 @@ return [
 
     'faker_locale' => env('APP_FAKER_LOCALE', 'en_US'),
 
+    // Locales the API will honor from the Accept-Language header (ADR-0024).
+    // First entry is the negotiation default when no supported match is found.
+    'supported_locales' => ['en', 'de'],
+
     /*
     |--------------------------------------------------------------------------
     | Encryption Key
