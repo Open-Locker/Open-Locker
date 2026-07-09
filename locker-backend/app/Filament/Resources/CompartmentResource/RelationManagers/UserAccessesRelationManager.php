@@ -11,13 +11,11 @@ use App\Models\CompartmentAccess;
 use App\Models\User;
 use App\Services\CompartmentAccessService;
 use Filament\Facades\Filament;
-use Filament\Forms;
 use Filament\Resources\RelationManagers\RelationManager;
 use Filament\Schemas\Schema;
 use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Support\Carbon;
 
 class UserAccessesRelationManager extends RelationManager
 {
@@ -72,30 +70,18 @@ class UserAccessesRelationManager extends RelationManager
                     ->label(__('Grant user access'))
                     ->icon('heroicon-m-key')
                     ->visible(fn (): bool => $this->currentUserCanManageAccess())
-                    ->form([
-                        Forms\Components\Select::make('user_ids')
-                            ->label(__('Users'))
-                            ->required()
-                            ->multiple()
-                            ->searchable()
-                            ->options(fn (): array => $this->grantableUserOptions()),
-                        Forms\Components\DateTimePicker::make('expires_at')
-                            ->label(__('Expires at'))
-                            ->seconds(false),
-                        Forms\Components\Textarea::make('notes')
-                            ->label(__('Notes'))
-                            ->rows(3)
-                            ->maxLength(2000),
-                    ])
+                    ->form(AccessPickerOptions::grantForm(
+                        'user_ids',
+                        __('Users'),
+                        fn (): array => $this->grantableUserOptions(),
+                    ))
                     ->action(function (array $data): void {
                         /** @var Compartment $compartment */
                         $compartment = $this->getOwnerRecord();
                         /** @var User|null $actor */
                         $actor = Filament::auth()->user();
 
-                        $expiresAt = filled($data['expires_at'])
-                            ? Carbon::parse($data['expires_at'])
-                            : null;
+                        $expiresAt = AccessPickerOptions::parseExpiresAt($data);
 
                         $service = app(CompartmentAccessService::class);
 

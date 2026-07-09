@@ -10,13 +10,11 @@ use App\Models\Group;
 use App\Models\User;
 use App\Services\GroupAccessService;
 use Filament\Facades\Filament;
-use Filament\Forms;
 use Filament\Resources\RelationManagers\RelationManager;
 use Filament\Schemas\Schema;
 use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Support\Carbon;
 
 class MembersRelationManager extends RelationManager
 {
@@ -53,26 +51,19 @@ class MembersRelationManager extends RelationManager
                     ->label(__('Add member'))
                     ->icon('heroicon-m-user-plus')
                     ->visible(fn (): bool => $this->currentUserCanManageGroups())
-                    ->form([
-                        Forms\Components\Select::make('user_ids')
-                            ->label(__('Users'))
-                            ->required()
-                            ->multiple()
-                            ->searchable()
-                            ->options(fn (): array => $this->addableUserOptions()),
-                        Forms\Components\DateTimePicker::make('expires_at')
-                            ->label(__('Expires at'))
-                            ->seconds(false),
-                    ])
+                    ->form(AccessPickerOptions::grantForm(
+                        'user_ids',
+                        __('Users'),
+                        fn (): array => $this->addableUserOptions(),
+                        withNotes: false,
+                    ))
                     ->action(function (array $data): void {
                         /** @var Group $group */
                         $group = $this->getOwnerRecord();
                         /** @var User|null $actor */
                         $actor = Filament::auth()->user();
 
-                        $expiresAt = filled($data['expires_at'])
-                            ? Carbon::parse($data['expires_at'])
-                            : null;
+                        $expiresAt = AccessPickerOptions::parseExpiresAt($data);
 
                         $service = app(GroupAccessService::class);
 
