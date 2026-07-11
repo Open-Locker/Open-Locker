@@ -163,16 +163,13 @@ class ManagerAuthorizationTest extends TestCase
         app(CompartmentAccessService::class)->grantAccess($target, $compartment, actor: $user);
     }
 
-    public function test_manager_cannot_manage_groups(): void
+    public function test_manager_can_manage_groups(): void
     {
         $manager = $this->makeManager();
 
-        $this->assertFalse($manager->can(Permission::RolesManage->value));
+        $group = app(GroupAccessService::class)->createGroup('Crew', actor: $manager);
 
-        $this->expectException(AuthorizationException::class);
-
-        // Group management remains admin-only (outside #95's manager scope).
-        app(GroupAccessService::class)->createGroup('Crew', actor: $manager);
+        $this->assertSame('Crew', $group->name);
     }
 
     public function test_manager_cannot_configure_locker_banks_or_manage_roles(): void
@@ -181,7 +178,7 @@ class ManagerAuthorizationTest extends TestCase
 
         $this->assertFalse($manager->can(Permission::LockerBankConfigure->value));
         $this->assertFalse($manager->can(Permission::RolesManage->value));
-        $this->assertFalse($manager->can(Permission::SystemConfigure->value));
+        $this->assertTrue($manager->can(Permission::SystemConfigure->value));
         $this->assertFalse($manager->isAdmin());
     }
 
@@ -201,8 +198,8 @@ class ManagerAuthorizationTest extends TestCase
 
         $this->assertTrue(\App\Filament\Resources\UserResource::canAccess());
         $this->assertFalse(\App\Filament\Resources\LockerBankResource::canAccess());
-        $this->assertFalse(\App\Filament\Resources\GroupResource::canAccess());
-        $this->assertFalse(\App\Filament\Resources\TermsDocumentVersionResource::canAccess());
+        $this->assertTrue(\App\Filament\Resources\GroupResource::canAccess());
+        $this->assertTrue(\App\Filament\Resources\TermsDocumentVersionResource::canAccess());
     }
 
     public function test_admin_sees_all_filament_resources(): void

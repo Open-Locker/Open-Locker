@@ -20,8 +20,10 @@ enum Role: string
             self::Manager => [
                 Permission::PanelAccess,
                 Permission::UsersManage,
+                Permission::GroupsManage,
                 Permission::CompartmentAccessManage,
                 Permission::CompartmentOpen,
+                Permission::SystemConfigure,
             ],
             self::Admin => Permission::cases(),
         };
