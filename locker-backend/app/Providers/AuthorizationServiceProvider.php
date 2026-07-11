@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace App\Providers;
 
+use App\Enums\Permission;
 use App\Enums\Role;
 use App\Models\User;
-use App\Support\Authorization\AuthorizationCatalog;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
 
@@ -14,8 +14,8 @@ use Illuminate\Support\ServiceProvider;
  * Wires capability-based authorization into Laravel's Gate (ADR-0021):
  *
  * - `admin` is the super-role: it passes every check unconditionally, so
- *   "admin is a strict superset" holds even as permissions are edited at runtime.
- * - Any ability that is a catalog permission resolves to `$user->hasPermission()`.
+ *   "admin is a strict superset" holds independent of static catalog bindings.
+ * - Any ability that is a Permission enum value resolves to `$user->hasPermission()`.
  * - Other abilities fall through (return null) to normal Gates/Policies.
  *
  * This makes `$user->can('compartment.open')`, `@can`, `authorize()` and
@@ -30,10 +30,10 @@ class AuthorizationServiceProvider extends ServiceProvider
                 return true;
             }
 
-            $catalog = $this->app->make(AuthorizationCatalog::class);
+            $permission = Permission::tryFrom($ability);
 
-            if ($catalog->hasPermission($ability)) {
-                return $user->hasPermission($ability);
+            if ($permission !== null) {
+                return $user->hasPermission($permission);
             }
 
             return null;

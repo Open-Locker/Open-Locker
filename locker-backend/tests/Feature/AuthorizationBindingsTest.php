@@ -4,14 +4,15 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
-use App\Aggregates\RoleAggregate;
 use App\Aggregates\UserRoleAggregate;
 use App\Enums\Permission;
 use App\Enums\Role;
 use App\Models\User;
 use App\StorableEvents\UserRoleGranted;
-use Database\Seeders\AuthorizationSeeder;
+use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Spatie\EventSourcing\StoredEvents\Models\EloquentStoredEvent;
 use Tests\TestCase;
 
@@ -47,10 +48,8 @@ class AuthorizationBindingsTest extends TestCase
         $this->assertTrue($admin->can(Permission::RolesManage->value));
     }
 
-    public function test_manager_gets_only_seeded_permissions(): void
+    public function test_manager_gets_only_static_catalog_permissions(): void
     {
-        $this->seed(AuthorizationSeeder::class);
-
         User::factory()->create(); // bootstrap admin (so the next user is not first)
         $manager = User::factory()->create();
 
@@ -68,7 +67,6 @@ class AuthorizationBindingsTest extends TestCase
 
     public function test_revoking_a_role_removes_its_permissions(): void
     {
-        $this->seed(AuthorizationSeeder::class);
         User::factory()->create(); // bootstrap admin
 
         $user = User::factory()->create();
@@ -83,64 +81,61 @@ class AuthorizationBindingsTest extends TestCase
         $this->assertFalse($user->can(Permission::CompartmentOpen->value));
     }
 
-    public function test_role_permission_binding_is_dynamic(): void
-    {
-        $this->seed(AuthorizationSeeder::class);
-        User::factory()->create(); // bootstrap admin
-
-        $user = User::factory()->create();
-        UserRoleAggregate::retrieve(UserRoleAggregate::aggregateUuidFor($user->id))
-            ->grantRole($user->id, Role::Manager->value, null, now())
-            ->persist();
-
-        $this->assertFalse($user->fresh()->can(Permission::LockerBankConfigure->value));
-
-        // Admin grants manager a new permission at runtime.
-        RoleAggregate::retrieve(RoleAggregate::aggregateUuidFor(Role::Manager->value))
-            ->grantPermission(Role::Manager->value, Permission::LockerBankConfigure->value, null, now())
-            ->persist();
-
-        $this->assertTrue($user->fresh()->can(Permission::LockerBankConfigure->value));
-    }
-
-    public function test_make_admin_dual_writes_legacy_column_and_role(): void
+    public function test_make_admin_records_admin_role_without_legacy_column(): void
     {
         User::factory()->create(); // bootstrap admin
 
         $user = User::factory()->create();
         $this->assertFalse($user->isAdmin());
+        $this->assertFalse(Schema::hasColumn('users', 'is_admin_since'));
 
         $user->makeAdmin();
 
-        $this->assertNotNull($user->fresh()->is_admin_since);
         $this->assertTrue($user->fresh()->hasRole(Role::Admin->value));
     }
 
-    public function test_reseeding_does_not_resurrect_a_revoked_default_binding(): void
+    public function test_legacy_admin_column_migration_backfills_admin_roles_before_drop(): void
     {
-        // Fresh install seeds the manager default bindings.
-        $this->seed(AuthorizationSeeder::class);
-
         User::factory()->create(); // bootstrap admin
-        $manager = User::factory()->create();
-        UserRoleAggregate::retrieve(UserRoleAggregate::aggregateUuidFor($manager->id))
-            ->grantRole($manager->id, Role::Manager->value, null, now())
-            ->persist();
-        $manager->flushPermissionCache();
-        $this->assertTrue($manager->can(Permission::CompartmentOpen->value));
+        $legacyAdmin = User::factory()->create();
+        $grantedAt = now()->subDay();
 
-        // Admin revokes a default binding at runtime.
-        RoleAggregate::retrieve(RoleAggregate::aggregateUuidFor(Role::Manager->value))
-            ->revokePermission(Role::Manager->value, Permission::CompartmentOpen->value, null, now())
-            ->persist();
-        $manager->flushPermissionCache();
-        $this->assertFalse($manager->can(Permission::CompartmentOpen->value));
+        Schema::table('users', function (Blueprint $table): void {
+            $table->timestamp('is_admin_since')->nullable();
+        });
 
-        // A subsequent deploy re-runs the seeder — the revocation must stick
-        // (ADR-0021: after the initial seed the DB is authoritative).
-        $this->seed(AuthorizationSeeder::class);
-        $manager->flushPermissionCache();
+        DB::table('users')
+            ->where('id', $legacyAdmin->id)
+            ->update(['is_admin_since' => $grantedAt]);
 
-        $this->assertFalse($manager->can(Permission::CompartmentOpen->value));
+        $this->assertFalse($legacyAdmin->fresh()->hasRole(Role::Admin->value));
+        $this->assertDatabaseMissing('user_roles', [
+            'user_id' => $legacyAdmin->id,
+            'role' => Role::Admin->value,
+        ]);
+
+        $migration = require database_path('migrations/2026_07_11_000001_backfill_admin_roles_and_drop_is_admin_since.php');
+        $migration->up();
+
+        $this->assertFalse(Schema::hasColumn('users', 'is_admin_since'));
+        $this->assertTrue($legacyAdmin->fresh()->hasRole(Role::Admin->value));
+        $this->assertDatabaseHas('user_roles', [
+            'user_id' => $legacyAdmin->id,
+            'role' => Role::Admin->value,
+        ]);
+        $this->assertDatabaseHas('stored_events', [
+            'aggregate_uuid' => UserRoleAggregate::aggregateUuidFor($legacyAdmin->id),
+            'event_class' => UserRoleGranted::class,
+        ]);
+    }
+
+    public function test_last_admin_delete_guard_uses_user_roles(): void
+    {
+        $admin = User::factory()->create();
+
+        $this->assertFalse($admin->delete());
+        $this->assertDatabaseHas('users', [
+            'id' => $admin->id,
+        ]);
     }
 }

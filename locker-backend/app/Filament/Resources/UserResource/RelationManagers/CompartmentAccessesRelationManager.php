@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Filament\Resources\UserResource\RelationManagers;
 
 use App\Enums\Permission;
+use App\Filament\Resources\UserResource;
 use App\Filament\Support\AccessPickerOptions;
 use App\Models\Compartment;
 use App\Models\CompartmentAccess;
@@ -16,10 +17,16 @@ use Filament\Schemas\Schema;
 use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Model;
 
 class CompartmentAccessesRelationManager extends RelationManager
 {
     protected static string $relationship = 'compartmentAccesses';
+
+    public static function getTitle(Model $ownerRecord, string $pageClass): string
+    {
+        return __('Compartment accesses');
+    }
 
     public function form(Schema $form): Schema
     {
@@ -48,10 +55,12 @@ class CompartmentAccessesRelationManager extends RelationManager
                     ->placeholder(__('System'))
                     ->toggleable(),
                 Tables\Columns\TextColumn::make('expires_at')
+                    ->label(__('Expires at'))
                     ->dateTime()
                     ->placeholder(__('Never'))
                     ->sortable(),
                 Tables\Columns\TextColumn::make('revoked_at')
+                    ->label(__('Revoked at'))
                     ->dateTime()
                     ->placeholder(__('Active'))
                     ->sortable(),
@@ -165,6 +174,13 @@ class CompartmentAccessesRelationManager extends RelationManager
     {
         $user = Filament::auth()->user();
 
-        return $user instanceof User && $user->can(Permission::CompartmentAccessManage->value);
+        if (! $user instanceof User || ! $user->can(Permission::CompartmentAccessManage->value)) {
+            return false;
+        }
+
+        /** @var User $owner */
+        $owner = $this->getOwnerRecord();
+
+        return UserResource::canManageRecord($owner);
     }
 }

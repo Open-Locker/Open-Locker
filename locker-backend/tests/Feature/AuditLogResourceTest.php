@@ -44,10 +44,10 @@ class AuditLogResourceTest extends TestCase
     public function test_presenter_renders_human_readable_description(): void
     {
         $event = new AuditEvent([
-            'event_class' => 'App\\StorableEvents\\RolePermissionGranted',
+            'event_class' => 'App\\StorableEvents\\UserRoleGranted',
             'event_properties' => [
+                'userId' => 42,
                 'role' => 'manager',
-                'permission' => 'groups.manage',
                 'actorUserId' => null,
             ],
         ]);
@@ -56,11 +56,10 @@ class AuditLogResourceTest extends TestCase
 
         $description = $presenter->describe($event);
 
-        $this->assertStringContainsString('groups.manage', $description);
         $this->assertStringContainsString('manager', $description);
         // No actor id => attributed to the system.
         $this->assertNull($presenter->actorName($event));
-        $this->assertSame(__('Permission granted'), $presenter->label($event->event_class));
+        $this->assertSame(__('Role granted'), $presenter->label($event->event_class));
     }
 
     public function test_admin_can_access_audit_log(): void
