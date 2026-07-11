@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Filament\Resources\UserResource\RelationManagers;
 
 use App\Enums\Permission;
+use App\Filament\Resources\UserResource;
 use App\Models\Compartment;
 use App\Models\CompartmentAccess;
 use App\Models\User;
@@ -160,6 +161,13 @@ class CompartmentAccessesRelationManager extends RelationManager
     {
         $user = Filament::auth()->user();
 
-        return $user instanceof User && $user->can(Permission::CompartmentAccessManage->value);
+        if (! $user instanceof User || ! $user->can(Permission::CompartmentAccessManage->value)) {
+            return false;
+        }
+
+        /** @var User $owner */
+        $owner = $this->getOwnerRecord();
+
+        return UserResource::canManageRecord($owner);
     }
 }

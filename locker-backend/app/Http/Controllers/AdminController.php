@@ -61,6 +61,12 @@ class AdminController extends Controller
             ]))->response()->setStatusCode(400);
         }
 
+        if (! User::hasOtherAdmin($user->id)) {
+            return (new ApiErrorResource([
+                'message' => __('The last administrator cannot be removed.'),
+            ]))->response()->setStatusCode(400);
+        }
+
         $user->removeAdmin();
 
         return response()->json([

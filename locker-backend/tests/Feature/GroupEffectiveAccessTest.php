@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use App\Aggregates\UserRoleAggregate;
+use App\Enums\Role;
 use App\Models\Compartment;
 use App\Models\User;
 use App\Services\CompartmentStatusBroadcastService;
@@ -124,5 +126,21 @@ class GroupEffectiveAccessTest extends TestCase
             ->recipientUserIdsForCompartment($compartment);
 
         $this->assertContains($user->id, $recipients);
+    }
+
+    public function test_broadcast_recipients_include_operational_managers(): void
+    {
+        User::factory()->create(); // bootstrap admin
+        $manager = User::factory()->create();
+        $compartment = Compartment::factory()->create();
+
+        UserRoleAggregate::retrieve(UserRoleAggregate::aggregateUuidFor($manager->id))
+            ->grantRole($manager->id, Role::Manager->value, null, now())
+            ->persist();
+
+        $recipients = app(CompartmentStatusBroadcastService::class)
+            ->recipientUserIdsForCompartment($compartment);
+
+        $this->assertContains($manager->id, $recipients);
     }
 }

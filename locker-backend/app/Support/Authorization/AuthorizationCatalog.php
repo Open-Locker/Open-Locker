@@ -5,15 +5,13 @@ declare(strict_types=1);
 namespace App\Support\Authorization;
 
 use InvalidArgumentException;
-use Symfony\Component\Yaml\Yaml;
 
 /**
- * Loads and validates the static authorization catalog (config/authorization.yaml):
- * the set of roles and permissions that exist, plus the default role -> permission
- * map used to seed the dynamic bindings. See ADR-0021.
+ * Loads and validates the static authorization catalog (config/authorization.php):
+ * the set of roles and permissions that exist, plus the static role -> permission
+ * map used to resolve effective permissions. See ADR-0021.
  *
  * The catalog is developer-owned and read-only at runtime; this class never writes.
- * Bound as a singleton, so the YAML is parsed and validated once per process.
  */
 class AuthorizationCatalog
 {
@@ -24,16 +22,16 @@ class AuthorizationCatalog
     private array $roles;
 
     /** @var array<string, list<string>> */
-    private array $defaultBindings;
+    private array $roleBindings;
 
-    public function __construct(string $yamlPath)
+    /**
+     * @param  array{permissions?: mixed, roles?: mixed, role_bindings?: mixed}  $config
+     */
+    public function __construct(array $config)
     {
-        /** @var array{permissions?: mixed, roles?: mixed, default_bindings?: mixed} $parsed */
-        $parsed = Yaml::parseFile($yamlPath) ?? [];
-
-        $this->permissions = $this->parseStringList($parsed['permissions'] ?? [], 'permissions');
-        $this->roles = $this->parseStringList($parsed['roles'] ?? [], 'roles');
-        $this->defaultBindings = $this->parseDefaultBindings($parsed['default_bindings'] ?? []);
+        $this->permissions = $this->parseStringList($config['permissions'] ?? [], 'permissions');
+        $this->roles = $this->parseStringList($config['roles'] ?? [], 'roles');
+        $this->roleBindings = $this->parseRoleBindings($config['role_bindings'] ?? []);
 
         $this->validate();
     }
@@ -55,9 +53,25 @@ class AuthorizationCatalog
      *
      * @return array<string, list<string>>
      */
-    public function defaultBindings(): array
+    public function roleBindings(): array
     {
-        return $this->defaultBindings;
+        return $this->roleBindings;
+    }
+
+    /**
+     * @return list<string>
+     */
+    public function rolesWithPermission(string $permission): array
+    {
+        $roles = [];
+
+        foreach ($this->roleBindings as $role => $permissions) {
+            if (in_array($permission, $permissions, true)) {
+                $roles[] = $role;
+            }
+        }
+
+        return $roles;
     }
 
     public function hasPermission(string $permission): bool
@@ -72,15 +86,15 @@ class AuthorizationCatalog
 
     private function validate(): void
     {
-        foreach ($this->defaultBindings as $role => $permissions) {
+        foreach ($this->roleBindings as $role => $permissions) {
             if (! $this->hasRole($role)) {
-                throw new InvalidArgumentException("default_bindings references unknown role '{$role}'.");
+                throw new InvalidArgumentException("role_bindings references unknown role '{$role}'.");
             }
 
             foreach ($permissions as $permission) {
                 if (! $this->hasPermission($permission)) {
                     throw new InvalidArgumentException(
-                        "default_bindings for role '{$role}' references unknown permission '{$permission}'."
+                        "role_bindings for role '{$role}' references unknown permission '{$permission}'."
                     );
                 }
             }
@@ -102,10 +116,10 @@ class AuthorizationCatalog
     /**
      * @return array<string, list<string>>
      */
-    private function parseDefaultBindings(mixed $value): array
+    private function parseRoleBindings(mixed $value): array
     {
         if (! is_array($value)) {
-            throw new InvalidArgumentException('authorization.default_bindings must be a map.');
+            throw new InvalidArgumentException('authorization.role_bindings must be a map.');
         }
 
         $bindings = [];
@@ -118,7 +132,7 @@ class AuthorizationCatalog
                 continue;
             }
 
-            $bindings[(string) $role] = $this->parseStringList($permissions, "default_bindings.{$role}");
+            $bindings[(string) $role] = $this->parseStringList($permissions, "role_bindings.{$role}");
         }
 
         return $bindings;

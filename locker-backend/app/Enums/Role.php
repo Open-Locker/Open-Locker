@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace App\Enums;
 
 /**
- * Type-safe references to the role catalog (config/authorization.yaml).
+ * Type-safe references to the role catalog (config/authorization.php).
  *
- * Kept in sync with the YAML by AuthorizationCatalogTest. `Admin` is the
+ * Kept in sync with the config by AuthorizationCatalogTest. `Admin` is the
  * super-role (see ADR-0021): it bypasses permission checks via Gate::before.
  */
 enum Role: string

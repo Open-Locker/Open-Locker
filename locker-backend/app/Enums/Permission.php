@@ -5,11 +5,11 @@ declare(strict_types=1);
 namespace App\Enums;
 
 /**
- * Type-safe references to the permission catalog (config/authorization.yaml).
+ * Type-safe references to the permission catalog (config/authorization.php).
  *
  * Code checks permissions via these cases (e.g. `$user->can(Permission::CompartmentOpen->value)`).
- * A parity test (AuthorizationCatalogTest) asserts these cases and the YAML stay
- * in sync, so removing a still-referenced permission from the YAML fails CI.
+ * A parity test (AuthorizationCatalogTest) asserts these cases and the config stay
+ * in sync, so removing a still-referenced permission from the config fails CI.
  */
 enum Permission: string
 {

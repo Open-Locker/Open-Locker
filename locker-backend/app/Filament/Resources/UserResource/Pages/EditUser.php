@@ -12,11 +12,33 @@ use Filament\Actions;
 use Filament\Forms\Components\CheckboxList;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\EditRecord;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Password;
 
 class EditUser extends EditRecord
 {
     protected static string $resource = UserResource::class;
+
+    protected function authorizeAccess(): void
+    {
+        abort_unless(UserResource::canView($this->getRecord()), 403);
+    }
+
+    protected function getFormActions(): array
+    {
+        if (! UserResource::canEdit($this->getRecord())) {
+            return [
+                $this->getCancelFormAction(),
+            ];
+        }
+
+        return parent::getFormActions();
+    }
+
+    protected function beforeSave(): void
+    {
+        abort_unless(UserResource::canEdit($this->getRecord()), 403);
+    }
 
     protected function getHeaderActions(): array
     {
@@ -26,6 +48,7 @@ class EditUser extends EditRecord
                     ->label('Passwort-Reset senden')
                     ->icon('heroicon-o-key')
                     ->color('warning')
+                    ->visible(fn (User $record): bool => UserResource::canManageRecord($record))
                     ->requiresConfirmation()
                     ->modalHeading('Passwort-Reset-Mail senden')
                     ->modalDescription('Soll eine Passwort-Reset-Mail an diesen Nutzer gesendet werden?')
@@ -52,6 +75,7 @@ class EditUser extends EditRecord
                     ->label('Verifizierungs-Mail senden')
                     ->icon('heroicon-o-envelope')
                     ->color('info')
+                    ->visible(fn (User $record): bool => UserResource::canManageRecord($record))
                     ->hidden(fn (User $record): bool => $record->hasVerifiedEmail())
                     ->requiresConfirmation()
                     ->modalHeading('Verifizierungs-Mail senden')
@@ -73,7 +97,7 @@ class EditUser extends EditRecord
                             ->send();
                     }),
                 Actions\Action::make('setAsAdmin')
-                    ->visible(fn (): bool => auth()->user()?->can(Permission::RolesManage->value) ?? false)
+                    ->visible(fn (): bool => self::currentUserCanManageRoles())
                     ->hidden(fn (User $record): bool => $record->isAdmin())
                     ->label('zum Admin machen')
                     ->icon('heroicon-o-shield-check')
@@ -91,7 +115,7 @@ class EditUser extends EditRecord
                             ->send();
                     }),
                 Actions\Action::make('removeAdmin')
-                    ->visible(fn (): bool => auth()->user()?->can(Permission::RolesManage->value) ?? false)
+                    ->visible(fn (): bool => self::currentUserCanManageRoles())
                     ->hidden(fn (User $record): bool => ! $record->isAdmin())
                     ->label('Adminrechte entziehen')
                     ->icon('heroicon-o-shield-exclamation')
@@ -101,12 +125,7 @@ class EditUser extends EditRecord
                     ->modalDescription('Sollen diesem Nutzer Adminrechte entzogen werden?')
                     ->modalSubmitActionLabel('Ja, nimm diesem Nutzer die Adminrechte')
                     ->action(function (User $record): void {
-                        $remainingAdmins = User::query()
-                            ->whereNotNull('is_admin_since')
-                            ->whereKeyNot($record->getKey())
-                            ->count();
-
-                        if ($remainingAdmins === 0) {
+                        if (! User::hasOtherAdmin($record->id)) {
                             Notification::make()
                                 ->title('Aktion abgebrochen')
                                 ->body('Dem letzten Admin können nicht die Adminrechte entzogen werden.')
@@ -124,7 +143,7 @@ class EditUser extends EditRecord
                             ->send();
                     }),
                 Actions\Action::make('manageRoles')
-                    ->visible(fn (): bool => auth()->user()?->can(Permission::RolesManage->value) ?? false)
+                    ->visible(fn (): bool => self::currentUserCanManageRoles())
                     ->label('Rollen verwalten')
                     ->icon('heroicon-o-identification')
                     ->fillForm(fn (User $record): array => [
@@ -139,7 +158,7 @@ class EditUser extends EditRecord
                         $selected = $data['roles'] ?? [];
                         $assignable = self::assignableRoles();
                         $current = array_values(array_intersect($record->roleNames(), $assignable));
-                        $actor = auth()->id();
+                        $actor = Auth::id();
 
                         foreach (array_diff($selected, $current) as $role) {
                             UserRoleAggregate::retrieve(UserRoleAggregate::aggregateUuidFor($record->id))
@@ -165,17 +184,15 @@ class EditUser extends EditRecord
                 ->icon('heroicon-o-ellipsis-horizontal')
                 ->button(),
             Actions\DeleteAction::make()
+                ->visible(fn (User $record): bool => UserResource::canManageRecord($record))
                 ->before(function (Actions\DeleteAction $action, User $record) {
-                    if ($record->is_admin_since) {
-                        $adminCount = User::whereNotNull('is_admin_since')->count();
-                        if ($adminCount <= 1) {
-                            Notification::make()
-                                ->title('Aktion abgebrochen')
-                                ->body('Der letzte Admin kann nicht gelöscht werden.')
-                                ->danger()
-                                ->send();
-                            $action->cancel();
-                        }
+                    if ($record->isAdmin() && ! User::hasOtherAdmin($record->id)) {
+                        Notification::make()
+                            ->title('Aktion abgebrochen')
+                            ->body('Der letzte Admin kann nicht gelöscht werden.')
+                            ->danger()
+                            ->send();
+                        $action->cancel();
                     }
                 }),
         ];
@@ -193,5 +210,12 @@ class EditUser extends EditRecord
             app(AuthorizationCatalog::class)->roles(),
             [Role::Admin->value, Role::User->value],
         ));
+    }
+
+    private static function currentUserCanManageRoles(): bool
+    {
+        $user = Auth::user();
+
+        return $user instanceof User && $user->can(Permission::RolesManage->value);
     }
 }

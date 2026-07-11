@@ -13,6 +13,8 @@ use Filament\Schemas\Schema;
 use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Auth;
 
 class UserResource extends Resource
 {
@@ -26,7 +28,32 @@ class UserResource extends Resource
 
     public static function canAccess(): bool
     {
-        return auth()->user()?->can(Permission::UsersManage->value) ?? false;
+        return self::actor()?->can(Permission::UsersManage->value) ?? false;
+    }
+
+    public static function canCreate(): bool
+    {
+        return self::actor()?->can(Permission::UsersManage->value) ?? false;
+    }
+
+    public static function canView(Model $record): bool
+    {
+        return $record instanceof User && (self::actor()?->can(Permission::UsersManage->value) ?? false);
+    }
+
+    public static function canEdit(Model $record): bool
+    {
+        return $record instanceof User && self::canManageRecord($record);
+    }
+
+    public static function canDelete(Model $record): bool
+    {
+        return $record instanceof User && self::canManageRecord($record);
+    }
+
+    public static function canDeleteAny(): bool
+    {
+        return self::actor()?->can(Permission::UsersManage->value) ?? false;
     }
 
     public static function form(Schema $form): Schema
@@ -34,12 +61,15 @@ class UserResource extends Resource
         return $form
             ->schema([
                 Forms\Components\TextInput::make('first_name')
-                    ->required(),
+                    ->required()
+                    ->disabled(fn (?User $record): bool => $record instanceof User && ! self::canEdit($record)),
                 Forms\Components\TextInput::make('last_name')
-                    ->required(),
+                    ->required()
+                    ->disabled(fn (?User $record): bool => $record instanceof User && ! self::canEdit($record)),
                 Forms\Components\TextInput::make('email')
                     ->email()
-                    ->required(),
+                    ->required()
+                    ->disabled(fn (?User $record): bool => $record instanceof User && ! self::canEdit($record)),
             ]);
     }
 
@@ -64,9 +94,10 @@ class UserResource extends Resource
                     ->dateTime()
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),
-                Tables\Columns\TextColumn::make('is_admin_since')
-                    ->dateTime()
-                    ->sortable(),
+                Tables\Columns\IconColumn::make('is_admin')
+                    ->label('Admin')
+                    ->boolean()
+                    ->state(fn (User $record): bool => $record->isAdmin()),
                 Tables\Columns\IconColumn::make('terms_current_accepted')
                     ->label('Current terms accepted')
                     ->boolean()
@@ -80,14 +111,27 @@ class UserResource extends Resource
                 //
             ])
             ->actions([
-                \Filament\Actions\EditAction::make(),
+                \Filament\Actions\EditAction::make()
+                    ->authorize(fn (User $record): bool => self::canView($record))
+                    ->label(fn (User $record): string => self::canEdit($record) ? 'Edit' : 'View'),
             ])->actionsAlignment('left')
             ->bulkActions([
                 \Filament\Actions\BulkActionGroup::make([
                     \Filament\Actions\DeleteBulkAction::make()
                         ->before(function (\Filament\Actions\DeleteBulkAction $action, Collection $records) {
-                            $adminCount = User::whereNotNull('is_admin_since')->count();
-                            $deletedAdmins = $records->filter(fn (User $record) => $record->is_admin_since)->count();
+                            if ($records->contains(fn (User $record): bool => ! self::canManageRecord($record))) {
+                                Notification::make()
+                                    ->title('Aktion abgebrochen')
+                                    ->body('Dieser Nutzer kann nicht gelöscht werden.')
+                                    ->danger()
+                                    ->send();
+                                $action->cancel();
+
+                                return;
+                            }
+
+                            $adminCount = User::adminRoleCount();
+                            $deletedAdmins = $records->filter(fn (User $record): bool => $record->isAdmin())->count();
 
                             if ($adminCount - $deletedAdmins < 1) {
                                 Notification::make()
@@ -116,5 +160,27 @@ class UserResource extends Resource
             'create' => Pages\CreateUser::route('/create'),
             'edit' => Pages\EditUser::route('/{record}/edit'),
         ];
+    }
+
+    public static function canManageRecord(User $record): bool
+    {
+        $actor = self::actor();
+
+        if (! $actor?->can(Permission::UsersManage->value)) {
+            return false;
+        }
+
+        if ($actor->can(Permission::RolesManage->value)) {
+            return true;
+        }
+
+        return ! $record->isAdmin();
+    }
+
+    private static function actor(): ?User
+    {
+        $actor = Auth::user();
+
+        return $actor instanceof User ? $actor : null;
     }
 }

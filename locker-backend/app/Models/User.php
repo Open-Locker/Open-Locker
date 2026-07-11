@@ -59,8 +59,17 @@ class User extends Authenticatable implements FilamentUser, HasName, MustVerifyE
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
-            'is_admin_since' => 'datetime',
         ];
+    }
+
+    /**
+     * Get event-sourced role assignments for this user.
+     *
+     * @return HasMany<UserRole, User>
+     */
+    public function userRoles(): HasMany
+    {
+        return $this->hasMany(UserRole::class);
     }
 
     /**
@@ -161,20 +170,10 @@ class User extends Authenticatable implements FilamentUser, HasName, MustVerifyE
     }
 
     /**
-     * Make user an admin.
-     *
-     * Transitional dual-write (ADR-0021): keeps the legacy `is_admin_since`
-     * column in sync while also recording the role grant as an event so the
-     * `user_roles` read model is populated. `isAdmin()` still reads the legacy
-     * column until the enforcement slice flips it to `hasRole('admin')`.
+     * Make user an admin through the event-sourced role assignment flow.
      */
     public function makeAdmin(?int $actorUserId = null): void
     {
-        if ($this->is_admin_since === null) {
-            $this->is_admin_since = now();
-            $this->save();
-        }
-
         UserRoleAggregate::retrieve(UserRoleAggregate::aggregateUuidFor($this->id))
             ->grantRole($this->id, Role::Admin->value, $actorUserId, now())
             ->persist();
@@ -183,18 +182,30 @@ class User extends Authenticatable implements FilamentUser, HasName, MustVerifyE
     }
 
     /**
-     * Remove admin privileges from user (dual-write; see makeAdmin()).
+     * Remove admin privileges from user through the event-sourced role flow.
      */
     public function removeAdmin(?int $actorUserId = null): void
     {
-        $this->is_admin_since = null;
-        $this->save();
-
         UserRoleAggregate::retrieve(UserRoleAggregate::aggregateUuidFor($this->id))
             ->revokeRole($this->id, Role::Admin->value, $actorUserId, now())
             ->persist();
 
         $this->flushPermissionCache();
+    }
+
+    public static function adminRoleCount(): int
+    {
+        return UserRole::query()
+            ->where('role', Role::Admin->value)
+            ->count();
+    }
+
+    public static function hasOtherAdmin(int $excludedUserId): bool
+    {
+        return UserRole::query()
+            ->where('role', Role::Admin->value)
+            ->where('user_id', '!=', $excludedUserId)
+            ->exists();
     }
 
     /**
@@ -238,15 +249,14 @@ class User extends Authenticatable implements FilamentUser, HasName, MustVerifyE
     protected static function booted()
     {
         static::created(function (User $user) {
-            // First registered user becomes admin — recorded as an auditable
-            // system event via makeAdmin() (dual-writes the role). See ADR-0021.
+            // First registered user becomes admin through an auditable system event.
             if (User::count() === 1) {
                 $user->makeAdmin();
             }
         });
 
         static::deleting(function (User $user) {
-            if ($user->isAdmin() && User::whereNotNull('is_admin_since')->count() <= 1) {
+            if ($user->isAdmin() && ! self::hasOtherAdmin($user->id)) {
                 return false;
             }
         });
