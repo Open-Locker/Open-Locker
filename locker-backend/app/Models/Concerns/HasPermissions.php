@@ -4,28 +4,24 @@ declare(strict_types=1);
 
 namespace App\Models\Concerns;
 
+use App\Enums\Permission;
 use App\Enums\Role;
-use App\Models\RolePermission;
 use App\Models\UserRole;
-use App\Support\Authorization\AuthorizationCatalog;
 
 /**
  * Resolves a user's effective roles and permissions from the event-sourced
- * read models (user_roles, role_permissions). See ADR-0021.
+ * user_roles read model plus static Role enum bindings. See ADR-0021.
  *
  * `admin` is the super-role: it implicitly holds every permission in the
- * catalog (and is also short-circuited in Gate::before).
+ * enum catalog (and is also short-circuited in Gate::before).
  *
- * Results are memoized on the instance; call flushPermissionCache() after
+ * Role names are memoized on the instance; call flushPermissionCache() after
  * mutating this user's roles within the same request.
  */
 trait HasPermissions
 {
     /** @var list<string>|null */
     private ?array $cachedRoleNames = null;
-
-    /** @var list<string>|null */
-    private ?array $cachedPermissionNames = null;
 
     /** @return list<string> */
     public function roleNames(): array
@@ -41,41 +37,43 @@ trait HasPermissions
         return in_array($role, $this->roleNames(), true);
     }
 
+    /** @return list<Permission> */
+    public function permissions(): array
+    {
+        if ($this->hasRole(Role::Admin->value)) {
+            return Permission::cases();
+        }
+
+        $permissions = [];
+
+        foreach ($this->roleNames() as $roleName) {
+            $role = Role::tryFrom($roleName);
+
+            if ($role === null) {
+                continue;
+            }
+
+            foreach ($role->permissions() as $permission) {
+                $permissions[$permission->value] = $permission;
+            }
+        }
+
+        return array_values($permissions);
+    }
+
     /** @return list<string> */
     public function permissionNames(): array
     {
-        if ($this->cachedPermissionNames !== null) {
-            return $this->cachedPermissionNames;
-        }
-
-        $catalog = app(AuthorizationCatalog::class);
-
-        if ($this->hasRole(Role::Admin->value)) {
-            return $this->cachedPermissionNames = $catalog->permissions();
-        }
-
-        $roles = $this->roleNames();
-
-        if ($roles === []) {
-            return $this->cachedPermissionNames = [];
-        }
-
-        return $this->cachedPermissionNames = RolePermission::query()
-            ->whereIn('role', $roles)
-            ->whereNull('revoked_at')
-            ->pluck('permission')
-            ->unique()
-            ->values()
-            ->all();
+        return array_map(static fn (Permission $permission): string => $permission->value, $this->permissions());
     }
 
-    public function hasPermission(string $permission): bool
+    public function hasPermission(Permission $permission): bool
     {
-        return in_array($permission, $this->permissionNames(), true);
+        return in_array($permission, $this->permissions(), true);
     }
 
     /**
-     * @param  list<string>  $permissions
+     * @param  list<Permission>  $permissions
      */
     public function hasAnyPermission(array $permissions): bool
     {
@@ -89,7 +87,7 @@ trait HasPermissions
     }
 
     /**
-     * @param  list<string>  $permissions
+     * @param  list<Permission>  $permissions
      */
     public function hasAllPermissions(array $permissions): bool
     {
@@ -105,6 +103,5 @@ trait HasPermissions
     public function flushPermissionCache(): void
     {
         $this->cachedRoleNames = null;
-        $this->cachedPermissionNames = null;
     }
 }

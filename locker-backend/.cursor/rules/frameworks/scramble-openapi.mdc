@@ -107,7 +107,7 @@ For full post-generation quality checks in the mobile app, run `pnpm run quality
 ### Route Organization
 - Group related routes logically
 - Use route model binding for resource routes
-- Apply middleware consistently (auth:sanctum, AdminMiddleware)
+- Apply middleware consistently (auth:sanctum, terms.accepted, verified.api)
 
 ## Custom Schema Names
 Use these standardized schema names:
