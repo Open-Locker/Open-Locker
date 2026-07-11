@@ -5,13 +5,13 @@ declare(strict_types=1);
 namespace App\Models\Concerns;
 
 use App\Enums\Role;
-use App\Models\RolePermission;
 use App\Models\UserRole;
 use App\Support\Authorization\AuthorizationCatalog;
 
 /**
  * Resolves a user's effective roles and permissions from the event-sourced
- * read models (user_roles, role_permissions). See ADR-0021.
+ * user_roles read model plus the static role -> permission catalog bindings.
+ * See ADR-0021.
  *
  * `admin` is the super-role: it implicitly holds every permission in the
  * catalog (and is also short-circuited in Gate::before).
@@ -60,13 +60,16 @@ trait HasPermissions
             return $this->cachedPermissionNames = [];
         }
 
-        return $this->cachedPermissionNames = RolePermission::query()
-            ->whereIn('role', $roles)
-            ->whereNull('revoked_at')
-            ->pluck('permission')
-            ->unique()
-            ->values()
-            ->all();
+        $bindings = $catalog->roleBindings();
+        $permissions = [];
+
+        foreach ($roles as $role) {
+            foreach ($bindings[$role] ?? [] as $permission) {
+                $permissions[$permission] = true;
+            }
+        }
+
+        return $this->cachedPermissionNames = array_keys($permissions);
     }
 
     public function hasPermission(string $permission): bool

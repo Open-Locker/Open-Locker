@@ -24,10 +24,10 @@ class AppServiceProvider extends ServiceProvider
     public function register(): void
     {
         // The authorization catalog (roles + permissions) is static, developer-owned
-        // config; parse and validate the YAML once per process. See ADR-0021.
+        // config; validate it once per process. See ADR-0021.
         $this->app->singleton(
             AuthorizationCatalog::class,
-            static fn (): AuthorizationCatalog => new AuthorizationCatalog(config_path('authorization.yaml')),
+            static fn (): AuthorizationCatalog => new AuthorizationCatalog((array) config('authorization')),
         );
 
         // Shared per-request so the audit log's actor/compartment/group lookups

@@ -14,7 +14,7 @@ use Illuminate\Support\ServiceProvider;
  * Wires capability-based authorization into Laravel's Gate (ADR-0021):
  *
  * - `admin` is the super-role: it passes every check unconditionally, so
- *   "admin is a strict superset" holds even as permissions are edited at runtime.
+ *   "admin is a strict superset" holds independent of static catalog bindings.
  * - Any ability that is a catalog permission resolves to `$user->hasPermission()`.
  * - Other abilities fall through (return null) to normal Gates/Policies.
  *
