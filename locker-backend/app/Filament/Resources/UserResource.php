@@ -148,7 +148,7 @@ class UserResource extends Resource
                 \Filament\Actions\BulkActionGroup::make([
                     \Filament\Actions\DeleteBulkAction::make()
                         ->before(function (\Filament\Actions\DeleteBulkAction $action, Collection $records) {
-                            if ($records->contains(fn (User $record): bool => ! self::canManageRecord($record))) {
+                            if ($records->contains(fn (Model $record): bool => $record instanceof User && ! self::canManageRecord($record))) {
                                 Notification::make()
                                     ->title(__('Action cancelled'))
                                     ->body(__('This user cannot be deleted.'))
@@ -160,7 +160,7 @@ class UserResource extends Resource
                             }
 
                             $adminCount = User::adminRoleCount();
-                            $deletedAdmins = $records->filter(fn (User $record): bool => $record->isAdmin())->count();
+                            $deletedAdmins = $records->filter(fn (Model $record): bool => $record instanceof User && $record->isAdmin())->count();
 
                             if ($adminCount - $deletedAdmins < 1) {
                                 Notification::make()
