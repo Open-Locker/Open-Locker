@@ -7,7 +7,6 @@ use App\Enums\Permission;
 use App\Enums\Role;
 use App\Filament\Resources\UserResource;
 use App\Models\User;
-use App\Support\Authorization\AuthorizationCatalog;
 use Filament\Actions;
 use Filament\Forms\Components\CheckboxList;
 use Filament\Notifications\Notification;
@@ -206,10 +205,7 @@ class EditUser extends EditRecord
      */
     private static function assignableRoles(): array
     {
-        return array_values(array_diff(
-            app(AuthorizationCatalog::class)->roles(),
-            [Role::Admin->value, Role::User->value],
-        ));
+        return array_map(static fn (Role $role): string => $role->value, Role::assignable());
     }
 
     private static function currentUserCanManageRoles(): bool
