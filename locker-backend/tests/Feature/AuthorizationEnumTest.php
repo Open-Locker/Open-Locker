@@ -33,13 +33,14 @@ class AuthorizationEnumTest extends TestCase
         // #95: manager may do these...
         $this->assertContains(Permission::PanelAccess, $managerPermissions);
         $this->assertContains(Permission::UsersManage, $managerPermissions);
+        $this->assertContains(Permission::GroupsManage, $managerPermissions);
         $this->assertContains(Permission::CompartmentAccessManage, $managerPermissions);
         $this->assertContains(Permission::CompartmentOpen, $managerPermissions);
+        $this->assertContains(Permission::SystemConfigure, $managerPermissions);
 
         // ...but NOT these.
         $this->assertNotContains(Permission::RolesManage, $managerPermissions);
         $this->assertNotContains(Permission::LockerBankConfigure, $managerPermissions);
-        $this->assertNotContains(Permission::SystemConfigure, $managerPermissions);
     }
 
     public function test_roles_can_be_resolved_by_permission(): void

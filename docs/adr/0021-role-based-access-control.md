@@ -103,7 +103,9 @@ The database/event stream tracks only user -> role assignments:
 Runtime-editable role -> permission bindings are intentionally deferred. There
 is no `role_permissions` read model, no `RoleAggregate`, no
 `RolePermissionGranted` / `RolePermissionRevoked` events, and no per-role
-permission-management UI in this accepted direction.
+permission-management UI in this accepted direction. A defensive migration drops
+the obsolete `role_permissions` table if an environment already ran an earlier
+draft of this PR.
 
 ### Enforcement
 
@@ -160,14 +162,14 @@ is enforced server-side, independent of button visibility. Manager-safe user
 management uses `UserAdministrationService`; compartment access grants/revokes
 are guarded in `CompartmentAccessService`.
 
-Managers hold `users.manage` so they can manage regular user records and
-compartment access for those users. They do not hold `roles.manage`,
-`lockerbank.configure`, `groups.manage`, or `system.configure`. Filament user
-management enforces this at record level: managers may list and view users with
-the `admin` role, but cannot edit, delete, reset credentials for, grant
-compartment access to, or otherwise mutate those accounts, and they cannot
-assign or revoke roles. Admins remain the super-role and can manage all user
-records.
+Managers hold `users.manage`, `groups.manage`, and `system.configure` so they
+can manage regular user records, groups, and legal/terms resources. They do not
+hold `roles.manage` or `lockerbank.configure`, so they cannot grant elevated
+roles or change hardware/locker-bank setup. Filament user management enforces
+this at record level: managers may list and view users with the `admin` role,
+but cannot edit, delete, reset credentials for, grant compartment access to, or
+otherwise mutate those accounts, and they cannot assign or revoke roles. Admins
+remain the super-role and can manage all user records.
 
 Managers also hold `compartment.access.manage`; in addition to direct access
 grant/revoke workflows, this covers operational content-note maintenance for any
@@ -286,9 +288,9 @@ group-admin `isAdmin()` checks with `can(Permission::GroupsManage->value)` in:
 `CompartmentResource\RelationManagers\GroupAccessesRelationManager`, and the
 domain-layer gate `GroupAccessService::ensureCanManageAccess()`.
 
-`groups.manage` is not in the `manager` static binding, so behaviour is
-unchanged (group administration stays admin-only). Admins hold it via the
-super-role bypass, so no role-permission seed or data migration is required.
+`groups.manage` is in the `manager` static binding, so managers can administer
+groups and group compartment access. Admins hold it via the super-role bypass,
+so no role-permission seed or data migration is required.
 
 `isAdmin()` is intentionally retained where it expresses role identity rather
 than a capability (the last-admin guard, the `is_admin` API field, "is the
