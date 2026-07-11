@@ -5,6 +5,7 @@ namespace App\Filament\Resources;
 use App\Enums\Permission;
 use App\Filament\Resources\UserResource\Pages;
 use App\Filament\Resources\UserResource\RelationManagers\CompartmentAccessesRelationManager;
+use App\Filament\Resources\UserResource\RelationManagers\GroupMembershipsRelationManager;
 use App\Models\User;
 use App\Services\UserAdministrationService;
 use Filament\Forms;
@@ -147,7 +148,7 @@ class UserResource extends Resource
                 \Filament\Actions\BulkActionGroup::make([
                     \Filament\Actions\DeleteBulkAction::make()
                         ->before(function (\Filament\Actions\DeleteBulkAction $action, Collection $records) {
-                            if ($records->contains(fn (User $record): bool => ! self::canManageRecord($record))) {
+                            if ($records->contains(fn (Model $record): bool => $record instanceof User && ! self::canManageRecord($record))) {
                                 Notification::make()
                                     ->title(__('Action cancelled'))
                                     ->body(__('This user cannot be deleted.'))
@@ -159,7 +160,7 @@ class UserResource extends Resource
                             }
 
                             $adminCount = User::adminRoleCount();
-                            $deletedAdmins = $records->filter(fn (User $record): bool => $record->isAdmin())->count();
+                            $deletedAdmins = $records->filter(fn (Model $record): bool => $record instanceof User && $record->isAdmin())->count();
 
                             if ($adminCount - $deletedAdmins < 1) {
                                 Notification::make()
@@ -178,6 +179,7 @@ class UserResource extends Resource
     {
         return [
             CompartmentAccessesRelationManager::class,
+            GroupMembershipsRelationManager::class,
         ];
     }
 
