@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use App\Aggregates\UserRoleAggregate;
+use App\Enums\Role;
 use App\Models\Compartment;
 use App\Models\User;
 use App\Services\CompartmentAccessService;
@@ -21,8 +23,7 @@ class CompartmentContentNoteTest extends TestCase
         User::factory()->create(); // first user may become admin automatically
 
         $user = User::factory()->create();
-        $user->is_admin_since = null;
-        $user->save();
+        $user->removeAdmin();
 
         return $user;
     }
@@ -78,6 +79,26 @@ class CompartmentContentNoteTest extends TestCase
         $response->assertStatus(200)
             ->assertJsonPath('content_note', 'Spare keys')
             ->assertJsonPath('content_note_updated_by_user_id', $admin->id);
+    }
+
+    public function test_manager_can_update_note_without_explicit_access(): void
+    {
+        User::factory()->create(); // bootstrap admin
+        $manager = User::factory()->create();
+        $compartment = Compartment::factory()->create();
+
+        UserRoleAggregate::retrieve(UserRoleAggregate::aggregateUuidFor($manager->id))
+            ->grantRole($manager->id, Role::Manager->value, null, now())
+            ->persist();
+
+        $response = $this->actingAs($manager)->putJson(
+            route('compartments.content-note.update', $compartment->id),
+            ['note' => 'Checked by manager']
+        );
+
+        $response->assertStatus(200)
+            ->assertJsonPath('content_note', 'Checked by manager')
+            ->assertJsonPath('content_note_updated_by_user_id', $manager->id);
     }
 
     public function test_user_without_access_cannot_update_note(): void

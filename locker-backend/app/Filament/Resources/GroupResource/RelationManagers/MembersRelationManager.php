@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Filament\Resources\GroupResource\RelationManagers;
 
+use App\Enums\Permission;
 use App\Models\Group;
 use App\Models\User;
 use App\Services\GroupAccessService;
@@ -48,7 +49,7 @@ class MembersRelationManager extends RelationManager
                 \Filament\Actions\Action::make('addMember')
                     ->label('Add member')
                     ->icon('heroicon-m-user-plus')
-                    ->visible(fn (): bool => $this->currentUserIsAdmin())
+                    ->visible(fn (): bool => $this->currentUserCanManageGroups())
                     ->form([
                         Forms\Components\Select::make('user_id')
                             ->label('User')
@@ -94,7 +95,7 @@ class MembersRelationManager extends RelationManager
                     ->label('Remove')
                     ->color('danger')
                     ->icon('heroicon-m-user-minus')
-                    ->visible(fn (): bool => $this->currentUserIsAdmin())
+                    ->visible(fn (): bool => $this->currentUserCanManageGroups())
                     ->requiresConfirmation()
                     ->action(function (User $record): void {
                         /** @var Group $group */
@@ -113,10 +114,10 @@ class MembersRelationManager extends RelationManager
             ]);
     }
 
-    private function currentUserIsAdmin(): bool
+    private function currentUserCanManageGroups(): bool
     {
         $user = Filament::auth()->user();
 
-        return $user instanceof User && $user->isAdmin();
+        return $user instanceof User && $user->can(Permission::GroupsManage->value);
     }
 }

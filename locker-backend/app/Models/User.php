@@ -2,6 +2,10 @@
 
 namespace App\Models;
 
+use App\Aggregates\UserRoleAggregate;
+use App\Enums\Permission;
+use App\Enums\Role;
+use App\Models\Concerns\HasPermissions;
 use App\Notifications\Auth\WebResetPasswordNotification;
 use App\Notifications\Auth\WebVerifyEmailNotification;
 use Database\Factories\UserFactory;
@@ -21,7 +25,7 @@ use Laravel\Sanctum\HasApiTokens;
 class User extends Authenticatable implements FilamentUser, HasName, MustVerifyEmail
 {
     /** @use HasFactory<UserFactory> */
-    use HasApiTokens, HasFactory, Notifiable;
+    use HasApiTokens, HasFactory, HasPermissions, Notifiable;
 
     /**
      * The attributes that are mass assignable.
@@ -55,8 +59,17 @@ class User extends Authenticatable implements FilamentUser, HasName, MustVerifyE
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
-            'is_admin_since' => 'datetime',
         ];
+    }
+
+    /**
+     * Get event-sourced role assignments for this user.
+     *
+     * @return HasMany<UserRole, User>
+     */
+    public function userRoles(): HasMany
+    {
+        return $this->hasMany(UserRole::class);
     }
 
     /**
@@ -153,25 +166,46 @@ class User extends Authenticatable implements FilamentUser, HasName, MustVerifyE
      */
     public function isAdmin(): bool
     {
-        return $this->is_admin_since !== null;
+        return $this->hasRole(Role::Admin->value);
     }
 
     /**
-     * Make user an admin
+     * Make user an admin through the event-sourced role assignment flow.
      */
-    public function makeAdmin(): void
+    public function makeAdmin(?int $actorUserId = null): void
     {
-        $this->is_admin_since = now();
-        $this->save();
+        UserRoleAggregate::retrieve(UserRoleAggregate::aggregateUuidFor($this->id))
+            ->grantRole($this->id, Role::Admin->value, $actorUserId, now())
+            ->persist();
+
+        $this->flushPermissionCache();
     }
 
     /**
-     * Remove admin privileges from user
+     * Remove admin privileges from user through the event-sourced role flow.
      */
-    public function removeAdmin(): void
+    public function removeAdmin(?int $actorUserId = null): void
     {
-        $this->is_admin_since = null;
-        $this->save();
+        UserRoleAggregate::retrieve(UserRoleAggregate::aggregateUuidFor($this->id))
+            ->revokeRole($this->id, Role::Admin->value, $actorUserId, now())
+            ->persist();
+
+        $this->flushPermissionCache();
+    }
+
+    public static function adminRoleCount(): int
+    {
+        return UserRole::query()
+            ->where('role', Role::Admin->value)
+            ->count();
+    }
+
+    public static function hasOtherAdmin(int $excludedUserId): bool
+    {
+        return UserRole::query()
+            ->where('role', Role::Admin->value)
+            ->where('user_id', '!=', $excludedUserId)
+            ->exists();
     }
 
     /**
@@ -209,20 +243,20 @@ class User extends Authenticatable implements FilamentUser, HasName, MustVerifyE
 
     public function canAccessPanel(Panel $panel): bool
     {
-        return $this->isAdmin();
+        return $this->can(Permission::PanelAccess->value);
     }
 
     protected static function booted()
     {
         static::created(function (User $user) {
+            // First registered user becomes admin through an auditable system event.
             if (User::count() === 1) {
-                $user->is_admin_since = now();
-                $user->save();
+                $user->makeAdmin();
             }
         });
 
         static::deleting(function (User $user) {
-            if ($user->isAdmin() && User::whereNotNull('is_admin_since')->count() <= 1) {
+            if ($user->isAdmin() && ! self::hasOtherAdmin($user->id)) {
                 return false;
             }
         });
