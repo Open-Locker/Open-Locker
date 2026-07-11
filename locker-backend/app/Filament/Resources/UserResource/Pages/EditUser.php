@@ -2,11 +2,10 @@
 
 namespace App\Filament\Resources\UserResource\Pages;
 
-use App\Aggregates\UserRoleAggregate;
 use App\Enums\Permission;
-use App\Enums\Role;
 use App\Filament\Resources\UserResource;
 use App\Models\User;
+use App\Services\UserAdministrationService;
 use Filament\Actions;
 use Filament\Forms\Components\CheckboxList;
 use Filament\Notifications\Notification;
@@ -53,7 +52,10 @@ class EditUser extends EditRecord
                     ->modalDescription('Soll eine Passwort-Reset-Mail an diesen Nutzer gesendet werden?')
                     ->modalSubmitActionLabel('Ja, Passwort-Reset senden')
                     ->action(function (User $record): void {
-                        $status = $record->sendAdminPasswordResetLink();
+                        $status = app(UserAdministrationService::class)->sendPasswordResetLink(
+                            actor: self::currentUser(),
+                            target: $record,
+                        );
 
                         if ($status === Password::RESET_LINK_SENT) {
                             Notification::make()
@@ -81,7 +83,7 @@ class EditUser extends EditRecord
                     ->modalDescription('Soll eine Verifizierungs-Mail an diesen Nutzer gesendet werden?')
                     ->modalSubmitActionLabel('Ja, Verifizierungs-Mail senden')
                     ->action(function (User $record): void {
-                        if (! $record->sendAdminVerificationEmail()) {
+                        if (! app(UserAdministrationService::class)->sendVerificationEmail(self::currentUser(), $record)) {
                             Notification::make()
                                 ->title('E-Mail-Adresse ist bereits verifiziert')
                                 ->warning()
@@ -106,7 +108,7 @@ class EditUser extends EditRecord
                     ->modalDescription('Soll dieser Nutzer Adminrechte erhalten?')
                     ->modalSubmitActionLabel('Ja, gib diesem Nutzer Adminrechte')
                     ->action(function (User $record): void {
-                        $record->makeAdmin();
+                        app(UserAdministrationService::class)->makeAdmin(self::currentUser(), $record);
 
                         Notification::make()
                             ->title('Nutzer ist nun Admin')
@@ -124,7 +126,7 @@ class EditUser extends EditRecord
                     ->modalDescription('Sollen diesem Nutzer Adminrechte entzogen werden?')
                     ->modalSubmitActionLabel('Ja, nimm diesem Nutzer die Adminrechte')
                     ->action(function (User $record): void {
-                        if (! User::hasOtherAdmin($record->id)) {
+                        if (! app(UserAdministrationService::class)->removeAdmin(self::currentUser(), $record)) {
                             Notification::make()
                                 ->title('Aktion abgebrochen')
                                 ->body('Dem letzten Admin können nicht die Adminrechte entzogen werden.')
@@ -154,24 +156,11 @@ class EditUser extends EditRecord
                             ->options(fn (): array => array_combine(self::assignableRoles(), self::assignableRoles())),
                     ])
                     ->action(function (User $record, array $data): void {
-                        $selected = $data['roles'] ?? [];
-                        $assignable = self::assignableRoles();
-                        $current = array_values(array_intersect($record->roleNames(), $assignable));
-                        $actor = Auth::id();
-
-                        foreach (array_diff($selected, $current) as $role) {
-                            UserRoleAggregate::retrieve(UserRoleAggregate::aggregateUuidFor($record->id))
-                                ->grantRole($record->id, $role, $actor, now())
-                                ->persist();
-                        }
-
-                        foreach (array_diff($current, $selected) as $role) {
-                            UserRoleAggregate::retrieve(UserRoleAggregate::aggregateUuidFor($record->id))
-                                ->revokeRole($record->id, $role, $actor, now())
-                                ->persist();
-                        }
-
-                        $record->flushPermissionCache();
+                        app(UserAdministrationService::class)->syncAssignableRoles(
+                            actor: self::currentUser(),
+                            target: $record,
+                            selectedRoles: $data['roles'] ?? [],
+                        );
 
                         Notification::make()
                             ->title('Rollen aktualisiert')
@@ -185,6 +174,8 @@ class EditUser extends EditRecord
             Actions\DeleteAction::make()
                 ->visible(fn (User $record): bool => UserResource::canManageRecord($record))
                 ->before(function (Actions\DeleteAction $action, User $record) {
+                    app(UserAdministrationService::class)->ensureCanManageUser(self::currentUser(), $record);
+
                     if ($record->isAdmin() && ! User::hasOtherAdmin($record->id)) {
                         Notification::make()
                             ->title('Aktion abgebrochen')
@@ -205,7 +196,7 @@ class EditUser extends EditRecord
      */
     private static function assignableRoles(): array
     {
-        return array_map(static fn (Role $role): string => $role->value, Role::assignable());
+        return app(UserAdministrationService::class)->assignableRoleNames();
     }
 
     private static function currentUserCanManageRoles(): bool
@@ -213,5 +204,14 @@ class EditUser extends EditRecord
         $user = Auth::user();
 
         return $user instanceof User && $user->can(Permission::RolesManage->value);
+    }
+
+    private static function currentUser(): User
+    {
+        $user = Auth::user();
+
+        abort_unless($user instanceof User, 403);
+
+        return $user;
     }
 }
