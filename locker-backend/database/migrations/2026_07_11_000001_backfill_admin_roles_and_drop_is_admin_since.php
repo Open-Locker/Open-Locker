@@ -12,6 +12,11 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
+    /**
+     * Backfill legacy admins into the event-sourced user_roles model, then drop
+     * the legacy column. The down migration can recreate the current admin state,
+     * but cannot restore historically revoked is_admin_since timestamps.
+     */
     public function up(): void
     {
         if (! Schema::hasColumn('users', 'is_admin_since')) {

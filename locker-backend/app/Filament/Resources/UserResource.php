@@ -6,6 +6,7 @@ use App\Enums\Permission;
 use App\Filament\Resources\UserResource\Pages;
 use App\Filament\Resources\UserResource\RelationManagers\CompartmentAccessesRelationManager;
 use App\Models\User;
+use App\Services\UserAdministrationService;
 use Filament\Forms;
 use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
@@ -166,15 +167,11 @@ class UserResource extends Resource
     {
         $actor = self::actor();
 
-        if (! $actor?->can(Permission::UsersManage->value)) {
+        if (! $actor instanceof User) {
             return false;
         }
 
-        if ($actor->can(Permission::RolesManage->value)) {
-            return true;
-        }
-
-        return ! $record->isAdmin();
+        return app(UserAdministrationService::class)->canManageUser($actor, $record);
     }
 
     private static function actor(): ?User

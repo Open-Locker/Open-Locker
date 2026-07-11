@@ -25,7 +25,7 @@ class CompartmentAccessService
         ?string $notes = null,
         ?User $actor = null,
     ): void {
-        $actor = $this->ensureCanManageAccess($actor);
+        $actor = $this->ensureCanManageAccess($actor, $user);
 
         $aggregateUuid = CompartmentAccessAggregate::aggregateUuidFor(
             userId: $user->id,
@@ -46,7 +46,7 @@ class CompartmentAccessService
 
     public function revokeAccess(User $user, Compartment $compartment, ?User $actor = null): void
     {
-        $actor = $this->ensureCanManageAccess($actor);
+        $actor = $this->ensureCanManageAccess($actor, $user);
 
         $aggregateUuid = CompartmentAccessAggregate::aggregateUuidFor(
             userId: $user->id,
@@ -195,13 +195,26 @@ class CompartmentAccessService
     /**
      * @throws AuthorizationException
      */
-    private function ensureCanManageAccess(?User $actor): User
+    private function ensureCanManageAccess(?User $actor, User $target): User
     {
         $resolvedActor = $this->resolveActor($actor);
+
         throw_unless(
-            $resolvedActor?->can(Permission::CompartmentAccessManage->value),
+            $resolvedActor instanceof User,
             AuthorizationException::class,
             'You are not allowed to grant or revoke compartment access.'
+        );
+
+        throw_unless(
+            $resolvedActor->can(Permission::CompartmentAccessManage->value),
+            AuthorizationException::class,
+            'You are not allowed to grant or revoke compartment access.'
+        );
+
+        throw_unless(
+            ! $target->isAdmin() || $resolvedActor->can(Permission::RolesManage->value),
+            AuthorizationException::class,
+            'You are not allowed to grant or revoke compartment access for admin users.'
         );
 
         return $resolvedActor;

@@ -135,7 +135,10 @@ the edited user's role identity rather than an actor's capability.
 `users.is_admin_since` is not retained as a second source of truth. The deploy
 migration `2026_07_11_000001_backfill_admin_roles_and_drop_is_admin_since`
 backfills legacy admins into `user_roles` through `UserRoleAggregate`, then drops
-the column. Normal seeders do not backfill production authorization data.
+the column. Normal seeders do not backfill production authorization data. The
+migration should be tested against a production-like database before rollout;
+rollback recreates the legacy column from currently-held admin roles and cannot
+restore historical revoked admin timestamps.
 
 ### Open Authorization Type
 
@@ -152,6 +155,11 @@ The admin UI supports assigning roles to users for actors with `roles.manage`.
 It does not support editing role-permission bindings. The role-permission map is
 intentionally managed in the `Role` enum.
 
+Filament actions delegate sensitive user mutations to services so authorization
+is enforced server-side, independent of button visibility. Manager-safe user
+management uses `UserAdministrationService`; compartment access grants/revokes
+are guarded in `CompartmentAccessService`.
+
 Managers hold `users.manage` so they can manage regular user records and
 compartment access for those users. They do not hold `roles.manage`,
 `lockerbank.configure`, `groups.manage`, or `system.configure`. Filament user
@@ -165,6 +173,11 @@ Managers also hold `compartment.access.manage`; in addition to direct access
 grant/revoke workflows, this covers operational content-note maintenance for any
 compartment. Regular users may still update notes only for compartments they can
 access directly or through a group.
+
+The legacy `/api/admin/*` endpoints are removed from this slice because they are
+not currently used and did not have manager-safe requirements. Future API user
+management should be reintroduced with explicit permission-scoped contracts
+rather than restoring the old binary admin controller.
 
 ## Alternatives Considered
 

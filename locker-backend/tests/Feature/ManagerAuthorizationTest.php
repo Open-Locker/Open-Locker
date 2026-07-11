@@ -7,6 +7,8 @@ namespace Tests\Feature;
 use App\Aggregates\UserRoleAggregate;
 use App\Enums\Permission;
 use App\Enums\Role;
+use App\Filament\Resources\CompartmentResource\Pages\ViewCompartment;
+use App\Filament\Resources\CompartmentResource\RelationManagers\UserAccessesRelationManager;
 use App\Filament\Resources\UserResource;
 use App\Filament\Resources\UserResource\Pages\EditUser;
 use App\Filament\Resources\UserResource\Pages\ListUsers;
@@ -14,6 +16,7 @@ use App\Models\Compartment;
 use App\Models\User;
 use App\Services\CompartmentAccessService;
 use App\Services\GroupAccessService;
+use App\Services\UserAdministrationService;
 use App\StorableEvents\CompartmentOpenAuthorized;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -67,6 +70,58 @@ class ManagerAuthorizationTest extends TestCase
             'user_id' => $target->id,
             'compartment_id' => (string) $compartment->id,
             'granted_by_user_id' => $manager->id,
+            'revoked_at' => null,
+        ]);
+    }
+
+    public function test_manager_cannot_grant_compartment_access_to_admin_user(): void
+    {
+        $manager = $this->makeManager();
+        $admin = User::factory()->create();
+        $admin->makeAdmin();
+        $compartment = Compartment::factory()->create();
+
+        $this->expectException(AuthorizationException::class);
+
+        app(CompartmentAccessService::class)->grantAccess($admin, $compartment, actor: $manager);
+    }
+
+    public function test_manager_cannot_revoke_compartment_access_from_admin_user(): void
+    {
+        $manager = $this->makeManager();
+        $admin = User::factory()->create();
+        $admin->makeAdmin();
+        $compartment = Compartment::factory()->create();
+
+        app(CompartmentAccessService::class)->grantAccess($admin, $compartment, actor: User::query()->firstOrFail());
+
+        $this->expectException(AuthorizationException::class);
+
+        app(CompartmentAccessService::class)->revokeAccess($admin, $compartment, actor: $manager);
+    }
+
+    public function test_manager_cannot_grant_admin_user_access_from_compartment_screen(): void
+    {
+        $manager = $this->makeManager();
+        $admin = User::factory()->create();
+        $admin->makeAdmin();
+        $compartment = Compartment::factory()->create();
+
+        \Livewire\Livewire::actingAs($manager)
+            ->test(UserAccessesRelationManager::class, [
+                'ownerRecord' => $compartment,
+                'pageClass' => ViewCompartment::class,
+            ])
+            ->callTableAction('grantAccess', data: [
+                'user_id' => $admin->id,
+                'expires_at' => null,
+                'notes' => null,
+            ])
+            ->assertForbidden();
+
+        $this->assertDatabaseMissing('compartment_accesses', [
+            'user_id' => $admin->id,
+            'compartment_id' => (string) $compartment->id,
             'revoked_at' => null,
         ]);
     }
@@ -308,6 +363,16 @@ class ManagerAuthorizationTest extends TestCase
             ->assertActionHidden('removeAdmin');
     }
 
+    public function test_manager_cannot_make_user_admin_through_service(): void
+    {
+        $manager = $this->makeManager();
+        $target = User::factory()->create();
+
+        $this->expectException(AuthorizationException::class);
+
+        app(UserAdministrationService::class)->makeAdmin($manager, $target);
+    }
+
     public function test_manager_cannot_trigger_sensitive_actions_for_admin_users(): void
     {
         $manager = $this->makeManager();
@@ -322,6 +387,17 @@ class ManagerAuthorizationTest extends TestCase
             ->assertActionHidden('setAsAdmin')
             ->assertActionHidden('removeAdmin')
             ->assertActionHidden('delete');
+    }
+
+    public function test_manager_cannot_trigger_sensitive_admin_user_action_through_service(): void
+    {
+        $manager = $this->makeManager();
+        $admin = User::factory()->unverified()->create();
+        $admin->makeAdmin();
+
+        $this->expectException(AuthorizationException::class);
+
+        app(UserAdministrationService::class)->sendPasswordResetLink($manager, $admin);
     }
 
     public function test_admin_can_manage_admin_user_records(): void
