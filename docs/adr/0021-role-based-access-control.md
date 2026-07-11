@@ -37,9 +37,9 @@ those permissions.
 Introduce a capability-based authorization model built on Laravel Gate. Code
 checks permissions, not role identity.
 
-### Static Authorization Catalog
+### Static Authorization Enums
 
-`locker-backend/config/authorization.php` is the single source of truth for:
+The backend enums are the single source of truth for:
 
 - The permissions the application may check.
 - The roles that may be assigned to users.
@@ -48,40 +48,48 @@ checks permissions, not role identity.
 Example:
 
 ```php
-return [
-    'permissions' => [
-        // Allows a user to sign in to the Filament admin panel.
-        'panel.access',
+enum Permission: string
+{
+    case PanelAccess = 'panel.access';
+    case UsersManage = 'users.manage';
 
-        // Allows viewing and managing user records; manager mutations are scoped to non-admin users.
-        'users.manage',
+    public function description(): string
+    {
+        return match ($this) {
+            self::PanelAccess => 'Allows a user to sign in to the Filament admin panel.',
+            self::UsersManage => 'Allows viewing and managing user records...',
+        };
+    }
+}
 
-        // ...
-    ],
-    'roles' => ['user', 'manager', 'admin'],
-    'role_bindings' => [
-        'user' => [],
-        'manager' => [
-            'panel.access',
-            'users.manage',
-            'compartment.access.manage',
-            'compartment.open',
-        ],
-        'admin' => '*',
-    ],
-];
+enum Role: string
+{
+    case User = 'user';
+    case Manager = 'manager';
+    case Admin = 'admin';
+
+    public function permissions(): array
+    {
+        return match ($this) {
+            self::User => [],
+            self::Manager => [
+                Permission::PanelAccess,
+                Permission::UsersManage,
+                Permission::CompartmentAccessManage,
+                Permission::CompartmentOpen,
+            ],
+            self::Admin => Permission::cases(),
+        };
+    }
+}
 ```
 
-The catalog is developer-owned and version-controlled. There is no admin UI for
+The enum model is developer-owned and version-controlled. There is no admin UI for
 editing roles, permissions, or role-permission bindings at runtime. Changes to
 the map require a code change, review, and deploy. Permission descriptions live
-as comments next to the permission entries so reviewers can understand the
-intended scope without looking up call sites first.
-
-`AuthorizationCatalog` loads and validates the PHP config, expands `'*'` to every
-permission, and exposes the resolved static bindings to the permission resolver.
-`Permission` and `Role` enums provide type-safe, greppable references from code;
-tests assert the enums and config stay in sync.
+on `Permission::description()` so reviewers can understand the intended scope
+without looking up call sites first. `Role::permissions()` provides the static
+role -> permission bindings with IDE/refactor support and no duplicate config.
 
 ### Event-Sourced User-Role Assignments
 
@@ -100,13 +108,12 @@ permission-management UI in this accepted direction.
 ### Enforcement
 
 `HasPermissions` resolves a user's effective permissions by loading their roles
-from `user_roles` and applying the static role bindings from
-`AuthorizationCatalog`.
+from `user_roles` and applying the static bindings from `Role::permissions()`.
 
 `AuthorizationServiceProvider` registers one `Gate::before` hook:
 
 - `admin` is the super-role and passes every ability check unconditionally.
-- Any ability that exists in the catalog resolves through
+- Any ability that exists in the `Permission` enum resolves through
   `$user->hasPermission($ability)`.
 - Unknown abilities fall through to normal Gates and Policies.
 
@@ -143,7 +150,7 @@ see state changes for compartments they are allowed to operate.
 
 The admin UI supports assigning roles to users for actors with `roles.manage`.
 It does not support editing role-permission bindings. The role-permission map is
-intentionally managed in PHP config.
+intentionally managed in the `Role` enum.
 
 Managers hold `users.manage` so they can manage regular user records and
 compartment access for those users. They do not hold `roles.manage`,
@@ -154,6 +161,11 @@ compartment access to, or otherwise mutate those accounts, and they cannot
 assign or revoke roles. Admins remain the super-role and can manage all user
 records.
 
+Managers also hold `compartment.access.manage`; in addition to direct access
+grant/revoke workflows, this covers operational content-note maintenance for any
+compartment. Regular users may still update notes only for compartments they can
+access directly or through a group.
+
 ## Alternatives Considered
 
 ### Alternative A: `spatie/laravel-permission`
@@ -161,11 +173,11 @@ records.
 - Pros: mature package, prebuilt role/permission helpers, native Gate
   integration, permission caching.
 - Cons: roles and permissions are database rows, creating a second source of
-  truth beside the code-owned catalog; role assignment changes still need the event
+  truth beside the code-owned enums; role assignment changes still need the event
   store for audit; runtime CRUD encourages editing authorization structure that
   this project keeps code-owned.
-- Why not chosen: the project needs a small, explicit resolver over a static
-  catalog and event-sourced user-role assignments, not a second authorization
+- Why not chosen: the project needs a small, explicit resolver over static
+  enums and event-sourced user-role assignments, not a second authorization
   data model.
 
 ### Alternative B: Runtime-editable role-permission bindings
@@ -176,7 +188,7 @@ records.
   toggle can drift from code expectations and changes operational blast radius
   without code review.
 - Why not chosen: deferred until there is a clear product need. For now,
-  role-permission changes are code-reviewed config changes.
+  role-permission changes are code-reviewed enum changes.
 
 ### Alternative C: Role-identity checks
 
@@ -190,7 +202,7 @@ records.
 
 - Pros: ready-made Filament UI for roles and permissions.
 - Cons: builds on spatie, generates CRUD-shaped permissions, and provides a
-  runtime editing model that conflicts with this ADR's static catalog.
+  runtime editing model that conflicts with this ADR's static enum model.
 - Why not chosen: too much machinery for a 3-role / small-permission system.
 
 ## Consequences
@@ -198,7 +210,7 @@ records.
 ### Positive
 
 - Authorization composes: code asks "can this user do X?" and the role ->
-  permission map lives in one reviewed PHP config file.
+  permission map lives in reviewed PHP enums.
 - No role-permission database table, projector, aggregate, or admin UI is needed
   for the current product shape.
 - User-role assignment remains auditable and replayable through event sourcing.
@@ -211,8 +223,7 @@ records.
 ### Negative
 
 - Changing what a role can do requires a deploy.
-- The team owns the small catalog loader and resolver instead of delegating to a
-  package.
+- The team owns the small enum-based resolver instead of delegating to a package.
 - If runtime permission tuning becomes a real need later, it will require a new
   ADR and a deliberate data model/UI design.
 
@@ -221,16 +232,16 @@ records.
 - A missed call site could keep relying on `isAdmin()` when it should check a
   permission. Mitigation: migrate call sites behind `Permission` enum checks and
   cover manager allow-list/admin-only denials with tests.
-- Config and enum drift could break permission checks. Mitigation:
-  `AuthorizationCatalogTest` asserts the config and enums are in sync.
+- Enum drift could break permission checks. Mitigation: focused authorization
+  tests assert manager/admin bindings and permission descriptions.
 - Read-model drift for user roles could affect effective permissions.
   Mitigation: `UserRoleProjector` is the only writer of `user_roles`, and the
   table is rebuildable by replay.
 
 ## Rollout / Migration
 
-1. Add `config/authorization.php`, `Permission` / `Role` enums,
-   `AuthorizationCatalog`, `HasPermissions`, and the `Gate::before` integration.
+1. Add `Permission` / `Role` enums with static role bindings, `HasPermissions`,
+   and the `Gate::before` integration.
 2. Add event-sourced user-role assignments (`UserRoleAggregate`, events,
    `UserRoleProjector`, `user_roles` migration), backfill legacy
    `is_admin_since` admins in a deploy migration, and drop the legacy column.
@@ -242,7 +253,7 @@ records.
    role-permission management surfaces. Managers may view admin user records,
    but manager user-management mutation workflows are restricted to non-admin
    user records.
-5. Test the catalog/enums, user-role event flow, manager allow-list, admin-only
+5. Test the enums, user-role event flow, manager allow-list, admin-only
    denials, and affected Filament workflows.
 
 ## Amendments
@@ -251,11 +262,11 @@ records.
 
 The original migration left group administration gated by the `isAdmin()` shim
 rather than a permission, because no group-scoped capability existed in the
-catalog. While building the operations-oriented Filament navigation (#48) - in
+enum model. While building the operations-oriented Filament navigation (#48) - in
 particular a compartment-centric access screen with a "Groups" access tab - this
 gap became a concrete inconsistency.
 
-Added a `groups.manage` permission to the catalog and replaced the remaining
+Added a `groups.manage` permission to the enum model and replaced the remaining
 group-admin `isAdmin()` checks with `can(Permission::GroupsManage->value)` in:
 `GroupResource::canAccess`, its `MembersRelationManager` and
 `CompartmentAccessesRelationManager`, the
@@ -345,9 +356,8 @@ runtime admin action that survives deploys — previously impossible.
 - Related ADRs: ADR-0020 (group-based compartment access - `authorizationType`
   precedence, admin-only management it defers to #95), ADR-0019 (user fields).
 - Related code: `app/Models/User.php`, `app/Models/Concerns/HasPermissions.php`,
-  `app/Support/Authorization/AuthorizationCatalog.php`,
+  `app/Enums/Permission.php`, `app/Enums/Role.php`,
   `app/Providers/AuthorizationServiceProvider.php`,
-  `app/Filament/Resources/UserResource`, `config/authorization.php`,
-  `config/event-sourcing.php`.
+  `app/Filament/Resources/UserResource`, `config/event-sourcing.php`.
 - Mechanism: Laravel Gate (`Gate::before`, `can`, `authorize`, `can:`
   middleware). No external authorization package.

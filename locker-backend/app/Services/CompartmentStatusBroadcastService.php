@@ -5,18 +5,14 @@ declare(strict_types=1);
 namespace App\Services;
 
 use App\Enums\Permission;
+use App\Enums\Role;
 use App\Models\Compartment;
 use App\Models\CompartmentAccess;
 use App\Models\UserGroupCompartmentAccess;
 use App\Models\UserRole;
-use App\Support\Authorization\AuthorizationCatalog;
 
 class CompartmentStatusBroadcastService
 {
-    public function __construct(
-        private readonly AuthorizationCatalog $authorizationCatalog,
-    ) {}
-
     /**
      * Users who should receive realtime compartment status for this compartment:
      * active access holders and operational roles allowed to open compartments.
@@ -38,7 +34,7 @@ class CompartmentStatusBroadcastService
             ->all();
 
         $operationalRoleIds = UserRole::query()
-            ->whereIn('role', $this->authorizationCatalog->rolesWithPermission(Permission::CompartmentOpen->value))
+            ->whereIn('role', Role::valuesWithPermission(Permission::CompartmentOpen))
             ->pluck('user_id')
             ->all();
 
