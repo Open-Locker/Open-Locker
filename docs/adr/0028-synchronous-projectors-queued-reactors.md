@@ -36,9 +36,9 @@ The relevant mechanics, verified in the Spatie source
   between "inline" and "queued".
 - Phase 1 always runs **before** phase 2 dispatches, so a synchronous projector
   is guaranteed to run before any queued reactor for the same event.
-- Mixed mode was already in use here: `RoleProjector`, `UserRoleProjector`, and
-  `TermsProjector` were already synchronous, so synchronous and queued handlers
-  already coexisted in production without issue.
+- Mixed mode was already in use here: `UserRoleProjector` and `TermsProjector`
+  were already synchronous, so synchronous and queued handlers already
+  coexisted in production without issue.
 - `catch_exceptions` defaults to `false`, so a handler exception propagates
   rather than being swallowed. For a queued handler that fails the job (silent
   retry / `failed_jobs`); for a synchronous handler it propagates into the
@@ -51,7 +51,7 @@ The relevant mechanics, verified in the Spatie source
 - Remove `ShouldQueue` from the five remaining queued projectors —
   `CompartmentProjector`, `CompartmentAccessProjector`,
   `CompartmentOpenRequestProjector`, `GroupProjector`, `LockerBankProjector` —
-  so all eight projectors now build read models inline in the request/worker
+  so all seven projectors now build read models inline in the request/worker
   that recorded the event (read-your-writes for Filament and the API).
 - Keep `ShouldQueue` on all seven reactors (`MqttReactor`, the three broadcast
   reactors, `CompartmentOpenAuthorizationReactor`, `CommandResponseReactor`,
@@ -107,7 +107,7 @@ The relevant mechanics, verified in the Spatie source
 - **Orphaned-event risk on projector failure.** Because there is no transaction
   around `persist()`, a synchronous projector that throws leaves a stored event
   with no read-model update, recoverable via `event-sourcing:replay`. This is
-  the same property the three pre-existing synchronous projectors already carry;
+  the same property the two pre-existing synchronous projectors already carry;
   the decision extends, rather than introduces, it.
 - **Operability.** Production still requires the `event-worker` running for
   reactors (MQTT/broadcasts/notifications). It is no longer required for read

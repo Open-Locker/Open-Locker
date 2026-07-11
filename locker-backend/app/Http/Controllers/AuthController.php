@@ -13,7 +13,6 @@ use App\Http\Resources\UserResource;
 use App\Models\User;
 use App\Services\AuthService;
 use Illuminate\Auth\Events\PasswordReset;
-use Illuminate\Auth\Events\Registered;
 use Illuminate\Auth\Events\Verified;
 use Illuminate\Foundation\Auth\EmailVerificationRequest;
 use Illuminate\Http\RedirectResponse;
@@ -22,7 +21,6 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Password;
 use Illuminate\Support\Str;
-use Illuminate\Validation\Rules;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -30,32 +28,6 @@ use Symfony\Component\HttpFoundation\JsonResponse;
 class AuthController extends Controller
 {
     public function __construct(public readonly AuthService $authService) {}
-
-    /**
-     * Register
-     *
-     * @throws \Exception
-     */
-    public function register(Request $request): TokenResponseResource
-    {
-        $request->validate([
-            'first_name' => 'required|string|max:255',
-            'last_name' => 'required|string|max:255',
-            'email' => 'required|string|lowercase|email|max:255|unique:'.User::class,
-            'password' => ['required', 'confirmed', Rules\Password::defaults()],
-        ]);
-
-        $user = User::create([
-            'first_name' => $request->first_name,
-            'last_name' => $request->last_name,
-            'email' => $request->email,
-            'password' => Hash::make($request->password),
-        ]);
-
-        event(new Registered($user));
-
-        return new TokenResponseResource($user);
-    }
 
     /**
      * Verify Email Address
