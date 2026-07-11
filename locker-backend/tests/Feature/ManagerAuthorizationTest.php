@@ -115,7 +115,7 @@ class ManagerAuthorizationTest extends TestCase
                 'pageClass' => ViewCompartment::class,
             ])
             ->callTableAction('grantAccess', data: [
-                'user_id' => $admin->id,
+                'user_ids' => [$admin->id],
                 'expires_at' => null,
                 'notes' => null,
             ])
