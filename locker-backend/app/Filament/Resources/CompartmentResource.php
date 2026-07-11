@@ -31,11 +31,27 @@ class CompartmentResource extends Resource
 
     protected static \BackedEnum|string|null $navigationIcon = 'heroicon-o-inbox-stack';
 
-    protected static ?string $navigationLabel = 'Compartments';
-
-    protected static string|\UnitEnum|null $navigationGroup = 'Operations';
-
     protected static ?int $navigationSort = 10;
+
+    public static function getNavigationLabel(): string
+    {
+        return __('Compartments');
+    }
+
+    public static function getNavigationGroup(): ?string
+    {
+        return __('Operations');
+    }
+
+    public static function getModelLabel(): string
+    {
+        return __('Compartment');
+    }
+
+    public static function getPluralModelLabel(): string
+    {
+        return __('Compartments');
+    }
 
     public static function canAccess(): bool
     {
@@ -63,22 +79,22 @@ class CompartmentResource extends Resource
     {
         return $schema->components([
             TextEntry::make('lockerBank.name')
-                ->label('Locker bank'),
+                ->label(__('Locker bank')),
             TextEntry::make('number')
-                ->label('Compartment')
+                ->label(__('Compartment'))
                 ->prefix('#'),
             TextEntry::make('door_state')
-                ->label('Door')
+                ->label(__('Door'))
                 ->badge()
-                ->formatStateUsing(fn (CompartmentDoorState $state): string => $state->value)
+                ->formatStateUsing(fn (CompartmentDoorState $state): string => $state->label())
                 ->color(fn (CompartmentDoorState $state): string => match ($state) {
                     CompartmentDoorState::Open => 'warning',
                     CompartmentDoorState::Closed => 'success',
                     CompartmentDoorState::Unknown => 'gray',
                 }),
             TextEntry::make('content_note')
-                ->label('Note')
-                ->placeholder('No note'),
+                ->label(__('Note'))
+                ->placeholder(__('No note')),
         ]);
     }
 
@@ -93,31 +109,31 @@ class CompartmentResource extends Resource
             ->defaultSort('lockerBank.name')
             ->columns([
                 Tables\Columns\TextColumn::make('lockerBank.name')
-                    ->label('Locker bank')
+                    ->label(__('Locker bank'))
                     ->searchable()
                     ->sortable(),
                 Tables\Columns\TextColumn::make('number')
-                    ->label('Compartment')
+                    ->label(__('Compartment'))
                     ->prefix('#')
                     ->sortable(),
                 Tables\Columns\TextColumn::make('door_state')
-                    ->label('Door')
+                    ->label(__('Door'))
                     ->badge()
-                    ->formatStateUsing(fn (CompartmentDoorState $state): string => $state->value)
+                    ->formatStateUsing(fn (CompartmentDoorState $state): string => $state->label())
                     ->color(fn (CompartmentDoorState $state): string => match ($state) {
                         CompartmentDoorState::Open => 'warning',
                         CompartmentDoorState::Closed => 'success',
                         CompartmentDoorState::Unknown => 'gray',
                     })
-                    ->placeholder('unknown'),
+                    ->placeholder(__('unknown')),
                 Tables\Columns\TextColumn::make('activeAccesses_count')
-                    ->label('Direct users')
+                    ->label(__('Direct users'))
                     ->counts('activeAccesses')
                     ->badge()
                     ->color('gray'),
                 Tables\Columns\TextColumn::make('content_note')
-                    ->label('Note')
-                    ->placeholder('No note')
+                    ->label(__('Note'))
+                    ->placeholder(__('No note'))
                     ->limit(40)
                     ->wrap()
                     ->tooltip(fn (Compartment $record): ?string => $record->content_note)
@@ -125,18 +141,18 @@ class CompartmentResource extends Resource
             ])
             ->filters([
                 SelectFilter::make('locker_bank_id')
-                    ->label('Locker bank')
+                    ->label(__('Locker bank'))
                     ->relationship('lockerBank', 'name')
                     ->searchable()
                     ->preload(),
             ])
             ->actions([
                 Action::make('access')
-                    ->label('Access')
+                    ->label(__('Access'))
                     ->icon('heroicon-m-key')
                     ->url(fn (Compartment $record): string => static::getUrl('view', ['record' => $record])),
                 Action::make('open')
-                    ->label('Open')
+                    ->label(__('Open'))
                     ->icon('heroicon-m-bolt')
                     ->requiresConfirmation()
                     ->visible(fn (Compartment $record): bool => (Filament::auth()->user()?->can(Permission::CompartmentOpen->value) ?? false)
@@ -146,8 +162,8 @@ class CompartmentResource extends Resource
                             $user = Filament::auth()->user();
                             if (! $user instanceof User) {
                                 Notification::make()
-                                    ->title('Unable to open compartment')
-                                    ->body('No authenticated user context available.')
+                                    ->title(__('Unable to open compartment'))
+                                    ->body(__('No authenticated user context available.'))
                                     ->danger()
                                     ->send();
 
@@ -157,8 +173,8 @@ class CompartmentResource extends Resource
                             $decision = app(CompartmentAccessService::class)->requestOpen($user, $record);
 
                             $notification = Notification::make()
-                                ->title($decision['authorized'] ? 'Open command accepted' : 'Open command denied')
-                                ->body("Compartment {$record->number} command ID: {$decision['command_id']}");
+                                ->title($decision['authorized'] ? __('Open command accepted') : __('Open command denied'))
+                                ->body(__('Compartment :number command ID: :command_id', ['number' => $record->number, 'command_id' => $decision['command_id']]));
 
                             $decision['authorized'] ? $notification->success() : $notification->danger();
 
@@ -172,7 +188,7 @@ class CompartmentResource extends Resource
                             ]);
 
                             Notification::make()
-                                ->title('Failed to queue open command')
+                                ->title(__('Failed to queue open command'))
                                 ->body($e->getMessage())
                                 ->danger()
                                 ->send();

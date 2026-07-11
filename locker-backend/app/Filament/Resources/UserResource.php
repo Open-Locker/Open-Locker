@@ -20,9 +20,27 @@ class UserResource extends Resource
 
     protected static \BackedEnum|string|null $navigationIcon = 'heroicon-o-rectangle-stack';
 
-    protected static string|\UnitEnum|null $navigationGroup = 'Operations';
-
     protected static ?int $navigationSort = 20;
+
+    public static function getNavigationGroup(): ?string
+    {
+        return __('Operations');
+    }
+
+    public static function getNavigationLabel(): string
+    {
+        return __('Users');
+    }
+
+    public static function getModelLabel(): string
+    {
+        return __('User');
+    }
+
+    public static function getPluralModelLabel(): string
+    {
+        return __('Users');
+    }
 
     public static function canAccess(): bool
     {
@@ -34,8 +52,10 @@ class UserResource extends Resource
         return $form
             ->schema([
                 Forms\Components\TextInput::make('first_name')
+                    ->label(__('First name'))
                     ->required(),
                 Forms\Components\TextInput::make('last_name')
+                    ->label(__('Last name'))
                     ->required(),
                 Forms\Components\TextInput::make('email')
                     ->email()
@@ -48,31 +68,38 @@ class UserResource extends Resource
         return $table
             ->columns([
                 Tables\Columns\TextColumn::make('first_name')
+                    ->label(__('First name'))
                     ->searchable(),
                 Tables\Columns\TextColumn::make('last_name')
+                    ->label(__('Last name'))
                     ->searchable(),
                 Tables\Columns\TextColumn::make('email')
+                    ->label(__('Email'))
                     ->searchable(),
                 Tables\Columns\TextColumn::make('email_verified_at')
+                    ->label(__('Email verified at'))
                     ->dateTime()
                     ->sortable(),
                 Tables\Columns\TextColumn::make('created_at')
+                    ->label(__('Created at'))
                     ->dateTime()
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),
                 Tables\Columns\TextColumn::make('updated_at')
+                    ->label(__('Updated at'))
                     ->dateTime()
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),
                 Tables\Columns\TextColumn::make('is_admin_since')
+                    ->label(__('Admin since'))
                     ->dateTime()
                     ->sortable(),
                 Tables\Columns\IconColumn::make('terms_current_accepted')
-                    ->label('Current terms accepted')
+                    ->label(__('Current terms accepted'))
                     ->boolean()
                     ->state(fn (User $record): bool => $record->hasAcceptedCurrentTerms()),
                 Tables\Columns\TextColumn::make('latest_terms_version')
-                    ->label('Last accepted terms version')
+                    ->label(__('Last accepted terms version'))
                     ->state(fn (User $record): ?int => $record->latestAcceptedTermsVersion())
                     ->placeholder('-'),
             ])
@@ -91,8 +118,8 @@ class UserResource extends Resource
 
                             if ($adminCount - $deletedAdmins < 1) {
                                 Notification::make()
-                                    ->title('Aktion abgebrochen')
-                                    ->body('Der letzte Admin kann nicht gelöscht werden.')
+                                    ->title(__('Action cancelled'))
+                                    ->body(__('The last admin cannot be deleted.'))
                                     ->danger()
                                     ->send();
                                 $action->cancel();

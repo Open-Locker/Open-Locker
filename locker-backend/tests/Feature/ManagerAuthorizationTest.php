@@ -49,9 +49,11 @@ class ManagerAuthorizationTest extends TestCase
     {
         $manager = $this->makeManager();
 
-        $response = $this->actingAs($manager)->get(route('filament.admin.pages.dashboard'));
+        // The panel has no dashboard; its root redirects to the first nav item.
+        // A redirect (rather than 403) confirms the manager can enter the panel.
+        $response = $this->actingAs($manager)->get(route('filament.admin.home'));
 
-        $response->assertSuccessful();
+        $response->assertRedirect();
     }
 
     public function test_manager_can_grant_compartment_access_to_a_user(): void
@@ -131,7 +133,7 @@ class ManagerAuthorizationTest extends TestCase
     {
         $user = $this->makeRegularUser();
 
-        $response = $this->actingAs($user)->get(route('filament.admin.pages.dashboard'));
+        $response = $this->actingAs($user)->get(route('filament.admin.home'));
 
         $response->assertForbidden();
     }
@@ -184,7 +186,7 @@ class ManagerAuthorizationTest extends TestCase
                 'pageClass' => \App\Filament\Resources\UserResource\Pages\EditUser::class,
             ])
             ->assertSuccessful()
-            ->assertSee('Grant access');
+            ->assertSee(__('Grant access'));
     }
 
     public function test_regular_user_does_not_see_grant_access_action(): void
@@ -197,7 +199,7 @@ class ManagerAuthorizationTest extends TestCase
                 'ownerRecord' => $target,
                 'pageClass' => \App\Filament\Resources\UserResource\Pages\EditUser::class,
             ])
-            ->assertDontSee('Grant access');
+            ->assertDontSee(__('Grant access'));
     }
 
     public function test_manager_cannot_see_role_management_action(): void

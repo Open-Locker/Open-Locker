@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Filament\Resources\CompartmentResource\RelationManagers;
 
 use App\Enums\Permission;
+use App\Filament\Support\AccessPickerOptions;
 use App\Models\Compartment;
 use App\Models\Group;
 use App\Models\GroupCompartmentAccess;
@@ -16,13 +17,17 @@ use Filament\Resources\RelationManagers\RelationManager;
 use Filament\Schemas\Schema;
 use Filament\Tables;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Carbon;
 
 class GroupAccessesRelationManager extends RelationManager
 {
     protected static string $relationship = 'groupAccesses';
 
-    protected static ?string $title = 'Groups';
+    public static function getTitle(\Illuminate\Database\Eloquent\Model $ownerRecord, string $pageClass): string
+    {
+        return __('Groups');
+    }
 
     public function form(Schema $form): Schema
     {
@@ -35,42 +40,45 @@ class GroupAccessesRelationManager extends RelationManager
             ->recordTitleAttribute('id')
             ->columns([
                 Tables\Columns\TextColumn::make('group.name')
-                    ->label('Group')
+                    ->label(__('Group'))
                     ->searchable()
                     ->sortable(),
                 Tables\Columns\TextColumn::make('granted_at')
+                    ->label(__('Granted at'))
                     ->dateTime()
                     ->sortable(),
                 Tables\Columns\TextColumn::make('expires_at')
+                    ->label(__('Expires at'))
                     ->dateTime()
-                    ->placeholder('Never')
+                    ->placeholder(__('Never'))
                     ->sortable(),
                 Tables\Columns\TextColumn::make('revoked_at')
+                    ->label(__('Revoked at'))
                     ->dateTime()
-                    ->placeholder('Active')
+                    ->placeholder(__('Active'))
                     ->sortable(),
                 Tables\Columns\TextColumn::make('notes')
+                    ->label(__('Notes'))
                     ->limit(40)
                     ->toggleable(),
             ])
             ->headerActions([
                 \Filament\Actions\Action::make('grantAccess')
-                    ->label('Grant group access')
+                    ->label(__('Grant group access'))
                     ->icon('heroicon-m-key')
                     ->visible(fn (): bool => $this->currentUserCanManageAccess())
                     ->form([
-                        Forms\Components\Select::make('group_id')
-                            ->label('Group')
+                        Forms\Components\Select::make('group_ids')
+                            ->label(__('Groups'))
                             ->required()
+                            ->multiple()
                             ->searchable()
-                            ->options(fn (): array => Group::query()
-                                ->orderBy('name')
-                                ->pluck('name', 'id')
-                                ->all()),
+                            ->options(fn (): array => $this->grantableGroupOptions()),
                         Forms\Components\DateTimePicker::make('expires_at')
-                            ->label('Expires at')
+                            ->label(__('Expires at'))
                             ->seconds(false),
                         Forms\Components\Textarea::make('notes')
+                            ->label(__('Notes'))
                             ->rows(3)
                             ->maxLength(2000),
                     ])
@@ -79,27 +87,33 @@ class GroupAccessesRelationManager extends RelationManager
                         $compartment = $this->getOwnerRecord();
                         /** @var User|null $actor */
                         $actor = Filament::auth()->user();
-                        /** @var Group $group */
-                        $group = Group::query()->findOrFail($data['group_id']);
 
                         $expiresAt = filled($data['expires_at'])
                             ? Carbon::parse($data['expires_at'])
                             : null;
 
-                        app(GroupAccessService::class)->grantCompartmentAccess(
-                            group: $group,
-                            compartment: $compartment,
-                            expiresAt: $expiresAt,
-                            notes: $data['notes'] ?? null,
-                            actor: $actor,
-                        );
+                        $service = app(GroupAccessService::class);
+
+                        $groups = Group::query()
+                            ->whereIn('id', $data['group_ids'])
+                            ->get();
+
+                        foreach ($groups as $group) {
+                            $service->grantCompartmentAccess(
+                                group: $group,
+                                compartment: $compartment,
+                                expiresAt: $expiresAt,
+                                notes: $data['notes'] ?? null,
+                                actor: $actor,
+                            );
+                        }
 
                         $this->resetTable();
                     }),
             ])
             ->actions([
                 \Filament\Actions\Action::make('revokeAccess')
-                    ->label('Revoke')
+                    ->label(__('Revoke'))
                     ->color('danger')
                     ->icon('heroicon-m-no-symbol')
                     ->visible(fn (GroupCompartmentAccess $record): bool => $this->currentUserCanManageAccess() && $record->revoked_at === null)
@@ -119,6 +133,31 @@ class GroupAccessesRelationManager extends RelationManager
                         $this->resetTable();
                     }),
             ]);
+    }
+
+    /**
+     * Groups that can be granted access to the owner compartment: excludes
+     * groups that already have active access to it.
+     *
+     * @return array<string, string>
+     */
+    private function grantableGroupOptions(): array
+    {
+        /** @var Compartment $compartment */
+        $compartment = $this->getOwnerRecord();
+
+        return AccessPickerOptions::groups(
+            Group::query()->whereDoesntHave(
+                'compartmentAccesses',
+                fn (Builder $query): Builder => $query
+                    ->where('compartment_id', $compartment->id)
+                    ->whereNull('revoked_at')
+                    ->where(function (Builder $builder): void {
+                        $builder->whereNull('expires_at')
+                            ->orWhere('expires_at', '>', now());
+                    })
+            )
+        );
     }
 
     private function currentUserCanManageAccess(): bool

@@ -129,6 +129,25 @@ services:
         command: "php artisan mqtt:listen"
         depends_on:
             <<: *worker_depends_on_dev
+        labels:
+            autoheal: "true"
+        healthcheck:
+            test: ["CMD", "php", "artisan", "mqtt:health"]
+            start_period: 15s
+            interval: 30s
+            timeout: 10s
+            retries: 3
+
+    # Restarts any container marked unhealthy + labelled `autoheal: "true"`.
+    # Plain Compose does not act on healthcheck status on its own (ADR-0025).
+    autoheal:
+        image: willfarrell/autoheal:latest
+        restart: unless-stopped
+        environment:
+            AUTOHEAL_CONTAINER_LABEL: autoheal
+            AUTOHEAL_INTERVAL: "10"
+        volumes:
+            - /var/run/docker.sock:/var/run/docker.sock
 
     scheduler:
         <<: *laravel_service_dev

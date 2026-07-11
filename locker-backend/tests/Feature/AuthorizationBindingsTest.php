@@ -115,4 +115,32 @@ class AuthorizationBindingsTest extends TestCase
         $this->assertNotNull($user->fresh()->is_admin_since);
         $this->assertTrue($user->fresh()->hasRole(Role::Admin->value));
     }
+
+    public function test_reseeding_does_not_resurrect_a_revoked_default_binding(): void
+    {
+        // Fresh install seeds the manager default bindings.
+        $this->seed(AuthorizationSeeder::class);
+
+        User::factory()->create(); // bootstrap admin
+        $manager = User::factory()->create();
+        UserRoleAggregate::retrieve(UserRoleAggregate::aggregateUuidFor($manager->id))
+            ->grantRole($manager->id, Role::Manager->value, null, now())
+            ->persist();
+        $manager->flushPermissionCache();
+        $this->assertTrue($manager->can(Permission::CompartmentOpen->value));
+
+        // Admin revokes a default binding at runtime.
+        RoleAggregate::retrieve(RoleAggregate::aggregateUuidFor(Role::Manager->value))
+            ->revokePermission(Role::Manager->value, Permission::CompartmentOpen->value, null, now())
+            ->persist();
+        $manager->flushPermissionCache();
+        $this->assertFalse($manager->can(Permission::CompartmentOpen->value));
+
+        // A subsequent deploy re-runs the seeder — the revocation must stick
+        // (ADR-0021: after the initial seed the DB is authoritative).
+        $this->seed(AuthorizationSeeder::class);
+        $manager->flushPermissionCache();
+
+        $this->assertFalse($manager->can(Permission::CompartmentOpen->value));
+    }
 }

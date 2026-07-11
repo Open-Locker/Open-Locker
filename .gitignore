@@ -121,6 +121,7 @@ docker/mosquitto/config/password.conf
 .ai/
 .claude/settings.local.json
 .tmp/
+.claude/settings.local.json
 hardware/models/spacer1.stl
 hardware/models/spacer2.stl
 hardware/models/fillets3d.scad

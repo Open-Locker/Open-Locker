@@ -124,4 +124,21 @@ return [
         'pass' => env('MOSQ_HTTP_PASS'),
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Listener Liveness Heartbeat
+    |--------------------------------------------------------------------------
+    |
+    | mqtt:listen writes a heartbeat timestamp to the cache on each loop
+    | iteration (throttled to `interval` seconds). mqtt:health reports unhealthy
+    | when the last heartbeat is older than `max_age` seconds. See ADR-0025.
+    |
+    */
+
+    'heartbeat' => [
+        'cache_key' => 'mqtt-listener:heartbeat',
+        'interval' => (int) env('MQTT_LISTENER_HEARTBEAT_INTERVAL', 10),
+        'max_age' => (int) env('MQTT_LISTENER_HEARTBEAT_MAX_AGE', 35),
+    ],
+
 ];

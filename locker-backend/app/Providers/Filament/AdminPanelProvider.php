@@ -4,17 +4,17 @@ namespace App\Providers\Filament;
 
 use App\Filament\Pages\Auth\EditProfile;
 use App\Filament\Pages\Auth\Register;
+use App\Http\Middleware\SetPanelLocale;
 use App\Models\User;
 use Filament\Http\Middleware\Authenticate;
 use Filament\Http\Middleware\AuthenticateSession;
 use Filament\Http\Middleware\DisableBladeIconComponents;
 use Filament\Http\Middleware\DispatchServingFilamentEvent;
-use Filament\Pages;
+use Filament\Navigation\NavigationGroup;
 use Filament\Panel;
 use Filament\PanelProvider;
 use Filament\Support\Enums\Width;
 use Filament\View\PanelsRenderHook;
-use Filament\Widgets;
 use Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse;
 use Illuminate\Cookie\Middleware\EncryptCookies;
 use Illuminate\Database\QueryException;
@@ -29,7 +29,16 @@ use PDOException;
 
 class AdminPanelProvider extends PanelProvider
 {
+    protected string $locale = 'en';
+
     public function panel(Panel $panel): Panel
+    {
+        return $this->configurePanel(
+            $panel->default()->id('admin')->path('en/admin'),
+        );
+    }
+
+    protected function configurePanel(Panel $panel): Panel
     {
         try {
             if (Schema::hasTable('users') && User::count() === 0) {
@@ -40,9 +49,6 @@ class AdminPanelProvider extends PanelProvider
         }
 
         return $panel
-            ->default()
-            ->id('admin')
-            ->path('admin')
             ->login()
             ->emailVerification()
             ->passwordReset()
@@ -68,21 +74,36 @@ class AdminPanelProvider extends PanelProvider
             ->favicon(asset('storage/assets/logo.svg', App::isProduction()))
             ->maxContentWidth(Width::Full)
             ->navigationGroups([
-                'Operations',
-                'Setup',
-                'Docs/Legal',
+                NavigationGroup::make(fn () => __('Operations')),
+                NavigationGroup::make(fn () => __('Setup')),
+                NavigationGroup::make(fn () => __('Docs/Legal')),
             ])
             ->sidebarWidth('300px')
             ->discoverResources(in: app_path('Filament/Resources'), for: 'App\\Filament\\Resources')
             ->discoverPages(in: app_path('Filament/Pages'), for: 'App\\Filament\\Pages')
-            ->pages([
-                Pages\Dashboard::class,
-            ])
             ->discoverWidgets(in: app_path('Filament/Widgets'), for: 'App\\Filament\\Widgets')
-            ->widgets([
-                Widgets\AccountWidget::class,
-                Widgets\FilamentInfoWidget::class,
-            ])
+            // No dashboard. With `/` free, Filament auto-registers a `home` route
+            // that redirects to the first navigation item — the Compartments list
+            // (Operations group, sort 10). The post-login redirect and brand-logo
+            // link both resolve through this `home` route, so they land on the
+            // current panel's Compartments index, locale-correct (en→en, de→de).
+            ->renderHook(
+                PanelsRenderHook::USER_MENU_BEFORE,
+                fn (): \Illuminate\Contracts\View\View => view('filament.locale-switcher', ['locale' => $this->locale])
+            )
+            // The topbar user menu shows only an avatar; surface the signed-in
+            // user's name + email as a hover tooltip on it.
+            ->renderHook(
+                PanelsRenderHook::USER_MENU_AFTER,
+                fn (): \Illuminate\Contracts\View\View => view('filament.user-menu-tooltip')
+            )
+            // The user menu does not exist on the pre-auth SimplePage layout
+            // (login, password reset, register, email verification), so render
+            // the switcher there too.
+            ->renderHook(
+                PanelsRenderHook::SIMPLE_PAGE_END,
+                fn (): \Illuminate\Contracts\View\View => view('filament.locale-switcher', ['locale' => $this->locale, 'center' => true])
+            )
             ->renderHook(
                 PanelsRenderHook::BODY_END,
                 fn (): \Illuminate\Contracts\View\View => view('filament.realtime-compartment-open-notifications')
@@ -101,6 +122,7 @@ class AdminPanelProvider extends PanelProvider
                 SubstituteBindings::class,
                 DisableBladeIconComponents::class,
                 DispatchServingFilamentEvent::class,
+                SetPanelLocale::class,
             ])
             ->authMiddleware([
                 Authenticate::class,
