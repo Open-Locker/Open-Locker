@@ -21,11 +21,11 @@ class GroupResource extends Resource
 
     protected static \BackedEnum|string|null $navigationIcon = 'heroicon-o-user-group';
 
-    protected static ?int $navigationSort = 30;
+    protected static ?int $navigationSort = 20;
 
     public static function getNavigationGroup(): ?string
     {
-        return __('Operations');
+        return __('Access management');
     }
 
     public static function getNavigationLabel(): string
