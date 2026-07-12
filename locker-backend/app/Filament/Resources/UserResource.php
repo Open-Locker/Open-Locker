@@ -3,12 +3,14 @@
 namespace App\Filament\Resources;
 
 use App\Enums\Permission;
+use App\Enums\Role;
 use App\Filament\Resources\UserResource\Pages;
 use App\Filament\Resources\UserResource\RelationManagers\CompartmentAccessesRelationManager;
 use App\Filament\Resources\UserResource\RelationManagers\GroupMembershipsRelationManager;
 use App\Models\User;
 use App\Services\UserAdministrationService;
 use Filament\Forms;
+use Filament\Infolists\Components\TextEntry;
 use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
@@ -93,12 +95,39 @@ class UserResource extends Resource
                     ->email()
                     ->required()
                     ->disabled(fn (?User $record): bool => $record instanceof User && ! self::canEdit($record)),
+                TextEntry::make('roles')
+                    ->label(__('Roles'))
+                    ->badge()
+                    ->state(fn (?User $record): array => $record instanceof User ? self::roleLabels($record) : [])
+                    ->visible(fn (?User $record): bool => $record instanceof User),
             ]);
+    }
+
+    /**
+     * Localized labels for the user's assigned roles; users without any
+     * stored role binding are plain users.
+     *
+     * @return list<string>
+     */
+    public static function roleLabels(User $user): array
+    {
+        $labels = [];
+
+        foreach ($user->roleNames() as $roleName) {
+            $role = Role::tryFrom($roleName);
+
+            if ($role !== null) {
+                $labels[] = $role->label();
+            }
+        }
+
+        return $labels === [] ? [Role::User->label()] : $labels;
     }
 
     public static function table(Table $table): Table
     {
         return $table
+            ->modifyQueryUsing(fn ($query) => $query->with('userRoles'))
             ->columns([
                 Tables\Columns\TextColumn::make('first_name')
                     ->label(__('First name'))
@@ -123,10 +152,10 @@ class UserResource extends Resource
                     ->dateTime()
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),
-                Tables\Columns\IconColumn::make('is_admin')
-                    ->label(__('Admin'))
-                    ->boolean()
-                    ->state(fn (User $record): bool => $record->isAdmin()),
+                Tables\Columns\TextColumn::make('roles')
+                    ->label(__('Roles'))
+                    ->badge()
+                    ->state(fn (User $record): array => self::roleLabels($record)),
                 Tables\Columns\IconColumn::make('terms_current_accepted')
                     ->label(__('Current terms accepted'))
                     ->boolean()
