@@ -2,9 +2,6 @@ name: MQTT Test CI
 
 on:
   pull_request:
-    branches:
-      - main
-      - dev
     paths:
       - 'docs/asyncapi/**'
       - 'locker-backend/app/**'
