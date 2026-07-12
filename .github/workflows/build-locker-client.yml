@@ -2,9 +2,6 @@ name: Build Locker Client
 
 on:
   pull_request:
-    branches:
-      - main
-      - dev
     paths:
       - 'locker-client/**'
       - '.github/workflows/build-locker-client.yml'

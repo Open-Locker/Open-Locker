@@ -5,9 +5,6 @@ name: Backend CI
 
 on:
   pull_request:
-    branches:
-      - main
-      - dev
     paths:
       - "locker-backend/**"
       - ".github/workflows/docker-ghcr.yml"
