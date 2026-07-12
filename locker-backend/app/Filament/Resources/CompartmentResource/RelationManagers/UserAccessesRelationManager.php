@@ -35,6 +35,10 @@ class UserAccessesRelationManager extends RelationManager
     {
         return $table
             ->recordTitleAttribute('id')
+            ->modifyQueryUsing(function (Builder $query): Builder {
+                /** @var Builder<CompartmentAccess> $query */
+                return $query->active();
+            })
             ->columns([
                 Tables\Columns\TextColumn::make('user.email')
                     ->label(__('User'))
@@ -54,11 +58,6 @@ class UserAccessesRelationManager extends RelationManager
                     ->label(__('Expires at'))
                     ->dateTime()
                     ->placeholder(__('Never'))
-                    ->sortable(),
-                Tables\Columns\TextColumn::make('revoked_at')
-                    ->label(__('Revoked at'))
-                    ->dateTime()
-                    ->placeholder(__('Active'))
                     ->sortable(),
                 Tables\Columns\TextColumn::make('notes')
                     ->label(__('Notes'))
@@ -107,7 +106,7 @@ class UserAccessesRelationManager extends RelationManager
                     ->label(__('Revoke'))
                     ->color('danger')
                     ->icon('heroicon-m-no-symbol')
-                    ->visible(fn (CompartmentAccess $record): bool => $this->currentUserCanManageAccess() && $record->revoked_at === null)
+                    ->visible(fn (): bool => $this->currentUserCanManageAccess())
                     ->requiresConfirmation()
                     ->action(function (CompartmentAccess $record): void {
                         /** @var Compartment $compartment */
