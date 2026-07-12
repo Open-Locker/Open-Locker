@@ -16,7 +16,7 @@ name: Mobile App Build
 
 on:
   push:
-    branches: [main, feat/19-mobile-internal-builds]   # TEMP: test build on feature branch
+    branches: [main]
     paths:
       - 'mobile-app/**'
       - '.github/workflows/mobile-app-build.yml'
