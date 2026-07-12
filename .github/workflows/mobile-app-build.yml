@@ -1,0 +1,126 @@
+# Builds internal test apps on every push to main that touches mobile-app/**.
+# Uses `eas build --local` on GitHub runners (free for public repos).
+# Signing credentials are fetched from EAS at build time via EXPO_TOKEN
+# (credentialsSource: remote) — so the keystore/cert do NOT need to be GitHub
+# secrets. Only EXPO_TOKEN is required.
+#
+# Required GitHub secret:
+#   EXPO_TOKEN  — expo.dev → Account → Access Tokens (scoped to merona-apps)
+# Plain (non-secret) value, set inline below:
+#   APP_ID_BASE = de.merona.openlocker
+#
+# See docs/adr/0028-mobile-internal-test-builds-ci.md for the decision record
+# and mobile-app/docs/internal-builds.md for the maintainer guide.
+
+name: Mobile App Build
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'mobile-app/**'
+      - '.github/workflows/mobile-app-build.yml'
+  workflow_dispatch: {}   # allow manual rebuild from the Actions tab
+
+concurrency:
+  group: mobile-build-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  APP_ID_BASE: de.merona.openlocker
+  EAS_BUILD_NO_EXPO_GO_WARNING: 'true'
+
+jobs:
+  android:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: mobile-app
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: mobile-app/pnpm-lock.yaml
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build Android (internal)
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: |
+          pnpm dlx eas-cli@latest build \
+            --local --non-interactive \
+            --profile production --platform android \
+            --output ./build/openlocker-android.apk
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: openlocker-android
+          path: mobile-app/build/openlocker-android.apk
+          if-no-files-found: error
+          retention-days: 14
+
+  ios:
+    runs-on: macos-26   # Xcode 26 / iOS 26 SDK — required by App Store Connect for uploads
+    defaults:
+      run:
+        working-directory: mobile-app
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: mobile-app/pnpm-lock.yaml
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build iOS (internal)
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: |
+          pnpm dlx eas-cli@latest build \
+            --local --non-interactive \
+            --profile production --platform ios \
+            --output ./build/openlocker-ios.ipa
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: openlocker-ios
+          path: mobile-app/build/openlocker-ios.ipa
+          if-no-files-found: error
+          retention-days: 14
+
+      # Uploads the build to TestFlight (App Store Connect beta — internal
+      # testing, not a public release). Uses the ASC API key stored on EAS.
+      # If ASC requires the app's numeric id, set submit.production.ios.ascAppId
+      # in eas.json.
+      - name: Submit to TestFlight
+        if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/feat/19-mobile-internal-builds'   # TEMP: allow TestFlight submit from feat/19 for testing
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+          APP_VARIANT: production   # so app.config.ts resolves the production bundle id (no .dev suffix)
+        run: |
+          pnpm dlx eas-cli@latest submit \
+            --non-interactive \
+            --profile production --platform ios \
+            --path ./build/openlocker-ios.ipa
