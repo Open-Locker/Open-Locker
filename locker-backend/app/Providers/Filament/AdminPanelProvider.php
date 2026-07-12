@@ -11,12 +11,10 @@ use Filament\Http\Middleware\AuthenticateSession;
 use Filament\Http\Middleware\DisableBladeIconComponents;
 use Filament\Http\Middleware\DispatchServingFilamentEvent;
 use Filament\Navigation\NavigationGroup;
-use Filament\Pages;
 use Filament\Panel;
 use Filament\PanelProvider;
 use Filament\Support\Enums\Width;
 use Filament\View\PanelsRenderHook;
-use Filament\Widgets;
 use Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse;
 use Illuminate\Cookie\Middleware\EncryptCookies;
 use Illuminate\Database\QueryException;
@@ -83,16 +81,21 @@ class AdminPanelProvider extends PanelProvider
             ->sidebarWidth('300px')
             ->discoverResources(in: app_path('Filament/Resources'), for: 'App\\Filament\\Resources')
             ->discoverPages(in: app_path('Filament/Pages'), for: 'App\\Filament\\Pages')
-            ->pages([
-                Pages\Dashboard::class,
-            ])
             ->discoverWidgets(in: app_path('Filament/Widgets'), for: 'App\\Filament\\Widgets')
-            ->widgets([
-                Widgets\AccountWidget::class,
-            ])
+            // No dashboard. With `/` free, Filament auto-registers a `home` route
+            // that redirects to the first navigation item — the Compartments list
+            // (Operations group, sort 10). The post-login redirect and brand-logo
+            // link both resolve through this `home` route, so they land on the
+            // current panel's Compartments index, locale-correct (en→en, de→de).
             ->renderHook(
                 PanelsRenderHook::USER_MENU_BEFORE,
                 fn (): \Illuminate\Contracts\View\View => view('filament.locale-switcher', ['locale' => $this->locale])
+            )
+            // The topbar user menu shows only an avatar; surface the signed-in
+            // user's name + email as a hover tooltip on it.
+            ->renderHook(
+                PanelsRenderHook::USER_MENU_AFTER,
+                fn (): \Illuminate\Contracts\View\View => view('filament.user-menu-tooltip')
             )
             // The user menu does not exist on the pre-auth SimplePage layout
             // (login, password reset, register, email verification), so render

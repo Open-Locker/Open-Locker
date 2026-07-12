@@ -40,7 +40,6 @@ graph TB
         LockerService["LockerService<br/>(Business Logic)"]
         AuthService["AuthController"]
         ItemService["ItemController"]
-        AdminService["AdminController"]
     end
     
     subgraph "Data Layer"
@@ -74,19 +73,16 @@ graph TB
     LaravelAPI --> AuthAPI
     LaravelAPI --> ItemAPI
     LaravelAPI --> LockerAPI
-    LaravelAPI --> AdminAPI
     
     %% Service Layer
     AuthAPI --> AuthService
     ItemAPI --> ItemService
     LockerAPI --> LockerService
-    AdminAPI --> AdminService
     
     %% Data Access
     AuthService --> Models
     ItemService --> Models
     LockerService --> Models
-    AdminService --> Models
     Models --> PostgresDB
     
     %% Hardware Communication (via MQTT + Locker Client)
@@ -163,7 +159,6 @@ graph TB
 
 - `GET /api/identify` - Service-Identifikation
 - `POST /api/login` - Benutzeranmeldung
-- `POST /api/register` - Benutzerregistrierung (Admin-only)
 
 #### Authenticated Endpoints
 
@@ -171,12 +166,6 @@ graph TB
 - `POST /api/items/{item}/borrow` - Item ausleihen
 - `POST /api/items/{item}/return` - Item zurückgeben
 - `GET /api/items/loan-history` - Persönliche Ausleihhistorie
-
-#### Admin Endpoints
-
-- `GET /api/admin/users` - Benutzerverwaltung
-- `GET /api/admin/lockers` - Schließfach-Übersicht
-- `POST /api/admin/lockers/{locker}/open` - Manuelles Öffnen
 
 ### Background Services
 
@@ -212,7 +201,7 @@ graph TB
 
 - **Authentication**: Sanctum Token-based
 - **Authorization**: Policy-basierte Zugriffskontrolle
-- **Admin Protection**: AdminMiddleware für administrative Endpunkte
+- **Admin Protection**: Filament and backend workflows use Laravel Gate permissions and event-sourced roles
 
 ### Hardware Security
 

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Filament\Resources\GroupResource\RelationManagers;
 
 use App\Enums\Permission;
+use App\Filament\Support\AccessPickerOptions;
 use App\Models\Compartment;
 use App\Models\Group;
 use App\Models\GroupCompartmentAccess;
@@ -16,6 +17,7 @@ use Filament\Resources\RelationManagers\RelationManager;
 use Filament\Schemas\Schema;
 use Filament\Tables;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Carbon;
 
 class CompartmentAccessesRelationManager extends RelationManager
@@ -69,23 +71,12 @@ class CompartmentAccessesRelationManager extends RelationManager
                     ->icon('heroicon-m-key')
                     ->visible(fn (): bool => $this->currentUserCanManageGroups())
                     ->form([
-                        Forms\Components\Select::make('compartment_id')
-                            ->label(__('Compartment'))
+                        Forms\Components\Select::make('compartment_ids')
+                            ->label(__('Compartments'))
                             ->required()
+                            ->multiple()
                             ->searchable()
-                            ->options(
-                                Compartment::query()
-                                    ->with('lockerBank')
-                                    ->get()
-                                    ->mapWithKeys(fn (Compartment $compartment): array => [
-                                        (string) $compartment->id => sprintf(
-                                            '%s / #%d',
-                                            $compartment->lockerBank->name,
-                                            (int) $compartment->number
-                                        ),
-                                    ])
-                                    ->all()
-                            ),
+                            ->options(fn (): array => $this->grantableCompartmentOptions()),
                         Forms\Components\DateTimePicker::make('expires_at')
                             ->label(__('Expires at'))
                             ->seconds(false),
@@ -99,20 +90,26 @@ class CompartmentAccessesRelationManager extends RelationManager
                         $group = $this->getOwnerRecord();
                         /** @var User|null $actor */
                         $actor = Filament::auth()->user();
-                        /** @var Compartment $compartment */
-                        $compartment = Compartment::query()->findOrFail($data['compartment_id']);
 
                         $expiresAt = filled($data['expires_at'])
                             ? Carbon::parse($data['expires_at'])
                             : null;
 
-                        app(GroupAccessService::class)->grantCompartmentAccess(
-                            group: $group,
-                            compartment: $compartment,
-                            expiresAt: $expiresAt,
-                            notes: $data['notes'] ?? null,
-                            actor: $actor,
-                        );
+                        $service = app(GroupAccessService::class);
+
+                        $compartments = Compartment::query()
+                            ->whereIn('id', $data['compartment_ids'])
+                            ->get();
+
+                        foreach ($compartments as $compartment) {
+                            $service->grantCompartmentAccess(
+                                group: $group,
+                                compartment: $compartment,
+                                expiresAt: $expiresAt,
+                                notes: $data['notes'] ?? null,
+                                actor: $actor,
+                            );
+                        }
 
                         $this->resetTable();
                     }),
@@ -139,6 +136,31 @@ class CompartmentAccessesRelationManager extends RelationManager
                         $this->resetTable();
                     }),
             ]);
+    }
+
+    /**
+     * Grantable compartments for the owner group: excludes compartments the
+     * group already has active access to.
+     *
+     * @return array<string, string>
+     */
+    private function grantableCompartmentOptions(): array
+    {
+        /** @var Group $group */
+        $group = $this->getOwnerRecord();
+
+        return AccessPickerOptions::compartments(
+            Compartment::query()->whereDoesntHave(
+                'groupAccesses',
+                fn (Builder $query): Builder => $query
+                    ->where('group_id', $group->id)
+                    ->whereNull('revoked_at')
+                    ->where(function (Builder $builder): void {
+                        $builder->whereNull('expires_at')
+                            ->orWhere('expires_at', '>', now());
+                    })
+            )
+        );
     }
 
     private function currentUserCanManageGroups(): bool
