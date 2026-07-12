@@ -19,15 +19,15 @@ push to main ──▶ GitHub Actions (.github/workflows/mobile-app-build.yml)
 
 ## Project facts
 
-| Thing | Value |
-|---|---|
-| EAS project | `@merona-apps/open-locker-mobile` |
-| EAS project ID | `4fabf71b-3500-458d-b89c-59eca6c6ce82` (committed default in `app.config.ts`, not secret) |
-| EAS account / owner | `merona-apps` |
-| Bundle ID (iOS + Android) | `de.merona.openlocker` (set via `APP_ID_BASE`) |
-| Apple Team | `UKC9C5ZQPC` (merona, Company/Organization) |
-| Google Play account | merona |
-| Build profile | `production` (so the same artifact can be promoted later) |
+| Thing                     | Value                                                                                     |
+| ------------------------- | ----------------------------------------------------------------------------------------- |
+| EAS project               | `@merona-apps/open-locker-mobile`                                                         |
+| EAS project ID            | `4fabf71b-3500-458d-b89c-59eca6c6ce82` (committed default in `app.config.ts`, not secret) |
+| EAS account / owner       | `merona-apps`                                                                             |
+| Bundle ID (iOS + Android) | `de.merona.openlocker` (set via `APP_ID_BASE`)                                            |
+| Apple Team                | `UKC9C5ZQPC` (merona, Company/Organization)                                               |
+| Google Play account       | merona                                                                                    |
+| Build profile             | `production` (so the same artifact can be promoted later)                                 |
 
 > ⚠️ `app.config.ts` **throws** for the `production` variant unless `APP_ID_BASE`
 > (or `APP_ID_BASE_IOS`/`APP_ID_BASE_ANDROID`) is set. CI sets it inline.
@@ -37,12 +37,12 @@ push to main ──▶ GitHub Actions (.github/workflows/mobile-app-build.yml)
 All signing material is stored on **EAS servers** (managed credentials). Nothing
 signing-related is committed to the repo.
 
-| Credential | Stored on | Owner / account | Notes |
-|---|---|---|---|
-| Android keystore (JKS) | EAS | merona-apps | alias `c8280910…`, created ~Mar 2026 |
-| iOS distribution certificate | EAS (+ Apple portal) | Apple Team `UKC9C5ZQPC` | **expires 2026-07-13** |
-| iOS provisioning profile | EAS (+ Apple portal) | Apple Team `UKC9C5ZQPC` | **expires 2026-07-13**, App Store type |
-| App Store Connect API key | EAS | Apple Team `UKC9C5ZQPC` | role ADMIN |
+| Credential                   | Stored on            | Owner / account         | Notes                                  |
+| ---------------------------- | -------------------- | ----------------------- | -------------------------------------- |
+| Android keystore (JKS)       | EAS                  | merona-apps             | alias `c8280910…`, created ~Mar 2026   |
+| iOS distribution certificate | EAS (+ Apple portal) | Apple Team `UKC9C5ZQPC` | **expires 2026-07-13**                 |
+| iOS provisioning profile     | EAS (+ Apple portal) | Apple Team `UKC9C5ZQPC` | **expires 2026-07-13**, App Store type |
+| App Store Connect API key    | EAS                  | Apple Team `UKC9C5ZQPC` | role ADMIN                             |
 
 > ⚠️ **iOS cert + profile expire 2026-07-13.** EAS auto-renews on the next build.
 > If the pipeline hasn't built by then, the first build triggers renewal.
@@ -51,8 +51,8 @@ signing-related is committed to the repo.
 
 The workflow only needs one secret:
 
-| Secret | What | Source |
-|---|---|---|
+| Secret       | What                  | Source                                                  |
+| ------------ | --------------------- | ------------------------------------------------------- |
 | `EXPO_TOKEN` | EAS auth token for CI | expo.dev → Account → Access Tokens (scope: merona-apps) |
 
 `APP_ID_BASE=de.merona.openlocker` is a non-secret env var set inline in the
@@ -60,17 +60,18 @@ workflow. With `EXPO_TOKEN`, `eas build --local` fetches signing credentials fro
 EAS at build time (`credentialsSource: remote`) — no keystore/cert secrets needed.
 
 ### Fallback: injecting credentials as secrets
+
 If remote fetch ever fails non-interactively, pull the credentials locally
 (below) and add them as base64 secrets, reconstructing `credentials.json` in the
 workflow before the build:
 
-| Secret | From |
-|---|---|
-| `ANDROID_KEYSTORE_BASE64` | `base64 -i credentials/android/keystore.jks` |
-| `ANDROID_KEYSTORE_PASSWORD` / `ANDROID_KEY_ALIAS` / `ANDROID_KEY_PASSWORD` | `credentials.json` |
-| `IOS_DIST_CERT_BASE64` | `base64 -i credentials/ios/dist-cert.p12` |
-| `IOS_DIST_CERT_PASSWORD` | `credentials.json` |
-| `IOS_PROVISIONING_PROFILE_BASE64` | `base64 -i credentials/ios/profile.mobileprovision` |
+| Secret                                                                     | From                                                |
+| -------------------------------------------------------------------------- | --------------------------------------------------- |
+| `ANDROID_KEYSTORE_BASE64`                                                  | `base64 -i credentials/android/keystore.jks`        |
+| `ANDROID_KEYSTORE_PASSWORD` / `ANDROID_KEY_ALIAS` / `ANDROID_KEY_PASSWORD` | `credentials.json`                                  |
+| `IOS_DIST_CERT_BASE64`                                                     | `base64 -i credentials/ios/dist-cert.p12`           |
+| `IOS_DIST_CERT_PASSWORD`                                                   | `credentials.json`                                  |
+| `IOS_PROVISIONING_PROFILE_BASE64`                                          | `base64 -i credentials/ios/profile.mobileprovision` |
 
 ## Using credentials locally
 
@@ -79,6 +80,7 @@ cd mobile-app
 APP_ID_BASE=de.merona.openlocker eas credentials --platform ios     # → production → credentials.json → Download
 APP_ID_BASE=de.merona.openlocker eas credentials --platform android # → production → credentials.json → Download
 ```
+
 This writes (all **gitignored**, never commit): `credentials.json`,
 `credentials/ios/dist-cert.p12`, `credentials/ios/profile.mobileprovision`,
 `credentials/android/keystore.jks`.
@@ -112,6 +114,7 @@ The Android job uploads an installable `.apk` as a GitHub Actions artifact.
      (or drag-and-drop the `.apk` onto the emulator window).
 
    Download the artifact from the CLI instead of the browser:
+
    ```bash
    gh run download <run-id> -n openlocker-android -D ./apk
    adb install ./apk/openlocker-android.apk
@@ -134,17 +137,19 @@ TestFlight. The iOS job runs `eas submit`, which uploads the build to TestFlight
 ## Manual rebuild
 
 From the GitHub Actions tab use **Run workflow** (`workflow_dispatch`), or locally:
+
 ```bash
 cd mobile-app
 APP_ID_BASE=de.merona.openlocker eas build --local --profile production --platform android
 APP_ID_BASE=de.merona.openlocker eas build --local --profile production --platform ios
 ```
+
 (Local builds need Java/Android SDK for Android and Xcode for iOS.)
 
 ## Prerequisites on the Apple side (one-time)
 
-iOS `eas submit` will fail with *"A required agreement is missing or has
-expired"* until the **Account Holder/Admin** signs the pending agreement in
+iOS `eas submit` will fail with _"A required agreement is missing or has
+expired"_ until the **Account Holder/Admin** signs the pending agreement in
 **App Store Connect → Business** (Agreements, Tax, and Banking). This is an
 Apple-account action, not a pipeline change. After signing, re-run the workflow
 and the TestFlight submit completes.
