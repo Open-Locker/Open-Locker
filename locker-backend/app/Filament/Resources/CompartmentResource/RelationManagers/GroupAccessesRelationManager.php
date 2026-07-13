@@ -12,13 +12,11 @@ use App\Models\GroupCompartmentAccess;
 use App\Models\User;
 use App\Services\GroupAccessService;
 use Filament\Facades\Filament;
-use Filament\Forms;
 use Filament\Resources\RelationManagers\RelationManager;
 use Filament\Schemas\Schema;
 use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Support\Carbon;
 
 class GroupAccessesRelationManager extends RelationManager
 {
@@ -67,30 +65,18 @@ class GroupAccessesRelationManager extends RelationManager
                     ->label(__('Grant group access'))
                     ->icon('heroicon-m-key')
                     ->visible(fn (): bool => $this->currentUserCanManageAccess())
-                    ->form([
-                        Forms\Components\Select::make('group_ids')
-                            ->label(__('Groups'))
-                            ->required()
-                            ->multiple()
-                            ->searchable()
-                            ->options(fn (): array => $this->grantableGroupOptions()),
-                        Forms\Components\DateTimePicker::make('expires_at')
-                            ->label(__('Expires at'))
-                            ->seconds(false),
-                        Forms\Components\Textarea::make('notes')
-                            ->label(__('Notes'))
-                            ->rows(3)
-                            ->maxLength(2000),
-                    ])
+                    ->form(AccessPickerOptions::grantForm(
+                        'group_ids',
+                        __('Groups'),
+                        fn (): array => $this->grantableGroupOptions(),
+                    ))
                     ->action(function (array $data): void {
                         /** @var Compartment $compartment */
                         $compartment = $this->getOwnerRecord();
                         /** @var User|null $actor */
                         $actor = Filament::auth()->user();
 
-                        $expiresAt = filled($data['expires_at'])
-                            ? Carbon::parse($data['expires_at'])
-                            : null;
+                        $expiresAt = AccessPickerOptions::parseExpiresAt($data);
 
                         $service = app(GroupAccessService::class);
 

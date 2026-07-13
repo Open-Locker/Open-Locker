@@ -7,7 +7,12 @@ namespace App\Filament\Support;
 use App\Models\Compartment;
 use App\Models\Group;
 use App\Models\User;
+use Filament\Forms\Components\DateTimePicker;
+use Filament\Forms\Components\Field;
+use Filament\Forms\Components\Select;
+use Filament\Forms\Components\Textarea;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Carbon;
 
 /**
  * Shared option builders for admin-panel assignment pickers, so compartment,
@@ -19,6 +24,62 @@ use Illuminate\Database\Eloquent\Builder;
  */
 final class AccessPickerOptions
 {
+    /**
+     * Shared assignment picker: a required, multiple, searchable select whose
+     * options come from one of the builders below. Used by every access/member
+     * grant form so the pickers stay consistent (see issue #127).
+     *
+     * @param  callable(): array<string, string>  $options
+     */
+    public static function select(string $name, string $label, callable $options): Select
+    {
+        return Select::make($name)
+            ->label($label)
+            ->required()
+            ->multiple()
+            ->searchable()
+            ->options($options);
+    }
+
+    /**
+     * Complete grant/assignment form: the shared picker plus the common
+     * `expires_at` (and optionally `notes`) fields, so every grant modal
+     * stays field-for-field identical (see issue #127).
+     *
+     * @param  callable(): array<string, string>  $options
+     * @return array<int, Field>
+     */
+    public static function grantForm(string $name, string $label, callable $options, bool $withNotes = true): array
+    {
+        $fields = [
+            self::select($name, $label, $options),
+            DateTimePicker::make('expires_at')
+                ->label(__('Expires at'))
+                ->seconds(false),
+        ];
+
+        if ($withNotes) {
+            $fields[] = Textarea::make('notes')
+                ->label(__('Notes'))
+                ->rows(3)
+                ->maxLength(2000);
+        }
+
+        return $fields;
+    }
+
+    /**
+     * Parse the optional `expires_at` value submitted by a grant form.
+     *
+     * @param  array<string, mixed>  $data
+     */
+    public static function parseExpiresAt(array $data): ?Carbon
+    {
+        $value = $data['expires_at'] ?? null;
+
+        return filled($value) ? Carbon::parse($value) : null;
+    }
+
     /**
      * Compartments sorted by locker bank name, then compartment number,
      * labelled "{locker bank name} / #{compartment number}".
