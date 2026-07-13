@@ -233,7 +233,9 @@ properties. RelationManager titles use the static
 ## Supersedes / Superseded By
 
 - Supersedes: none
-- Superseded by: none
+- Superseded by: ADR-0029 (admin-panel section only — single panel with a
+  session-stored locale; the API `Accept-Language` mechanism in this ADR
+  remains in force)
 
 ## References
 
