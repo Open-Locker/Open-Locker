@@ -12,7 +12,6 @@ use App\Http\Resources\CompartmentOpenDecisionResource;
 use App\Http\Resources\CompartmentOpenStatusResource;
 use App\Models\Compartment;
 use App\Models\CompartmentOpenRequest;
-use App\Models\LockerBank;
 use App\Services\CompartmentAccessService;
 use App\Services\CompartmentService;
 use Illuminate\Http\JsonResponse;
@@ -25,40 +24,11 @@ class CompartmentController extends Controller
      *
      * @response AccessibleCompartmentsResource
      */
-    public function accessible(Request $request): JsonResponse
+    public function accessible(Request $request, CompartmentAccessService $compartmentAccessService): JsonResponse
     {
-        $user = $request->user();
+        $lockerBanks = $compartmentAccessService->accessibleLockerBanksFor($request->user());
 
-        $lockerBanksQuery = LockerBank::query()
-            ->orderBy('name');
-
-        if ($user->isAdmin()) {
-            $lockerBanksQuery->with([
-                'compartments' => fn ($query) => $query
-                    ->orderBy('number'),
-            ]);
-        } else {
-            // A compartment is accessible if reachable directly OR via a group.
-            $accessibleToUser = function ($query) use ($user): void {
-                $query
-                    ->whereHas('accesses', function ($accessQuery) use ($user): void {
-                        $accessQuery->where('user_id', $user->id)->active();
-                    })
-                    ->orWhereHas('userGroupAccesses', function ($groupQuery) use ($user): void {
-                        $groupQuery->where('user_id', $user->id)->active();
-                    });
-            };
-
-            $lockerBanksQuery
-                ->whereHas('compartments', $accessibleToUser)
-                ->with([
-                    'compartments' => fn ($query) => $query
-                        ->where($accessibleToUser)
-                        ->orderBy('number'),
-                ]);
-        }
-
-        return (new AccessibleCompartmentsResource($lockerBanksQuery->get()))->response();
+        return (new AccessibleCompartmentsResource($lockerBanks))->response();
     }
 
     /**

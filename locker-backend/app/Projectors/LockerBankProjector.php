@@ -10,11 +10,10 @@ use App\StorableEvents\LockerConfigAcknowledged;
 use App\StorableEvents\LockerConnectionLost;
 use App\StorableEvents\LockerConnectionRestored;
 use App\StorableEvents\LockerWasProvisioned;
-use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Support\Carbon;
 use Spatie\EventSourcing\EventHandlers\Projectors\Projector;
 
-class LockerBankProjector extends Projector implements ShouldQueue
+class LockerBankProjector extends Projector
 {
     public function onCompartmentStateChangesApplied(CompartmentStateChangesApplied $event): void
     {

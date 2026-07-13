@@ -2,9 +2,6 @@ name: MQTT Test CI
 
 on:
   pull_request:
-    branches:
-      - main
-      - dev
     paths:
       - 'docs/asyncapi/**'
       - 'locker-backend/app/**'
@@ -75,6 +72,12 @@ jobs:
 
       - name: Install Composer dependencies
         run: composer install --no-interaction --prefer-dist --no-progress
+
+      - name: Check formatting (Pint)
+        run: composer format-check
+
+      - name: Static analysis (PHPStan)
+        run: composer analyse
 
       - name: Run backend test suite
         run: composer test

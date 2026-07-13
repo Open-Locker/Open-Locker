@@ -1,236 +1,378 @@
-# ADR-0021: Capability-based access control with an event-sourced role model
+# ADR-0021: Capability-based access control with static role-permission bindings
 
 ## Status
 
-Proposed
+Accepted
 
 ## Date
 
-2026-06-13
+2026-06-17
 
 ## Context
 
-Authorization today is a **single binary flag**. `users.is_admin_since` (a timestamp)
-backs `User::isAdmin()`, and that one predicate is checked **ad hoc at ~12 call sites**:
+Authorization previously used a single binary flag. `users.is_admin_since`
+backed `User::isAdmin()`, and that predicate was checked ad hoc across panel
+access, API middleware, services, Filament resources, and domain workflows. The
+model was strictly admin / not-admin.
 
-- `User::canAccessPanel()` — Filament panel access (`isAdmin()` only).
-- `AdminMiddleware` — API guard (`isAdmin()` only).
-- `CompartmentAccessService::ensureCanManageAccess()` — grant/revoke compartment access (admins only).
-- `CompartmentAccessService::requestOpen()` — sets `authorizationType` (`'admin_override'` for admins;
-  `'granted_access'` / `'group_access'` for users, per ADR-0020).
-- `GroupAccessService::ensureCanManage…()` — group management (admins only).
-- Filament resources / relation managers (`UserResource`, `GroupResource`, `EditUser`) — assume every
-  panel user is a full admin.
-
-There are **no roles, no permissions, no Policies, and no Gates**. The model is strictly admin / not-admin.
-`spatie/laravel-permission` is **not installed** (it appears in `composer.lock` only as a `suggest` of
-`dedoc/scramble`).
-
-#95 requires a **`manager` role** for day-to-day operations: a manager may manage compartment access and
-regular users across all locker banks, and open any compartment, but must **not** grant elevated roles,
-change locker-bank technical config (Modbus `slave_id`/`address`, provisioning, heartbeat), or touch
+#95 requires a `manager` role for day-to-day operations: a manager may manage
+regular users, manage compartment access, and open any compartment, but must not
+grant elevated roles, change locker-bank technical configuration, or touch
 legal/system configuration. Admin must remain a strict superset of manager.
 
-The core problem is structural, not "add one more role": **binary role-identity checks do not compose.**
-Adding `manager` means rewriting every call site with a different bespoke boolean (`isAdmin() ||
-isManager()` here, `isAdmin()`-only there), with N capabilities × M roles of scattered logic. Missing one
-site is a silent privilege hole, and there is nothing central to test.
+The core problem is structural: role-identity checks do not compose. Adding
+`manager` by scattering `isAdmin() || isManager()` style logic would make the
+role-capability mapping hard to audit and easy to miss at individual call sites.
 
-Constraints:
-- Role changes (grant/revoke) **must be event-sourced** with **actor/audit** (who, what, when) — #95.
-- The existing **first-user-becomes-admin bootstrap** must be preserved and made auditable.
-- Must integrate consistently across Filament, API middleware, services, resources, and broadcasts.
-- Should stay consistent with the existing aggregate → projector → read-model pattern (ADR-0016/0020).
+The implementation also needs an audit trail for user-role assignment changes.
+Changing which users hold `admin` or `manager` is operational domain state, so it
+fits the existing aggregate -> event -> projector pattern. By contrast, roles,
+permissions, and role-permission bindings are code-owned authorization
+configuration: the application checks specific permission names, and changing
+what a role can do should be reviewed and deployed with the code that depends on
+those permissions.
 
 ## Decision
 
-Introduce a **capability-based** authorization model: code checks **permissions**, not role identity.
-Roles are named bundles of permissions; users hold roles; role **assignment** is **event-sourced**.
+Introduce a capability-based authorization model built on Laravel Gate. Code
+checks permissions, not role identity.
 
-**1. Enforcement layer — `spatie/laravel-permission`, checked as permissions.**
-Adopt `spatie/laravel-permission` as the role/permission engine and Gate integration. Every ad-hoc
-`isAdmin()` call site is replaced with a **permission** check, never a role-identity check:
+### Static Authorization Enums
+
+The backend enums are the single source of truth for:
+
+- The permissions the application may check.
+- The roles that may be assigned to users.
+- The static role -> permission bindings used at runtime.
+
+Example:
 
 ```php
-$user->can('compartment.access.manage')   // service / controller
-$this->authorize('compartment.open')       // controller guard
-@can('users.manage')                        // Filament / Blade
-->middleware('permission:panel.access')     // routes
+enum Permission: string
+{
+    case PanelAccess = 'panel.access';
+    case UsersManage = 'users.manage';
+
+    public function description(): string
+    {
+        return match ($this) {
+            self::PanelAccess => 'Allows a user to sign in to the Filament admin panel.',
+            self::UsersManage => 'Allows viewing and managing user records...',
+        };
+    }
+}
+
+enum Role: string
+{
+    case User = 'user';
+    case Manager = 'manager';
+    case Admin = 'admin';
+
+    public function permissions(): array
+    {
+        return match ($this) {
+            self::User => [],
+            self::Manager => [
+                Permission::PanelAccess,
+                Permission::UsersManage,
+                Permission::CompartmentAccessManage,
+                Permission::CompartmentOpen,
+            ],
+            self::Admin => Permission::cases(),
+        };
+    }
+}
 ```
 
-**2. Permission catalog and role→permission map — static config, seeded in code.**
-These are system configuration (not runtime data), version-controlled and identical across environments,
-defined in a seeder:
+The enum model is developer-owned and version-controlled. There is no admin UI for
+editing roles, permissions, or role-permission bindings at runtime. Changes to
+the map require a code change, review, and deploy. Permission descriptions live
+on `Permission::description()` so reviewers can understand the intended scope
+without looking up call sites first. `Role::permissions()` provides the static
+role -> permission bindings with IDE/refactor support and no duplicate config.
 
-| Permission | user | manager | admin |
-|---|---|---|---|
-| `panel.access` | — | ✓ | ✓ |
-| `users.manage` | — | ✓ | ✓ |
-| `compartment.access.manage` | — | ✓ | ✓ |
-| `compartment.open` | — | ✓ | ✓ |
-| `roles.manage` (grant/revoke roles) | — | — | ✓ |
-| `lockerbank.configure` (Modbus `slave_id`/`address`, provisioning, heartbeat) | — | — | ✓ |
-| `system.configure` (legal/system resources) | — | — | ✓ |
+### Event-Sourced User-Role Assignments
 
-`admin` is a strict superset of `manager`. Regular `user` holds none (no panel access). The map lives in
-**exactly one place**; adding a future role = edit the seeder, not the call sites.
+The database/event stream tracks only user -> role assignments:
 
-**3. Source of truth — event-sourced role assignment.**
-A new `UserRoleAggregate` (keyed by user UUID) records `UserRoleGranted` and `UserRoleRevoked`, each
-carrying the **target user, role, actor (granter) user id, and timestamp**. A `UserRoleProjector`
-reacts by maintaining spatie's assignment tables (`$user->assignRole()` / `removeRole()`).
-**Controllers/Filament never call `assignRole()` directly** — they record an event; the projector is the
-only writer of the spatie assignment tables. (Permission/role *definitions* are seeded, not event-sourced
-— they are static config, not auditable domain state.)
+- `UserRoleAggregate` records `UserRoleGranted` and `UserRoleRevoked`.
+- `UserRoleProjector` maintains the `user_roles` read model.
+- Filament user administration may assign or revoke roles, but it records events
+  instead of writing the read model directly.
 
+Runtime-editable role -> permission bindings are intentionally deferred. There
+is no `role_permissions` read model, no `RoleAggregate`, no
+`RolePermissionGranted` / `RolePermissionRevoked` events, and no per-role
+permission-management UI in this accepted direction. A defensive migration drops
+the obsolete `role_permissions` table if an environment already ran an earlier
+draft of this PR.
+
+### Enforcement
+
+`HasPermissions` resolves a user's effective permissions by loading their roles
+from `user_roles` and applying the static bindings from `Role::permissions()`.
+
+`AuthorizationServiceProvider` registers one `Gate::before` hook:
+
+- `admin` is the super-role and passes every ability check unconditionally.
+- Any ability that exists in the `Permission` enum resolves through
+  `$user->hasPermission($ability)`.
+- Unknown abilities fall through to normal Gates and Policies.
+
+This keeps Laravel's standard authorization API unchanged:
+
+```php
+$user->can(Permission::CompartmentOpen->value);
+$this->authorize(Permission::UsersManage->value);
+->middleware('can:panel.access');
 ```
-UI / API "grant manager"  →  UserRoleAggregate::grantRole()  →  UserRoleGranted (actor, role, at)
-                                                                      ↓ UserRoleProjector
-                                                                 $user->assignRole('manager')
-                                                                      ↓
-                              code:  $user->can('compartment.access.manage')   ← spatie, just works
-```
 
-**4. Bootstrap — first user becomes admin, as an auditable event.**
-Replace the `User::booted()` `static::created` hook's direct `is_admin_since` write with a
-**system-initiated `UserRoleGranted(role: admin, actor: system)`** event on first registration. Behavior
-is preserved (first user is admin) and now auditable. `isAdmin()` is reimplemented as
-`hasRole('admin')` (kept as a thin convenience over the new model so existing references compile during
-migration); the admin-deletion guard is preserved against the `admin` role.
+### Bootstrap and Legacy Admins
 
-**5. Open authorization type — add `manager_override`.**
-`requestOpen()` gains a distinct `authorizationType: 'manager_override'` for manager-initiated opens,
-parallel to the existing `'admin_override'` / `'granted_access'` / `'group_access'` (ADR-0020), for audit
-clarity rather than overloading `admin_override`.
+The first-user bootstrap is represented as a system-initiated
+`UserRoleGranted(admin)` event. `isAdmin()` is a thin role-identity helper over
+the event-sourced `user_roles` read model for places that need to reason about
+the edited user's role identity rather than an actor's capability.
 
-**6. Management UI — a purpose-built, admin-only Filament action; not `filament-shield`.**
-Granting/revoking a user's role is exposed as an **admin-only action on the existing `UserResource`**
-(visible only with `roles.manage`) that records a `UserRoleGranted` / `UserRoleRevoked` event — never a
-direct `assignRole()`. We deliberately do **not** adopt `bezhanSalleh/filament-shield` as the management
-UI, for two reasons: (a) its assignment UI writes spatie's tables **directly**, bypassing the event store
-and breaking decision 3's audit requirement; and (b) its generator produces **Filament-CRUD-shaped**
-permissions (`view_user`, `delete_locker`, …) that only partially overlap our **operational** catalog
-(`compartment.open`, `compartment.access.manage`), so it would not remove the need to hand-define those.
-Because we must emit events from the action anyway, a thin custom action is simpler than bending shield.
-Shield may *optionally* be used later as a one-off scaffold to draft the static-definition seeder (decision
-2), but it is **not a runtime dependency** of this decision. The permission/role **definition** screens
-(decision 2) are not exposed in the UI at all — they are code-seeded and admin-only by construction.
+`users.is_admin_since` is not retained as a second source of truth. The deploy
+migration `2026_07_11_000001_backfill_admin_roles_and_drop_is_admin_since`
+backfills legacy admins into `user_roles` through `UserRoleAggregate`, then drops
+the column. Normal seeders do not backfill production authorization data. The
+migration should be tested against a production-like database before rollout;
+rollback recreates the legacy column from currently-held admin roles and cannot
+restore historical revoked admin timestamps.
 
-## Rationale
+### Open Authorization Type
 
-Checking permissions instead of roles is the whole point: it makes authorization **compose** and
-centralizes the role→capability decision, eliminating the scattered-boolean problem. `spatie/laravel-permission`
-is the mature, free (MIT) Laravel standard for this, registers as native Gates (so Filament, `authorize()`,
-middleware, and Blade all work with zero glue), and gives us the permission entity we'd otherwise hand-build.
+Manager-initiated compartment opens use `authorizationType:
+'manager_override'`, parallel to the existing `admin_override`,
+`granted_access`, and `group_access` values from ADR-0020. Realtime compartment
+status broadcasts include users with direct/group access and users whose roles
+hold `compartment.open` (currently admins and managers), so operational managers
+see state changes for compartments they are allowed to operate.
 
-Its one mismatch with this repo is that it is **DB-mutation-based** (`assignRole()` writes tables directly),
-which conflicts with #95's event-sourcing rule. We resolve that with the established
-aggregate → projector pattern: **events are the source of truth and the only audit record; the projector
-keeps spatie's tables in sync; the check side is pure spatie.** This confines the seam to one projector and
-keeps every read/enforcement path idiomatic. Definitions stay seeded because "what a manager may do" is
-static configuration, not an audited per-actor event.
+### Management UI
+
+The admin UI supports assigning roles to users for actors with `roles.manage`.
+It does not support editing role-permission bindings. The role-permission map is
+intentionally managed in the `Role` enum.
+
+Filament actions delegate sensitive user mutations to services so authorization
+is enforced server-side, independent of button visibility. Manager-safe user
+management uses `UserAdministrationService`; compartment access grants/revokes
+are guarded in `CompartmentAccessService`.
+
+Managers hold `users.manage`, `groups.manage`, and `system.configure` so they
+can manage regular user records, groups, and legal/terms resources. They do not
+hold `roles.manage` or `lockerbank.configure`, so they cannot grant elevated
+roles or change hardware/locker-bank setup. Filament user management enforces
+this at record level: managers may list and view users with the `admin` role,
+but cannot edit, delete, reset credentials for, grant compartment access to, or
+otherwise mutate those accounts, and they cannot assign or revoke roles. Admins
+remain the super-role and can manage all user records.
+
+Managers also hold `compartment.access.manage`; in addition to direct access
+grant/revoke workflows, this covers operational content-note maintenance for any
+compartment. Regular users may still update notes only for compartments they can
+access directly or through a group.
+
+The legacy `/api/admin/*` endpoints are removed from this slice because they are
+not currently used and did not have manager-safe requirements. Future API user
+management should be reintroduced with explicit permission-scoped contracts
+rather than restoring the old binary admin controller.
 
 ## Alternatives Considered
 
-### Alternative A: Hand-rolled roles + capability map via Laravel Gates (no package)
+### Alternative A: `spatie/laravel-permission`
 
-- Pros: no new dependency; no dual-write seam (a `UserRoleProjector` can own a plain `role` column/table
-  natively); minimal surface for exactly 3 roles; fully event-source-native.
-- Cons: we re-implement the permission entity, the role→permission map, assignment APIs, and caching that
-  spatie already provides; no Filament management UI; more bespoke code to test and maintain as roles grow.
-- Why not chosen: the permission-check ergonomics and Gate/Filament integration are exactly what we want,
-  and re-building them is avoidable work. Spatie's only real downside (direct writes) is neutralized by the
-  projector seam we need anyway. Worth revisiting if the spatie dual-write proves to be more friction than
-  the saved code is worth.
+- Pros: mature package, prebuilt role/permission helpers, native Gate
+  integration, permission caching.
+- Cons: roles and permissions are database rows, creating a second source of
+  truth beside the code-owned enums; role assignment changes still need the event
+  store for audit; runtime CRUD encourages editing authorization structure that
+  this project keeps code-owned.
+- Why not chosen: the project needs a small, explicit resolver over static
+  enums and event-sourced user-role assignments, not a second authorization
+  data model.
 
-### Alternative B: Adopt spatie *and* manage assignment directly (no event sourcing)
+### Alternative B: Runtime-editable role-permission bindings
 
-- Pros: simplest possible integration — use `assignRole()` from controllers/Filament as documented.
-- Cons: violates #95's explicit "role changes must be event-sourced / auditable" requirement; no actor
-  trail; inconsistent with the rest of the domain (ADR-0016/0020).
-- Why not chosen: directly contradicts a hard requirement.
+- Pros: admins could change what a manager may do without a deploy.
+- Cons: more moving parts (`role_permissions`, aggregate, events, projector,
+  UI, cache invalidation, replay concerns) for a small permission set; a runtime
+  toggle can drift from code expectations and changes operational blast radius
+  without code review.
+- Why not chosen: deferred until there is a clear product need. For now,
+  role-permission changes are code-reviewed enum changes.
 
-### Alternative C: Keep role-identity checks (`hasAnyRole(['admin','manager'])`) instead of permissions
+### Alternative C: Role-identity checks
 
-- Pros: slightly less upfront setup (no permission catalog).
-- Cons: still scatters the role→capability mapping across call sites — the exact problem we set out to
-  fix; every new role re-touches every site.
-- Why not chosen: defeats the purpose; permissions are the indirection that makes this maintainable.
+- Pros: slightly less upfront setup.
+- Cons: scatters the role -> capability mapping across call sites and makes
+  each future role change touch unrelated code.
+- Why not chosen: permissions are the indirection that keeps authorization
+  centralized and testable.
 
-### Alternative D: `bezhanSalleh/filament-shield` as the role/permission management UI
+### Alternative D: `bezhanSalleh/filament-shield`
 
-- Pros: ready-made Filament UI for roles and permissions; auto-generates a permission per Filament
-  resource/action; widely used; MIT/free.
-- Cons: its assignment UI writes spatie's tables **directly**, bypassing the event store (violates the
-  event-sourced/auditable requirement); generated permissions are CRUD-shaped and miss the operational
-  ones we need; adds a dependency and more concepts than a 3-role system warrants.
-- Why not chosen: the direct-write assignment conflicts with decision 3, and we need a thin event-emitting
-  action regardless — which also gives us full control over which managers see which records. Its only
-  durable value (scaffolding the definition seeder) is marginal versus writing the seeder by hand. Left as
-  an optional, non-binding scaffold; can be revisited if admins later need self-service permission editing.
+- Pros: ready-made Filament UI for roles and permissions.
+- Cons: builds on spatie, generates CRUD-shaped permissions, and provides a
+  runtime editing model that conflicts with this ADR's static enum model.
+- Why not chosen: too much machinery for a 3-role / small-permission system.
 
 ## Consequences
 
 ### Positive
 
-- Authorization composes: code asks "can you do X?", the role→permission map lives in one seeded place,
-  and a future role is a seeder edit with **zero call-site changes**.
-- Role assignment is fully event-sourced and auditable (actor + timestamp), like the rest of the domain.
-- Native Gate integration: Filament, `authorize()`, middleware, and Blade all work unchanged.
-- The ~12 ad-hoc `isAdmin()` checks collapse into a small, testable set of permission checks.
+- Authorization composes: code asks "can this user do X?" and the role ->
+  permission map lives in reviewed PHP enums.
+- No role-permission database table, projector, aggregate, or admin UI is needed
+  for the current product shape.
+- User-role assignment remains auditable and replayable through event sourcing.
+- Admin remains a strict super-role by construction.
+- Native Laravel Gate keeps Filament, `authorize()`, middleware, and Blade
+  integration idiomatic.
+- `users.is_admin_since` is removed, eliminating the legacy dual source of
+  truth for admin status.
 
 ### Negative
 
-- New dependency (`spatie/laravel-permission`) plus its tables.
-- A **dual-write seam**: the projector must keep spatie's assignment tables in sync with role events
-  (rebuildable by replay, but a moving part).
-- One-time refactor of every existing `isAdmin()` call site and the Filament resources/pages.
+- Changing what a role can do requires a deploy.
+- The team owns the small enum-based resolver instead of delegating to a package.
+- If runtime permission tuning becomes a real need later, it will require a new
+  ADR and a deliberate data model/UI design.
 
 ### Risks
 
-- **Projection drift** (events and spatie tables diverge). Mitigation: the projector is the sole writer of
-  assignment tables; tables are rebuildable by replaying role events; cover grant/revoke/bootstrap with
-  feature tests.
-- **Privilege gap during migration** — a missed call site could over- or under-authorize. Mitigation:
-  migrate behind permissions exhaustively, add tests asserting manager allow-list and admin-only denials
-  before removing `isAdmin()` shims.
-- **Permission caching** — spatie caches permissions; seeding/altering definitions requires a cache reset
-  in deploy. Mitigation: reset cache in the seeder and document in rollout.
+- A missed call site could keep relying on `isAdmin()` when it should check a
+  permission. Mitigation: migrate call sites behind `Permission` enum checks and
+  cover manager allow-list/admin-only denials with tests.
+- Enum drift could break permission checks. Mitigation: focused authorization
+  tests assert manager/admin bindings and permission descriptions.
+- Read-model drift for user roles could affect effective permissions.
+  Mitigation: `UserRoleProjector` is the only writer of `user_roles`, and the
+  table is rebuildable by replay.
 
 ## Rollout / Migration
 
-Deliver in reviewable slices after this ADR is accepted:
+1. Add `Permission` / `Role` enums with static role bindings, `HasPermissions`,
+   and the `Gate::before` integration.
+2. Add event-sourced user-role assignments (`UserRoleAggregate`, events,
+   `UserRoleProjector`, `user_roles` migration), backfill legacy
+   `is_admin_since` admins in a deploy migration, and drop the legacy column.
+3. Replace ad hoc admin checks with permission checks across services,
+   middleware, Filament resources, and panel access. Keep `isAdmin()` only for
+   role-identity semantics such as last-admin guards and response fields; it
+   reads from `user_roles`.
+4. Keep role assignment in the user admin UI. Remove/defer runtime
+   role-permission management surfaces. Managers may view admin user records,
+   but manager user-management mutation workflows are restricted to non-admin
+   user records.
+5. Test the enums, user-role event flow, manager allow-list, admin-only
+   denials, and affected Filament workflows.
 
-1. **Engine + definitions** — `composer require spatie/laravel-permission`, publish migrations, seed the
-   permission catalog and role→permission map (table above). No behavior change yet.
-2. **Event-sourced assignment** — `UserRoleAggregate`, `UserRoleGranted`/`UserRoleRevoked`,
-   `UserRoleProjector` (registered in `config/event-sourcing.php`); convert the first-user bootstrap to a
-   system `UserRoleGranted(admin)` event; **backfill** existing `is_admin_since` admins by emitting
-   bootstrap admin-grant events (or seeding their `admin` role). Reimplement `isAdmin()` as
-   `hasRole('admin')`; keep the admin-deletion guard.
-3. **Enforcement migration** — replace all `isAdmin()` call sites (services, `AdminMiddleware`,
-   `canAccessPanel`, Filament resources/relation managers) with permission checks; add `manager_override`
-   to `requestOpen()`; scope Filament resources/actions so managers see only what they may manage.
-4. **Management UI** — admin-only Filament action to grant/revoke roles on a user, routed through
-   `UserRoleAggregate` (never direct `assignRole()`).
-5. **Tests** — manager allow-list, admin-only denials (roles, locker config, Modbus mapping, system
-   resources), event-sourced assignment + replay, and bootstrap-still-creates-admin.
+## Amendments
 
-Fallback: until slice 3 lands, `isAdmin()` shims keep current behavior, so slices 1–2 are non-breaking.
+### 2026-06-21 — `groups.manage` permission (#48)
+
+The original migration left group administration gated by the `isAdmin()` shim
+rather than a permission, because no group-scoped capability existed in the
+enum model. While building the operations-oriented Filament navigation (#48) - in
+particular a compartment-centric access screen with a "Groups" access tab - this
+gap became a concrete inconsistency.
+
+Added a `groups.manage` permission to the enum model and replaced the remaining
+group-admin `isAdmin()` checks with `can(Permission::GroupsManage->value)` in:
+`GroupResource::canAccess`, its `MembersRelationManager` and
+`CompartmentAccessesRelationManager`, the
+`CompartmentResource\RelationManagers\GroupAccessesRelationManager`, and the
+domain-layer gate `GroupAccessService::ensureCanManageAccess()`.
+
+`groups.manage` is in the `manager` static binding, so managers can administer
+groups and group compartment access. Admins hold it via the super-role bypass,
+so no role-permission seed or data migration is required.
+
+`isAdmin()` is intentionally retained where it expresses role identity rather
+than a capability (the last-admin guard, the `is_admin` API field, "is the
+edited user an admin"), and for admin-only super-user bypasses in compartment
+open/edit, where converting to a shared permission would change who is allowed.
+
+### 2026-07-11 — Remove `is_admin_since` as admin source of truth
+
+The transitional dual-write period ended. Effective admin status, super-role
+permission bypass, last-admin guards, delete guards, admin status broadcasts,
+and Filament user-management boundaries now use event-sourced `user_roles` /
+`Role::Admin`.
+
+`users.is_admin_since` is backfilled into `user_roles` by
+`2026_07_11_000001_backfill_admin_roles_and_drop_is_admin_since` and then
+dropped. Normal seeders are not part of the production migration path.
+
+Manager access to `UserResource` is deliberately narrower than the
+`users.manage` permission name alone might imply: managers may manage regular
+users and view admin user records, but admin user records are blocked by
+record-level edit/delete checks, read-only edit-page rendering, save guards,
+bulk delete guards, and header/relation actions. Role/admin actions remain
+visible only to actors with `roles.manage`.
+
+### 2026-06-23 — Soft-revoke role→permission bindings + audit trail (#95)
+
+The original `RoleProjector` **deleted** the `role_permissions` row on
+`RolePermissionRevoked`, so a revoked binding left no trace. Building the
+admin role-permission management screen (per-role grant/revoke, mirroring the
+compartment-access screens) required showing *when/by whom* a permission was
+granted **and** revoked.
+
+Changed the `role_permissions` read model to **soft-revoke**: revocation now
+sets `revoked_at` / `revoked_by_user_id` and keeps the row (new migration adds
+both columns), instead of deleting it. **Active = `revoked_at IS NULL`**, so
+`HasPermissions::permissionNames()` now filters `whereNull('revoked_at')`. A
+re-grant clears the revoke audit and reactivates the row (`updateOrCreate`).
+
+This is a **read-model / projector change only** — no new events, no aggregate
+or stored-event changes, so the event log is untouched and the table remains
+rebuildable by replay. It refines decision 8's "permission toggle" surface into
+a grant/revoke action table with a granted/revoked audit.
+
+### 2026-07-06 — Seed default bindings only on a fresh install
+
+Decision 2 specified that `default_bindings` seed the initial `role_permissions`
+rows **on a fresh install**, "after that the DB is authoritative." The
+`AuthorizationSeeder` as first shipped diverged: it ran the default-binding grants
+unconditionally on every invocation, relying on `RoleAggregate::grantPermission`'s
+idempotency. That idempotency only skips a *currently-active* binding — a default
+binding an admin had **revoked** at runtime is unset in the aggregate, so a
+re-run (e.g. `db:seed` on deploy) recorded a fresh grant and **resurrected the
+revocation**, contradicting "the DB is authoritative" and silently undoing an
+admin's audited change.
+
+Fixed the seeder to seed a role's defaults **only when that role has no binding
+history** (`role_permissions` has zero rows for it). Because revocations
+soft-delete (2026-06-23 amendment), a granted-then-revoked role keeps its row and
+correctly reads as "already seeded," so it is left alone. Net effect: defaults
+seed once per role, ever; subsequent deploys never touch bindings; runtime
+grants **and** revocations persist. The `is_admin_since` backfill is unchanged
+(one-time migration, deduped by the user-role aggregate).
+
+This makes permanently removing a default permission from `manager` a plain
+runtime admin action that survives deploys — previously impossible.
 
 ## Supersedes / Superseded By
 
-- Supersedes: none (first authorization-model ADR; extends the binary `is_admin_since` flag)
+- Supersedes: none (first authorization-model ADR; extends the binary
+  `is_admin_since` flag).
 - Superseded by: none
 
 ## References
 
-- Related issues: #95 (this decision); builds toward #46 (group access, ADR-0020), complements #48
-  (Filament navigation separation); relates to #55 (user identification), #94 (door-open semantics).
-- Related ADRs: ADR-0020 (group-based compartment access — `authorizationType` precedence, admin-only
-  management it defers to #95), ADR-0019 (user fields).
-- Related code: `app/Models/User.php` (`isAdmin()`, `canAccessPanel()`, `booted()` bootstrap),
-  `app/Http/Middleware/AdminMiddleware.php`, `app/Services/CompartmentAccessService.php`,
-  `app/Services/GroupAccessService.php`, `app/Filament/Resources/UserResource`,
-  `app/Filament/Resources/GroupResource`, `config/event-sourcing.php`.
-- Package: `spatie/laravel-permission` (MIT). Optional UI layer: `bezhanSalleh/filament-shield` (MIT).
+- Related issues: #95 (this decision); builds toward #46 (group access,
+  ADR-0020), complements #48 (Filament navigation separation); relates to #55
+  (user identification), #94 (door-open semantics).
+- Related ADRs: ADR-0020 (group-based compartment access - `authorizationType`
+  precedence, admin-only management it defers to #95), ADR-0019 (user fields).
+- Related code: `app/Models/User.php`, `app/Models/Concerns/HasPermissions.php`,
+  `app/Enums/Permission.php`, `app/Enums/Role.php`,
+  `app/Providers/AuthorizationServiceProvider.php`,
+  `app/Filament/Resources/UserResource`, `config/event-sourcing.php`.
+- Mechanism: Laravel Gate (`Gate::before`, `can`, `authorize`, `can:`
+  middleware). No external authorization package.

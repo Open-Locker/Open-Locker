@@ -14,6 +14,14 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Validation\ValidationException;
 
 /**
+ * @property int|null $number
+ * @property string|null $locker_bank_id
+ * @property int|null $slave_id
+ * @property int|null $address
+ * @property CompartmentDoorState $door_state
+ * @property \Illuminate\Support\Carbon|null $door_state_changed_at
+ * @property \Illuminate\Support\Carbon|null $last_opened_at
+ * @property \Illuminate\Support\Carbon|null $last_open_failed_at
  * @property string|null $content_note
  * @property \Illuminate\Support\Carbon|null $content_note_updated_at
  * @property int|null $content_note_updated_by_user_id
@@ -87,6 +95,9 @@ class Compartment extends Model
         return $this->hasOne(CompartmentOpenRequest::class, 'compartment_id', 'id')->latestOfMany('requested_at');
     }
 
+    /**
+     * @return BelongsTo<LockerBank, $this>
+     */
     public function lockerBank(): BelongsTo
     {
         return $this->belongsTo(LockerBank::class);
@@ -98,6 +109,16 @@ class Compartment extends Model
     public function accesses(): HasMany
     {
         return $this->hasMany(CompartmentAccess::class);
+    }
+
+    /**
+     * Group-level access grants for this compartment (managed via GroupAccessService).
+     *
+     * @return HasMany<GroupCompartmentAccess, Compartment>
+     */
+    public function groupAccesses(): HasMany
+    {
+        return $this->hasMany(GroupCompartmentAccess::class);
     }
 
     /**

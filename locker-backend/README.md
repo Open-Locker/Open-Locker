@@ -118,7 +118,6 @@ This Laravel application provides:
 - `AuthController` - User authentication endpoints
 - `ItemController` - Item management and borrowing
 - `LockerController` - Hardware control and status
-- `AdminController` - Administrative functions
 
 ### Admin Panel
 
@@ -229,6 +228,34 @@ DB_CONNECTION=pgsql
 
 - Queue workers for background jobs
 - Scheduled tasks for maintenance
+
+### MQTT Listener Health
+
+The `mqtt-listener` container runs `php artisan mqtt:listen` and reports
+liveness via a heartbeat (see ADR-0025):
+
+- The listener writes a heartbeat timestamp to the cache on every loop iteration
+  (throttled to `MQTT_LISTENER_HEARTBEAT_INTERVAL`, default 10s).
+- `php artisan mqtt:health` is the container's `healthcheck`. It exits `0`
+  (healthy) when the last heartbeat is newer than `MQTT_LISTENER_HEARTBEAT_MAX_AGE`
+  (default 35s), and `1` (unhealthy) when the pulse is stale or missing.
+
+Interpreting status:
+
+- **healthy** — the listener loop is turning (normal; stays healthy even while
+  the broker is briefly down/reconnecting, since the pulse tracks the loop, not
+  message flow).
+- **unhealthy** — no fresh pulse: the process is hung/wedged or the cache is
+  unreachable. The `autoheal` sidecar restarts any `unhealthy` container
+  labelled `autoheal: "true"` (plain Compose does not restart on health status
+  by itself).
+
+Check it manually:
+
+```bash
+docker inspect --format '{{.State.Health.Status}}' <mqtt-listener-container>
+docker compose exec mqtt-listener php artisan mqtt:health
+```
 
 ## Contributing
 

@@ -42,3 +42,8 @@ yarn-error.*
 # generated native folders
 /ios
 /android
+
+# EAS signing credentials (NEVER commit — keystore/cert/profile already
+# covered above by *.jks/*.p12/*.mobileprovision; this covers the manifest)
+credentials.json
+/credentials/

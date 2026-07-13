@@ -19,11 +19,9 @@ class NullableFieldsTransformer
             $properties = $type->properties;
 
             $nullable = [];
-            if (is_array($required)) {
-                foreach ($required as $fieldName) {
-                    if (isset($properties[$fieldName]) && $properties[$fieldName]->nullable) {
-                        $nullable[] = $fieldName;
-                    }
+            foreach ($required as $fieldName) {
+                if (isset($properties[$fieldName]) && $properties[$fieldName]->nullable) {
+                    $nullable[] = $fieldName;
                 }
             }
             if (count($nullable) > 0) {

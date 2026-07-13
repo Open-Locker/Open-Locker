@@ -21,3 +21,6 @@ Route::get('/verify-email/{id}/{hash}', [AuthController::class, 'verifyEmailLink
 
 Route::post('/reset-password', [AuthController::class, 'storeNewPassword'])
     ->name('password.reset.web.store');
+
+Route::get('/admin', fn () => redirect('/en/admin'))
+    ->name('admin.redirect');

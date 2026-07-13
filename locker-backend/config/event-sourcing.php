@@ -28,6 +28,7 @@ return [
         App\Projectors\CompartmentOpenRequestProjector::class,
         App\Projectors\GroupProjector::class,
         App\Projectors\TermsProjector::class,
+        App\Projectors\UserRoleProjector::class,
     ],
 
     /*
@@ -41,6 +42,7 @@ return [
         App\Reactors\CompartmentOpenAuthorizationReactor::class,
         App\Reactors\CompartmentOpenStatusBroadcastReactor::class,
         App\Reactors\CompartmentDoorStateBroadcastReactor::class,
+        App\Reactors\CompartmentContentNoteBroadcastReactor::class,
         App\Reactors\TermsNotificationReactor::class,
     ],
 

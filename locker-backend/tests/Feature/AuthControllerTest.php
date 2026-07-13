@@ -16,120 +16,6 @@ class AuthControllerTest extends TestCase
 {
     use RefreshDatabase, WithFaker;
 
-    public function test_user_can_register()
-    {
-        $adminUser = User::factory()->create();
-        $adminUser->makeAdmin();
-        $token = $adminUser->createToken('auth_token')->plainTextToken;
-
-        $userData = [
-            'first_name' => $this->faker->firstName,
-            'last_name' => $this->faker->lastName,
-            'email' => $this->faker->unique()->safeEmail,
-            'password' => 'password123',
-            'password_confirmation' => 'password123',
-        ];
-
-        $response = $this->withHeaders([
-            'Authorization' => 'Bearer '.$token,
-        ])->postJson('/api/admin/users/register', $userData);
-
-        $response->assertStatus(201)
-            ->assertJsonStructure([
-                'token',
-                'first_name',
-                'last_name',
-            ]);
-
-        $this->assertDatabaseHas('users', [
-            'email' => $userData['email'],
-            'first_name' => $userData['first_name'],
-            'last_name' => $userData['last_name'],
-        ]);
-    }
-
-    public function test_non_admin_cannot_register_users()
-    {
-        // The first created user becomes admin automatically (User::booted),
-        // so ensure we create a different user for the non-admin case.
-        User::factory()->create();
-
-        $regularUser = User::factory()->create();
-        $token = $regularUser->createToken('auth_token')->plainTextToken;
-
-        $userData = [
-            'first_name' => $this->faker->firstName,
-            'last_name' => $this->faker->lastName,
-            'email' => $this->faker->unique()->safeEmail,
-            'password' => 'password123',
-            'password_confirmation' => 'password123',
-        ];
-
-        $response = $this->withHeaders([
-            'Authorization' => 'Bearer '.$token,
-        ])->postJson('/api/admin/users/register', $userData);
-
-        $response->assertStatus(403);
-    }
-
-    public function test_user_cannot_register_with_existing_email()
-    {
-        $adminUser = User::factory()->create();
-        $adminUser->makeAdmin();
-        $token = $adminUser->createToken('auth_token')->plainTextToken;
-
-        $existingUser = User::factory()->create();
-
-        $userData = [
-            'first_name' => $this->faker->firstName,
-            'last_name' => $this->faker->lastName,
-            'email' => $existingUser->email,
-            'password' => 'password123',
-            'password_confirmation' => 'password123',
-        ];
-
-        $response = $this->withHeaders([
-            'Authorization' => 'Bearer '.$token,
-        ])->postJson('/api/admin/users/register', $userData);
-
-        $response->assertStatus(422)
-            ->assertJsonValidationErrors(['email']);
-    }
-
-    public function test_verification_email_is_sent_on_registration()
-    {
-        Notification::fake();
-
-        $adminUser = User::factory()->create();
-        $adminUser->makeAdmin();
-
-        $userData = [
-            'first_name' => $this->faker->firstName,
-            'last_name' => $this->faker->lastName,
-            'email' => $this->faker->unique()->safeEmail,
-            'password' => 'password123',
-            'password_confirmation' => 'password123',
-        ];
-
-        $response = $this->withHeaders([
-            'Authorization' => 'Bearer '.$adminUser->createToken('auth_token')->plainTextToken,
-        ])->postJson('/api/admin/users/register', $userData);
-
-        $response->assertStatus(201);
-
-        Notification::assertSentTo(
-            [User::where('email', $userData['email'])->first()],
-            WebVerifyEmailNotification::class,
-            function ($notification, $channels, $notifiable) {
-                $mailMessage = $notification->toMail($notifiable);
-
-                $this->assertStringStartsWith('http://open-locker.test/verify-email/', (string) $mailMessage->actionUrl);
-
-                return true;
-            }
-        );
-    }
-
     public function test_user_can_login()
     {
         $user = User::factory()->create([
@@ -220,44 +106,6 @@ class AuthControllerTest extends TestCase
             ]);
     }
 
-    public function test_registration_validation_rules()
-    {
-        $adminUser = User::factory()->create();
-        $adminUser->makeAdmin();
-        $token = $adminUser->createToken('auth_token')->plainTextToken;
-
-        $response = $this->withHeaders([
-            'Authorization' => 'Bearer '.$token,
-        ])->postJson('/api/admin/users/register', [
-            'first_name' => '',
-            'email' => 'not-an-email',
-            'password' => '123',
-            'password_confirmation' => '456',
-        ]);
-
-        $response->assertStatus(422)
-            ->assertJsonValidationErrors(['first_name', 'last_name', 'email', 'password']);
-    }
-
-    public function test_registration_requires_last_name(): void
-    {
-        $adminUser = User::factory()->create();
-        $adminUser->makeAdmin();
-        $token = $adminUser->createToken('auth_token')->plainTextToken;
-
-        $response = $this->withHeaders([
-            'Authorization' => 'Bearer '.$token,
-        ])->postJson('/api/admin/users/register', [
-            'first_name' => $this->faker->firstName,
-            'email' => $this->faker->unique()->safeEmail,
-            'password' => 'password123',
-            'password_confirmation' => 'password123',
-        ]);
-
-        $response->assertStatus(422)
-            ->assertJsonValidationErrors(['last_name']);
-    }
-
     public function test_profile_update_requires_last_name(): void
     {
         $user = User::factory()->create([
@@ -341,7 +189,7 @@ class AuthControllerTest extends TestCase
         $response = $this->get($verificationUrl);
 
         $response->assertOk()
-            ->assertSee('E-Mail erfolgreich bestaetigt')
+            ->assertSee('E-Mail erfolgreich bestätigt')
             ->assertSee($user->email);
 
         $this->assertTrue($user->fresh()->hasVerifiedEmail());
@@ -383,11 +231,13 @@ class AuthControllerTest extends TestCase
 
         $this->actingAs($user);
 
-        $response = $this->postJson('/api/email/verification-notification');
+        $response = $this->postJson('/api/email/verification-notification', [], [
+            'Accept-Language' => 'de',
+        ]);
 
         $response->assertStatus(200)
             ->assertJson([
-                'message' => 'E-Mail bereits bestaetigt',
+                'message' => 'E-Mail bereits bestätigt',
             ]);
     }
 
@@ -473,7 +323,7 @@ class AuthControllerTest extends TestCase
         $response = $this->get('/reset-password?token=test-token&email=user@example.com');
 
         $response->assertOk()
-            ->assertSee('Setze dein Passwort zurueck')
+            ->assertSee('Setze dein Passwort zurück')
             ->assertSee('user@example.com')
             ->assertSee('test-token', false);
     }
@@ -484,7 +334,7 @@ class AuthControllerTest extends TestCase
 
         $user = User::factory()->unverified()->create();
 
-        $this->post(route('password.email'), ['email' => $user->email]);
+        $this->post(route('password.email'), ['email' => $user->email], ['Accept-Language' => 'de']);
 
         Notification::assertSentTo($user, WebResetPasswordNotification::class, function ($notification) use ($user) {
             $response = $this->followingRedirects()->from(route('password.reset.form', [
@@ -498,7 +348,7 @@ class AuthControllerTest extends TestCase
             ]);
 
             $response->assertOk()
-                ->assertSee('Passwort erfolgreich zurueckgesetzt')
+                ->assertSee('Passwort erfolgreich zurückgesetzt')
                 ->assertDontSee('name="email"', false)
                 ->assertDontSee('<form', false);
 

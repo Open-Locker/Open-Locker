@@ -18,9 +18,12 @@ class CompartmentOpenRequestResource extends Resource
 
     protected static \BackedEnum|string|null $navigationIcon = 'heroicon-o-clock';
 
-    protected static ?string $navigationLabel = 'Open Command History';
-
     protected static bool $shouldRegisterNavigation = false;
+
+    public static function getNavigationLabel(): string
+    {
+        return __('Open Command History');
+    }
 
     public static function form(Schema $form): Schema
     {
@@ -33,10 +36,11 @@ class CompartmentOpenRequestResource extends Resource
             ->defaultSort('requested_at', 'desc')
             ->columns([
                 Tables\Columns\TextColumn::make('command_id')
-                    ->label('Command ID')
+                    ->label(__('Command ID'))
                     ->copyable()
                     ->searchable(),
                 Tables\Columns\TextColumn::make('status')
+                    ->label(__('Status'))
                     ->badge()
                     ->color(fn (?string $state): string => match ($state) {
                         'opened' => 'success',
@@ -44,43 +48,50 @@ class CompartmentOpenRequestResource extends Resource
                         'sent', 'accepted', 'requested' => 'warning',
                         default => 'gray',
                     })
+                    ->formatStateUsing(fn (?string $state): string => $state ? __($state) : '')
                     ->sortable(),
                 Tables\Columns\TextColumn::make('actor_display_name')
-                    ->label('Actor')
+                    ->label(__('Actor'))
                     ->state(fn (CompartmentOpenRequest $record): ?string => $record->actor?->fullName())
-                    ->placeholder('Unknown'),
+                    ->placeholder(__('Unknown')),
                 Tables\Columns\TextColumn::make('compartment.lockerBank.name')
-                    ->label('Locker bank')
-                    ->placeholder('Unknown')
+                    ->label(__('Locker bank'))
+                    ->placeholder(__('Unknown'))
                     ->searchable(),
                 Tables\Columns\TextColumn::make('compartment.number')
-                    ->label('Compartment')
+                    ->label(__('Compartment'))
                     ->prefix('#')
                     ->sortable(),
                 Tables\Columns\TextColumn::make('authorization_type')
-                    ->label('Authorization')
+                    ->label(__('Authorization'))
                     ->placeholder('-')
                     ->toggleable(),
                 Tables\Columns\TextColumn::make('error_code')
+                    ->label(__('Error code'))
                     ->placeholder('-')
                     ->toggleable(),
                 Tables\Columns\TextColumn::make('error_message')
+                    ->label(__('Error message'))
                     ->limit(50)
                     ->placeholder('-')
                     ->toggleable(),
                 Tables\Columns\TextColumn::make('denied_reason')
+                    ->label(__('Denied reason'))
                     ->limit(50)
                     ->placeholder('-')
                     ->toggleable(),
                 Tables\Columns\TextColumn::make('requested_at')
+                    ->label(__('Requested at'))
                     ->dateTime()
                     ->sortable(),
                 Tables\Columns\TextColumn::make('opened_at')
+                    ->label(__('Opened at'))
                     ->dateTime()
                     ->placeholder('-')
                     ->sortable()
                     ->toggleable(),
                 Tables\Columns\TextColumn::make('failed_at')
+                    ->label(__('Failed at'))
                     ->dateTime()
                     ->placeholder('-')
                     ->sortable()
@@ -88,19 +99,19 @@ class CompartmentOpenRequestResource extends Resource
             ])
             ->filters([
                 Tables\Filters\Filter::make('failed_only')
-                    ->label('Failed only')
+                    ->label(__('Failed only'))
                     ->query(fn (Builder $query): Builder => $query->where('status', 'failed')),
                 Tables\Filters\Filter::make('denied_only')
-                    ->label('Denied only')
+                    ->label(__('Denied only'))
                     ->query(fn (Builder $query): Builder => $query->where('status', 'denied')),
                 Tables\Filters\SelectFilter::make('status')
                     ->options([
-                        'requested' => 'requested',
-                        'accepted' => 'accepted',
-                        'sent' => 'sent',
-                        'opened' => 'opened',
-                        'failed' => 'failed',
-                        'denied' => 'denied',
+                        'requested' => __('requested'),
+                        'accepted' => __('accepted'),
+                        'sent' => __('sent'),
+                        'opened' => __('opened'),
+                        'failed' => __('failed'),
+                        'denied' => __('denied'),
                     ]),
             ])
             ->actions([])

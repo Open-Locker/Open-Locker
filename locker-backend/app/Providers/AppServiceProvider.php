@@ -2,8 +2,10 @@
 
 namespace App\Providers;
 
+use App\Scramble\Transformers\AcceptLanguageHeaderTransformer;
 use App\Scramble\Transformers\AccessibleCompartmentsNullableTransformer;
 use App\Scramble\Transformers\NullableFieldsTransformer;
+use App\Support\Audit\AuditEventPresenter;
 use Carbon\CarbonImmutable;
 use Dedoc\Scramble\Scramble;
 use Dedoc\Scramble\Support\Generator\OpenApi;
@@ -18,7 +20,12 @@ class AppServiceProvider extends ServiceProvider
     /**
      * Register any application services.
      */
-    public function register(): void {}
+    public function register(): void
+    {
+        // Shared per-request so the audit log's actor/compartment/group lookups
+        // are memoised across rows when rendering a page. See ADR-0026.
+        $this->app->singleton(AuditEventPresenter::class);
+    }
 
     /**
      * Bootstrap any application services.
@@ -39,6 +46,7 @@ class AppServiceProvider extends ServiceProvider
         Scramble::configure()->withDocumentTransformers([
             new AccessibleCompartmentsNullableTransformer,
             new NullableFieldsTransformer,
+            new AcceptLanguageHeaderTransformer,
         ]);
 
         // Use CarbonImmutable for all date instances. Prevents date mutability.
