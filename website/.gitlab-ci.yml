@@ -1,0 +1,58 @@
+workflow:
+  rules:
+    - if: $CI_COMMIT_TAG
+    - when: never
+
+stages:
+  - build
+  - release
+  - deploy
+
+default:
+  image: docker:24.0.5-cli
+  services:
+    - name: docker:24.0.5-dind
+      alias: docker
+  before_script:
+    - echo "$CI_REGISTRY_PASSWORD" | docker login "$CI_REGISTRY" -u "$CI_REGISTRY_USER" --password-stdin
+
+variables:
+  # TLS-enabled Docker-in-Docker:
+  # https://docs.gitlab.com/ci/docker/using_docker_build/#tls-enabled
+  DOCKER_HOST: tcp://docker:2376
+  DOCKER_TLS_CERTDIR: "/certs"
+
+  IMAGE_TEST: "$CI_REGISTRY_IMAGE:$CI_COMMIT_SHA"
+  IMAGE_TAG: "$CI_REGISTRY_IMAGE:$CI_COMMIT_TAG"
+  IMAGE_LATEST: "$CI_REGISTRY_IMAGE:latest"
+
+build-image:
+  stage: build
+  script:
+    - docker build --pull -t "$IMAGE_TEST" -t "$IMAGE_TAG" .
+    - docker push "$IMAGE_TEST"
+    - docker push "$IMAGE_TAG"
+  rules:
+    - if: $CI_COMMIT_TAG
+
+release-latest:
+  stage: release
+  script:
+    - docker pull "$IMAGE_TAG"
+    - docker tag "$IMAGE_TAG" "$IMAGE_LATEST"
+    - docker push "$IMAGE_LATEST"
+  rules:
+    - if: $CI_COMMIT_TAG
+
+deploy:
+  stage: deploy
+  image: curlimages/curl:latest
+  script:
+    - >
+      curl --fail --show-error --silent
+      --request GET "$COOLIFY_WEBHOOK"
+      --header "Authorization: Bearer $COOLIFY_TOKEN"
+  rules:
+    - if: $CI_COMMIT_TAG
+  allow_failure: false
+
