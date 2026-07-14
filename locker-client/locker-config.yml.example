@@ -1,22 +1,21 @@
-# Locker Client Configuration File
-# This file should be mounted as a Docker volume at /config/locker-config.yml
-# It contains local device/bootstrap settings only.
-# Server-managed runtime values such as heartbeat interval and compartment mapping
-# are stored separately in the runtime config overlay under /data.
+# Locker Client v2 Configuration — mount at /config/locker-config.yml
+#
+# Compartment mapping and heartbeat interval are server-managed via MQTT
+# apply_config and persisted in the runtime overlay under DATA_DIR.
 
-# Modbus RTU Configuration
 modbus:
-  # Serial port for Modbus communication (required)
-  # All boards on the shared RS485 bus use this port
   port: /dev/ttyACM0
-
-  # Optional serial defaults for the shared bus
   baudRate: 9600
   dataBits: 8
   stopBits: 1
   parity: none
   timeout: 1000
-
-  # Relay pulse duration in milliseconds for native Waveshare flash commands
-  # The board applies flash timing in 100ms steps, so values are rounded up
+  # Waveshare flash pulse (100ms steps, min 100ms, max 500ms enforced in v2)
   flashDurationMs: 200
+
+mqtt:
+  cleanSession: false
+  keepaliveSeconds: 60
+  reconnectPeriodMs: 5000
+  connectTimeoutMs: 30000
+  maxReconnectAttempts: 0
