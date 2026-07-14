@@ -49,19 +49,19 @@ relay board performs the pulse autonomously after receiving a single command.
 
 ### Read Operations
 
-| Address | Meaning | Function Code |
-| --- | --- | --- |
-| `0x0000..0x0007` | Relay states | `0x01` |
-| `0x0000..0x0007` | Digital input states | `0x02` |
+| Address          | Meaning              | Function Code |
+| ---------------- | -------------------- | ------------- |
+| `0x0000..0x0007` | Relay states         | `0x01`        |
+| `0x0000..0x0007` | Digital input states | `0x02`        |
 
 ### Write Operations
 
-| Address | Meaning | Function Code |
-| --- | --- | --- |
-| `0x0000..0x0007` | Direct relay on/off/toggle | `0x05` |
-| `0x00FF` | All relays on/off/toggle | `0x05` |
-| `0x0200..0x0207` | Relay flash on, delay = value * `100ms` | `0x05` |
-| `0x0400..0x0407` | Relay flash off, delay = value * `100ms` | `0x05` |
+| Address          | Meaning                                   | Function Code |
+| ---------------- | ----------------------------------------- | ------------- |
+| `0x0000..0x0007` | Direct relay on/off/toggle                | `0x05`        |
+| `0x00FF`         | All relays on/off/toggle                  | `0x05`        |
+| `0x0200..0x0207` | Relay flash on, delay = value \* `100ms`  | `0x05`        |
+| `0x0400..0x0407` | Relay flash off, delay = value \* `100ms` | `0x05`        |
 
 ### Control Modes
 
@@ -156,26 +156,16 @@ Notes:
 
 ## Manual Verification
 
-### Trigger a Command
-
-```bash
-mosquitto_pub -h "open-locker.cloud" -p 1883 \
-  -u "locker-uuid" -P "password" \
-  -t "locker/locker-uuid/command" \
-  -m '{"message_id":"11111111-1111-1111-1111-111111111111","action":"open_compartment","transaction_id":"22222222-2222-2222-2222-222222222222","timestamp":"2026-03-24T10:00:00Z","data":{"compartment_number":1}}'
-```
-
-### Observe State
-
-```bash
-mosquitto_sub -h "open-locker.cloud" -p 1883 \
-  -u "locker-uuid" -P "password" \
-  -t "locker/locker-uuid/state" \
-  -v
-```
+1. Send an open request through the backend API or Filament action. Device
+   credentials cannot publish to the command topic.
+2. Follow the runtime log with `docker compose logs -f locker-client`.
+3. Verify the response and retained `state/compartments` snapshot through the
+   backend or an MQTT observer identity authorized for those topics.
+4. Confirm that the relay pulse is brief and the reported door input matches
+   the physical state.
 
 ## References
 
 - [Waveshare Product Page](https://www.waveshare.com/modbus-rtu-relay-d.htm?srsltid=AfmBOooao9WqqByyDaeQ0hV3OQMrqtI9gXlNco-10HGkZaBKT25QI4M3)
-- [Waveshare Wiki](https://www.waveshare.com/wiki/Modbus_RTU_Relay_(D)?srsltid=AfmBOoo4U9A_pYXynyHrSO7DoRWjOVUc0CliYItp1D6Aace-yA7zOzkd)
+- [Waveshare Wiki](<https://www.waveshare.com/wiki/Modbus_RTU_Relay_(D)?srsltid=AfmBOoo4U9A_pYXynyHrSO7DoRWjOVUc0CliYItp1D6Aace-yA7zOzkd>)
 - `docs/adr/0004-waveshare-hardware-flash-and-supported-boards.md`

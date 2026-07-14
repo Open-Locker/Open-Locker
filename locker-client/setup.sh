@@ -50,7 +50,7 @@ echo ""
 # Copy example configuration
 if [ ! -f config/locker-config.yml ]; then
     echo "Creating config/locker-config.yml from example..."
-    
+
     # Check if example file exists locally, otherwise download it
     if [ ! -f locker-config.yml.example ]; then
         echo "Downloading example configuration from GitHub..."
@@ -60,13 +60,12 @@ if [ ! -f config/locker-config.yml ]; then
             exit 1
         fi
     fi
-    
+
     cp locker-config.yml.example config/locker-config.yml
     echo "✓ Configuration file created"
     echo ""
     echo "⚠️  Please edit config/locker-config.yml with your settings:"
-    echo "   - Update MQTT broker URL and credentials"
-    echo "   - Configure Modbus port and clients"
+    echo "   - Configure the Modbus serial port and bus settings"
 else
     echo "✓ Configuration file already exists"
 fi
@@ -74,7 +73,7 @@ fi
 echo ""
 
 # Check for provisioning token
-if [ ! -f data/.provisioning-state ]; then
+if [ ! -f data/.mqtt-credentials.json ]; then
     echo "⚠️  Locker is not provisioned"
     echo "  Set PROVISIONING_TOKEN in .env before starting the container"
 else

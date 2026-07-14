@@ -10,7 +10,7 @@ let tempDir = '';
 let configFile = '';
 
 before(() => {
-  tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'locker-client-v2-config-'));
+  tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'locker-client-config-'));
   configFile = path.join(tempDir, 'locker-config.yml');
 });
 

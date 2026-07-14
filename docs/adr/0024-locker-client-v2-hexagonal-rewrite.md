@@ -2,7 +2,7 @@
 
 ## Status
 
-Proposed
+Accepted
 
 ## Date
 
@@ -25,7 +25,8 @@ Hard requirements:
 
 ## Decision
 
-1. Build `locker-client-v2/` alongside v1 on branch `feat/locker-client-v2`.
+1. Develop the rewrite alongside v1, then replace the production path
+   `locker-client/` once the beta hardware flow is validated.
 2. Use hexagonal layers: Domain → Application → Ports ← Adapters; wire only in
    `main.ts` / `createApp.ts`.
 3. **Modbus:** `LockerBusPort` exposes domain methods (`flashRelay`, …); internal
@@ -76,8 +77,9 @@ Hard requirements:
 
 ### Negative
 
-- Temporary duplication of client code and Docker images
-- Two clients until cutover PR merges
+- The rewrite required temporary duplication during development.
+- Existing beta deployments must move to the new runtime and configuration
+  semantics when updating.
 
 ### Risks
 
@@ -86,9 +88,11 @@ Hard requirements:
 
 ## Rollout / Migration
 
-1. Develop on `feat/locker-client-v2`
-2. Validate on test Pi (`ghcr.io/open-locker/locker-client:v2`)
-3. Merge PR; archive/remove `locker-client/`; set ADR status to `accepted`
+1. Develop on `feat/locker-client-v2`.
+2. Validate provisioning, MQTT, and three Modbus boards on beta hardware.
+3. Replace v1 at `locker-client/` and publish the existing locker-client image.
+4. Complete the Raspberry Pi soak test tracked in GitHub issue #169 before
+   production rollout.
 
 ## Supersedes / Superseded By
 

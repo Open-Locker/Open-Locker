@@ -4,7 +4,6 @@ on:
   pull_request:
     paths:
       - 'locker-client/**'
-      - 'locker-client-v2/**'
       - '.github/workflows/build-locker-client.yml'
   push:
     branches:
@@ -14,18 +13,17 @@ on:
       - 'locker-client-v*'
     paths:
       - 'locker-client/**'
-      - 'locker-client-v2/**'
       - '.github/workflows/build-locker-client.yml'
 
 jobs:
-  locker-client-v2-check:
-    name: Locker-client-v2 typecheck and tests
+  locker-client-check:
+    name: Locker client checks and tests
     runs-on: ubuntu-latest
     permissions:
       contents: read
     defaults:
       run:
-        working-directory: locker-client-v2
+        working-directory: locker-client
 
     steps:
       - name: Checkout code
@@ -41,13 +39,13 @@ jobs:
         with:
           node-version: 22
           cache: pnpm
-          cache-dependency-path: locker-client-v2/pnpm-lock.yaml
+          cache-dependency-path: locker-client/pnpm-lock.yaml
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Typecheck
-        run: pnpm typecheck
+      - name: Run quality checks
+        run: pnpm check
 
       - name: Run tests
         run: pnpm test
@@ -57,7 +55,7 @@ jobs:
     permissions:
       contents: read
       packages: write
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4

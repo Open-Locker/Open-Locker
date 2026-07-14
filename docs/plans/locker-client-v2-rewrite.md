@@ -4,7 +4,7 @@ Living document for the parallel rewrite. Architecture decision: [ADR-0024](../a
 
 ## Branch
 
-`feat/locker-client-v2` — scope: `locker-client-v2/`, this file, ADR-0024.
+`feat/locker-client-v2` — implemented in parallel and cut over to `locker-client/`.
 
 ## Phases
 
@@ -12,7 +12,7 @@ Living document for the parallel rewrite. Architecture decision: [ADR-0024](../a
 
 - [x] ADR-0024
 - [x] This plan
-- [x] `locker-client-v2/` scaffold (package.json, TS strict, Dockerfile)
+- [x] `locker-client/` scaffold (package.json, TS strict, Dockerfile)
 - [x] TDD: OutboundEnvelope, InboundProtocolGuard, BusActor
 - [x] Migrate AsyncAPI contract tests from v1
 
@@ -37,9 +37,9 @@ Living document for the parallel rewrite. Architecture decision: [ADR-0024](../a
 
 ### Phase 4 — Cutover
 
-- [x] Feature parity checklist (`locker-client-v2/CUTOVER.md`)
+- [x] Feature parity checklist (`locker-client/CUTOVER.md`)
 - [ ] Pi hardware test (manual)
-- [ ] PR merge; archive v1 (manual)
+- [x] Replace v1 with the rewrite at `locker-client/`
 
 ## Hard requirements
 
@@ -49,7 +49,7 @@ Living document for the parallel rewrite. Architecture decision: [ADR-0024](../a
 ## Test layout
 
 ```
-locker-client-v2/tests/
+locker-client/tests/
 ├── contract/     # AsyncAPI schema validation
 ├── unit/         # BusActor, envelope, guard, domain
 ├── application/  # use cases with fake ports
@@ -58,7 +58,7 @@ locker-client-v2/tests/
 
 ## Fallow evaluation
 
-**Decision: reject for runtime use.** Do not integrate [fallow-rs/fallow](https://github.com/fallow-rs/fallow) into the locker-client-v2 service.
+**Decision: reject for runtime use.** Do not integrate [fallow-rs/fallow](https://github.com/fallow-rs/fallow) into the locker-client service.
 
 ### What Fallow is
 
@@ -72,7 +72,7 @@ Fallow is a **Rust-native static analysis / codebase intelligence CLI** for Type
 
 It is **not** an actor framework, message bus, MQTT router, or Modbus concurrency primitive. The `fallow-rs` org name refers to the Rust implementation of the analyzer, not a Rust rewrite of the edge client.
 
-### Fit vs locker-client-v2 pain points
+### Fit vs locker-client pain points
 
 | Pain point | Current v2 approach | Would Fallow help? |
 | --- | --- | --- |
@@ -105,8 +105,8 @@ It is **not** an actor framework, message bus, MQTT router, or Modbus concurrenc
 ### Recommendation
 
 - **Runtime:** **No.** Continue with `ModbusBusActor` + `p-queue` + `CommandDispatcher` as decided in ADR-0024.
-- **Optional follow-up (separate task):** Add `fallow` as a `devDependency` in `locker-client-v2` with `.fallowrc.json` `boundaries.preset: "hexagonal"` for CI `fallow audit` on PRs. That is quality tooling, not a substitute for the bus actor.
+- **Optional follow-up (separate task):** Keep `fallow` as a `devDependency` in `locker-client` with `.fallowrc.json` `boundaries.preset: "hexagonal"` for CI `fallow audit` on PRs. That is quality tooling, not a substitute for the bus actor.
 
 ## Agent hook
 
-New sessions: read this file + ADR-0024 before editing `locker-client-v2/`.
+New sessions: read this file + ADR-0024 before editing `locker-client/`.

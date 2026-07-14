@@ -157,7 +157,7 @@ export async function createApp(): Promise<AppContext> {
     void pollSnapshot.pollAndPublish();
   }, pollIntervalMs);
 
-  logger.info('locker-client-v2 started', { lockerUuid, clientId });
+  logger.info('locker-client started', { lockerUuid, clientId });
 
   return {
     async shutdown() {
