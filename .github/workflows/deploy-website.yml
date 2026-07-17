@@ -4,6 +4,8 @@ on:
   push:
     branches:
       - main
+      # TODO(#53): temporary — remove before merge, deploy-test only
+      - feat/53-import-website
     paths:
       - 'website/**'
       - '.github/workflows/deploy-website.yml'
@@ -43,6 +45,9 @@ jobs:
 
       - name: Build site
         run: pnpm run build
+        env:
+          SITE_URL: https://open-locker.github.io/Open-Locker
+          BASE_PATH: /Open-Locker
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
