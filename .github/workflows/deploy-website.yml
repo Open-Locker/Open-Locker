@@ -46,8 +46,8 @@ jobs:
       - name: Build site
         run: pnpm run build
         env:
-          SITE_URL: https://open-locker.github.io/Open-Locker
-          BASE_PATH: /Open-Locker
+          SITE_URL: https://open-locker.org
+          BASE_PATH: /
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
