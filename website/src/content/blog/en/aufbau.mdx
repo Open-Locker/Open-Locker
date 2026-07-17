@@ -1,0 +1,40 @@
+---
+title: "Architecture"
+description: "The technical details of our setup."
+pubDate: "2026-02-10"
+draft: false
+---
+
+While building our project, we paid particular attention to keeping everything user-friendly, but also secure and stable.
+
+## Our individual building blocks are:
+
+* **Mobile app (main interface):** A simple, user-friendly app for everyday use — e.g. opening compartments, booking usage, or checking the status of items.
+* **Admin panel:** Managing the lockers. Admins can create new locations, register devices, assign roles, and help users as support.
+* **Backend:** The backend checks permissions, manages state, and provides the API to keep everything running.
+* **MQTT broker:** Decouples the backend from the locker location.
+* **IoT client:** Runs on e.g. a Raspberry Pi or ESP and translates messages into "real" signals for the locker (e.g. Modbus).
+
+Planned:
+
+- **QR code scanner** directly at the locker (optional).
+
+## Data flows
+
+### Command (open, reserve, …)
+
+When a user performs an action in the app (e.g. "open"), it works roughly like this:
+
+`App` → `Backend (HTTPS/REST)` → `MQTT Broker` → `Locker Client` → `Modbus` → `Locker/Lock`
+
+### Status (feedback & live updates)
+
+Feedback from the locker travels the same path in reverse and can be shown live in the app:
+
+`Locker/Lock` → `Locker Client` → `MQTT Broker` → `Backend` → `Database` → `Push/SSE` → `App`
+
+## What runs where?
+
+- **Backend + admin UI + database + MQTT broker**: typically central (server/hosting).
+- **Locker client**: on site (e.g. Raspberry Pi / ESP).
+- **Mobile app**: with the users.

@@ -10,7 +10,21 @@ const site = process.env.SITE_URL ?? 'http://localhost:4321';
 export default defineConfig({
 	site: new URL(site).toString(),
 	base: process.env.BASE_PATH ?? '/',
-	integrations: [mdx(), sitemap()],
+	i18n: {
+		defaultLocale: 'de',
+		locales: ['de', 'en'],
+		fallback: { en: 'de' },
+		routing: { prefixDefaultLocale: false },
+	},
+	integrations: [
+		mdx(),
+		sitemap({
+			i18n: {
+				defaultLocale: 'de',
+				locales: { de: 'de', en: 'en' },
+			},
+		}),
+	],
 	vite: {
 		plugins: [tailwindcss()],
 	},

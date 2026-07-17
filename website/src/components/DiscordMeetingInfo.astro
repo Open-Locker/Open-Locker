@@ -1,13 +1,16 @@
 ---
 import discordLogo from '../assets/Discord-Logo-White.svg';
+import { getLocaleFromUrl, useTranslations, type Locale } from '../i18n';
 
 type Props = {
 	discordUrl: string;
 	ariaLabel?: string;
 	variant?: 'card' | 'banner';
+	locale?: Locale;
 };
 
-const { discordUrl, ariaLabel = 'Discord öffnen', variant = 'card' } = Astro.props;
+const { discordUrl, variant = 'card', locale = getLocaleFromUrl(Astro.url) } = Astro.props;
+const { ariaLabel = useTranslations(locale).banner.discordAriaLabel } = Astro.props;
 ---
 
 {
@@ -35,7 +38,11 @@ const { discordUrl, ariaLabel = 'Discord öffnen', variant = 'card' } = Astro.pr
 				</a>
 				<p class="min-w-0">
 					<slot>
-						Wöchentliches Treffen auf Discord jeden <strong>Dienstag</strong> um <strong>19:30 Uhr</strong>.
+						{locale === 'en' ? (
+							<>Weekly meetup on Discord every <strong>Tuesday</strong> at <strong>7:30 PM</strong> (CET).</>
+						) : (
+							<>Wöchentliches Treffen auf Discord jeden <strong>Dienstag</strong> um <strong>19:30 Uhr</strong>.</>
+						)}
 					</slot>
 				</p>
 			</div>
@@ -62,7 +69,11 @@ const { discordUrl, ariaLabel = 'Discord öffnen', variant = 'card' } = Astro.pr
 				</a>
 				<p class="min-w-0">
 					<slot>
-						Wöchentliches Treffen auf Discord jeden <strong>Dienstag</strong> um <strong>19:30 Uhr</strong>.
+						{locale === 'en' ? (
+							<>Weekly meetup on Discord every <strong>Tuesday</strong> at <strong>7:30 PM</strong> (CET).</>
+						) : (
+							<>Wöchentliches Treffen auf Discord jeden <strong>Dienstag</strong> um <strong>19:30 Uhr</strong>.</>
+						)}
 					</slot>
 				</p>
 			</div>

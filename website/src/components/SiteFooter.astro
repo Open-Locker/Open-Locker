@@ -1,5 +1,17 @@
 ---
 import { LINKS } from '../config/links';
+import { getLocaleFromUrl, localizePath, useTranslations, type Locale } from '../i18n';
+
+type Props = {
+	locale?: Locale;
+};
+
+const { locale = getLocaleFromUrl(Astro.url) } = Astro.props;
+const t = useTranslations(locale).footer;
+
+const blogPath = localizePath('/blog/', locale);
+const imprintPath = localizePath('/impressum/', locale);
+const privacyPath = localizePath('/datenschutz/', locale);
 ---
 
 <footer class="border-t border-slate-200 bg-white">
@@ -9,15 +21,15 @@ import { LINKS } from '../config/links';
 				<img src="/logo-open-locker.svg" alt="" class="h-9 w-9" width="36" height="36" />
 				<div>
 					<p class="text-sm font-semibold">Open Locker</p>
-					<p class="text-sm text-slate-600">Open Source Software und Hardwarebaupläne für Schließfächer.</p>
+					<p class="text-sm text-slate-600">{t.tagline}</p>
 				</div>
 			</div>
 		</div>
 
 		<div class="space-y-2 text-sm">
-			<p class="font-semibold text-slate-900">Project</p>
+			<p class="font-semibold text-slate-900">{t.projectLabel}</p>
 			<ul class="space-y-1 text-slate-700">
-				<li><a class="hover:text-slate-900 underline-offset-4 hover:underline" href="/blog/">Blog</a></li>
+				<li><a class="hover:text-slate-900 underline-offset-4 hover:underline" href={blogPath}>{t.blog}</a></li>
 				<li>
 					<a
 						class="hover:text-slate-900 underline-offset-4 hover:underline"
@@ -42,10 +54,10 @@ import { LINKS } from '../config/links';
 		</div>
 
 		<div class="space-y-2 text-sm">
-			<p class="font-semibold text-slate-900">Legal</p>
+			<p class="font-semibold text-slate-900">{t.legalLabel}</p>
 			<ul class="space-y-1 text-slate-700">
-				<li><a class="hover:text-slate-900 underline-offset-4 hover:underline" href="/impressum/">Impressum</a></li>
-				<li><a class="hover:text-slate-900 underline-offset-4 hover:underline" href="/datenschutz/">Datenschutz</a></li>
+				<li><a class="hover:text-slate-900 underline-offset-4 hover:underline" href={imprintPath}>{t.imprint}</a></li>
+				<li><a class="hover:text-slate-900 underline-offset-4 hover:underline" href={privacyPath}>{t.privacy}</a></li>
 			</ul>
 		</div>
 	</div>
@@ -54,7 +66,7 @@ import { LINKS } from '../config/links';
 		<div class="mx-auto flex max-w-6xl flex-col gap-2 px-4 py-6 text-sm text-slate-600 md:flex-row md:items-center md:justify-between">
 			<p>© {new Date().getFullYear()} Open Locker</p>
 			<p>
-				Gebaut mit Astro · Statische Seite via NGINX
+				{t.builtWith}
 			</p>
 		</div>
 	</div>
