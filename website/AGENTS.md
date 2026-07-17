@@ -1,73 +1,47 @@
 # AGENTS.md
 
-This repository contains the **marketing / informational website** for the open source project **Open-Locker**.
+This directory contains the **marketing / informational website** for the open source project **Open-Locker**, served at [open-locker.org](https://open-locker.org/).
 
-- **Upstream project (code + hardware + docs)**: [Open-Locker/Open-Locker](https://github.com/Open-Locker/Open-Locker)
-- **This repo's scope**: a **static website** (built with **Astro**) that presents the Open-Locker project
-- **Deployment**: **Docker image** serving the static build via **NGINX** (and optionally deployed through GitLab CI/CD + Coolify)
+- **Location**: `website/` inside the [Open-Locker monorepo](https://github.com/Open-Locker/Open-Locker) (imported from a standalone repo, see issue #53)
+- **Scope**: a **static website** (built with **Astro**) that presents the Open-Locker project
+- **Deployment**: **GitHub Pages** via `.github/workflows/deploy-website.yml` (builds on pushes to `main` touching `website/**`)
 
 ## Goals
 
 - Provide a clear, fast, and accessible landing page for Open-Locker
 - Communicate what the Open-Locker project is and how people can participate
-- Keep the site build simple and reproducible (static output + containerized runtime)
+- Keep the site build simple and reproducible (static output, no server runtime)
 
 ## Non-goals
 
-- This repo is **not** the Open-Locker backend/mobile/hardware monorepo
+- This directory is **not** the Open-Locker backend/mobile/hardware code; that lives in the sibling monorepo components
 - Do not add runtime server logic (keep it static unless explicitly required)
-- Do not add Open-Locker business logic here; link to upstream docs/issues instead
+- Do not add Open-Locker business logic here; link to the main docs/issues instead
 
 ## Tech stack
 
-- **Framework**: Astro
+- **Framework**: Astro (MDX, sitemap, Tailwind CSS 4)
 - **Output**: static build (`dist/`)
-- **Container runtime**: NGINX serving the static files
+- **Hosting**: GitHub Pages (custom domain `open-locker.org`)
 
 ## Project structure (high level)
 
 - `src/pages/`: site routes (Astro pages)
 - `src/layouts/`: shared layouts
 - `src/components/`: UI components
+- `src/content/`: blog content collections
 - `public/`: static assets copied as-is
-- `nginx/nginx.conf`: NGINX configuration used by the container image
 
 ## Local development
 
-- Install dependencies:
+- Install dependencies: `pnpm install`
+- Run dev server: `pnpm dev`
+- Build production output: `pnpm build`
+- Preview the production build locally: `pnpm preview`
 
-  - `pnpm install`
+## CI/CD notes (GitHub Actions)
 
-- Run dev server:
-
-  - `pnpm dev`
-
-- Build production output:
-
-  - `pnpm build`
-
-- Preview the production build locally:
-
-  - `pnpm preview`
-
-## Docker workflow
-
-This repository builds a Docker image that contains the static Astro build and serves it via NGINX.
-
-- Build:
-  - `docker build -t open-locker-webpage .`
-- Run:
-  - `docker run --rm -p 8080:8080 open-locker-webpage`
-
-## CI/CD notes (GitLab)
-
-The pipeline in `.gitlab-ci.yml` builds and pushes Docker images to the GitLab Container Registry:
-
-- `:$CI_COMMIT_SHA` for immutable builds
-- `:$CI_COMMIT_REF_SLUG` for branch builds
-- `:latest` on `main`
-
-Optionally, a deploy job can trigger a redeploy via a **Coolify** webhook (requires `COOLIFY_WEBHOOK` and `COOLIFY_TOKEN` variables).
+`.github/workflows/deploy-website.yml` (monorepo root) builds the site with pnpm and deploys `dist/` to GitHub Pages on pushes to `main` that touch `website/**`. Build-time env: `SITE_URL` (canonical origin) and `BASE_PATH` (sub-path, `/` in production). See `README.md` for details.
 
 ## Content guidelines
 
@@ -81,7 +55,6 @@ Optionally, a deploy job can trigger a redeploy via a **Coolify** webhook (requi
 
 - Make changes in small, reviewable increments
 - Avoid introducing new dependencies unless necessary
-- Keep deployment assumptions intact (static build + NGINX in Docker)
-- If updating project facts (stack, components, community links), verify against upstream:
+- Keep deployment assumptions intact (static build, GitHub Pages)
+- If updating project facts (stack, components, community links), verify against the monorepo:
   - [Open-Locker/Open-Locker](https://github.com/Open-Locker/Open-Locker)
-
