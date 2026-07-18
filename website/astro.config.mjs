@@ -2,6 +2,7 @@
 import { defineConfig } from 'astro/config';
 import mdx from '@astrojs/mdx';
 import sitemap from '@astrojs/sitemap';
+import starlight from '@astrojs/starlight';
 import tailwindcss from '@tailwindcss/vite';
 
 // https://astro.build/config
@@ -17,6 +18,21 @@ export default defineConfig({
 		routing: { prefixDefaultLocale: false },
 	},
 	integrations: [
+		starlight({
+			title: { de: 'Open Locker', en: 'Open Locker' },
+			logo: { src: './public/logo-open-locker.svg' },
+			sidebar: [
+				{
+					label: 'Dokumentation',
+					translations: { en: 'Documentation' },
+					autogenerate: { directory: 'dokumentation' },
+				},
+			],
+			social: [
+				{ icon: 'github', label: 'GitHub', href: 'https://github.com/Open-Locker/Open-Locker' },
+				{ icon: 'discord', label: 'Discord', href: 'https://discord.gg/rZ74RYKN3H' },
+			],
+		}),
 		mdx(),
 		sitemap({
 			i18n: {

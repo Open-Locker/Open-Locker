@@ -9,6 +9,7 @@
     "astro": "astro"
   },
   "dependencies": {
+    "@astrojs/starlight": "^0.36.3",
     "@lucide/astro": "^0.563.0",
     "astro": "^5.17.1"
   },
