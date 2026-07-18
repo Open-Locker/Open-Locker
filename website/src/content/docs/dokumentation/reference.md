@@ -2,7 +2,7 @@
 title: Referenz
 description: API-Spezifikation, MQTT-Verträge, Hardware-Stückliste und weiterführende Dokumente.
 sidebar:
-  order: 6
+  order: 7
 ---
 
 ## API
@@ -24,9 +24,7 @@ sidebar:
 
 ## Hardware
 
-- **Stückliste (BOM)**:
-  [Deutsch](https://github.com/Open-Locker/Open-Locker/blob/main/docs/Bill-of-Materials.de.md) ·
-  [Englisch](https://github.com/Open-Locker/Open-Locker/blob/main/docs/Bill-of-Materials.md)
+- **Stückliste (BOM)**: siehe [Hardware](/dokumentation/hardware/)
 - Das Modbus-Relais-Board muss das dort gelistete Waveshare-Board sein
   (verifiziertes Flash- und Digital-Input-Verhalten, siehe
   [ADR-0004](https://github.com/Open-Locker/Open-Locker/blob/main/docs/adr/0004-waveshare-hardware-flash-and-supported-boards.md))

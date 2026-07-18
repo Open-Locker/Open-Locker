@@ -2,7 +2,7 @@
 title: Mitmachen
 description: Repository-Aufbau, Entwicklungs-Workflow, Codegen-Pipeline und wie neue Dokumentation entsteht.
 sidebar:
-  order: 5
+  order: 6
 ---
 
 Beiträge sind willkommen — von Code über Hardware-Erfahrungen bis

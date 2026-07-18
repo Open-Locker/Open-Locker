@@ -2,7 +2,7 @@
 title: Contributing
 description: Repository layout, development workflow, the codegen pipeline, and how new documentation is added.
 sidebar:
-  order: 5
+  order: 6
 ---
 
 Contributions are welcome — code, hardware experience, or documentation. To

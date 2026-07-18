@@ -2,7 +2,7 @@
 title: Reference
 description: API specification, MQTT contracts, hardware bill of materials, and further documents.
 sidebar:
-  order: 6
+  order: 7
 ---
 
 ## API
@@ -24,9 +24,7 @@ sidebar:
 
 ## Hardware
 
-- **Bill of Materials (BOM)**:
-  [English](https://github.com/Open-Locker/Open-Locker/blob/main/docs/Bill-of-Materials.md) ·
-  [German](https://github.com/Open-Locker/Open-Locker/blob/main/docs/Bill-of-Materials.de.md)
+- **Bill of Materials (BOM)**: see [Hardware](/en/dokumentation/hardware/)
 - The Modbus relay board must be the Waveshare board listed there (verified
   flash and digital-input behavior, see
   [ADR-0004](https://github.com/Open-Locker/Open-Locker/blob/main/docs/adr/0004-waveshare-hardware-flash-and-supported-boards.md))
