@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Reactors;
 
 use App\Events\CompartmentOpenStatusUpdated;
+use App\Models\Compartment;
 use App\StorableEvents\CompartmentOpenAuthorized;
 use App\StorableEvents\CompartmentOpenDenied;
 use App\StorableEvents\CompartmentOpened;
@@ -50,11 +51,15 @@ class CompartmentOpenStatusBroadcastReactor extends Reactor implements ShouldQue
             return;
         }
 
+        [$compartmentNumber, $lockerName] = $this->compartmentContext($event->compartmentUuid);
+
         event(new CompartmentOpenStatusUpdated(
             userId: $userId,
             commandId: $event->transactionId,
             compartmentUuid: $event->compartmentUuid,
-            status: 'opened'
+            status: 'opened',
+            compartmentNumber: $compartmentNumber,
+            lockerName: $lockerName
         ));
     }
 
@@ -65,25 +70,49 @@ class CompartmentOpenStatusBroadcastReactor extends Reactor implements ShouldQue
             return;
         }
 
+        [$compartmentNumber, $lockerName] = $this->compartmentContext($event->compartmentUuid);
+
         event(new CompartmentOpenStatusUpdated(
             userId: $userId,
             commandId: $event->transactionId,
             compartmentUuid: $event->compartmentUuid,
             status: 'failed',
             errorCode: $event->errorCode,
-            message: $event->message
+            message: $event->message,
+            compartmentNumber: $compartmentNumber,
+            lockerName: $lockerName
         ));
     }
 
     public function onCompartmentOpenDenied(CompartmentOpenDenied $event): void
     {
+        [$compartmentNumber, $lockerName] = $this->compartmentContext($event->compartmentUuid);
+
         event(new CompartmentOpenStatusUpdated(
             userId: $event->actorUserId,
             commandId: $event->commandId,
             compartmentUuid: $event->compartmentUuid,
             status: 'denied',
-            message: $event->reason
+            message: $event->reason,
+            compartmentNumber: $compartmentNumber,
+            lockerName: $lockerName
         ));
+    }
+
+    /**
+     * Human-readable context for admin-facing toasts: compartment number and
+     * locker-bank name, both null when the read model row is missing.
+     *
+     * @return array{0: ?int, 1: ?string}
+     */
+    private function compartmentContext(string $compartmentUuid): array
+    {
+        $compartment = Compartment::with('lockerBank')->find($compartmentUuid);
+
+        return [
+            $compartment?->number,
+            $compartment?->lockerBank?->name,
+        ];
     }
 
     private function actorIdForCommand(string $commandId): ?int
