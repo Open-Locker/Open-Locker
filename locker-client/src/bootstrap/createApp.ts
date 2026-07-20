@@ -15,7 +15,11 @@ import { createOpenCompartmentHandler } from '../adapters/mqtt/handlers/open-com
 import { createApplyConfigHandler } from '../adapters/mqtt/handlers/apply-config.handler';
 import { OpenCompartmentUseCase, runStartupFailsafe } from '../application/open-compartment';
 import { ApplyConfigUseCase } from '../application/apply-config';
-import { HeartbeatUseCase, PollCompartmentStateUseCase } from '../application/state-publishing';
+import {
+  COMPARTMENT_POLL_INTERVAL_MS,
+  HeartbeatUseCase,
+  PollCompartmentStateUseCase,
+} from '../application/state-publishing';
 import { RunAfterCompleteScheduler } from '../infrastructure/scheduler';
 import {
   DEFAULT_MQTT_BROKER_URL,
@@ -152,10 +156,9 @@ export async function createApp(): Promise<AppContext> {
   await runStartupFailsafe(bus);
   heartbeat.start();
 
-  const pollIntervalMs = 5000;
   const pollTimer = setInterval(() => {
     void pollSnapshot.pollAndPublish();
-  }, pollIntervalMs);
+  }, COMPARTMENT_POLL_INTERVAL_MS);
 
   logger.info('locker-client started', { lockerUuid, clientId });
 

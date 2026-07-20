@@ -90,15 +90,23 @@ export class ModbusBusActor implements LockerBusPort {
     return values[0] ?? false;
   }
 
-  async readDoorSensor(target: CompartmentTarget): Promise<DoorState> {
+  async readDoorSensors(
+    slaveId: number,
+    startAddress: number,
+    length: number,
+  ): Promise<DoorState[]> {
     try {
       const values = await this.run(
-        () => this.driver.readDiscreteInputs(target.slaveId, target.relayAddress, 1),
-        BusPriority.POLL,
+        () => this.driver.readDiscreteInputs(slaveId, startAddress, length),
+        BusPriority.SNAPSHOT,
       );
-      return values[0] ? 'closed' : 'open';
+
+      return Array.from({ length }, (_, offset) => {
+        const value = values[offset];
+        return typeof value === 'boolean' ? (value ? 'closed' : 'open') : 'unknown';
+      });
     } catch {
-      return 'unknown';
+      return Array.from({ length }, () => 'unknown');
     }
   }
 

@@ -113,16 +113,39 @@ test('concurrent flashRelay and ensureConnected never interleave driver calls', 
   assert.ok(driver.operations.some((op) => op.startsWith('flash:')));
 });
 
-test('readDoorSensor maps discrete input high to closed and low to open', async () => {
+test('readDoorSensors reads and maps the requested discrete input range', async () => {
   const driver = new ConfigurableDiscreteInputDriver(true);
   const bus = new ModbusBusActor(driver, { maxAttempts: 0 }, [1]);
   await bus.connect();
 
-  const target = { compartmentNumber: 1, slaveId: 1, relayAddress: 0 };
-  assert.equal(await bus.readDoorSensor(target), 'closed');
+  assert.deepEqual(
+    await bus.readDoorSensors(1, 2, 3),
+    Array.from({ length: 3 }, () => 'closed'),
+  );
+  assert.deepEqual(driver.reads, [{ slaveId: 1, address: 2, length: 3 }]);
 
   driver.setInputState(false);
-  assert.equal(await bus.readDoorSensor(target), 'open');
+  assert.deepEqual(
+    await bus.readDoorSensors(1, 2, 3),
+    Array.from({ length: 3 }, () => 'open'),
+  );
+});
+
+test('readDoorSensors returns one unknown batch after a board timeout', async () => {
+  const driver = new ConfigurableDiscreteInputDriver(true);
+  let reads = 0;
+  driver.readDiscreteInputs = async () => {
+    reads++;
+    throw new Error('Timed out');
+  };
+  const bus = new ModbusBusActor(driver, { maxAttempts: 0 }, [1]);
+  await bus.connect();
+
+  assert.deepEqual(
+    await bus.readDoorSensors(1, 4, 2),
+    Array.from({ length: 2 }, () => 'unknown'),
+  );
+  assert.equal(reads, 1);
 });
 
 test('BusActor retries once after reconnectable transport failure', async () => {
@@ -139,6 +162,7 @@ test('BusActor retries once after reconnectable transport failure', async () => 
 });
 
 class ConfigurableDiscreteInputDriver implements ModbusDriver {
+  readonly reads: Array<{ slaveId: number; address: number; length: number }> = [];
   private open = false;
 
   constructor(private inputState: boolean) {}
@@ -165,8 +189,9 @@ class ConfigurableDiscreteInputDriver implements ModbusDriver {
     return [false];
   }
 
-  async readDiscreteInputs(): Promise<boolean[]> {
-    return [this.inputState];
+  async readDiscreteInputs(slaveId: number, address: number, length: number): Promise<boolean[]> {
+    this.reads.push({ slaveId, address, length });
+    return Array.from({ length }, () => this.inputState);
   }
 
   async turnAllRelaysOff(): Promise<void> {}
