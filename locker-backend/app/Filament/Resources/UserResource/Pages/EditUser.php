@@ -121,7 +121,7 @@ class EditUser extends EditRecord
 
                         if (! $changed) {
                             Notification::make()
-                                ->title(__('Action cancelled'))
+                                ->title(__('Cannot change role'))
                                 ->body(__('The last admin cannot lose admin rights.'))
                                 ->danger()
                                 ->send();
@@ -145,7 +145,7 @@ class EditUser extends EditRecord
 
                     if ($record->isAdmin() && ! User::hasOtherAdmin($record->id)) {
                         Notification::make()
-                            ->title(__('Action cancelled'))
+                            ->title(__('Cannot delete user'))
                             ->body(__('The last admin cannot be deleted.'))
                             ->danger()
                             ->send();

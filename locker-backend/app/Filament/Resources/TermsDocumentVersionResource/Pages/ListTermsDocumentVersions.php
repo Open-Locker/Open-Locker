@@ -15,6 +15,7 @@ use Filament\Forms\Components\TextInput;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\ListRecords;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 use Throwable;
 
 class ListTermsDocumentVersions extends ListRecords
@@ -55,9 +56,14 @@ class ListTermsDocumentVersions extends ListRecords
                             actor: $actor instanceof User ? $actor : null,
                         );
                     } catch (Throwable $e) {
+                        Log::error('Failed to create terms draft version from Filament.', [
+                            'document_name' => (string) $data['document_name'],
+                            'error' => $e->getMessage(),
+                        ]);
+
                         Notification::make()
-                            ->title(__('Publishing failed'))
-                            ->body($e->getMessage())
+                            ->title(__('Publish failed'))
+                            ->body(__('Please try again. Details are in the server log.'))
                             ->danger()
                             ->send();
 
@@ -65,7 +71,7 @@ class ListTermsDocumentVersions extends ListRecords
                     }
 
                     Notification::make()
-                        ->title(__('Draft saved'))
+                        ->title(__('Draft updated'))
                         ->success()
                         ->send();
                 }),
