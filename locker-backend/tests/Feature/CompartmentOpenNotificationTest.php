@@ -13,7 +13,9 @@ use Filament\Actions\Testing\TestAction;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
 use Mockery\MockInterface;
+use PhpMqtt\Client\Facades\MQTT;
 use RuntimeException;
+use Tests\Fakes\FakeMqttClient;
 use Tests\TestCase;
 
 class CompartmentOpenNotificationTest extends TestCase
@@ -39,6 +41,11 @@ class CompartmentOpenNotificationTest extends TestCase
         $admin->makeAdmin();
 
         $compartment = Compartment::factory()->create();
+
+        MQTT::shouldReceive('connection')
+            ->once()
+            ->with('publisher')
+            ->andReturn(new FakeMqttClient);
 
         Livewire::actingAs($admin)
             ->test(ListCompartments::class)
