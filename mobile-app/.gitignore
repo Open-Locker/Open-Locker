@@ -36,6 +36,11 @@ yarn-error.*
 !.env.example
 .env*.local
 
+# EAS / native signing credentials — never commit
+# (the keystore/cert/profile files are covered above by *.jks/*.p12/*.mobileprovision)
+credentials.json
+/credentials
+
 # typescript
 *.tsbuildinfo
 

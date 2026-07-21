@@ -9,6 +9,7 @@ use App\Models\LockerBank;
 use App\StorableEvents\CompartmentOpeningRequested;
 use App\StorableEvents\LockerConfigApplyRequested;
 use App\StorableEvents\LockerProvisioningFailed;
+use App\StorableEvents\LockerProvisioningReset;
 use App\StorableEvents\LockerWasProvisioned;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
@@ -43,6 +44,23 @@ class LockerBankAggregate extends AggregateRoot
             replyToTopic: $replyToTopic,
         ));
         Log::info("LockerWasProvisioned event recorded for: {$lockerBank->id}");
+
+        return $this;
+    }
+
+    /**
+     * Reset a locker bank's provisioning: rotate the provisioning token and clear
+     * the provisioned state so the device must re-authenticate. The new token must
+     * still be delivered to the device manually (backend has no push channel).
+     */
+    public function resetProvisioning(string $newProvisioningToken): self
+    {
+        Log::info("Resetting provisioning for locker bank: {$this->uuid()}");
+
+        $this->recordThat(new LockerProvisioningReset(
+            lockerBankUuid: (string) $this->uuid(),
+            newProvisioningToken: $newProvisioningToken,
+        ));
 
         return $this;
     }
