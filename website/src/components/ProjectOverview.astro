@@ -1,0 +1,144 @@
+---
+import ListChecks from '@lucide/astro/icons/list-checks';
+import Wallet from '@lucide/astro/icons/wallet';
+import Wrench from '@lucide/astro/icons/wrench';
+import Server from '@lucide/astro/icons/server';
+import Settings from '@lucide/astro/icons/settings';
+import BadgeCheck from '@lucide/astro/icons/badge-check';
+import HostingOffer from './HostingOffer.astro';
+---
+
+<section id="mehr-erfahren" class="border-b border-slate-200 bg-white scroll-mt-24">
+	<div class="mx-auto max-w-6xl px-4 py-14 md:py-16">
+		<div class="grid gap-10 md:grid-cols-2 md:items-start">
+			<div class="space-y-4">
+				<div class="flex flex-wrap items-center gap-3">
+					<h2 class="text-2xl font-semibold tracking-tight text-slate-900">Was ist Open Locker?</h2>
+					<span class="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-900">
+						In Entwicklung
+					</span>
+				</div>
+
+				<p class="text-slate-700">
+					Open Locker ist ein Open Source Projekt für öffentliche Schließfächer inklusive Backend, Mobile App und
+					Hardwarebauplänen. Unser Ziel ist eine Lösung, die im Alltag zuverlässig funktioniert, sich an lokale
+					Anforderungen anpassen lässt und für diejenigen erschwinglich ist, die sie wirklich brauchen.
+				</p>
+				<p class="text-slate-700">
+					Dabei setzt Open Locker auf kontrollierbare Kosten und offene Standards: Du kannst die Software selbst betreiben oder
+					optional Hosting buchen.
+				</p>
+				<p class="text-slate-700">
+					Wir bauen die Lösung außerdem so, dass sie <strong class="text-slate-900">einfach zu verwenden</strong> ist.
+					Unser Schrank ist im Sinne von <strong class="text-slate-900">digitaler Teilhabe</strong> z.B. auch für Senior:innen
+					und digital weniger affine Gruppen gut geeignet.
+				</p>
+
+				<div class="flex flex-wrap gap-3 pt-1">
+				<p class="text-slate-700">Vom Hackathon zum Open Source Projekt:
+					</p>
+					<a
+						href="/blog/hintergrund-open-locker/"
+						class="rounded-md border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-900 hover:bg-slate-50 focus-visible:ring-2 focus-visible:ring-slate-900"
+					>
+						Unsere Hintergrundgeschichte
+					</a>
+				</div>
+			</div>
+
+			<div class="space-y-3">
+				<p class="text-sm font-semibold text-slate-900">Features auf einen Blick</p>
+				<div class="grid gap-3 sm:grid-cols-2 md:grid-cols-1 lg:grid-cols-2">
+					<div class="rounded-xl border border-slate-200 bg-white p-4">
+						<div class="flex items-start gap-3">
+							<span class="mt-0.5 inline-flex h-5 w-5 flex-none items-center justify-center text-slate-900">
+								<ListChecks size={20} aria-hidden="true" />
+							</span>
+							<div>
+								<p class="font-semibold text-slate-900">Einfach nachzubauen</p>
+								<p class="mt-1 text-sm text-slate-700">Anleitung, Einkaufsliste und reproduzierbares Setup.</p>
+							</div>
+						</div>
+					</div>
+
+					<div class="rounded-xl border border-slate-200 bg-white p-4">
+						<div class="flex items-start gap-3">
+							<span class="mt-0.5 inline-flex h-5 w-5 flex-none items-center justify-center text-slate-900">
+								<Wallet size={20} aria-hidden="true" />
+							</span>
+							<div>
+								<p class="font-semibold text-slate-900">Erschwinglich</p>
+								<p class="mt-1 text-sm text-slate-700">Kosten kontrollieren statt Lizenzmodell und Plattformfalle.</p>
+							</div>
+						</div>
+					</div>
+
+					<div class="rounded-xl border border-slate-200 bg-white p-4">
+						<div class="flex items-start gap-3">
+							<span class="mt-0.5 inline-flex h-5 w-5 flex-none items-center justify-center text-slate-900">
+								<BadgeCheck size={20} aria-hidden="true" />
+							</span>
+							<div>
+								<p class="font-semibold text-slate-900">Einfach zu verwenden</p>
+								<p class="mt-1 text-sm text-slate-700">UX für digitale Teilhabe. Auch für Senior:innen geeignet.</p>
+							</div>
+						</div>
+					</div>
+
+					<div class="rounded-xl border border-slate-200 bg-white p-4">
+						<div class="flex items-start gap-3">
+							<span class="mt-0.5 inline-flex h-5 w-5 flex-none items-center justify-center text-slate-900">
+								<Wrench size={20} aria-hidden="true" />
+							</span>
+							<div>
+								<p class="font-semibold text-slate-900">Umrüstbar</p>
+								<p class="mt-1 text-sm text-slate-700">
+									Von IKEA bis teurer Industrieschrank: bestehende Spinde weiter nutzen und mit unserer Hardware und Software betreiben.
+								</p>
+							</div>
+						</div>
+					</div>
+
+					<div class="rounded-xl border border-slate-200 bg-white p-4">
+						<div class="flex items-start gap-3">
+							<span class="mt-0.5 inline-flex h-5 w-5 flex-none items-center justify-center text-slate-900">
+								<Server size={20} aria-hidden="true" />
+							</span>
+							<div>
+								<p class="font-semibold text-slate-900">Self-hosting möglich</p>
+								<p class="mt-1 text-sm text-slate-700">Datenhoheit und Privacy statt undurchsichtige Cloud-Dienste.</p>
+							</div>
+						</div>
+					</div>
+
+					<div class="rounded-xl border border-slate-200 bg-white p-4">
+						<div class="flex items-start gap-3">
+							<span class="mt-0.5 inline-flex h-5 w-5 flex-none items-center justify-center text-slate-900">
+								<ListChecks size={20} aria-hidden="true" />
+							</span>
+							<div>
+								<p class="font-semibold text-slate-900">Audit und Protokolle</p>
+								<p class="mt-1 text-sm text-slate-700">Zugriffe nachvollziehbar protokollieren (wer, wann, was).</p>
+							</div>
+						</div>
+					</div>
+
+					<div class="rounded-xl border border-slate-200 bg-white p-4">
+						<div class="flex items-start gap-3">
+							<span class="mt-0.5 inline-flex h-5 w-5 flex-none items-center justify-center text-slate-900">
+								<Settings size={20} aria-hidden="true" />
+							</span>
+							<div>
+								<p class="font-semibold text-slate-900">Individualisierbar</p>
+								<p class="mt-1 text-sm text-slate-700">Workflows, Rollen und Integrationen an euren Alltag anpassen.</p>
+							</div>
+						</div>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<HostingOffer contactHref="#kontakt" />
+	</div>
+</section>
+

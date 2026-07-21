@@ -1,0 +1,46 @@
+<!doctype html>
+---
+import '../styles/global.css';
+import SiteHeader from '../components/SiteHeader.astro';
+import SiteFooter from '../components/SiteFooter.astro';
+import DiscordMeetingInfo from '../components/DiscordMeetingInfo.astro';
+import { LINKS } from '../config/links';
+
+type Props = {
+	lang?: string;
+};
+
+const { lang = 'de' } = Astro.props;
+const iconVersion = '2';
+---
+
+<html lang={lang}>
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width" />
+		<link rel="icon" type="image/svg+xml" href={`/favicon-light.svg?v=${iconVersion}`} media="(prefers-color-scheme: light)" />
+		<link rel="icon" type="image/svg+xml" href={`/favicon-dark.svg?v=${iconVersion}`} media="(prefers-color-scheme: dark)" />
+		<link rel="icon" type="image/svg+xml" href={`/favicon-light.svg?v=${iconVersion}`} />
+		<link rel="icon" href={`/favicon.ico?v=${iconVersion}`} />
+		<meta name="generator" content={Astro.generator} />
+		<link rel="sitemap" href="/sitemap-index.xml" />
+		<slot name="head" />
+	</head>
+	<body class="min-h-dvh bg-white text-slate-900 antialiased">
+		<a
+			href="#main"
+			class="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50 focus:rounded-md focus:bg-white focus:px-3 focus:py-2 focus:text-sm focus:font-medium focus:text-slate-900 focus:shadow-lg"
+		>
+			Skip to content
+		</a>
+
+		<SiteHeader />
+		<DiscordMeetingInfo variant="banner" discordUrl={LINKS.discordInvite} />
+
+		<main id="main" class="min-h-[60dvh]">
+			<slot />
+		</main>
+
+		<SiteFooter />
+	</body>
+</html>
