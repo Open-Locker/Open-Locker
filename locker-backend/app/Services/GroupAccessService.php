@@ -111,6 +111,25 @@ class GroupAccessService
     }
 
     /**
+     * Archive a group (event-sourced, not a hard delete — see ADR-0020 / #106).
+     * Ends effective access derived from this group; existing `group_user` /
+     * `group_compartment_accesses` rows are left as-is (GroupProjector simply
+     * stops counting an archived group as a source), preserving full history.
+     */
+    public function archiveGroup(Group $group, ?User $actor = null): void
+    {
+        $actor = $this->ensureCanManageAccess($actor);
+
+        GroupAggregate::retrieve((string) $group->id)
+            ->archive(
+                groupUuid: (string) $group->id,
+                actorUserId: $actor->id,
+                archivedAt: now(),
+            )
+            ->persist();
+    }
+
+    /**
      * @throws AuthorizationException
      */
     private function ensureCanManageAccess(?User $actor): User

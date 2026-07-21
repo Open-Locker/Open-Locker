@@ -7,6 +7,7 @@ namespace App\Projectors;
 use App\Models\Group;
 use App\Models\GroupCompartmentAccess;
 use App\Models\UserGroupCompartmentAccess;
+use App\StorableEvents\GroupArchived;
 use App\StorableEvents\GroupCompartmentAccessGranted;
 use App\StorableEvents\GroupCompartmentAccessRevoked;
 use App\StorableEvents\GroupCreated;
@@ -98,6 +99,22 @@ class GroupProjector extends Projector
         $this->recomputeGroup($event->groupUuid);
     }
 
+    public function onGroupArchived(GroupArchived $event): void
+    {
+        Group::query()
+            ->where('id', $event->groupUuid)
+            ->update([
+                'archived_at' => Date::parse($event->archivedAt),
+                'archived_by_user_id' => $event->actorUserId,
+            ]);
+
+        // Archived groups no longer contribute to effective access (enforced in
+        // recomputePair()'s join below), so this retracts any derived access
+        // that had no other source — same union-survives-if-another-group-
+        // still-grants-it behavior as revoking membership/grants directly.
+        $this->recomputeGroup($event->groupUuid);
+    }
+
     /**
      * Rebuild the derived effective rows touched by one group. Scoped per group
      * (not a full-table rebuild): we look only at the (user, compartment) pairs
@@ -155,10 +172,15 @@ class GroupProjector extends Projector
     private function recomputePair(int $userId, string $compartmentId, CarbonInterface $now): void
     {
         // Per contributing group, the path expiry = earliest of membership and grant expiry.
+        // An archived group never contributes a path, even if its membership/grant
+        // rows are still individually "active" (unrevoked, unexpired) — archiving
+        // ends effective access without touching those rows (see GroupArchived).
         $paths = DB::table('group_user as gu')
             ->join('group_compartment_accesses as gca', 'gca.group_id', '=', 'gu.group_id')
+            ->join('groups', 'groups.id', '=', 'gu.group_id')
             ->where('gu.user_id', $userId)
             ->where('gca.compartment_id', $compartmentId)
+            ->whereNull('groups.archived_at')
             ->whereNull('gu.revoked_at')
             ->where(fn ($q) => $q->whereNull('gu.expires_at')->orWhere('gu.expires_at', '>', $now))
             ->whereNull('gca.revoked_at')
