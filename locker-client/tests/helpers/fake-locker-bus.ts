@@ -12,8 +12,9 @@ export class FakeLockerBus implements LockerBusPort {
     value: boolean;
   }> = [];
   readonly turnAllOffCalls: number[] = [];
+  readonly doorBatchReads: Array<{ slaveId: number; startAddress: number; length: number }> = [];
   private relayStates = new Map<string, boolean>();
-  private doorStates = new Map<string, DoorState>();
+  private doorStates = new Map<number, DoorState[]>();
   private connected = true;
   private slaveIds: number[];
 
@@ -50,8 +51,15 @@ export class FakeLockerBus implements LockerBusPort {
     return this.relayStates.get(this.key(target)) ?? false;
   }
 
-  async readDoorSensor(target: CompartmentTarget): Promise<DoorState> {
-    return this.doorStates.get(this.key(target)) ?? 'closed';
+  async readDoorSensors(
+    slaveId: number,
+    startAddress: number,
+    length: number,
+  ): Promise<DoorState[]> {
+    this.doorBatchReads.push({ slaveId, startAddress, length });
+    const states =
+      this.doorStates.get(slaveId) ?? Array.from({ length: 8 }, () => 'closed' as const);
+    return states.slice(startAddress, startAddress + length);
   }
 
   async turnAllRelaysOff(slaveId: number): Promise<void> {
@@ -66,6 +74,16 @@ export class FakeLockerBus implements LockerBusPort {
 
   setRelayState(target: CompartmentTarget, on: boolean): void {
     this.relayStates.set(this.key(target), on);
+  }
+
+  setDoorBatchStates(slaveId: number, states: DoorState[]): void {
+    this.doorStates.set(slaveId, [...states]);
+  }
+
+  setDoorState(target: CompartmentTarget, state: DoorState): void {
+    const states = this.doorStates.get(target.slaveId) ?? Array.from({ length: 8 }, () => 'closed');
+    states[target.relayAddress] = state;
+    this.doorStates.set(target.slaveId, states);
   }
 
   private key(target: CompartmentTarget): string {
