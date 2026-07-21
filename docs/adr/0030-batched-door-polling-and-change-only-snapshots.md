@@ -121,4 +121,4 @@ vector changes. This decision refines how those requirements are implemented.
 - `docs/adr/0016-retained-compartment-snapshot-and-door-state-persistence.md`
 - `docs/adr/0029-enforce-modbus-rtu-inter-frame-delay.md`
 - `locker-client/src/application/state-publishing.ts`
-- `locker-client/src/adapters/modbus/bus-actor.ts`
+- `locker-client/src/adapters/modbus/waveshare-modbus-bus-actor.ts`

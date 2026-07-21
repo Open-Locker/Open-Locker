@@ -1,9 +1,12 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { ModbusBusActor, type ModbusDriver } from '../../src/adapters/modbus/bus-actor';
+import {
+  WaveshareModbusBusActor,
+  type WaveshareModbusDriver,
+} from '../../src/adapters/modbus/waveshare-modbus-bus-actor';
 import { BusPriority } from '../../src/ports/locker-bus.port';
 
-class FakeModbusDriver implements ModbusDriver {
+class FakeWaveshareModbusDriver implements WaveshareModbusDriver {
   readonly operations: string[] = [];
   private open = false;
 
@@ -47,8 +50,8 @@ class FakeModbusDriver implements ModbusDriver {
 }
 
 test('BusActor serializes concurrent operations', async () => {
-  const driver = new FakeModbusDriver();
-  const bus = new ModbusBusActor(driver, { maxAttempts: 0 }, [1]);
+  const driver = new FakeWaveshareModbusDriver();
+  const bus = new WaveshareModbusBusActor(driver, { maxAttempts: 0 }, [1]);
 
   await bus.connect();
   const target = { compartmentNumber: 1, slaveId: 1, relayAddress: 0 };
@@ -64,8 +67,8 @@ test('BusActor serializes concurrent operations', async () => {
 });
 
 test('BusActor command priority runs before poll reads', async () => {
-  const driver = new FakeModbusDriver();
-  const bus = new ModbusBusActor(driver, { maxAttempts: 0 }, [1]);
+  const driver = new FakeWaveshareModbusDriver();
+  const bus = new WaveshareModbusBusActor(driver, { maxAttempts: 0 }, [1]);
   await bus.connect();
 
   const target = { compartmentNumber: 1, slaveId: 1, relayAddress: 0 };
@@ -90,7 +93,7 @@ test('BusActor command priority runs before poll reads', async () => {
 
 test('ensureConnected returns false after max reconnect attempts', async () => {
   const driver = new FailingConnectDriver();
-  const bus = new ModbusBusActor(driver, { maxAttempts: 3, delayMs: 1 }, [1]);
+  const bus = new WaveshareModbusBusActor(driver, { maxAttempts: 3, delayMs: 1 }, [1]);
 
   const result = await bus.ensureConnected();
 
@@ -100,7 +103,7 @@ test('ensureConnected returns false after max reconnect attempts', async () => {
 
 test('concurrent flashRelay and ensureConnected never interleave driver calls', async () => {
   const driver = new InterleavingGuardDriver();
-  const bus = new ModbusBusActor(driver, { maxAttempts: 0 }, [1]);
+  const bus = new WaveshareModbusBusActor(driver, { maxAttempts: 0 }, [1]);
   await bus.connect();
 
   const target = { compartmentNumber: 1, slaveId: 1, relayAddress: 0 };
@@ -115,7 +118,7 @@ test('concurrent flashRelay and ensureConnected never interleave driver calls', 
 
 test('readDoorSensors reads and maps the requested discrete input range', async () => {
   const driver = new ConfigurableDiscreteInputDriver(true);
-  const bus = new ModbusBusActor(driver, { maxAttempts: 0 }, [1]);
+  const bus = new WaveshareModbusBusActor(driver, { maxAttempts: 0 }, [1]);
   await bus.connect();
 
   assert.deepEqual(
@@ -138,7 +141,7 @@ test('readDoorSensors returns one unknown batch after a board timeout', async ()
     reads++;
     throw new Error('Timed out');
   };
-  const bus = new ModbusBusActor(driver, { maxAttempts: 0 }, [1]);
+  const bus = new WaveshareModbusBusActor(driver, { maxAttempts: 0 }, [1]);
   await bus.connect();
 
   assert.deepEqual(
@@ -150,7 +153,7 @@ test('readDoorSensors returns one unknown batch after a board timeout', async ()
 
 test('BusActor retries once after reconnectable transport failure', async () => {
   const driver = new ReconnectableFailureDriver();
-  const bus = new ModbusBusActor(driver, { maxAttempts: 0 }, [1]);
+  const bus = new WaveshareModbusBusActor(driver, { maxAttempts: 0 }, [1]);
   await bus.connect();
 
   const target = { compartmentNumber: 1, slaveId: 1, relayAddress: 0 };
@@ -161,7 +164,7 @@ test('BusActor retries once after reconnectable transport failure', async () => 
   assert.ok(driver.operations.filter((op) => op === 'connect').length >= 2);
 });
 
-class ConfigurableDiscreteInputDriver implements ModbusDriver {
+class ConfigurableDiscreteInputDriver implements WaveshareModbusDriver {
   readonly reads: Array<{ slaveId: number; address: number; length: number }> = [];
   private open = false;
 
@@ -197,7 +200,7 @@ class ConfigurableDiscreteInputDriver implements ModbusDriver {
   async turnAllRelaysOff(): Promise<void> {}
 }
 
-class FailingConnectDriver implements ModbusDriver {
+class FailingConnectDriver implements WaveshareModbusDriver {
   connectAttempts = 0;
 
   async connect(): Promise<void> {
@@ -224,7 +227,7 @@ class FailingConnectDriver implements ModbusDriver {
   async turnAllRelaysOff(): Promise<void> {}
 }
 
-class InterleavingGuardDriver implements ModbusDriver {
+class InterleavingGuardDriver implements WaveshareModbusDriver {
   readonly operations: string[] = [];
   private open = false;
   private activeOperation: string | null = null;
@@ -283,7 +286,7 @@ class InterleavingGuardDriver implements ModbusDriver {
   }
 }
 
-class ReconnectableFailureDriver implements ModbusDriver {
+class ReconnectableFailureDriver implements WaveshareModbusDriver {
   readonly operations: string[] = [];
   flashAttempts = 0;
   private open = false;

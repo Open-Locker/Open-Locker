@@ -1,8 +1,8 @@
 import {
   DEFAULT_MODBUS_MAX_RECONNECT_ATTEMPTS,
-  ModbusBusActor,
-} from '../adapters/modbus/bus-actor';
-import { ModbusRtuDriver } from '../adapters/modbus/modbus-rtu.driver';
+  WaveshareModbusBusActor,
+} from '../adapters/modbus/waveshare-modbus-bus-actor';
+import { WaveshareModbusRtuDriver } from '../adapters/modbus/waveshare-modbus-rtu.driver';
 import { YamlConfigRepository } from '../adapters/config/yaml-config.repository';
 import { FileRuntimeOverlayStore } from '../adapters/config/runtime-overlay.store';
 import { FileCredentialStore } from '../adapters/persistence/file-credential.store';
@@ -42,7 +42,7 @@ export async function createApp(): Promise<AppContext> {
   const dedupStore = new FileDedupStore();
   const transport = new MqttTransportAdapter(configRepo.getMqttTransportSettings());
 
-  const driver = new ModbusRtuDriver({
+  const driver = new WaveshareModbusRtuDriver({
     port: config.modbus.port,
     baudRate: config.modbus.baudRate ?? 9600,
     dataBits: config.modbus.dataBits ?? 8,
@@ -51,7 +51,7 @@ export async function createApp(): Promise<AppContext> {
     timeout: config.modbus.timeout ?? 1000,
   });
 
-  const bus = new ModbusBusActor(
+  const bus = new WaveshareModbusBusActor(
     driver,
     { maxAttempts: DEFAULT_MODBUS_MAX_RECONNECT_ATTEMPTS, delayMs: 5000 },
     configRepo.getConfiguredSlaveIds(),
