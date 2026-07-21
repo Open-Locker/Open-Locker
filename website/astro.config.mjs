@@ -32,6 +32,12 @@ export default defineConfig({
 				{ icon: 'github', label: 'GitHub', href: 'https://github.com/Open-Locker/Open-Locker' },
 				{ icon: 'discord', label: 'Discord', href: 'https://discord.gg/rZ74RYKN3H' },
 			],
+			components: {
+				Header: './src/components/Header.astro',
+				ThemeSelect: './src/components/EmptyThemeSelect.astro',
+				LanguageSelect: './src/components/LanguageSelect.astro',
+				SocialIcons: './src/components/SocialIcons.astro',
+			},
 		}),
 		mdx(),
 		sitemap({
