@@ -54,9 +54,8 @@ The workflow can also be run manually from the Actions tab (*Deploy Website* →
 
 ### Build-time environment
 
-| Variable    | Purpose                                                            | Production value          |
-| :---------- | :----------------------------------------------------------------- | :------------------------ |
-| `SITE_URL`  | Canonical origin for URLs, `robots.txt`, and the sitemap           | `https://open-locker.org` |
-| `BASE_PATH` | Sub-path the site is served under (only needed off the apex domain) | `/`                       |
+| Variable   | Purpose                                                  | Production value          |
+| :--------- | :------------------------------------------------------- | :------------------------ |
+| `SITE_URL` | Canonical origin for URLs, `robots.txt`, and the sitemap | `https://open-locker.org` |
 
-Both default to sensible local values (`http://localhost:4321`, `/`) when unset.
+It defaults to `http://localhost:4321` when unset.
