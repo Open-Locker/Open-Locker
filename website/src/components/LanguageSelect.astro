@@ -1,13 +1,13 @@
 ---
-// Starlight's default (unprefixed) locale reports as `undefined`, not 'de'.
-const currentLocale = Astro.locals.starlightRoute.locale ?? 'de';
-const otherLocale = currentLocale === 'de' ? 'en' : 'de';
+// Starlight's default (unprefixed) locale reports as `undefined`, not 'en'.
+const currentLocale = Astro.locals.starlightRoute.locale ?? 'en';
+const otherLocale = currentLocale === 'en' ? 'de' : 'en';
 
-// defaultLocale 'de' has no URL prefix (prefixDefaultLocale: false), 'en' is prefixed with /en/.
-const pathWithoutLocalePrefix = Astro.url.pathname.replace(/^\/en(\/|$)/, '/');
+// defaultLocale 'en' has no URL prefix (prefixDefaultLocale: false), 'de' is prefixed with /de/.
+const pathWithoutLocalePrefix = Astro.url.pathname.replace(/^\/de(\/|$)/, '/');
 const switchHref =
-	otherLocale === 'en'
-		? pathWithoutLocalePrefix.replace(/^\//, '/en/')
+	otherLocale === 'de'
+		? pathWithoutLocalePrefix.replace(/^\//, '/de/')
 		: pathWithoutLocalePrefix;
 ---
 

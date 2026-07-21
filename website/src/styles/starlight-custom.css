@@ -1,0 +1,36 @@
+/*
+ * Force the light palette used by the main site (no dark mode is offered
+ * there) and re-tint Starlight's accent/gray scale to match the main site's
+ * slate/blue-600 look. Unlayered rules win over Starlight's `@layer
+ * starlight.base` variables regardless of import order, so this overrides
+ * both the default (dark) `:root` values and the `[data-theme='light']`
+ * overrides in one place.
+ */
+:root {
+	--sl-color-white: hsl(222, 47%, 11%); /* slate-900 (primary text) */
+	--sl-color-gray-1: hsl(215, 25%, 27%); /* slate-700 */
+	--sl-color-gray-2: hsl(215, 19%, 35%); /* slate-600 */
+	--sl-color-gray-3: hsl(215, 16%, 47%); /* slate-500 */
+	--sl-color-gray-4: hsl(215, 20%, 65%); /* slate-400 */
+	--sl-color-gray-5: hsl(214, 32%, 91%); /* slate-200 */
+	--sl-color-gray-6: hsl(214, 32%, 91%); /* slate-200 (hairlines) */
+	--sl-color-gray-7: hsl(0, 0%, 100%); /* white (nav/sidebar bg) */
+	--sl-color-black: hsl(0, 0%, 100%); /* page bg */
+
+	--sl-color-accent-low: hsl(221, 83%, 90%);
+	--sl-color-accent: hsl(221, 83%, 53%); /* blue-600 */
+	--sl-color-accent-high: hsl(221, 83%, 30%);
+
+	--sl-color-text-accent: var(--sl-color-accent);
+	--sl-color-text-invert: var(--sl-color-black);
+	--sl-color-bg: var(--sl-color-black);
+	--sl-color-bg-nav: hsl(0, 0%, 100%);
+	--sl-color-bg-sidebar: hsl(0, 0%, 100%);
+	--sl-color-bg-inline-code: hsl(214, 32%, 95%);
+	--sl-color-bg-accent: var(--sl-color-accent);
+	--sl-color-hairline-light: hsl(214, 32%, 91%);
+	--sl-color-hairline: hsl(214, 32%, 91%);
+	--sl-color-hairline-shade: hsl(214, 32%, 91%);
+
+	color-scheme: light;
+}

@@ -1,41 +1,42 @@
 ---
-title: Überblick
-description: Was Open Locker ist, für wen es gedacht ist und aus welchen Komponenten das System besteht.
+title: Overview
+description: What Open Locker is, who it's for, and which components make up the system.
 sidebar:
   order: 1
 ---
 
-Open Locker ist ein Open-Source-Projekt für öffentliche Schließfachsysteme:
-Software und Hardware-Baupläne, um digitale Schließfächer selbst zu bauen, zu
-teilen und zu verwalten — zum Lagern und Verleihen von Gegenständen wie
-Laptops, Werkzeug oder VR-Headsets.
+Open Locker is an open source project for public locker systems: software and
+hardware blueprints for building, sharing, and managing digital lockers
+yourself — for storing and lending items such as laptops, tools, or VR
+headsets.
 
-## Für wen ist Open Locker?
+## Who is Open Locker for?
 
-- **Kommunen und Smart-City-Projekte**, die Verleihstationen betreiben wollen
-- **Vereine, Communities und Bildungseinrichtungen**, für die kommerzielle
-  Smart-Locker-Lösungen zu teuer sind
-- **Maker und Entwickler:innen**, die bestehende Schränke umrüsten möchten
+- **Municipalities and smart city projects** that want to run lending stations
+- **Clubs, communities, and educational institutions** for whom commercial
+  smart-locker solutions are too expensive
+- **Makers and developers** who want to retrofit existing cabinets
 
-## Die Komponenten
+## The components
 
-| Komponente | Beschreibung |
+| Component | Description |
 | --- | --- |
-| **Backend** | Laravel-API mit Filament-Admin-Panel — Quelle der Wahrheit für Daten, Berechtigungen und Kommandos |
-| **Mobile App** | React-Native-App (Expo) für Endnutzer:innen: Fächer öffnen, Gegenstände ausleihen und zurückgeben |
-| **Locker Client** | TypeScript-Dienst auf einem Raspberry Pi am Schrank: empfängt Kommandos per MQTT und steuert die Schlösser per Modbus |
-| **Hardware** | Baupläne und Stückliste für die Elektronik (Relais-Boards, Schlösser, Verkabelung) |
+| **Backend** | Laravel API with Filament admin panel — the source of truth for data, permissions, and commands |
+| **Mobile app** | React Native app (Expo) for end users: open compartments, borrow and return items |
+| **Locker client** | TypeScript service on a Raspberry Pi at the cabinet: receives commands via MQTT and drives the locks via Modbus |
+| **Hardware** | Blueprints and bill of materials for the electronics (relay boards, locks, wiring) |
 
-Wie die Teile zusammenspielen, beschreibt die [Architektur](/dokumentation/architecture/).
+How the parts play together is described in the
+[Architecture](/en/dokumentation/architecture/).
 
-## Erste Schritte
+## First steps
 
-- [Loslegen](/dokumentation/getting-started/) — lokale Entwicklungsumgebung aufsetzen
-- [Betrieb](/dokumentation/operations/) — Produktions-Deployment und Hosting
-- [Mitmachen](/dokumentation/contributing/) — zum Projekt beitragen
+- [Getting started](/en/dokumentation/getting-started/) — set up a local development environment
+- [Operations](/en/dokumentation/operations/) — production deployment and hosting
+- [Contributing](/en/dokumentation/contributing/) — contribute to the project
 
 ## Community
 
-Wöchentliches Treffen auf [Discord](https://discord.gg/rZ74RYKN3H) jeden
-Dienstag um 19:30 Uhr. Quellcode und Issues auf
+Weekly meetup on [Discord](https://discord.gg/rZ74RYKN3H) every Tuesday at
+7:30 PM (CET). Source code and issues on
 [GitHub](https://github.com/Open-Locker/Open-Locker).

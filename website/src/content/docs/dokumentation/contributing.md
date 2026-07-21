@@ -1,58 +1,58 @@
 ---
-title: Mitmachen
-description: Repository-Aufbau, Entwicklungs-Workflow, Codegen-Pipeline und wie neue Dokumentation entsteht.
+title: Contributing
+description: Repository layout, development workflow, the codegen pipeline, and how new documentation is added.
 sidebar:
   order: 6
 ---
 
-Beiträge sind willkommen — von Code über Hardware-Erfahrungen bis
-Dokumentation. Einstieg: ein Issue auf
-[GitHub](https://github.com/Open-Locker/Open-Locker/issues) schnappen oder beim
-wöchentlichen [Discord-Treffen](https://discord.gg/rZ74RYKN3H) (dienstags,
-19:30 Uhr) vorbeischauen.
+Contributions are welcome — code, hardware experience, or documentation. To
+get started, grab an issue on
+[GitHub](https://github.com/Open-Locker/Open-Locker/issues) or drop by the
+weekly [Discord meetup](https://discord.gg/rZ74RYKN3H) (Tuesdays, 7:30 PM
+CET).
 
-## Monorepo-Aufbau
+## Monorepo layout
 
-| Verzeichnis | Inhalt |
+| Directory | Contents |
 | --- | --- |
-| `locker-backend/` | Laravel-API + Filament-Admin (Event Sourcing) |
-| `mobile-app/` | React-Native-App (Expo, TypeScript) |
-| `locker-client/` | IoT-Client für den Raspberry Pi |
-| `hardware/` | KiCad-Designs |
-| `website/` | Diese Website inkl. Dokumentation (Astro + Starlight) |
-| `docs/` | Interne Docs und Architecture Decision Records (ADRs) |
+| `locker-backend/` | Laravel API + Filament admin (event sourcing) |
+| `mobile-app/` | React Native app (Expo, TypeScript) |
+| `locker-client/` | IoT client for the Raspberry Pi |
+| `hardware/` | KiCad designs |
+| `website/` | This website including documentation (Astro + Starlight) |
+| `docs/` | Internal docs and architecture decision records (ADRs) |
 
-## Qualitäts-Checks vor dem Push
+## Quality checks before pushing
 
-| Komponente | Befehl |
+| Component | Command |
 | --- | --- |
-| Backend | `composer quality` (Format + PHPStan + Tests) |
-| Mobile App | `pnpm check` und `pnpm test:ci` |
-| Locker Client | `pnpm check` und `pnpm test` |
+| Backend | `composer quality` (format + PHPStan + tests) |
+| Mobile app | `pnpm check` and `pnpm test:ci` |
+| Locker client | `pnpm check` and `pnpm test` |
 
-## Die Codegen-Pipeline
+## The codegen pipeline
 
-Der API-Vertrag ist ein echter Cross-Komponenten-Vertrag:
+The API contract is a real cross-component contract:
 
-1. Das Backend serviert die OpenAPI-Spezifikation **live** unter
-   `/docs/api.json` (Scramble, generiert aus den Controllern).
-2. Die Mobile App generiert daraus ihren typisierten RTK-Query-Client:
-   `pnpm generate:api` (Backend muss laufen).
+1. The backend serves the OpenAPI specification **live** at `/docs/api.json`
+   (Scramble, generated from the controllers).
+2. The mobile app generates its typed RTK Query client from it:
+   `pnpm generate:api` (the backend must be running).
 
-Wer eine API-Response ändert, muss den Client regenerieren — sonst driften die
-Typen.
+If you change an API response, you must regenerate the client — otherwise the
+types drift.
 
-## Architektur-Entscheidungen (ADRs)
+## Architecture decisions (ADRs)
 
-Architektur-relevante Änderungen (API-Vertrag, MQTT-Topics, Modbus,
-Infrastruktur, Security) brauchen einen ADR unter `docs/adr/` —
-nummeriert, eine Entscheidung pro ADR, akzeptierte ADRs werden nie
-umgeschrieben, sondern durch neue ersetzt.
+Architecture-significant changes (API contract, MQTT topics, Modbus,
+infrastructure, security) require an ADR under `docs/adr/` — numbered, one
+decision per ADR; accepted ADRs are never rewritten but superseded by new
+ones.
 
-## Dokumentation beitragen
+## Contributing documentation
 
-Diese Dokumentation lebt im Monorepo unter `website/src/content/docs/` —
-Deutsch unter `dokumentation/`, Englisch unter `en/dokumentation/` (gleiche
-Dateinamen = gepaarte Seiten). Neue Seiten als Markdown mit
-Frontmatter (`title`, `description`) anlegen und in beiden Sprachen ergänzen.
-Lokale Vorschau: `pnpm dev` in `website/`.
+This documentation lives in the monorepo under `website/src/content/docs/` —
+German under `dokumentation/`, English under `en/dokumentation/` (same
+filenames = paired pages). Add new pages as Markdown with frontmatter
+(`title`, `description`) and provide both languages. Local preview:
+`pnpm dev` in `website/`.

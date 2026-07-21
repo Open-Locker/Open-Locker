@@ -72,6 +72,23 @@ const switchHref = localizePath(Astro.url.pathname, otherLocale);
 		</nav>
 
 		<div class="flex items-center gap-1">
+			<button
+				type="button"
+				id="mobile-menu-toggle"
+				aria-expanded="false"
+				aria-controls="mobile-menu"
+				aria-label={copy.openMenuAriaLabel}
+				data-close-label={copy.closeMenuAriaLabel}
+				class="inline-flex h-10 w-10 items-center justify-center rounded-md text-slate-700 hover:bg-slate-100 hover:text-slate-900 focus-visible:ring-2 focus-visible:ring-blue-600 md:hidden"
+			>
+				<svg id="mobile-menu-icon-open" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+					<path d="M4 6h16M4 12h16M4 18h16" />
+				</svg>
+				<svg id="mobile-menu-icon-close" class="hidden h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+					<path d="M6 6l12 12M18 6L6 18" />
+				</svg>
+			</button>
+
 			<a
 				href={switchHref}
 				aria-label={copy.switchLabel}
@@ -120,4 +137,66 @@ const switchHref = localizePath(Astro.url.pathname, otherLocale);
 			</a>
 		</div>
 	</div>
+
+	<nav
+		id="mobile-menu"
+		class="hidden flex-col gap-1 border-t border-slate-200/80 bg-white px-4 py-3 md:hidden"
+		aria-label={copy.navAriaLabel}
+	>
+		<a class="rounded-md px-3 py-2 text-slate-700 hover:text-slate-900 hover:bg-slate-100" href={home}>
+			{copy.start}
+		</a>
+		<a class="rounded-md px-3 py-2 text-slate-700 hover:text-slate-900 hover:bg-slate-100" href={blogPath}>
+			{copy.blog}
+		</a>
+		<a class="rounded-md px-3 py-2 text-slate-700 hover:text-slate-900 hover:bg-slate-100" href={docsPath}>
+			{copy.docs}
+		</a>
+		<a class="rounded-md px-3 py-2 text-slate-700 hover:text-slate-900 hover:bg-slate-100" href={`${home}#mitmachen`}>
+			{copy.join}
+		</a>
+		<a class="rounded-md px-3 py-2 text-slate-700 hover:text-slate-900 hover:bg-slate-100" href={`${home}#kosten`}>
+			{copy.pricing}
+		</a>
+		<a class="rounded-md px-3 py-2 text-slate-700 hover:text-slate-900 hover:bg-slate-100" href={`${home}#kontakt`}>
+			{copy.contact}
+		</a>
+	</nav>
 </header>
+
+<script>
+	const toggle = document.getElementById('mobile-menu-toggle');
+	const menu = document.getElementById('mobile-menu');
+	const iconOpen = document.getElementById('mobile-menu-icon-open');
+	const iconClose = document.getElementById('mobile-menu-icon-close');
+
+	if (toggle && menu && iconOpen && iconClose) {
+		const openLabel = toggle.getAttribute('aria-label') ?? '';
+		const closeLabel = toggle.dataset.closeLabel ?? openLabel;
+
+		const setOpen = (open: boolean) => {
+			menu.classList.toggle('hidden', !open);
+			menu.classList.toggle('flex', open);
+			toggle.setAttribute('aria-expanded', String(open));
+			toggle.setAttribute('aria-label', open ? closeLabel : openLabel);
+			iconOpen.classList.toggle('hidden', open);
+			iconClose.classList.toggle('hidden', !open);
+		};
+
+		toggle.addEventListener('click', () => {
+			setOpen(menu.classList.contains('hidden'));
+		});
+
+		menu.addEventListener('click', (event) => {
+			if ((event.target as HTMLElement).tagName === 'A') setOpen(false);
+		});
+
+		document.addEventListener('keydown', (event) => {
+			if (event.key === 'Escape') setOpen(false);
+		});
+
+		window.addEventListener('resize', () => {
+			if (window.innerWidth >= 768) setOpen(false);
+		});
+	}
+</script>

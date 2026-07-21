@@ -1,25 +1,24 @@
 ---
-title: Betrieb
-description: Produktions-Deployment des Backends, Locker Client am Standort, Monitoring und Hosting-Optionen.
+title: Operations
+description: Production deployment of the backend, the locker client on site, monitoring, and hosting options.
 sidebar:
   order: 4
 ---
 
-## Cloud-Backend deployen
+## Deploying the cloud backend
 
-Das Backend läuft als Docker-Compose-Stack auf einem zentralen Server (VPS
-oder Cloud-Instanz):
+The backend runs as a Docker Compose stack on a central server (VPS or cloud
+instance):
 
 ```bash
 cd locker-backend
 docker compose -f docker-compose.prod.yml up -d
 ```
 
-### Image-Version pinnen (empfohlen)
+### Pin the image version (recommended)
 
-Standardmäßig wird der `latest`-Tag verwendet. Für Produktion das Image auf
-einen unveränderlichen Tag pinnen — per Commit-SHA oder Release-Tag in
-`locker-backend/.env`:
+By default the `latest` tag is used. For production, pin the image to an
+immutable tag — a commit SHA or release tag in `locker-backend/.env`:
 
 ```bash
 BACKEND_IMAGE_TAG=<github_sha>
@@ -30,57 +29,56 @@ docker compose -f docker-compose.prod.yml pull
 docker compose -f docker-compose.prod.yml up -d --force-recreate
 ```
 
-Die laufende Version ist über `GET /api/identify` als `version` abfragbar.
+The running version is exposed via `GET /api/identify` as `version`.
 
-### MQTT-Authentifizierung
+### MQTT authentication
 
-Der Mosquitto-Broker authentifiziert Clients gegen die Laravel-API
-(`mosquitto-go-auth`). Die Konfiguration wird aus dem Template erzeugt:
+The Mosquitto broker authenticates clients against the Laravel API
+(`mosquitto-go-auth`). The configuration is generated from the template:
 
 ```bash
 just setup-mqtt
 ```
 
-Ohne `just`: `mosquitto.conf` aus dem Beispiel kopieren und in den
-Webhook-URIs `mosq_secret=<MOSQ_HTTP_PASS>` eintragen, dann den
-Mosquitto-Container neu starten.
+Without `just`: copy `mosquitto.conf` from the example and add
+`mosq_secret=<MOSQ_HTTP_PASS>` to the webhook URIs, then restart the
+Mosquitto container.
 
-### Admin-Benutzer anlegen
+### Create an admin user
 
 ```bash
 docker compose exec app php artisan filament:user
 ```
 
-Das Admin-Panel ist unter `https://<deine-domain>/admin` erreichbar.
+The admin panel is available at `https://<your-domain>/admin`.
 
 ## Monitoring
 
-- **Health-Endpoint**: `GET /up` (Laravel)
-- **MQTT-Listener**: meldet Liveness per Heartbeat im Cache;
-  `php artisan mqtt:health` ist der Docker-Healthcheck des
-  `mqtt-listener`-Containers. Ein `autoheal`-Sidecar startet unhealthy
-  Container automatisch neu. Hinweis: `autoheal` nutzt die Docker-Restart-API —
-  Restarts erscheinen in den `autoheal`-Logs, nicht im `RestartCount`.
-- **Status-Polling**: `php artisan locker:poll-status` überwacht die
-  Schließfach-Status kontinuierlich (separater Container)
+- **Health endpoint**: `GET /up` (Laravel)
+- **MQTT listener**: reports liveness via a heartbeat in the cache;
+  `php artisan mqtt:health` is the Docker healthcheck of the `mqtt-listener`
+  container. An `autoheal` sidecar automatically restarts unhealthy
+  containers. Note: `autoheal` uses the Docker restart API — restarts show up
+  in the `autoheal` logs, not in `RestartCount`.
+- **Status polling**: `php artisan locker:poll-status` continuously monitors
+  locker states (separate container)
 
-## Locker Client am Standort
+## Locker client on site
 
-Der Locker Client läuft als Docker-Container auf einem Raspberry Pi
-(3/4/5 oder Zero 2 W, Raspberry Pi OS Lite 64-bit):
+The locker client runs as a Docker container on a Raspberry Pi (3/4/5 or
+Zero 2 W, Raspberry Pi OS Lite 64-bit):
 
 - Image: `ghcr.io/open-locker/locker-client:latest`
-- Benötigt `config/locker-config.yml` und eine `.env` mit
+- Requires `config/locker-config.yml` and a `.env` with a
   `PROVISIONING_TOKEN`
-- Verbindet sich per MQTT mit dem Backend und steuert die Schlösser per
-  Modbus (TCP oder RTU)
+- Connects to the backend via MQTT and drives the locks via Modbus
+  (TCP or RTU)
 
-Empfohlene Hardware: siehe
-[Stückliste](https://github.com/Open-Locker/Open-Locker/blob/main/docs/Bill-of-Materials.de.md).
+Recommended hardware: see the
+[Bill of Materials](https://github.com/Open-Locker/Open-Locker/blob/main/docs/Bill-of-Materials.md).
 
-## Hosting-Optionen
+## Hosting options
 
-- **Self-Hosting**: alles selbst betreiben — volle Kontrolle, keine
-  Softwarekosten
-- **Gehostetes Backend**: wer nicht selbst hosten möchte, kann das zentrale
-  Backend hosten lassen — siehe [Angebot auf der Website](/#hosting)
+- **Self-hosting**: run everything yourself — full control, no software costs
+- **Hosted backend**: if you don't want to host it yourself, the central
+  backend can be hosted for you — see the [offer on the website](/en/#hosting)

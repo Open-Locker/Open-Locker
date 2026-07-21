@@ -17,6 +17,8 @@ export const en: Dictionary = {
 		switchLabel: 'Sprache wechseln (Deutsch)',
 		githubAriaLabel: 'Open Locker on GitHub',
 		discordAriaLabel: 'Open Locker on Discord',
+		openMenuAriaLabel: 'Open menu',
+		closeMenuAriaLabel: 'Close menu',
 	},
 	banner: {
 		discordAriaLabel: 'Open Discord',

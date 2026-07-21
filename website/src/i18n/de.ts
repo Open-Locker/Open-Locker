@@ -15,6 +15,8 @@ export const de = {
 		switchLabel: 'Sprache wechseln',
 		githubAriaLabel: 'Open Locker auf GitHub',
 		discordAriaLabel: 'Open Locker auf Discord',
+		openMenuAriaLabel: 'Menü öffnen',
+		closeMenuAriaLabel: 'Menü schließen',
 	},
 	banner: {
 		discordAriaLabel: 'Discord öffnen',

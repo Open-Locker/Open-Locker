@@ -1,21 +1,21 @@
 ---
-title: Loslegen
-description: Lokale Entwicklungsumgebung für Backend, Mobile App und Locker Client aufsetzen.
+title: Getting started
+description: Set up a local development environment for the backend, mobile app, and locker client.
 sidebar:
   order: 2
 ---
 
-Diese Anleitung richtet eine lokale Entwicklungsumgebung ein. Für ein
-Produktions-Deployment siehe [Betrieb](/dokumentation/operations/).
+This guide sets up a local development environment. For a production
+deployment, see [Operations](/en/dokumentation/operations/).
 
-## Voraussetzungen
+## Prerequisites
 
 - **Docker** & Docker Compose
-- **PHP 8.4+** und **Composer** (Backend)
-- **Node.js 22+** und **pnpm** (Mobile App, Locker Client, Website)
-- **just** (Task-Runner, optional aber empfohlen)
+- **PHP 8.4+** and **Composer** (backend)
+- **Node.js 22+** and **pnpm** (mobile app, locker client, website)
+- **just** (task runner, optional but recommended)
 
-## Repository klonen
+## Clone the repository
 
 ```bash
 git clone https://github.com/Open-Locker/Open-Locker.git
@@ -28,65 +28,65 @@ cd Open-Locker
 cp locker-backend/.env.example locker-backend/.env
 ```
 
-In `locker-backend/.env` mindestens konfigurieren:
+Configure at least the following in `locker-backend/.env`:
 
-- `APP_URL` — URL des Backends
-- `DB_PASSWORD` — Datenbank-Passwort
-- `MOSQ_HTTP_USER` / `MOSQ_HTTP_PASS` — Zugangsdaten für die Kommunikation zwischen MQTT-Broker und Backend
+- `APP_URL` — the backend's URL
+- `DB_PASSWORD` — database password
+- `MOSQ_HTTP_USER` / `MOSQ_HTTP_PASS` — credentials for MQTT broker ↔ backend communication
 
-MQTT-Broker-Konfiguration erzeugen und Stack starten:
+Generate the MQTT broker configuration and start the stack:
 
 ```bash
-just setup-mqtt          # erzeugt mosquitto.conf aus dem Template
+just setup-mqtt          # generates mosquitto.conf from the template
 
 cd locker-backend
-docker compose up -d     # Postgres, Mosquitto, Redis, App
+docker compose up -d     # Postgres, Mosquitto, Redis, app
 php artisan migrate --seed
 ```
 
-Ersten Admin-Benutzer anlegen:
+Create the first admin user:
 
 ```bash
 docker compose exec app php artisan filament:user
 ```
 
-Das Admin-Panel ist dann unter `<APP_URL>/admin` erreichbar. Der primäre
-Dev-Loop läuft über Composer:
+The admin panel is then available at `<APP_URL>/admin`. The primary dev loop
+runs via Composer:
 
 ```bash
-composer dev             # Server + Queue + Logs + Vite parallel
-composer test            # Tests
-composer quality         # Format-Check + statische Analyse + Tests
+composer dev             # server + queue + logs + Vite concurrently
+composer test            # tests
+composer quality         # format check + static analysis + tests
 ```
 
-## Mobile App
+## Mobile app
 
 ```bash
 cd mobile-app
 pnpm install
-pnpm start               # Expo Dev Client
+pnpm start               # Expo dev client
 ```
 
-Der API-Client wird aus der OpenAPI-Spezifikation des laufenden Backends
-generiert. Nach Änderungen am API-Vertrag:
+The API client is generated from the running backend's OpenAPI specification.
+After changing the API contract:
 
 ```bash
-pnpm generate:api        # Backend muss laufen
+pnpm generate:api        # backend must be running
 ```
 
-Vor dem Pushen: `pnpm check` (Typecheck + Lint + Format + expo-doctor).
+Before pushing: `pnpm check` (typecheck + lint + format + expo-doctor).
 
-## Locker Client
+## Locker client
 
 ```bash
 cd locker-client
 pnpm install
-pnpm dev                 # startet den Client lokal
+pnpm dev                 # runs the client locally
 ```
 
-Der Client braucht eine `config/locker-config.yml` und eine `.env` mit
-`PROVISIONING_TOKEN`. Details zur Hardware stehen in der
-[Stückliste](https://github.com/Open-Locker/Open-Locker/blob/main/docs/Bill-of-Materials.de.md).
+The client needs a `config/locker-config.yml` and a `.env` with a
+`PROVISIONING_TOKEN`. Hardware details are listed in the
+[Bill of Materials](https://github.com/Open-Locker/Open-Locker/blob/main/docs/Bill-of-Materials.md).
 
 ## Website
 

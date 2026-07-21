@@ -12,19 +12,20 @@ export default defineConfig({
 	site: new URL(site).toString(),
 	base: process.env.BASE_PATH ?? '/',
 	i18n: {
-		defaultLocale: 'de',
-		locales: ['de', 'en'],
-		fallback: { en: 'de' },
+		defaultLocale: 'en',
+		locales: ['en', 'de'],
+		fallback: { de: 'en' },
 		routing: { prefixDefaultLocale: false },
 	},
 	integrations: [
 		starlight({
 			title: { de: 'Open Locker', en: 'Open Locker' },
 			logo: { src: './public/logo-open-locker.svg' },
+			customCss: ['./src/styles/starlight-custom.css'],
 			sidebar: [
 				{
-					label: 'Dokumentation',
-					translations: { en: 'Documentation' },
+					label: 'Documentation',
+					translations: { de: 'Dokumentation' },
 					autogenerate: { directory: 'dokumentation' },
 				},
 			],
@@ -37,12 +38,13 @@ export default defineConfig({
 				ThemeSelect: './src/components/EmptyThemeSelect.astro',
 				LanguageSelect: './src/components/LanguageSelect.astro',
 				SocialIcons: './src/components/SocialIcons.astro',
+				SiteTitle: './src/components/StarlightSiteTitle.astro',
 			},
 		}),
 		mdx(),
 		sitemap({
 			i18n: {
-				defaultLocale: 'de',
+				defaultLocale: 'en',
 				locales: { de: 'de', en: 'en' },
 			},
 		}),

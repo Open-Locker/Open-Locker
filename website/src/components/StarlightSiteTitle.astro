@@ -1,0 +1,105 @@
+---
+import { logos } from 'virtual:starlight/user-images';
+import config from 'virtual:starlight/user-config';
+import { getLocaleFromUrl, useTranslations } from '../i18n';
+
+const { siteTitle, siteTitleHref } = Astro.locals.starlightRoute;
+const copy = useTranslations(getLocaleFromUrl(Astro.url)).nav;
+---
+
+<a href={siteTitleHref} class="site-title-badge sl-flex" aria-label={copy.homeAriaLabel}>
+	<span class="logo-badge" aria-hidden="true">
+		{
+			config.logo && logos.dark && (
+				<>
+					<img
+						class:list={{ 'light:sl-hidden print:hidden': !('src' in config.logo) }}
+						alt=""
+						src={logos.dark.src}
+						width={logos.dark.width}
+						height={logos.dark.height}
+					/>
+					{!('src' in config.logo) && (
+						<img
+							class="dark:sl-hidden print:block"
+							alt=""
+							src={logos.light?.src}
+							width={logos.light?.width}
+							height={logos.light?.height}
+						/>
+					)}
+				</>
+			)
+		}
+	</span>
+	<span class="wordmark-group">
+		<span class:list={{ wordmark: true, 'sr-only': config.logo?.replacesTitle }} translate="no">
+			{siteTitle}
+		</span>
+		<span class="tagline">{copy.tagline}</span>
+	</span>
+</a>
+
+<style>
+	@layer starlight.core {
+		.site-title-badge {
+			align-items: center;
+			gap: 0.75rem;
+			text-decoration: none;
+			min-width: 0;
+		}
+
+		.logo-badge {
+			display: inline-flex;
+			align-items: center;
+			justify-content: center;
+			height: 2.5rem;
+			width: 2.5rem;
+			flex-shrink: 0;
+			border-radius: 0.75rem;
+			background: #fff;
+			box-shadow: 0 1px 2px rgba(15, 23, 42, 0.08);
+		}
+
+		.logo-badge img {
+			height: 1.5rem;
+			width: 1.5rem;
+			object-fit: contain;
+		}
+
+		.wordmark-group {
+			display: flex;
+			flex-direction: column;
+			line-height: 1.2;
+			overflow: hidden;
+			min-width: 0;
+		}
+
+		.wordmark {
+			font-size: var(--sl-text-base);
+			font-weight: 600;
+			letter-spacing: -0.02em;
+			color: #0f172a;
+			white-space: nowrap;
+			overflow: hidden;
+			text-overflow: ellipsis;
+		}
+
+		.tagline {
+			display: none;
+			font-size: var(--sl-text-2xs);
+			font-weight: 500;
+			letter-spacing: 0.01em;
+			color: #64748b;
+			white-space: nowrap;
+			overflow: hidden;
+			text-overflow: ellipsis;
+		}
+
+		@media (min-width: 30rem) {
+			.tagline {
+				display: block;
+			}
+		}
+	}
+</style>
