@@ -1,8 +1,15 @@
 ---
 import { LINKS } from '../config/links';
+import { getLocaleFromUrl, useTranslations, type Locale } from '../i18n';
 
-const supporterSubject = encodeURIComponent('Open Locker — Unterstützer werden');
-const supporterMailto = `mailto:${LINKS.contactEmail}?subject=${supporterSubject}`;
+type Props = {
+	locale?: Locale;
+};
+
+const { locale = getLocaleFromUrl(Astro.url) } = Astro.props;
+const t = useTranslations(locale).partners;
+
+const supporterMailto = `mailto:${LINKS.contactEmail}?subject=${encodeURIComponent(t.supportSubject)}`;
 ---
 
 <section
@@ -14,17 +21,17 @@ const supporterMailto = `mailto:${LINKS.contactEmail}?subject=${supporterSubject
 		<div class="space-y-8">
 			<div class="space-y-3">
 				<h2 id="partners-title" class="text-2xl font-semibold tracking-tight text-slate-900">
-					Partner &amp; Förderer
+					{t.title}
 				</h2>
 				<p class="max-w-3xl text-slate-700">
-					Open Locker wird von Organisationen und Menschen unterstützt, die offene Infrastruktur zum Teilen in der Gemeinschaft voranbringen wollen.
+					{t.lead}
 				</p>
 			</div>
 
 			<div class="rounded-2xl border border-slate-200 bg-white p-6 md:p-8">
 				<div class="space-y-8">
 					<div class="space-y-3">
-						<p class="text-xs font-semibold tracking-wide text-slate-600">Partner</p>
+						<p class="text-xs font-semibold tracking-wide text-slate-600">{t.partnersLabel}</p>
 						<div class="flex flex-col gap-5 sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-10">
 							{LINKS.partners.map((partner) => (
 								<a
@@ -87,17 +94,14 @@ const supporterMailto = `mailto:${LINKS.contactEmail}?subject=${supporterSubject
 
 		<div class="mt-10 rounded-2xl border border-slate-200 bg-linear-to-br from-slate-900 to-slate-800 p-8 text-white">
 			<div class="space-y-2">
-				<h3 class="text-xl font-semibold tracking-tight">Unterstützer werden</h3>
+				<h3 class="text-xl font-semibold tracking-tight">{t.supportTitle}</h3>
 				<p class="text-slate-200">
-					Du willst Open Locker fördern, pilotieren oder als Partner:in mitentwickeln? Lass uns
+					{t.supportLead.before}
 					<a
 						class="font-medium underline-offset-4 hover:underline"
 						href={'mailto:' + LINKS.contactEmail}
 					>
-						kurz sprechen</a>!
-					Wir
-					freuen uns über jede Nachricht. Melde dich auch gerne, wenn du Erweiterungen vorschlagen möchtest oder ein
-					Projekt planst, das du mit Open Locker umsetzen möchtest.
+						{t.supportLead.linkText}</a>{t.supportLead.after}
 				</p>
 			</div>
 
@@ -106,7 +110,7 @@ const supporterMailto = `mailto:${LINKS.contactEmail}?subject=${supporterSubject
 					href={supporterMailto}
 					class="rounded-md bg-white px-4 py-2.5 text-center text-sm font-medium leading-tight text-slate-900 hover:bg-slate-100 focus-visible:ring-2 focus-visible:ring-white"
 				>
-					Schreib uns!
+					{t.writeUs}
 				</a>
 			</div>
 		</div>
