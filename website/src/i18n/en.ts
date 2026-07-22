@@ -15,7 +15,7 @@ export const en: Dictionary = {
 		join: 'Get involved',
 		pricing: 'Pricing',
 		contact: 'Contact',
-		switchLabel: 'Sprache wechseln (Deutsch)',
+		switchLabel: 'Switch language to German',
 		githubAriaLabel: 'Open Locker on GitHub',
 		discordAriaLabel: 'Open Locker on Discord',
 	},

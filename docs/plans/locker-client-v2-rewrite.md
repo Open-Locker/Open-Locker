@@ -76,13 +76,13 @@ It is **not** an actor framework, message bus, MQTT router, or Modbus concurrenc
 
 | Pain point | Current v2 approach | Would Fallow help? |
 | --- | --- | --- |
-| Modbus request serialization | `ModbusBusActor` + `p-queue` concurrency 1 + `BusPriority` | **No** — Fallow does not execute or queue Modbus operations |
+| Modbus request serialization | `WaveshareModbusBusActor` + `p-queue` concurrency 1 + `BusPriority` | **No** — Fallow does not execute or queue Modbus operations |
 | Reconnect storms / single-flight | `ReconnectCoordinator` inside `BusActor` | **No** — no runtime networking |
 | MQTT command routing | `CommandDispatcher` + per-action `InboundCommandHandler` + `InboundProtocolGuard` | **No** — not a message router; plan already rejects generic MQTT router packages for different reasons |
 | Hexagonal layer discipline | Manual ports/adapters + ADR-0024 | **Partial (CI only)** — `boundaries.preset: "hexagonal"` could gate import violations in PRs, but does not replace runtime design |
 | Lost requests under load | Priority queue + serialized bus actor | **No** |
 
-`p-queue` + `ModbusBusActor` directly address ADR-0024's concurrency requirements. Fallow operates in a completely orthogonal layer (developer tooling).
+`p-queue` + `WaveshareModbusBusActor` directly address ADR-0024's concurrency requirements. Fallow operates in a completely orthogonal layer (developer tooling).
 
 ### Integration cost
 
@@ -104,7 +104,7 @@ It is **not** an actor framework, message bus, MQTT router, or Modbus concurrenc
 
 ### Recommendation
 
-- **Runtime:** **No.** Continue with `ModbusBusActor` + `p-queue` + `CommandDispatcher` as decided in ADR-0024.
+- **Runtime:** **No.** Continue with `WaveshareModbusBusActor` + `p-queue` + `CommandDispatcher` as decided in ADR-0024.
 - **Optional follow-up (separate task):** Keep `fallow` as a `devDependency` in `locker-client` with `.fallowrc.json` `boundaries.preset: "hexagonal"` for CI `fallow audit` on PRs. That is quality tooling, not a substitute for the bus actor.
 
 ## Agent hook

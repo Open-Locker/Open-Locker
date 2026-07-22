@@ -1,8 +1,8 @@
 import {
   DEFAULT_MODBUS_MAX_RECONNECT_ATTEMPTS,
-  ModbusBusActor,
-} from '../adapters/modbus/bus-actor';
-import { ModbusRtuDriver } from '../adapters/modbus/modbus-rtu.driver';
+  WaveshareModbusBusActor,
+} from '../adapters/modbus/waveshare-modbus-bus-actor';
+import { WaveshareModbusRtuDriver } from '../adapters/modbus/waveshare-modbus-rtu.driver';
 import { YamlConfigRepository } from '../adapters/config/yaml-config.repository';
 import { FileRuntimeOverlayStore } from '../adapters/config/runtime-overlay.store';
 import { FileCredentialStore } from '../adapters/persistence/file-credential.store';
@@ -15,7 +15,11 @@ import { createOpenCompartmentHandler } from '../adapters/mqtt/handlers/open-com
 import { createApplyConfigHandler } from '../adapters/mqtt/handlers/apply-config.handler';
 import { OpenCompartmentUseCase, runStartupFailsafe } from '../application/open-compartment';
 import { ApplyConfigUseCase } from '../application/apply-config';
-import { HeartbeatUseCase, PollCompartmentStateUseCase } from '../application/state-publishing';
+import {
+  COMPARTMENT_POLL_INTERVAL_MS,
+  HeartbeatUseCase,
+  PollCompartmentStateUseCase,
+} from '../application/state-publishing';
 import { RunAfterCompleteScheduler } from '../infrastructure/scheduler';
 import {
   DEFAULT_MQTT_BROKER_URL,
@@ -38,7 +42,7 @@ export async function createApp(): Promise<AppContext> {
   const dedupStore = new FileDedupStore();
   const transport = new MqttTransportAdapter(configRepo.getMqttTransportSettings());
 
-  const driver = new ModbusRtuDriver({
+  const driver = new WaveshareModbusRtuDriver({
     port: config.modbus.port,
     baudRate: config.modbus.baudRate ?? 9600,
     dataBits: config.modbus.dataBits ?? 8,
@@ -47,7 +51,7 @@ export async function createApp(): Promise<AppContext> {
     timeout: config.modbus.timeout ?? 1000,
   });
 
-  const bus = new ModbusBusActor(
+  const bus = new WaveshareModbusBusActor(
     driver,
     { maxAttempts: DEFAULT_MODBUS_MAX_RECONNECT_ATTEMPTS, delayMs: 5000 },
     configRepo.getConfiguredSlaveIds(),
@@ -152,10 +156,9 @@ export async function createApp(): Promise<AppContext> {
   await runStartupFailsafe(bus);
   heartbeat.start();
 
-  const pollIntervalMs = 5000;
   const pollTimer = setInterval(() => {
     void pollSnapshot.pollAndPublish();
-  }, pollIntervalMs);
+  }, COMPARTMENT_POLL_INTERVAL_MS);
 
   logger.info('locker-client started', { lockerUuid, clientId });
 

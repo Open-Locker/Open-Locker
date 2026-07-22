@@ -7,7 +7,7 @@ import { ReconnectCoordinator } from './reconnect-coordinator';
 /** Matches v1 `modbusService.maxReconnectAttempts`. */
 export const DEFAULT_MODBUS_MAX_RECONNECT_ATTEMPTS = 5;
 
-export interface ModbusDriver {
+export interface WaveshareModbusDriver {
   connect(): Promise<void>;
   disconnect(): Promise<void>;
   isOpen(): boolean;
@@ -17,13 +17,13 @@ export interface ModbusDriver {
   turnAllRelaysOff(slaveId: number): Promise<void>;
 }
 
-export class ModbusBusActor implements LockerBusPort {
+export class WaveshareModbusBusActor implements LockerBusPort {
   private queue = new PQueue({ concurrency: 1 });
   private connectionState: ConnectionState = 'disconnected';
   private readonly reconnect: ReconnectCoordinator;
 
   constructor(
-    private readonly driver: ModbusDriver,
+    private readonly driver: WaveshareModbusDriver,
     reconnectOptions?: { maxAttempts?: number; delayMs?: number },
     private readonly configuredSlaveIds: number[] = [1],
   ) {
@@ -90,15 +90,23 @@ export class ModbusBusActor implements LockerBusPort {
     return values[0] ?? false;
   }
 
-  async readDoorSensor(target: CompartmentTarget): Promise<DoorState> {
+  async readDoorSensors(
+    slaveId: number,
+    startAddress: number,
+    length: number,
+  ): Promise<DoorState[]> {
     try {
       const values = await this.run(
-        () => this.driver.readDiscreteInputs(target.slaveId, target.relayAddress, 1),
-        BusPriority.POLL,
+        () => this.driver.readDiscreteInputs(slaveId, startAddress, length),
+        BusPriority.SNAPSHOT,
       );
-      return values[0] ? 'closed' : 'open';
+
+      return Array.from({ length }, (_, offset) => {
+        const value = values[offset];
+        return typeof value === 'boolean' ? (value ? 'closed' : 'open') : 'unknown';
+      });
     } catch {
-      return 'unknown';
+      return Array.from({ length }, () => 'unknown');
     }
   }
 

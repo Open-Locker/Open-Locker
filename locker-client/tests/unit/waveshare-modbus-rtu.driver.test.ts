@@ -2,9 +2,9 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import {
   calculateModbusRtuInterFrameDelayMs,
-  ModbusRtuDriver,
+  WaveshareModbusRtuDriver,
   type ModbusConnectionConfig,
-} from '../../src/adapters/modbus/modbus-rtu.driver';
+} from '../../src/adapters/modbus/waveshare-modbus-rtu.driver';
 
 const connection: ModbusConnectionConfig = {
   port: '/dev/test',
@@ -33,7 +33,7 @@ test('waits for the RTU inter-frame delay between transactions', async () => {
   let now = 100;
   const sleepCalls: number[] = [];
   const client = new FakeModbusClient();
-  const driver = new ModbusRtuDriver(connection, {
+  const driver = new WaveshareModbusRtuDriver(connection, {
     now: () => now,
     sleep: async (delayMs) => {
       sleepCalls.push(delayMs);
@@ -54,7 +54,7 @@ test('waits after a failed transaction before addressing the next board', async 
   let now = 100;
   const sleepCalls: number[] = [];
   const client = new FakeModbusClient(true);
-  const driver = new ModbusRtuDriver(connection, {
+  const driver = new WaveshareModbusRtuDriver(connection, {
     now: () => now,
     sleep: async (delayMs) => {
       sleepCalls.push(delayMs);
@@ -93,6 +93,6 @@ class FakeModbusClient {
   }
 }
 
-function setClient(driver: ModbusRtuDriver, client: FakeModbusClient): void {
+function setClient(driver: WaveshareModbusRtuDriver, client: FakeModbusClient): void {
   (driver as unknown as { client: FakeModbusClient }).client = client;
 }
