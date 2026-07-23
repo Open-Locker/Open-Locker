@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Aggregates;
 
+use App\StorableEvents\GroupArchived;
 use App\StorableEvents\GroupCompartmentAccessGranted;
 use App\StorableEvents\GroupCompartmentAccessRevoked;
 use App\StorableEvents\GroupCreated;
@@ -85,6 +86,20 @@ class GroupAggregate extends AggregateRoot
             grantedAt: $grantedAt->toIso8601String(),
             expiresAt: $expiresAt?->toIso8601String(),
             notes: $notes,
+        ));
+
+        return $this;
+    }
+
+    public function archive(
+        string $groupUuid,
+        int $actorUserId,
+        CarbonInterface $archivedAt,
+    ): self {
+        $this->recordThat(new GroupArchived(
+            groupUuid: $groupUuid,
+            actorUserId: $actorUserId,
+            archivedAt: $archivedAt->toIso8601String(),
         ));
 
         return $this;

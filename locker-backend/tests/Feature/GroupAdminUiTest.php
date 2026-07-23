@@ -7,6 +7,7 @@ namespace Tests\Feature;
 use App\Filament\Resources\GroupResource;
 use App\Filament\Resources\GroupResource\Pages\CreateGroup;
 use App\Filament\Resources\GroupResource\Pages\EditGroup;
+use App\Filament\Resources\GroupResource\Pages\ListGroups;
 use App\Filament\Resources\GroupResource\RelationManagers\CompartmentAccessesRelationManager;
 use App\Filament\Resources\GroupResource\RelationManagers\MembersRelationManager;
 use App\Models\Group;
@@ -114,8 +115,9 @@ class GroupAdminUiTest extends TestCase
         return (string) $property->getValue();
     }
 
-    public function test_edit_group_page_has_no_delete_action(): void
+    public function test_edit_group_page_has_archive_action_but_no_hard_delete(): void
     {
+        // Groups are archived, not hard-deleted. See ADR-0020 / #106.
         $page = app(EditGroup::class);
         $method = (new ReflectionClass($page))->getMethod('getHeaderActions');
         $method->setAccessible(true);
@@ -125,6 +127,35 @@ class GroupAdminUiTest extends TestCase
             ->all();
 
         $this->assertNotContains('delete', $actionNames);
-        $this->assertEmpty($actionNames);
+        $this->assertContains('archive', $actionNames);
+    }
+
+    public function test_admin_can_archive_group_through_edit_page(): void
+    {
+        $admin = $this->admin();
+        $group = app(GroupAccessService::class)->createGroup('Logistics', actor: $admin);
+
+        Livewire::actingAs($admin)
+            ->test(EditGroup::class, ['record' => $group->id])
+            ->callAction('archive');
+
+        $this->assertNotNull(Group::find($group->id)->archived_at);
+    }
+
+    public function test_group_list_hides_archived_groups_by_default_and_shows_with_filter(): void
+    {
+        $admin = $this->admin();
+        $service = app(GroupAccessService::class);
+
+        $active = Group::find($service->createGroup('Active', actor: $admin)->id);
+        $archived = Group::find($service->createGroup('Archived', actor: $admin)->id);
+        $service->archiveGroup($archived, actor: $admin);
+
+        Livewire::actingAs($admin)
+            ->test(ListGroups::class)
+            ->assertCanSeeTableRecords([$active])
+            ->assertCanNotSeeTableRecords([$archived])
+            ->filterTable('archived_at', null)
+            ->assertCanSeeTableRecords([$active, $archived]);
     }
 }
