@@ -5,6 +5,7 @@
   "license": "MIT",
   "scripts": {
     "dev": "ts-node src/main.ts",
+    "sim": "ts-node src/main-simulator.ts",
     "build": "tsc",
     "test": "pnpm run build && node --test dist/tests/**/*.test.js",
     "typecheck": "tsc --noEmit",

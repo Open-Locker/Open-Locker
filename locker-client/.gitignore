@@ -10,3 +10,8 @@ coverage/
 /data/
 .mqtt-client-id
 .mqtt-credentials.json
+
+# Simulator: scenario files hold real provisioning tokens, and the credential
+# cache holds the MQTT password issued on a bank's one-and-only provisioning
+simulator-scenario.yml
+.simulator-credentials.json
