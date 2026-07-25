@@ -1,0 +1,108 @@
+---
+import githubIcon from '../assets/GitHub_Invertocat_Black.svg';
+import discordIcon from '../assets/Discord-Symbol-Blurple.svg';
+import { LINKS } from '../config/links';
+
+---
+
+<header class="sticky top-0 z-40 border-b border-slate-200/80 bg-white/80 backdrop-blur">
+	<div class="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3">
+		<a
+			href="/"
+			class="group flex items-center gap-3 rounded-md focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-600"
+			aria-label="Open Locker Startseite"
+		>
+			<span
+				class="relative inline-flex h-10 w-10 items-center justify-center rounded-xl bg-white shadow-sm transition group-hover:shadow md:h-11 md:w-11"
+				aria-hidden="true"
+			>
+				<img
+					src="/logo-open-locker.svg"
+					alt="Open Locker"
+					class="h-6 w-6 select-none md:h-7 md:w-7"
+					width="28"
+					height="28"
+					loading="eager"
+					decoding="async"
+				/>
+			</span>
+			<span class="flex flex-col leading-tight">
+				<span class="text-[15px] font-semibold tracking-[-0.02em] text-slate-900 md:text-base">
+					Open Locker
+				</span>
+				<span class="hidden text-[11px] font-medium tracking-wide text-slate-500 sm:block md:text-xs">
+					Open Source Schließfächer
+				</span>
+			</span>
+		</a>
+
+		<nav class="hidden items-center gap-1 text-sm md:flex" aria-label="Hauptmenü">
+			<a class="rounded-md px-3 py-2 text-slate-700 hover:text-slate-900 hover:bg-slate-100 focus-visible:ring-2 focus-visible:ring-blue-600" href="/">
+				Start
+			</a>
+			<a class="rounded-md px-3 py-2 text-slate-700 hover:text-slate-900 hover:bg-slate-100 focus-visible:ring-2 focus-visible:ring-blue-600" href="/blog/">
+				Blog
+			</a>
+			<a
+				class="relative rounded-md px-3 py-2 pr-7 text-slate-700 hover:text-slate-900 hover:bg-slate-100 focus-visible:ring-2 focus-visible:ring-blue-600"
+				href="/dokumentation/"
+			>
+				Dokumentation
+				<span
+					class="absolute -right-1 -top-1 rotate-12 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-900 ring-1 ring-amber-200"
+				>
+					bald
+				</span>
+			</a>
+			<a class="rounded-md px-3 py-2 text-slate-700 hover:text-slate-900 hover:bg-slate-100 focus-visible:ring-2 focus-visible:ring-blue-600" href="/#mitmachen">
+				Mitmachen
+			</a>
+			<a class="rounded-md px-3 py-2 text-slate-700 hover:text-slate-900 hover:bg-slate-100 focus-visible:ring-2 focus-visible:ring-blue-600" href="/#kosten">
+				Kosten
+			</a>
+			<a class="rounded-md px-3 py-2 text-slate-700 hover:text-slate-900 hover:bg-slate-100 focus-visible:ring-2 focus-visible:ring-blue-600" href="/#kontakt">
+				Kontakt
+			</a>
+		</nav>
+
+		<div class="flex items-center gap-1">
+			<a
+				href={LINKS.githubRepo}
+				target="_blank"
+				rel="noreferrer"
+				aria-label="Open Locker auf GitHub"
+				title="GitHub"
+				class="inline-flex h-10 w-10 items-center justify-center rounded-md text-slate-700 hover:bg-slate-100 hover:text-slate-900 focus-visible:ring-2 focus-visible:ring-blue-600"
+			>
+				<img
+					src={githubIcon.src}
+					width="20"
+					height="20"
+					class="h-5 w-5"
+					alt=""
+					aria-hidden="true"
+					loading="lazy"
+				/>
+			</a>
+
+			<a
+				href={LINKS.discordInvite}
+				target="_blank"
+				rel="noreferrer"
+				aria-label="Open Locker auf Discord"
+				title="Discord"
+				class="inline-flex h-10 w-10 items-center justify-center rounded-md text-slate-700 hover:bg-slate-100 hover:text-slate-900 focus-visible:ring-2 focus-visible:ring-blue-600"
+			>
+				<img
+					src={discordIcon.src}
+					width="20"
+					height="20"
+					class="h-5 w-5"
+					alt=""
+					aria-hidden="true"
+					loading="lazy"
+				/>
+			</a>
+		</div>
+	</div>
+</header>
