@@ -34,7 +34,7 @@ Do **not** mutate read-model state directly when an aggregate/event path exists 
 
 **MQTT contract.** The backend publishes via typed outbound publisher services in `locker-backend/app/Mqtt/` (see ADR-0008). Mosquitto authenticates clients against the Laravel API (`/api/mosq/*`) via `mosquitto-go-auth`. Message-id vs transaction-id separation is defined in ADR-0002. The `locker-client` subscribes/publishes on the other end.
 
-**Modbus lives only in `locker-client/`, not the backend.** Hardware comms were moved out of Laravel (the old `php-modbus-ffi` dependency and `ModbusServiceProvider` were removed). The backend never speaks Modbus: `app/Services/LockerService.php` records an event, a Reactor publishes MQTT, and the `locker-client` (`src/modbus/`, using the `modbus-serial` package) issues the actual Modbus command. Modbus operations are serialized/lock-guarded and tolerate unreachable boards on the client side (ADR-0006/0007).
+**Modbus lives only in `locker-client/`, not the backend.** Hardware comms were moved out of Laravel (the old `php-modbus-ffi` dependency and `ModbusServiceProvider` were removed). The backend never speaks Modbus: `app/Services/LockerService.php` records an event, a Reactor publishes MQTT, and the `locker-client` (`src/adapters/modbus/`, using the `modbus-serial` package) issues the actual Modbus command. Modbus operations are serialized/lock-guarded and tolerate unreachable boards on the client side (ADR-0006/0007).
 
 **The codegen pipeline is a real cross-component contract:**
 1. The backend exposes the OpenAPI spec **live** via Scramble at `/docs/api.json` (generated from the controllers per request — there is no committed `api.json`).
@@ -73,9 +73,10 @@ pnpm typecheck        # tsc --noEmit
 
 ### Locker Client (`locker-client/`)
 ```bash
-pnpm dev     # ts-node src/app.ts
+pnpm dev     # ts-node src/main.ts
 pnpm build   # tsc
 pnpm test    # builds, then runs node --test on dist
+pnpm check   # typecheck + format check + lint
 ```
 Runs in production as a Docker image (`ghcr.io/open-locker/locker-client:latest`); needs `config/locker-config.yml` and `.env` (`PROVISIONING_TOKEN`).
 

@@ -1,0 +1,48 @@
+---
+import { LINKS } from '../config/links';
+
+type Props = {
+	title: string;
+	description: string;
+	imagePath?: string;
+	noindex?: boolean;
+};
+
+const {
+	title,
+	description,
+	imagePath = '/og.svg',
+	noindex = false,
+} = Astro.props;
+
+const canonical = new URL(Astro.url.pathname, Astro.site ?? Astro.url);
+const ogImage = new URL(imagePath, Astro.site ?? Astro.url);
+
+const robots = noindex ? 'noindex, nofollow' : 'index, follow';
+---
+
+<title>{title}</title>
+<meta name="description" content={description} />
+<meta name="robots" content={robots} />
+<link rel="canonical" href={canonical.toString()} />
+
+<meta property="og:title" content={title} />
+<meta property="og:description" content={description} />
+<meta property="og:type" content="website" />
+<meta property="og:url" content={canonical.toString()} />
+<meta property="og:image" content={ogImage.toString()} />
+
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:title" content={title} />
+<meta name="twitter:description" content={description} />
+<meta name="twitter:image" content={ogImage.toString()} />
+
+<meta name="theme-color" content="#0f172a" />
+
+<script type="application/ld+json" set:html={JSON.stringify({
+	'@context': 'https://schema.org',
+	'@type': 'Organization',
+	name: 'Open Locker',
+	url: canonical.origin,
+	sameAs: [LINKS.githubRepo, LINKS.discordInvite],
+})} />
