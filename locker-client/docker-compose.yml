@@ -9,18 +9,13 @@ services:
     devices:
       - /dev/ttyACM0:/dev/ttyACM0
 
-    # Mount configuration and data volumes
+    # Mount operator configuration and persistent runtime data
     volumes:
-      # Configuration volume (read-write)
-      # Contains locker-config.yml
-      - ./config:/config
+      # Base configuration is operator-managed and immutable at runtime.
+      - ./config:/config:ro
 
-      # Data volume (read-write)
-      # Stores persistent data: .mqtt-client-id, .mqtt-credentials.json, .provisioning-state
+      # Stores client identity, MQTT credentials, runtime overlay, and dedup state.
       - ./data:/data
-
-      # Log volume (read-write)
-      - ./log:/log
 
     # Load deployment environment variables
     env_file:
@@ -31,10 +26,10 @@ services:
 
     # Optional: Logging configuration
     logging:
-      driver: "json-file"
+      driver: 'json-file'
       options:
-        max-size: "10m"
-        max-file: "3"
+        max-size: '10m'
+        max-file: '3'
 
   watchtower:
     image: containrrr/watchtower:latest
@@ -45,6 +40,6 @@ services:
     environment:
       TZ: ${TZ:-UTC}
       DOCKER_API_VERSION: ${DOCKER_API_VERSION:-1.44}
-      WATCHTOWER_LABEL_ENABLE: "true"
-      WATCHTOWER_CLEANUP: "true"
+      WATCHTOWER_LABEL_ENABLE: 'true'
+      WATCHTOWER_CLEANUP: 'true'
       WATCHTOWER_POLL_INTERVAL: ${WATCHTOWER_POLL_INTERVAL:-300}

@@ -1,0 +1,174 @@
+---
+type Photo = {
+	src: string;
+	alt: string;
+	caption?: string;
+	rotate: number;
+	x: number;
+	y: number;
+	z: number;
+};
+
+type Props = {
+	photos?: Photo[];
+	ariaLabel?: string;
+	variant?: 'stack' | 'spreadBackground';
+};
+
+const { photos: providedPhotos, ariaLabel = 'Eindrücke aus Live Meetings', variant = 'stack' } = Astro.props;
+
+const defaultStackPhotos: Photo[] = [
+	{
+		src: '/meeting/meeting-01.jpg',
+		alt: 'Open-Locker Live Meeting – Ausschnitt aus dem Video-Call',
+		caption: 'Live Meeting',
+		rotate: -8,
+		x: -22,
+		y: 6,
+		z: 1,
+	},
+	{
+		src: '/meeting/meeting-02.jpg',
+		alt: 'Open-Locker Live Meeting – Bildschirmfreigabe im Call',
+		caption: 'Screen sharing',
+		rotate: 5,
+		x: 10,
+		y: -10,
+		z: 3,
+	},
+	{
+		src: '/meeting/meeting-03.jpg',
+		alt: 'Open-Locker Live Meeting – Community im Gespräch',
+		caption: 'Community',
+		rotate: 12,
+		x: 26,
+		y: 12,
+		z: 2,
+	},
+];
+
+// In spreadBackground, x/y are treated as percentages (0..100) of the container.
+const defaultSpreadPhotos: Photo[] = [
+	{ src: '/meeting/meeting-01.jpg', alt: 'Open-Locker Live Meeting – Ausschnitt aus dem Video-Call', rotate: -12, x: 14, y: 22, z: 1 },
+	{ src: '/meeting/meeting-02.jpg', alt: 'Open-Locker Live Meeting – Bildschirmfreigabe im Call', rotate: 7, x: 44, y: 12, z: 3 },
+	{ src: '/meeting/meeting-03.jpg', alt: 'Open-Locker Live Meeting – Community im Gespräch', rotate: 16, x: 76, y: 20, z: 2 },
+	{ src: '/meeting/meeting-04.jpg', alt: 'Open-Locker Live Meeting – Momentaufnahme aus dem Call', rotate: -18, x: 26, y: 58, z: 2 },
+	{ src: '/meeting/meeting-05.jpg', alt: 'Open-Locker Live Meeting – gemeinsamer Austausch', rotate: 18, x: 60, y: 48, z: 4 },
+	{ src: '/meeting/meeting-06.jpg', alt: 'Open-Locker Live Meeting – kurzer Einblick', rotate: -6, x: 86, y: 62, z: 3 },
+	{ src: '/meeting/meeting-07.jpg', alt: 'Open-Locker Live Meeting – Community im Gespräch', rotate: 11, x: 12, y: 78, z: 4 },
+	{ src: '/meeting/meeting-08.jpg', alt: 'Open-Locker Live Meeting – Snapshot', rotate: -22, x: 46, y: 80, z: 5 },
+	{ src: '/meeting/meeting-09.jpg', alt: 'Open-Locker Live Meeting – Snapshot', rotate: 24, x: 78, y: 86, z: 6 },
+];
+
+const photos = providedPhotos ?? (variant === 'spreadBackground' ? defaultSpreadPhotos : defaultStackPhotos);
+---
+
+{
+	variant === 'spreadBackground' ? (
+		<div class="polaroid-spread" aria-hidden="true">
+			{photos.map((p, idx) => (
+				<figure
+					class="polaroid"
+					style={`--r:${p.rotate}deg; --x:${p.x}%; --y:${p.y}%; --z:${p.z};`}
+				>
+					<img
+						src={p.src}
+						alt=""
+						aria-hidden="true"
+						loading={idx < 2 ? 'eager' : 'lazy'}
+						decoding="async"
+						width="1200"
+						height="900"
+					/>
+				</figure>
+			))}
+		</div>
+	) : (
+		<div class="polaroid-stack" role="list" aria-label={ariaLabel}>
+			{photos.map((p) => (
+				<figure
+					class="polaroid"
+					role="listitem"
+					tabindex="0"
+					style={`--r:${p.rotate}deg; --x:${p.x}px; --y:${p.y}px; --z:${p.z};`}
+				>
+					<img src={p.src} alt={p.alt} loading="lazy" decoding="async" width="1200" height="900" />
+					{p.caption ? <figcaption>{p.caption}</figcaption> : null}
+				</figure>
+			))}
+		</div>
+	)
+}
+
+<style>
+	.polaroid-stack {
+		position: relative;
+		height: clamp(260px, 32vw, 360px);
+	}
+
+	.polaroid-spread {
+		position: absolute;
+		inset: 0;
+		overflow: hidden;
+		pointer-events: none;
+		opacity: 0.62;
+	}
+
+	.polaroid {
+		position: absolute;
+		left: 50%;
+		top: 50%;
+		transform: translate(-50%, -50%) translate(var(--x), var(--y)) rotate(var(--r));
+		z-index: var(--z);
+		width: clamp(190px, 26vw, 300px);
+
+		background: #fff;
+		border-radius: 14px;
+		padding: 12px 12px 18px;
+		box-shadow: 0 18px 45px rgba(0, 0, 0, 0.18), 0 2px 10px rgba(0, 0, 0, 0.12);
+		transition: transform 180ms ease, box-shadow 180ms ease;
+		outline: none;
+	}
+
+	.polaroid img {
+		width: 100%;
+		height: auto;
+		aspect-ratio: 4 / 3;
+		object-fit: cover;
+		border-radius: 10px;
+		display: block;
+		background: rgb(241 245 249);
+	}
+
+	.polaroid figcaption {
+		margin-top: 10px;
+		font-size: 0.95rem;
+		color: rgb(15 23 42);
+		opacity: 0.9;
+	}
+
+	.polaroid:hover,
+	.polaroid:focus-visible {
+		transform: translate(-50%, -50%) translate(var(--x), calc(var(--y) - 6px)) rotate(0deg) scale(1.03);
+		z-index: 10;
+		box-shadow: 0 26px 70px rgba(0, 0, 0, 0.22), 0 3px 14px rgba(0, 0, 0, 0.14);
+	}
+
+	.polaroid-spread .polaroid {
+		left: var(--x);
+		top: var(--y);
+		transform: translate(-50%, -50%) rotate(var(--r));
+		width: clamp(150px, 20vw, 260px);
+		box-shadow: 0 12px 32px rgba(0, 0, 0, 0.14), 0 2px 10px rgba(0, 0, 0, 0.1);
+	}
+
+	.polaroid-spread .polaroid img {
+		filter: saturate(0.95) contrast(0.98);
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		.polaroid {
+			transition: none;
+		}
+	}
+</style>
