@@ -1,0 +1,161 @@
+---
+import { LINKS } from '../config/links';
+
+const supporterSubject = encodeURIComponent('Open Locker — Unterstützer werden');
+const supporterMailto = `mailto:${LINKS.contactEmail}?subject=${supporterSubject}`;
+---
+
+<section
+	id="foerderer"
+	aria-labelledby="partners-title"
+	class="border-t border-slate-200 bg-white scroll-mt-24"
+>
+	<div class="mx-auto max-w-6xl px-4 py-14 md:py-16">
+		<div class="space-y-8">
+			<div class="space-y-3">
+				<h2 id="partners-title" class="text-2xl font-semibold tracking-tight text-slate-900">
+					Partner &amp; Förderer
+				</h2>
+				<p class="max-w-3xl text-slate-700">
+					Open Locker wird von Organisationen und Menschen unterstützt, die offene Infrastruktur zum Teilen in der Gemeinschaft voranbringen wollen.
+				</p>
+			</div>
+
+			<div class="rounded-2xl border border-slate-200 bg-white p-6 md:p-8">
+				<div class="space-y-8">
+					<div class="space-y-3">
+						<p class="text-xs font-semibold tracking-wide text-slate-600">Partner</p>
+						<div class="flex flex-col gap-5 sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-10">
+							{LINKS.partners.map((partner) => (
+								<a
+									href={partner.url}
+									target="_blank"
+									rel="noreferrer"
+									class="inline-flex items-center rounded-md px-2 py-1 focus-visible:ring-2 focus-visible:ring-blue-600"
+									aria-label={partner.name}
+									title={partner.name}
+								>
+									<img
+										src={encodeURI(partner.logoSrc)}
+										alt={partner.name}
+										loading="lazy"
+										class:list={[
+											'w-auto object-contain',
+											partner.name === 'Smart City Hameln-Pyrmont' ? 'h-12 md:h-14' : 'h-10 md:h-12',
+											partner.name === 'Merona' ? 'max-w-40' : 'max-w-56',
+										]}
+									/>
+								</a>
+							))}
+						</div>
+					</div>
+
+					<div>
+						<div
+							class="partners-funders justify-start"
+							style="
+								--funder-gap-1: 30px;
+								--funder-gap-2: 100px;
+								--funder-logo-h: 7rem;
+								--funder-logo-h-md: 8rem;
+								--funder-logo-maxw: 28rem;
+							"
+						>
+							{LINKS.funders.map((funder, index) => (
+								<a
+									href={funder.url}
+									target="_blank"
+									rel="noreferrer"
+									class="inline-flex items-center rounded-md px-2 py-1 focus-visible:ring-2 focus-visible:ring-blue-600"
+									aria-label={funder.name}
+									title={funder.name}
+								>
+									<img
+										src={encodeURI(funder.logoSrc)}
+										alt={funder.name}
+										loading="lazy"
+										class="partners-funders__logo"
+									/>
+								</a>
+							))}
+						</div>
+					</div>
+				</div>
+			</div>
+
+		</div>
+
+		<div class="mt-10 rounded-2xl border border-slate-200 bg-linear-to-br from-slate-900 to-slate-800 p-8 text-white">
+			<div class="space-y-2">
+				<h3 class="text-xl font-semibold tracking-tight">Unterstützer werden</h3>
+				<p class="text-slate-200">
+					Du willst Open Locker fördern, pilotieren oder als Partner:in mitentwickeln? Lass uns
+					<a
+						class="font-medium underline-offset-4 hover:underline"
+						href={'mailto:' + LINKS.contactEmail}
+					>
+						kurz sprechen</a>!
+					Wir
+					freuen uns über jede Nachricht. Melde dich auch gerne, wenn du Erweiterungen vorschlagen möchtest oder ein
+					Projekt planst, das du mit Open Locker umsetzen möchtest.
+				</p>
+			</div>
+
+			<div class="mt-6 flex flex-wrap gap-3">
+				<a
+					href={supporterMailto}
+					class="rounded-md bg-white px-4 py-2.5 text-center text-sm font-medium leading-tight text-slate-900 hover:bg-slate-100 focus-visible:ring-2 focus-visible:ring-white"
+				>
+					Schreib uns!
+				</a>
+			</div>
+		</div>
+	</div>
+</section>
+
+<style>
+	.partners-funders {
+		display: grid;
+		grid-template-columns: auto var(--funder-gap-1) auto var(--funder-gap-2) auto;
+		align-items: start;
+		column-gap: 0;
+		row-gap: 1rem;
+	}
+
+	@media (max-width: 639px) {
+		.partners-funders {
+			grid-template-columns: 1fr;
+			justify-items: start;
+		}
+	}
+
+	@media (min-width: 640px) {
+		.partners-funders > :nth-child(1) {
+			grid-column: 1;
+			justify-self: start;
+		}
+		.partners-funders > :nth-child(2) {
+			grid-column: 3;
+			justify-self: start;
+		}
+		.partners-funders > :nth-child(3) {
+			grid-column: 5;
+			justify-self: start;
+		}
+	}
+
+	.partners-funders__logo {
+		height: var(--funder-logo-h);
+		width: auto;
+		max-width: var(--funder-logo-maxw);
+		object-fit: contain;
+		display: block;
+	}
+
+	@media (min-width: 768px) {
+		.partners-funders__logo {
+			height: var(--funder-logo-h-md);
+		}
+	}
+</style>
+
