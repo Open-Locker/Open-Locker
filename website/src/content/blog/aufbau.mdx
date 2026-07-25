@@ -1,0 +1,42 @@
+---
+title: "Aufbau"
+description: "Die technischen Details unseres Setups."
+pubDate: "2026-02-10"
+draft: false
+---
+
+Beim Aufbau unseres Projekts haben wir besonders darauf geachtet, alles nutzerfreundlich, aber auch sicher und stabil zu halten.
+
+## Unsere einzelnen Bestandteile sind:
+
+* **Mobile App (Hauptbedienung):** Eine einfache, nutzerfreundliche App für den Alltag, um z.B. Fächer zu öffnen, Nutzung zu buchen,
+oder den Status von Gegenständen zu checken.
+* **Adminbereich:** Die Verwaltung der Schränke. Admins können neue Standorte anlegen, Geräte einpflegen, Rollen verteilen und
+als Support Nutzern helfen.
+* **Backend:** Das Backend prüft Berechtigungen, verwaltet Zustände und stellt die API bereit, damit auch alles läuft.
+* **MQTT Broker:** Entkoppelt das Backend und Schließfachstandort.
+* **IoT Client:** Läuft z.B. auf einem Raspberry Pi oder ESP und übersetzt Nachrichten in „echte“ Signale zum Schrank (z.B. Modbus).
+
+Geplant:
+
+- **QR-Code Scanner** direkt am Schrank (optional).
+
+## Datenflüsse
+
+### Command (öffnen, reservieren, …)
+
+Wenn ein:e Nutzer:in in der App eine Aktion ausführt (z.B. „öffnen“), läuft das vereinfacht so:
+
+`App` → `Backend (HTTPS/REST)` → `MQTT Broker` → `Locker Client` → `Modbus` → `Schließfach/Schloss`
+
+### Status (Rückmeldung & Live-Updates)
+
+Rückmeldungen aus dem Schrank gehen den umgekehrten Weg zurück und können live in der App angezeigt werden:
+
+`Schließfach/Schloss` → `Locker Client` → `MQTT Broker` → `Backend` → `Datenbank` → `Push/SSE` → `App`
+
+## Wo läuft was?
+
+- **Backend + Admin UI + Datenbank + MQTT Broker**: typischerweise zentral (Server/Hosting).
+- **Locker Client**: direkt am Standort (z.B. Raspberry Pi / ESP).
+- **Mobile App**: bei den Nutzer:innen.
