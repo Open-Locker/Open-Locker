@@ -1,0 +1,33 @@
+{
+  "ignorePatterns": ["dist/**", "node_modules/**"],
+  "entry": ["src/main.ts", "tests/**/*.test.ts"],
+  "rules": {
+    "unused-files": "warn",
+    "unused-exports": "warn",
+    "boundary-violation": "error"
+  },
+  "boundaries": {
+    "zones": [
+      { "name": "domain", "patterns": ["src/domain/**"] },
+      { "name": "ports", "patterns": ["src/ports/**"] },
+      { "name": "application", "patterns": ["src/application/**"] },
+      { "name": "adapters", "patterns": ["src/adapters/**"] },
+      { "name": "infrastructure", "patterns": ["src/infrastructure/**"] },
+      { "name": "bootstrap", "patterns": ["src/bootstrap/**", "src/main.ts"] }
+    ],
+    "rules": [
+      { "from": "domain", "allow": [] },
+      { "from": "ports", "allow": ["domain"] },
+      { "from": "application", "allow": ["ports", "domain"] },
+      { "from": "infrastructure", "allow": ["ports", "domain"] },
+      {
+        "from": "adapters",
+        "allow": ["ports", "domain", "application", "infrastructure"]
+      },
+      {
+        "from": "bootstrap",
+        "allow": ["adapters", "application", "infrastructure", "ports", "domain"]
+      }
+    ]
+  }
+}
