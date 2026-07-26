@@ -111,7 +111,9 @@ door states.
 
 ## Using it
 
-While it runs, type commands at the prompt:
+While it runs, type commands at the prompt. The console is enabled automatically
+only when stdin is a TTY — if you pipe the simulator's input, it says so on start
+and you need `--interactive` to force it on:
 
 ```
 list                     show every bank and its door states
@@ -185,6 +187,7 @@ pending) publishes `compartment_uncommanded_open` instead — the break-in case.
 | `--scenario <path>`  | Use a different scenario file                 |
 | `--broker <url>`     | Override the broker URL                       |
 | `--quiet`            | Stop echoing MQTT traffic                     |
+| `--interactive`      | Read commands from stdin even when it is not a TTY |
 | `--no-interactive`   | Do not read commands from stdin (scripts, CI) |
 | `--allow-production` | Permit running with `APP_ENV=production`      |
 

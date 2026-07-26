@@ -38,6 +38,11 @@ class AuditEventPresenter
         'CompartmentOpenAuthorized' => 'access',
         'CompartmentOpenDenied' => 'access',
         'CompartmentOpened' => 'access',
+        'CompartmentOpenAcknowledged' => 'access',
+        'CompartmentDoorOpenDetected' => 'access',
+        'CompartmentDoorAlreadyOpen' => 'access',
+        'CompartmentOpenNotDetected' => 'access',
+        'CompartmentUncommandedOpenDetected' => 'access',
         'CompartmentOpeningFailed' => 'access',
         'CompartmentAccessGranted' => 'access',
         'CompartmentAccessRevoked' => 'access',
@@ -160,6 +165,11 @@ class AuditEventPresenter
             'CompartmentOpenAuthorized' => __('Open authorized'),
             'CompartmentOpenDenied' => __('Open denied'),
             'CompartmentOpened' => __('Compartment opened'),
+            'CompartmentOpenAcknowledged' => __('Unlock pulse sent'),
+            'CompartmentDoorOpenDetected' => __('Door opened'),
+            'CompartmentDoorAlreadyOpen' => __('Door was already open'),
+            'CompartmentOpenNotDetected' => __('Door did not open'),
+            'CompartmentUncommandedOpenDetected' => __('Uncommanded door opening'),
             'CompartmentOpeningFailed' => __('Opening failed'),
             'CompartmentAccessGranted' => __('Access granted'),
             'CompartmentAccessRevoked' => __('Access revoked'),
@@ -209,6 +219,22 @@ class AuditEventPresenter
                 'reason' => $p['reason'] ?? '-',
             ]),
             'CompartmentOpened' => __('Compartment :compartment was opened', [
+                'compartment' => $this->compartment($p['compartmentUuid'] ?? null),
+            ]),
+            'CompartmentOpenAcknowledged' => __('Unlock pulse sent to compartment :compartment', [
+                'compartment' => $this->compartment($p['compartmentUuid'] ?? null),
+            ]),
+            'CompartmentDoorOpenDetected' => __('Compartment :compartment door was observed open', [
+                'compartment' => $this->compartment($p['compartmentUuid'] ?? null),
+            ]),
+            'CompartmentDoorAlreadyOpen' => __('Compartment :compartment was already open when the pulse was sent', [
+                'compartment' => $this->compartment($p['compartmentUuid'] ?? null),
+            ]),
+            'CompartmentOpenNotDetected' => __('Compartment :compartment did not open after the unlock pulse (:error)', [
+                'compartment' => $this->compartment($p['compartmentUuid'] ?? null),
+                'error' => $p['errorCode'] ?? '-',
+            ]),
+            'CompartmentUncommandedOpenDetected' => __('Compartment :compartment was opened with no command behind it', [
                 'compartment' => $this->compartment($p['compartmentUuid'] ?? null),
             ]),
             'CompartmentOpeningFailed' => __('Opening of compartment :compartment failed (:error)', [

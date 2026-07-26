@@ -156,14 +156,26 @@ Rollout).
 
 ### 7. Alerting
 
-- **Jam** (`door_jammed`) — an operations concern. Recorded on the request and in
-  the audit log, surfaced in the admin panel. No alert.
-- **Uncommanded open** — a security concern. Recorded, plus a Filament
-  **database** notification with `danger` styling and an **email**.
+Every deviation — `door_jammed`, `already_open`, and an uncommanded open — is
+surfaced the same three ways:
 
-Database notifications are used rather than transient toasts: a toast is only
-seen by an admin who happens to be on the panel, so an overnight event would
-reach nobody. Email provides reach beyond the panel.
+1. A **red badge with a warning icon** on the compartment in the admin panel,
+   carrying a tooltip that explains the fault.
+2. A **live danger toast**, broadcast over Reverb to operators on the panel.
+3. An **email** to the same operators.
+
+A jam is a maintenance problem and an uncommanded open is a security problem, but
+both mean somebody has to walk to that locker, so neither is made quieter than the
+other. A successful open alerts nobody.
+
+The badge is necessary because a jammed compartment reports `door_state: closed`
+exactly like a healthy one — the fault is in the lock, not the door position, so it
+cannot be expressed as a door state.
+
+Toasts are broadcast rather than stored. A stored Filament notification would need
+a `notifications` table and the panel's database-notification feature, sitting
+between two mechanisms that already do the job: the audit log (ADR-0026) is the
+durable in-panel record, and email is what reaches someone who is not looking.
 
 Recipients are users holding the `compartment.open` permission, whose definition
 already covers *"receiving operational status updates"*. Today that is Managers
@@ -296,7 +308,8 @@ is a known trade-off (see Risks).
    `CommandResponseReactor` stops deriving `CompartmentOpened` from
    `open_compartment` success and derives `acknowledged` instead; projector
    handles the new statuses.
-5. Notifications: database + mail notification for uncommanded opens.
+5. Notifications: mail notification for uncommanded opens, to holders of
+   `compartment.open`.
 6. Mobile: regenerate the RTK Query client, review the open flow for the later
    `opened` and the new failure outcomes.
 7. Docs:

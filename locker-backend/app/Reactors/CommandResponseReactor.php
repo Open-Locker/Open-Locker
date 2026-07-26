@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Reactors;
 
 use App\StorableEvents\CommandResponseReceived;
-use App\StorableEvents\CompartmentOpened;
+use App\StorableEvents\CompartmentOpenAcknowledged;
 use App\StorableEvents\CompartmentOpeningFailed;
 use App\StorableEvents\CompartmentOpeningRequested;
 use App\StorableEvents\LockerConfigAckFailed;
@@ -101,11 +101,15 @@ class CommandResponseReactor extends Reactor implements ShouldQueue
             }
 
             if ($result === 'success') {
-                if ($this->derivedEventExists(CompartmentOpened::class, $event->transactionId)) {
+                // The pulse was sent. Whether the door opened arrives separately
+                // on the event channel and is derived by DoorDetectionReactor
+                // (ADR-0031). This used to record CompartmentOpened, conflating
+                // command execution with the physical door.
+                if ($this->derivedEventExists(CompartmentOpenAcknowledged::class, $event->transactionId)) {
                     return;
                 }
 
-                event(new CompartmentOpened(
+                event(new CompartmentOpenAcknowledged(
                     lockerBankUuid: $event->lockerBankUuid,
                     compartmentUuid: $compartmentUuid,
                     compartmentNumber: $compartmentNumber,

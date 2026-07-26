@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Filament\Resources;
 
 use App\Enums\CompartmentDoorState;
+use App\Enums\CompartmentOpenRequestStatus;
 use App\Enums\Permission;
 use App\Filament\Resources\CompartmentResource\Pages;
 use App\Filament\Resources\CompartmentResource\RelationManagers\GroupAccessesRelationManager;
@@ -103,6 +104,28 @@ class CompartmentResource extends Resource
         return parent::getEloquentQuery()->with(['lockerBank', 'latestOpenRequest']);
     }
 
+    /**
+     * A jammed or already-open compartment reports `door_state: closed` exactly
+     * like a healthy one, so the last open attempt is the only signal that the
+     * lock needs attention (ADR-0031).
+     */
+    private static function lastOpenFailed(Compartment $record): bool
+    {
+        return in_array($record->latestOpenRequest?->status, [
+            CompartmentOpenRequestStatus::DoorJammed,
+            CompartmentOpenRequestStatus::AlreadyOpen,
+        ], true);
+    }
+
+    private static function lastOpenFaultTooltip(Compartment $record): ?string
+    {
+        return match ($record->latestOpenRequest?->status) {
+            CompartmentOpenRequestStatus::DoorJammed => __('The last unlock pulse was sent but the door never opened. The lock may be jammed or blocked, or the door sensor may have failed.'),
+            CompartmentOpenRequestStatus::AlreadyOpen => __('The door was already open when the last unlock pulse was sent.'),
+            default => null,
+        };
+    }
+
     public static function table(Table $table): Table
     {
         return $table
@@ -127,6 +150,7 @@ class CompartmentResource extends Resource
             // loads collapsed, so the page is a short list of bank headers no matter
             // how many compartments exist — the grouping is the pagination (#167).
             ->paginated(false)
+            ->modifyQueryUsing(fn (Builder $query): Builder => $query->with('latestOpenRequest'))
             ->columns([
                 Tables\Columns\TextColumn::make('number')
                     ->label(__('Compartment'))
@@ -136,11 +160,18 @@ class CompartmentResource extends Resource
                     ->label(__('Door'))
                     ->badge()
                     ->formatStateUsing(fn (CompartmentDoorState $state): string => $state->label())
-                    ->color(fn (CompartmentDoorState $state): string => match ($state) {
-                        CompartmentDoorState::Open => 'warning',
-                        CompartmentDoorState::Closed => 'success',
-                        CompartmentDoorState::Unknown => 'gray',
+                    // A jammed compartment reads `closed` exactly like a healthy
+                    // one, so the fault rides on the same badge (ADR-0031).
+                    ->color(fn (CompartmentDoorState $state, Compartment $record): string => match (true) {
+                        self::lastOpenFailed($record) => 'danger',
+                        $state === CompartmentDoorState::Open => 'warning',
+                        $state === CompartmentDoorState::Closed => 'success',
+                        default => 'gray',
                     })
+                    ->icon(fn (Compartment $record): ?string => self::lastOpenFailed($record)
+                        ? 'heroicon-m-exclamation-triangle'
+                        : null)
+                    ->tooltip(fn (Compartment $record): ?string => self::lastOpenFaultTooltip($record))
                     ->placeholder(__('unknown')),
                 Tables\Columns\TextColumn::make('active_accesses_count')
                     ->label(__('Direct users'))

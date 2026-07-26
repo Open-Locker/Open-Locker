@@ -19,7 +19,7 @@ Relevant endpoints:
   - Starts an open command.
   - Returns `202` (`pending`) or `403` (`denied`) with `command_id`.
 - `GET /api/compartments/open-requests/{commandId}`
-  - Returns current command state (`accepted|denied|sent|opened|failed`).
+  - Returns current command state (`accepted|denied|sent|acknowledged|opened|already_open|door_jammed|failed`).
   - Used as fallback when realtime is not available.
 - `GET /api/compartments/accessible`
   - Returns all compartments the current user can access, grouped by locker bank.
@@ -54,7 +54,7 @@ All compartment-related push notifications use this channel:
 {
   "command_id": "uuid",
   "compartment_id": "uuid",
-  "status": "accepted|denied|sent|opened|failed",
+  "status": "accepted|denied|sent|acknowledged|opened|already_open|door_jammed|failed",
   "error_code": "nullable-string",
   "message": "nullable-string"
 }
@@ -82,14 +82,26 @@ All compartment-related push notifications use this channel:
 
 Final states:
 
-- `opened` (success)
-- `failed` (device/hardware failure)
+- `opened` (the door was observed physically open)
+- `already_open` (the door was already open before the unlock pulse — a deviation,
+  not a plain success)
+- `door_jammed` (the pulse was sent but the door never opened: jam, blockage, worn
+  latch, or a failed sensor)
+- `failed` (device/hardware failure executing the command)
 - `denied` (authorization denied)
 
 Intermediate states:
 
 - `accepted`
 - `sent`
+- `acknowledged` (the unlock pulse was sent; the door has not been checked yet)
+
+> **`opened` changed meaning in ADR-0031.** It previously meant the unlock pulse
+> had been sent, which is now `acknowledged`. A client that treats `acknowledged`
+> as success will report doors as open that never moved. Expect `acknowledged`
+> first and a physical outcome after it, up to the locker bank's
+> `heartbeat_interval_seconds`. Rows written before ADR-0031 carry the old
+> meaning and are not reinterpreted.
 
 ## 5) Frontend Requirements
 

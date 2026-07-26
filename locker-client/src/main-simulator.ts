@@ -50,6 +50,10 @@ function parseArgs(argv: string[]): CliOptions {
       case '--allow-production':
         options.allowProduction = true;
         break;
+      case '--interactive':
+        options.interactive = true;
+        break;
+
       case '--no-interactive':
         options.interactive = false;
         break;
@@ -90,6 +94,7 @@ function printUsage(): void {
       '  --scenario <path>     Scenario YAML file (default: $CONFIG_DIR/simulator-scenario.yml)',
       '  --broker <url>        MQTT broker URL (overrides the scenario file)',
       '  --allow-production    Permit running with NODE_ENV/APP_ENV=production',
+      '  --interactive         Read door commands from stdin even when it is not a TTY',
       '  --no-interactive      Do not read door commands from stdin',
       '  --quiet               Do not echo MQTT traffic to the console',
       '  -h, --help            Show this help',
@@ -162,6 +167,10 @@ async function main(): Promise<void> {
 
   if (options.interactive) {
     startInteractiveConsole(simulator, shutdown);
+  } else if (process.stdin.isTTY !== true) {
+    // Silently ignoring typed commands is the confusing failure here: stdin is a
+    // pipe, so the console defaulted off and nothing reported why.
+    write('Interactive console disabled: stdin is not a TTY. Pass --interactive to force it.');
   }
 }
 
