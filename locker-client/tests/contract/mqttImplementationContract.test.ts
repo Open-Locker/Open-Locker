@@ -7,6 +7,8 @@ import { OutboundMqttAdapter } from '../../src/adapters/mqtt/outbound-mqtt.adapt
 import { createOpenCompartmentHandler } from '../../src/adapters/mqtt/handlers/open-compartment.handler';
 import { createApplyConfigHandler } from '../../src/adapters/mqtt/handlers/apply-config.handler';
 import { OpenCompartmentUseCase } from '../../src/application/open-compartment';
+import { RelayFireLog } from '../../src/domain/door-detection';
+import { FakeDoorEventPublisher } from '../helpers/fake-door-event-publisher';
 import { ApplyConfigUseCase } from '../../src/application/apply-config';
 import { PollCompartmentStateUseCase } from '../../src/application/state-publishing';
 import { RunAfterCompleteScheduler } from '../../src/infrastructure/scheduler';
@@ -39,7 +41,13 @@ test('handler-built open_compartment success matches AsyncAPI schema', async () 
     () => '2026-04-14T19:30:01Z',
   );
   const config = createTestConfigRepository({ compartments });
-  const openCompartment = new OpenCompartmentUseCase(bus, config, new RunAfterCompleteScheduler());
+  const openCompartment = new OpenCompartmentUseCase({
+    bus,
+    config,
+    scheduler: new RunAfterCompleteScheduler(),
+    doorEvents: new FakeDoorEventPublisher(),
+    relayFireLog: new RelayFireLog(),
+  });
   const pollSnapshot = new PollCompartmentStateUseCase(
     bus,
     config,
@@ -121,7 +129,13 @@ test('dispatcher-built validation error matches AsyncAPI schema', async () => {
     () => '2026-04-14T19:30:01Z',
   );
   const config = createTestConfigRepository({ compartments });
-  const openCompartment = new OpenCompartmentUseCase(bus, config, new RunAfterCompleteScheduler());
+  const openCompartment = new OpenCompartmentUseCase({
+    bus,
+    config,
+    scheduler: new RunAfterCompleteScheduler(),
+    doorEvents: new FakeDoorEventPublisher(),
+    relayFireLog: new RelayFireLog(),
+  });
   const pollSnapshot = new PollCompartmentStateUseCase(
     bus,
     config,
@@ -165,7 +179,13 @@ test('dispatcher-built handler error matches AsyncAPI schema', async () => {
     () => '2026-04-14T19:30:01Z',
   );
   const config = createTestConfigRepository({ compartments });
-  const openCompartment = new OpenCompartmentUseCase(bus, config, new RunAfterCompleteScheduler());
+  const openCompartment = new OpenCompartmentUseCase({
+    bus,
+    config,
+    scheduler: new RunAfterCompleteScheduler(),
+    doorEvents: new FakeDoorEventPublisher(),
+    relayFireLog: new RelayFireLog(),
+  });
   const pollSnapshot = new PollCompartmentStateUseCase(
     bus,
     config,

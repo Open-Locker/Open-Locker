@@ -1,0 +1,11 @@
+{
+  "message_id": "018f2a3c-5d6e-7f80-9a1b-2c3d4e5f6073",
+  "event": "compartment_open_failed",
+  "timestamp": "2026-07-26T16:02:32.484Z",
+  "data": {
+    "compartment_number": 2,
+    "transaction_id": "jam-test-txn-001",
+    "outcome": "door_jammed",
+    "error_code": "DOOR_JAMMED"
+  }
+}

@@ -7,6 +7,8 @@ import { OutboundMqttAdapter } from '../../src/adapters/mqtt/outbound-mqtt.adapt
 import { createOpenCompartmentHandler } from '../../src/adapters/mqtt/handlers/open-compartment.handler';
 import { createApplyConfigHandler } from '../../src/adapters/mqtt/handlers/apply-config.handler';
 import { OpenCompartmentUseCase } from '../../src/application/open-compartment';
+import { RelayFireLog } from '../../src/domain/door-detection';
+import { FakeDoorEventPublisher } from '../helpers/fake-door-event-publisher';
 import { ApplyConfigUseCase } from '../../src/application/apply-config';
 import { PollCompartmentStateUseCase } from '../../src/application/state-publishing';
 import { RunAfterCompleteScheduler } from '../../src/infrastructure/scheduler';
@@ -48,11 +50,13 @@ function createDispatcherHarness(bus = new FakeLockerBus([1])) {
     'locker/test/response',
     () => '2026-04-11T10:00:00Z',
   );
-  const openCompartment = new OpenCompartmentUseCase(
+  const openCompartment = new OpenCompartmentUseCase({
     bus,
-    configStub,
-    new RunAfterCompleteScheduler(),
-  );
+    config: configStub,
+    scheduler: new RunAfterCompleteScheduler(),
+    doorEvents: new FakeDoorEventPublisher(),
+    relayFireLog: new RelayFireLog(),
+  });
   const pollSnapshot = new PollCompartmentStateUseCase(
     bus,
     configStub,

@@ -4,6 +4,8 @@ import { createOpenCompartmentHandler } from '../../src/adapters/mqtt/handlers/o
 import { FakeLockerBus } from '../helpers/fake-locker-bus';
 import { OutboundMqttAdapter } from '../../src/adapters/mqtt/outbound-mqtt.adapter';
 import { OpenCompartmentUseCase } from '../../src/application/open-compartment';
+import { RelayFireLog } from '../../src/domain/door-detection';
+import { FakeDoorEventPublisher } from '../helpers/fake-door-event-publisher';
 import { PollCompartmentStateUseCase } from '../../src/application/state-publishing';
 import { RunAfterCompleteScheduler } from '../../src/infrastructure/scheduler';
 import { createTestConfigRepository } from '../helpers/test-config-repository';
@@ -22,7 +24,13 @@ test('open compartment handler responds success and preserves transaction_id', a
   const config = createTestConfigRepository({
     compartments: [{ compartment_number: 1, slaveId: 1, address: 0 }],
   });
-  const openCompartment = new OpenCompartmentUseCase(bus, config, new RunAfterCompleteScheduler());
+  const openCompartment = new OpenCompartmentUseCase({
+    bus,
+    config,
+    scheduler: new RunAfterCompleteScheduler(),
+    doorEvents: new FakeDoorEventPublisher(),
+    relayFireLog: new RelayFireLog(),
+  });
   const pollSnapshot = new PollCompartmentStateUseCase(
     bus,
     config,

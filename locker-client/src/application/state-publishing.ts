@@ -1,5 +1,7 @@
 import type { CompartmentConfig, DoorState } from '../domain/compartment';
+import type { RelayFireLog } from '../domain/door-detection';
 import type { ConfigRepositoryPort } from '../ports/config.port';
+import type { DoorEventPublisherPort } from '../ports/door-events.port';
 import type { LockerBusPort } from '../ports/locker-bus.port';
 import type { OutboundMqttPort } from '../ports/mqtt.port';
 import { noopLogger, type LoggerPort } from '../ports/logging.port';
@@ -17,6 +19,18 @@ interface CollectedSnapshot {
 export const COMPARTMENT_POLL_INTERVAL_MS = 500;
 export const UNKNOWN_PUBLISH_THRESHOLD = 3;
 
+/**
+ * Wiring for uncommanded-open detection (ADR-0031): a door observed opening
+ * with no relay fire that could explain it.
+ */
+export interface UncommandedOpenWatch {
+  relayFireLog: RelayFireLog;
+  doorEvents: DoorEventPublisherPort;
+  /** Same window the open use case waits for a door; fires inside it are explained. */
+  detectionTimeoutMs: () => number;
+  now?: () => number;
+}
+
 export class PollCompartmentStateUseCase {
   private activePoll: Promise<void> | null = null;
   private forcePending = false;
@@ -30,6 +44,7 @@ export class PollCompartmentStateUseCase {
     private readonly outbound: OutboundMqttPort,
     private readonly snapshotTopic: string,
     private readonly log: LoggerPort = noopLogger,
+    private readonly uncommandedOpen?: UncommandedOpenWatch,
   ) {}
 
   pollAndPublish(force = false): Promise<void> {
@@ -118,12 +133,20 @@ export class PollCompartmentStateUseCase {
       for (const compartment of boardCompartments) {
         const targetKey = this.targetKey(compartment);
         activeTargetKeys.add(targetKey);
+
+        const previousState = this.lastKnownDoorStates.get(targetKey);
+        const effectiveState = this.resolveEffectiveDoorState(
+          targetKey,
+          observedStates[compartment.address - startAddress] ?? 'unknown',
+        );
+
+        if (previousState === 'closed' && effectiveState === 'open') {
+          await this.reportIfUncommanded(compartment.compartment_number);
+        }
+
         entries.push({
           compartment_number: compartment.compartment_number,
-          door_state: this.resolveEffectiveDoorState(
-            targetKey,
-            observedStates[compartment.address - startAddress] ?? 'unknown',
-          ),
+          door_state: effectiveState,
         });
       }
     }
@@ -136,6 +159,41 @@ export class PollCompartmentStateUseCase {
       ),
       configKey,
     };
+  }
+
+  /**
+   * A closed→open transition is only news if no relay fire explains it. An
+   * active detection window owns its own outcome, and a fire inside that window
+   * is the command that opened the door.
+   */
+  private async reportIfUncommanded(compartmentNumber: number): Promise<void> {
+    const watch = this.uncommandedOpen;
+    if (!watch) {
+      return;
+    }
+
+    if (watch.relayFireLog.isDetecting(compartmentNumber)) {
+      return;
+    }
+
+    const nowMs = (watch.now ?? (() => Date.now()))();
+    const sinceFireMs = watch.relayFireLog.millisecondsSinceFire(compartmentNumber, nowMs);
+
+    if (sinceFireMs !== null && sinceFireMs <= watch.detectionTimeoutMs()) {
+      return;
+    }
+
+    try {
+      await watch.doorEvents.publishUncommandedOpen({
+        compartmentNumber,
+        millisecondsSinceLastRelayFire: sinceFireMs,
+      });
+    } catch (error) {
+      this.log.warn('Uncommanded open event publish failed', {
+        compartmentNumber,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
   }
 
   private groupBySlaveId(compartments: CompartmentConfig[]): Map<number, CompartmentConfig[]> {

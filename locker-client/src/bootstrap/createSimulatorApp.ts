@@ -21,6 +21,8 @@ import {
   type TrafficLogger,
 } from '../adapters/simulator/traffic-log';
 import { ApplyConfigUseCase } from '../application/apply-config';
+import { MqttDoorEventPublisher } from '../adapters/mqtt/door-event-publisher';
+import { RelayFireLog } from '../domain/door-detection';
 import { OpenCompartmentUseCase, runStartupFailsafe } from '../application/open-compartment';
 import {
   COMPARTMENT_POLL_INTERVAL_MS,
@@ -53,6 +55,9 @@ export interface SimulatedDevice {
   /** Scripted or manual door change; publishes a fresh retained snapshot. */
   setDoorState(compartmentNumber: number, state: DoorState): Promise<void>;
   getDoorState(compartmentNumber: number): DoorState | null;
+  /** Jammed compartments pulse the relay but their door never moves (ADR-0031). */
+  setJammed(compartmentNumber: number, jammed: boolean): void;
+  isJammed(compartmentNumber: number): boolean;
   shutdown(): Promise<void>;
 }
 
@@ -122,6 +127,7 @@ export function wireSimulatedDevice(options: WireSimulatedDeviceOptions): WiredS
   const topics = {
     command: `locker/${lockerUuid}/command`,
     response: `locker/${lockerUuid}/response`,
+    event: `locker/${lockerUuid}/event`,
     heartbeat: `locker/${lockerUuid}/state/heartbeat`,
     snapshot: `locker/${lockerUuid}/state/compartments`,
   };
@@ -134,6 +140,11 @@ export function wireSimulatedDevice(options: WireSimulatedDeviceOptions): WiredS
         compartment.door_state,
       ]),
     ),
+    jammedTargets: new Set(
+      bank.compartments
+        .filter((compartment) => compartment.jammed)
+        .map((compartment) => busTargetKey(compartment.slaveId, compartment.address)),
+    ),
     latencyMs: bank.latency_ms,
   });
 
@@ -141,13 +152,26 @@ export function wireSimulatedDevice(options: WireSimulatedDeviceOptions): WiredS
   const scheduler = new RunAfterCompleteScheduler();
   const appLogger = createWinstonLoggerPort();
 
-  const openCompartment = new OpenCompartmentUseCase(bus, configRepo, scheduler);
+  const doorEvents = new MqttDoorEventPublisher(outbound, topics.event);
+  const relayFireLog = new RelayFireLog();
+  const detectionTimeoutMs = (): number =>
+    Math.max(1, configRepo.getHeartbeatIntervalSeconds()) * 1000;
+
+  const openCompartment = new OpenCompartmentUseCase({
+    bus,
+    config: configRepo,
+    scheduler,
+    doorEvents,
+    relayFireLog,
+    log: appLogger,
+  });
   const pollSnapshot = new PollCompartmentStateUseCase(
     bus,
     configRepo,
     outbound,
     topics.snapshot,
     appLogger,
+    { relayFireLog, doorEvents, detectionTimeoutMs },
   );
   const heartbeat = new HeartbeatUseCase(
     outbound,
@@ -206,6 +230,21 @@ export function wireSimulatedDevice(options: WireSimulatedDeviceOptions): WiredS
       const target = resolveTarget(compartmentNumber);
 
       return target ? bus.getDoorState(target.slaveId, target.address) : null;
+    },
+    setJammed(compartmentNumber: number, jammed: boolean) {
+      const target = resolveTarget(compartmentNumber);
+      if (!target) {
+        throw new Error(
+          `Bank "${bank.name}" has no compartment ${compartmentNumber} in its current mapping`,
+        );
+      }
+
+      bus.setJammed(target.slaveId, target.address, jammed);
+    },
+    isJammed(compartmentNumber: number) {
+      const target = resolveTarget(compartmentNumber);
+
+      return target ? bus.isJammed(target.slaveId, target.address) : false;
     },
     async shutdown() {
       if (pollTimer) {

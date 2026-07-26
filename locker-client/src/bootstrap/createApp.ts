@@ -13,6 +13,8 @@ import { InboundProtocolGuard } from '../adapters/mqtt/inbound-protocol-guard';
 import { CommandDispatcher } from '../adapters/mqtt/command-dispatcher';
 import { createOpenCompartmentHandler } from '../adapters/mqtt/handlers/open-compartment.handler';
 import { createApplyConfigHandler } from '../adapters/mqtt/handlers/apply-config.handler';
+import { MqttDoorEventPublisher } from '../adapters/mqtt/door-event-publisher';
+import { RelayFireLog } from '../domain/door-detection';
 import { OpenCompartmentUseCase, runStartupFailsafe } from '../application/open-compartment';
 import { ApplyConfigUseCase } from '../application/apply-config';
 import {
@@ -95,6 +97,7 @@ export async function createApp(): Promise<AppContext> {
 
   const commandTopic = `locker/${lockerUuid}/command`;
   const responseTopic = `locker/${lockerUuid}/response`;
+  const eventTopic = `locker/${lockerUuid}/event`;
   const heartbeatTopic = `locker/${lockerUuid}/state/heartbeat`;
   const snapshotTopic = `locker/${lockerUuid}/state/compartments`;
 
@@ -105,13 +108,26 @@ export async function createApp(): Promise<AppContext> {
 
   const scheduler = new RunAfterCompleteScheduler();
   const appLogger = createWinstonLoggerPort();
-  const openCompartment = new OpenCompartmentUseCase(bus, configRepo, scheduler);
+  const doorEvents = new MqttDoorEventPublisher(outbound, eventTopic);
+  const relayFireLog = new RelayFireLog();
+  const detectionTimeoutMs = (): number =>
+    Math.max(1, configRepo.getHeartbeatIntervalSeconds()) * 1000;
+
+  const openCompartment = new OpenCompartmentUseCase({
+    bus,
+    config: configRepo,
+    scheduler,
+    doorEvents,
+    relayFireLog,
+    log: appLogger,
+  });
   const pollSnapshot = new PollCompartmentStateUseCase(
     bus,
     configRepo,
     outbound,
     snapshotTopic,
     appLogger,
+    { relayFireLog, doorEvents, detectionTimeoutMs },
   );
   const heartbeat = new HeartbeatUseCase(
     outbound,
