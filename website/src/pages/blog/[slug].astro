@@ -1,44 +1,16 @@
 ---
-import Layout from '../../layouts/Layout.astro';
-import Seo from '../../components/Seo.astro';
-import { getCollection, render } from 'astro:content';
+import { getCollection } from 'astro:content';
+import BlogPostPage from '../../components/BlogPostPage.astro';
 
 export async function getStaticPaths() {
-	const posts = (await getCollection('blog')).filter((p) => !p.data.draft);
+	const posts = (await getCollection('blog')).filter((p) => !p.data.draft && p.slug.startsWith('de/'));
 	return posts.map((post) => ({
-		params: { slug: post.slug },
+		params: { slug: post.slug.slice('de/'.length) },
 		props: { post },
 	}));
 }
 
 const { post } = Astro.props;
-const { Content } = await render(post);
-
-const title = `${post.data.title} — Open Locker`;
-const description = post.data.description;
 ---
 
-<Layout>
-	<Seo slot="head" title={title} description={description} />
-
-	<section class="mx-auto max-w-6xl px-4 py-12">
-		<div class="mx-auto max-w-3xl">
-			<a href="/blog/" class="text-sm font-medium text-slate-700 hover:text-slate-900 hover:underline underline-offset-4">
-				← Zurück zum Blog
-			</a>
-
-			<header class="mt-6 space-y-3">
-				<p class="text-xs font-semibold tracking-wide text-slate-500">
-					{post.data.pubDate.toLocaleDateString('de-DE', { year: 'numeric', month: 'short', day: '2-digit' })}
-				</p>
-				<h1 class="text-3xl font-semibold tracking-tight text-slate-900 md:text-4xl">{post.data.title}</h1>
-				<p class="text-lg text-slate-700">{post.data.description}</p>
-			</header>
-
-			<article class="prose prose-slate mt-10 max-w-none">
-				<Content />
-			</article>
-		</div>
-	</section>
-</Layout>
-
+<BlogPostPage post={post} locale="de" />

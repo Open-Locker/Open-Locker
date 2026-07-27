@@ -1,5 +1,6 @@
 ---
 import { LINKS } from '../config/links';
+import { localizePath } from '../i18n';
 
 type Props = {
 	title: string;
@@ -17,6 +18,8 @@ const {
 
 const canonical = new URL(Astro.url.pathname, Astro.site ?? Astro.url);
 const ogImage = new URL(imagePath, Astro.site ?? Astro.url);
+const alternateDe = new URL(localizePath(Astro.url.pathname, 'de'), Astro.site ?? Astro.url);
+const alternateEn = new URL(localizePath(Astro.url.pathname, 'en'), Astro.site ?? Astro.url);
 
 const robots = noindex ? 'noindex, nofollow' : 'index, follow';
 ---
@@ -25,6 +28,9 @@ const robots = noindex ? 'noindex, nofollow' : 'index, follow';
 <meta name="description" content={description} />
 <meta name="robots" content={robots} />
 <link rel="canonical" href={canonical.toString()} />
+<link rel="alternate" hreflang="de" href={alternateDe.toString()} />
+<link rel="alternate" hreflang="en" href={alternateEn.toString()} />
+<link rel="alternate" hreflang="x-default" href={alternateDe.toString()} />
 
 <meta property="og:title" content={title} />
 <meta property="og:description" content={description} />
