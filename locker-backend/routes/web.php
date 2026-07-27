@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\AuthController;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cookie;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
@@ -22,5 +23,27 @@ Route::get('/verify-email/{id}/{hash}', [AuthController::class, 'verifyEmailLink
 Route::post('/reset-password', [AuthController::class, 'storeNewPassword'])
     ->name('password.reset.web.store');
 
-Route::get('/admin', fn () => redirect('/en/admin'))
-    ->name('admin.redirect');
+// The admin panel's `EN | DE` switcher links here; the locale is persisted in
+// the session (plus a long-lived cookie so it survives session expiry) and
+// applied on later requests by the panel's SetPanelLocale middleware.
+Route::get('/locale/{locale}', function (string $locale) {
+    abort_unless(in_array($locale, config('app.supported_locales', ['en']), true), 404);
+    session()->put('locale', $locale);
+    Cookie::queue(Cookie::forever('locale', $locale));
+
+    return redirect()->back(fallback: '/admin')->enforceSameOrigin('/admin');
+})->name('locale.switch');
+
+// Legacy dual-panel locale URLs (ADR-0024) — permanent redirect to the single panel.
+Route::get('/{locale}/admin/{path?}', function (Request $request, string $locale, ?string $path = null) {
+    $target = '/admin'.($path !== null ? '/'.$path : '');
+    $query = $request->server->get('QUERY_STRING');
+
+    if (is_string($query) && $query !== '') {
+        $target .= '?'.$query;
+    }
+
+    return redirect($target, 301)->enforceSameOrigin('/admin');
+})
+    ->where(['locale' => 'en|de', 'path' => '.*'])
+    ->name('admin.legacy-locale.redirect');
