@@ -10,6 +10,15 @@ enum Role: string
     case Manager = 'manager';
     case Admin = 'admin';
 
+    public function label(): string
+    {
+        return match ($this) {
+            self::User => __('User'),
+            self::Manager => __('Manager'),
+            self::Admin => __('Administrator'),
+        };
+    }
+
     /**
      * @return list<Permission>
      */
