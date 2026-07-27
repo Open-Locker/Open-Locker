@@ -70,8 +70,7 @@ class FilamentAdminSmokeTest extends TestCase
         $this->assertContains('delete', $headerActionNames);
         $this->assertContains('sendPasswordResetLink', $groupActionNames);
         $this->assertContains('sendVerificationEmail', $groupActionNames);
-        $this->assertContains('setAsAdmin', $groupActionNames);
-        $this->assertContains('removeAdmin', $groupActionNames);
+        $this->assertContains('changeRole', $groupActionNames);
     }
 
     public function test_unverified_admin_can_access_filament_panel_for_verification_flow(): void

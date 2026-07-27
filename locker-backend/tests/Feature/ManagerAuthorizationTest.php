@@ -220,7 +220,7 @@ class ManagerAuthorizationTest extends TestCase
 
         \Livewire\Livewire::actingAs($admin)
             ->test(EditUser::class, ['record' => $target->getRouteKey()])
-            ->callAction('manageRoles', data: ['roles' => [Role::Manager->value]])
+            ->callAction('changeRole', data: ['role' => Role::Manager->value])
             ->assertHasNoActionErrors();
 
         $this->assertTrue($target->fresh()->hasRole(Role::Manager->value));
@@ -357,9 +357,7 @@ class ManagerAuthorizationTest extends TestCase
 
         \Livewire\Livewire::actingAs($manager)
             ->test(EditUser::class, ['record' => $manager->getRouteKey()])
-            ->assertActionHidden('manageRoles')
-            ->assertActionHidden('setAsAdmin')
-            ->assertActionHidden('removeAdmin');
+            ->assertActionHidden('changeRole');
     }
 
     public function test_manager_cannot_make_user_admin_through_service(): void
@@ -369,7 +367,7 @@ class ManagerAuthorizationTest extends TestCase
 
         $this->expectException(AuthorizationException::class);
 
-        app(UserAdministrationService::class)->makeAdmin($manager, $target);
+        app(UserAdministrationService::class)->changeRole($manager, $target, Role::Admin);
     }
 
     public function test_manager_cannot_trigger_sensitive_actions_for_admin_users(): void
@@ -382,9 +380,7 @@ class ManagerAuthorizationTest extends TestCase
             ->test(EditUser::class, ['record' => $admin->getRouteKey()])
             ->assertActionHidden('sendPasswordResetLink')
             ->assertActionHidden('sendVerificationEmail')
-            ->assertActionHidden('manageRoles')
-            ->assertActionHidden('setAsAdmin')
-            ->assertActionHidden('removeAdmin')
+            ->assertActionHidden('changeRole')
             ->assertActionHidden('delete');
     }
 

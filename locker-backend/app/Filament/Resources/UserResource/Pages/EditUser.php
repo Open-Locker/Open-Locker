@@ -3,11 +3,12 @@
 namespace App\Filament\Resources\UserResource\Pages;
 
 use App\Enums\Permission;
+use App\Enums\Role;
 use App\Filament\Resources\UserResource;
 use App\Models\User;
 use App\Services\UserAdministrationService;
 use Filament\Actions;
-use Filament\Forms\Components\CheckboxList;
+use Filament\Forms\Components\Radio;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\EditRecord;
 use Illuminate\Support\Facades\Auth;
@@ -43,14 +44,14 @@ class EditUser extends EditRecord
         return [
             Actions\ActionGroup::make([
                 Actions\Action::make('sendPasswordResetLink')
-                    ->label('Passwort-Reset senden')
+                    ->label(__('Send password reset email'))
                     ->icon('heroicon-o-key')
                     ->color('warning')
                     ->visible(fn (User $record): bool => UserResource::canManageRecord($record))
                     ->requiresConfirmation()
-                    ->modalHeading('Passwort-Reset-Mail senden')
-                    ->modalDescription('Soll eine Passwort-Reset-Mail an diesen Nutzer gesendet werden?')
-                    ->modalSubmitActionLabel('Ja, Passwort-Reset senden')
+                    ->modalHeading(__('Send password reset email'))
+                    ->modalDescription(__('Should a password reset email be sent to this user?'))
+                    ->modalSubmitActionLabel(__('Yes, send password reset email'))
                     ->action(function (User $record): void {
                         $status = app(UserAdministrationService::class)->sendPasswordResetLink(
                             actor: self::currentUser(),
@@ -59,7 +60,7 @@ class EditUser extends EditRecord
 
                         if ($status === Password::RESET_LINK_SENT) {
                             Notification::make()
-                                ->title('Passwort-Reset-Mail gesendet')
+                                ->title(__('Password reset email sent'))
                                 ->success()
                                 ->send();
 
@@ -67,25 +68,25 @@ class EditUser extends EditRecord
                         }
 
                         Notification::make()
-                            ->title('Passwort-Reset-Mail konnte nicht gesendet werden')
+                            ->title(__('Password reset email could not be sent'))
                             ->body(trans($status))
                             ->danger()
                             ->send();
                     }),
                 Actions\Action::make('sendVerificationEmail')
-                    ->label('Verifizierungs-Mail senden')
+                    ->label(__('Send verification email'))
                     ->icon('heroicon-o-envelope')
                     ->color('info')
                     ->visible(fn (User $record): bool => UserResource::canManageRecord($record))
                     ->hidden(fn (User $record): bool => $record->hasVerifiedEmail())
                     ->requiresConfirmation()
-                    ->modalHeading('Verifizierungs-Mail senden')
-                    ->modalDescription('Soll eine Verifizierungs-Mail an diesen Nutzer gesendet werden?')
-                    ->modalSubmitActionLabel('Ja, Verifizierungs-Mail senden')
+                    ->modalHeading(__('Send verification email'))
+                    ->modalDescription(__('Should a verification email be sent to this user?'))
+                    ->modalSubmitActionLabel(__('Yes, send verification email'))
                     ->action(function (User $record): void {
                         if (! app(UserAdministrationService::class)->sendVerificationEmail(self::currentUser(), $record)) {
                             Notification::make()
-                                ->title('E-Mail-Adresse ist bereits verifiziert')
+                                ->title(__('Email address is already verified'))
                                 ->warning()
                                 ->send();
 
@@ -93,82 +94,48 @@ class EditUser extends EditRecord
                         }
 
                         Notification::make()
-                            ->title('Verifizierungs-Mail gesendet')
+                            ->title(__('Verification email sent'))
                             ->success()
                             ->send();
                     }),
-                Actions\Action::make('setAsAdmin')
+                Actions\Action::make('changeRole')
                     ->visible(fn (): bool => self::currentUserCanManageRoles())
-                    ->hidden(fn (User $record): bool => $record->isAdmin())
-                    ->label('zum Admin machen')
-                    ->icon('heroicon-o-shield-check')
-                    ->color('success')
-                    ->requiresConfirmation()
-                    ->modalHeading('Nutzer zum Admin machen')
-                    ->modalDescription('Soll dieser Nutzer Adminrechte erhalten?')
-                    ->modalSubmitActionLabel('Ja, gib diesem Nutzer Adminrechte')
-                    ->action(function (User $record): void {
-                        app(UserAdministrationService::class)->makeAdmin(self::currentUser(), $record);
+                    ->label(__('Change role'))
+                    ->icon('heroicon-o-identification')
+                    ->modalHeading(__('Change user role'))
+                    ->fillForm(fn (User $record): array => [
+                        'role' => self::currentRole($record)->value,
+                    ])
+                    ->form([
+                        Radio::make('role')
+                            ->label(__('Role'))
+                            ->required()
+                            ->options(self::roleOptions()),
+                    ])
+                    ->action(function (User $record, array $data): void {
+                        $changed = app(UserAdministrationService::class)->changeRole(
+                            actor: self::currentUser(),
+                            target: $record,
+                            role: Role::from($data['role']),
+                        );
 
-                        Notification::make()
-                            ->title('Nutzer ist nun Admin')
-                            ->success()
-                            ->send();
-                    }),
-                Actions\Action::make('removeAdmin')
-                    ->visible(fn (): bool => self::currentUserCanManageRoles())
-                    ->hidden(fn (User $record): bool => ! $record->isAdmin())
-                    ->label('Adminrechte entziehen')
-                    ->icon('heroicon-o-shield-exclamation')
-                    ->color('danger')
-                    ->requiresConfirmation()
-                    ->modalHeading('Nutzer Adminrechte entziehen')
-                    ->modalDescription('Sollen diesem Nutzer Adminrechte entzogen werden?')
-                    ->modalSubmitActionLabel('Ja, nimm diesem Nutzer die Adminrechte')
-                    ->action(function (User $record): void {
-                        if (! app(UserAdministrationService::class)->removeAdmin(self::currentUser(), $record)) {
+                        if (! $changed) {
                             Notification::make()
-                                ->title('Aktion abgebrochen')
-                                ->body('Dem letzten Admin können nicht die Adminrechte entzogen werden.')
+                                ->title(__('Action cancelled'))
+                                ->body(__('The last admin cannot lose admin rights.'))
                                 ->danger()
                                 ->send();
 
                             return;
                         }
 
-                        $record->removeAdmin();
-
                         Notification::make()
-                            ->title('Nutzer ist nun nicht mehr Admin')
-                            ->success()
-                            ->send();
-                    }),
-                Actions\Action::make('manageRoles')
-                    ->visible(fn (): bool => self::currentUserCanManageRoles())
-                    ->label('Rollen verwalten')
-                    ->icon('heroicon-o-identification')
-                    ->fillForm(fn (User $record): array => [
-                        'roles' => array_values(array_intersect($record->roleNames(), self::assignableRoles())),
-                    ])
-                    ->form([
-                        CheckboxList::make('roles')
-                            ->label('Rollen')
-                            ->options(fn (): array => array_combine(self::assignableRoles(), self::assignableRoles())),
-                    ])
-                    ->action(function (User $record, array $data): void {
-                        app(UserAdministrationService::class)->syncAssignableRoles(
-                            actor: self::currentUser(),
-                            target: $record,
-                            selectedRoles: $data['roles'] ?? [],
-                        );
-
-                        Notification::make()
-                            ->title('Rollen aktualisiert')
+                            ->title(__('Role updated'))
                             ->success()
                             ->send();
                     }),
             ])
-                ->label('Aktionen')
+                ->label(__('Actions'))
                 ->icon('heroicon-o-ellipsis-horizontal')
                 ->button(),
             Actions\DeleteAction::make()
@@ -178,8 +145,8 @@ class EditUser extends EditRecord
 
                     if ($record->isAdmin() && ! User::hasOtherAdmin($record->id)) {
                         Notification::make()
-                            ->title('Aktion abgebrochen')
-                            ->body('Der letzte Admin kann nicht gelöscht werden.')
+                            ->title(__('Action cancelled'))
+                            ->body(__('The last admin cannot be deleted.'))
                             ->danger()
                             ->send();
                         $action->cancel();
@@ -189,14 +156,34 @@ class EditUser extends EditRecord
     }
 
     /**
-     * Catalog roles that can be toggled here. `admin` is handled by its own
-     * guarded actions; `user` is the no-role default.
-     *
-     * @return list<string>
+     * The user's effective single role for the picker; admin wins over
+     * manager for users that still hold both from the old multi-role UI.
      */
-    private static function assignableRoles(): array
+    private static function currentRole(User $record): Role
     {
-        return app(UserAdministrationService::class)->assignableRoleNames();
+        if ($record->isAdmin()) {
+            return Role::Admin;
+        }
+
+        if ($record->hasRole(Role::Manager->value)) {
+            return Role::Manager;
+        }
+
+        return Role::User;
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    private static function roleOptions(): array
+    {
+        $options = [];
+
+        foreach (Role::cases() as $role) {
+            $options[$role->value] = $role->label();
+        }
+
+        return $options;
     }
 
     private static function currentUserCanManageRoles(): bool

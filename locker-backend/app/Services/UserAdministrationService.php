@@ -26,63 +26,40 @@ class UserAdministrationService
     }
 
     /**
-     * @return list<string>
-     */
-    public function assignableRoleNames(): array
-    {
-        return array_map(static fn (Role $role): string => $role->value, Role::assignable());
-    }
-
-    /**
-     * @param  list<string>  $selectedRoles
+     * Set the target's single role. Role::User means "no stored role binding"
+     * and clears all bindings. Extra roles a user may still hold from the old
+     * multi-role UI are revoked, normalizing the user to one role.
+     *
+     * Returns false when the change would demote the last admin.
      *
      * @throws AuthorizationException
      */
-    public function syncAssignableRoles(User $actor, User $target, array $selectedRoles): void
+    public function changeRole(User $actor, User $target, Role $role): bool
     {
         $this->ensureCanManageRoles($actor);
 
-        $assignable = $this->assignableRoleNames();
-        $selected = array_values(array_intersect($selectedRoles, $assignable));
-        $current = array_values(array_intersect($target->roleNames(), $assignable));
+        $selected = $role === Role::User ? [] : [$role->value];
+        $current = $target->roleNames();
 
-        foreach (array_diff($selected, $current) as $role) {
+        if (in_array(Role::Admin->value, $current, true)
+            && ! in_array(Role::Admin->value, $selected, true)
+            && ! User::hasOtherAdmin($target->id)) {
+            return false;
+        }
+
+        foreach (array_diff($selected, $current) as $roleName) {
             UserRoleAggregate::retrieve(UserRoleAggregate::aggregateUuidFor($target->id))
-                ->grantRole($target->id, $role, $actor->id, now())
+                ->grantRole($target->id, $roleName, $actor->id, now())
                 ->persist();
         }
 
-        foreach (array_diff($current, $selected) as $role) {
+        foreach (array_diff($current, $selected) as $roleName) {
             UserRoleAggregate::retrieve(UserRoleAggregate::aggregateUuidFor($target->id))
-                ->revokeRole($target->id, $role, $actor->id, now())
+                ->revokeRole($target->id, $roleName, $actor->id, now())
                 ->persist();
         }
 
         $target->flushPermissionCache();
-    }
-
-    /**
-     * @throws AuthorizationException
-     */
-    public function makeAdmin(User $actor, User $target): void
-    {
-        $this->ensureCanManageRoles($actor);
-
-        $target->makeAdmin($actor->id);
-    }
-
-    /**
-     * @throws AuthorizationException
-     */
-    public function removeAdmin(User $actor, User $target): bool
-    {
-        $this->ensureCanManageRoles($actor);
-
-        if (! User::hasOtherAdmin($target->id)) {
-            return false;
-        }
-
-        $target->removeAdmin($actor->id);
 
         return true;
     }

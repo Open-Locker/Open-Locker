@@ -39,19 +39,6 @@ enum Role: string
     }
 
     /**
-     * Roles that can be assigned through the generic role-management action.
-     * `admin` is handled by dedicated guarded actions; `user` is the no-role default.
-     *
-     * @return list<self>
-     */
-    public static function assignable(): array
-    {
-        return [
-            self::Manager,
-        ];
-    }
-
-    /**
      * @return list<string>
      */
     public static function values(): array
