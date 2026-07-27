@@ -6,7 +6,7 @@ export const en: Dictionary = {
 	},
 	nav: {
 		homeAriaLabel: 'Open Locker home page',
-		tagline: 'Open source lockers',
+		tagline: 'Open-Source Smart Lockers',
 		navAriaLabel: 'Main menu',
 		start: 'Home',
 		blog: 'Blog',
@@ -14,7 +14,7 @@ export const en: Dictionary = {
 		join: 'Get involved',
 		pricing: 'Pricing',
 		contact: 'Contact',
-		switchLabel: 'Sprache wechseln (Deutsch)',
+		switchLabel: 'Switch language to German',
 		githubAriaLabel: 'Open Locker on GitHub',
 		discordAriaLabel: 'Open Locker on Discord',
 		openMenuAriaLabel: 'Open menu',
@@ -24,28 +24,28 @@ export const en: Dictionary = {
 		discordAriaLabel: 'Open Discord',
 	},
 	home: {
-		seoTitle: 'Open Locker — Open source software and build guides for lockers',
+		seoTitle: 'Open Locker — Open-source software and build guides for locker systems',
 		seoDescription:
-			'Open Locker is an open source project providing software and hardware blueprints for public lockers to store and share items.',
-		kicker: 'A participatory project of Smart City Hameln-Pyrmont',
+			'Open Locker is an open-source project providing software and open hardware designs for public locker systems used to store and share items.',
+		kicker: 'A community project by Smart City Hameln-Pyrmont',
 		heroTitle: 'The smart locker for everyone.',
 		heroLead:
-			'An open source toolbox for building, sharing, and managing affordable digital locker systems yourself.',
+			'An open-source toolkit for building and operating affordable digital locker systems.',
 		learnMore: 'Learn more',
 		startBuilding: 'Start building',
 		asideTitle: "What's inside:",
 		asideItems: [
-			'Shopping list',
+			'Bill of materials',
 			'Build guide',
 			'Admin panel',
 			'Mobile app',
-			'Open source software',
+			'Open-source software',
 		],
 		joinTitle: 'Want to get involved?',
 		joinLead: "Join us on Discord or grab an issue on GitHub. We're happy to help you get started.",
 		viewIssues: 'View issues',
 		joinNote:
-			'In the background you can see real impressions from our live meetups. Dates are discussed on Discord.',
+			'These are real photos from our in-person meetups. We coordinate upcoming dates on Discord.',
 		contactTitle: 'Contact',
 		contactLead: {
 			before: 'The fastest way to reach us is Discord or GitHub. For formal inquiries, send us an',
@@ -60,23 +60,23 @@ export const en: Dictionary = {
 		title: 'What is Open Locker?',
 		badge: 'In development',
 		paragraph1:
-			'Open Locker is an open source project for public lockers, including a backend, a mobile app, and hardware blueprints. Our goal is a solution that works reliably in everyday use, adapts to local requirements, and is affordable for those who really need it.',
+			'Open Locker is an open-source project for public locker systems, including a backend, a mobile app, and open hardware designs. Our goal is a reliable and affordable solution that can adapt to local requirements.',
 		paragraph2:
-			'Open Locker builds on controllable costs and open standards: you can run the software yourself or optionally book hosting.',
+			'Open Locker focuses on predictable costs and open standards: you can run the software yourself or use our optional managed hosting.',
 		paragraph3Html:
-			'We also build the solution to be <strong class="text-slate-900">easy to use</strong>. In the spirit of <strong class="text-slate-900">digital inclusion</strong>, our locker is well suited for senior citizens and less digitally experienced groups, too.',
+			'We are also designing the system to be <strong class="text-slate-900">easy to use</strong>. To support <strong class="text-slate-900">digital inclusion</strong>, it should work well for older adults and people with less digital experience.',
 		storyLead: 'From hackathon to open source project:',
 		storyCta: 'Our background story',
 		featuresTitle: 'Features at a glance',
 		features: [
-			{ title: 'Easy to rebuild', text: 'Build guide, shopping list, and a reproducible setup.' },
-			{ title: 'Affordable', text: 'Control your costs instead of license models and platform lock-in.' },
-			{ title: 'Easy to use', text: 'UX designed for digital inclusion. Suitable for senior citizens, too.' },
+			{ title: 'Easy to build', text: 'Build guide, bill of materials, and a reproducible setup.' },
+			{ title: 'Affordable', text: 'Predictable costs without license fees or platform lock-in.' },
+			{ title: 'Easy to use', text: 'A user experience designed for digital inclusion.' },
 			{
 				title: 'Retrofittable',
-				text: 'From IKEA to expensive industrial cabinets: keep using existing lockers and run them with our hardware and software.',
+				text: 'Upgrade anything from IKEA cabinets to industrial lockers with our hardware and software.',
 			},
-			{ title: 'Self-hosting possible', text: 'Data sovereignty and privacy instead of opaque cloud services.' },
+			{ title: 'Self-hosting', text: 'Keep control of your data instead of relying on an opaque cloud service.' },
 			{ title: 'Audit and logs', text: 'Track access transparently (who, when, what).' },
 			{ title: 'Customizable', text: 'Adapt workflows, roles, and integrations to your daily routine.' },
 		],
@@ -92,7 +92,7 @@ export const en: Dictionary = {
 			'Smart cities',
 			'Municipalities',
 			'Community spaces',
-			'Hacker spaces',
+			'Hackerspaces',
 			'Coworking spaces',
 			'Clubs',
 			'Kindergartens',
@@ -106,16 +106,16 @@ export const en: Dictionary = {
 		],
 	},
 	hosting: {
-		title: "Don't feel like hosting it yourself?",
-		lead: "If you don't want to run Open Locker yourself but still want to benefit from its advantages (open source, adaptability, transparency), we host the central backend for you — in Germany, on green energy. That reduces your operational effort and directly supports the further development of the project.",
+		title: 'Prefer managed hosting?',
+		lead: "If you don't want to operate Open Locker yourself, we can host the central backend for you in Germany using renewable energy. This reduces your operational workload and directly supports the project's continued development.",
 		contact: 'Get in touch',
 		items: [
 			{ title: 'Central backend', text: "We host the backend for you, so you don't have to start from scratch." },
 			{
 				title: 'Hosting in Germany',
-				text: 'Short distances, clear responsibilities, and a setup that fits EU requirements.',
+				text: 'Clear responsibilities and infrastructure located in Germany.',
 			},
-			{ title: 'GDPR-compliant', text: 'Operations and data processing with a focus on privacy and compliance.' },
+			{ title: 'Privacy-conscious', text: 'Operations and data processing designed with privacy and EU compliance in mind.' },
 			{ title: 'Green energy', text: 'Runs on infrastructure powered by renewable energy.' },
 			{
 				title: 'Support for Open Locker',
@@ -127,10 +127,10 @@ export const en: Dictionary = {
 		kicker: 'Pricing (Open Source Edition)',
 		titleHtml:
 			'Spoiler: the software costs <span class="underline decoration-amber-300 decoration-4 underline-offset-4">€&nbsp;0</span>.',
-		lead: 'Open Locker is open source and you can host it yourself. You only pay your own acquisition and operating costs — e.g. hardware, hosting/servers, monitoring, or backups — depending on how you set it up.',
+		lead: 'Open Locker is open source and can be self-hosted. Your only costs are for the hardware and infrastructure you choose, such as servers, monitoring, and backups.',
 		teaser: {
 			ariaLabel: 'Teaser: future offering',
-			title: 'Locker without tinkering',
+			title: 'Locker without the DIY',
 			badge: 'Planned',
 			subtitle: 'For teams that need not just software but hardware, too.',
 			price: 'Not available yet.',
@@ -138,8 +138,8 @@ export const en: Dictionary = {
 				'Support with <strong>building/retrofitting the locker</strong>, including electronics, wiring, and commissioning — optionally on top of hosting &amp; setup.',
 			bullets: [
 				'A parts list tailored exactly to your use case.',
-				'Power, locks, drilling, screwing, and more. We lend a hand.',
-				'Going live together, so nothing goes wrong.',
+				'Help with power, locks, drilling, assembly, and more.',
+				'Joint commissioning for a reliable launch.',
 			],
 		},
 		selfHosted: {
@@ -155,7 +155,7 @@ export const en: Dictionary = {
 		hosted: {
 			title: 'Hosted backend',
 			subtitle: 'Less ops, more support.',
-			price: '“Ask us”',
+			price: 'Contact us',
 			priceNote: 'Price depends on setup, scope, and support.',
 			bullets: [
 				'Hosting in Germany (EU-friendly).',
@@ -166,9 +166,9 @@ export const en: Dictionary = {
 		},
 		workshops: {
 			title: 'Workshops & onboarding',
-			subtitle: 'For teams that want to go live quickly and cleanly.',
-			price: '“Ask us”',
-			priceNote: 'Billed by scope, goal, and date.',
+			subtitle: 'For teams that want to launch quickly with a solid setup.',
+			price: 'Contact us',
+			priceNote: 'Pricing depends on the scope, goals, and schedule.',
 			bullets: [
 				'Workshop/onboarding (remote or on site).',
 				'Joint setup, best practices, and troubleshooting.',
@@ -186,13 +186,13 @@ export const en: Dictionary = {
 			before: 'Want to fund Open Locker, run a pilot, or co-develop it as a partner? Let’s',
 			linkText: 'have a quick chat',
 			after:
-				"! We're happy about every message. Also reach out if you'd like to propose extensions or are planning a project you want to realize with Open Locker.",
+				"! We'd love to hear from you. Get in touch if you want to suggest an extension or are planning a project with Open Locker.",
 		},
 		supportSubject: 'Open Locker — Becoming a supporter',
 		writeUs: 'Write to us!',
 	},
 	footer: {
-		tagline: 'Open source software and hardware blueprints for lockers.',
+		tagline: 'Open-source software and open hardware designs for locker systems.',
 		projectLabel: 'Project',
 		legalLabel: 'Legal',
 		blog: 'Blog',

@@ -5,15 +5,15 @@ pubDate: "2026-02-10"
 draft: false
 ---
 
-While building our project, we paid particular attention to keeping everything user-friendly, but also secure and stable.
+While building Open Locker, we focused on making the system user-friendly, secure, and reliable.
 
-## Our individual building blocks are:
+## System components
 
-* **Mobile app (main interface):** A simple, user-friendly app for everyday use — e.g. opening compartments, booking usage, or checking the status of items.
-* **Admin panel:** Managing the lockers. Admins can create new locations, register devices, assign roles, and help users as support.
+* **Mobile app (main interface):** A simple app for everyday tasks such as opening compartments, borrowing items, and checking their status.
+* **Admin panel:** The management interface for creating locations, registering devices, assigning roles, and supporting users.
 * **Backend:** The backend checks permissions, manages state, and provides the API to keep everything running.
-* **MQTT broker:** Decouples the backend from the locker location.
-* **IoT client:** Runs on e.g. a Raspberry Pi or ESP and translates messages into "real" signals for the locker (e.g. Modbus).
+* **MQTT broker:** Routes messages between the backend and locker locations.
+* **Locker client:** Runs on a Raspberry Pi at the locker and translates MQTT messages into Modbus commands for the hardware.
 
 Planned:
 
@@ -23,18 +23,18 @@ Planned:
 
 ### Command (open, reserve, …)
 
-When a user performs an action in the app (e.g. "open"), it works roughly like this:
+When a user performs an action in the app, such as opening a compartment, the command follows this path:
 
 `App` → `Backend (HTTPS/REST)` → `MQTT Broker` → `Locker Client` → `Modbus` → `Locker/Lock`
 
 ### Status (feedback & live updates)
 
-Feedback from the locker travels the same path in reverse and can be shown live in the app:
+Status updates travel back through the system and can be shown live in the app:
 
-`Locker/Lock` → `Locker Client` → `MQTT Broker` → `Backend` → `Database` → `Push/SSE` → `App`
+`Locker/Lock` → `Locker Client` → `MQTT Broker` → `Backend` → `Database` → `Reverb/WebSocket` → `App`
 
 ## What runs where?
 
 - **Backend + admin UI + database + MQTT broker**: typically central (server/hosting).
-- **Locker client**: on site (e.g. Raspberry Pi / ESP).
+- **Locker client**: on site on a Raspberry Pi.
 - **Mobile app**: with the users.

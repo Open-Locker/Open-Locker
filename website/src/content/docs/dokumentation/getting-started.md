@@ -6,7 +6,7 @@ sidebar:
 ---
 
 This guide sets up a local development environment. For a production
-deployment, see [Operations](/en/dokumentation/operations/).
+deployment, see [Operations](/dokumentation/operations/).
 
 ## Prerequisites
 

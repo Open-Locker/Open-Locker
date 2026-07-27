@@ -24,18 +24,20 @@ constant to protect existing indexing), so it must be recorded as a
 superseding decision rather than an amendment.
 
 At the time of this change, `website/` exists only on a feature branch
-(`feat/92-starlight-docs`) that has not been merged to `main`; the
-production deployment (triggered on push to `main`) still serves the
-ADR-0031 layout (German at root). No redirect layer for the old German
-URLs has been added yet — see Consequences.
+(`feat/92-starlight-docs`) that has not been merged to `main`. That branch is
+temporarily deployed to open-locker.org for migration testing, so its routes
+are publicly reachable even though the change has not completed the normal
+`dev` to `main` promotion flow.
 
 ## Decision
 
 - **English is the default locale at the root** (`open-locker.org/…`);
   **German lives under `/de/…`** (`prefixDefaultLocale: false`,
   `defaultLocale: 'en'`).
-- Fallback direction flips: missing German content falls back to English
-  (`fallback: { de: 'en' }`).
+- The general Astro router does not create locale fallbacks. Marketing and
+  legal pages are translated explicitly, preventing unintended routes such as
+  `/de/privacy-policy/`. Starlight uses English root content as the fallback
+  for missing German documentation pages.
 - Physical content is swapped to match: `src/pages/*` (previously the
   German root pages) move to `src/pages/de/*`; the former `src/pages/en/*`
   pages move to the root. Content collections follow the same pattern:
@@ -45,8 +47,9 @@ URLs has been added yet — see Consequences.
 - **Legal pages remain unchanged in substance**: the German Impressum/
   Datenschutz text is still the legally binding original (per ADR-0031);
   only its URL moves to `/de/impressum/` and `/de/datenschutz/`. The English
-  pages keep their "courtesy translation, German is binding" notice, now
-  pointing at the `/de/` URLs.
+  pages use English slugs (`/imprint/` and `/privacy-policy/`) and keep their
+  "courtesy translation, German is binding" notice, now pointing at the
+  `/de/` URLs.
 - `hreflang="x-default"` now points at the English URL instead of German.
 - Starlight's docs sidebar base label switches from German (`Dokumentation`)
   to English (`Documentation`), with German supplied via `translations`.
@@ -81,36 +84,32 @@ URLs has been added yet — see Consequences.
 
 ### Negative
 
-- Every German URL that may have been indexed under ADR-0031's root layout
-  (e.g. `open-locker.org/dokumentation/`) now 404s unless a redirect is
-  added; German search ranking accumulated since ADR-0031 is lost without
-  one.
+- Root URLs shared by both languages (for example `/blog/`) now serve English
+  instead of German and cannot redirect without hiding the new default
+  content. Language-specific German legal slugs can redirect to `/de/`.
 - Content maintenance burden (dual-locale upkeep) is unchanged from
   ADR-0031, just mirrored.
 
 ### Risks
 
-- If this lands on `main` before a redirect layer exists for the old German
-  root paths, external links and search results pointing at the
-  ADR-0031-era German URLs will break. Mitigation: add static redirect
-  stubs (or a GitHub Pages `_redirects`-equivalent) from the old German
-  paths to their new `/de/` equivalents as part of, or immediately after,
-  merging this change to `main` — tracked as follow-up work, not yet done
-  as of this ADR.
+- Existing links to shared root paths now resolve to English rather than the
+  formerly indexed German content. This is an accepted consequence of making
+  English canonical. The old `/datenschutz/` and `/impressum/` routes use
+  static HTML redirects to their German `/de/` equivalents.
 
 ## Rollout / Migration
 
-1. Flip `astro.config.mjs` (`i18n.defaultLocale`, `i18n.fallback`,
-   `sitemap()` i18n block, Starlight sidebar label/translations).
+1. Flip `astro.config.mjs` (`i18n.defaultLocale`, `sitemap()` i18n block,
+   Starlight root/de locales and sidebar label/translations).
 2. Swap `src/i18n/index.ts`'s locale-prefix logic (`/de` prefix instead of
    `/en`).
 3. Move `src/pages/*` ↔ `src/pages/en/*` and `src/content/docs/dokumentation`
    ↔ `src/content/docs/en/dokumentation` so default-locale content lives
    unprefixed and German content lives under `de/`.
-4. Fix relative import depths in moved page files and the hardcoded
-   "German version is binding" link in the legal pages.
-5. **Follow-up, not yet done:** add redirect stubs for the old (ADR-0031)
-   German root URLs before/at merge to `main`.
+4. Move English legal pages to `/privacy-policy/` and `/imprint/`, keep German
+   at `/de/datenschutz/` and `/de/impressum/`, and update language alternates.
+5. Add static redirects from the former German legal routes
+   (`/datenschutz/`, `/impressum/`) to their `/de/` equivalents.
 
 ## Supersedes / Superseded By
 

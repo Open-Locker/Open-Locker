@@ -81,4 +81,4 @@ Recommended hardware: see the
 
 - **Self-hosting**: run everything yourself — full control, no software costs
 - **Hosted backend**: if you don't want to host it yourself, the central
-  backend can be hosted for you — see the [offer on the website](/en/#hosting)
+  backend can be hosted for you — see the [offer on the website](/#hosting)

@@ -1,6 +1,10 @@
 name: Deploy Website
 
 on:
+  pull_request:
+    paths:
+      - 'website/**'
+      - '.github/workflows/deploy-website.yml'
   push:
     branches:
       - main
@@ -10,7 +14,7 @@ on:
   workflow_dispatch:
 
 concurrency:
-  group: pages
+  group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
@@ -45,15 +49,16 @@ jobs:
         run: pnpm run build
         env:
           SITE_URL: https://open-locker.org
-          BASE_PATH: /
 
       - name: Upload Pages artifact
+        if: github.event_name != 'pull_request'
         uses: actions/upload-pages-artifact@v3
         with:
           path: website/dist
 
   deploy:
     needs: build
+    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     permissions:
       pages: write

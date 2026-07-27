@@ -27,16 +27,16 @@ headsets.
 | **Hardware** | Blueprints and bill of materials for the electronics (relay boards, locks, wiring) |
 
 How the parts play together is described in the
-[Architecture](/en/dokumentation/architecture/).
+[Architecture](/dokumentation/architecture/).
 
 ## First steps
 
-- [Getting started](/en/dokumentation/getting-started/) — set up a local development environment
-- [Operations](/en/dokumentation/operations/) — production deployment and hosting
-- [Contributing](/en/dokumentation/contributing/) — contribute to the project
+- [Getting started](/dokumentation/getting-started/) — set up a local development environment
+- [Operations](/dokumentation/operations/) — production deployment and hosting
+- [Contributing](/dokumentation/contributing/) — contribute to the project
 
 ## Community
 
 Weekly meetup on [Discord](https://discord.gg/rZ74RYKN3H) every Tuesday at
-7:30 PM (CET). Source code and issues on
+7:30 PM Europe/Berlin time. Source code and issues on
 [GitHub](https://github.com/Open-Locker/Open-Locker).

@@ -32,8 +32,9 @@ migrate hosting to GitHub Pages.
 
 - Import `open-locker-website` into the monorepo at `website/` via
   `git subtree add`, preserving the full commit history (grafted as a merge
-  with unrelated history; PRs touching it must be merged with merge commits,
-  not squashed).
+  with unrelated history). The initial import PR must use a merge commit
+  rather than squash merging; later website PRs may follow the repository's
+  normal merge strategy.
 - Remove the GitLab/Coolify deployment artifacts (`.gitlab-ci.yml`,
   `Dockerfile`, `nginx/`); the site is a pure static Astro build.
 - Deploy via GitHub Actions (`.github/workflows/deploy-website.yml`): pushes
@@ -43,9 +44,8 @@ migrate hosting to GitHub Pages.
   records for the apex point at GitHub Pages' anycast IPs, `www` is a CNAME.
   The legacy `open-locker.github.io/Open-Locker/` URL 301-redirects to the
   domain automatically.
-- Build-time environment selects the origin: `SITE_URL`
-  (canonical origin for sitemap/robots/canonicals) and `BASE_PATH` (sub-path;
-  `/` in production).
+- The `SITE_URL` build-time environment variable selects the canonical origin
+  for sitemap, robots, and canonical URLs.
 
 ## Rationale
 
@@ -110,6 +110,9 @@ migrate hosting to GitHub Pages.
 
 - The `github-pages` environment restricts deployable branches; misconfigured
   rules block deploys (mitigation: `main` is allowed by default).
+- During migration testing, temporary feature-branch Pages configuration can
+  replace production content (mitigation: remove the temporary branch source
+  and environment exceptions before the final `main` deployment).
 - If the Pages custom domain were ever unclaimed, the domain could be
   squatted on GitHub's shared IPs (mitigation: verify the domain at the
   organization level).
@@ -118,13 +121,16 @@ migrate hosting to GitHub Pages.
 
 1. `git subtree add --prefix=website` from the GitLab repo (done).
 2. Remove GitLab/Coolify deploy artifacts; add Pages deploy workflow (done).
-3. Enable Pages (Source: GitHub Actions) on the repository (done).
+3. Enable Pages on the repository (done). Feature branches are temporarily
+   used for migration testing; switch the authoritative source to the
+   `main`-only GitHub Actions workflow before completing the rollout.
 4. Point `open-locker.org` DNS at GitHub Pages, set the custom domain,
-   enforce HTTPS (done; cert issued 2026-07-17).
+   and enforce HTTPS (done; cert issued 2026-07-17, redirect verified
+   2026-07-20).
 5. Follow-ups: archive the GitLab repository with a pointer to the monorepo;
    decommission the Coolify deployment; optionally create a one-file
-   `open-locker.github.io` redirect stub; remove the temporary feature-branch
-   deploy trigger and environment exception after merge.
+   `open-locker.github.io` redirect stub; switch Pages to GitHub Actions and
+   remove temporary feature-branch deployment access after migration testing.
 
 Fallback: DNS A records can be pointed back at the previous nginx host at any
 time; the old deployment remains intact until decommissioned.

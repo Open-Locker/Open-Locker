@@ -4,7 +4,7 @@ export const de = {
 	},
 	nav: {
 		homeAriaLabel: 'Open Locker Startseite',
-		tagline: 'Open Source Schließfächer',
+		tagline: 'Smarte Open-Source-Schließfächer',
 		navAriaLabel: 'Hauptmenü',
 		start: 'Start',
 		blog: 'Blog',

@@ -1,6 +1,6 @@
 import ModbusRTU from 'modbus-serial';
 import { performance } from 'node:perf_hooks';
-import type { ModbusDriver } from './bus-actor';
+import type { WaveshareModbusDriver } from './waveshare-modbus-bus-actor';
 import { flashRelayOn, turnAllRelaysOff, type WaveshareModbusClient } from './waveshare-flash';
 
 export interface ModbusConnectionConfig {
@@ -33,7 +33,7 @@ export function calculateModbusRtuInterFrameDelayMs(
   return Math.ceil(specificationDelayMs + TIMER_SAFETY_MARGIN_MS);
 }
 
-export class ModbusRtuDriver implements ModbusDriver {
+export class WaveshareModbusRtuDriver implements WaveshareModbusDriver {
   private client: ModbusRTU | null = null;
   private readonly interFrameDelayMs: number;
   private readonly timing: TimingDependencies;

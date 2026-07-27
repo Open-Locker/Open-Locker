@@ -41,7 +41,7 @@ This directory contains the **marketing / informational website** for the open s
 
 ## CI/CD notes (GitHub Actions)
 
-`.github/workflows/deploy-website.yml` (monorepo root) builds the site with pnpm and deploys `dist/` to GitHub Pages on pushes to `main` that touch `website/**`. Build-time env: `SITE_URL` (canonical origin) and `BASE_PATH` (sub-path, `/` in production). See `README.md` for details.
+`.github/workflows/deploy-website.yml` (monorepo root) builds the site with pnpm for pull requests and deploys `dist/` to GitHub Pages on pushes to `main` that touch `website/**`. `SITE_URL` configures the canonical production origin. See `README.md` for details.
 
 ## Content guidelines
 

@@ -54,10 +54,10 @@ Details and payloads: [App Communication Guide](https://github.com/Open-Locker/O
   `/api/mosq/*`) — there are no static broker passwords
 - The backend publishes via typed publisher services; topic structure and
   message contracts are captured in ADRs (see
-  [Reference](/en/dokumentation/reference/))
+  [Reference](/dokumentation/reference/))
 - The backend's `mqtt-listener` process reports liveness via a heartbeat and
   is restarted automatically on failure (see
-  [Operations](/en/dokumentation/operations/))
+  [Operations](/dokumentation/operations/))
 
 ## Locker client (IoT)
 

@@ -17,7 +17,7 @@ export interface LockerBusPort {
   reloadRuntimeConfig(): Promise<void>;
   flashRelay(target: CompartmentTarget, durationMs: number): Promise<void>;
   readRelayState(target: CompartmentTarget): Promise<boolean>;
-  readDoorSensor(target: CompartmentTarget): Promise<DoorState>;
+  readDoorSensors(slaveId: number, startAddress: number, length: number): Promise<DoorState[]>;
   turnAllRelaysOff(slaveId: number): Promise<void>;
   getConfiguredSlaveIds(): number[];
 }

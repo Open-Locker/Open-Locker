@@ -7,19 +7,27 @@ import tailwindcss from '@tailwindcss/vite';
 
 // https://astro.build/config
 const site = process.env.SITE_URL ?? 'http://localhost:4321';
+const legalRouteAlternates = new Map([
+	['/privacy-policy/', { en: '/privacy-policy/', de: '/de/datenschutz/' }],
+	['/de/datenschutz/', { en: '/privacy-policy/', de: '/de/datenschutz/' }],
+	['/imprint/', { en: '/imprint/', de: '/de/impressum/' }],
+	['/de/impressum/', { en: '/imprint/', de: '/de/impressum/' }],
+]);
 
 export default defineConfig({
 	site: new URL(site).toString(),
-	base: process.env.BASE_PATH ?? '/',
+	redirects: {
+		'/datenschutz': '/de/datenschutz/',
+		'/impressum': '/de/impressum/',
+	},
 	i18n: {
 		defaultLocale: 'en',
 		locales: ['en', 'de'],
-		fallback: { de: 'en' },
 		routing: { prefixDefaultLocale: false },
 	},
 	integrations: [
 		starlight({
-			title: { de: 'Open Locker', en: 'Open Locker' },
+			title: 'Open Locker',
 			logo: { src: './public/logo-open-locker.svg' },
 			customCss: ['./src/styles/starlight-custom.css'],
 			sidebar: [
@@ -46,6 +54,16 @@ export default defineConfig({
 			i18n: {
 				defaultLocale: 'en',
 				locales: { de: 'de', en: 'en' },
+			},
+			serialize(item) {
+				const alternates = legalRouteAlternates.get(new URL(item.url).pathname);
+				if (alternates) {
+					item.links = [
+						{ lang: 'en', url: new URL(alternates.en, site).href },
+						{ lang: 'de', url: new URL(alternates.de, site).href },
+					];
+				}
+				return item;
 			},
 		}),
 	],

@@ -24,7 +24,7 @@ sidebar:
 
 ## Hardware
 
-- **Bill of Materials (BOM)**: see [Hardware](/en/dokumentation/hardware/)
+- **Bill of Materials (BOM)**: see [Hardware](/dokumentation/hardware/)
 - The Modbus relay board must be the Waveshare board listed there (verified
   flash and digital-input behavior, see
   [ADR-0004](https://github.com/Open-Locker/Open-Locker/blob/main/docs/adr/0004-waveshare-hardware-flash-and-supported-boards.md))

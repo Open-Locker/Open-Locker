@@ -10,8 +10,8 @@ const { locale = getLocaleFromUrl(Astro.url) } = Astro.props;
 const t = useTranslations(locale).footer;
 
 const blogPath = localizePath('/blog/', locale);
-const imprintPath = localizePath('/impressum/', locale);
-const privacyPath = localizePath('/datenschutz/', locale);
+const imprintPath = localizePath('/imprint/', locale);
+const privacyPath = localizePath('/privacy-policy/', locale);
 ---
 
 <footer class="border-t border-slate-200 bg-white">

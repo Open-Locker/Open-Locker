@@ -7,6 +7,13 @@ export const DEFAULT_LOCALE: Locale = 'en';
 
 export const translations: Record<Locale, Dictionary> = { de, en };
 
+const localizedLegalPaths: Record<string, Record<Locale, string>> = {
+	'/privacy-policy/': { en: '/privacy-policy/', de: '/de/datenschutz/' },
+	'/datenschutz/': { en: '/privacy-policy/', de: '/de/datenschutz/' },
+	'/imprint/': { en: '/imprint/', de: '/de/impressum/' },
+	'/impressum/': { en: '/imprint/', de: '/de/impressum/' },
+};
+
 export function useTranslations(locale: Locale): Dictionary {
 	return translations[locale];
 }
@@ -24,5 +31,8 @@ export function stripLocale(pathname: string): string {
 /** Return the given path in the requested locale. */
 export function localizePath(pathname: string, locale: Locale): string {
 	const base = stripLocale(pathname);
+	const localizedLegalPath = localizedLegalPaths[base];
+	if (localizedLegalPath) return localizedLegalPath[locale];
+
 	return locale === 'de' ? `/de${base === '/' ? '/' : base}` : base;
 }
