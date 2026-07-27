@@ -110,7 +110,9 @@ No migration needed for existing URLs; nothing changes for German visitors.
 ## Supersedes / Superseded By
 
 - Supersedes: —
-- Superseded by: —
+- Superseded by: ADR-0032 (partially — the "German stays at root" decision
+  only; the URL-path-prefix mechanism, translation storage, and legal-page
+  approach remain in effect)
 
 ## References
 
