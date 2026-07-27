@@ -1,19 +1,21 @@
-<!doctype html>
 ---
 import '../styles/global.css';
 import SiteHeader from '../components/SiteHeader.astro';
 import SiteFooter from '../components/SiteFooter.astro';
 import DiscordMeetingInfo from '../components/DiscordMeetingInfo.astro';
 import { LINKS } from '../config/links';
+import { getLocaleFromUrl, useTranslations, type Locale } from '../i18n';
 
 type Props = {
-	lang?: string;
+	lang?: Locale;
 };
 
-const { lang = 'de' } = Astro.props;
+const { lang = getLocaleFromUrl(Astro.url) } = Astro.props;
+const t = useTranslations(lang);
 const iconVersion = '2';
 ---
 
+<!doctype html>
 <html lang={lang}>
 	<head>
 		<meta charset="UTF-8" />
@@ -31,7 +33,7 @@ const iconVersion = '2';
 			href="#main"
 			class="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50 focus:rounded-md focus:bg-white focus:px-3 focus:py-2 focus:text-sm focus:font-medium focus:text-slate-900 focus:shadow-lg"
 		>
-			Skip to content
+			{t.layout.skipToContent}
 		</a>
 
 		<SiteHeader />
