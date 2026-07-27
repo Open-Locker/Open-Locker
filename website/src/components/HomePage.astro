@@ -1,0 +1,227 @@
+---
+import Layout from '../layouts/Layout.astro';
+import Seo from './Seo.astro';
+import UseCasesMarquee from './UseCasesMarquee.astro';
+import Partners from './Partners.astro';
+import MeetingPolaroids from './MeetingPolaroids.astro';
+import ProjectOverview from './ProjectOverview.astro';
+import Pricing from './Pricing.astro';
+import discordWordmark from '../assets/Discord-Logo-White.svg';
+import githubLockup from '../assets/GitHub_Lockup_Black.svg';
+import githubMark from '../assets/GitHub_Invertocat_Black.svg';
+import Blocks from '@lucide/astro/icons/blocks';
+import { DOCS_LINKS, LINKS } from '../config/links';
+import { useTranslations, type Locale } from '../i18n';
+
+type Props = {
+	locale: Locale;
+};
+
+const { locale } = Astro.props;
+const t = useTranslations(locale).home;
+
+const INSTALLATION_URL = DOCS_LINKS.installation;
+---
+
+<Layout lang={locale}>
+	<Seo slot="head" title={t.seoTitle} description={t.seoDescription} />
+
+	<section id="start" class="border-b border-slate-200 bg-linear-to-b from-slate-50 to-white scroll-mt-24">
+		<div class="mx-auto max-w-6xl px-4 py-14 md:py-20">
+			<div class="grid gap-10 md:grid-cols-[1fr_22rem] md:items-start">
+				<div class="max-w-2xl space-y-6">
+					<p class="text-sm font-semibold tracking-wide text-slate-600">{t.kicker}</p>
+					<h1 class="text-4xl font-semibold tracking-tight text-slate-900 md:text-5xl">
+						<span class="block">Open Locker</span>
+						<span class="mt-2 block">{t.heroTitle}</span>
+					</h1>
+					<p class="text-lg leading-relaxed text-slate-700">
+						{t.heroLead}
+					</p>
+
+					<div class="space-y-4">
+						<div class="flex flex-wrap gap-3">
+							<a
+								href="#mehr-erfahren"
+								class="rounded-md bg-slate-900 px-4 py-2.5 text-sm font-medium text-white hover:bg-slate-800 focus-visible:ring-2 focus-visible:ring-slate-900"
+							>
+								{t.learnMore}
+							</a>
+							<a
+								href={INSTALLATION_URL}
+								target="_blank"
+								rel="noreferrer"
+								class="rounded-md border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-900 hover:bg-slate-50 focus-visible:ring-2 focus-visible:ring-slate-900"
+							>
+								{t.startBuilding}
+							</a>
+						</div>
+					</div>
+				</div>
+
+				<aside class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm md:self-end">
+					<div class="flex items-start justify-between gap-3">
+						<p class="text-sm font-semibold text-slate-900">{t.asideTitle}</p>
+						<span class="text-slate-400" aria-hidden="true">
+							<Blocks size={18} />
+						</span>
+					</div>
+					<ul class="mt-4 flex flex-wrap gap-2 text-sm text-slate-700">
+						{t.asideItems.map((item) => (
+							<li class="flex-auto">
+								<span
+									class="inline-flex w-full items-center justify-center rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 leading-none whitespace-nowrap"
+								>
+									{item}
+								</span>
+							</li>
+						))}
+					</ul>
+				</aside>
+			</div>
+		</div>
+	</section>
+
+	<ProjectOverview />
+
+	<UseCasesMarquee />
+
+	<section id="mitmachen" class="mt-10 border-t border-slate-200 bg-slate-50 scroll-mt-24 md:mt-14">
+		<div class="relative overflow-hidden">
+			<div class="pointer-events-none absolute inset-0">
+				<div class="absolute inset-0 bg-linear-to-br from-slate-50/85 via-white/55 to-slate-100/80"></div>
+				<MeetingPolaroids variant="spreadBackground" />
+			</div>
+
+			<div class="relative z-10 mx-auto max-w-6xl px-4 py-14 md:py-16">
+				<div class="max-w-2xl rounded-2xl border border-slate-200 bg-white/90 p-8 shadow-sm backdrop-blur-sm md:p-10">
+					<div class="space-y-4">
+						<div class="space-y-2">
+							<h2 class="text-2xl font-semibold tracking-tight text-slate-900">{t.joinTitle}</h2>
+							<p class="text-slate-700">
+								{t.joinLead}
+							</p>
+						</div>
+
+						<div class="flex flex-wrap gap-3">
+							<a
+								href={LINKS.discordInvite}
+								target="_blank"
+								rel="noreferrer"
+								class="inline-flex items-center rounded-md bg-[#5865F2] px-4 py-2.5 text-sm font-medium text-white hover:bg-[#4752C4] focus-visible:ring-2 focus-visible:ring-blue-600"
+								aria-label={t.openDiscordAria}
+							>
+								<img
+									src={discordWordmark.src}
+									width="132"
+									height="20"
+									class="h-5 w-auto"
+									alt=""
+									aria-hidden="true"
+									loading="lazy"
+								/>
+							</a>
+							<a
+								href={LINKS.githubRepo + '/issues'}
+								target="_blank"
+								rel="noreferrer"
+								class="inline-flex items-center gap-2 rounded-md border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-900 hover:bg-slate-50 focus-visible:ring-2 focus-visible:ring-blue-600"
+							>
+								<img
+									src={githubMark.src}
+									width="20"
+									height="20"
+									class="h-5 w-5"
+									alt=""
+									aria-hidden="true"
+									loading="lazy"
+								/>
+								<span>{t.viewIssues}</span>
+							</a>
+						</div>
+
+						<p class="text-sm text-slate-600">
+							{t.joinNote}
+						</p>
+					</div>
+				</div>
+			</div>
+		</div>
+	</section>
+
+	<Pricing installationUrl={INSTALLATION_URL} contactHref="#kontakt" />
+
+	<section id="kontakt" class="border-t border-slate-200 bg-slate-50 scroll-mt-24">
+		<div class="mx-auto max-w-6xl px-4 py-14 md:py-16">
+			<div class="rounded-2xl border border-slate-200 bg-white p-8">
+				<h2 class="text-2xl font-semibold tracking-tight text-slate-900">{t.contactTitle}</h2>
+				<p class="mt-3 text-slate-700">
+					{t.contactLead.before}
+					<a
+						class="font-medium text-slate-900 underline-offset-4 hover:underline"
+						href={'mailto:' + LINKS.contactEmail}
+					>
+						{t.contactLead.linkText}
+					</a>{t.contactLead.after}
+				</p>
+
+				<div class="mt-6 flex flex-wrap gap-3">
+					<a
+						href={LINKS.discordInvite}
+						target="_blank"
+						rel="noreferrer"
+						class="inline-flex items-center rounded-md bg-[#5865F2] px-4 py-2.5 text-sm font-medium text-white hover:bg-[#4752C4] focus-visible:ring-2 focus-visible:ring-blue-600"
+						aria-label={t.openDiscordAria}
+					>
+						<img
+							src={discordWordmark.src}
+							width="132"
+							height="20"
+							class="h-5 w-auto"
+							alt=""
+							aria-hidden="true"
+							loading="lazy"
+						/>
+					</a>
+					<a
+						href={LINKS.githubRepo}
+						target="_blank"
+						rel="noreferrer"
+						class="inline-flex items-center rounded-md border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-900 hover:bg-slate-50 focus-visible:ring-2 focus-visible:ring-blue-600"
+						aria-label={t.openGithubAria}
+					>
+						<img
+							src={githubLockup.src}
+							width="88"
+							height="20"
+							class="h-5 w-auto max-w-44"
+							alt=""
+							aria-hidden="true"
+							loading="lazy"
+						/>
+					</a>
+					<a
+						href={LINKS.githubRepo + '/issues'}
+						target="_blank"
+						rel="noreferrer"
+						class="inline-flex items-center gap-2 rounded-md border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-900 hover:bg-slate-50 focus-visible:ring-2 focus-visible:ring-blue-600"
+					>
+						<img
+							src={githubMark.src}
+							width="20"
+							height="20"
+							class="h-5 w-5"
+							alt=""
+							aria-hidden="true"
+							loading="lazy"
+						/>
+						<span>{t.createIssue}</span>
+					</a>
+				</div>
+
+			</div>
+		</div>
+	</section>
+
+	<Partners />
+</Layout>
