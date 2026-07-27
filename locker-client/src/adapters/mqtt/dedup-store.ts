@@ -1,14 +1,6 @@
 import fs from 'fs';
-import type { DedupStorePort } from '../../ports/mqtt.port';
+import type { CommandRecord, CommandResponseBody, DedupStorePort } from '../../ports/mqtt.port';
 import { MQTT_DEDUP_STATE_FILE } from '../../infrastructure/paths';
-
-type CommandStatus = 'in_progress' | 'completed';
-
-interface CommandRecord {
-  action: string;
-  status: CommandStatus;
-  updatedAt: string;
-}
 
 interface DedupState {
   seenMessageIds: Record<string, string>;
@@ -17,6 +9,8 @@ interface DedupState {
 
 export class FileDedupStore implements DedupStorePort {
   private state: DedupState | null = null;
+
+  constructor(private readonly filePath: string = MQTT_DEDUP_STATE_FILE) {}
 
   hasSeenMessageId(messageId: string): boolean {
     const state = this.loadState();
@@ -34,6 +28,13 @@ export class FileDedupStore implements DedupStorePort {
     return state.commandRecords[transactionId] ?? null;
   }
 
+  listCommandRecords(): Array<{ transactionId: string; record: CommandRecord }> {
+    return Object.entries(this.loadState().commandRecords).map(([transactionId, record]) => ({
+      transactionId,
+      record,
+    }));
+  }
+
   markCommandInProgress(transactionId: string, action: string): void {
     const state = this.loadState();
     state.commandRecords[transactionId] = {
@@ -44,13 +45,25 @@ export class FileDedupStore implements DedupStorePort {
     this.saveState(state);
   }
 
-  markCommandCompleted(transactionId: string, action: string): void {
+  markCommandCompleted(transactionId: string, action: string, response: CommandResponseBody): void {
     const state = this.loadState();
     state.commandRecords[transactionId] = {
       action,
       status: 'completed',
       updatedAt: new Date().toISOString(),
+      response,
     };
+    this.saveState(state);
+  }
+
+  markCommandResponseDelivered(transactionId: string): void {
+    const state = this.loadState();
+    const record = state.commandRecords[transactionId];
+    if (!record || record.status !== 'completed' || !record.response) {
+      return;
+    }
+    record.responseDeliveredAt = new Date().toISOString();
+    record.updatedAt = record.responseDeliveredAt;
     this.saveState(state);
   }
 
@@ -60,14 +73,12 @@ export class FileDedupStore implements DedupStorePort {
     }
 
     const empty: DedupState = { seenMessageIds: {}, commandRecords: {} };
-    if (!fs.existsSync(MQTT_DEDUP_STATE_FILE)) {
+    if (!fs.existsSync(this.filePath)) {
       this.state = empty;
       return empty;
     }
 
-    const parsed = JSON.parse(
-      fs.readFileSync(MQTT_DEDUP_STATE_FILE, 'utf8'),
-    ) as Partial<DedupState>;
+    const parsed = JSON.parse(fs.readFileSync(this.filePath, 'utf8')) as Partial<DedupState>;
     this.state = {
       seenMessageIds: parsed.seenMessageIds ?? {},
       commandRecords: parsed.commandRecords ?? {},
@@ -77,7 +88,7 @@ export class FileDedupStore implements DedupStorePort {
 
   private saveState(state: DedupState): void {
     this.state = state;
-    fs.writeFileSync(MQTT_DEDUP_STATE_FILE, JSON.stringify(state, null, 2), 'utf8');
+    fs.writeFileSync(this.filePath, JSON.stringify(state, null, 2), 'utf8');
   }
 }
 
@@ -97,6 +108,13 @@ export class InMemoryDedupStore implements DedupStorePort {
     return this.commandRecords.get(transactionId) ?? null;
   }
 
+  listCommandRecords(): Array<{ transactionId: string; record: CommandRecord }> {
+    return Array.from(this.commandRecords, ([transactionId, record]) => ({
+      transactionId,
+      record,
+    }));
+  }
+
   markCommandInProgress(transactionId: string, action: string): void {
     this.commandRecords.set(transactionId, {
       action,
@@ -105,11 +123,25 @@ export class InMemoryDedupStore implements DedupStorePort {
     });
   }
 
-  markCommandCompleted(transactionId: string, action: string): void {
+  markCommandCompleted(transactionId: string, action: string, response: CommandResponseBody): void {
     this.commandRecords.set(transactionId, {
       action,
       status: 'completed',
       updatedAt: new Date().toISOString(),
+      response,
+    });
+  }
+
+  markCommandResponseDelivered(transactionId: string): void {
+    const record = this.commandRecords.get(transactionId);
+    if (!record || record.status !== 'completed' || !record.response) {
+      return;
+    }
+    const deliveredAt = new Date().toISOString();
+    this.commandRecords.set(transactionId, {
+      ...record,
+      updatedAt: deliveredAt,
+      responseDeliveredAt: deliveredAt,
     });
   }
 }

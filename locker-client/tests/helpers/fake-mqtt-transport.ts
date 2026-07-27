@@ -10,6 +10,7 @@ export class FakeMqttTransport implements MessageTransportPort {
   readonly subscriptions: string[] = [];
   private state: MqttConnectionState = 'disconnected';
   private messageHandler: ((topic: string, payload: Buffer) => void) | null = null;
+  private readonly connectedHandlers: Array<() => void | Promise<void>> = [];
   private readonly transport: MqttTransportSettings;
 
   constructor(
@@ -45,8 +46,9 @@ export class FakeMqttTransport implements MessageTransportPort {
     this.state = 'reconnecting';
   }
 
-  simulateBrokerRestore(): void {
+  async simulateBrokerRestore(): Promise<void> {
     this.state = 'connected';
+    await Promise.all(this.connectedHandlers.map((handler) => handler()));
   }
 
   async subscribe(topic: string): Promise<void> {
@@ -54,11 +56,18 @@ export class FakeMqttTransport implements MessageTransportPort {
   }
 
   async publish(topic: string, payload: string, _options?: OutboundPublishOptions): Promise<void> {
+    if (this.state !== 'connected') {
+      throw new Error('MQTT client is not connected');
+    }
     this.published.push({ topic, payload });
   }
 
   onMessage(handler: (topic: string, payload: Buffer) => void): void {
     this.messageHandler = handler;
+  }
+
+  onConnected(handler: () => void | Promise<void>): void {
+    this.connectedHandlers.push(handler);
   }
 
   emitMessage(topic: string, payload: Record<string, unknown>): void {

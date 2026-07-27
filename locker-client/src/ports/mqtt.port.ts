@@ -29,6 +29,7 @@ export interface MessageTransportPort {
   subscribe(topic: string): Promise<void>;
   publish(topic: string, payload: string, options?: OutboundPublishOptions): Promise<void>;
   onMessage(handler: (topic: string, payload: Buffer) => void): void;
+  onConnected(handler: () => void | Promise<void>): void;
   getConnectionState(): MqttConnectionState;
   getTransportSettings(): MqttTransportSettings;
 }
@@ -41,12 +42,20 @@ export interface MqttTransportSettings {
   maxReconnectAttempts: number;
 }
 
+export interface CommandRecord {
+  action: string;
+  status: 'in_progress' | 'completed';
+  updatedAt: string;
+  response?: CommandResponseBody;
+  responseDeliveredAt?: string;
+}
+
 export interface DedupStorePort {
   hasSeenMessageId(messageId: string): boolean;
   rememberMessageId(messageId: string): void;
-  getCommandRecord(
-    transactionId: string,
-  ): { action: string; status: 'in_progress' | 'completed' } | null;
+  getCommandRecord(transactionId: string): CommandRecord | null;
+  listCommandRecords(): Array<{ transactionId: string; record: CommandRecord }>;
   markCommandInProgress(transactionId: string, action: string): void;
-  markCommandCompleted(transactionId: string, action: string): void;
+  markCommandCompleted(transactionId: string, action: string, response: CommandResponseBody): void;
+  markCommandResponseDelivered(transactionId: string): void;
 }
