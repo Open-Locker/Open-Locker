@@ -126,7 +126,7 @@ class CompartmentResource extends Resource
                         CompartmentDoorState::Unknown => 'gray',
                     })
                     ->placeholder(__('unknown')),
-                Tables\Columns\TextColumn::make('activeAccesses_count')
+                Tables\Columns\TextColumn::make('active_accesses_count')
                     ->label(__('Direct users'))
                     ->counts('activeAccesses')
                     ->badge()
