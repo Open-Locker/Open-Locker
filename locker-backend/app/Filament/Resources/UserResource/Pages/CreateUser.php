@@ -25,8 +25,8 @@ class CreateUser extends CreateRecord
         $status = $passwordResetService->sendResetLink($user->email);
 
         Notification::make()
-            ->title('Nutzer erstellt')
-            ->body('Link zum Zurücksetzen des Passworts versendet.')
+            ->title(__('User created'))
+            ->body(__('Password reset link sent.'))
             ->success()
             ->send();
 

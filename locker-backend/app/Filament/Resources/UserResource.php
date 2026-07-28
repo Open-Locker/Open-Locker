@@ -171,7 +171,7 @@ class UserResource extends Resource
             ->actions([
                 \Filament\Actions\EditAction::make()
                     ->authorize(fn (User $record): bool => self::canView($record))
-                    ->label(fn (User $record): string => self::canEdit($record) ? 'Edit' : 'View'),
+                    ->label(fn (User $record): string => self::canEdit($record) ? __('Edit') : __('View')),
             ])->actionsAlignment('left')
             ->bulkActions([
                 \Filament\Actions\BulkActionGroup::make([
