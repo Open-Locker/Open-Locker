@@ -1,5 +1,6 @@
 <?php
 
+use Keepsuit\LaravelOpenTelemetry\Support\OpenTelemetryMonologHandler;
 use Monolog\Handler\NullHandler;
 use Monolog\Handler\StreamHandler;
 use Monolog\Handler\SyslogUdpHandler;
@@ -63,6 +64,38 @@ return [
             'path' => storage_path('logs/laravel.log'),
             'level' => env('LOG_LEVEL', 'debug'),
             'replace_placeholders' => true,
+        ],
+
+        /*
+         * Broker authorization decisions.
+         *
+         * Mosquitto asks on every publish and every subscribe, so at fleet scale
+         * this is by far the highest-volume thing the application logs. It stays
+         * in the log file, where it is genuinely useful when debugging an auth
+         * problem, but is deliberately kept out of the telemetry stack — shipped
+         * to a dashboard it would bury everything worth reading.
+         */
+        'broker' => [
+            'driver' => 'single',
+            'path' => storage_path('logs/laravel.log'),
+            'level' => env('LOG_LEVEL', 'debug'),
+            'replace_placeholders' => true,
+        ],
+
+        /*
+         * Ships log records to the OpenTelemetry collector so they land in the
+         * same dashboard as the traces, carrying the trace id that ties the two
+         * together.
+         *
+         * Not active by default: it only does anything when it is named in
+         * LOG_STACK (e.g. "single,otlp") and an exporter is configured. Add it
+         * alongside `single` rather than replacing it, so a collector outage can
+         * never cost you the log file.
+         */
+        'otlp' => [
+            'driver' => 'monolog',
+            'handler' => OpenTelemetryMonologHandler::class,
+            'level' => env('LOG_LEVEL', 'debug'),
         ],
 
         'daily' => [

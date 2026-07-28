@@ -31,9 +31,11 @@ import {
 } from '../application/state-publishing';
 import { DEFAULT_MQTT_BROKER_URL, provisionDevice } from '../application/provision-device';
 import type { DoorState } from '../domain/compartment';
-import { logger } from '../infrastructure/logging';
+import { createTracing } from '../adapters/tracing/create-tracing';
+import { logger, setLogTraceContextProvider, shipLogsTo } from '../infrastructure/logging';
 import { connectionLostWillOptions } from '../infrastructure/mqtt-will';
 import type { OutboundPublishOptions } from '../ports/mqtt.port';
+import { noopTracing, type TracingPort } from '../ports/tracing.port';
 import { RunAfterCompleteScheduler } from '../infrastructure/scheduler';
 import { createWinstonLoggerPort } from '../infrastructure/winston-logger.adapter';
 
@@ -100,6 +102,8 @@ export interface WireSimulatedDeviceOptions {
   pollIntervalMs?: number | null;
   /** Echoes MQTT traffic to the console; silent by default (tests, embedding). */
   trafficLog?: TrafficLogger;
+  /** No-op unless a collector is configured, exactly as on real hardware. */
+  tracing?: TracingPort;
 }
 
 /**
@@ -148,7 +152,8 @@ export function wireSimulatedDevice(options: WireSimulatedDeviceOptions): WiredS
     latencyMs: bank.latency_ms,
   });
 
-  const outbound = new OutboundMqttAdapter(publish, topics.response);
+  const tracing = options.tracing ?? noopTracing;
+  const outbound = new OutboundMqttAdapter(publish, topics.response, undefined, tracing);
   const scheduler = new RunAfterCompleteScheduler();
   const appLogger = createWinstonLoggerPort();
 
@@ -194,6 +199,7 @@ export function wireSimulatedDevice(options: WireSimulatedDeviceOptions): WiredS
     new InboundProtocolGuard(dedupStore),
     outbound,
     dedupStore,
+    tracing,
   );
   dispatcher.register(createOpenCompartmentHandler({ openCompartment, outbound, pollSnapshot }));
   dispatcher.register(createApplyConfigHandler({ applyConfig, outbound }));
@@ -407,12 +413,22 @@ async function startSimulatedDevice(
     ...connectionLostWillOptions(lockerUuid),
   });
 
+  // Each simulated bank reports as its own instance, so a fleet run looks to the
+  // trace backend exactly like a fleet of Pis.
+  const tracing = await createTracing({ lockerUuid });
+  setLogTraceContextProvider(() => tracing.currentCorrelation());
+  shipLogsTo(tracing);
+
   const wired = wireSimulatedDevice({
     bank,
     lockerUuid,
     publish: (topic, payload, publishOptions) => transport.publish(topic, payload, publishOptions),
-    onShutdown: () => transport.disconnect(),
+    onShutdown: async () => {
+      await transport.disconnect();
+      await tracing.shutdown();
+    },
     trafficLog: logTraffic ? createConsoleTrafficLogger(bank.name) : silentTrafficLogger,
+    tracing,
   });
 
   transport.onMessage((topic, payload) => {

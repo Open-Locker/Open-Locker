@@ -31,6 +31,15 @@ class LockerHeartbeatHandler extends AbstractInboundMqttHandler
     }
 
     /**
+     * Heartbeats arrive on a timer from every locker forever, so tracing them
+     * would bury the flows worth looking at.
+     */
+    protected function tracesInboundMessages(): bool
+    {
+        return false;
+    }
+
+    /**
      * @return array<string, mixed>
      */
     protected function rules(): array

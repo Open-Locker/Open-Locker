@@ -68,7 +68,7 @@ class MosquittoAuthController extends Controller
         $topic = (string) $request->input('topic');
         $acc = (int) $request->input('acc'); // 1=subscribe, 2=publish
 
-        Log::info("ACL Check: User={$username}, Topic={$topic}, Acc={$acc}");
+        Log::channel('broker')->info("ACL Check: User={$username}, Topic={$topic}, Acc={$acc}");
 
         $provisioningUsername = config('mqtt-client.system.provisioning_username');
         $backendUsername = config('mqtt-client.system.backend_username');
@@ -77,7 +77,7 @@ class MosquittoAuthController extends Controller
         if ($username === $backendUsername) {
             // Allow backend to do everything (like a superuser, but scoped via ACL)
             $allow = $this->acl->topicMatches('#', $topic, $username, $clientId); // Allow everything
-            Log::info('ACL Backend: '.($allow ? 'Allowed' : 'Denied'));
+            Log::channel('broker')->info('ACL Backend: '.($allow ? 'Allowed' : 'Denied'));
 
             return response()->json([
                 'allow' => $allow,
@@ -92,7 +92,7 @@ class MosquittoAuthController extends Controller
 
             if ($isWriteAcc) { // publish (registration requests)
                 $allowed = $this->acl->topicMatches('locker/register/+', $topic, $username, $clientId);
-                Log::info('ACL Provisioning Publish: '.($allowed ? 'Allowed' : 'Denied'));
+                Log::channel('broker')->info('ACL Provisioning Publish: '.($allowed ? 'Allowed' : 'Denied'));
 
                 return response()->json([
                     'allow' => $allowed,
@@ -105,7 +105,7 @@ class MosquittoAuthController extends Controller
             // is treated as a subscribe/other read operation.
             if ($isReadAcc) { // subscribe / unsubscribe / other read-style access (write already handled above)
                 $allowed = $this->acl->topicMatches('locker/provisioning/reply/%c', $topic, $username, $clientId);
-                Log::info('ACL Provisioning Subscribe: '.($allowed ? 'Allowed' : 'Denied'));
+                Log::channel('broker')->info('ACL Provisioning Subscribe: '.($allowed ? 'Allowed' : 'Denied'));
 
                 return response()->json([
                     'allow' => $allowed,
@@ -113,7 +113,7 @@ class MosquittoAuthController extends Controller
                 ], $allowed ? 200 : 403);
             }
 
-            Log::info('ACL Provisioning: Denied (Unknown acc or fallback)');
+            Log::channel('broker')->info('ACL Provisioning: Denied (Unknown acc or fallback)');
 
             return response()->json(['allow' => false, 'ok' => false], 403); // Explicitly deny
         }
@@ -146,7 +146,7 @@ class MosquittoAuthController extends Controller
             }
         }
 
-        Log::info('ACL Default: Denied');
+        Log::channel('broker')->info('ACL Default: Denied');
 
         return response()->json(['allow' => false, 'ok' => false], 403);
     }

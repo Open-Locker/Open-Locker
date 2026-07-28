@@ -38,6 +38,10 @@
         <env name="DB_CONNECTION" value="sqlite"/>
         <env name="DB_DATABASE" value=":memory:"/>
         <env name="MAIL_MAILER" value="array"/>
+        <!-- Spans stay in memory so tests can assert on them; nothing is exported. -->
+        <env name="OTEL_TRACES_EXPORTER" value="memory"/>
+        <env name="OTEL_METRICS_EXPORTER" value="null"/>
+        <env name="OTEL_LOGS_EXPORTER" value="null"/>
         <env name="PULSE_ENABLED" value="false"/>
         <env name="QUEUE_CONNECTION" value="sync" force="true"/>
         <env name="SESSION_DRIVER" value="array"/>

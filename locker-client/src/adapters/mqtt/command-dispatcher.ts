@@ -1,7 +1,10 @@
 import type { z } from 'zod';
 import { InboundProtocolGuard } from './inbound-protocol-guard';
 import type { DedupStorePort, OutboundMqttPort } from '../../ports/mqtt.port';
+import { noopTracing, type TracingPort } from '../../ports/tracing.port';
 import { mapErrorToMqttCode } from '../../domain/errors';
+import { mqttSpanAttributes, spanDestination } from '../../domain/mqtt-span-attributes';
+import { readTraceparent } from '../../domain/trace-context';
 import { formatZodValidationError } from '../../domain/mqtt-parsing';
 import { logger } from '../../infrastructure/logging';
 
@@ -27,6 +30,7 @@ export class CommandDispatcher {
     private readonly guard: InboundProtocolGuard,
     private readonly outbound: OutboundMqttPort,
     private readonly dedup: DedupStorePort,
+    private readonly tracing: TracingPort = noopTracing,
   ) {}
 
   register(handler: InboundCommandHandler<unknown>): void {
@@ -38,10 +42,26 @@ export class CommandDispatcher {
     try {
       payload = JSON.parse(rawMessage) as Record<string, unknown>;
     } catch {
+      // Unparseable messages carry no trace context to continue, so this one
+      // stays outside the span.
       logger.warn('Dropped inbound MQTT command with invalid JSON', { topic });
       return;
     }
 
+    await this.tracing.inSpan(
+      `mqtt process ${spanDestination(topic)}`,
+      {
+        kind: 'consumer',
+        attributes: mqttSpanAttributes(topic, payload),
+        // Absent or malformed context starts a new trace rather than
+        // rejecting the command.
+        parentTraceparent: readTraceparent(payload),
+      },
+      () => this.dispatchParsed(topic, payload),
+    );
+  }
+
+  private async dispatchParsed(topic: string, payload: Record<string, unknown>): Promise<void> {
     const action = payload.action;
     if (typeof action !== 'string') {
       logger.warn('Dropped inbound MQTT command without action', { topic });

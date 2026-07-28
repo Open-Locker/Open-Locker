@@ -5,8 +5,13 @@ declare(strict_types=1);
 namespace App\Mqtt\Handlers;
 
 use App\Mqtt\InboundMqttProtocolGuard;
+use App\Observability\MqttSpanAttributes;
+use App\Observability\MqttTraceContext;
+use App\Observability\SpanFlusher;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
+use Keepsuit\LaravelOpenTelemetry\Facades\Tracer;
+use OpenTelemetry\API\Trace\SpanKind;
 
 abstract class AbstractInboundMqttHandler
 {
@@ -15,6 +20,54 @@ abstract class AbstractInboundMqttHandler
     abstract public function topicPattern(): string;
 
     public function handleMessage(string $topic, string $message): void
+    {
+        if (! $this->tracesInboundMessages()) {
+            $this->processMessage($topic, $message);
+
+            return;
+        }
+
+        // Decoded here only to derive span attributes and the remote parent;
+        // processMessage() keeps ownership of decoding, validation, and the
+        // invalid-JSON path.
+        $decoded = json_decode($message, true);
+        $payload = is_array($decoded) ? $decoded : [];
+
+        try {
+            Tracer::newSpan(sprintf('mqtt process %s', MqttSpanAttributes::destination($topic)))
+                // Null when the sender did not send trace context, which starts a
+                // fresh trace rather than rejecting the message.
+                ->setParent(MqttTraceContext::extract($payload))
+                ->setSpanKind(SpanKind::KIND_CONSUMER)
+                ->setAttributes(MqttSpanAttributes::fromMessage($topic, $payload))
+                ->measure(function () use ($topic, $message): void {
+                    // Puts trace_id into the log context of everything this
+                    // handler logs, including the reactors it triggers.
+                    Tracer::updateLogContext();
+
+                    $this->processMessage($topic, $message);
+                });
+        } finally {
+            // Shared log context outlives the span, and this listener outlives
+            // everything. Without clearing it, every later line — including the
+            // heartbeats deliberately left untraced — would be stamped with the
+            // trace id of whichever message happened to be handled last.
+            Log::withoutContext();
+
+            SpanFlusher::flush();
+        }
+    }
+
+    /**
+     * Periodic chatter carries no useful timing and would bury the flows worth
+     * tracing, so heartbeats and compartment snapshots opt out.
+     */
+    protected function tracesInboundMessages(): bool
+    {
+        return true;
+    }
+
+    private function processMessage(string $topic, string $message): void
     {
         Log::info($this->receivedLogMessage(), [
             'topic' => $topic,
