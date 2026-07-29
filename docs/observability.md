@@ -32,6 +32,32 @@ endpoint:
 That applies to development and production alike. Turning tracing on is a
 configuration change, not a deploy.
 
+## The short way
+
+From the repo root:
+
+```bash
+just trace-up        # SigNoz + the stack with tracing on
+just trace-status    # is it actually wired up?
+just trace-down      # back to a stack with no tracing
+```
+
+`trace-up` clones SigNoz to `~/.open-locker/signoz` on first run, publishes its
+UI on **http://localhost:8085**, and brings our stack up with the overlay and
+the moved OTLP ports. `SIGNOZ_DIR` and `SIGNOZ_UI_PORT` override both.
+
+Bringing your own Jaeger, Tempo or Honeycomb instead? Point the collector at it
+(see [below](#sending-traces-somewhere-else)) and use `just trace-overlay`,
+which starts the stack with tracing on and no SigNoz.
+
+`just trace-status` exists for one failure in particular: every container is up,
+SigNoz answers, and nothing arrives — because the stack was last started without
+the overlay, so the app has no `OTEL_*` env and exports nothing. It checks that
+explicitly.
+
+The rest of this page is what those recipes do, for when you need to do it by
+hand or something misbehaves.
+
 ## Running with a collector
 
 The stack ships an opt-in overlay that adds an OpenTelemetry Collector and
@@ -41,6 +67,11 @@ points every PHP process at it:
 cd locker-backend
 docker compose -f docker-compose.yml -f docker-compose.observability.yml up -d
 ```
+
+The overlay is opt-in on purpose: a plain `sail up` or `docker compose up -d`
+loads only `docker-compose.yml`, leaving the stack untraced. That also means it
+is easy to forget — recreate the containers without both `-f` flags and tracing
+silently stops, which is what `just trace-status` is for.
 
 The overlay deliberately contains **no trace UI**. The collector forwards to
 whichever backend you run, so the choice stays out of this repo and out of the
@@ -53,6 +84,10 @@ cd signoz/deploy/docker && docker compose -p signoz up -d
 ```
 
 Its UI is then at **http://localhost:8080**.
+
+Clone it somewhere permanent. Its containers bind-mount their config out of the
+checkout, so if the directory is deleted they cannot be started again — not even
+by `docker start` — and have to be recreated from a fresh clone.
 
 SigNoz publishes OTLP on 4317/4318, the same ports our collector publishes for
 external clients, so start the overlay with those moved out of the way:
@@ -81,6 +116,8 @@ working, but nothing is stored.
 ## First run, step by step
 
 What follows is the exact sequence that works, including the parts that bite.
+Steps 1 and 2 are what `just trace-up` automates; do them by hand when you want
+to see what it is doing, or when it does not work.
 
 **1. Start a trace backend.** SigNoz, as its own Compose project:
 
