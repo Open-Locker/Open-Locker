@@ -25,7 +25,9 @@ use Illuminate\Log\Events\MessageLogged;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Livewire\Livewire;
+use PhpMqtt\Client\Facades\MQTT;
 use Spatie\EventSourcing\StoredEvents\Models\EloquentStoredEvent;
+use Tests\Fakes\FakeMqttClient;
 use Tests\TestCase;
 
 class LockerBankProvisioningResetTest extends TestCase
@@ -35,6 +37,11 @@ class LockerBankProvisioningResetTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+
+        // Registration replies are published for real, and CI has no broker.
+        // Locally the container resolves `mqtt` and the tests pass either way,
+        // which is exactly why this has to be faked rather than relied upon.
+        MQTT::shouldReceive('connection')->andReturn(new FakeMqttClient);
 
         config()->set('mqtt-client.webhooks.pass', 'test-secret');
         config()->set('mqtt-client.system.provisioning_username', 'provisioning_client');
