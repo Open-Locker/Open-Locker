@@ -44,16 +44,37 @@ class LockerBankProjector extends Projector
         }
     }
 
+    /**
+     * A reset invalidates everything the backend believed about the device.
+     *
+     * The bank goes offline because the client it was talking to can no longer
+     * authenticate, and the configuration state is cleared because a
+     * replacement client has acknowledged nothing — leaving the old "clean"
+     * hashes would make the bank look configured when the new device has never
+     * seen a config. It stays dirty until a fresh apply_config is sent and
+     * acknowledged.
+     *
+     * The rotated token is written by the reset service, not from here: it is
+     * not carried on the event.
+     */
     public function onLockerProvisioningReset(LockerProvisioningReset $event): void
     {
         $lockerBank = LockerBank::find($event->lockerBankUuid);
 
-        if ($lockerBank) {
-            $lockerBank->forceFill([
-                'provisioning_token' => $event->newProvisioningToken,
-                'provisioned_at' => null,
-            ])->save();
+        if (! $lockerBank) {
+            return;
         }
+
+        $lockerBank->forceFill([
+            'provisioned_at' => null,
+            'connection_status' => 'offline',
+            'connection_status_changed_at' => Carbon::parse($event->resetAtIso8601),
+            'last_heartbeat_at' => null,
+            'last_config_sent_at' => null,
+            'last_config_sent_hash' => null,
+            'last_config_ack_at' => null,
+            'last_config_ack_hash' => null,
+        ])->save();
     }
 
     public function onLockerConnectionLost(LockerConnectionLost $event): void

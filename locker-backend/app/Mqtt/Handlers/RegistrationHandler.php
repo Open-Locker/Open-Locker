@@ -54,15 +54,19 @@ class RegistrationHandler extends AbstractInboundMqttHandler
 
         $replyToTopic = 'locker/provisioning/reply/'.$clientId;
 
+        // The token is a credential and it is the whole topic suffix, so neither
+        // it nor the topic can be logged — not even truncated, since a prefix
+        // still narrows a brute-force search. The client id is enough to follow
+        // a registration attempt through the log.
         Log::info('Looking up LockerBank by provisioning token', [
-            'token' => $provisioningToken,
+            'client_id' => $clientId,
         ]);
 
         $lockerBank = LockerBank::where('provisioning_token', $provisioningToken)->first();
 
         if (! $lockerBank) {
             Log::warning('No LockerBank found for provisioning token', [
-                'token' => $provisioningToken,
+                'client_id' => $clientId,
             ]);
 
             $this->provisioningReplyPublisher->publishInvalidToken($replyToTopic);

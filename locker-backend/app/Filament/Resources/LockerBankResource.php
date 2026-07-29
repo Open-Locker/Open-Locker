@@ -2,11 +2,12 @@
 
 namespace App\Filament\Resources;
 
-use App\Aggregates\LockerBankAggregate;
 use App\Enums\Permission;
 use App\Filament\Resources\LockerBankResource\Pages;
 use App\Filament\Resources\LockerBankResource\RelationManagers;
 use App\Models\LockerBank;
+use App\Models\User;
+use App\Services\LockerProvisioningResetService;
 use Filament\Actions\Action;
 use Filament\Actions\EditAction;
 use Filament\Facades\Filament;
@@ -19,7 +20,6 @@ use Filament\Schemas\Schema;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Str;
 
 class LockerBankResource extends Resource
 {
@@ -105,6 +105,52 @@ class LockerBankResource extends Resource
             ]);
     }
 
+    /**
+     * The reset action, shared by the list row and the edit page header so the
+     * two cannot drift apart in wording, confirmation, or authorization.
+     */
+    public static function resetProvisioningAction(): Action
+    {
+        return Action::make('resetProvisioning')
+            ->label(__('Reset provisioning token'))
+            ->icon('heroicon-m-arrow-path')
+            ->color('warning')
+            ->requiresConfirmation()
+            ->modalHeading(__('Reset provisioning token'))
+            ->modalDescription(__('This generates a new provisioning token and marks the locker bank as not provisioned. The device will stay offline until you copy the new token into its PROVISIONING_TOKEN, clear its provisioning state, and restart it. Locker contents and history are not affected.'))
+            ->modalSubmitActionLabel(__('Rotate token'))
+            ->visible(fn (): bool => Filament::auth()->user()?->can(Permission::LockerBankConfigure->value) ?? false)
+            ->action(function (LockerBank $record): void {
+                try {
+                    $actor = Filament::auth()->user();
+
+                    app(LockerProvisioningResetService::class)->reset(
+                        $record,
+                        $actor instanceof User ? $actor : null,
+                    );
+
+                    Notification::make()
+                        ->title(__('Provisioning token reset'))
+                        ->body(__('A new token was generated. Update the device and restart it to re-provision.'))
+                        ->success()
+                        ->send();
+                } catch (\Throwable $e) {
+                    // Details stay in the server log; the operator gets a
+                    // generic message so nothing internal reaches the UI.
+                    Log::error('Failed to reset provisioning token from Filament.', [
+                        'locker_bank_id' => $record->id,
+                        'error' => $e->getMessage(),
+                    ]);
+
+                    Notification::make()
+                        ->title(__('Failed to reset provisioning token'))
+                        ->body(__('Please try again. Details are in the server log.'))
+                        ->danger()
+                        ->send();
+                }
+            });
+    }
+
     public static function table(Table $table): Table
     {
         return $table
@@ -171,41 +217,7 @@ class LockerBankResource extends Resource
             ])
             ->actions([
                 EditAction::make(),
-                Action::make('resetProvisioning')
-                    ->label(__('Reset provisioning token'))
-                    ->icon('heroicon-m-arrow-path')
-                    ->color('warning')
-                    ->requiresConfirmation()
-                    ->modalHeading(__('Reset provisioning token'))
-                    ->modalDescription(__('This generates a new provisioning token and marks the locker bank as not provisioned. The device will stay offline until you copy the new token into its PROVISIONING_TOKEN, clear its provisioning state, and restart it. Locker contents and history are not affected.'))
-                    ->modalSubmitActionLabel(__('Rotate token'))
-                    ->visible(fn (): bool => Filament::auth()->user()?->can(Permission::LockerBankConfigure->value) ?? false)
-                    ->action(function (LockerBank $record): void {
-                        try {
-                            $newToken = Str::random(64);
-
-                            LockerBankAggregate::retrieve($record->id)
-                                ->resetProvisioning($newToken)
-                                ->persist();
-
-                            Notification::make()
-                                ->title(__('Provisioning token reset'))
-                                ->body(__('A new token was generated. Update the device and restart it to re-provision.'))
-                                ->success()
-                                ->send();
-                        } catch (\Throwable $e) {
-                            Log::error('Failed to reset provisioning token from Filament.', [
-                                'locker_bank_id' => $record->id,
-                                'error' => $e->getMessage(),
-                            ]);
-
-                            Notification::make()
-                                ->title(__('Failed to reset provisioning token'))
-                                ->body($e->getMessage())
-                                ->danger()
-                                ->send();
-                        }
-                    }),
+                static::resetProvisioningAction(),
             ])
             ->bulkActions([
                 \Filament\Actions\BulkActionGroup::make([

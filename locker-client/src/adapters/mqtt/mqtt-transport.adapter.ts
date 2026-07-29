@@ -6,6 +6,7 @@ import type {
   OutboundPublishOptions,
 } from '../../ports/mqtt.port';
 import { logger } from '../../infrastructure/logging';
+import { redactTopic } from '../../infrastructure/redact-topic';
 
 export class MqttTransportAdapter implements MessageTransportPort {
   private client: MqttClient | null = null;
@@ -81,7 +82,7 @@ export class MqttTransportAdapter implements MessageTransportPort {
   ): Promise<void> {
     if (!this.client?.connected) {
       logger.warn('MQTT publish skipped while disconnected', {
-        topic,
+        topic: redactTopic(topic),
         connectionState: this.connectionState,
       });
       return;

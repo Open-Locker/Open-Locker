@@ -11,6 +11,7 @@ use App\StorableEvents\LockerConfigApplyRequested;
 use App\StorableEvents\LockerProvisioningFailed;
 use App\StorableEvents\LockerProvisioningReset;
 use App\StorableEvents\LockerWasProvisioned;
+use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Spatie\EventSourcing\AggregateRoots\AggregateRoot;
@@ -49,17 +50,24 @@ class LockerBankAggregate extends AggregateRoot
     }
 
     /**
-     * Reset a locker bank's provisioning: rotate the provisioning token and clear
-     * the provisioned state so the device must re-authenticate. The new token must
-     * still be delivered to the device manually (backend has no push channel).
+     * Record that a locker bank's provisioning was reset, so the device must
+     * re-authenticate. The new token must still be delivered to the device
+     * manually (the backend has no push channel).
+     *
+     * The token itself never reaches this event — see
+     * {@see LockerProvisioningReset}. Rotating it, deleting the MQTT user and
+     * enforcing authorization belong to
+     * {@see \App\Services\LockerProvisioningResetService}, which is the only
+     * caller.
      */
-    public function resetProvisioning(string $newProvisioningToken): self
+    public function resetProvisioning(?int $actorUserId, CarbonImmutable $resetAt): self
     {
         Log::info("Resetting provisioning for locker bank: {$this->uuid()}");
 
         $this->recordThat(new LockerProvisioningReset(
             lockerBankUuid: (string) $this->uuid(),
-            newProvisioningToken: $newProvisioningToken,
+            actorUserId: $actorUserId,
+            resetAtIso8601: $resetAt->toIso8601String(),
         ));
 
         return $this;

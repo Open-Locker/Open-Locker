@@ -13,6 +13,10 @@ class EditLockerBank extends EditRecord
     protected function getHeaderActions(): array
     {
         return [
+            // Recovering a device usually starts on this page — the token and
+            // the provisioning state are shown right here — so the reset
+            // belongs next to them, not only back on the list.
+            LockerBankResource::resetProvisioningAction(),
             Actions\DeleteAction::make(),
         ];
     }
