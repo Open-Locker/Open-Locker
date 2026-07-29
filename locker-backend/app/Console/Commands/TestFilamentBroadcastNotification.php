@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Console\Commands;
 
+use App\Enums\Role;
 use App\Models\User;
 use Filament\Notifications\Notification;
 use Illuminate\Console\Command;
@@ -23,7 +24,10 @@ class TestFilamentBroadcastNotification extends Command
 
         $user = $userId
             ? User::query()->find((int) $userId)
-            : User::query()->whereNotNull('is_admin_since')->orderBy('id')->first();
+            : User::query()
+                ->whereHas('userRoles', fn ($query) => $query->where('role', Role::Admin->value))
+                ->orderBy('id')
+                ->first();
 
         if (! $user) {
             $this->error('No target user found. Pass a user ID explicitly.');

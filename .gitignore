@@ -119,6 +119,7 @@ docker/mosquitto/config/password.conf
 
 .pnpm-store/
 .ai/
+.claude/settings.local.json
 .tmp/
 .claude/settings.local.json
 hardware/models/spacer1.stl

@@ -1,0 +1,33 @@
+import type { CompartmentConfig } from '../domain/compartment';
+import type { EffectiveLockerConfig, RuntimeConfigOverlay } from '../domain/config';
+
+export interface ConfigRepositoryPort {
+  load(): EffectiveLockerConfig;
+  reload(): EffectiveLockerConfig;
+  getCompartmentConfig(compartmentNumber: number): CompartmentConfig | null;
+  getConfiguredSlaveIds(): number[];
+  getFlashDurationMs(): number;
+  getHeartbeatIntervalSeconds(): number;
+  getMqttTransportSettings(): import('./mqtt.port').MqttTransportSettings;
+}
+
+export interface RuntimeOverlayStorePort {
+  load(): RuntimeConfigOverlay | null;
+  save(overlay: RuntimeConfigOverlay): RuntimeConfigOverlay;
+  clear(): void;
+}
+
+export interface CredentialStorePort {
+  getCredentials(): { username: string; password: string } | null;
+  saveCredentials(credentials: { username: string; password: string }): void;
+  isProvisioned(): boolean;
+}
+
+export interface ClockPort {
+  nowIso(): string;
+}
+
+export interface SchedulerPort {
+  scheduleAfter(delayMs: number, fn: () => Promise<void>): () => void;
+  cancelAll(): void;
+}

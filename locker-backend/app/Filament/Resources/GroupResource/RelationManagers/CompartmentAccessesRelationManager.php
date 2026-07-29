@@ -5,18 +5,18 @@ declare(strict_types=1);
 namespace App\Filament\Resources\GroupResource\RelationManagers;
 
 use App\Enums\Permission;
+use App\Filament\Support\AccessPickerOptions;
 use App\Models\Compartment;
 use App\Models\Group;
 use App\Models\GroupCompartmentAccess;
 use App\Models\User;
 use App\Services\GroupAccessService;
 use Filament\Facades\Filament;
-use Filament\Forms;
 use Filament\Resources\RelationManagers\RelationManager;
 use Filament\Schemas\Schema;
 use Filament\Tables;
 use Filament\Tables\Table;
-use Illuminate\Support\Carbon;
+use Illuminate\Database\Eloquent\Builder;
 
 class CompartmentAccessesRelationManager extends RelationManager
 {
@@ -68,51 +68,34 @@ class CompartmentAccessesRelationManager extends RelationManager
                     ->label(__('Grant access'))
                     ->icon('heroicon-m-key')
                     ->visible(fn (): bool => $this->currentUserCanManageGroups())
-                    ->form([
-                        Forms\Components\Select::make('compartment_id')
-                            ->label(__('Compartment'))
-                            ->required()
-                            ->searchable()
-                            ->options(
-                                Compartment::query()
-                                    ->with('lockerBank')
-                                    ->get()
-                                    ->mapWithKeys(fn (Compartment $compartment): array => [
-                                        (string) $compartment->id => sprintf(
-                                            '%s / #%d',
-                                            $compartment->lockerBank->name,
-                                            (int) $compartment->number
-                                        ),
-                                    ])
-                                    ->all()
-                            ),
-                        Forms\Components\DateTimePicker::make('expires_at')
-                            ->label(__('Expires at'))
-                            ->seconds(false),
-                        Forms\Components\Textarea::make('notes')
-                            ->label(__('Notes'))
-                            ->rows(3)
-                            ->maxLength(2000),
-                    ])
+                    ->form(AccessPickerOptions::grantForm(
+                        'compartment_ids',
+                        __('Compartments'),
+                        fn (): array => $this->grantableCompartmentOptions(),
+                    ))
                     ->action(function (array $data): void {
                         /** @var Group $group */
                         $group = $this->getOwnerRecord();
                         /** @var User|null $actor */
                         $actor = Filament::auth()->user();
-                        /** @var Compartment $compartment */
-                        $compartment = Compartment::query()->findOrFail($data['compartment_id']);
 
-                        $expiresAt = filled($data['expires_at'])
-                            ? Carbon::parse($data['expires_at'])
-                            : null;
+                        $expiresAt = AccessPickerOptions::parseExpiresAt($data);
 
-                        app(GroupAccessService::class)->grantCompartmentAccess(
-                            group: $group,
-                            compartment: $compartment,
-                            expiresAt: $expiresAt,
-                            notes: $data['notes'] ?? null,
-                            actor: $actor,
-                        );
+                        $service = app(GroupAccessService::class);
+
+                        $compartments = Compartment::query()
+                            ->whereIn('id', $data['compartment_ids'])
+                            ->get();
+
+                        foreach ($compartments as $compartment) {
+                            $service->grantCompartmentAccess(
+                                group: $group,
+                                compartment: $compartment,
+                                expiresAt: $expiresAt,
+                                notes: $data['notes'] ?? null,
+                                actor: $actor,
+                            );
+                        }
 
                         $this->resetTable();
                     }),
@@ -139,6 +122,31 @@ class CompartmentAccessesRelationManager extends RelationManager
                         $this->resetTable();
                     }),
             ]);
+    }
+
+    /**
+     * Grantable compartments for the owner group: excludes compartments the
+     * group already has active access to.
+     *
+     * @return array<string, string>
+     */
+    private function grantableCompartmentOptions(): array
+    {
+        /** @var Group $group */
+        $group = $this->getOwnerRecord();
+
+        return AccessPickerOptions::compartments(
+            Compartment::query()->whereDoesntHave(
+                'groupAccesses',
+                fn (Builder $query): Builder => $query
+                    ->where('group_id', $group->id)
+                    ->whereNull('revoked_at')
+                    ->where(function (Builder $builder): void {
+                        $builder->whereNull('expires_at')
+                            ->orWhere('expires_at', '>', now());
+                    })
+            )
+        );
     }
 
     private function currentUserCanManageGroups(): bool

@@ -211,9 +211,9 @@ public function test_user_can_borrow_available_item(): void
 - Show current borrower information where applicable
 
 ### Security
-- Admin middleware protects all admin routes
-- Use `AdminMiddleware` class for route protection
-- Admin status managed via User model `isAdmin()` method
+- Filament and backend workflows use Laravel Gate permissions
+- Check capabilities with `Permission` enum values and `$user->can(...)`
+- Use `isAdmin()` only for role-identity decisions such as last-admin guards
 
 ## Internationalization
 

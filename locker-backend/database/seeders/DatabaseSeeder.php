@@ -15,9 +15,6 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
-        // Seed the default role -> permission bindings (and backfill admins).
-        $this->call(AuthorizationSeeder::class);
-
         // User::factory(10)->create();
 
         $admin = User::factory()->create([

@@ -1,0 +1,202 @@
+---
+import githubIcon from '../assets/GitHub_Invertocat_Black.svg';
+import discordIcon from '../assets/Discord-Symbol-Blurple.svg';
+import { LINKS } from '../config/links';
+import { getLocaleFromUrl, localizePath, useTranslations, type Locale } from '../i18n';
+
+type Props = {
+	locale?: Locale;
+};
+
+const { locale = getLocaleFromUrl(Astro.url) } = Astro.props;
+const copy = useTranslations(locale).nav;
+
+const home = localizePath('/', locale);
+const blogPath = localizePath('/blog/', locale);
+const docsPath = localizePath('/dokumentation/', locale);
+
+const otherLocale: Locale = locale === 'de' ? 'en' : 'de';
+const switchHref = localizePath(Astro.url.pathname, otherLocale);
+---
+
+<header class="sticky top-0 z-40 border-b border-slate-200/80 bg-white/80 backdrop-blur">
+	<div class="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3">
+		<a
+			href={home}
+			class="group flex items-center gap-3 rounded-md focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-600"
+			aria-label={copy.homeAriaLabel}
+		>
+			<span
+				class="relative inline-flex h-10 w-10 items-center justify-center rounded-xl bg-white shadow-sm transition group-hover:shadow md:h-11 md:w-11"
+				aria-hidden="true"
+			>
+				<img
+					src="/logo-open-locker.svg"
+					alt="Open Locker"
+					class="h-6 w-6 select-none md:h-7 md:w-7"
+					width="28"
+					height="28"
+					loading="eager"
+					decoding="async"
+				/>
+			</span>
+			<span class="flex flex-col leading-tight">
+				<span class="text-[15px] font-semibold tracking-[-0.02em] text-slate-900 md:text-base">
+					Open Locker
+				</span>
+				<span class="hidden text-[11px] font-medium tracking-wide text-slate-500 sm:block md:text-xs">
+					{copy.tagline}
+				</span>
+			</span>
+		</a>
+
+		<nav class="hidden items-center gap-1 text-sm md:flex" aria-label={copy.navAriaLabel}>
+			<a class="rounded-md px-3 py-2 text-slate-700 hover:text-slate-900 hover:bg-slate-100 focus-visible:ring-2 focus-visible:ring-blue-600" href={home}>
+				{copy.start}
+			</a>
+			<a class="rounded-md px-3 py-2 text-slate-700 hover:text-slate-900 hover:bg-slate-100 focus-visible:ring-2 focus-visible:ring-blue-600" href={blogPath}>
+				{copy.blog}
+			</a>
+			<a class="rounded-md px-3 py-2 text-slate-700 hover:text-slate-900 hover:bg-slate-100 focus-visible:ring-2 focus-visible:ring-blue-600" href={docsPath}>
+				{copy.docs}
+			</a>
+			<a class="rounded-md px-3 py-2 text-slate-700 hover:text-slate-900 hover:bg-slate-100 focus-visible:ring-2 focus-visible:ring-blue-600" href={`${home}#mitmachen`}>
+				{copy.join}
+			</a>
+			<a class="rounded-md px-3 py-2 text-slate-700 hover:text-slate-900 hover:bg-slate-100 focus-visible:ring-2 focus-visible:ring-blue-600" href={`${home}#kosten`}>
+				{copy.pricing}
+			</a>
+			<a class="rounded-md px-3 py-2 text-slate-700 hover:text-slate-900 hover:bg-slate-100 focus-visible:ring-2 focus-visible:ring-blue-600" href={`${home}#kontakt`}>
+				{copy.contact}
+			</a>
+		</nav>
+
+		<div class="flex items-center gap-1">
+			<button
+				type="button"
+				id="mobile-menu-toggle"
+				aria-expanded="false"
+				aria-controls="mobile-menu"
+				aria-label={copy.openMenuAriaLabel}
+				data-close-label={copy.closeMenuAriaLabel}
+				class="inline-flex h-10 w-10 items-center justify-center rounded-md text-slate-700 hover:bg-slate-100 hover:text-slate-900 focus-visible:ring-2 focus-visible:ring-blue-600 md:hidden"
+			>
+				<svg id="mobile-menu-icon-open" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+					<path d="M4 6h16M4 12h16M4 18h16" />
+				</svg>
+				<svg id="mobile-menu-icon-close" class="hidden h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+					<path d="M6 6l12 12M18 6L6 18" />
+				</svg>
+			</button>
+
+			<a
+				href={switchHref}
+				aria-label={copy.switchLabel}
+				title={copy.switchLabel}
+				class="inline-flex h-10 items-center justify-center rounded-md px-2 text-sm font-medium text-slate-700 hover:bg-slate-100 hover:text-slate-900 focus-visible:ring-2 focus-visible:ring-blue-600"
+			>
+				{otherLocale.toUpperCase()}
+			</a>
+
+			<a
+				href={LINKS.githubRepo}
+				target="_blank"
+				rel="noreferrer"
+				aria-label={copy.githubAriaLabel}
+				title="GitHub"
+				class="inline-flex h-10 w-10 items-center justify-center rounded-md text-slate-700 hover:bg-slate-100 hover:text-slate-900 focus-visible:ring-2 focus-visible:ring-blue-600"
+			>
+				<img
+					src={githubIcon.src}
+					width="20"
+					height="20"
+					class="h-5 w-5"
+					alt=""
+					aria-hidden="true"
+					loading="lazy"
+				/>
+			</a>
+
+			<a
+				href={LINKS.discordInvite}
+				target="_blank"
+				rel="noreferrer"
+				aria-label={copy.discordAriaLabel}
+				title="Discord"
+				class="inline-flex h-10 w-10 items-center justify-center rounded-md text-slate-700 hover:bg-slate-100 hover:text-slate-900 focus-visible:ring-2 focus-visible:ring-blue-600"
+			>
+				<img
+					src={discordIcon.src}
+					width="20"
+					height="20"
+					class="h-5 w-5 brightness-0"
+					alt=""
+					aria-hidden="true"
+					loading="lazy"
+				/>
+			</a>
+		</div>
+	</div>
+
+	<nav
+		id="mobile-menu"
+		class="hidden flex-col gap-1 border-t border-slate-200/80 bg-white px-4 py-3 md:hidden"
+		aria-label={copy.navAriaLabel}
+	>
+		<a class="rounded-md px-3 py-2 text-slate-700 hover:text-slate-900 hover:bg-slate-100" href={home}>
+			{copy.start}
+		</a>
+		<a class="rounded-md px-3 py-2 text-slate-700 hover:text-slate-900 hover:bg-slate-100" href={blogPath}>
+			{copy.blog}
+		</a>
+		<a class="rounded-md px-3 py-2 text-slate-700 hover:text-slate-900 hover:bg-slate-100" href={docsPath}>
+			{copy.docs}
+		</a>
+		<a class="rounded-md px-3 py-2 text-slate-700 hover:text-slate-900 hover:bg-slate-100" href={`${home}#mitmachen`}>
+			{copy.join}
+		</a>
+		<a class="rounded-md px-3 py-2 text-slate-700 hover:text-slate-900 hover:bg-slate-100" href={`${home}#kosten`}>
+			{copy.pricing}
+		</a>
+		<a class="rounded-md px-3 py-2 text-slate-700 hover:text-slate-900 hover:bg-slate-100" href={`${home}#kontakt`}>
+			{copy.contact}
+		</a>
+	</nav>
+</header>
+
+<script>
+	const toggle = document.getElementById('mobile-menu-toggle');
+	const menu = document.getElementById('mobile-menu');
+	const iconOpen = document.getElementById('mobile-menu-icon-open');
+	const iconClose = document.getElementById('mobile-menu-icon-close');
+
+	if (toggle && menu && iconOpen && iconClose) {
+		const openLabel = toggle.getAttribute('aria-label') ?? '';
+		const closeLabel = toggle.dataset.closeLabel ?? openLabel;
+
+		const setOpen = (open: boolean) => {
+			menu.classList.toggle('hidden', !open);
+			menu.classList.toggle('flex', open);
+			toggle.setAttribute('aria-expanded', String(open));
+			toggle.setAttribute('aria-label', open ? closeLabel : openLabel);
+			iconOpen.classList.toggle('hidden', open);
+			iconClose.classList.toggle('hidden', !open);
+		};
+
+		toggle.addEventListener('click', () => {
+			setOpen(menu.classList.contains('hidden'));
+		});
+
+		menu.addEventListener('click', (event) => {
+			if ((event.target as HTMLElement).tagName === 'A') setOpen(false);
+		});
+
+		document.addEventListener('keydown', (event) => {
+			if (event.key === 'Escape') setOpen(false);
+		});
+
+		window.addEventListener('resize', () => {
+			if (window.innerWidth >= 768) setOpen(false);
+		});
+	}
+</script>

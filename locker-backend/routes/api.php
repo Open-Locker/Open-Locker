@@ -1,13 +1,11 @@
 <?php
 
-use App\Http\Controllers\AdminController;
 use App\Http\Controllers\AppInfoController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\CompartmentController;
 use App\Http\Controllers\LockerBankStatusController;
 use App\Http\Controllers\Mqtt\MosquittoAuthController;
 use App\Http\Controllers\TermsController;
-use App\Http\Middleware\AdminMiddleware;
 use App\Http\Middleware\VerifyMosqHttpAuth;
 use Illuminate\Support\Facades\Route;
 
@@ -59,23 +57,6 @@ Route::middleware(['auth:sanctum', 'terms.accepted'])->group(function () {
         Route::get('open-requests/{commandId}', 'openStatus')->name('compartments.open-status');
     });
 
-    // Admin routes
-    Route::middleware(AdminMiddleware::class)->prefix('admin')->name('admin.')->group(function () {
-        Route::controller(AdminController::class)->group(function () {
-            Route::get('users', 'getAllUsers')->name('users.index');
-            Route::post('users/{user}/make-admin', 'makeAdmin')->name('users.make-admin');
-            Route::post('users/{user}/remove-admin', 'removeAdmin')->name('users.remove-admin');
-            Route::get('statistics', 'getStatistics')->name('statistics');
-        });
-
-        Route::post('users/register', [AuthController::class, 'register'])->name('users.register');
-
-        // Locker routes for administrators
-        // Route::controller(LockerController::class)->prefix('lockers')->name('lockers.')->group(function () {
-        //     Route::get('', 'index')->name('index');
-        //     Route::post('{locker}/open', 'openLocker')->name('open');
-        // });
-    });
 });
 
 // Mosquitto HTTP auth endpoints (secured via Basic Auth middleware)

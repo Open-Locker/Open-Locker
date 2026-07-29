@@ -1,0 +1,57 @@
+---
+import Server from '@lucide/astro/icons/server';
+import BadgeCheck from '@lucide/astro/icons/badge-check';
+import Leaf from '@lucide/astro/icons/leaf';
+import MapPin from '@lucide/astro/icons/map-pin';
+import { getLocaleFromUrl, useTranslations, type Locale } from '../i18n';
+
+type Props = {
+  id?: string;
+  contactHref?: string;
+  locale?: Locale;
+};
+
+const { id = 'hosting', contactHref = '#kontakt', locale = getLocaleFromUrl(Astro.url) } = Astro.props;
+const t = useTranslations(locale).hosting;
+
+const itemIcons = [Server, MapPin, BadgeCheck, Leaf, BadgeCheck];
+---
+
+<section id={id} class="mt-14 scroll-mt-24">
+	<div class="rounded-2xl border border-slate-200 bg-linear-to-br from-slate-900 to-slate-800 p-8 text-white">
+		<div class="grid gap-8 md:grid-cols-2 md:items-start">
+		<div class="space-y-4">
+			<div class="space-y-3">
+				<h3 class="text-xl font-semibold tracking-tight">{t.title}</h3>
+				<p class="text-slate-200">
+					{t.lead}
+				</p>
+			</div>
+
+			<div class="flex flex-wrap gap-3">
+				<a
+					href={contactHref}
+					class="rounded-md bg-white px-4 py-2.5 text-sm font-medium text-slate-900 hover:bg-slate-100 focus-visible:ring-2 focus-visible:ring-white"
+				>
+					{t.contact}
+				</a>
+			</div>
+		</div>
+
+		<ul class="space-y-3 text-sm text-slate-200">
+			{t.items.map((item, index) => {
+				const Icon = itemIcons[index] ?? BadgeCheck;
+				return (
+					<li class="flex items-start gap-3">
+						<Icon class="mt-0.5 h-5 w-5 text-white" aria-hidden="true" />
+						<div>
+							<p class="font-semibold text-white">{item.title}</p>
+							<p class="mt-1 text-slate-200">{item.text}</p>
+						</div>
+					</li>
+				);
+			})}
+		</ul>
+		</div>
+	</div>
+</section>

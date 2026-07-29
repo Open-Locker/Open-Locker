@@ -5,21 +5,28 @@ declare(strict_types=1);
 namespace App\Filament\Resources\UserResource\RelationManagers;
 
 use App\Enums\Permission;
+use App\Filament\Resources\UserResource;
+use App\Filament\Support\AccessPickerOptions;
 use App\Models\Compartment;
 use App\Models\CompartmentAccess;
 use App\Models\User;
 use App\Services\CompartmentAccessService;
 use Filament\Facades\Filament;
-use Filament\Forms;
 use Filament\Resources\RelationManagers\RelationManager;
 use Filament\Schemas\Schema;
 use Filament\Tables;
 use Filament\Tables\Table;
-use Illuminate\Support\Carbon;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Model;
 
 class CompartmentAccessesRelationManager extends RelationManager
 {
     protected static string $relationship = 'compartmentAccesses';
+
+    public static function getTitle(Model $ownerRecord, string $pageClass): string
+    {
+        return __('Compartment accesses');
+    }
 
     public function form(Schema $form): Schema
     {
@@ -48,10 +55,12 @@ class CompartmentAccessesRelationManager extends RelationManager
                     ->placeholder(__('System'))
                     ->toggleable(),
                 Tables\Columns\TextColumn::make('expires_at')
+                    ->label(__('Expires at'))
                     ->dateTime()
                     ->placeholder(__('Never'))
                     ->sortable(),
                 Tables\Columns\TextColumn::make('revoked_at')
+                    ->label(__('Revoked at'))
                     ->dateTime()
                     ->placeholder(__('Active'))
                     ->sortable(),
@@ -86,51 +95,34 @@ class CompartmentAccessesRelationManager extends RelationManager
                     ->label(__('Grant access'))
                     ->icon('heroicon-m-key')
                     ->visible(fn (): bool => $this->currentUserCanManageAccess())
-                    ->form([
-                        Forms\Components\Select::make('compartment_id')
-                            ->label(__('Compartment'))
-                            ->required()
-                            ->searchable()
-                            ->options(
-                                Compartment::query()
-                                    ->with('lockerBank')
-                                    ->get()
-                                    ->mapWithKeys(fn (Compartment $compartment): array => [
-                                        (string) $compartment->id => sprintf(
-                                            '%s / #%d',
-                                            $compartment->lockerBank->name,
-                                            (int) $compartment->number
-                                        ),
-                                    ])
-                                    ->all()
-                            ),
-                        Forms\Components\DateTimePicker::make('expires_at')
-                            ->label(__('Expires at'))
-                            ->seconds(false),
-                        Forms\Components\Textarea::make('notes')
-                            ->label(__('Notes'))
-                            ->rows(3)
-                            ->maxLength(2000),
-                    ])
+                    ->form(AccessPickerOptions::grantForm(
+                        'compartment_ids',
+                        __('Compartments'),
+                        fn (): array => $this->grantableCompartmentOptions(),
+                    ))
                     ->action(function (array $data): void {
                         /** @var User $user */
                         $user = $this->getOwnerRecord();
                         /** @var User|null $actor */
                         $actor = Filament::auth()->user();
-                        /** @var Compartment $compartment */
-                        $compartment = Compartment::query()->findOrFail($data['compartment_id']);
 
-                        $expiresAt = filled($data['expires_at'])
-                            ? Carbon::parse($data['expires_at'])
-                            : null;
+                        $expiresAt = AccessPickerOptions::parseExpiresAt($data);
 
-                        app(CompartmentAccessService::class)->grantAccess(
-                            user: $user,
-                            compartment: $compartment,
-                            expiresAt: $expiresAt,
-                            notes: $data['notes'] ?? null,
-                            actor: $actor
-                        );
+                        $service = app(CompartmentAccessService::class);
+
+                        $compartments = Compartment::query()
+                            ->whereIn('id', $data['compartment_ids'])
+                            ->get();
+
+                        foreach ($compartments as $compartment) {
+                            $service->grantAccess(
+                                user: $user,
+                                compartment: $compartment,
+                                expiresAt: $expiresAt,
+                                notes: $data['notes'] ?? null,
+                                actor: $actor
+                            );
+                        }
 
                         $this->resetTable();
                     }),
@@ -159,10 +151,36 @@ class CompartmentAccessesRelationManager extends RelationManager
             ]);
     }
 
+    /**
+     * Grantable compartments for the owner user: excludes compartments the
+     * user already has active access to.
+     *
+     * @return array<string, string>
+     */
+    private function grantableCompartmentOptions(): array
+    {
+        /** @var User $user */
+        $user = $this->getOwnerRecord();
+
+        return AccessPickerOptions::compartments(
+            Compartment::query()->whereDoesntHave(
+                'activeAccesses',
+                fn (Builder $query): Builder => $query->where('user_id', $user->id)
+            )
+        );
+    }
+
     private function currentUserCanManageAccess(): bool
     {
         $user = Filament::auth()->user();
 
-        return $user instanceof User && $user->can(Permission::CompartmentAccessManage->value);
+        if (! $user instanceof User || ! $user->can(Permission::CompartmentAccessManage->value)) {
+            return false;
+        }
+
+        /** @var User $owner */
+        $owner = $this->getOwnerRecord();
+
+        return UserResource::canManageRecord($owner);
     }
 }

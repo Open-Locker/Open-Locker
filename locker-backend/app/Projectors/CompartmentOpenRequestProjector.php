@@ -11,11 +11,10 @@ use App\StorableEvents\CompartmentOpened;
 use App\StorableEvents\CompartmentOpeningFailed;
 use App\StorableEvents\CompartmentOpeningRequested;
 use App\StorableEvents\CompartmentOpenRequested;
-use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Support\Carbon;
 use Spatie\EventSourcing\EventHandlers\Projectors\Projector;
 
-class CompartmentOpenRequestProjector extends Projector implements ShouldQueue
+class CompartmentOpenRequestProjector extends Projector
 {
     public function onCompartmentOpenRequested(CompartmentOpenRequested $event): void
     {

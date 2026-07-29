@@ -11,20 +11,20 @@ This is a **monorepo** containing multiple interconnected components for the Ope
 
 ```
 Open-Locker/
-├── locker-backend/           # Laravel 11 API + Admin Panel
+├── locker-backend/          # Laravel API + Filament Admin Panel
 ├── mobile-app/              # React Native Mobile App
+├── locker-client/           # Raspberry Pi MQTT/Modbus bridge
 ├── docs/                    # Project Documentation
-├── docker-compose.yml       # Multi-service orchestration
 └── Justfile                 # Task runner configuration
 ```
 
 ## Component Overview
 
 ### 🔧 **Backend** (`locker-backend/`)
-- **Technology**: Laravel 11 with Filament 3.x
+- **Technology**: Laravel 12 with Filament 5.x
 - **Purpose**: REST API for mobile app + Admin interface
 - **Features**: User management, item tracking, locker control
-- **Hardware**: Modbus integration for IoT communication
+- **Hardware**: Publishes locker commands over MQTT
 - **Documentation**: Auto-generated OpenAPI via Scramble
 
 ### 📱 **Mobile App** (`mobile-app/`)
@@ -32,6 +32,12 @@ Open-Locker/
 - **Purpose**: End-user interface for borrowing items
 - **Features**: Authentication, item browsing, locker interaction
 - **API Client**: RTK Query codegen from OpenAPI (`pnpm run generate:api`)
+
+### 🧰 **Locker Client** (`locker-client/`)
+- **Technology**: TypeScript/Node.js in Docker on Raspberry Pi
+- **Purpose**: Bridge MQTT commands and state to physical hardware
+- **Hardware**: Serialized Modbus RTU communication with Waveshare boards
+- **Deployment**: GHCR image with Docker Compose and Watchtower
 
 ### 📡 **MQTT Broker** (Mosquitto)
 - **Technology**: Mosquitto with `mosquitto-go-auth` plugin

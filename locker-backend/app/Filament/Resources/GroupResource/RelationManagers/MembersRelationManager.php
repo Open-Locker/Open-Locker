@@ -5,20 +5,26 @@ declare(strict_types=1);
 namespace App\Filament\Resources\GroupResource\RelationManagers;
 
 use App\Enums\Permission;
+use App\Filament\Support\AccessPickerOptions;
 use App\Models\Group;
 use App\Models\User;
 use App\Services\GroupAccessService;
 use Filament\Facades\Filament;
-use Filament\Forms;
 use Filament\Resources\RelationManagers\RelationManager;
 use Filament\Schemas\Schema;
 use Filament\Tables;
 use Filament\Tables\Table;
-use Illuminate\Support\Carbon;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Model;
 
 class MembersRelationManager extends RelationManager
 {
     protected static string $relationship = 'members';
+
+    public static function getTitle(Model $ownerRecord, string $pageClass): string
+    {
+        return __('Members');
+    }
 
     public function form(Schema $form): Schema
     {
@@ -51,42 +57,34 @@ class MembersRelationManager extends RelationManager
                     ->label(__('Add member'))
                     ->icon('heroicon-m-user-plus')
                     ->visible(fn (): bool => $this->currentUserCanManageGroups())
-                    ->form([
-                        Forms\Components\Select::make('user_id')
-                            ->label(__('User'))
-                            ->required()
-                            ->searchable()
-                            ->options(
-                                User::query()
-                                    ->orderBy('first_name')
-                                    ->get()
-                                    ->mapWithKeys(fn (User $user): array => [
-                                        $user->id => sprintf('%s (%s)', $user->fullName(), $user->email),
-                                    ])
-                                    ->all()
-                            ),
-                        Forms\Components\DateTimePicker::make('expires_at')
-                            ->label(__('Expires at'))
-                            ->seconds(false),
-                    ])
+                    ->form(AccessPickerOptions::grantForm(
+                        'user_ids',
+                        __('Users'),
+                        fn (): array => $this->addableUserOptions(),
+                        withNotes: false,
+                    ))
                     ->action(function (array $data): void {
                         /** @var Group $group */
                         $group = $this->getOwnerRecord();
                         /** @var User|null $actor */
                         $actor = Filament::auth()->user();
-                        /** @var User $user */
-                        $user = User::query()->findOrFail($data['user_id']);
 
-                        $expiresAt = filled($data['expires_at'])
-                            ? Carbon::parse($data['expires_at'])
-                            : null;
+                        $expiresAt = AccessPickerOptions::parseExpiresAt($data);
 
-                        app(GroupAccessService::class)->addUser(
-                            group: $group,
-                            user: $user,
-                            expiresAt: $expiresAt,
-                            actor: $actor,
-                        );
+                        $service = app(GroupAccessService::class);
+
+                        $users = User::query()
+                            ->whereIn('id', $data['user_ids'])
+                            ->get();
+
+                        foreach ($users as $user) {
+                            $service->addUser(
+                                group: $group,
+                                user: $user,
+                                expiresAt: $expiresAt,
+                                actor: $actor,
+                            );
+                        }
 
                         $this->resetTable();
                     }),
@@ -113,6 +111,31 @@ class MembersRelationManager extends RelationManager
                         $this->resetTable();
                     }),
             ]);
+    }
+
+    /**
+     * Users who can be added to the owner group: excludes users that are
+     * already active members.
+     *
+     * @return array<string, string>
+     */
+    private function addableUserOptions(): array
+    {
+        /** @var Group $group */
+        $group = $this->getOwnerRecord();
+
+        $activeMemberIds = $group->members()
+            ->wherePivotNull('revoked_at')
+            ->where(function (Builder $query): void {
+                $query->whereNull('group_user.expires_at')
+                    ->orWhere('group_user.expires_at', '>', now());
+            })
+            ->pluck('users.id')
+            ->all();
+
+        return AccessPickerOptions::users(
+            User::query()->whereNotIn('id', $activeMemberIds)
+        );
     }
 
     private function currentUserCanManageGroups(): bool

@@ -11,12 +11,10 @@ use Filament\Http\Middleware\AuthenticateSession;
 use Filament\Http\Middleware\DisableBladeIconComponents;
 use Filament\Http\Middleware\DispatchServingFilamentEvent;
 use Filament\Navigation\NavigationGroup;
-use Filament\Pages;
 use Filament\Panel;
 use Filament\PanelProvider;
 use Filament\Support\Enums\Width;
 use Filament\View\PanelsRenderHook;
-use Filament\Widgets;
 use Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse;
 use Illuminate\Cookie\Middleware\EncryptCookies;
 use Illuminate\Database\QueryException;
@@ -31,17 +29,10 @@ use PDOException;
 
 class AdminPanelProvider extends PanelProvider
 {
-    protected string $locale = 'en';
-
     public function panel(Panel $panel): Panel
     {
-        return $this->configurePanel(
-            $panel->default()->id('admin')->path('en/admin'),
-        );
-    }
+        $panel->default()->id('admin')->path('admin');
 
-    protected function configurePanel(Panel $panel): Panel
-    {
         try {
             if (Schema::hasTable('users') && User::count() === 0) {
                 $panel->registration(Register::class);
@@ -83,23 +74,27 @@ class AdminPanelProvider extends PanelProvider
             ->sidebarWidth('300px')
             ->discoverResources(in: app_path('Filament/Resources'), for: 'App\\Filament\\Resources')
             ->discoverPages(in: app_path('Filament/Pages'), for: 'App\\Filament\\Pages')
-            ->pages([
-                Pages\Dashboard::class,
-            ])
             ->discoverWidgets(in: app_path('Filament/Widgets'), for: 'App\\Filament\\Widgets')
-            ->widgets([
-                Widgets\AccountWidget::class,
-            ])
+            // No dashboard. With `/` free, Filament auto-registers a `home` route
+            // that redirects to the first navigation item — the Compartments list
+            // (Operations group, sort 10). The post-login redirect and brand-logo
+            // link both resolve through this `home` route.
             ->renderHook(
                 PanelsRenderHook::USER_MENU_BEFORE,
-                fn (): \Illuminate\Contracts\View\View => view('filament.locale-switcher', ['locale' => $this->locale])
+                fn (): \Illuminate\Contracts\View\View => view('filament.locale-switcher')
             )
             // The user menu does not exist on the pre-auth SimplePage layout
             // (login, password reset, register, email verification), so render
             // the switcher there too.
             ->renderHook(
                 PanelsRenderHook::SIMPLE_PAGE_END,
-                fn (): \Illuminate\Contracts\View\View => view('filament.locale-switcher', ['locale' => $this->locale, 'center' => true])
+                fn (): \Illuminate\Contracts\View\View => view('filament.locale-switcher', ['center' => true])
+            )
+            // The topbar user menu shows only an avatar; surface the signed-in
+            // user's name + email as a hover tooltip on it.
+            ->renderHook(
+                PanelsRenderHook::USER_MENU_AFTER,
+                fn (): \Illuminate\Contracts\View\View => view('filament.user-menu-tooltip')
             )
             ->renderHook(
                 PanelsRenderHook::BODY_END,

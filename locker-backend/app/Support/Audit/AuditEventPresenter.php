@@ -59,8 +59,6 @@ class AuditEventPresenter
         'UserRemovedFromGroup' => 'admin',
         'UserRoleGranted' => 'admin',
         'UserRoleRevoked' => 'admin',
-        'RolePermissionGranted' => 'admin',
-        'RolePermissionRevoked' => 'admin',
 
         // Terms & legal
         'TermsDocumentCreated' => 'terms',
@@ -179,8 +177,6 @@ class AuditEventPresenter
             'UserRemovedFromGroup' => __('User removed from group'),
             'UserRoleGranted' => __('Role granted'),
             'UserRoleRevoked' => __('Role revoked'),
-            'RolePermissionGranted' => __('Permission granted'),
-            'RolePermissionRevoked' => __('Permission revoked'),
             'TermsDocumentCreated' => __('Terms document created'),
             'TermsVersionPublished' => __('Terms version published'),
             'TermsVersionActivated' => __('Terms version activated'),
@@ -286,16 +282,6 @@ class AuditEventPresenter
                 'actor' => $this->user($p['actorUserId'] ?? null),
                 'role' => $p['role'] ?? '-',
                 'user' => $this->user($p['userId'] ?? null),
-            ]),
-            'RolePermissionGranted' => __(':actor granted permission :permission to role :role', [
-                'actor' => $this->user($p['actorUserId'] ?? null),
-                'permission' => $p['permission'] ?? '-',
-                'role' => $p['role'] ?? '-',
-            ]),
-            'RolePermissionRevoked' => __(':actor revoked permission :permission from role :role', [
-                'actor' => $this->user($p['actorUserId'] ?? null),
-                'permission' => $p['permission'] ?? '-',
-                'role' => $p['role'] ?? '-',
             ]),
             'TermsDocumentCreated' => __(':actor created terms document :name', [
                 'actor' => $this->user($p['createdByUserId'] ?? null),

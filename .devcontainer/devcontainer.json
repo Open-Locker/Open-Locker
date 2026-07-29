@@ -1,7 +1,7 @@
 {
 	"name": "Node.js & TypeScript",
 	"image": "mcr.microsoft.com/devcontainers/typescript-node:24-trixie",
-	"postCreateCommand": "cd locker-client && yarn install",
+	"postCreateCommand": "cd locker-client && corepack enable pnpm && pnpm install --frozen-lockfile",
 	"privileged": true,
 	"remoteUser": "root",
 	"runArgs": [

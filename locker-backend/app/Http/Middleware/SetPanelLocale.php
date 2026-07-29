@@ -15,10 +15,16 @@ class SetPanelLocale
     {
         /** @var list<string> $supported */
         $supported = config('app.supported_locales', ['en']);
-        $segment = $request->segment(1);
+        $locale = $request->session()->get('locale') ?? $request->cookie('locale');
 
-        if (is_string($segment) && in_array($segment, $supported, true)) {
-            App::setLocale($segment);
+        if (! is_string($locale) || ! in_array($locale, $supported, true)) {
+            // No stored choice yet: negotiate from the browser's Accept-Language,
+            // falling back to the first supported locale.
+            $locale = $request->getPreferredLanguage($supported);
+        }
+
+        if (is_string($locale)) {
+            App::setLocale($locale);
         }
 
         return $next($request);

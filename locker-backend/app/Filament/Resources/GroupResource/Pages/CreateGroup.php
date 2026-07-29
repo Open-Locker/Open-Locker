@@ -26,13 +26,4 @@ class CreateGroup extends CreateRecord
             actor: $actor,
         );
     }
-
-    /**
-     * The read model is projected asynchronously, so redirect to the list
-     * rather than the edit page (which would route-model-bind the new record).
-     */
-    protected function getRedirectUrl(): string
-    {
-        return $this->getResource()::getUrl('index');
-    }
 }

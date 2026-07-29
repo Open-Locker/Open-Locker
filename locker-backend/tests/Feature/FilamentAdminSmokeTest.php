@@ -70,8 +70,7 @@ class FilamentAdminSmokeTest extends TestCase
         $this->assertContains('delete', $headerActionNames);
         $this->assertContains('sendPasswordResetLink', $groupActionNames);
         $this->assertContains('sendVerificationEmail', $groupActionNames);
-        $this->assertContains('setAsAdmin', $groupActionNames);
-        $this->assertContains('removeAdmin', $groupActionNames);
+        $this->assertContains('changeRole', $groupActionNames);
     }
 
     public function test_unverified_admin_can_access_filament_panel_for_verification_flow(): void
@@ -79,7 +78,9 @@ class FilamentAdminSmokeTest extends TestCase
         $user = User::factory()->unverified()->create();
         $user->makeAdmin();
 
-        $response = $this->actingAs($user)->get(route('filament.admin.pages.dashboard'));
+        // The panel root only redirects to the landing page; email verification is
+        // enforced on the resource pages themselves, so hit the Compartments index.
+        $response = $this->actingAs($user)->get(route('filament.admin.resources.compartments.index'));
 
         $response->assertRedirect(route('filament.admin.auth.email-verification.prompt'));
 
@@ -95,7 +96,7 @@ class FilamentAdminSmokeTest extends TestCase
 
         $response = $this->actingAs($user)->get(route('filament.admin.auth.login'));
 
-        $response->assertRedirect(route('filament.admin.pages.dashboard'));
+        $response->assertRedirect(route('filament.admin.home'));
     }
 
     public function test_non_admin_cannot_access_filament_panel(): void
@@ -103,7 +104,7 @@ class FilamentAdminSmokeTest extends TestCase
         User::factory()->create();
         $user = User::factory()->create();
 
-        $response = $this->actingAs($user)->get(route('filament.admin.pages.dashboard'));
+        $response = $this->actingAs($user)->get(route('filament.admin.home'));
 
         $response->assertForbidden();
     }

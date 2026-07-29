@@ -9,6 +9,7 @@ use App\Filament\Resources\GroupResource\Pages\CreateGroup;
 use App\Filament\Resources\GroupResource\Pages\EditGroup;
 use App\Filament\Resources\GroupResource\RelationManagers\CompartmentAccessesRelationManager;
 use App\Filament\Resources\GroupResource\RelationManagers\MembersRelationManager;
+use App\Models\Group;
 use App\Models\User;
 use App\Services\GroupAccessService;
 use Filament\Actions\Action;
@@ -76,7 +77,13 @@ class GroupAdminUiTest extends TestCase
                 'description' => 'Warehouse crew',
             ])
             ->call('create')
-            ->assertHasNoFormErrors();
+            ->assertHasNoFormErrors()
+            // Projectors run synchronously (#128), so the group read model exists
+            // immediately after creation and we can redirect straight to its edit
+            // page (to add members / grant access) instead of back to the list.
+            ->assertRedirect(GroupResource::getUrl('edit', [
+                'record' => Group::where('name', 'Logistics')->sole(),
+            ]));
 
         $this->assertDatabaseHas('groups', [
             'name' => 'Logistics',

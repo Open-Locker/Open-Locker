@@ -118,7 +118,6 @@ This Laravel application provides:
 - `AuthController` - User authentication endpoints
 - `ItemController` - Item management and borrowing
 - `LockerController` - Hardware control and status
-- `AdminController` - Administrative functions
 
 ### Admin Panel
 

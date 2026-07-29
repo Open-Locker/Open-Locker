@@ -1,0 +1,82 @@
+---
+import discordLogo from '../assets/Discord-Logo-White.svg';
+import { getLocaleFromUrl, useTranslations, type Locale } from '../i18n';
+
+type Props = {
+	discordUrl: string;
+	ariaLabel?: string;
+	variant?: 'card' | 'banner';
+	locale?: Locale;
+};
+
+const { discordUrl, variant = 'card', locale = getLocaleFromUrl(Astro.url) } = Astro.props;
+const { ariaLabel = useTranslations(locale).banner.discordAriaLabel } = Astro.props;
+---
+
+{
+	variant === 'banner' ? (
+		<div class="border-b border-slate-200 bg-slate-50">
+			<div
+				class="mx-auto flex max-w-6xl flex-col items-center justify-center gap-3 px-4 py-3 text-center text-sm text-slate-700 sm:flex-row"
+			>
+				<a
+					href={discordUrl}
+					target="_blank"
+					rel="noreferrer"
+					class="inline-flex shrink-0 items-center gap-2 rounded-md bg-[#5865F2] px-3 py-2 font-medium text-white hover:bg-[#4752C4] focus-visible:ring-2 focus-visible:ring-slate-900"
+					aria-label={ariaLabel}
+				>
+					<img
+						src={discordLogo.src}
+						width="132"
+						height="20"
+						class="h-5 w-auto"
+						alt=""
+						aria-hidden="true"
+						loading="lazy"
+					/>
+				</a>
+				<p class="min-w-0">
+					<slot>
+						{locale === 'en' ? (
+							<>Weekly meetup on Discord every <strong>Tuesday</strong> at <strong>7:30 PM</strong> Europe/Berlin time.</>
+						) : (
+							<>Wöchentliches Treffen auf Discord jeden <strong>Dienstag</strong> um <strong>19:30 Uhr</strong>.</>
+						)}
+					</slot>
+				</p>
+			</div>
+		</div>
+	) : (
+		<div class="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
+			<div class="flex items-center gap-3 text-sm text-slate-700">
+				<a
+					href={discordUrl}
+					target="_blank"
+					rel="noreferrer"
+					class="inline-flex shrink-0 items-center gap-2 rounded-md bg-[#5865F2] px-3 py-2 font-medium text-white hover:bg-[#4752C4] focus-visible:ring-2 focus-visible:ring-slate-900"
+					aria-label={ariaLabel}
+				>
+					<img
+						src={discordLogo.src}
+						width="132"
+						height="20"
+						class="h-5 w-auto"
+						alt=""
+						aria-hidden="true"
+						loading="lazy"
+					/>
+				</a>
+				<p class="min-w-0">
+					<slot>
+						{locale === 'en' ? (
+							<>Weekly meetup on Discord every <strong>Tuesday</strong> at <strong>7:30 PM</strong> Europe/Berlin time.</>
+						) : (
+							<>Wöchentliches Treffen auf Discord jeden <strong>Dienstag</strong> um <strong>19:30 Uhr</strong>.</>
+						)}
+					</slot>
+				</p>
+			</div>
+		</div>
+	)
+}

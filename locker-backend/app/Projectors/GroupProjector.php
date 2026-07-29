@@ -13,12 +13,11 @@ use App\StorableEvents\GroupCreated;
 use App\StorableEvents\UserAddedToGroup;
 use App\StorableEvents\UserRemovedFromGroup;
 use Carbon\CarbonInterface;
-use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\DB;
 use Spatie\EventSourcing\EventHandlers\Projectors\Projector;
 
-class GroupProjector extends Projector implements ShouldQueue
+class GroupProjector extends Projector
 {
     public function onGroupCreated(GroupCreated $event): void
     {

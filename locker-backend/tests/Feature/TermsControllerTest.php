@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use App\Models\Compartment;
 use App\Models\TermsDocument;
 use App\Models\TermsDocumentVersion;
 use App\Models\User;
@@ -152,7 +153,7 @@ class TermsControllerTest extends TestCase
 
         $this->withHeaders([
             'Authorization' => 'Bearer '.$token,
-        ])->postJson('/api/admin/users/'.$user->id.'/make-admin')
+        ])->postJson('/api/compartments/'.Compartment::factory()->create()->id.'/open')
             ->assertStatus(403)
             ->assertJson([
                 'code' => 'terms_not_accepted',

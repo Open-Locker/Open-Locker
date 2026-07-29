@@ -2,9 +2,6 @@ name: Mobile App CI
 
 on:
   pull_request:
-    branches:
-      - main
-      - dev
     paths:
       - 'mobile-app/**'
       - '.github/workflows/mobile-app-ci.yml'

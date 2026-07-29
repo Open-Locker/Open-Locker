@@ -3,16 +3,22 @@
 namespace App\Filament\Resources;
 
 use App\Enums\Permission;
+use App\Enums\Role;
 use App\Filament\Resources\UserResource\Pages;
 use App\Filament\Resources\UserResource\RelationManagers\CompartmentAccessesRelationManager;
+use App\Filament\Resources\UserResource\RelationManagers\GroupMembershipsRelationManager;
 use App\Models\User;
+use App\Services\UserAdministrationService;
 use Filament\Forms;
+use Filament\Infolists\Components\TextEntry;
 use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
 use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Auth;
 
 class UserResource extends Resource
 {
@@ -20,11 +26,11 @@ class UserResource extends Resource
 
     protected static \BackedEnum|string|null $navigationIcon = 'heroicon-o-rectangle-stack';
 
-    protected static ?int $navigationSort = 20;
+    protected static ?int $navigationSort = 10;
 
     public static function getNavigationGroup(): ?string
     {
-        return __('Operations');
+        return __('Access management');
     }
 
     public static function getNavigationLabel(): string
@@ -44,7 +50,32 @@ class UserResource extends Resource
 
     public static function canAccess(): bool
     {
-        return auth()->user()?->can(Permission::UsersManage->value) ?? false;
+        return self::actor()?->can(Permission::UsersManage->value) ?? false;
+    }
+
+    public static function canCreate(): bool
+    {
+        return self::actor()?->can(Permission::UsersManage->value) ?? false;
+    }
+
+    public static function canView(Model $record): bool
+    {
+        return $record instanceof User && (self::actor()?->can(Permission::UsersManage->value) ?? false);
+    }
+
+    public static function canEdit(Model $record): bool
+    {
+        return $record instanceof User && self::canManageRecord($record);
+    }
+
+    public static function canDelete(Model $record): bool
+    {
+        return $record instanceof User && self::canManageRecord($record);
+    }
+
+    public static function canDeleteAny(): bool
+    {
+        return self::actor()?->can(Permission::UsersManage->value) ?? false;
     }
 
     public static function form(Schema $form): Schema
@@ -53,19 +84,50 @@ class UserResource extends Resource
             ->schema([
                 Forms\Components\TextInput::make('first_name')
                     ->label(__('First name'))
-                    ->required(),
+                    ->required()
+                    ->disabled(fn (?User $record): bool => $record instanceof User && ! self::canEdit($record)),
                 Forms\Components\TextInput::make('last_name')
                     ->label(__('Last name'))
-                    ->required(),
+                    ->required()
+                    ->disabled(fn (?User $record): bool => $record instanceof User && ! self::canEdit($record)),
                 Forms\Components\TextInput::make('email')
+                    ->label(__('Email'))
                     ->email()
-                    ->required(),
+                    ->required()
+                    ->disabled(fn (?User $record): bool => $record instanceof User && ! self::canEdit($record)),
+                TextEntry::make('roles')
+                    ->label(__('Roles'))
+                    ->badge()
+                    ->state(fn (?User $record): array => $record instanceof User ? self::roleLabels($record) : [])
+                    ->visible(fn (?User $record): bool => $record instanceof User),
             ]);
+    }
+
+    /**
+     * Localized labels for the user's assigned roles; users without any
+     * stored role binding are plain users.
+     *
+     * @return list<string>
+     */
+    public static function roleLabels(User $user): array
+    {
+        $labels = [];
+
+        foreach ($user->roleNames() as $roleName) {
+            $role = Role::tryFrom($roleName);
+
+            if ($role !== null) {
+                $labels[] = $role->label();
+            }
+        }
+
+        return $labels === [] ? [Role::User->label()] : $labels;
     }
 
     public static function table(Table $table): Table
     {
         return $table
+            ->modifyQueryUsing(fn ($query) => $query->with('userRoles'))
             ->columns([
                 Tables\Columns\TextColumn::make('first_name')
                     ->label(__('First name'))
@@ -90,10 +152,10 @@ class UserResource extends Resource
                     ->dateTime()
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),
-                Tables\Columns\TextColumn::make('is_admin_since')
-                    ->label(__('Admin since'))
-                    ->dateTime()
-                    ->sortable(),
+                Tables\Columns\TextColumn::make('roles')
+                    ->label(__('Roles'))
+                    ->badge()
+                    ->state(fn (User $record): array => self::roleLabels($record)),
                 Tables\Columns\IconColumn::make('terms_current_accepted')
                     ->label(__('Current terms accepted'))
                     ->boolean()
@@ -107,14 +169,27 @@ class UserResource extends Resource
                 //
             ])
             ->actions([
-                \Filament\Actions\EditAction::make(),
+                \Filament\Actions\EditAction::make()
+                    ->authorize(fn (User $record): bool => self::canView($record))
+                    ->label(fn (User $record): string => self::canEdit($record) ? __('Edit') : __('View')),
             ])->actionsAlignment('left')
             ->bulkActions([
                 \Filament\Actions\BulkActionGroup::make([
                     \Filament\Actions\DeleteBulkAction::make()
                         ->before(function (\Filament\Actions\DeleteBulkAction $action, Collection $records) {
-                            $adminCount = User::whereNotNull('is_admin_since')->count();
-                            $deletedAdmins = $records->whereNotNull('is_admin_since')->count();
+                            if ($records->contains(fn (Model $record): bool => $record instanceof User && ! self::canManageRecord($record))) {
+                                Notification::make()
+                                    ->title(__('Action cancelled'))
+                                    ->body(__('This user cannot be deleted.'))
+                                    ->danger()
+                                    ->send();
+                                $action->cancel();
+
+                                return;
+                            }
+
+                            $adminCount = User::adminRoleCount();
+                            $deletedAdmins = $records->filter(fn (Model $record): bool => $record instanceof User && $record->isAdmin())->count();
 
                             if ($adminCount - $deletedAdmins < 1) {
                                 Notification::make()
@@ -133,6 +208,7 @@ class UserResource extends Resource
     {
         return [
             CompartmentAccessesRelationManager::class,
+            GroupMembershipsRelationManager::class,
         ];
     }
 
@@ -143,5 +219,23 @@ class UserResource extends Resource
             'create' => Pages\CreateUser::route('/create'),
             'edit' => Pages\EditUser::route('/{record}/edit'),
         ];
+    }
+
+    public static function canManageRecord(User $record): bool
+    {
+        $actor = self::actor();
+
+        if (! $actor instanceof User) {
+            return false;
+        }
+
+        return app(UserAdministrationService::class)->canManageUser($actor, $record);
+    }
+
+    private static function actor(): ?User
+    {
+        $actor = Auth::user();
+
+        return $actor instanceof User ? $actor : null;
     }
 }
