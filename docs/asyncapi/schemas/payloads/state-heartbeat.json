@@ -15,6 +15,10 @@
         "uptime_seconds": {
           "type": "integer",
           "minimum": 0
+        },
+        "modbus_connected": {
+          "type": "boolean",
+          "description": "Whether the Modbus bus is reachable. Absent when the device reports no hardware state; a device can be online and heartbeating while its bus is unreachable."
         }
       }
     }

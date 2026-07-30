@@ -122,6 +122,26 @@ class LockerBankResource extends Resource
                     })
                     ->formatStateUsing(fn (string $state): string => __($state))
                     ->sortable(),
+                TextColumn::make('modbus_connected')
+                    ->label(__('Hardware'))
+                    ->badge()
+                    // A bank can be online and heartbeating while its Modbus bus
+                    // is unreachable, which the connection status cannot show.
+                    ->state(fn (LockerBank $record): string => match ($record->modbus_connected) {
+                        true => 'reachable',
+                        false => 'unreachable',
+                        default => 'unknown',
+                    })
+                    ->color(fn (string $state): string => match ($state) {
+                        'reachable' => 'success',
+                        'unreachable' => 'danger',
+                        default => 'gray',
+                    })
+                    ->formatStateUsing(fn (string $state): string => __($state))
+                    ->tooltip(fn (LockerBank $record): ?string => $record->modbus_status_reported_at
+                        ? __('Reported: :date', ['date' => $record->modbus_status_reported_at->toDateTimeString()])
+                        : __('No hardware state reported yet'))
+                    ->sortable(),
                 TextColumn::make('config_status')
                     ->label(__('Config'))
                     ->badge()

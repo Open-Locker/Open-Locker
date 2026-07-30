@@ -156,6 +156,7 @@ export async function createApp(): Promise<AppContext> {
     heartbeatTopic,
     configRepo.getHeartbeatIntervalSeconds() * 1000,
     appLogger,
+    bus,
   );
 
   const applyConfig = new ApplyConfigUseCase({

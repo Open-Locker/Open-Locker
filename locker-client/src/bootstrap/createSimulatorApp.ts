@@ -187,6 +187,7 @@ export function wireSimulatedDevice(options: WireSimulatedDeviceOptions): WiredS
     topics.heartbeat,
     configRepo.getHeartbeatIntervalSeconds() * 1000,
     appLogger,
+    bus,
   );
 
   const applyConfig = new ApplyConfigUseCase({
