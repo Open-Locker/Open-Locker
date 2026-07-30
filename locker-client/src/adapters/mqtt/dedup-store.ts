@@ -1,5 +1,5 @@
 import fs from 'fs';
-import type { DedupStorePort } from '../../ports/mqtt.port';
+import type { CommandResponseBody, DedupStorePort } from '../../ports/mqtt.port';
 import { MQTT_DEDUP_STATE_FILE } from '../../infrastructure/paths';
 
 type CommandStatus = 'in_progress' | 'completed';
@@ -13,6 +13,7 @@ interface CommandRecord {
 interface DedupState {
   seenMessageIds: Record<string, string>;
   commandRecords: Record<string, CommandRecord>;
+  commandResponses: Record<string, CommandResponseBody>;
 }
 
 export class FileDedupStore implements DedupStorePort {
@@ -54,12 +55,23 @@ export class FileDedupStore implements DedupStorePort {
     this.saveState(state);
   }
 
+  rememberCommandResponse(transactionId: string, response: CommandResponseBody): void {
+    const state = this.loadState();
+    state.commandResponses[transactionId] = response;
+    this.saveState(state);
+  }
+
+  getCommandResponse(transactionId: string): CommandResponseBody | null {
+    const state = this.loadState();
+    return state.commandResponses[transactionId] ?? null;
+  }
+
   private loadState(): DedupState {
     if (this.state) {
       return this.state;
     }
 
-    const empty: DedupState = { seenMessageIds: {}, commandRecords: {} };
+    const empty: DedupState = { seenMessageIds: {}, commandRecords: {}, commandResponses: {} };
     if (!fs.existsSync(MQTT_DEDUP_STATE_FILE)) {
       this.state = empty;
       return empty;
@@ -71,6 +83,8 @@ export class FileDedupStore implements DedupStorePort {
     this.state = {
       seenMessageIds: parsed.seenMessageIds ?? {},
       commandRecords: parsed.commandRecords ?? {},
+      // Absent in state files written before responses were retained.
+      commandResponses: parsed.commandResponses ?? {},
     };
     return this.state;
   }
@@ -84,6 +98,7 @@ export class FileDedupStore implements DedupStorePort {
 export class InMemoryDedupStore implements DedupStorePort {
   private seenMessageIds = new Set<string>();
   private commandRecords = new Map<string, CommandRecord>();
+  private commandResponses = new Map<string, CommandResponseBody>();
 
   hasSeenMessageId(messageId: string): boolean {
     return this.seenMessageIds.has(messageId);
@@ -111,5 +126,13 @@ export class InMemoryDedupStore implements DedupStorePort {
       status: 'completed',
       updatedAt: new Date().toISOString(),
     });
+  }
+
+  rememberCommandResponse(transactionId: string, response: CommandResponseBody): void {
+    this.commandResponses.set(transactionId, response);
+  }
+
+  getCommandResponse(transactionId: string): CommandResponseBody | null {
+    return this.commandResponses.get(transactionId) ?? null;
   }
 }

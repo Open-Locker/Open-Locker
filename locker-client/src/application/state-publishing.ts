@@ -126,7 +126,16 @@ export class PollCompartmentStateUseCase {
       let observedStates: DoorState[];
       try {
         observedStates = await this.bus.readDoorSensors(slaveId, startAddress, length);
-      } catch {
+      } catch (error) {
+        // The bus adapter substitutes 'unknown' for its own read failures, so
+        // reaching this catch means something above the hardware layer broke.
+        // Rare enough to be worth its own line rather than a silent empty read.
+        this.log.warn('Door sensor read threw during snapshot collection', {
+          slaveId,
+          startAddress,
+          length,
+          error: error instanceof Error ? error.message : String(error),
+        });
         observedStates = [];
       }
 

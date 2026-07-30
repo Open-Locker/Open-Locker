@@ -2,6 +2,7 @@ import PQueue from 'p-queue';
 import type { CompartmentTarget, DoorState } from '../../domain/compartment';
 import { isReconnectableModbusError } from '../../domain/errors';
 import { BusPriority, ConnectionState, LockerBusPort } from '../../ports/locker-bus.port';
+import { noopLogger, type LoggerPort } from '../../ports/logging.port';
 import { noopTracing, type SpanAttributes, type TracingPort } from '../../ports/tracing.port';
 import {
   COMPARTMENT_NUMBER,
@@ -36,11 +37,15 @@ export class WaveshareModbusBusActor implements LockerBusPort {
     reconnectOptions?: { maxAttempts?: number; delayMs?: number },
     private readonly configuredSlaveIds: number[] = [1],
     private readonly tracing: TracingPort = noopTracing,
+    private readonly log: LoggerPort = noopLogger,
   ) {
-    this.reconnect = new ReconnectCoordinator({
-      maxAttempts: reconnectOptions?.maxAttempts ?? DEFAULT_MODBUS_MAX_RECONNECT_ATTEMPTS,
-      delayMs: reconnectOptions?.delayMs ?? 5000,
-    });
+    this.reconnect = new ReconnectCoordinator(
+      {
+        maxAttempts: reconnectOptions?.maxAttempts ?? DEFAULT_MODBUS_MAX_RECONNECT_ATTEMPTS,
+        delayMs: reconnectOptions?.delayMs ?? 5000,
+      },
+      log,
+    );
   }
 
   async connect(): Promise<void> {
@@ -71,7 +76,14 @@ export class WaveshareModbusBusActor implements LockerBusPort {
       try {
         await this.reconnect.run(() => this.connectInternal());
         return this.driver.isOpen();
-      } catch {
+      } catch (error) {
+        // Callers only see false, so without this line an unreachable bus looks
+        // identical to a bus that is merely busy.
+        this.log.error('Modbus bus unreachable after reconnect attempts', {
+          attempts: this.reconnect.getAttempts(),
+          connectionState: this.connectionState,
+          error: error instanceof Error ? error.message : String(error),
+        });
         return false;
       }
     }, BusPriority.MAINTENANCE);
@@ -140,9 +152,19 @@ export class WaveshareModbusBusActor implements LockerBusPort {
         const value = values[offset];
         return typeof value === 'boolean' ? (value ? 'closed' : 'open') : 'unknown';
       });
-    } catch {
-      // An unreachable board reports unknown doors rather than failing; the span
-      // has already recorded the failure, so the trace still shows the timeout.
+    } catch (error) {
+      // An unreachable board reports unknown doors rather than failing. The span
+      // records the timeout, but traces are sampled and may be off entirely, so
+      // the reason a whole board went unknown is logged here too. This is the
+      // layer that owns hardware reporting: callers above only ever see the
+      // substituted 'unknown' values.
+      this.log.warn('Modbus door sensor read failed, reporting doors as unknown', {
+        slaveId,
+        startAddress,
+        length,
+        connectionState: this.connectionState,
+        error: error instanceof Error ? error.message : String(error),
+      });
       return Array.from({ length }, () => 'unknown');
     }
   }

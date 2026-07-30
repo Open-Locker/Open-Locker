@@ -19,8 +19,9 @@ class FakeMessageTransport implements MessageTransportPort {
 
   async subscribe(): Promise<void> {}
 
-  async publish(topic: string, payload: string): Promise<void> {
+  async publish(topic: string, payload: string): Promise<boolean> {
     this.published.push({ topic, payload });
+    return true;
   }
 
   onMessage(handler: (topic: string, payload: Buffer) => void): void {

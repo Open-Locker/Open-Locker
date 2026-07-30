@@ -78,13 +78,16 @@ export class MqttTransportAdapter implements MessageTransportPort {
     topic: string,
     payload: string,
     options: OutboundPublishOptions = {},
-  ): Promise<void> {
+  ): Promise<boolean> {
     if (!this.client?.connected) {
       logger.warn('MQTT publish skipped while disconnected', {
         topic,
         connectionState: this.connectionState,
+        qos: options.qos ?? 1,
+        retain: options.retain ?? false,
+        payloadBytes: Buffer.byteLength(payload),
       });
-      return;
+      return false;
     }
 
     const client = this.client;
@@ -98,7 +101,7 @@ export class MqttTransportAdapter implements MessageTransportPort {
             reject(error);
             return;
           }
-          resolve();
+          resolve(true);
         },
       );
     });

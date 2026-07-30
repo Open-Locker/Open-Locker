@@ -53,8 +53,13 @@ export class FakeMqttTransport implements MessageTransportPort {
     this.subscriptions.push(topic);
   }
 
-  async publish(topic: string, payload: string, _options?: OutboundPublishOptions): Promise<void> {
+  async publish(
+    topic: string,
+    payload: string,
+    _options?: OutboundPublishOptions,
+  ): Promise<boolean> {
     this.published.push({ topic, payload });
+    return true;
   }
 
   onMessage(handler: (topic: string, payload: Buffer) => void): void {

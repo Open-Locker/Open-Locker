@@ -16,6 +16,7 @@ test('open compartment handler responds success and preserves transaction_id', a
   const outbound = new OutboundMqttAdapter(
     async (_topic, payload) => {
       published.push(payload);
+      return true;
     },
     'locker/test/response',
     () => '2026-06-16T12:00:00.000Z',

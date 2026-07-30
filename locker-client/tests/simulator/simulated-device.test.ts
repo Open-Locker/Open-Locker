@@ -43,6 +43,7 @@ async function createDeviceUnderTest(bank: SimulatorBankScenario = bankScenario(
     lockerUuid: LOCKER_UUID,
     publish: async (topic, payload, options) => {
       published.push({ topic, payload: JSON.parse(payload), options });
+      return true;
     },
     // No background polling: tests drive state changes explicitly so captures
     // stay deterministic.
@@ -135,20 +136,29 @@ test('open_compartment flips the door open and publishes a fresh snapshot', asyn
   await wired.device.shutdown();
 });
 
-test('a repeated transaction_id is idempotent: no second response, no second open', async () => {
+test('a repeated transaction_id opens once and replays the same answer', async () => {
   const { wired, published } = await createDeviceUnderTest();
   const transactionId = randomUUID();
 
   await wired.dispatch(wired.topics.command, openCommand(1, transactionId));
-  const afterFirst = published.length;
+  const firstResponse = lastOn(published, wired.topics.response);
+  const responsesAfterFirst = published.filter(
+    (entry) => entry.topic === wired.topics.response,
+  ).length;
 
   await wired.dispatch(wired.topics.command, openCommand(1, transactionId));
 
-  assert.equal(
-    published.length,
-    afterFirst,
-    'duplicate transaction_id must not publish anything further',
-  );
+  const responses = published.filter((entry) => entry.topic === wired.topics.response);
+  // Business idempotency is about not executing twice (ADR-0002); the retry is
+  // still answered, because a backend that retried usually never saw the first
+  // reply. The answer it gets is the original one, not a new outcome.
+  assert.equal(responses.length, responsesAfterFirst + 1);
+
+  const replayed = responses[responses.length - 1]!;
+  assert.equal(replayed.payload.result, firstResponse.payload.result);
+  assert.equal(replayed.payload.transaction_id, transactionId);
+  // Fresh envelope id, or the backend's own message_id dedup would drop it.
+  assert.notEqual(replayed.payload.message_id, firstResponse.payload.message_id);
 
   await wired.device.shutdown();
 });

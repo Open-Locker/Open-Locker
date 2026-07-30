@@ -1,6 +1,6 @@
 import type { CompartmentTarget, DoorState } from '../domain/compartment';
 import { DOOR_DETECTION_POLL_INTERVAL_MS, RelayFireLog } from '../domain/door-detection';
-import { LockerError, MqttErrorCode } from '../domain/errors';
+import { LockerError, ModbusTransportError, MqttErrorCode } from '../domain/errors';
 import type { ConfigRepositoryPort } from '../ports/config.port';
 import type { DoorEventPublisherPort } from '../ports/door-events.port';
 import type { LockerBusPort } from '../ports/locker-bus.port';
@@ -241,6 +241,6 @@ export async function runStartupFailsafe(bus: LockerBusPort): Promise<void> {
   }
 
   if (successCount === 0 && slaveIds.length > 0) {
-    throw new Error('Startup failsafe: all Modbus boards unreachable');
+    throw new ModbusTransportError('Startup failsafe: all Modbus boards unreachable');
   }
 }

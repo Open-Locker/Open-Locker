@@ -36,6 +36,7 @@ test('handler-built open_compartment success matches AsyncAPI schema', async () 
   const outbound = new OutboundMqttAdapter(
     async (_topic, payload) => {
       published.push(payload);
+      return true;
     },
     'locker/test/response',
     () => '2026-04-14T19:30:01Z',
@@ -82,6 +83,7 @@ test('handler-built apply_config success matches AsyncAPI schema', async () => {
   const outbound = new OutboundMqttAdapter(
     async (_topic, payload) => {
       published.push(payload);
+      return true;
     },
     'locker/test/response',
     () => '2026-04-14T19:31:02Z',
@@ -124,6 +126,7 @@ test('dispatcher-built validation error matches AsyncAPI schema', async () => {
   const outbound = new OutboundMqttAdapter(
     async (_topic, payload) => {
       published.push(payload);
+      return true;
     },
     'locker/test/response',
     () => '2026-04-14T19:30:01Z',
@@ -174,6 +177,7 @@ test('dispatcher-built handler error matches AsyncAPI schema', async () => {
   const outbound = new OutboundMqttAdapter(
     async (_topic, payload) => {
       published.push(payload);
+      return true;
     },
     'locker/test/response',
     () => '2026-04-14T19:30:01Z',
@@ -220,6 +224,7 @@ test('handler-built compartment snapshot matches AsyncAPI schema', async () => {
   const outbound = new OutboundMqttAdapter(
     async (_topic, payload) => {
       published.push(payload);
+      return true;
     },
     'locker/test/response',
     () => '2026-04-14T19:36:05Z',

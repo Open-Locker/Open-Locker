@@ -9,6 +9,7 @@ import { FileCredentialStore } from '../adapters/persistence/file-credential.sto
 import { FileDedupStore } from '../adapters/mqtt/dedup-store';
 import { MqttTransportAdapter } from '../adapters/mqtt/mqtt-transport.adapter';
 import { OutboundMqttAdapter } from '../adapters/mqtt/outbound-mqtt.adapter';
+import { recordCommandResponses } from '../adapters/mqtt/recording-outbound';
 import { InboundProtocolGuard } from '../adapters/mqtt/inbound-protocol-guard';
 import { CommandDispatcher } from '../adapters/mqtt/command-dispatcher';
 import { createOpenCompartmentHandler } from '../adapters/mqtt/handlers/open-compartment.handler';
@@ -81,20 +82,27 @@ export async function createApp(): Promise<AppContext> {
   setLogTraceContextProvider(() => tracing.currentCorrelation());
   shipLogsTo(tracing);
 
-  const driver = new WaveshareModbusRtuDriver({
-    port: config.modbus.port,
-    baudRate: config.modbus.baudRate ?? 9600,
-    dataBits: config.modbus.dataBits ?? 8,
-    stopBits: config.modbus.stopBits ?? 1,
-    parity: config.modbus.parity ?? 'none',
-    timeout: config.modbus.timeout ?? 1000,
-  });
+  const appLogger = createWinstonLoggerPort();
+
+  const driver = new WaveshareModbusRtuDriver(
+    {
+      port: config.modbus.port,
+      baudRate: config.modbus.baudRate ?? 9600,
+      dataBits: config.modbus.dataBits ?? 8,
+      stopBits: config.modbus.stopBits ?? 1,
+      parity: config.modbus.parity ?? 'none',
+      timeout: config.modbus.timeout ?? 1000,
+    },
+    {},
+    appLogger,
+  );
 
   const bus = new WaveshareModbusBusActor(
     driver,
     { maxAttempts: DEFAULT_MODBUS_MAX_RECONNECT_ATTEMPTS, delayMs: 5000 },
     configRepo.getConfiguredSlaveIds(),
     tracing,
+    appLogger,
   );
 
   await transport.connect(brokerUrl, {
@@ -110,15 +118,18 @@ export async function createApp(): Promise<AppContext> {
   const heartbeatTopic = `locker/${lockerUuid}/state/heartbeat`;
   const snapshotTopic = `locker/${lockerUuid}/state/compartments`;
 
-  const outbound = new OutboundMqttAdapter(
-    (topic, payload, options) => transport.publish(topic, payload, options),
-    responseTopic,
-    undefined,
-    tracing,
+  const outbound = recordCommandResponses(
+    new OutboundMqttAdapter(
+      (topic, payload, options) => transport.publish(topic, payload, options),
+      responseTopic,
+      undefined,
+      tracing,
+      appLogger,
+    ),
+    dedupStore,
   );
 
   const scheduler = new RunAfterCompleteScheduler();
-  const appLogger = createWinstonLoggerPort();
   const doorEvents = new MqttDoorEventPublisher(outbound, eventTopic);
   const relayFireLog = new RelayFireLog();
   const detectionTimeoutMs = (): number =>
@@ -174,7 +185,14 @@ export async function createApp(): Promise<AppContext> {
 
   transport.onMessage((topic, payload) => {
     if (topic === commandTopic) {
-      void dispatcher.dispatch(topic, payload.toString());
+      // Nothing awaits this, so without a catch a rejection escaping dispatch
+      // becomes an unhandled rejection and takes the process down.
+      void dispatcher.dispatch(topic, payload.toString()).catch((error: unknown) => {
+        appLogger.error('Inbound command dispatch failed', {
+          topic,
+          error: error instanceof Error ? error.message : String(error),
+        });
+      });
     }
   });
 

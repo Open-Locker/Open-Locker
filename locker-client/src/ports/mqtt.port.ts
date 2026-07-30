@@ -27,7 +27,14 @@ export interface MessageTransportPort {
   connect(brokerUrl: string, options: Record<string, unknown>): Promise<void>;
   disconnect(): Promise<void>;
   subscribe(topic: string): Promise<void>;
-  publish(topic: string, payload: string, options?: OutboundPublishOptions): Promise<void>;
+  /**
+   * Resolves true when the payload was handed to the broker, false when it was
+   * dropped because the transport is not connected. Callers that need delivery
+   * to be observable have to read this — a dropped publish is not an error the
+   * transport can raise without turning every fire-and-forget publish into an
+   * unhandled rejection.
+   */
+  publish(topic: string, payload: string, options?: OutboundPublishOptions): Promise<boolean>;
   onMessage(handler: (topic: string, payload: Buffer) => void): void;
   getConnectionState(): MqttConnectionState;
   getTransportSettings(): MqttTransportSettings;
@@ -49,4 +56,11 @@ export interface DedupStorePort {
   ): { action: string; status: 'in_progress' | 'completed' } | null;
   markCommandInProgress(transactionId: string, action: string): void;
   markCommandCompleted(transactionId: string, action: string): void;
+  /**
+   * Retains what was answered for a transaction so a redelivery can be given
+   * the same answer instead of silence. A backend usually retries because it
+   * never saw the first response, so replaying it is what unblocks it.
+   */
+  rememberCommandResponse(transactionId: string, response: CommandResponseBody): void;
+  getCommandResponse(transactionId: string): CommandResponseBody | null;
 }

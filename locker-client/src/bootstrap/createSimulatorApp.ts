@@ -6,6 +6,7 @@ import { createOpenCompartmentHandler } from '../adapters/mqtt/handlers/open-com
 import { InboundProtocolGuard } from '../adapters/mqtt/inbound-protocol-guard';
 import { MqttTransportAdapter } from '../adapters/mqtt/mqtt-transport.adapter';
 import { OutboundMqttAdapter } from '../adapters/mqtt/outbound-mqtt.adapter';
+import { recordCommandResponses } from '../adapters/mqtt/recording-outbound';
 import { InMemoryCredentialStore } from '../adapters/simulator/in-memory-credential.store';
 import { InMemoryLockerBus, busTargetKey } from '../adapters/simulator/in-memory-locker-bus';
 import { InMemoryRuntimeOverlayStore } from '../adapters/simulator/in-memory-overlay.store';
@@ -76,7 +77,7 @@ export type PublishFn = (
   topic: string,
   payload: string,
   options?: OutboundPublishOptions,
-) => Promise<void>;
+) => Promise<boolean>;
 
 export interface WiredSimulatedDevice {
   device: SimulatedDevice;
@@ -121,7 +122,7 @@ export function wireSimulatedDevice(options: WireSimulatedDeviceOptions): WiredS
   // built them — the log observes the seam, it does not participate in it.
   const publish: PublishFn = async (topic, payload, publishOptions) => {
     trafficLog.outbound(topic, payload, publishOptions);
-    await options.publish(topic, payload, publishOptions);
+    return options.publish(topic, payload, publishOptions);
   };
 
   const overlayStore = new InMemoryRuntimeOverlayStore();
@@ -153,7 +154,10 @@ export function wireSimulatedDevice(options: WireSimulatedDeviceOptions): WiredS
   });
 
   const tracing = options.tracing ?? noopTracing;
-  const outbound = new OutboundMqttAdapter(publish, topics.response, undefined, tracing);
+  const outbound = recordCommandResponses(
+    new OutboundMqttAdapter(publish, topics.response, undefined, tracing),
+    dedupStore,
+  );
   const scheduler = new RunAfterCompleteScheduler();
   const appLogger = createWinstonLoggerPort();
 

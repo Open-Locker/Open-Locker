@@ -19,6 +19,7 @@ function createApplyConfigHarness() {
   const outbound = new OutboundMqttAdapter(
     async (_topic, payload) => {
       published.push(payload);
+      return true;
     },
     'locker/test/response',
     () => '2026-06-16T12:00:00.000Z',
@@ -83,7 +84,7 @@ test('apply_config handler propagates runtime apply failures', async () => {
       restartHeartbeat: () => undefined,
       restartPolling: () => undefined,
     }),
-    outbound: new OutboundMqttAdapter(async () => undefined, 'locker/test/response'),
+    outbound: new OutboundMqttAdapter(async () => true, 'locker/test/response'),
   });
 
   await assert.rejects(
