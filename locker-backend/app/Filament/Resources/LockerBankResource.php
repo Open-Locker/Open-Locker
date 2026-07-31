@@ -138,7 +138,7 @@ class LockerBankResource extends Resource
                         default => 'gray',
                     })
                     ->formatStateUsing(fn (string $state): string => __($state))
-                    ->tooltip(fn (LockerBank $record): ?string => $record->modbus_status_reported_at
+                    ->tooltip(fn (LockerBank $record): string => $record->modbus_status_reported_at
                         ? __('Reported: :date', ['date' => $record->modbus_status_reported_at->toDateTimeString()])
                         : __('No hardware state reported yet'))
                     ->sortable(),
