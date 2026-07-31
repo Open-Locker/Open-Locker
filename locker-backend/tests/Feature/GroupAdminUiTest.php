@@ -103,8 +103,54 @@ class GroupAdminUiTest extends TestCase
     public function test_relation_managers_can_be_instantiated(): void
     {
         // Smoke: the relation manager classes resolve and declare their relationship.
-        $this->assertSame('members', $this->relationshipOf(MembersRelationManager::class));
+        $this->assertSame('activeMembers', $this->relationshipOf(MembersRelationManager::class));
         $this->assertSame('compartmentAccesses', $this->relationshipOf(CompartmentAccessesRelationManager::class));
+    }
+
+    public function test_members_table_hides_revoked_and_expired_members(): void
+    {
+        $admin = $this->admin();
+        $service = app(GroupAccessService::class);
+        $group = $service->createGroup('Engineering', actor: $admin);
+
+        $active = User::factory()->create();
+        $revoked = User::factory()->create();
+        $expired = User::factory()->create();
+
+        $service->addUser(group: $group, user: $active, actor: $admin);
+        $service->addUser(group: $group, user: $revoked, actor: $admin);
+        $service->addUser(group: $group, user: $expired, expiresAt: now()->subDay(), actor: $admin);
+
+        $service->removeUser(group: $group, user: $revoked, actor: $admin);
+
+        Livewire::actingAs($admin)
+            ->test(MembersRelationManager::class, [
+                'ownerRecord' => $group->refresh(),
+                'pageClass' => EditGroup::class,
+            ])
+            ->assertCanSeeTableRecords([$active])
+            ->assertCanNotSeeTableRecords([$revoked, $expired]);
+    }
+
+    public function test_expired_and_revoked_members_can_be_added_again(): void
+    {
+        $admin = $this->admin();
+        $service = app(GroupAccessService::class);
+        $group = $service->createGroup('Engineering', actor: $admin);
+
+        $expired = User::factory()->create();
+        $service->addUser(group: $group, user: $expired, expiresAt: now()->subDay(), actor: $admin);
+
+        // They are gone from the table, so the add-member picker has to offer them
+        // back — otherwise they would be unreachable from this screen.
+        $options = (new ReflectionClass(MembersRelationManager::class))
+            ->getMethod('addableUserOptions');
+        $options->setAccessible(true);
+
+        $manager = new MembersRelationManager;
+        $manager->ownerRecord = $group->refresh();
+
+        $this->assertArrayHasKey($expired->id, $options->invoke($manager));
     }
 
     private function relationshipOf(string $relationManager): string

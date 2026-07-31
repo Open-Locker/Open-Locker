@@ -14,12 +14,11 @@ use Filament\Resources\RelationManagers\RelationManager;
 use Filament\Schemas\Schema;
 use Filament\Tables;
 use Filament\Tables\Table;
-use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 
 class MembersRelationManager extends RelationManager
 {
-    protected static string $relationship = 'members';
+    protected static string $relationship = 'activeMembers';
 
     public static function getTitle(Model $ownerRecord, string $pageClass): string
     {
@@ -43,14 +42,12 @@ class MembersRelationManager extends RelationManager
                 Tables\Columns\TextColumn::make('email')
                     ->label(__('Email'))
                     ->searchable(),
+                // No "Removed at" column: the table only lists members who are
+                // neither revoked nor expired, so it would always be empty.
                 Tables\Columns\TextColumn::make('pivot.expires_at')
                     ->label(__('Expires at'))
                     ->dateTime()
                     ->placeholder(__('Never')),
-                Tables\Columns\TextColumn::make('pivot.revoked_at')
-                    ->label(__('Removed at'))
-                    ->dateTime()
-                    ->placeholder(__('Active')),
             ])
             ->headerActions([
                 \Filament\Actions\Action::make('addMember')
@@ -124,12 +121,7 @@ class MembersRelationManager extends RelationManager
         /** @var Group $group */
         $group = $this->getOwnerRecord();
 
-        $activeMemberIds = $group->members()
-            ->wherePivotNull('revoked_at')
-            ->where(function (Builder $query): void {
-                $query->whereNull('group_user.expires_at')
-                    ->orWhere('group_user.expires_at', '>', now());
-            })
+        $activeMemberIds = $group->activeMembers()
             ->pluck('users.id')
             ->all();
 

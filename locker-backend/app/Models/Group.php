@@ -72,6 +72,22 @@ class Group extends Model
     }
 
     /**
+     * Members whose membership still counts: not revoked and not expired.
+     * The mirror of {@see User::activeGroups()}.
+     *
+     * @return BelongsToMany<User, $this>
+     */
+    public function activeMembers(): BelongsToMany
+    {
+        return $this->members()
+            ->wherePivotNull('revoked_at')
+            ->where(function (Builder $query): void {
+                $query->whereNull('group_user.expires_at')
+                    ->orWhere('group_user.expires_at', '>', now());
+            });
+    }
+
+    /**
      * @return HasMany<GroupCompartmentAccess, Group>
      */
     public function compartmentAccesses(): HasMany
