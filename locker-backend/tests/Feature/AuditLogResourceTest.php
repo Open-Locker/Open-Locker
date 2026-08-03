@@ -78,6 +78,7 @@ class AuditLogResourceTest extends TestCase
     public function test_actor_filter_limits_results_to_the_selected_user(): void
     {
         $admin = User::factory()->create();
+        $admin->makeAdmin();
         $other = User::factory()->create();
 
         $byAdmin = $this->recordAuditEvent($admin->id);
@@ -112,9 +113,6 @@ class AuditLogResourceTest extends TestCase
 
     public function test_non_admin_cannot_access_audit_log(): void
     {
-        // The first user created is auto-promoted to admin; throw it away so the
-        // user under test is a plain, unprivileged account.
-        User::factory()->create();
         $user = User::factory()->create();
 
         $this->actingAs($user);

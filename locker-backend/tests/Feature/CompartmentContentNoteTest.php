@@ -83,7 +83,6 @@ class CompartmentContentNoteTest extends TestCase
 
     public function test_manager_can_update_note_without_explicit_access(): void
     {
-        User::factory()->create(); // bootstrap admin
         $manager = User::factory()->create();
         $compartment = Compartment::factory()->create();
 

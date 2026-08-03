@@ -279,13 +279,6 @@ class User extends Authenticatable implements FilamentUser, HasName, MustVerifyE
 
     protected static function booted()
     {
-        static::created(function (User $user) {
-            // First registered user becomes admin through an auditable system event.
-            if (User::count() === 1) {
-                $user->makeAdmin();
-            }
-        });
-
         static::deleting(function (User $user) {
             if ($user->isAdmin() && ! self::hasOtherAdmin($user->id)) {
                 return false;

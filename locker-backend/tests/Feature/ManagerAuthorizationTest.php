@@ -29,7 +29,6 @@ class ManagerAuthorizationTest extends TestCase
 
     private function makeManager(): User
     {
-        User::factory()->create(); // bootstrap admin (so manager is not the first user)
 
         $manager = User::factory()->create();
         UserRoleAggregate::retrieve(UserRoleAggregate::aggregateUuidFor($manager->id))
@@ -42,7 +41,6 @@ class ManagerAuthorizationTest extends TestCase
 
     private function makeRegularUser(): User
     {
-        User::factory()->create(); // bootstrap admin
         $user = User::factory()->create();
         $user->removeAdmin();
 
@@ -95,7 +93,7 @@ class ManagerAuthorizationTest extends TestCase
         $admin->makeAdmin();
         $compartment = Compartment::factory()->create();
 
-        app(CompartmentAccessService::class)->grantAccess($admin, $compartment, actor: User::query()->firstOrFail());
+        app(CompartmentAccessService::class)->grantAccess($admin, $compartment, actor: $admin);
 
         $this->expectException(AuthorizationException::class);
 
@@ -204,7 +202,8 @@ class ManagerAuthorizationTest extends TestCase
 
     public function test_admin_sees_all_filament_resources(): void
     {
-        $admin = User::factory()->create(); // bootstrap admin
+        $admin = User::factory()->create();
+        $admin->makeAdmin();
         $this->actingAs($admin);
 
         $this->assertTrue(\App\Filament\Resources\UserResource::canAccess());
@@ -215,7 +214,8 @@ class ManagerAuthorizationTest extends TestCase
 
     public function test_admin_can_assign_manager_role_via_panel_action(): void
     {
-        $admin = User::factory()->create(); // bootstrap admin
+        $admin = User::factory()->create();
+        $admin->makeAdmin();
         $target = User::factory()->create();
 
         \Livewire\Livewire::actingAs($admin)
@@ -349,7 +349,6 @@ class ManagerAuthorizationTest extends TestCase
 
     public function test_manager_cannot_see_role_management_action(): void
     {
-        User::factory()->create(); // bootstrap admin
         $manager = User::factory()->create();
         UserRoleAggregate::retrieve(UserRoleAggregate::aggregateUuidFor($manager->id))
             ->grantRole($manager->id, Role::Manager->value, null, now())
@@ -397,7 +396,8 @@ class ManagerAuthorizationTest extends TestCase
 
     public function test_admin_can_manage_admin_user_records(): void
     {
-        $admin = User::factory()->create(); // bootstrap admin
+        $admin = User::factory()->create();
+        $admin->makeAdmin();
         $targetAdmin = User::factory()->create();
         $targetAdmin->makeAdmin();
 
