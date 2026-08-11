@@ -47,7 +47,7 @@
     },
     "scripts": {
         "format": "./vendor/bin/pint",
-        "format-check": "./vendor/bin/pint --test",
+        "format-check": "./vendor/bin/pint --test --parallel",
         "test": "./vendor/bin/phpunit",
         "test:parallel": "php artisan test --parallel",
         "test:coverage": "php artisan test --coverage",
