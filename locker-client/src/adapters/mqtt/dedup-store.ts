@@ -19,8 +19,13 @@ export class FileDedupStore implements DedupStorePort {
 
   rememberMessageId(messageId: string): void {
     const state = this.loadState();
-    state.seenMessageIds[messageId] = new Date().toISOString();
-    this.saveState(state);
+    this.saveState({
+      ...state,
+      seenMessageIds: {
+        ...state.seenMessageIds,
+        [messageId]: new Date().toISOString(),
+      },
+    });
   }
 
   getCommandRecord(transactionId: string): CommandRecord | null {
@@ -37,23 +42,58 @@ export class FileDedupStore implements DedupStorePort {
 
   markCommandInProgress(transactionId: string, action: string): void {
     const state = this.loadState();
-    state.commandRecords[transactionId] = {
-      action,
-      status: 'in_progress',
-      updatedAt: new Date().toISOString(),
-    };
-    this.saveState(state);
+    this.saveState({
+      ...state,
+      commandRecords: {
+        ...state.commandRecords,
+        [transactionId]: {
+          action,
+          status: 'in_progress',
+          updatedAt: new Date().toISOString(),
+        },
+      },
+    });
   }
 
   markCommandCompleted(transactionId: string, action: string, response: CommandResponseBody): void {
     const state = this.loadState();
-    state.commandRecords[transactionId] = {
-      action,
-      status: 'completed',
-      updatedAt: new Date().toISOString(),
-      response,
-    };
-    this.saveState(state);
+    this.saveState({
+      ...state,
+      commandRecords: {
+        ...state.commandRecords,
+        [transactionId]: {
+          action,
+          status: 'completed',
+          updatedAt: new Date().toISOString(),
+          response,
+        },
+      },
+    });
+  }
+
+  markCommandResponsePending(transactionId: string): void {
+    const state = this.loadState();
+    const record = state.commandRecords[transactionId];
+    if (
+      !record ||
+      record.status !== 'completed' ||
+      !record.response ||
+      !record.responseDeliveredAt
+    ) {
+      return;
+    }
+    const pendingRecord = { ...record };
+    delete pendingRecord.responseDeliveredAt;
+    this.saveState({
+      ...state,
+      commandRecords: {
+        ...state.commandRecords,
+        [transactionId]: {
+          ...pendingRecord,
+          updatedAt: new Date().toISOString(),
+        },
+      },
+    });
   }
 
   markCommandResponseDelivered(transactionId: string): void {
@@ -62,9 +102,18 @@ export class FileDedupStore implements DedupStorePort {
     if (!record || record.status !== 'completed' || !record.response) {
       return;
     }
-    record.responseDeliveredAt = new Date().toISOString();
-    record.updatedAt = record.responseDeliveredAt;
-    this.saveState(state);
+    const deliveredAt = new Date().toISOString();
+    this.saveState({
+      ...state,
+      commandRecords: {
+        ...state.commandRecords,
+        [transactionId]: {
+          ...record,
+          updatedAt: deliveredAt,
+          responseDeliveredAt: deliveredAt,
+        },
+      },
+    });
   }
 
   private loadState(): DedupState {
@@ -87,8 +136,8 @@ export class FileDedupStore implements DedupStorePort {
   }
 
   private saveState(state: DedupState): void {
-    this.state = state;
     fs.writeFileSync(this.filePath, JSON.stringify(state, null, 2), 'utf8');
+    this.state = state;
   }
 }
 
@@ -129,6 +178,24 @@ export class InMemoryDedupStore implements DedupStorePort {
       status: 'completed',
       updatedAt: new Date().toISOString(),
       response,
+    });
+  }
+
+  markCommandResponsePending(transactionId: string): void {
+    const record = this.commandRecords.get(transactionId);
+    if (
+      !record ||
+      record.status !== 'completed' ||
+      !record.response ||
+      !record.responseDeliveredAt
+    ) {
+      return;
+    }
+    const pendingRecord = { ...record };
+    delete pendingRecord.responseDeliveredAt;
+    this.commandRecords.set(transactionId, {
+      ...pendingRecord,
+      updatedAt: new Date().toISOString(),
     });
   }
 

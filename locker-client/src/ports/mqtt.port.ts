@@ -57,5 +57,6 @@ export interface DedupStorePort {
   listCommandRecords(): Array<{ transactionId: string; record: CommandRecord }>;
   markCommandInProgress(transactionId: string, action: string): void;
   markCommandCompleted(transactionId: string, action: string, response: CommandResponseBody): void;
+  markCommandResponsePending(transactionId: string): void;
   markCommandResponseDelivered(transactionId: string): void;
 }

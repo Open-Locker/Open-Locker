@@ -82,8 +82,38 @@ test('legacy dedup files remain readable without response fields', (t) => {
   });
 });
 
+test('write failures leave the cached state unchanged', (t) => {
+  const messageFile = createStoreFile(t);
+  const messageStore = new FileDedupStore(messageFile);
+  messageStore.rememberMessageId('msg-existing');
+  replaceFileWithDirectory(messageFile);
+
+  assert.throws(() => messageStore.rememberMessageId('msg-failed'));
+  assert.equal(messageStore.hasSeenMessageId('msg-existing'), true);
+  assert.equal(messageStore.hasSeenMessageId('msg-failed'), false);
+
+  const commandFile = createStoreFile(t);
+  const commandStore = new FileDedupStore(commandFile);
+  commandStore.markCommandCompleted('txn-pending', 'open_compartment', {
+    action: 'open_compartment',
+    result: 'success',
+    transaction_id: 'txn-pending',
+  });
+  const stateBeforeFailedWrite = commandStore.getCommandRecord('txn-pending');
+  replaceFileWithDirectory(commandFile);
+
+  assert.throws(() => commandStore.markCommandResponseDelivered('txn-pending'));
+  assert.deepEqual(commandStore.getCommandRecord('txn-pending'), stateBeforeFailedWrite);
+  assert.equal(commandStore.getCommandRecord('txn-pending')?.responseDeliveredAt, undefined);
+});
+
 function createStoreFile(t: TestContext): string {
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'open-locker-dedup-'));
   t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
   return path.join(directory, 'dedup.json');
+}
+
+function replaceFileWithDirectory(file: string): void {
+  fs.rmSync(file);
+  fs.mkdirSync(file);
 }

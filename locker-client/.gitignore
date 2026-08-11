@@ -10,3 +10,5 @@ coverage/
 /data/
 .mqtt-client-id
 .mqtt-credentials.json
+
+.e2e-171/

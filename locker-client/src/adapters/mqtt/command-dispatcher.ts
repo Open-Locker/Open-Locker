@@ -34,6 +34,7 @@ interface ValidatedCommand extends ResolvedCommand {
 export class CommandDispatcher {
   private readonly handlers = new Map<string, InboundCommandHandler<unknown>>();
   private flushInFlight: Promise<void> | null = null;
+  private flushRequested = false;
 
   constructor(
     private readonly guard: InboundProtocolGuard,
@@ -76,11 +77,12 @@ export class CommandDispatcher {
   }
 
   flushPendingResponses(): Promise<void> {
+    this.flushRequested = true;
     if (this.flushInFlight) {
       return this.flushInFlight;
     }
 
-    this.flushInFlight = this.flushPendingResponsesInternal().finally(() => {
+    this.flushInFlight = this.flushPendingResponsesUntilIdle().finally(() => {
       this.flushInFlight = null;
     });
     return this.flushInFlight;
@@ -169,7 +171,7 @@ export class CommandDispatcher {
     const existing = this.dedup.getCommandRecord(transactionId);
     if (existing?.status === 'completed') {
       if (existing.response) {
-        await this.publishFinalResponse(transactionId, existing.response);
+        await this.replayFinalResponse(transactionId, existing.response);
       } else {
         logger.warn('Cannot replay legacy completed command without stored response', {
           action,
@@ -193,7 +195,7 @@ export class CommandDispatcher {
       if (dedupResult === 'duplicate_completed') {
         const existing = this.dedup.getCommandRecord(transactionId);
         if (existing?.response) {
-          await this.publishFinalResponse(transactionId, existing.response);
+          await this.replayFinalResponse(transactionId, existing.response);
         } else {
           logger.warn('Cannot replay legacy completed command without stored response', {
             action,
@@ -249,6 +251,21 @@ export class CommandDispatcher {
     for (const { transactionId, record } of pending) {
       await this.publishFinalResponse(transactionId, record.response!);
     }
+  }
+
+  private async flushPendingResponsesUntilIdle(): Promise<void> {
+    while (this.flushRequested) {
+      this.flushRequested = false;
+      await this.flushPendingResponsesInternal();
+    }
+  }
+
+  private async replayFinalResponse(
+    transactionId: string,
+    response: CommandResponseBody,
+  ): Promise<void> {
+    this.dedup.markCommandResponsePending(transactionId);
+    await this.publishFinalResponse(transactionId, response);
   }
 
   private async publishFinalResponse(
