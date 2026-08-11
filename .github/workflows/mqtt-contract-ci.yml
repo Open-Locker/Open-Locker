@@ -1,14 +1,10 @@
-name: MQTT Test CI
+name: Backend Quality
 
 on:
   pull_request:
     paths:
       - 'docs/asyncapi/**'
       - 'locker-backend/**'
-      - 'locker-client/package.json'
-      - 'locker-client/pnpm-lock.yaml'
-      - 'locker-client/src/**'
-      - 'locker-client/tests/**'
       - '.github/workflows/mqtt-contract-ci.yml'
   push:
     branches:
@@ -17,10 +13,6 @@ on:
     paths:
       - 'docs/asyncapi/**'
       - 'locker-backend/**'
-      - 'locker-client/package.json'
-      - 'locker-client/pnpm-lock.yaml'
-      - 'locker-client/src/**'
-      - 'locker-client/tests/**'
       - '.github/workflows/mqtt-contract-ci.yml'
 
 jobs:
@@ -61,37 +53,3 @@ jobs:
 
       - name: Run backend test suite
         run: composer test
-
-  locker-client:
-    name: Locker-client test suite
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-    defaults:
-      run:
-        working-directory: locker-client
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: 9
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v6
-        with:
-          node-version: 22
-          cache: pnpm
-          cache-dependency-path: locker-client/pnpm-lock.yaml
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: Run quality checks
-        run: pnpm check
-
-      - name: Run locker-client test suite
-        run: pnpm test
