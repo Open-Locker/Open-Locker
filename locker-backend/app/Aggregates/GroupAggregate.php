@@ -4,12 +4,14 @@ declare(strict_types=1);
 
 namespace App\Aggregates;
 
+use App\StorableEvents\GroupArchived;
 use App\StorableEvents\GroupCompartmentAccessGranted;
 use App\StorableEvents\GroupCompartmentAccessRevoked;
 use App\StorableEvents\GroupCreated;
 use App\StorableEvents\UserAddedToGroup;
 use App\StorableEvents\UserRemovedFromGroup;
 use Carbon\CarbonInterface;
+use LogicException;
 use Spatie\EventSourcing\AggregateRoots\AggregateRoot;
 
 /**
@@ -18,6 +20,8 @@ use Spatie\EventSourcing\AggregateRoots\AggregateRoot;
  */
 class GroupAggregate extends AggregateRoot
 {
+    private bool $archived = false;
+
     public function createGroup(
         string $groupUuid,
         string $name,
@@ -43,6 +47,8 @@ class GroupAggregate extends AggregateRoot
         CarbonInterface $addedAt,
         ?CarbonInterface $expiresAt = null,
     ): self {
+        $this->ensureNotArchived();
+
         $this->recordThat(new UserAddedToGroup(
             groupUuid: $groupUuid,
             userId: $userId,
@@ -78,6 +84,8 @@ class GroupAggregate extends AggregateRoot
         ?CarbonInterface $expiresAt = null,
         ?string $notes = null,
     ): self {
+        $this->ensureNotArchived();
+
         $this->recordThat(new GroupCompartmentAccessGranted(
             groupUuid: $groupUuid,
             compartmentUuid: $compartmentUuid,
@@ -88,6 +96,29 @@ class GroupAggregate extends AggregateRoot
         ));
 
         return $this;
+    }
+
+    public function archive(
+        string $groupUuid,
+        int $actorUserId,
+        CarbonInterface $archivedAt,
+    ): self {
+        if ($this->archived) {
+            return $this;
+        }
+
+        $this->recordThat(new GroupArchived(
+            groupUuid: $groupUuid,
+            actorUserId: $actorUserId,
+            archivedAt: $archivedAt->toIso8601String(),
+        ));
+
+        return $this;
+    }
+
+    protected function applyGroupArchived(GroupArchived $event): void
+    {
+        $this->archived = true;
     }
 
     public function revokeCompartmentAccess(
@@ -104,5 +135,12 @@ class GroupAggregate extends AggregateRoot
         ));
 
         return $this;
+    }
+
+    private function ensureNotArchived(): void
+    {
+        if ($this->archived) {
+            throw new LogicException('Archived groups cannot receive new members or access grants.');
+        }
     }
 }

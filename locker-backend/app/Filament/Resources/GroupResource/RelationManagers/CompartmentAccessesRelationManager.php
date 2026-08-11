@@ -67,7 +67,7 @@ class CompartmentAccessesRelationManager extends RelationManager
                 \Filament\Actions\Action::make('grantAccess')
                     ->label(__('Grant access'))
                     ->icon('heroicon-m-key')
-                    ->visible(fn (): bool => $this->currentUserCanManageGroups())
+                    ->visible(fn (): bool => $this->currentUserCanManageGroups() && ! $this->ownerGroupIsArchived())
                     ->form(AccessPickerOptions::grantForm(
                         'compartment_ids',
                         __('Compartments'),
@@ -154,5 +154,13 @@ class CompartmentAccessesRelationManager extends RelationManager
         $user = Filament::auth()->user();
 
         return $user instanceof User && $user->can(Permission::GroupsManage->value);
+    }
+
+    private function ownerGroupIsArchived(): bool
+    {
+        /** @var Group $group */
+        $group = $this->getOwnerRecord();
+
+        return $group->isArchived();
     }
 }

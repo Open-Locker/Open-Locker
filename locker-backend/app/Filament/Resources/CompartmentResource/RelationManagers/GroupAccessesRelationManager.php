@@ -53,7 +53,9 @@ class GroupAccessesRelationManager extends RelationManager
                 Tables\Columns\TextColumn::make('revoked_at')
                     ->label(__('Revoked at'))
                     ->dateTime()
-                    ->placeholder(__('Active'))
+                    ->placeholder(fn (GroupCompartmentAccess $record): string => $record->group->isArchived()
+                        ? __('Inactive (group archived)')
+                        : __('Active'))
                     ->sortable(),
                 Tables\Columns\TextColumn::make('notes')
                     ->label(__('Notes'))
@@ -81,6 +83,7 @@ class GroupAccessesRelationManager extends RelationManager
                         $service = app(GroupAccessService::class);
 
                         $groups = Group::query()
+                            ->unarchived()
                             ->whereIn('id', $data['group_ids'])
                             ->get();
 
@@ -133,16 +136,18 @@ class GroupAccessesRelationManager extends RelationManager
         $compartment = $this->getOwnerRecord();
 
         return AccessPickerOptions::groups(
-            Group::query()->whereDoesntHave(
-                'compartmentAccesses',
-                fn (Builder $query): Builder => $query
-                    ->where('compartment_id', $compartment->id)
-                    ->whereNull('revoked_at')
-                    ->where(function (Builder $builder): void {
-                        $builder->whereNull('expires_at')
-                            ->orWhere('expires_at', '>', now());
-                    })
-            )
+            Group::query()
+                ->unarchived()
+                ->whereDoesntHave(
+                    'compartmentAccesses',
+                    fn (Builder $query): Builder => $query
+                        ->where('compartment_id', $compartment->id)
+                        ->whereNull('revoked_at')
+                        ->where(function (Builder $builder): void {
+                            $builder->whereNull('expires_at')
+                                ->orWhere('expires_at', '>', now());
+                        })
+                )
         );
     }
 
