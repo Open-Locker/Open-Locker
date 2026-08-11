@@ -1,0 +1,39 @@
+---
+import config from 'virtual:starlight/user-config';
+import { Icon } from '@astrojs/starlight/components';
+
+const links = config.social || [];
+---
+
+{
+	links.length > 0 && (
+		<>
+			{links.map(({ label, href, icon }) => (
+				<a {href} rel="me" class="sl-flex social-icon" data-icon={icon}>
+					<span class="sr-only">{label}</span>
+					<Icon name={icon} />
+				</a>
+			))}
+		</>
+	)
+}
+
+<style>
+	@layer starlight.core {
+		a.social-icon {
+			align-items: center;
+			justify-content: center;
+			height: 2.25rem;
+			width: 2.25rem;
+			border-radius: 0.375rem;
+			color: var(--sl-color-gray-2);
+		}
+		a.social-icon[data-icon='discord'] {
+			color: var(--sl-color-text-accent);
+		}
+		a.social-icon:hover {
+			color: var(--sl-color-white);
+			background-color: var(--sl-color-gray-6);
+		}
+	}
+</style>

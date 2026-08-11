@@ -27,6 +27,8 @@ class FakeMessageTransport implements MessageTransportPort {
     this.messageHandler = handler;
   }
 
+  onConnected(_handler: () => void | Promise<void>): void {}
+
   emitMessage(topic: string, payload: Record<string, unknown>): void {
     this.messageHandler?.(topic, Buffer.from(JSON.stringify(payload)));
   }
