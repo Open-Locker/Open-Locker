@@ -15,6 +15,10 @@ on:
       - 'locker-backend/**'
       - '.github/workflows/mqtt-contract-ci.yml'
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   backend:
     name: Backend test suite
