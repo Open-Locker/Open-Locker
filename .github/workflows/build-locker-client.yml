@@ -20,7 +20,16 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
+  release-quality:
+    name: Release quality gate
+    if: startsWith(github.ref, 'refs/tags/locker-client-v')
+    uses: ./.github/workflows/locker-client-ci.yml
+    permissions:
+      contents: read
+
   build:
+    needs: release-quality
+    if: always() && (needs.release-quality.result == 'success' || needs.release-quality.result == 'skipped')
     runs-on: ubuntu-latest
     permissions:
       contents: read

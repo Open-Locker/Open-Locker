@@ -1,6 +1,7 @@
 name: Locker Client Quality
 
 on:
+  workflow_call:
   pull_request:
     paths:
       - 'docs/asyncapi/**'
@@ -16,7 +17,7 @@ on:
       - '.github/workflows/locker-client-ci.yml'
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.run_id }}
+  group: ${{ github.workflow }}-quality-${{ github.event.pull_request.number || github.run_id }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
