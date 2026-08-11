@@ -1,6 +1,11 @@
 import type { z } from 'zod';
 import { InboundProtocolGuard } from './inbound-protocol-guard';
-import type { CommandResponseBody, DedupStorePort, OutboundMqttPort } from '../../ports/mqtt.port';
+import type {
+  CommandResponseBody,
+  DedupStorePort,
+  OutboundMqttPort,
+  StoredCommandResponse,
+} from '../../ports/mqtt.port';
 import { mapErrorToMqttCode, MqttErrorCode } from '../../domain/errors';
 import { formatZodValidationError } from '../../domain/mqtt-parsing';
 import { logger } from '../../infrastructure/logging';
@@ -67,9 +72,7 @@ export class CommandDispatcher {
         continue;
       }
       this.dedup.markCommandCompleted(transactionId, record.action, {
-        action: record.action,
         result: 'error',
-        transaction_id: transactionId,
         error_code: MqttErrorCode.UNKNOWN_ERROR,
         message: 'Command outcome is unknown after locker-client restart.',
       });
@@ -171,7 +174,7 @@ export class CommandDispatcher {
     const existing = this.dedup.getCommandRecord(transactionId);
     if (existing?.status === 'completed') {
       if (existing.response) {
-        await this.replayFinalResponse(transactionId, existing.response);
+        await this.replayFinalResponse(transactionId, existing.action, existing.response);
       } else {
         logger.warn('Cannot replay legacy completed command without stored response', {
           action,
@@ -184,7 +187,7 @@ export class CommandDispatcher {
       return;
     }
 
-    this.dedup.markCommandCompleted(transactionId, action, response);
+    this.dedup.markCommandCompleted(transactionId, action, toStoredCommandResponse(response));
     await this.publishFinalResponse(transactionId, response);
   }
 
@@ -195,7 +198,7 @@ export class CommandDispatcher {
       if (dedupResult === 'duplicate_completed') {
         const existing = this.dedup.getCommandRecord(transactionId);
         if (existing?.response) {
-          await this.replayFinalResponse(transactionId, existing.response);
+          await this.replayFinalResponse(transactionId, existing.action, existing.response);
         } else {
           logger.warn('Cannot replay legacy completed command without stored response', {
             action,
@@ -236,7 +239,7 @@ export class CommandDispatcher {
   ): Promise<void> {
     const { action, handler, transactionId } = command;
     if (handler.requiresTransactionId()) {
-      this.dedup.markCommandCompleted(transactionId, action, response);
+      this.dedup.markCommandCompleted(transactionId, action, toStoredCommandResponse(response));
     }
     await this.publishFinalResponse(transactionId, response);
   }
@@ -249,7 +252,9 @@ export class CommandDispatcher {
           record.status === 'completed' && record.response && !record.responseDeliveredAt,
       );
     for (const { transactionId, record } of pending) {
-      await this.publishFinalResponse(transactionId, record.response!);
+      if (record.response) {
+        await this.publishStoredResponse(transactionId, record.action, record.response);
+      }
     }
   }
 
@@ -262,10 +267,23 @@ export class CommandDispatcher {
 
   private async replayFinalResponse(
     transactionId: string,
-    response: CommandResponseBody,
+    action: string,
+    response: StoredCommandResponse,
   ): Promise<void> {
     this.dedup.markCommandResponsePending(transactionId);
-    await this.publishFinalResponse(transactionId, response);
+    await this.publishStoredResponse(transactionId, action, response);
+  }
+
+  private async publishStoredResponse(
+    transactionId: string,
+    action: string,
+    response: StoredCommandResponse,
+  ): Promise<void> {
+    await this.publishFinalResponse(transactionId, {
+      action,
+      transaction_id: transactionId,
+      ...response,
+    });
   }
 
   private async publishFinalResponse(
@@ -304,4 +322,9 @@ export class CommandDispatcher {
 function extractLockerUuid(topic: string): string {
   const parts = topic.split('/');
   return parts[1] ?? '';
+}
+
+function toStoredCommandResponse(response: CommandResponseBody): StoredCommandResponse {
+  const { action: _action, transaction_id: _transactionId, ...storedResponse } = response;
+  return storedResponse;
 }

@@ -5,24 +5,41 @@ import { MqttSchemaValidationError, parseProvisioningResponse } from '../domain/
 import type { CredentialStorePort } from '../ports/config.port';
 import type { MessageTransportPort } from '../ports/mqtt.port';
 import { logger } from '../infrastructure/logging';
+import {
+  atomicWriteFileSync,
+  PersistentStateCorruptedError,
+} from '../infrastructure/file-persistence';
 
 export const DEFAULT_MQTT_BROKER_URL = 'mqtt://open-locker.cloud';
 
 export function getOrCreateClientId(clientIdFilePath: string): string {
-  if (process.env.MQTT_CLIENT_ID) {
-    return process.env.MQTT_CLIENT_ID;
+  const configuredClientId = process.env.MQTT_CLIENT_ID?.trim();
+  if (configuredClientId) {
+    validateClientId(configuredClientId, 'MQTT_CLIENT_ID');
+    return configuredClientId;
   }
 
   if (fs.existsSync(clientIdFilePath)) {
     const existing = fs.readFileSync(clientIdFilePath, 'utf8').trim();
-    if (existing) {
-      return existing;
+    try {
+      validateClientId(existing, clientIdFilePath);
+    } catch (error) {
+      throw new PersistentStateCorruptedError('MQTT client ID', clientIdFilePath, {
+        cause: error,
+      });
     }
+    return existing;
   }
 
   const clientId = `locker-client-${randomBytes(4).toString('hex')}`;
-  fs.writeFileSync(clientIdFilePath, clientId, 'utf8');
+  atomicWriteFileSync(clientIdFilePath, clientId, { mode: 0o600 });
   return clientId;
+}
+
+function validateClientId(clientId: string, source: string): void {
+  if (!/^[A-Za-z0-9:_-]{1,128}$/.test(clientId)) {
+    throw new Error(`Invalid MQTT client ID in ${source}`);
+  }
 }
 
 export function getRequiredProvisioningDefaults(): {

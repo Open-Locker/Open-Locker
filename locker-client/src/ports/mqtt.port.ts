@@ -5,8 +5,15 @@ export interface OutboundPublishOptions {
 
 export interface CommandResponseBody {
   action: string;
-  result: 'success' | 'error';
   transaction_id: string;
+  result: 'success' | 'error';
+  message?: string;
+  error_code?: string;
+  applied_config_hash?: string;
+}
+
+export interface StoredCommandResponse {
+  result: 'success' | 'error';
   message?: string;
   error_code?: string;
   applied_config_hash?: string;
@@ -42,13 +49,36 @@ export interface MqttTransportSettings {
   maxReconnectAttempts: number;
 }
 
-export interface CommandRecord {
+interface CommandRecordBase {
   action: string;
-  status: 'in_progress' | 'completed';
   updatedAt: string;
-  response?: CommandResponseBody;
-  responseDeliveredAt?: string;
 }
+
+export interface InProgressCommandRecord extends CommandRecordBase {
+  status: 'in_progress';
+  response?: never;
+  responseDeliveredAt?: never;
+  legacyResponseUnavailable?: never;
+}
+
+export interface CompletedCommandRecord extends CommandRecordBase {
+  status: 'completed';
+  response: StoredCommandResponse;
+  responseDeliveredAt?: string;
+  legacyResponseUnavailable?: never;
+}
+
+export interface LegacyCompletedCommandRecord extends CommandRecordBase {
+  status: 'completed';
+  legacyResponseUnavailable: true;
+  response?: never;
+  responseDeliveredAt?: never;
+}
+
+export type CommandRecord =
+  | InProgressCommandRecord
+  | CompletedCommandRecord
+  | LegacyCompletedCommandRecord;
 
 export interface DedupStorePort {
   hasSeenMessageId(messageId: string): boolean;
@@ -56,7 +86,11 @@ export interface DedupStorePort {
   getCommandRecord(transactionId: string): CommandRecord | null;
   listCommandRecords(): Array<{ transactionId: string; record: CommandRecord }>;
   markCommandInProgress(transactionId: string, action: string): void;
-  markCommandCompleted(transactionId: string, action: string, response: CommandResponseBody): void;
+  markCommandCompleted(
+    transactionId: string,
+    action: string,
+    response: StoredCommandResponse,
+  ): void;
   markCommandResponsePending(transactionId: string): void;
   markCommandResponseDelivered(transactionId: string): void;
 }

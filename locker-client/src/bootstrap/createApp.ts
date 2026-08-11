@@ -29,17 +29,20 @@ import {
 import { connectionLostWillOptions } from '../infrastructure/mqtt-will';
 import { logger } from '../infrastructure/logging';
 import { createWinstonLoggerPort } from '../infrastructure/winston-logger.adapter';
-import { MQTT_CLIENT_ID_FILE } from '../infrastructure/paths';
+import { DATA_DIR, MQTT_CLIENT_ID_FILE } from '../infrastructure/paths';
+import { ensurePrivateDirectory } from '../infrastructure/file-persistence';
 
 export interface AppContext {
   shutdown(): Promise<void>;
 }
 
 export async function createApp(): Promise<AppContext> {
+  ensurePrivateDirectory(DATA_DIR);
   const configRepo = new YamlConfigRepository(new FileRuntimeOverlayStore());
   const config = configRepo.load();
   const credentialStore = new FileCredentialStore();
   const dedupStore = new FileDedupStore();
+  dedupStore.assertHealthy();
   const transport = new MqttTransportAdapter(configRepo.getMqttTransportSettings());
 
   const driver = new WaveshareModbusRtuDriver({
