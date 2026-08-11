@@ -4,14 +4,7 @@ on:
   pull_request:
     paths:
       - 'docs/asyncapi/**'
-      - 'locker-backend/app/**'
-      - 'locker-backend/bootstrap/**'
-      - 'locker-backend/composer.json'
-      - 'locker-backend/composer.lock'
-      - 'locker-backend/config/**'
-      - 'locker-backend/database/**'
-      - 'locker-backend/phpunit.xml'
-      - 'locker-backend/tests/**'
+      - 'locker-backend/**'
       - 'locker-client/package.json'
       - 'locker-client/pnpm-lock.yaml'
       - 'locker-client/src/**'
@@ -23,14 +16,7 @@ on:
       - dev
     paths:
       - 'docs/asyncapi/**'
-      - 'locker-backend/app/**'
-      - 'locker-backend/bootstrap/**'
-      - 'locker-backend/composer.json'
-      - 'locker-backend/composer.lock'
-      - 'locker-backend/config/**'
-      - 'locker-backend/database/**'
-      - 'locker-backend/phpunit.xml'
-      - 'locker-backend/tests/**'
+      - 'locker-backend/**'
       - 'locker-client/package.json'
       - 'locker-client/pnpm-lock.yaml'
       - 'locker-client/src/**'
