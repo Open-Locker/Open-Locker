@@ -138,16 +138,16 @@ export async function createApp(): Promise<AppContext> {
   dispatcher.register(
     createOpenCompartmentHandler({
       openCompartment,
-      outbound,
       pollSnapshot,
     }),
   );
-  dispatcher.register(createApplyConfigHandler({ applyConfig, outbound }));
+  dispatcher.register(createApplyConfigHandler({ applyConfig }));
+  dispatcher.recoverInterruptedCommands();
+  transport.onConnected(() => dispatcher.flushPendingResponses());
+  await dispatcher.flushPendingResponses();
 
   transport.onMessage((topic, payload) => {
-    if (topic === commandTopic) {
-      void dispatcher.dispatch(topic, payload.toString());
-    }
+    dispatchMqttMessage(dispatcher, commandTopic, topic, payload);
   });
 
   await transport.subscribe(commandTopic);
@@ -171,6 +171,28 @@ export async function createApp(): Promise<AppContext> {
       await transport.disconnect();
     },
   };
+}
+
+interface DispatchErrorLogger {
+  error(message: string, metadata?: Record<string, unknown>): unknown;
+}
+
+export function dispatchMqttMessage(
+  dispatcher: Pick<CommandDispatcher, 'dispatch'>,
+  commandTopic: string,
+  topic: string,
+  payload: Buffer,
+  log: DispatchErrorLogger = logger,
+): void {
+  if (topic !== commandTopic) {
+    return;
+  }
+
+  void dispatcher.dispatch(topic, payload.toString()).catch((error: unknown) => {
+    log.error('Unexpected MQTT command dispatch failure', {
+      error: error instanceof Error ? error.message : 'Unknown dispatch error',
+    });
+  });
 }
 
 function sleep(ms: number): Promise<void> {
