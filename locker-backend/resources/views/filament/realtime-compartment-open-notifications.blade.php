@@ -19,60 +19,54 @@
 
             window[registrationKey] = true;
 
-            const statusTitles = {
-                accepted: 'Open request accepted',
-                sent: 'Open command sent',
-                opened: 'Compartment opened',
-                denied: 'Open request denied',
-                failed: 'Open request failed',
-            };
-
-            const statusLevel = {
-                accepted: 'success',
-                sent: 'info',
-                opened: 'success',
-                denied: 'danger',
-                failed: 'danger',
-            };
+            // Only terminal outcomes are shown; intermediate statuses
+            // (accepted, sent) and door-state changes stay silent.
+            const toasts = @js([
+                'opened' => [
+                    'title' => __('Compartment opened'),
+                    'body' => __('Compartment :number of locker :locker'),
+                    'level' => 'success',
+                ],
+                'denied' => [
+                    'title' => __('Open request denied'),
+                    'body' => __('Compartment :number of locker :locker: :reason'),
+                    'level' => 'danger',
+                ],
+                'failed' => [
+                    'title' => __('Open request failed'),
+                    'body' => __('Compartment :number of locker :locker. Check the open command history for details.'),
+                    'level' => 'danger',
+                ],
+            ]);
+            const denialReasons = @js([
+                'unverified_email' => __('Your email address is not verified.'),
+                'missing_active_access' => __('You do not have active access to this compartment.'),
+            ]);
+            const defaultDenialReason = @js(__('You are not authorized to open this compartment.'));
 
             const compartmentStatus = window.Echo.private(`users.${userId}.compartment-status`);
 
             compartmentStatus.listen('.compartment.open.status.updated', (payload) => {
-                const status = payload?.status ?? 'sent';
-                const commandId = payload?.command_id ?? 'n/a';
-                const messageParts = [`Command: ${commandId}`];
+                const toast = toasts[payload?.status];
 
-                if (payload?.compartment_id) {
-                    messageParts.push(`Compartment: ${payload.compartment_id}`);
+                if (! toast) {
+                    return;
                 }
 
-                if (payload?.message) {
-                    messageParts.push(`Message: ${payload.message}`);
-                }
-
-                if (payload?.error_code) {
-                    messageParts.push(`Error: ${payload.error_code}`);
-                }
+                const reason = denialReasons[payload?.message] ?? defaultDenialReason;
+                const body = toast.body
+                    .replace(':number', payload?.compartment_number ?? payload?.compartment_id ?? '?')
+                    .replace(':locker', payload?.locker_name ?? '?')
+                    .replace(':reason', reason);
 
                 const notification = new window.FilamentNotification()
-                    .title(statusTitles[status] ?? 'Compartment status updated')
-                    .body(messageParts.join(' | '));
+                    .title(toast.title)
+                    .body(body);
 
-                const level = statusLevel[status] ?? 'info';
-                if (typeof notification[level] === 'function') {
-                    notification[level]();
+                if (typeof notification[toast.level] === 'function') {
+                    notification[toast.level]();
                 }
 
-                notification.send();
-            });
-
-            compartmentStatus.listen('.compartment.door_state.updated', (payload) => {
-                const door = payload?.door_state ?? 'unknown';
-                const compartmentId = payload?.compartment_id ?? 'n/a';
-                const notification = new window.FilamentNotification()
-                    .title('Compartment door state')
-                    .body(`Compartment: ${compartmentId} | Door: ${door}`)
-                    .info();
                 notification.send();
             });
         })();
