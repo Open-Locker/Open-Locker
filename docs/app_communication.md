@@ -56,9 +56,17 @@ All compartment-related push notifications use this channel:
   "compartment_id": "uuid",
   "status": "accepted|denied|sent|opened|failed",
   "error_code": "nullable-string",
-  "message": "nullable-string"
+  "message": "nullable-string",
+  "compartment_number": "nullable-integer",
+  "locker_name": "nullable-string"
 }
 ```
+
+`compartment_number` and `locker_name` provide human-readable context for
+terminal notifications. They can be `null` when the compartment read model is
+unavailable. For denied requests, `message` contains a stable reason code such
+as `unverified_email` or `missing_active_access`; clients must localize known
+codes and use a generic denial message for unknown values. See ADR-0033.
 
 **Door state** (`.compartment.door_state.updated`):
 
