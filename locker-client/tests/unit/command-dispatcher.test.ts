@@ -141,6 +141,47 @@ test('dispatcher ignores duplicate message_id before side effects', async () => 
   assert.equal(commandResponses(published).length, 1);
 });
 
+test('legacy dedup migration never repeats a completed physical command', async (t) => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'open-locker-legacy-dedup-'));
+  t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
+  const file = path.join(directory, 'dedup.json');
+  fs.writeFileSync(
+    file,
+    JSON.stringify({
+      seenMessageIds: {},
+      commandRecords: {
+        'txn-legacy-completed': {
+          action: 'open_compartment',
+          status: 'completed',
+          updatedAt: '2026-04-11T10:00:00Z',
+        },
+      },
+    }),
+    'utf8',
+  );
+  const store = new FileDedupStore(file);
+  store.assertHealthy();
+  const { bus, dispatcher, openCompartment, published } = createDispatcherHarness(
+    new FakeLockerBus([1]),
+    store,
+  );
+
+  await dispatcher.dispatch(
+    'locker/test/command',
+    JSON.stringify({
+      action: 'open_compartment',
+      transaction_id: 'txn-legacy-completed',
+      message_id: 'msg-after-migration',
+      timestamp: '2026-04-11T10:00:00Z',
+      data: { compartment_number: 1 },
+    }),
+  );
+
+  openCompartment.stopAllMonitoring();
+  assert.equal(bus.flashCalls.length, 0);
+  assert.equal(commandResponses(published).length, 0);
+});
+
 test('dispatcher rejects invalid payload with structured error', async () => {
   const { bus, dispatcher, openCompartment, published } = createDispatcherHarness();
 
@@ -208,9 +249,7 @@ test('invalid response remains persistently pending after publish failure and ca
 test('invalid duplicate does not overwrite a completed success response', async () => {
   const { bus, dedup, dispatcher, openCompartment, published } = createDispatcherHarness();
   const successResponse = {
-    action: 'open_compartment',
     result: 'success' as const,
-    transaction_id: 'txn-invalid-duplicate',
     message: 'Compartment opened.',
   };
   dedup.markCommandCompleted('txn-invalid-duplicate', 'open_compartment', successResponse);
@@ -324,9 +363,7 @@ test('failed open stores and replays its error without retrying hardware', async
 test('duplicate completed open_compartment replays its stored response', async () => {
   const { bus, dedup, dispatcher, openCompartment, published } = createDispatcherHarness();
   dedup.markCommandCompleted('txn-dup', 'open_compartment', {
-    action: 'open_compartment',
     result: 'success',
-    transaction_id: 'txn-dup',
     message: 'Compartment opened.',
   });
 
@@ -368,9 +405,7 @@ test('apply_config replays a completed response without re-running', async () =>
   dispatcher.register(createApplyConfigHandler({ applyConfig }));
 
   dedup.markCommandCompleted('txn-apply-dup', 'apply_config', {
-    action: 'apply_config',
     result: 'success',
-    transaction_id: 'txn-apply-dup',
     applied_config_hash: configHash,
     message: 'Configuration applied.',
   });
@@ -551,9 +586,7 @@ test('failed delivered duplicate replay is pending and flushes on reconnect', as
 test('flush rescans when requested while another flush is active', async () => {
   const dedup = new InMemoryDedupStore();
   dedup.markCommandCompleted('txn-first', 'open_compartment', {
-    action: 'open_compartment',
     result: 'success',
-    transaction_id: 'txn-first',
   });
   let releaseFirstPublish: (() => void) | undefined;
   const firstPublishBlocked = new Promise<void>((resolve) => {
@@ -577,9 +610,7 @@ test('flush rescans when requested while another flush is active', async () => {
   const firstFlush = dispatcher.flushPendingResponses();
   await firstPublishHasStarted;
   dedup.markCommandCompleted('txn-second', 'open_compartment', {
-    action: 'open_compartment',
     result: 'success',
-    transaction_id: 'txn-second',
   });
   const followUpFlush = dispatcher.flushPendingResponses();
   assert.equal(firstFlush, followUpFlush);
