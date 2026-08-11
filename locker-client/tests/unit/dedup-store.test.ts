@@ -12,6 +12,24 @@ import { InboundProtocolGuard } from '../../src/adapters/mqtt/inbound-protocol-g
 import { OutboundMqttAdapter } from '../../src/adapters/mqtt/outbound-mqtt.adapter';
 import { PersistentStateCorruptedError } from '../../src/infrastructure/file-persistence';
 
+const supportsUnixModes = process.platform !== 'win32';
+
+test(
+  'existing dedup and response state permissions are hardened on read',
+  { skip: !supportsUnixModes },
+  (t) => {
+    const file = createStoreFile(t);
+    fs.writeFileSync(file, JSON.stringify({ version: 2, seenMessageIds: {}, commandRecords: {} }), {
+      mode: 0o644,
+    });
+    fs.chmodSync(file, 0o644);
+
+    new FileDedupStore(file).assertHealthy();
+
+    assert.equal(fs.statSync(file).mode & 0o777, 0o600);
+  },
+);
+
 test('completed response survives a store restart and can be sent', async (t) => {
   const file = createStoreFile(t);
   const store = new FileDedupStore(file);

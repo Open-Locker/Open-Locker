@@ -8,6 +8,7 @@ import { logger } from '../infrastructure/logging';
 import {
   atomicWriteFileSync,
   PersistentStateCorruptedError,
+  readPrivateFileSync,
 } from '../infrastructure/file-persistence';
 
 export const DEFAULT_MQTT_BROKER_URL = 'mqtt://open-locker.cloud';
@@ -20,7 +21,7 @@ export function getOrCreateClientId(clientIdFilePath: string): string {
   }
 
   if (fs.existsSync(clientIdFilePath)) {
-    const existing = fs.readFileSync(clientIdFilePath, 'utf8').trim();
+    const existing = readPrivateFileSync(clientIdFilePath).toString('utf8').trim();
     try {
       validateClientId(existing, clientIdFilePath);
     } catch (error) {

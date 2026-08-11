@@ -6,6 +6,7 @@ import { RUNTIME_CONFIG_OVERLAY_FILE } from '../../infrastructure/paths';
 import {
   atomicWriteFileSync,
   PersistentStateCorruptedError,
+  readPrivateFileSync,
 } from '../../infrastructure/file-persistence';
 
 const MAX_RELAY_ADDRESS = 7;
@@ -88,7 +89,7 @@ export class FileRuntimeOverlayStore {
       return null;
     }
     try {
-      const raw = fs.readFileSync(this.filePath, 'utf8').trim();
+      const raw = readPrivateFileSync(this.filePath).toString('utf8').trim();
       if (!raw) {
         throw new PersistentStateCorruptedError('runtime configuration overlay', this.filePath);
       }

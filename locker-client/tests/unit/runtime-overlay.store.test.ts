@@ -6,6 +6,23 @@ import { test, type TestContext } from 'node:test';
 import { FileRuntimeOverlayStore } from '../../src/adapters/config/runtime-overlay.store';
 import { PersistentStateCorruptedError } from '../../src/infrastructure/file-persistence';
 
+const supportsUnixModes = process.platform !== 'win32';
+
+test(
+  'existing runtime overlay permissions are hardened on read',
+  { skip: !supportsUnixModes },
+  (t) => {
+    const file = createOverlayFile(t);
+    fs.writeFileSync(file, JSON.stringify({ mqtt: { heartbeatInterval: 30 } }), { mode: 0o644 });
+    fs.chmodSync(file, 0o644);
+
+    assert.deepEqual(new FileRuntimeOverlayStore(file).load(), {
+      mqtt: { heartbeatInterval: 30 },
+    });
+    assert.equal(fs.statSync(file).mode & 0o777, 0o600);
+  },
+);
+
 test('empty runtime overlay fails closed and is not replaced', (t) => {
   const file = createOverlayFile(t);
   fs.writeFileSync(file, '', 'utf8');

@@ -8,6 +8,7 @@ export interface AtomicWriteFileSystem {
   fsyncSync: typeof fs.fsyncSync;
   closeSync: typeof fs.closeSync;
   chmodSync: typeof fs.chmodSync;
+  fchmodSync: typeof fs.fchmodSync;
   renameSync: typeof fs.renameSync;
   unlinkSync: typeof fs.unlinkSync;
   mkdirSync: typeof fs.mkdirSync;
@@ -31,9 +32,37 @@ export class PersistentStateCorruptedError extends Error {
 
 export function ensurePrivateDirectory(
   directoryPath: string,
-  fileSystem: Pick<AtomicWriteFileSystem, 'mkdirSync'> = fs,
+  fileSystem: Pick<
+    AtomicWriteFileSystem,
+    'mkdirSync' | 'chmodSync' | 'openSync' | 'fchmodSync' | 'closeSync'
+  > = fs,
 ): void {
   fileSystem.mkdirSync(directoryPath, { recursive: true, mode: 0o700 });
+  if (process.platform === 'win32') {
+    fileSystem.chmodSync(directoryPath, 0o700);
+    return;
+  }
+
+  const descriptor = fileSystem.openSync(
+    directoryPath,
+    fs.constants.O_RDONLY | fs.constants.O_DIRECTORY | fs.constants.O_NOFOLLOW,
+  );
+  try {
+    fileSystem.fchmodSync(descriptor, 0o700);
+  } finally {
+    fileSystem.closeSync(descriptor);
+  }
+}
+
+export function readPrivateFileSync(filePath: string): Buffer {
+  const noFollowFlag = process.platform === 'win32' ? 0 : fs.constants.O_NOFOLLOW;
+  const descriptor = fs.openSync(filePath, fs.constants.O_RDONLY | noFollowFlag);
+  try {
+    fs.fchmodSync(descriptor, 0o600);
+    return fs.readFileSync(descriptor);
+  } finally {
+    fs.closeSync(descriptor);
+  }
 }
 
 export function atomicWriteFileSync(
@@ -69,10 +98,10 @@ export function atomicWriteFileSync(
       }
       offset += written;
     }
+    fileSystem.fchmodSync(descriptor, mode);
     fileSystem.fsyncSync(descriptor);
     fileSystem.closeSync(descriptor);
     descriptor = null;
-    fileSystem.chmodSync(temporaryPath, mode);
     fileSystem.renameSync(temporaryPath, filePath);
   } catch (error) {
     if (descriptor !== null) {
@@ -86,9 +115,7 @@ export function atomicWriteFileSync(
       fileSystem.unlinkSync(temporaryPath);
     } catch (cleanupError) {
       if (!isMissingFileError(cleanupError)) {
-        throw new Error(`Failed to persist ${filePath}`, {
-          cause: cleanupError,
-        });
+        throw persistenceCleanupError(filePath, error, cleanupError);
       }
     }
     throw error;
@@ -97,25 +124,71 @@ export function atomicWriteFileSync(
   flushDirectoryBestEffort(directory, fileSystem);
 }
 
+function persistenceCleanupError(
+  filePath: string,
+  primaryError: unknown,
+  cleanupError: unknown,
+): AggregateError {
+  return new AggregateError(
+    [primaryError, cleanupError],
+    `Failed to persist ${filePath} and remove its temporary file`,
+    { cause: primaryError },
+  );
+}
+
 function flushDirectoryBestEffort(
   directory: string,
   fileSystem: Pick<AtomicWriteFileSystem, 'openSync' | 'fsyncSync' | 'closeSync'>,
 ): void {
   let descriptor: number | null = null;
+  let operationError: unknown;
   try {
     descriptor = fileSystem.openSync(directory, 'r');
     fileSystem.fsyncSync(descriptor);
-  } catch {
-    // The rename already committed; directory fsync is not supported on every filesystem.
-  } finally {
-    if (descriptor !== null) {
-      try {
-        fileSystem.closeSync(descriptor);
-      } catch {
-        // The data file was already flushed and renamed.
-      }
+  } catch (error) {
+    operationError = error;
+  }
+
+  let closeError: unknown;
+  if (descriptor !== null) {
+    try {
+      fileSystem.closeSync(descriptor);
+    } catch (error) {
+      closeError = error;
     }
   }
+
+  if (operationError !== undefined && !isUnsupportedDirectoryFsyncError(operationError)) {
+    const cause =
+      closeError === undefined
+        ? operationError
+        : new AggregateError([operationError, closeError], 'Directory flush and close failed', {
+            cause: operationError,
+          });
+    throw directoryFlushError(directory, cause);
+  }
+  if (closeError !== undefined) {
+    throw directoryFlushError(directory, closeError);
+  }
+}
+
+function directoryFlushError(directory: string, cause: unknown): Error {
+  return new Error(
+    `Persistent state rename completed, but directory flush failed for ${directory}`,
+    {
+      cause,
+    },
+  );
+}
+
+function isUnsupportedDirectoryFsyncError(error: unknown): boolean {
+  if (!(error instanceof Error) || !('code' in error)) {
+    return false;
+  }
+  if (error.code === 'EINVAL' || error.code === 'ENOTSUP' || error.code === 'EOPNOTSUPP') {
+    return true;
+  }
+  return process.platform === 'win32' && (error.code === 'EISDIR' || error.code === 'EPERM');
 }
 
 function isMissingFileError(error: unknown): boolean {

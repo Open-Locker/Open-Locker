@@ -13,6 +13,8 @@ import type { CredentialStorePort } from '../../src/ports/config.port';
 import type { MessageTransportPort, MqttTransportSettings } from '../../src/ports/mqtt.port';
 import { assertMatchesSchema, readAsyncApiExample } from '../contract/jsonSchema';
 
+const supportsUnixModes = process.platform !== 'win32';
+
 class FakeMessageTransport implements MessageTransportPort {
   published: Array<{ topic: string; payload: string }> = [];
   private messageHandler: ((topic: string, payload: Buffer) => void) | null = null;
@@ -77,6 +79,15 @@ test('client ID is created atomically and reused', (t) => {
   assert.match(created, /^locker-client-[a-f0-9]{8}$/);
   assert.equal(reused, created);
   assert.deepEqual(fs.readdirSync(path.dirname(file)), [path.basename(file)]);
+});
+
+test('existing client ID permissions are hardened on read', { skip: !supportsUnixModes }, (t) => {
+  const file = createClientIdFile(t);
+  fs.writeFileSync(file, 'locker-client-existing', { mode: 0o644 });
+  fs.chmodSync(file, 0o644);
+
+  assert.equal(getOrCreateClientId(file), 'locker-client-existing');
+  assert.equal(fs.statSync(file).mode & 0o777, 0o600);
 });
 
 test('empty client ID fails closed and remains available for operator recovery', (t) => {

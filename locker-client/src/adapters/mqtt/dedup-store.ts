@@ -5,6 +5,7 @@ import { MQTT_DEDUP_STATE_FILE } from '../../infrastructure/paths';
 import {
   atomicWriteFileSync,
   PersistentStateCorruptedError,
+  readPrivateFileSync,
 } from '../../infrastructure/file-persistence';
 
 interface DedupState {
@@ -246,7 +247,7 @@ export class FileDedupStore implements DedupStorePort {
     let loaded: DedupState;
     let migratedLegacy = false;
     try {
-      const raw: unknown = JSON.parse(fs.readFileSync(this.filePath, 'utf8'));
+      const raw: unknown = JSON.parse(readPrivateFileSync(this.filePath).toString('utf8'));
       if (hasVersionMarker(raw)) {
         const parsed = persistedDedupStateSchema.parse(raw);
         loaded = {

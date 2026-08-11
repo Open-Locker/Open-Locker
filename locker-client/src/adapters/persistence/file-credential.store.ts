@@ -5,6 +5,7 @@ import { MQTT_CREDENTIALS_FILE } from '../../infrastructure/paths';
 import {
   atomicWriteFileSync,
   PersistentStateCorruptedError,
+  readPrivateFileSync,
 } from '../../infrastructure/file-persistence';
 
 const credentialsSchema = z.object({
@@ -19,9 +20,8 @@ export class FileCredentialStore implements CredentialStorePort {
     if (!fs.existsSync(this.filePath)) {
       return null;
     }
-    fs.chmodSync(this.filePath, 0o600);
     try {
-      const raw: unknown = JSON.parse(fs.readFileSync(this.filePath, 'utf8'));
+      const raw: unknown = JSON.parse(readPrivateFileSync(this.filePath).toString('utf8'));
       const parsed = credentialsSchema.safeParse(raw);
       if (!parsed.success) {
         throw new PersistentStateCorruptedError('MQTT credentials', this.filePath);
