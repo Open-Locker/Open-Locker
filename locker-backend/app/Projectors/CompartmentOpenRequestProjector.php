@@ -16,6 +16,7 @@ use App\StorableEvents\CompartmentOpeningFailed;
 use App\StorableEvents\CompartmentOpeningRequested;
 use App\StorableEvents\CompartmentOpenNotDetected;
 use App\StorableEvents\CompartmentOpenRequested;
+use Carbon\CarbonImmutable;
 use Illuminate\Support\Carbon;
 use Spatie\EventSourcing\EventHandlers\Projectors\Projector;
 
@@ -166,8 +167,13 @@ class CompartmentOpenRequestProjector extends Projector
             ->update($attributes);
     }
 
-    private function timestampOrNow(?string $timestamp): Carbon
+    /**
+     * The app pins dates to CarbonImmutable (AppServiceProvider), but
+     * Carbon::parse() hands back a mutable instance, so the two branches
+     * disagreed on type. Parse through the Date facade to honour the pin.
+     */
+    private function timestampOrNow(?string $timestamp): CarbonImmutable
     {
-        return $timestamp ? Carbon::parse($timestamp) : now();
+        return $timestamp ? CarbonImmutable::parse($timestamp) : CarbonImmutable::now();
     }
 }

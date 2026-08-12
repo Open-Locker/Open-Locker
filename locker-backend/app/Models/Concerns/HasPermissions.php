@@ -26,12 +26,15 @@ trait HasPermissions
     /** @return list<string> */
     public function roleNames(): array
     {
-        return $this->cachedRoleNames ??= $this->relationLoaded('userRoles')
-            ? $this->userRoles->pluck('role')->all()
-            : UserRole::query()
-                ->where('user_id', $this->getKey())
-                ->pluck('role')
-                ->all();
+        return $this->cachedRoleNames ??= array_values(array_map(
+            static fn (mixed $role): string => (string) $role,
+            $this->relationLoaded('userRoles')
+                ? $this->userRoles->pluck('role')->all()
+                : UserRole::query()
+                    ->where('user_id', $this->getKey())
+                    ->pluck('role')
+                    ->all()
+        ));
     }
 
     public function hasRole(string $role): bool

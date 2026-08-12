@@ -6,6 +6,8 @@ namespace Tests\Feature;
 
 use App\Events\CompartmentOpenStatusUpdated;
 use App\Filament\Resources\CompartmentResource\Pages\ListCompartments;
+use App\Filament\Resources\LockerBankResource\Pages\EditLockerBank;
+use App\Filament\Resources\LockerBankResource\RelationManagers\CompartmentsRelationManager;
 use App\Models\Compartment;
 use App\Models\User;
 use App\Services\CompartmentAccessService;
@@ -72,6 +74,52 @@ class CompartmentOpenNotificationTest extends TestCase
             ->test(ListCompartments::class)
             ->callAction(TestAction::make('open')->table($compartment))
             ->assertNotified(__('Failed to send open command'));
+    }
+
+    /**
+     * The compartments relation manager carries its own copy of the open action.
+     * These pin its behaviour so it stays covered independently of the
+     * compartment list, whose copy the tests above drive.
+     */
+    public function test_denied_open_from_the_relation_manager_notifies_the_same_way(): void
+    {
+        $admin = User::factory()->unverified()->create();
+        $admin->makeAdmin();
+
+        $compartment = Compartment::factory()->create();
+
+        Livewire::actingAs($admin)
+            ->test(CompartmentsRelationManager::class, [
+                'ownerRecord' => $compartment->lockerBank,
+                'pageClass' => EditLockerBank::class,
+            ])
+            ->callAction(TestAction::make('open')->table($compartment))
+            ->assertNotified(__('Open command denied'));
+    }
+
+    public function test_open_failure_from_the_relation_manager_hides_exception_details(): void
+    {
+        $admin = User::factory()->create();
+        $admin->makeAdmin();
+
+        $compartment = Compartment::factory()->create();
+
+        $this->partialMock(
+            CompartmentAccessService::class,
+            fn (MockInterface $mock) => $mock
+                ->shouldReceive('requestOpen')
+                ->once()
+                ->andThrow(new RuntimeException('internal database detail')),
+        );
+
+        Livewire::actingAs($admin)
+            ->test(CompartmentsRelationManager::class, [
+                'ownerRecord' => $compartment->lockerBank,
+                'pageClass' => EditLockerBank::class,
+            ])
+            ->callAction(TestAction::make('open')->table($compartment))
+            ->assertNotified(__('Failed to send open command'))
+            ->assertDontSee('internal database detail');
     }
 
     public function test_broadcast_payload_keeps_original_keys_and_adds_compartment_context(): void
