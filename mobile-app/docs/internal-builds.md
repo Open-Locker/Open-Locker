@@ -97,9 +97,15 @@ This writes (all **gitignored**, never commit): `credentials.json`,
 
 ## Installing a build (for testers)
 
-### Android (anyone — device or emulator)
+### Android (physical devices, and arm64 emulators only)
 
 The Android job uploads an installable `.apk` as a GitHub Actions artifact.
+
+The APK is built for `armeabi-v7a` and `arm64-v8a` only — the emulator-only `x86`
+and `x86_64` ABIs cost about a third of the build time and never reach a real
+test device (see [ADR-0035](../../docs/adr/0035-android-internal-build-abi-and-cache-strategy.md)).
+On Apple Silicon the default emulator image is arm64 and installs fine. On an
+x86 emulator, build locally with `pnpm android` instead.
 
 1. Open the workflow run: GitHub → **Actions** → **Mobile App Build** → the run.
 2. Scroll to **Artifacts** → download **`openlocker-android`** (a zip).
@@ -110,8 +116,9 @@ The Android job uploads an installable `.apk` as a GitHub Actions artifact.
      ```bash
      adb install openlocker-android.apk
      ```
-   - **Emulator:** start the emulator, then `adb install openlocker-android.apk`
-     (or drag-and-drop the `.apk` onto the emulator window).
+   - **Emulator (arm64 image only):** start the emulator, then
+     `adb install openlocker-android.apk` (or drag-and-drop the `.apk` onto the
+     emulator window). An x86/x86_64 emulator rejects this APK — build locally.
 
    Download the artifact from the CLI instead of the browser:
 
