@@ -93,11 +93,18 @@ which is the default on Apple Silicon. If emulator-installable internal artifact
 requirement, the fix is a separate build profile that keeps all four ABIs, not reverting
 this one.
 
-Release lint no longer runs during the build; `mobile-app-ci.yml` remains the lint gate.
+Android lint no longer runs anywhere in CI. `mobile-app-ci.yml` covers TypeScript
+(`typecheck`, `expo lint`, `format:check`, Jest, `expo-doctor`) but never invoked AGP's
+`lintVital`, which checks a different class of problem: manifest errors, resource
+problems, missing translations, unsafe API levels. Skipping it in the build removes that
+coverage rather than relocating it. It was previously running only at artifact-build time
+on `main`, where nobody read the report; if the coverage is wanted back, the right home is
+a `lintRelease` step in `mobile-app-ci.yml` that runs per pull request.
 
 Warm runs depend on cache restoration. A cold run — first build after a dependency change,
-or after the 7-day GitHub cache eviction — still pays the download and full-compile cost,
-so the improvement is a floor-to-ceiling range rather than a fixed number.
+or after the 7-day GitHub cache eviction — still pays the download and full-compile cost.
+Measured on the Android job: 22m26s before (mean of two runs, 6.3% spread), 14m23s after
+on a cold cache, 10m25s after on a warm one.
 
 The pinned EAS CLI version must now be bumped deliberately. That is the intent, but it
 adds a maintenance step that will otherwise drift.
