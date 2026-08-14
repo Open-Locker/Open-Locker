@@ -32,9 +32,10 @@ Releases — so the Beta is the **first release**. This document therefore has t
 2. **Change log** — what landed, grouped by component and derived from the Conventional
    Commit history (path-filtered per component) plus the issues and pull requests.
 
-Per ADR-0033 the durable form of this is generated per component into the GitHub Release
-attached to each tag (`backend-vX.Y.Z`, `client-vX.Y.Z`, `mobile-vX.Y.Z`). This file is
-the one-off Beta list; it is not a committed rolling `CHANGELOG.md`.
+Per the monorepo release strategy (`#50`, PR `#195`; ADR pending renumber) the durable
+form of this is generated per component into the GitHub Release attached to each tag
+(`backend-vX.Y.Z`, `client-vX.Y.Z`, `mobile-vX.Y.Z`). This file is the one-off Beta list;
+it is not a committed rolling `CHANGELOG.md`.
 
 **Verification basis:** a feature counts as done if its code is merged into `dev` **or**
 sits in an open pull request intended for the Beta cut. Work that exists only as an issue
@@ -91,7 +92,8 @@ in the feature list and change log; collected here so they are hard to miss.
 - User management in the Filament admin panel (`#18`).
 - Role-permission management screens in the admin panel.
 - Default role bindings seeded only on fresh installs.
-- First admin bootstrapped from configuration (`#141`, ADR-0034).
+- First admin bootstrapped from configuration (`#141`; first-admin bootstrap ADR pending
+  renumber).
 - Last-admin role changes made concurrency-safe (`#187`).
 
 **Auth**
@@ -147,9 +149,9 @@ in the feature list and change log; collected here so they are hard to miss.
   (`#45`, ADR-0022, ADR-0023), with door state verified end to end from MQTT snapshots
   and its projection updates fixed (`#44`, `#164`).
 - End-to-end tracing and logging of the open flow with OpenTelemetry
-  (`#65`, ADR-0032).
+  (`#65`, PR `#189`; OpenTelemetry ADR pending renumber).
 - Command acknowledgement separated from door-open detection and alerting
-  (`#94`, ADR-0031).
+  (`#94`; separate-ACK ADR pending renumber).
 
 ### Mobile app — React Native / Expo
 
@@ -213,9 +215,10 @@ in the feature list and change log; collected here so they are hard to miss.
 - Quality gates: Pint, PHPStan (level 8), Jest, `node --test`, expo-doctor (`#199`).
 - Dependency-audit gates, with security advisories patched as they surfaced.
 - Build-time work: isolated Docker caches, parallel Pint, superseded-run cancellation,
-  single-platform client PR builds, Android internal build caching (`#204`, ADR-0035).
+  single-platform client PR builds, Android internal build caching (`#204`; Android build
+  cache ADR pending renumber).
 - Per-component release strategy decided: independent tag namespaces, contract-tied
-  SemVer, generated release notes (`#50`, ADR-0033).
+  SemVer, generated release notes (`#50`, PR `#195`; ADR pending renumber).
 - Laravel Boost wired up for agent tooling (`#88`).
 
 ---
@@ -250,10 +253,13 @@ Grouped by component; `feat` / `fix` / `perf` from the Conventional Commit histo
 - User name + email tooltip on the user-menu avatar
 - Edit and clear compartment content notes from Filament (`#136`)
 - Reset the provisioning token from the admin panel (`#110`)
-- Bootstrap the first admin from configuration (`#141`, ADR-0034)
+- Bootstrap the first admin from configuration (`#141`; first-admin bootstrap ADR pending
+  renumber)
 - Compartment list navigation (`#167`)
-- End-to-end OpenTelemetry tracing of the open flow (`#65`, ADR-0032)
-- Separate command acknowledgement from door-open detection (`#94`, ADR-0031)
+- End-to-end OpenTelemetry tracing of the open flow (`#65`, PR `#189`; OpenTelemetry ADR
+  pending renumber)
+- Separate command acknowledgement from door-open detection (`#94`; separate-ACK ADR
+  pending renumber)
 
 **Fixes**
 - Repair status badges and align the two compartment views (`#190`)
@@ -339,9 +345,9 @@ Grouped by component; `feat` / `fix` / `perf` from the Conventional Commit histo
 - Gate client releases on quality checks
 - Cancel superseded pull-request runs
 - Isolate Docker build caches; build one platform for client PRs
-- Cut Android internal build time (`#204`, ADR-0035)
+- Cut Android internal build time (`#204`; Android build cache ADR pending renumber)
 - Raise PHPStan to level 8 (`#199`)
-- Decide the per-component release strategy (`#50`, ADR-0033)
+- Decide the per-component release strategy (`#50`, PR `#195`; ADR pending renumber)
 - Laravel Boost for agent tooling (`#88`)
 
 ### Earlier (MVP and before)
@@ -369,11 +375,12 @@ biggest risk to the Beta date.
 and is 245 commits behind `dev`. Beta ships from `main`, so this is a hard gate. A fresh
 merge PR is likely cheaper than salvaging this one.
 
-**Roll out ADR-0033 before cutting anything.** There are still zero tags and zero
-Releases, so today there is no way to say "this Pi runs Beta" or to roll back. The ADR's
-own rollout list also flags that `workflow_dispatch` on `docker-ghcr.yml` publishes
-`latest` from whatever branch it runs on — a dispatch from `dev` would overwrite
-production. Fix that before the first tag, not after.
+**Roll out the monorepo release strategy (`#50`, PR `#195`) before cutting anything.**
+There are still zero tags and zero Releases, so today there is no way to say "this Pi
+runs Beta" or to roll back. The open ADR's own rollout list also flags that
+`workflow_dispatch` on `docker-ghcr.yml` publishes `latest` from whatever branch it runs
+on — a dispatch from `dev` would overwrite production. Fix that before the first tag,
+not after.
 
 **MQTT TLS (#163).** `mosquitto.conf.template` defines only `listener 1883` with
 `auth_opt_http_with_tls false`. Broker credentials and open commands cross the network in
@@ -395,10 +402,14 @@ used by two different ADRs. Commit messages and PR bodies reference ADRs by numb
 those references are currently ambiguous. Renumbering is trivial now and gets harder
 with every new ADR.
 
-**Promote the ADRs that describe shipped behaviour.** 0031 through 0035 are all still
-`Proposed`, though their code is merged or in an open PR — including ADR-0033, which the
-release itself depends on. A Proposed ADR describing what the system already does trains
-people to ignore the status field.
+**Promote the ADRs that describe shipped behaviour.** On the open stacked chain, the
+ADRs for separate ACK (`#94`), OpenTelemetry (`#65` / PR `#189`), monorepo release
+strategy (`#50` / PR `#195`), first-admin bootstrap (`#141`), and Android build caching
+(`#204`) are still `Proposed`, though their code is merged or in an open PR — including
+the release strategy the cut itself depends on. (On current `dev`, bare numbers 0031–0033
+already mean different Accepted decisions, so cite those stack ADRs by issue/PR until
+renumber lands.) A Proposed ADR describing what the system already does trains people to
+ignore the status field.
 
 **Close the issues whose work already shipped** — #109 (audit log), #52 (healthcheck),
 #122 (group memberships), plus the stack's issues as it merges. The milestone should
@@ -413,9 +424,10 @@ the stack lands means touching six workflows once instead of twice.
 already ticked. It is superseded by the ADRs and the issue tracker, and a stale roadmap
 in the repo root is the first thing a new contributor reads.
 
-**The stale-docs warning in `CLAUDE.md`.** It says the README and Cursor rules still
-describe a Flutter app, a Dart client and a root `docker-compose.yml`. Neither file
-contains any of that any more, so the warning is now the stale part.
+**The stale-docs warning in `CLAUDE.md`.** It still calls out a Flutter app and Dart
+client that the README no longer describes. The root `docker-compose.yml` mention is
+partly still fair — the README tree still lists one — so trim the Flutter/Dart half of
+the warning rather than deleting the whole note.
 
 ### Decide before calling it Beta
 
@@ -450,7 +462,8 @@ concentrated in release mechanics and field hardening, not in missing product.
 
 ## References
 
-- ADR-0033 — per-component release strategy (`docs/adr/0033-monorepo-release-strategy.md`)
+- Monorepo release strategy — `#50`, PR `#195` (ADR pending renumber; not the ADR-0033
+  persistence file on current `dev`)
 - ADR-0028 — mobile internal test builds
 - ADR-0030 — website in the monorepo
 - Milestones: *Milestone 1 – Hardware MVP*, *Milestone 2 – Internal MVP*,
