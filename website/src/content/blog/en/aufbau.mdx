@@ -1,0 +1,40 @@
+---
+title: "Architecture"
+description: "The technical details of our setup."
+pubDate: "2026-02-10"
+draft: false
+---
+
+While building Open Locker, we focused on making the system user-friendly, secure, and reliable.
+
+## System components
+
+* **Mobile app (main interface):** A simple app for everyday tasks such as opening compartments, borrowing items, and checking their status.
+* **Admin panel:** The management interface for creating locations, registering devices, assigning roles, and supporting users.
+* **Backend:** The backend checks permissions, manages state, and provides the API to keep everything running.
+* **MQTT broker:** Routes messages between the backend and locker locations.
+* **Locker client:** Runs on a Raspberry Pi at the locker and translates MQTT messages into Modbus commands for the hardware.
+
+Planned:
+
+- **QR code scanner** directly at the locker (optional).
+
+## Data flows
+
+### Command (open, reserve, …)
+
+When a user performs an action in the app, such as opening a compartment, the command follows this path:
+
+`App` → `Backend (HTTPS/REST)` → `MQTT Broker` → `Locker Client` → `Modbus` → `Locker/Lock`
+
+### Status (feedback & live updates)
+
+Status updates travel back through the system and can be shown live in the app:
+
+`Locker/Lock` → `Locker Client` → `MQTT Broker` → `Backend` → `Database` → `Reverb/WebSocket` → `App`
+
+## What runs where?
+
+- **Backend + admin UI + database + MQTT broker**: typically central (server/hosting).
+- **Locker client**: on site on a Raspberry Pi.
+- **Mobile app**: with the users.

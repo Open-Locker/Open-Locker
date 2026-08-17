@@ -4,12 +4,10 @@ import {
   type OpenCompartmentCommand,
 } from '../../../domain/mqtt-schemas';
 import type { OpenCompartmentUseCase } from '../../../application/open-compartment';
-import type { OutboundMqttPort } from '../../../ports/mqtt.port';
 import type { PollCompartmentStateUseCase } from '../../../application/state-publishing';
 
 export function createOpenCompartmentHandler(deps: {
   openCompartment: OpenCompartmentUseCase;
-  outbound: OutboundMqttPort;
   pollSnapshot: PollCompartmentStateUseCase;
 }): InboundCommandHandler<OpenCompartmentCommand> {
   return {
@@ -20,12 +18,12 @@ export function createOpenCompartmentHandler(deps: {
       await deps.openCompartment.execute(command.data.compartment_number);
       await deps.pollSnapshot.pollAndPublish(true);
 
-      await deps.outbound.publishCommandResponse({
+      return {
         action: command.action,
         result: 'success',
         transaction_id: command.transaction_id,
         message: 'Compartment opened.',
-      });
+      };
     },
   };
 }
