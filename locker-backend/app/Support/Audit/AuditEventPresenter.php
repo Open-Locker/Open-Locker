@@ -57,6 +57,7 @@ class AuditEventPresenter
 
         // Admin (users, groups, roles, permissions)
         'GroupCreated' => 'admin',
+        'GroupArchived' => 'admin',
         'UserAddedToGroup' => 'admin',
         'UserRemovedFromGroup' => 'admin',
         'UserRoleGranted' => 'admin',
@@ -177,6 +178,7 @@ class AuditEventPresenter
             'LockerConfigAcknowledged' => __('Configuration acknowledged'),
             'LockerConfigAckFailed' => __('Configuration failed'),
             'GroupCreated' => __('Group created'),
+            'GroupArchived' => __('Group archived'),
             'UserAddedToGroup' => __('User added to group'),
             'UserRemovedFromGroup' => __('User removed from group'),
             'UserRoleGranted' => __('Role granted'),
@@ -275,6 +277,10 @@ class AuditEventPresenter
             'GroupCreated' => __(':actor created group :group', [
                 'actor' => $this->user($p['actorUserId'] ?? null),
                 'group' => $p['name'] ?? $this->group($p['groupUuid'] ?? null),
+            ]),
+            'GroupArchived' => __(':actor archived group :group', [
+                'actor' => $this->user($p['actorUserId'] ?? null),
+                'group' => $this->group($p['groupUuid'] ?? null),
             ]),
             'UserAddedToGroup' => __(':actor added :user to group :group', [
                 'actor' => $this->user($p['actorUserId'] ?? null),

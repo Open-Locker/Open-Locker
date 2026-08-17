@@ -56,7 +56,7 @@ class MembersRelationManager extends RelationManager
                 \Filament\Actions\Action::make('addMember')
                     ->label(__('Add member'))
                     ->icon('heroicon-m-user-plus')
-                    ->visible(fn (): bool => $this->currentUserCanManageGroups())
+                    ->visible(fn (): bool => $this->currentUserCanManageGroups() && ! $this->ownerGroupIsArchived())
                     ->form(AccessPickerOptions::grantForm(
                         'user_ids',
                         __('Users'),
@@ -143,5 +143,13 @@ class MembersRelationManager extends RelationManager
         $user = Filament::auth()->user();
 
         return $user instanceof User && $user->can(Permission::GroupsManage->value);
+    }
+
+    private function ownerGroupIsArchived(): bool
+    {
+        /** @var Group $group */
+        $group = $this->getOwnerRecord();
+
+        return $group->isArchived();
     }
 }

@@ -29,17 +29,20 @@ import {
 import { connectionLostWillOptions } from '../infrastructure/mqtt-will';
 import { logger } from '../infrastructure/logging';
 import { createWinstonLoggerPort } from '../infrastructure/winston-logger.adapter';
-import { MQTT_CLIENT_ID_FILE } from '../infrastructure/paths';
+import { DATA_DIR, MQTT_CLIENT_ID_FILE } from '../infrastructure/paths';
+import { ensurePrivateDirectory } from '../infrastructure/file-persistence';
 
 export interface AppContext {
   shutdown(): Promise<void>;
 }
 
 export async function createApp(): Promise<AppContext> {
+  ensurePrivateDirectory(DATA_DIR);
   const configRepo = new YamlConfigRepository(new FileRuntimeOverlayStore());
   const config = configRepo.load();
   const credentialStore = new FileCredentialStore();
   const dedupStore = new FileDedupStore();
+  dedupStore.assertHealthy();
   const transport = new MqttTransportAdapter(configRepo.getMqttTransportSettings());
 
   const driver = new WaveshareModbusRtuDriver({
@@ -138,16 +141,16 @@ export async function createApp(): Promise<AppContext> {
   dispatcher.register(
     createOpenCompartmentHandler({
       openCompartment,
-      outbound,
       pollSnapshot,
     }),
   );
-  dispatcher.register(createApplyConfigHandler({ applyConfig, outbound }));
+  dispatcher.register(createApplyConfigHandler({ applyConfig }));
+  dispatcher.recoverInterruptedCommands();
+  transport.onConnected(() => dispatcher.flushPendingResponses());
+  await dispatcher.flushPendingResponses();
 
   transport.onMessage((topic, payload) => {
-    if (topic === commandTopic) {
-      void dispatcher.dispatch(topic, payload.toString());
-    }
+    dispatchMqttMessage(dispatcher, commandTopic, topic, payload);
   });
 
   await transport.subscribe(commandTopic);
@@ -171,6 +174,28 @@ export async function createApp(): Promise<AppContext> {
       await transport.disconnect();
     },
   };
+}
+
+interface DispatchErrorLogger {
+  error(message: string, metadata?: Record<string, unknown>): unknown;
+}
+
+export function dispatchMqttMessage(
+  dispatcher: Pick<CommandDispatcher, 'dispatch'>,
+  commandTopic: string,
+  topic: string,
+  payload: Buffer,
+  log: DispatchErrorLogger = logger,
+): void {
+  if (topic !== commandTopic) {
+    return;
+  }
+
+  void dispatcher.dispatch(topic, payload.toString()).catch((error: unknown) => {
+    log.error('Unexpected MQTT command dispatch failure', {
+      error: error instanceof Error ? error.message : 'Unknown dispatch error',
+    });
+  });
 }
 
 function sleep(ms: number): Promise<void> {

@@ -197,14 +197,19 @@ class CompartmentsRelationManager extends RelationManager
                             app(LockerService::class)->applyConfig($lockerBank);
 
                             Notification::make()
-                                ->title(__('Config queued for sending'))
-                                ->body(__('An apply_config command was queued and will be sent via MQTT.'))
+                                ->title(__('Configuration sent'))
+                                ->body(__('The locker bank will apply the new configuration.'))
                                 ->success()
                                 ->send();
                         } catch (\Throwable $e) {
+                            Log::error('Failed to queue apply_config from Filament.', [
+                                'locker_bank_id' => $lockerBank->id,
+                                'error' => $e->getMessage(),
+                            ]);
+
                             Notification::make()
-                                ->title(__('Failed to queue config'))
-                                ->body($e->getMessage())
+                                ->title(__('Failed to send configuration'))
+                                ->body(__('Please try again. Details are in the server log.'))
                                 ->danger()
                                 ->send();
                         }
@@ -223,26 +228,14 @@ class CompartmentsRelationManager extends RelationManager
                             if (! $user instanceof \App\Models\User) {
                                 Notification::make()
                                     ->title(__('Unable to open compartment'))
-                                    ->body(__('No authenticated user context available.'))
+                                    ->body(__('Your session has expired. Please log in again.'))
                                     ->danger()
                                     ->send();
 
                                 return;
                             }
 
-                            $decision = app(CompartmentAccessService::class)->requestOpen($user, $record);
-
-                            $notification = Notification::make()
-                                ->title($decision['authorized'] ? __('Open command accepted') : __('Open command denied'))
-                                ->body(__('Compartment :number command ID: :command_id', ['number' => $record->number, 'command_id' => $decision['command_id']]));
-
-                            if ($decision['authorized']) {
-                                $notification->success();
-                            } else {
-                                $notification->danger();
-                            }
-
-                            $notification->send();
+                            app(CompartmentAccessService::class)->requestOpen($user, $record);
                         } catch (\Throwable $e) {
                             Log::error('Failed to request compartment opening from Filament.', [
                                 'compartment_id' => $record->id,
@@ -252,8 +245,8 @@ class CompartmentsRelationManager extends RelationManager
                             ]);
 
                             Notification::make()
-                                ->title(__('Failed to queue open command'))
-                                ->body($e->getMessage())
+                                ->title(__('Failed to send open command'))
+                                ->body(__('Please try again. Details are in the server log.'))
                                 ->danger()
                                 ->send();
                         }

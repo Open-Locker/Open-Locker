@@ -163,22 +163,14 @@ class CompartmentResource extends Resource
                             if (! $user instanceof User) {
                                 Notification::make()
                                     ->title(__('Unable to open compartment'))
-                                    ->body(__('No authenticated user context available.'))
+                                    ->body(__('Your session has expired. Please log in again.'))
                                     ->danger()
                                     ->send();
 
                                 return;
                             }
 
-                            $decision = app(CompartmentAccessService::class)->requestOpen($user, $record);
-
-                            $notification = Notification::make()
-                                ->title($decision['authorized'] ? __('Open command accepted') : __('Open command denied'))
-                                ->body(__('Compartment :number command ID: :command_id', ['number' => $record->number, 'command_id' => $decision['command_id']]));
-
-                            $decision['authorized'] ? $notification->success() : $notification->danger();
-
-                            $notification->send();
+                            app(CompartmentAccessService::class)->requestOpen($user, $record);
                         } catch (\Throwable $e) {
                             Log::error('Failed to request compartment opening from Filament.', [
                                 'compartment_id' => $record->id,
@@ -188,8 +180,8 @@ class CompartmentResource extends Resource
                             ]);
 
                             Notification::make()
-                                ->title(__('Failed to queue open command'))
-                                ->body($e->getMessage())
+                                ->title(__('Failed to send open command'))
+                                ->body(__('Please try again. Details are in the server log.'))
                                 ->danger()
                                 ->send();
                         }

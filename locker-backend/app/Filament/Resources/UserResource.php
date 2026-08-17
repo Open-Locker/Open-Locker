@@ -179,7 +179,7 @@ class UserResource extends Resource
                         ->before(function (\Filament\Actions\DeleteBulkAction $action, Collection $records) {
                             if ($records->contains(fn (Model $record): bool => $record instanceof User && ! self::canManageRecord($record))) {
                                 Notification::make()
-                                    ->title(__('Action cancelled'))
+                                    ->title(__('Cannot delete user'))
                                     ->body(__('This user cannot be deleted.'))
                                     ->danger()
                                     ->send();
@@ -193,7 +193,7 @@ class UserResource extends Resource
 
                             if ($adminCount - $deletedAdmins < 1) {
                                 Notification::make()
-                                    ->title(__('Action cancelled'))
+                                    ->title(__('Cannot delete user'))
                                     ->body(__('The last admin cannot be deleted.'))
                                     ->danger()
                                     ->send();

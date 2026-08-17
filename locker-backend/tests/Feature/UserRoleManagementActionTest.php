@@ -87,7 +87,7 @@ class UserRoleManagementActionTest extends TestCase
         Livewire::actingAs($admin)
             ->test(EditUser::class, ['record' => $admin->getRouteKey()])
             ->callAction('changeRole', data: ['role' => Role::User->value])
-            ->assertNotified(__('Action cancelled'));
+            ->assertNotified(__('Cannot change role'));
 
         $this->assertTrue($admin->fresh()->isAdmin());
     }
