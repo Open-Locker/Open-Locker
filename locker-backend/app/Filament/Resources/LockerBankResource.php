@@ -1,18 +1,28 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Filament\Resources;
 
 use App\Enums\Permission;
+use App\Filament\Concerns\InteractsWithOneTimeProvisioningToken;
 use App\Filament\Resources\LockerBankResource\Pages;
 use App\Filament\Resources\LockerBankResource\RelationManagers;
 use App\Models\LockerBank;
+use App\Models\User;
+use App\Services\LockerProvisioningService;
+use Filament\Actions\Action;
+use Filament\Actions\EditAction;
+use Filament\Facades\Filament;
 use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
+use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
+use Illuminate\Support\Facades\Log;
 
 class LockerBankResource extends Resource
 {
@@ -73,9 +83,9 @@ class LockerBankResource extends Resource
                     ->minValue(1)
                     ->default(30)
                     ->helperText(__('Backend marks the locker offline when no heartbeat is received within this timeout.')),
-                Placeholder::make('provisioning_token')
-                    ->label(__('Provisioning token'))
-                    ->content(fn (?LockerBank $record): string => $record !== null ? $record->provisioning_token : '—'),
+                Placeholder::make('provisioning_status')
+                    ->label(__('Provisioning token status'))
+                    ->content(fn (?LockerBank $record): string => self::provisioningStatus($record)),
                 Placeholder::make('provisioned_at')
                     ->label(__('Provisioned at'))
                     ->content(fn (?LockerBank $record): string => $record?->provisioned_at?->toDateTimeString() ?? '—'),
@@ -96,6 +106,88 @@ class LockerBankResource extends Resource
                     ->label(__('Last config confirmation'))
                     ->content(fn (?LockerBank $record): string => $record?->last_config_ack_at?->toDateTimeString() ?? '—'),
             ]);
+    }
+
+    /**
+     * The reset action, shared by the list row and the edit page header so the
+     * two cannot drift apart in wording, confirmation, or authorization.
+     */
+    public static function restartProvisioningAction(): Action
+    {
+        return Action::make('restartProvisioning')
+            ->label(fn (LockerBank $record): string => $record->provisioning_generation === null
+                ? __('Issue provisioning token')
+                : __('Restart provisioning'))
+            ->icon('heroicon-m-arrow-path')
+            ->color('warning')
+            ->requiresConfirmation()
+            ->modalHeading(fn (LockerBank $record): string => $record->provisioning_generation === null
+                ? __('Issue a one-time provisioning token')
+                : __('Restart provisioning'))
+            ->modalDescription(__('This invalidates any previous provisioning token and MQTT credentials. The new token is shown once after confirmation.'))
+            ->modalSubmitActionLabel(fn (LockerBank $record): string => $record->provisioning_generation === null
+                ? __('Issue token')
+                : __('Restart provisioning'))
+            ->visible(fn (): bool => Filament::auth()->user()?->can(Permission::LockerBankConfigure->value) ?? false)
+            ->action(function (LockerBank $record, $livewire): void {
+                try {
+                    $actor = Filament::auth()->user();
+
+                    if (! $actor instanceof User) {
+                        throw new \LogicException('An authenticated user is required.');
+                    }
+
+                    $token = app(LockerProvisioningService::class)->restart(
+                        $record,
+                        $actor,
+                    );
+
+                    if (! in_array(InteractsWithOneTimeProvisioningToken::class, class_uses_recursive($livewire), true)) {
+                        throw new \LogicException('The page cannot display one-time provisioning tokens safely.');
+                    }
+
+                    $livewire->setOneTimeProvisioningToken($token);
+                    $livewire->replaceMountedAction('showProvisioningToken');
+                } catch (\Throwable $e) {
+                    Log::error('Failed to restart provisioning from Filament.', [
+                        'locker_bank_id' => $record->id,
+                        'error' => $e->getMessage(),
+                    ]);
+
+                    Notification::make()
+                        ->title(__('Failed to issue provisioning token'))
+                        ->body(__('Please try again. Details are in the server log.'))
+                        ->danger()
+                        ->send();
+                }
+            });
+    }
+
+    public static function showProvisioningTokenAction(): Action
+    {
+        return Action::make('showProvisioningToken')
+            ->disabled(fn ($livewire): bool => ! in_array(InteractsWithOneTimeProvisioningToken::class, class_uses_recursive($livewire), true)
+                || $livewire->getOneTimeProvisioningToken() === '')
+            ->modalHeading(__('Copy the provisioning token now'))
+            ->modalDescription(__('This token will not be shown again. If it is lost, issue a new one.'))
+            ->modalContent(fn ($livewire) => view('filament.actions.show-provisioning-token', [
+                'token' => in_array(InteractsWithOneTimeProvisioningToken::class, class_uses_recursive($livewire), true)
+                    ? $livewire->getOneTimeProvisioningToken()
+                    : '',
+            ]))
+            ->modalSubmitAction(false)
+            ->modalCancelActionLabel(__('Close'));
+    }
+
+    private static function provisioningStatus(?LockerBank $record): string
+    {
+        if ($record === null || $record->provisioning_generation === null) {
+            return __('Not issued');
+        }
+
+        return $record->provisioning_token_hmac !== null
+            ? __('Issued')
+            : __('Consumed');
     }
 
     public static function table(Table $table): Table
@@ -133,10 +225,15 @@ class LockerBankResource extends Resource
                 TextColumn::make('location_description')
                     ->label(__('Location'))
                     ->searchable(),
-                TextColumn::make('provisioning_token')
-                    ->copyable()
-                    ->copyMessage(__('Token copied!'))
-                    ->label(__('Provisioning Token')),
+                TextColumn::make('provisioning_status')
+                    ->label(__('Provisioning token'))
+                    ->badge()
+                    ->state(fn (LockerBank $record): string => self::provisioningStatus($record))
+                    ->color(fn (string $state): string => match ($state) {
+                        __('Issued') => 'warning',
+                        __('Consumed') => 'success',
+                        default => 'gray',
+                    }),
                 TextColumn::make('provisioned_at')
                     ->label(__('Provisioned at'))
                     ->dateTime()
@@ -163,7 +260,8 @@ class LockerBankResource extends Resource
                 //
             ])
             ->actions([
-                \Filament\Actions\EditAction::make(),
+                EditAction::make(),
+                static::restartProvisioningAction(),
             ])
             ->bulkActions([
                 \Filament\Actions\BulkActionGroup::make([

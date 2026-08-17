@@ -44,6 +44,13 @@ Without `just`: copy `mosquitto.conf` from the example and add
 `mosq_secret=<MOSQ_HTTP_PASS>` to the webhook URIs, then restart the
 Mosquitto container.
 
+Set the same valid Laravel `APP_KEY` on every backend instance. The backend
+derives a domain-separated provisioning-token HMAC subkey from it; no additional
+provisioning HMAC secret is required. Rotating `APP_KEY` invalidates outstanding,
+unconsumed provisioning tokens, so issue new tokens for those open
+provisionings. Already provisioned devices continue to use their MQTT
+credentials.
+
 ### Create an admin user
 
 ```bash
@@ -73,6 +80,11 @@ Zero 2 W, Raspberry Pi OS Lite 64-bit):
   `PROVISIONING_TOKEN`
 - Connects to the backend via MQTT and drives the locks via Modbus
   (TCP or RTU)
+
+Issue or restart provisioning in the admin panel, copy the token from the
+one-time dialog directly into the client's `.env`, clear stale local
+provisioning state if replacing a client, and restart it. The token cannot be
+viewed again; issue a new one if it is lost.
 
 Recommended hardware: see the
 [Bill of Materials](https://github.com/Open-Locker/Open-Locker/blob/main/docs/Bill-of-Materials.md).
