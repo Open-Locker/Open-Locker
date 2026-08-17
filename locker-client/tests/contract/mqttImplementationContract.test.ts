@@ -54,9 +54,9 @@ test('handler-built open_compartment success matches AsyncAPI schema', async () 
     outbound,
     'locker/test/state/compartments',
   );
-  const handler = createOpenCompartmentHandler({ openCompartment, outbound, pollSnapshot });
+  const handler = createOpenCompartmentHandler({ openCompartment, pollSnapshot });
 
-  await handler.handle(
+  const responseBody = await handler.handle(
     { lockerUuid: 'test' },
     {
       action: 'open_compartment',
@@ -66,6 +66,7 @@ test('handler-built open_compartment success matches AsyncAPI schema', async () 
       data: { compartment_number: 1 },
     },
   );
+  await outbound.publishCommandResponse(responseBody);
 
   openCompartment.stopAllMonitoring();
 
@@ -94,9 +95,9 @@ test('handler-built apply_config success matches AsyncAPI schema', async () => {
     restartHeartbeat: () => undefined,
     restartPolling: () => undefined,
   });
-  const handler = createApplyConfigHandler({ applyConfig, outbound });
+  const handler = createApplyConfigHandler({ applyConfig });
 
-  await handler.handle(
+  const responseBody = await handler.handle(
     { lockerUuid: 'test' },
     {
       action: 'apply_config',
@@ -110,6 +111,7 @@ test('handler-built apply_config success matches AsyncAPI schema', async () => {
       },
     },
   );
+  await outbound.publishCommandResponse(responseBody);
 
   const response = published
     .map(parsePublishedPayload)
@@ -144,7 +146,7 @@ test('dispatcher-built validation error matches AsyncAPI schema', async () => {
   );
   const dedup = new InMemoryDedupStore();
   const dispatcher = new CommandDispatcher(new InboundProtocolGuard(dedup), outbound, dedup);
-  dispatcher.register(createOpenCompartmentHandler({ openCompartment, outbound, pollSnapshot }));
+  dispatcher.register(createOpenCompartmentHandler({ openCompartment, pollSnapshot }));
 
   await dispatcher.dispatch(
     'locker/test/command',
@@ -194,7 +196,7 @@ test('dispatcher-built handler error matches AsyncAPI schema', async () => {
   );
   const dedup = new InMemoryDedupStore();
   const dispatcher = new CommandDispatcher(new InboundProtocolGuard(dedup), outbound, dedup);
-  dispatcher.register(createOpenCompartmentHandler({ openCompartment, outbound, pollSnapshot }));
+  dispatcher.register(createOpenCompartmentHandler({ openCompartment, pollSnapshot }));
 
   await dispatcher.dispatch(
     'locker/test/command',
