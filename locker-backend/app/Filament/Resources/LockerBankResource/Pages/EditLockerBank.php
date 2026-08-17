@@ -19,8 +19,6 @@ class EditLockerBank extends EditRecord
     {
         return [
             LockerBankResource::restartProvisioningAction(),
-            LockerBankResource::showProvisioningTokenAction()
-                ->extraAttributes(['class' => 'hidden']),
             Actions\DeleteAction::make(),
         ];
     }

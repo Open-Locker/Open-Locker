@@ -121,11 +121,15 @@ class LockerBankResource extends Resource
             ->icon('heroicon-m-arrow-path')
             ->color('warning')
             ->requiresConfirmation()
-            ->modalHeading(__('Issue a one-time provisioning token'))
+            ->modalHeading(fn (LockerBank $record): string => $record->provisioning_generation === null
+                ? __('Issue a one-time provisioning token')
+                : __('Restart provisioning'))
             ->modalDescription(__('This invalidates any previous provisioning token and MQTT credentials. The new token is shown once after confirmation.'))
-            ->modalSubmitActionLabel(__('Issue token'))
+            ->modalSubmitActionLabel(fn (LockerBank $record): string => $record->provisioning_generation === null
+                ? __('Issue token')
+                : __('Restart provisioning'))
             ->visible(fn (): bool => Filament::auth()->user()?->can(Permission::LockerBankConfigure->value) ?? false)
-            ->action(function (Action $action, LockerBank $record, $livewire): void {
+            ->action(function (LockerBank $record, $livewire): void {
                 try {
                     $actor = Filament::auth()->user();
 
@@ -143,10 +147,7 @@ class LockerBankResource extends Resource
                     }
 
                     $livewire->setOneTimeProvisioningToken($token);
-                    $livewire->replaceMountedAction(
-                        'showProvisioningToken',
-                        context: $action->getContext(),
-                    );
+                    $livewire->replaceMountedAction('showProvisioningToken');
                 } catch (\Throwable $e) {
                     Log::error('Failed to restart provisioning from Filament.', [
                         'locker_bank_id' => $record->id,
@@ -165,6 +166,8 @@ class LockerBankResource extends Resource
     public static function showProvisioningTokenAction(): Action
     {
         return Action::make('showProvisioningToken')
+            ->disabled(fn ($livewire): bool => ! in_array(InteractsWithOneTimeProvisioningToken::class, class_uses_recursive($livewire), true)
+                || $livewire->getOneTimeProvisioningToken() === '')
             ->modalHeading(__('Copy the provisioning token now'))
             ->modalDescription(__('This token will not be shown again. If it is lost, issue a new one.'))
             ->modalContent(fn ($livewire) => view('filament.actions.show-provisioning-token', [
@@ -183,7 +186,7 @@ class LockerBankResource extends Resource
         }
 
         return $record->provisioning_token_hmac !== null
-            ? __('Available')
+            ? __('Issued')
             : __('Consumed');
     }
 
@@ -227,7 +230,7 @@ class LockerBankResource extends Resource
                     ->badge()
                     ->state(fn (LockerBank $record): string => self::provisioningStatus($record))
                     ->color(fn (string $state): string => match ($state) {
-                        __('Available') => 'warning',
+                        __('Issued') => 'warning',
                         __('Consumed') => 'success',
                         default => 'gray',
                     }),
@@ -259,8 +262,6 @@ class LockerBankResource extends Resource
             ->actions([
                 EditAction::make(),
                 static::restartProvisioningAction(),
-                static::showProvisioningTokenAction()
-                    ->extraAttributes(['class' => 'hidden']),
             ])
             ->bulkActions([
                 \Filament\Actions\BulkActionGroup::make([

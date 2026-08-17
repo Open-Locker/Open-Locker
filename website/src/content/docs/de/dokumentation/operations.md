@@ -45,10 +45,13 @@ Ohne `just`: `mosquitto.conf` aus dem Beispiel kopieren und in den
 Webhook-URIs `mosq_secret=<MOSQ_HTTP_PASS>` eintragen, dann den
 Mosquitto-Container neu starten.
 
-Auf allen Backend-Instanzen muss `PROVISIONING_TOKEN_HMAC_KEY` auf dasselbe
-eigene Zufallsgeheimnis mit mindestens 32 Zeichen gesetzt sein. `APP_KEY` darf
-nicht wiederverwendet werden. Es kann mit `openssl rand -base64 48` erzeugt
-werden; ein Platzhalter aus einer Beispiel-Umgebungsdatei wird nicht akzeptiert.
+Auf allen Backend-Instanzen muss derselbe gültige Laravel-`APP_KEY` gesetzt
+sein. Das Backend leitet daraus einen domain-separierten HMAC-Subkey für
+Provisionierungs-Tokens ab; ein zusätzliches Provisionierungsgeheimnis ist
+nicht erforderlich. Eine `APP_KEY`-Rotation invalidiert offene, noch nicht
+verbrauchte Provisionierungs-Tokens, für die anschließend neue Tokens
+ausgestellt werden müssen. Bereits provisionierte Geräte verwenden ihre
+MQTT-Zugangsdaten weiter.
 
 ### Admin-Benutzer anlegen
 

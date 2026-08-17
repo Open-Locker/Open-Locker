@@ -29,11 +29,13 @@ eviction, and complete session revocation remain in issue #161.
 
 ## Decision
 
-Use a dedicated `PROVISIONING_TOKEN_HMAC_KEY`, loaded through application
-configuration and rejected at runtime unless it is a non-placeholder secret of
-at least 32 characters. The key is independent of `APP_KEY`. Hash plaintext
-provisioning tokens with HMAC-SHA-256 and store the 64-character lowercase
-hexadecimal digest in nullable, unique
+Decode Laravel's required `APP_KEY` using its standard raw or `base64:` format
+and validate it with Laravel's encryption mechanism. Derive a dedicated
+32-byte subkey with HKDF-SHA-256 and the stable, versioned domain-separation
+context `open-locker/provisioning-token-hmac/v1`. Missing, empty, malformed
+Base64, or encryption-incompatible application keys fail closed. Hash plaintext
+provisioning tokens with HMAC-SHA-256 using that subkey and store the
+64-character lowercase hexadecimal digest in nullable, unique
 `locker_banks.provisioning_token_hmac`.
 
 Add nullable UUID `locker_banks.provisioning_generation`. Remove
@@ -97,11 +99,13 @@ This would allow redisplay but preserve a recoverable long-lived credential and
 introduce encryption-key rotation and access concerns. One-time display avoids
 that requirement.
 
-### Use `APP_KEY` for HMAC
+### Configure an independent HMAC key
 
-This reduces configuration but couples provisioning-token verification to
-framework encryption and application-key rotation. A dedicated key provides a
-clearer boundary and independent rotation policy.
+This provides an independent rotation policy, but introduces another mandatory
+secret that must be generated, distributed consistently to every backend
+instance, and rotated operationally. HKDF domain separation gives the
+provisioning HMAC a distinct cryptographic subkey without another environment
+variable or using the application key directly.
 
 ### Store only non-event-sourced HMAC state
 
@@ -120,17 +124,19 @@ them. Database and event-store disclosure cannot recover an available token.
 Concurrent reset and registration operations serialize on the locker-bank row,
 and queued provisioning work is generation-safe.
 
-Operators must configure the dedicated HMAC key before issuing or accepting a
-token. Losing the one-time token requires rotation. Rotating the HMAC key
-invalidates all outstanding, unconsumed tokens. Existing MQTT sessions are not
-forcibly disconnected, and UUID usernames can be recreated after provisioning;
-issue #161 remains necessary for complete revocation.
+The already-required `APP_KEY` is the single deployment secret needed for both
+Laravel encryption and provisioning-token subkey derivation. Losing the
+one-time token requires another provisioning restart. Rotating `APP_KEY`
+invalidates only outstanding, unconsumed provisioning tokens; operators must
+issue new tokens for those open provisioning attempts. Already provisioned
+devices continue using their separately generated MQTT credentials. Existing
+MQTT sessions are not forcibly disconnected, and UUID usernames can be
+recreated after provisioning; issue #161 remains necessary for complete
+revocation.
 
 ### Rollout / Migration
 
-1. Generate a dedicated key with `openssl rand -base64 48` and configure the
-   same `PROVISIONING_TOKEN_HMAC_KEY` on every backend instance before
-   deployment.
+1. Configure the same valid Laravel `APP_KEY` on every backend instance.
 2. Deploy the schema migration that removes plaintext tokens and adds HMAC and
    generation columns. Outstanding old tokens become invalid.
 3. Restart provisioning from Filament for every bank that still needs a token,
@@ -138,7 +144,10 @@ issue #161 remains necessary for complete revocation.
    local provisioning state, and restart it.
 4. Keep existing provisioned clients running with their current MQTT
    credentials.
-5. Keep registration-topic redaction and the unchanged MQTT contract until a
+5. After any future `APP_KEY` rotation, issue replacement tokens for all open,
+   unconsumed provisioning attempts; no action is needed for already
+   provisioned devices.
+6. Keep registration-topic redaction and the unchanged MQTT contract until a
    separately agreed protocol migration.
 
 ## References

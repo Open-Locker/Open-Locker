@@ -3,7 +3,6 @@ x-laravel-env-prod: &laravel_env_prod
   PGID: "1000"
   WWWUSER: "1000"
   APP_ENV: production
-  PROVISIONING_TOKEN_HMAC_KEY: "${PROVISIONING_TOKEN_HMAC_KEY}"
   QUEUE_CONNECTION: redis
   BROADCAST_CONNECTION: reverb
   DB_HOST: db

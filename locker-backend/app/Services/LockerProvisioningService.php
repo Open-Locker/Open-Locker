@@ -10,6 +10,7 @@ use App\Models\LockerBank;
 use App\Models\User;
 use Carbon\CarbonImmutable;
 use Illuminate\Auth\Access\AuthorizationException;
+use Illuminate\Encryption\Encrypter;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
@@ -17,6 +18,8 @@ use RuntimeException;
 
 class LockerProvisioningService
 {
+    private const TOKEN_HMAC_INFO = 'open-locker/provisioning-token-hmac/v1';
+
     public function __construct(
         private readonly MqttUserService $mqttUserService,
     ) {}
@@ -98,18 +101,25 @@ class LockerProvisioningService
 
     public function hashToken(string $token): string
     {
-        $key = config('provisioning.token_hmac_key');
+        $configuredKey = config('app.key');
 
-        if (
-            ! is_string($key)
-            || strlen(trim($key)) < 32
-            || $key === 'change-me-to-a-dedicated-random-secret-of-at-least-32-characters'
-        ) {
-            throw new RuntimeException(
-                'PROVISIONING_TOKEN_HMAC_KEY must contain at least 32 characters.',
-            );
+        if (! is_string($configuredKey) || $configuredKey === '') {
+            throw new RuntimeException('APP_KEY must be configured for provisioning token HMAC.');
         }
 
-        return hash_hmac('sha256', $token, $key);
+        $appKey = $configuredKey;
+
+        if (str_starts_with($configuredKey, 'base64:')) {
+            $appKey = base64_decode(substr($configuredKey, 7), true);
+
+            if ($appKey === false || $appKey === '') {
+                throw new RuntimeException('APP_KEY contains invalid Base64 data.');
+            }
+        }
+
+        $validatedAppKey = (new Encrypter($appKey, (string) config('app.cipher')))->getKey();
+        $tokenHmacKey = hash_hkdf('sha256', $validatedAppKey, 32, self::TOKEN_HMAC_INFO);
+
+        return hash_hmac('sha256', $token, $tokenHmacKey);
     }
 }

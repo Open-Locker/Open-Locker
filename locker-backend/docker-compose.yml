@@ -2,7 +2,6 @@ x-laravel-env-dev: &laravel_env_dev
     PUID: "${WWWUSER}"
     PGID: "${WWWGROUP}"
     LARAVEL_SAIL: 1
-    PROVISIONING_TOKEN_HMAC_KEY: "${PROVISIONING_TOKEN_HMAC_KEY}"
     QUEUE_CONNECTION: redis
     BROADCAST_CONNECTION: reverb
     DB_HOST: db

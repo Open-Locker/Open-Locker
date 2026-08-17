@@ -30,6 +30,10 @@ The backend never shows the token again. If it is lost or consumed before the
 client finishes provisioning, restart provisioning in the admin panel and use
 the newly issued token.
 
+Rotating the backend's Laravel `APP_KEY` invalidates outstanding, unconsumed
+provisioning tokens. Issue replacement tokens for those clients; already
+provisioned clients keep using their MQTT credentials and need no change.
+
 The Compose stack runs the client from
 `ghcr.io/open-locker/locker-client:${LOCKER_CLIENT_IMAGE_TAG:-latest}` and uses
 Watchtower for labeled automatic updates.

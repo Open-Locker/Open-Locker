@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace App\Filament\Concerns;
 
+use App\Filament\Resources\LockerBankResource;
+use Filament\Actions\Action;
+
 trait InteractsWithOneTimeProvisioningToken
 {
     /**
@@ -20,5 +23,24 @@ trait InteractsWithOneTimeProvisioningToken
     public function getOneTimeProvisioningToken(): string
     {
         return $this->oneTimeProvisioningToken ?? '';
+    }
+
+    public function showProvisioningTokenAction(): Action
+    {
+        return LockerBankResource::showProvisioningTokenAction();
+    }
+
+    public function unmountAction(bool $canCancelParentActions = true): void
+    {
+        $isProvisioningTokenAction = data_get(
+            collect($this->mountedActions)->last(),
+            'name',
+        ) === 'showProvisioningToken';
+
+        parent::unmountAction($canCancelParentActions);
+
+        if ($isProvisioningTokenAction) {
+            $this->oneTimeProvisioningToken = null;
+        }
     }
 }

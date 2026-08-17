@@ -44,10 +44,12 @@ Without `just`: copy `mosquitto.conf` from the example and add
 `mosq_secret=<MOSQ_HTTP_PASS>` to the webhook URIs, then restart the
 Mosquitto container.
 
-Set `PROVISIONING_TOKEN_HMAC_KEY` on every backend instance to the same
-dedicated random secret of at least 32 characters. Do not reuse `APP_KEY`.
-Generate it with `openssl rand -base64 48`; the placeholder from an example
-environment file is not accepted.
+Set the same valid Laravel `APP_KEY` on every backend instance. The backend
+derives a domain-separated provisioning-token HMAC subkey from it; no additional
+provisioning HMAC secret is required. Rotating `APP_KEY` invalidates outstanding,
+unconsumed provisioning tokens, so issue new tokens for those open
+provisionings. Already provisioned devices continue to use their MQTT
+credentials.
 
 ### Create an admin user
 

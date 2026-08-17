@@ -380,6 +380,7 @@
     "Issue a one-time provisioning token": "Einmaliges Bereitstellungstoken ausstellen",
     "Issue provisioning token": "Bereitstellungstoken ausstellen",
     "Issue token": "Token ausstellen",
+    "Issued": "Erstellt",
     "Not issued": "Nicht ausgestellt",
     "Provisioned at": "Bereitgestellt am",
     "Provisioning failed": "Bereitstellung fehlgeschlagen",

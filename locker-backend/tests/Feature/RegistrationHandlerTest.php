@@ -24,7 +24,6 @@ class RegistrationHandlerTest extends TestCase
         parent::setUp();
 
         Cache::flush();
-        config()->set('provisioning.token_hmac_key', str_repeat('k', 64));
     }
 
     /**
