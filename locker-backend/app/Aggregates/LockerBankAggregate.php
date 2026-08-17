@@ -10,6 +10,7 @@ use App\StorableEvents\CompartmentOpeningRequested;
 use App\StorableEvents\LockerConfigApplyRequested;
 use App\StorableEvents\LockerProvisioningFailed;
 use App\StorableEvents\LockerProvisioningReset;
+use App\StorableEvents\LockerProvisioningTokenIssued;
 use App\StorableEvents\LockerWasProvisioned;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Log;
@@ -22,8 +23,11 @@ class LockerBankAggregate extends AggregateRoot
     // `registerLockerBank` which will then record events
     // like `LockerBankWasProvisioned`.
 
-    public function provision(LockerBank $lockerBank, string $replyToTopic): self
-    {
+    public function provision(
+        LockerBank $lockerBank,
+        string $replyToTopic,
+        string $provisioningGeneration,
+    ): self {
         // The check for the existence of the locker bank is now done in the command.
         // We can directly proceed with the provisioning logic.
         Log::info("Provisioning locker bank: {$lockerBank->id}");
@@ -43,6 +47,7 @@ class LockerBankAggregate extends AggregateRoot
         $this->recordThat(new LockerWasProvisioned(
             lockerBankUuid: $lockerBank->id,
             replyToTopic: $replyToTopic,
+            provisioningGeneration: $provisioningGeneration,
         ));
         Log::info("LockerWasProvisioned event recorded for: {$lockerBank->id}");
 
@@ -54,13 +59,10 @@ class LockerBankAggregate extends AggregateRoot
      * re-authenticate. The new token must still be delivered to the device
      * manually (the backend has no push channel).
      *
-     * The token itself never reaches this event — see
-     * {@see LockerProvisioningReset}. Rotating it, deleting the MQTT user and
-     * enforcing authorization belong to
-     * {@see \App\Services\LockerProvisioningResetService}, which is the only
-     * caller.
+     * Rotating the token, deleting the MQTT user and enforcing authorization
+     * belong to {@see \App\Services\LockerProvisioningService}.
      */
-    public function resetProvisioning(?int $actorUserId, CarbonImmutable $resetAt): self
+    public function resetProvisioning(int $actorUserId, CarbonImmutable $resetAt): self
     {
         Log::info("Resetting provisioning for locker bank: {$this->uuid()}");
 
@@ -68,6 +70,23 @@ class LockerBankAggregate extends AggregateRoot
             lockerBankUuid: (string) $this->uuid(),
             actorUserId: $actorUserId,
             resetAtIso8601: $resetAt->toIso8601String(),
+        ));
+
+        return $this;
+    }
+
+    public function issueProvisioningToken(
+        string $provisioningTokenHmac,
+        string $provisioningGeneration,
+        int $actorUserId,
+        CarbonImmutable $issuedAt,
+    ): self {
+        $this->recordThat(new LockerProvisioningTokenIssued(
+            lockerBankUuid: (string) $this->uuid(),
+            provisioningTokenHmac: $provisioningTokenHmac,
+            provisioningGeneration: $provisioningGeneration,
+            actorUserId: $actorUserId,
+            issuedAtIso8601: $issuedAt->toIso8601String(),
         ));
 
         return $this;

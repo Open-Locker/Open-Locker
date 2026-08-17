@@ -2,7 +2,10 @@
 
 namespace Tests\Feature;
 
+use App\Models\LockerBank;
+use App\Models\User;
 use App\Mqtt\Handlers\RegistrationHandler;
+use App\Services\LockerProvisioningService;
 use App\StorableEvents\LockerWasProvisioned;
 use Database\Factories\LockerBankFactory;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -21,16 +24,30 @@ class RegistrationHandlerTest extends TestCase
         parent::setUp();
 
         Cache::flush();
+        config()->set('provisioning.token_hmac_key', str_repeat('k', 64));
+    }
+
+    /**
+     * @return array{LockerBank, string}
+     */
+    private function bankWithIssuedToken(): array
+    {
+        $admin = User::factory()->create();
+        $admin->makeAdmin();
+        $lockerBank = LockerBankFactory::new()->create();
+        $token = app(LockerProvisioningService::class)->restart($lockerBank, $admin);
+
+        return [$lockerBank, $token];
     }
 
     public function test_valid_registration_message_records_provisioning_event(): void
     {
-        $handler = app(RegistrationHandler::class);
-        $lockerBank = LockerBankFactory::new()->create([
-            'provisioned_at' => null,
-        ]);
+        MQTT::shouldReceive('connection')->andReturn(new FakeMqttClient);
 
-        $topic = sprintf('locker/register/%s', $lockerBank->provisioning_token);
+        $handler = app(RegistrationHandler::class);
+        [$lockerBank, $token] = $this->bankWithIssuedToken();
+
+        $topic = sprintf('locker/register/%s', $token);
         $handler->handleMessage($topic, (string) json_encode([
             'message_id' => '11111111-1111-1111-1111-111111111111',
             'client_id' => 'prov-client-1',
@@ -45,28 +62,61 @@ class RegistrationHandlerTest extends TestCase
         $this->assertNotNull($storedEvent);
         $this->assertSame((string) $lockerBank->id, $storedEvent->event_properties['lockerBankUuid'] ?? null);
         $this->assertSame('locker/provisioning/reply/prov-client-1', $storedEvent->event_properties['replyToTopic'] ?? null);
+        $this->assertSame(
+            $lockerBank->fresh()->provisioning_generation,
+            $storedEvent->event_properties['provisioningGeneration'] ?? null,
+        );
 
         $lockerBank->refresh();
         $this->assertNotNull($lockerBank->provisioned_at);
+        $this->assertNull($lockerBank->provisioning_token_hmac);
     }
 
     public function test_registration_message_without_timestamp_is_rejected(): void
     {
         $handler = app(RegistrationHandler::class);
-        $lockerBank = LockerBankFactory::new()->create([
-            'provisioned_at' => null,
-        ]);
+        [$lockerBank, $token] = $this->bankWithIssuedToken();
 
-        $topic = sprintf('locker/register/%s', $lockerBank->provisioning_token);
+        $topic = sprintf('locker/register/%s', $token);
         $handler->handleMessage($topic, (string) json_encode([
             'message_id' => '22222222-2222-2222-2222-222222222222',
             'client_id' => 'prov-client-1',
         ]));
 
-        $this->assertSame(0, EloquentStoredEvent::query()->count());
+        $this->assertSame(0, EloquentStoredEvent::query()
+            ->where('event_class', LockerWasProvisioned::class)
+            ->count());
 
         $lockerBank->refresh();
         $this->assertNull($lockerBank->provisioned_at);
+    }
+
+    public function test_consumed_provisioning_token_is_rejected(): void
+    {
+        MQTT::shouldReceive('connection')
+            ->twice()
+            ->with('publisher')
+            ->andReturn(new FakeMqttClient);
+
+        [$lockerBank, $token] = $this->bankWithIssuedToken();
+        $handler = app(RegistrationHandler::class);
+        $payload = (string) json_encode([
+            'message_id' => '55555555-5555-5555-5555-555555555555',
+            'client_id' => 'prov-client-consumed',
+            'timestamp' => now()->toIso8601String(),
+        ]);
+
+        $handler->handleMessage("locker/register/{$token}", $payload);
+        $handler->handleMessage("locker/register/{$token}", (string) json_encode([
+            'message_id' => '66666666-6666-6666-6666-666666666666',
+            'client_id' => 'prov-client-consumed',
+            'timestamp' => now()->toIso8601String(),
+        ]));
+
+        $this->assertNull($lockerBank->fresh()->provisioning_token_hmac);
+        $this->assertSame(1, EloquentStoredEvent::query()
+            ->where('event_class', LockerWasProvisioned::class)
+            ->count());
     }
 
     public function test_registration_message_with_unsafe_client_id_is_rejected_before_reply_topic_is_derived(): void

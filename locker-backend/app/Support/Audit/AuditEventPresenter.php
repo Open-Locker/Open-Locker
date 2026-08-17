@@ -49,6 +49,7 @@ class AuditEventPresenter
         'LockerWasProvisioned' => 'devices',
         'LockerProvisioningFailed' => 'devices',
         'LockerProvisioningReset' => 'devices',
+        'LockerProvisioningTokenIssued' => 'devices',
         'LockerConnectionLost' => 'devices',
         'LockerConnectionRestored' => 'devices',
         'LockerConfigAcknowledged' => 'devices',
@@ -170,6 +171,7 @@ class AuditEventPresenter
             'LockerWasProvisioned' => __('Locker provisioned'),
             'LockerProvisioningFailed' => __('Provisioning failed'),
             'LockerProvisioningReset' => __('Provisioning reset'),
+            'LockerProvisioningTokenIssued' => __('Provisioning token issued'),
             'LockerConnectionLost' => __('Connection lost'),
             'LockerConnectionRestored' => __('Connection restored'),
             'LockerConfigAcknowledged' => __('Configuration acknowledged'),
@@ -249,6 +251,10 @@ class AuditEventPresenter
             ]),
             // Never renders token material: the event does not carry it.
             'LockerProvisioningReset' => __(':actor reset provisioning for locker bank :bank', [
+                'actor' => $this->user($p['actorUserId'] ?? null),
+                'bank' => $this->lockerBank($p['lockerBankUuid'] ?? null),
+            ]),
+            'LockerProvisioningTokenIssued' => __(':actor issued a provisioning token for locker bank :bank', [
                 'actor' => $this->user($p['actorUserId'] ?? null),
                 'bank' => $this->lockerBank($p['lockerBankUuid'] ?? null),
             ]),

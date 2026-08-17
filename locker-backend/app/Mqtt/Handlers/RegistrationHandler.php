@@ -4,10 +4,9 @@ declare(strict_types=1);
 
 namespace App\Mqtt\Handlers;
 
-use App\Aggregates\LockerBankAggregate;
-use App\Models\LockerBank;
 use App\Mqtt\InboundMqttProtocolGuard;
 use App\Mqtt\Publishers\ProvisioningReplyPublisher;
+use App\Services\LockerProvisioningService;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 
@@ -16,6 +15,7 @@ class RegistrationHandler extends AbstractInboundMqttHandler
     public function __construct(
         InboundMqttProtocolGuard $guard,
         private readonly ProvisioningReplyPublisher $provisioningReplyPublisher,
+        private readonly LockerProvisioningService $lockerProvisioningService,
     ) {
         parent::__construct($guard);
     }
@@ -62,9 +62,21 @@ class RegistrationHandler extends AbstractInboundMqttHandler
             'client_id' => $clientId,
         ]);
 
-        $lockerBank = LockerBank::where('provisioning_token', $provisioningToken)->first();
+        try {
+            $accepted = $this->lockerProvisioningService->acceptRegistration(
+                $provisioningToken,
+                $replyToTopic,
+            );
+        } catch (\Throwable $e) {
+            Log::error('Failed to accept locker provisioning registration.', [
+                'client_id' => $clientId,
+                'error' => $e->getMessage(),
+            ]);
 
-        if (! $lockerBank) {
+            return;
+        }
+
+        if (! $accepted) {
             Log::warning('No LockerBank found for provisioning token', [
                 'client_id' => $clientId,
             ]);
@@ -74,21 +86,8 @@ class RegistrationHandler extends AbstractInboundMqttHandler
             return;
         }
 
-        Log::info('Provisioning LockerBank', [
-            'uuid' => $lockerBank->id,
-            'replyTo' => $replyToTopic,
+        Log::info('Provisioning event emitted', [
+            'client_id' => $clientId,
         ]);
-
-        try {
-            LockerBankAggregate::retrieve($lockerBank->id)
-                ->provision($lockerBank, $replyToTopic)
-                ->persist();
-
-            Log::info('Provisioning event emitted');
-        } catch (\Throwable $e) {
-            Log::error('Failed to emit provisioning event, falling back to direct reply', [
-                'error' => $e->getMessage(),
-            ]);
-        }
     }
 }

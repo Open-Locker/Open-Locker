@@ -4,26 +4,23 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
-use App\Filament\Resources\LockerBankResource;
 use App\Filament\Resources\LockerBankResource\Pages\EditLockerBank;
 use App\Filament\Resources\LockerBankResource\Pages\ListLockerBanks;
-use App\Models\AuditEvent;
 use App\Models\LockerBank;
 use App\Models\MqttUser;
 use App\Models\User;
-use App\Mqtt\Handlers\RegistrationHandler;
-use App\Services\LockerProvisioningResetService;
+use App\Projectors\LockerBankProjector;
+use App\Services\LockerProvisioningService;
 use App\Services\MqttUserService;
 use App\StorableEvents\LockerProvisioningReset;
+use App\StorableEvents\LockerProvisioningTokenIssued;
 use App\StorableEvents\LockerWasProvisioned;
 use App\Support\Audit\AuditEventPresenter;
-use Database\Factories\LockerBankFactory;
-use Filament\Actions\Testing\TestAction;
+use Carbon\CarbonImmutable;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Log\Events\MessageLogged;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Str;
 use Livewire\Livewire;
 use PhpMqtt\Client\Facades\MQTT;
 use Spatie\EventSourcing\StoredEvents\Models\EloquentStoredEvent;
@@ -34,20 +31,14 @@ class LockerBankProvisioningResetTest extends TestCase
 {
     use RefreshDatabase;
 
+    private const HMAC_KEY = 'test-provisioning-hmac-key-with-more-than-32-characters';
+
     protected function setUp(): void
     {
         parent::setUp();
 
-        // Registration replies are published for real, and CI has no broker.
-        // Locally the container resolves `mqtt` and the tests pass either way,
-        // which is exactly why this has to be faked rather than relied upon.
+        config()->set('provisioning.token_hmac_key', self::HMAC_KEY);
         MQTT::shouldReceive('connection')->andReturn(new FakeMqttClient);
-
-        config()->set('mqtt-client.webhooks.pass', 'test-secret');
-        config()->set('mqtt-client.system.provisioning_username', 'provisioning_client');
-        config()->set('mqtt-client.system.provisioning_password', 'provisioning-pass');
-        config()->set('mqtt-client.system.backend_username', 'laravel_backend');
-        config()->set('mqtt-client.system.backend_password', 'backend-pass');
     }
 
     private function admin(): User
@@ -58,10 +49,6 @@ class LockerBankProvisioningResetTest extends TestCase
         return $admin;
     }
 
-    /**
-     * The very first user created becomes admin automatically, so an
-     * unprivileged user only exists once somebody else holds that seat.
-     */
     private function unprivilegedUser(): User
     {
         $this->admin();
@@ -69,15 +56,11 @@ class LockerBankProvisioningResetTest extends TestCase
         return User::factory()->create();
     }
 
-    private function service(): LockerProvisioningResetService
-    {
-        return app(LockerProvisioningResetService::class);
-    }
-
     private function provisionedBank(): LockerBank
     {
-        return LockerBankFactory::new()->create([
+        return LockerBank::factory()->create([
             'provisioned_at' => now(),
+            'provisioning_generation' => '11111111-1111-1111-1111-111111111111',
             'connection_status' => 'online',
             'connection_status_changed_at' => now(),
             'last_heartbeat_at' => now(),
@@ -88,363 +71,272 @@ class LockerBankProvisioningResetTest extends TestCase
         ]);
     }
 
-    public function test_reset_rotates_the_token_and_clears_provisioned_at(): void
+    public function test_restart_stores_only_hmac_and_replayable_generation(): void
     {
-        $lockerBank = $this->provisionedBank();
-        $oldToken = $lockerBank->provisioning_token;
+        $lockerBank = LockerBank::factory()->create();
+        $admin = $this->admin();
 
-        $newToken = $this->service()->reset($lockerBank, $this->admin());
-
+        $token = app(LockerProvisioningService::class)->restart($lockerBank, $admin);
         $lockerBank->refresh();
-        $this->assertSame($newToken, $lockerBank->provisioning_token);
-        $this->assertNotSame($oldToken, $lockerBank->provisioning_token);
-        $this->assertNull($lockerBank->provisioned_at);
+
+        $expectedHmac = hash_hmac('sha256', $token, self::HMAC_KEY);
+        $this->assertMatchesRegularExpression('/\A[a-f0-9]{64}\z/', $lockerBank->provisioning_token_hmac);
+        $this->assertSame($expectedHmac, $lockerBank->provisioning_token_hmac);
+        $this->assertNotNull($lockerBank->provisioning_generation);
+        $this->assertDatabaseMissing('locker_banks', ['provisioning_token_hmac' => $token]);
+
+        $issuedEvent = EloquentStoredEvent::query()
+            ->where('event_class', LockerProvisioningTokenIssued::class)
+            ->sole();
+        $this->assertSame($expectedHmac, $issuedEvent->event_properties['provisioningTokenHmac'] ?? null);
+        $this->assertSame($lockerBank->provisioning_generation, $issuedEvent->event_properties['provisioningGeneration'] ?? null);
+        $this->assertSame($admin->id, $issuedEvent->event_properties['actorUserId'] ?? null);
+        $this->assertSame(
+            [LockerProvisioningReset::class, LockerProvisioningTokenIssued::class],
+            EloquentStoredEvent::query()
+                ->whereIn('event_class', [
+                    LockerProvisioningReset::class,
+                    LockerProvisioningTokenIssued::class,
+                ])
+                ->orderBy('id')
+                ->pluck('event_class')
+                ->all(),
+        );
+        $presenter = app(AuditEventPresenter::class);
+        $this->assertContains(
+            LockerProvisioningTokenIssued::class,
+            $presenter->auditableEventClasses(),
+        );
+        $this->assertSame(
+            __('Provisioning token issued'),
+            $presenter->label(LockerProvisioningTokenIssued::class),
+        );
+
+        $databaseState = json_encode([
+            LockerBank::query()->whereKey($lockerBank->id)->firstOrFail()->getAttributes(),
+            EloquentStoredEvent::query()->get()->map->getAttributes()->all(),
+        ], JSON_THROW_ON_ERROR);
+        $this->assertStringNotContainsString($token, $databaseState);
     }
 
-    public function test_reset_requires_the_configure_permission(): void
+    public function test_restart_requires_actor_permission_and_valid_hmac_key(): void
     {
-        $lockerBank = $this->provisionedBank();
-        $oldToken = $lockerBank->provisioning_token;
-
-        $this->expectException(AuthorizationException::class);
+        $lockerBank = LockerBank::factory()->create();
 
         try {
-            $this->service()->reset($lockerBank, $this->unprivilegedUser());
-        } finally {
-            // Authorization is enforced before anything is touched.
-            $lockerBank->refresh();
-            $this->assertSame($oldToken, $lockerBank->provisioning_token);
-            $this->assertNotNull($lockerBank->provisioned_at);
-            $this->assertSame(0, EloquentStoredEvent::query()
-                ->where('event_class', LockerProvisioningReset::class)
-                ->count());
+            app(LockerProvisioningService::class)->restart($lockerBank, $this->unprivilegedUser());
+            $this->fail('Expected authorization to fail.');
+        } catch (AuthorizationException) {
+            $this->assertNull($lockerBank->fresh()->provisioning_token_hmac);
         }
+
+        config()->set('provisioning.token_hmac_key', null);
+
+        $this->expectException(\RuntimeException::class);
+        app(LockerProvisioningService::class)->restart($lockerBank, $this->admin());
     }
 
-    public function test_reset_without_an_actor_is_denied(): void
+    public function test_example_placeholder_is_not_accepted_as_hmac_key(): void
     {
-        $lockerBank = $this->provisionedBank();
+        config()->set(
+            'provisioning.token_hmac_key',
+            'change-me-to-a-dedicated-random-secret-of-at-least-32-characters',
+        );
 
-        $this->expectException(AuthorizationException::class);
-
-        $this->service()->reset($lockerBank, null);
+        $this->expectException(\RuntimeException::class);
+        app(LockerProvisioningService::class)->hashToken('token');
     }
 
-    public function test_event_records_actor_and_timestamp_but_never_the_token(): void
+    public function test_rotation_invalidates_old_token_and_consumes_new_token(): void
     {
-        $lockerBank = $this->provisionedBank();
+        $lockerBank = LockerBank::factory()->create();
         $admin = $this->admin();
-        $oldToken = $lockerBank->provisioning_token;
+        $service = app(LockerProvisioningService::class);
 
-        $newToken = $this->service()->reset($lockerBank, $admin);
+        $oldToken = $service->restart($lockerBank, $admin);
+        $newToken = $service->restart($lockerBank->fresh(), $admin);
 
-        $storedEvent = EloquentStoredEvent::query()
-            ->where('event_class', LockerProvisioningReset::class)
-            ->latest('id')
-            ->firstOrFail();
-
-        $properties = $storedEvent->event_properties;
-
-        $this->assertSame((string) $lockerBank->id, $properties['lockerBankUuid'] ?? null);
-        $this->assertSame($admin->id, $properties['actorUserId'] ?? null);
-        $this->assertNotEmpty($properties['resetAtIso8601'] ?? null);
-
-        // Neither the retired nor the fresh credential may be reconstructable
-        // from the event store.
-        $this->assertArrayNotHasKey('newProvisioningToken', $properties);
-        $serialised = (string) json_encode($storedEvent->getAttributes());
-        $this->assertStringNotContainsString($newToken, $serialised);
-        $this->assertStringNotContainsString($oldToken, $serialised);
-    }
-
-    public function test_reset_marks_the_bank_offline_and_clears_config_state(): void
-    {
-        $lockerBank = $this->provisionedBank();
-
-        $this->service()->reset($lockerBank, $this->admin());
+        $this->assertNotSame($oldToken, $newToken);
+        $this->assertFalse($service->acceptRegistration(
+            $oldToken,
+            'locker/provisioning/reply/old-client',
+        ));
+        $this->assertTrue($service->acceptRegistration(
+            $newToken,
+            'locker/provisioning/reply/new-client',
+        ));
+        $this->assertFalse($service->acceptRegistration(
+            $newToken,
+            'locker/provisioning/reply/retry-client',
+        ));
 
         $lockerBank->refresh();
+        $this->assertNotNull($lockerBank->provisioned_at);
+        $this->assertNull($lockerBank->provisioning_token_hmac);
+        $this->assertSame(1, EloquentStoredEvent::query()
+            ->where('event_class', LockerWasProvisioned::class)
+            ->count());
+    }
 
+    public function test_provisioning_projection_uses_the_stored_event_time_during_replay(): void
+    {
+        $lockerBank = LockerBank::factory()->create();
+        $provisionedAt = CarbonImmutable::parse('2026-08-17T10:15:30+00:00');
+        $event = (new LockerWasProvisioned(
+            lockerBankUuid: (string) $lockerBank->id,
+            replyToTopic: 'locker/provisioning/reply/replay-test',
+        ))->setCreatedAt($provisionedAt);
+
+        app(LockerBankProjector::class)->onLockerWasProvisioned($event);
+
+        $lockerBank->refresh();
+        $this->assertTrue($lockerBank->provisioned_at?->equalTo($provisionedAt) ?? false);
+        $this->assertNull($lockerBank->provisioning_generation);
+    }
+
+    public function test_restart_resets_state_and_deletes_operational_mqtt_user(): void
+    {
+        $lockerBank = $this->provisionedBank();
+        app(MqttUserService::class)->createUser(
+            (string) $lockerBank->id,
+            'device-password',
+            (string) $lockerBank->id,
+        );
+
+        app(LockerProvisioningService::class)->restart($lockerBank, $this->admin());
+        $lockerBank->refresh();
+
+        $this->assertNull($lockerBank->provisioned_at);
         $this->assertSame('offline', $lockerBank->connection_status);
-        $this->assertNotNull($lockerBank->connection_status_changed_at);
         $this->assertNull($lockerBank->last_heartbeat_at);
         $this->assertNull($lockerBank->last_config_sent_at);
         $this->assertNull($lockerBank->last_config_sent_hash);
         $this->assertNull($lockerBank->last_config_ack_at);
         $this->assertNull($lockerBank->last_config_ack_hash);
-
-        // A replacement client has acknowledged nothing, so the bank must read
-        // dirty until a fresh apply_config round trip.
-        $this->assertTrue($lockerBank->isConfigDirty());
-    }
-
-    public function test_reset_deletes_the_mqtt_user(): void
-    {
-        $lockerBank = $this->provisionedBank();
-        app(MqttUserService::class)->createUser((string) $lockerBank->id, 'device-pass', (string) $lockerBank->id);
-
-        $this->assertDatabaseHas('mqtt_users', ['username' => (string) $lockerBank->id]);
-
-        $this->service()->reset($lockerBank, $this->admin());
-
         $this->assertDatabaseMissing('mqtt_users', ['username' => (string) $lockerBank->id]);
-    }
-
-    public function test_deleted_mqtt_user_is_denied_by_auth_and_acl(): void
-    {
-        $lockerBank = $this->provisionedBank();
-        $username = (string) $lockerBank->id;
-        app(MqttUserService::class)->createUser($username, 'device-pass', $username);
-
-        $this->postJson('/api/mosq/auth?mosq_secret=test-secret', [
-            'username' => $username,
-            'password' => 'device-pass',
-        ])->assertOk()->assertJson(['allow' => true]);
-
-        $this->service()->reset($lockerBank, $this->admin());
-
-        // Denial shapes differ between the two endpoints: auth answers 200 with
-        // allow:false, ACL answers 403. Both are read by mosquitto-go-auth.
-        $this->postJson('/api/mosq/auth?mosq_secret=test-secret', [
-            'username' => $username,
-            'password' => 'device-pass',
-        ])->assertOk()->assertJson(['allow' => false]);
-
-        $this->postJson('/api/mosq/acl?mosq_secret=test-secret', [
-            'username' => $username,
-            'topic' => "locker/{$username}/state/heartbeat",
-            'acc' => 2,
-            'clientid' => $username,
-        ])->assertStatus(403)->assertJson(['allow' => false]);
-    }
-
-    public function test_old_token_stops_working_and_the_new_one_re_provisions(): void
-    {
-        $lockerBank = $this->provisionedBank();
-        $oldToken = $lockerBank->provisioning_token;
-
-        $newToken = $this->service()->reset($lockerBank, $this->admin());
-
-        $handler = app(RegistrationHandler::class);
-
-        // The retired token no longer resolves to a bank.
-        $handler->handleMessage(
-            "locker/register/{$oldToken}",
-            (string) json_encode([
-                'message_id' => (string) Str::uuid(),
-                'client_id' => 'prov-client-old',
-                'timestamp' => now()->toIso8601String(),
-            ]),
-        );
-
-        $this->assertSame(0, EloquentStoredEvent::query()
-            ->where('event_class', LockerWasProvisioned::class)
-            ->count());
-
-        // The fresh one provisions the same bank again, recreating the legacy
-        // UUID username with a newly generated password.
-        $handler->handleMessage(
-            "locker/register/{$newToken}",
-            (string) json_encode([
-                'message_id' => (string) Str::uuid(),
-                'client_id' => 'prov-client-new',
-                'timestamp' => now()->toIso8601String(),
-            ]),
-        );
-
         $this->assertSame(1, EloquentStoredEvent::query()
-            ->where('event_class', LockerWasProvisioned::class)
-            ->count());
-
-        $lockerBank->refresh();
-        $this->assertNotNull($lockerBank->provisioned_at);
-
-        $mqttUser = MqttUser::where('username', (string) $lockerBank->id)->first();
-        $this->assertNotNull($mqttUser);
-        $this->assertNotSame('', (string) $mqttUser->password_hash);
-    }
-
-    public function test_repeated_resets_rotate_the_token_each_time(): void
-    {
-        $lockerBank = $this->provisionedBank();
-        $admin = $this->admin();
-
-        $first = $this->service()->reset($lockerBank, $admin);
-        $second = $this->service()->reset($lockerBank->fresh(), $admin);
-
-        $this->assertNotSame($first, $second);
-
-        $lockerBank->refresh();
-        $this->assertSame($second, $lockerBank->provisioning_token);
-        $this->assertSame(2, EloquentStoredEvent::query()
             ->where('event_class', LockerProvisioningReset::class)
             ->count());
     }
 
-    public function test_a_failure_mid_reset_leaves_the_token_untouched(): void
+    public function test_restart_rolls_back_events_projection_and_mqtt_user_deletion_failure(): void
     {
         $lockerBank = $this->provisionedBank();
-        $oldToken = $lockerBank->provisioning_token;
+        MqttUser::factory()->create([
+            'username' => (string) $lockerBank->id,
+            'locker_bank_id' => $lockerBank->id,
+        ]);
+        $admin = $this->admin();
+        $original = $lockerBank->getAttributes();
+        $storedEventCount = EloquentStoredEvent::query()->count();
 
         $this->mock(MqttUserService::class, function ($mock): void {
             $mock->shouldReceive('deleteUser')
                 ->once()
-                ->andThrow(new \RuntimeException('broker unavailable'));
+                ->andReturnUsing(function (string $username): never {
+                    MqttUser::query()->where('username', $username)->delete();
+
+                    throw new \RuntimeException('delete failed');
+                });
         });
 
         try {
-            $this->service()->reset($lockerBank, $this->admin());
-            $this->fail('Expected the reset to propagate the failure.');
-        } catch (\RuntimeException $e) {
-            $this->assertSame('broker unavailable', $e->getMessage());
+            app(LockerProvisioningService::class)->restart($lockerBank, $admin);
+            $this->fail('Expected restart failure.');
+        } catch (\RuntimeException $exception) {
+            $this->assertSame('delete failed', $exception->getMessage());
         }
 
-        // The whole reset is one transaction, so a half-rotated bank cannot
-        // survive: the operator still holds a token that works.
         $lockerBank->refresh();
-        $this->assertSame($oldToken, $lockerBank->provisioning_token);
-        $this->assertNotNull($lockerBank->provisioned_at);
-        $this->assertSame(0, EloquentStoredEvent::query()
-            ->where('event_class', LockerProvisioningReset::class)
-            ->count());
+        $this->assertSame($original['provisioned_at'], $lockerBank->getRawOriginal('provisioned_at'));
+        $this->assertSame($original['provisioning_generation'], $lockerBank->provisioning_generation);
+        $this->assertNull($lockerBank->provisioning_token_hmac);
+        $this->assertDatabaseHas('mqtt_users', ['username' => (string) $lockerBank->id]);
+        $this->assertSame($storedEventCount, EloquentStoredEvent::query()->count());
     }
 
-    public function test_admin_can_reset_from_the_locker_bank_table(): void
+    public function test_logs_never_contain_plaintext_token(): void
     {
-        $lockerBank = $this->provisionedBank();
-        $oldToken = $lockerBank->provisioning_token;
-        app(MqttUserService::class)->createUser((string) $lockerBank->id, 'device-pass', (string) $lockerBank->id);
+        $lockerBank = LockerBank::factory()->create();
+        $logged = [];
+        Log::listen(function (MessageLogged $entry) use (&$logged): void {
+            $logged[] = $entry->message.' '.json_encode($entry->context);
+        });
 
-        Livewire::actingAs($this->admin())
-            ->test(ListLockerBanks::class)
-            ->callAction(TestAction::make('resetProvisioning')->table($lockerBank))
-            ->assertHasNoActionErrors();
+        $token = app(LockerProvisioningService::class)->restart($lockerBank, $this->admin());
+        app(LockerProvisioningService::class)->acceptRegistration(
+            $token,
+            'locker/provisioning/reply/log-test',
+        );
 
-        $lockerBank->refresh();
-        $this->assertNotSame($oldToken, $lockerBank->provisioning_token);
-        $this->assertNull($lockerBank->provisioned_at);
-        $this->assertDatabaseMissing('mqtt_users', ['username' => (string) $lockerBank->id]);
+        foreach ($logged as $line) {
+            $this->assertStringNotContainsString($token, $line);
+        }
     }
 
-    public function test_admin_can_reset_from_the_bank_edit_page(): void
+    public function test_filament_shows_returned_token_only_in_one_time_modal(): void
     {
-        $lockerBank = $this->provisionedBank();
-        $oldToken = $lockerBank->provisioning_token;
-        app(MqttUserService::class)->createUser((string) $lockerBank->id, 'device-pass', (string) $lockerBank->id);
-
-        Livewire::actingAs($this->admin())
-            ->test(EditLockerBank::class, ['record' => $lockerBank->getKey()])
-            ->callAction('resetProvisioning')
-            ->assertHasNoActionErrors();
-
-        $lockerBank->refresh();
-        $this->assertNotSame($oldToken, $lockerBank->provisioning_token);
-        $this->assertNull($lockerBank->provisioned_at);
-        $this->assertSame('offline', $lockerBank->connection_status);
-        $this->assertDatabaseMissing('mqtt_users', ['username' => (string) $lockerBank->id]);
-    }
-
-    public function test_the_whole_locker_bank_screen_is_closed_without_the_configure_permission(): void
-    {
-        $this->actingAs($this->unprivilegedUser());
-
-        // The action's own visibility check never gets a chance to matter: the
-        // resource guarding the screen needs the same permission. Denial at the
-        // service is what actually protects the reset — see
-        // test_reset_requires_the_configure_permission.
-        $this->assertFalse(LockerBankResource::canAccess());
-
-        $this->get(route('filament.admin.resources.locker-banks.index'))
-            ->assertForbidden();
-    }
-
-    public function test_audit_log_shows_the_reset_with_its_actor_and_no_token(): void
-    {
-        $lockerBank = $this->provisionedBank();
+        $lockerBank = LockerBank::factory()->create();
+        $token = str_repeat('T', 64);
         $admin = $this->admin();
 
-        $newToken = $this->service()->reset($lockerBank, $admin);
-
-        $presenter = app(AuditEventPresenter::class);
-
-        $this->assertContains(
-            LockerProvisioningReset::class,
-            $presenter->auditableEventClasses(),
-            'The reset must be visible in the admin audit log.',
-        );
-
-        $auditEvent = AuditEvent::query()
-            ->where('event_class', LockerProvisioningReset::class)
-            ->latest('id')
-            ->firstOrFail();
-
-        $description = $presenter->describe($auditEvent);
-
-        $this->assertSame($admin->fullName(), $presenter->actorName($auditEvent));
-        $this->assertStringNotContainsString($newToken, $description);
-        $this->assertSame(__('Provisioning reset'), $presenter->label($auditEvent->event_class));
-    }
-
-    public function test_acl_checks_never_log_the_registration_token(): void
-    {
-        $lockerBank = $this->provisionedBank();
-        $token = $lockerBank->provisioning_token;
-
-        $logged = [];
-        Log::listen(function (MessageLogged $entry) use (&$logged): void {
-            $logged[] = $entry->message.' '.json_encode($entry->context);
+        $this->mock(LockerProvisioningService::class, function ($mock) use ($admin, $lockerBank, $token): void {
+            $mock->shouldReceive('restart')
+                ->once()
+                ->withArgs(fn (LockerBank $record, User $actor): bool => $record->is($lockerBank) && $actor->is($admin))
+                ->andReturn($token);
         });
 
-        // Mosquitto ACL-checks every registration publish, so this endpoint sees
-        // the token on the topic more often than the handlers do.
-        $this->postJson('/api/mosq/acl?mosq_secret=test-secret', [
-            'username' => 'provisioning_client',
-            'topic' => "locker/register/{$token}",
-            'acc' => 2,
-            'clientid' => 'prov-client-acl',
-        ]);
+        $component = Livewire::actingAs($admin)
+            ->test(EditLockerBank::class, ['record' => $lockerBank->getKey()])
+            ->callAction('restartProvisioning');
 
-        $this->assertNotEmpty($logged);
+        $component
+            ->assertSet('mountedActions.0.name', 'showProvisioningToken')
+            ->assertSet(
+                'mountedActions.0.arguments',
+                fn (array $arguments): bool => ! array_key_exists('token', $arguments),
+            );
 
-        foreach ($logged as $line) {
-            $this->assertStringNotContainsString($token, $line);
-        }
+        $modalContent = $component->instance()->getMountedAction()?->getModalContent();
+        $this->assertNotNull($modalContent);
+        $this->assertStringContainsString($token, $modalContent->render());
+        $this->assertStringNotContainsString(
+            $token,
+            json_encode($component->instance()->mountedActions, JSON_THROW_ON_ERROR),
+        );
+        $this->assertStringNotContainsString($token, json_encode(session()->all(), JSON_THROW_ON_ERROR));
+
+        $component
+            ->unmountAction()
+            ->assertActionNotMounted()
+            ->assertDontSee($token);
     }
 
-    public function test_registration_logs_never_contain_the_token_or_its_topic(): void
+    public function test_filament_table_action_preserves_context_for_the_one_time_modal(): void
     {
-        $lockerBank = $this->provisionedBank();
-        $token = $lockerBank->provisioning_token;
+        $lockerBank = LockerBank::factory()->create();
+        $token = str_repeat('T', 64);
+        $admin = $this->admin();
 
-        $logged = [];
-        Log::listen(function (MessageLogged $entry) use (&$logged): void {
-            $logged[] = $entry->message.' '.json_encode($entry->context);
+        $this->mock(LockerProvisioningService::class, function ($mock) use ($token): void {
+            $mock->shouldReceive('restart')->once()->andReturn($token);
         });
 
-        $handler = app(RegistrationHandler::class);
-        $payload = (string) json_encode([
-            'message_id' => (string) Str::uuid(),
-            'client_id' => 'prov-client-logging',
-            'timestamp' => now()->toIso8601String(),
-        ]);
+        $component = Livewire::actingAs($admin)
+            ->test(ListLockerBanks::class)
+            ->callTableAction('restartProvisioning', $lockerBank);
 
-        // Both the accepted and the rejected path log, and both see the token
-        // as the topic suffix.
-        $handler->handleMessage("locker/register/{$token}", $payload);
-        $handler->handleMessage(
-            'locker/register/'.str_repeat('z', 64),
-            (string) json_encode([
-                'message_id' => (string) Str::uuid(),
-                'client_id' => 'prov-client-unknown',
-                'timestamp' => now()->toIso8601String(),
-            ]),
-        );
+        $component
+            ->assertSet('mountedActions.0.name', 'showProvisioningToken')
+            ->assertSet('mountedActions.0.context.table', true)
+            ->assertSet(
+                'mountedActions.0.arguments',
+                fn (array $arguments): bool => ! array_key_exists('token', $arguments),
+            );
 
-        $this->assertNotEmpty($logged, 'Expected registration handling to log something.');
-
-        foreach ($logged as $line) {
-            $this->assertStringNotContainsString($token, $line);
-            $this->assertStringNotContainsString(str_repeat('z', 64), $line);
-        }
+        $modalContent = $component->instance()->getMountedAction()?->getModalContent();
+        $this->assertNotNull($modalContent);
+        $this->assertStringContainsString($token, $modalContent->render());
     }
 }

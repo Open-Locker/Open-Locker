@@ -49,9 +49,7 @@ class InboundMqttHandlerTest extends TestCase
     public function test_missing_message_id_is_rejected_for_registration(): void
     {
         $handler = app(RegistrationHandler::class);
-        $lockerBank = LockerBankFactory::new()->create();
-
-        $topic = sprintf('locker/register/%s', $lockerBank->provisioning_token);
+        $topic = 'locker/register/not-used-before-validation';
         $payload = [
             'client_id' => 'prov-client-1',
         ];
@@ -64,9 +62,7 @@ class InboundMqttHandlerTest extends TestCase
     public function test_invalid_registration_payload_is_rejected_by_handler_validation(): void
     {
         $handler = app(RegistrationHandler::class);
-        $lockerBank = LockerBankFactory::new()->create();
-
-        $topic = sprintf('locker/register/%s', $lockerBank->provisioning_token);
+        $topic = 'locker/register/not-used-before-validation';
         $payload = [
             'message_id' => 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb',
         ];

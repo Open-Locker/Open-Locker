@@ -10,6 +10,7 @@ use App\StorableEvents\LockerConfigAcknowledged;
 use App\StorableEvents\LockerConnectionLost;
 use App\StorableEvents\LockerConnectionRestored;
 use App\StorableEvents\LockerProvisioningReset;
+use App\StorableEvents\LockerProvisioningTokenIssued;
 use App\StorableEvents\LockerWasProvisioned;
 use Illuminate\Support\Carbon;
 use Spatie\EventSourcing\EventHandlers\Projectors\Projector;
@@ -40,8 +41,26 @@ class LockerBankProjector extends Projector
         $lockerBank = LockerBank::find($event->lockerBankUuid);
 
         if ($lockerBank) {
-            $lockerBank->update(['provisioned_at' => now()]);
+            $lockerBank->forceFill([
+                'provisioned_at' => $event->createdAt() ?? now(),
+                'provisioning_token_hmac' => null,
+                'provisioning_generation' => $event->provisioningGeneration,
+            ])->save();
         }
+    }
+
+    public function onLockerProvisioningTokenIssued(LockerProvisioningTokenIssued $event): void
+    {
+        $lockerBank = LockerBank::find($event->lockerBankUuid);
+
+        if (! $lockerBank) {
+            return;
+        }
+
+        $lockerBank->forceFill([
+            'provisioning_token_hmac' => $event->provisioningTokenHmac,
+            'provisioning_generation' => $event->provisioningGeneration,
+        ])->save();
     }
 
     /**
@@ -54,8 +73,7 @@ class LockerBankProjector extends Projector
      * seen a config. It stays dirty until a fresh apply_config is sent and
      * acknowledged.
      *
-     * The rotated token is written by the reset service, not from here: it is
-     * not carried on the event.
+     * The following token-issued event restores the new HMAC and generation.
      */
     public function onLockerProvisioningReset(LockerProvisioningReset $event): void
     {
@@ -66,6 +84,8 @@ class LockerBankProjector extends Projector
         }
 
         $lockerBank->forceFill([
+            'provisioning_token_hmac' => null,
+            'provisioning_generation' => null,
             'provisioned_at' => null,
             'connection_status' => 'offline',
             'connection_status_changed_at' => Carbon::parse($event->resetAtIso8601),

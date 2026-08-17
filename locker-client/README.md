@@ -20,10 +20,15 @@ cp .env.example .env
 mkdir -p config data
 cp locker-config.yml.example config/locker-config.yml
 
-# Set PROVISIONING_TOKEN in .env for the first startup and adjust the serial port.
+# Issue a one-time token in the backend admin, immediately set
+# PROVISIONING_TOKEN in .env, and adjust the serial port.
 docker compose up -d
 docker compose logs -f locker-client
 ```
+
+The backend never shows the token again. If it is lost or consumed before the
+client finishes provisioning, restart provisioning in the admin panel and use
+the newly issued token.
 
 The Compose stack runs the client from
 `ghcr.io/open-locker/locker-client:${LOCKER_CLIENT_IMAGE_TAG:-latest}` and uses

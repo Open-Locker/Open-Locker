@@ -45,6 +45,11 @@ Ohne `just`: `mosquitto.conf` aus dem Beispiel kopieren und in den
 Webhook-URIs `mosq_secret=<MOSQ_HTTP_PASS>` eintragen, dann den
 Mosquitto-Container neu starten.
 
+Auf allen Backend-Instanzen muss `PROVISIONING_TOKEN_HMAC_KEY` auf dasselbe
+eigene Zufallsgeheimnis mit mindestens 32 Zeichen gesetzt sein. `APP_KEY` darf
+nicht wiederverwendet werden. Es kann mit `openssl rand -base64 48` erzeugt
+werden; ein Platzhalter aus einer Beispiel-Umgebungsdatei wird nicht akzeptiert.
+
 ### Admin-Benutzer anlegen
 
 ```bash
@@ -74,6 +79,12 @@ Der Locker Client läuft als Docker-Container auf einem Raspberry Pi
   `PROVISIONING_TOKEN`
 - Verbindet sich per MQTT mit dem Backend und steuert die Schlösser per
   Modbus (TCP oder RTU)
+
+Die Provisionierung im Admin-Panel ausstellen oder neu starten, das Token aus
+dem einmaligen Dialog direkt in die `.env` des Clients kopieren, bei einem
+Client-Austausch veralteten lokalen Provisionierungszustand löschen und den
+Client neu starten. Das Token kann nicht erneut angezeigt werden; bei Verlust
+muss ein neues ausgestellt werden.
 
 Empfohlene Hardware: siehe
 [Stückliste](https://github.com/Open-Locker/Open-Locker/blob/main/docs/Bill-of-Materials.de.md).
