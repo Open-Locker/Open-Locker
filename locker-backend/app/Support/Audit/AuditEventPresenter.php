@@ -48,6 +48,8 @@ class AuditEventPresenter
         // Devices / lockers
         'LockerWasProvisioned' => 'devices',
         'LockerProvisioningFailed' => 'devices',
+        'LockerProvisioningReset' => 'devices',
+        'LockerProvisioningTokenIssued' => 'devices',
         'LockerConnectionLost' => 'devices',
         'LockerConnectionRestored' => 'devices',
         'LockerConfigAcknowledged' => 'devices',
@@ -55,6 +57,7 @@ class AuditEventPresenter
 
         // Admin (users, groups, roles, permissions)
         'GroupCreated' => 'admin',
+        'GroupArchived' => 'admin',
         'UserAddedToGroup' => 'admin',
         'UserRemovedFromGroup' => 'admin',
         'UserRoleGranted' => 'admin',
@@ -168,11 +171,14 @@ class AuditEventPresenter
             'CompartmentContentNoteUpdated' => __('Content note updated'),
             'LockerWasProvisioned' => __('Locker provisioned'),
             'LockerProvisioningFailed' => __('Provisioning failed'),
+            'LockerProvisioningReset' => __('Provisioning reset'),
+            'LockerProvisioningTokenIssued' => __('Provisioning token issued'),
             'LockerConnectionLost' => __('Connection lost'),
             'LockerConnectionRestored' => __('Connection restored'),
             'LockerConfigAcknowledged' => __('Configuration acknowledged'),
             'LockerConfigAckFailed' => __('Configuration failed'),
             'GroupCreated' => __('Group created'),
+            'GroupArchived' => __('Group archived'),
             'UserAddedToGroup' => __('User added to group'),
             'UserRemovedFromGroup' => __('User removed from group'),
             'UserRoleGranted' => __('Role granted'),
@@ -245,6 +251,15 @@ class AuditEventPresenter
             'LockerProvisioningFailed' => __('Locker provisioning failed (:reason)', [
                 'reason' => $p['reason'] ?? '-',
             ]),
+            // Never renders token material: the event does not carry it.
+            'LockerProvisioningReset' => __(':actor reset provisioning for locker bank :bank', [
+                'actor' => $this->user($p['actorUserId'] ?? null),
+                'bank' => $this->lockerBank($p['lockerBankUuid'] ?? null),
+            ]),
+            'LockerProvisioningTokenIssued' => __(':actor issued a provisioning token for locker bank :bank', [
+                'actor' => $this->user($p['actorUserId'] ?? null),
+                'bank' => $this->lockerBank($p['lockerBankUuid'] ?? null),
+            ]),
             'LockerConnectionLost' => __('Connection to locker bank :bank was lost (:reason)', [
                 'bank' => $this->lockerBank($p['lockerBankUuid'] ?? null),
                 'reason' => $p['reason'] ?? '-',
@@ -262,6 +277,10 @@ class AuditEventPresenter
             'GroupCreated' => __(':actor created group :group', [
                 'actor' => $this->user($p['actorUserId'] ?? null),
                 'group' => $p['name'] ?? $this->group($p['groupUuid'] ?? null),
+            ]),
+            'GroupArchived' => __(':actor archived group :group', [
+                'actor' => $this->user($p['actorUserId'] ?? null),
+                'group' => $this->group($p['groupUuid'] ?? null),
             ]),
             'UserAddedToGroup' => __(':actor added :user to group :group', [
                 'actor' => $this->user($p['actorUserId'] ?? null),

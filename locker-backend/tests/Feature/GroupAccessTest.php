@@ -8,9 +8,12 @@ use App\Models\Compartment;
 use App\Models\Group;
 use App\Models\User;
 use App\Services\GroupAccessService;
+use App\StorableEvents\GroupArchived;
 use App\StorableEvents\GroupCreated;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use LogicException;
+use Spatie\EventSourcing\StoredEvents\Models\EloquentStoredEvent;
 use Tests\TestCase;
 
 class GroupAccessTest extends TestCase
@@ -246,7 +249,7 @@ class GroupAccessTest extends TestCase
         $this->assertDatabaseCount('user_group_compartment_accesses', 1);
     }
 
-    public function test_non_admin_cannot_archive_group(): void
+    public function test_regular_user_cannot_archive_group(): void
     {
         $admin = $this->createAdminUser();
         $user = $this->createRegularUser();
@@ -254,5 +257,48 @@ class GroupAccessTest extends TestCase
 
         $this->expectException(AuthorizationException::class);
         $this->service()->archiveGroup(Group::find($group->id), actor: $user);
+    }
+
+    public function test_archived_group_rejects_new_members(): void
+    {
+        $admin = $this->createAdminUser();
+        $user = $this->createRegularUser();
+        $group = Group::find($this->service()->createGroup('Team', actor: $admin)->id);
+        $this->service()->archiveGroup($group, actor: $admin);
+
+        $this->expectException(LogicException::class);
+        $this->service()->addUser($group->refresh(), $user, actor: $admin);
+    }
+
+    public function test_archived_group_rejects_new_compartment_grants(): void
+    {
+        $admin = $this->createAdminUser();
+        $group = Group::find($this->service()->createGroup('Team', actor: $admin)->id);
+        $compartment = Compartment::factory()->create();
+        $this->service()->archiveGroup($group, actor: $admin);
+
+        $this->expectException(LogicException::class);
+        $this->service()->grantCompartmentAccess($group->refresh(), $compartment, actor: $admin);
+    }
+
+    public function test_repeated_archive_keeps_original_attribution(): void
+    {
+        $firstAdmin = $this->createAdminUser();
+        $secondAdmin = $this->createAdminUser();
+        $group = Group::find($this->service()->createGroup('Team', actor: $firstAdmin)->id);
+
+        $this->service()->archiveGroup($group, actor: $firstAdmin);
+        $archived = $group->refresh();
+
+        $this->service()->archiveGroup($archived, actor: $secondAdmin);
+
+        $this->assertSame($firstAdmin->id, $archived->refresh()->archived_by_user_id);
+        $this->assertSame(
+            1,
+            EloquentStoredEvent::query()
+                ->where('event_class', GroupArchived::class)
+                ->where('event_properties->groupUuid', (string) $group->id)
+                ->count(),
+        );
     }
 }
