@@ -114,6 +114,7 @@ class OutboundMqttPublisherTest extends TestCase
         $event = new LockerWasProvisioned(
             lockerBankUuid: '11111111-1111-1111-1111-111111111111',
             replyToTopic: 'locker/provisioning/reply/test-client',
+            provisioningGeneration: '22222222-2222-2222-2222-222222222222',
         );
 
         app(ProvisioningReplyPublisher::class)->publishSuccess(

@@ -13,6 +13,7 @@ use Carbon\CarbonInterface;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Str;
+use LogicException;
 
 class GroupAccessService
 {
@@ -49,6 +50,7 @@ class GroupAccessService
     public function addUser(Group $group, User $user, ?CarbonInterface $expiresAt = null, ?User $actor = null): void
     {
         $actor = $this->ensureCanManageAccess($actor);
+        $this->ensureGroupIsActive($group);
 
         GroupAggregate::retrieve((string) $group->id)
             ->addUser(
@@ -83,6 +85,7 @@ class GroupAccessService
         ?User $actor = null,
     ): void {
         $actor = $this->ensureCanManageAccess($actor);
+        $this->ensureGroupIsActive($group);
 
         GroupAggregate::retrieve((string) $group->id)
             ->grantCompartmentAccess(
@@ -120,6 +123,10 @@ class GroupAccessService
     {
         $actor = $this->ensureCanManageAccess($actor);
 
+        if ($group->isArchived()) {
+            return;
+        }
+
         GroupAggregate::retrieve((string) $group->id)
             ->archive(
                 groupUuid: (string) $group->id,
@@ -127,6 +134,13 @@ class GroupAccessService
                 archivedAt: now(),
             )
             ->persist();
+    }
+
+    private function ensureGroupIsActive(Group $group): void
+    {
+        if ($group->isArchived()) {
+            throw new LogicException('Archived groups cannot receive new members or access grants.');
+        }
     }
 
     /**

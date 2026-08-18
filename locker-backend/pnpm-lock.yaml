@@ -6,7 +6,9 @@ settings:
 
 overrides:
   esbuild: '>=0.28.1'
-  shell-quote: '>=1.8.4'
+  nanoid: ^3.3.17
+  postcss: '>=8.5.26'
+  shell-quote: '>=1.9.0'
   socket.io-parser: ^4.2.7
   vite-plugin-full-reload>picomatch: ^2.3.2
   ws: '>=8.21.0'
@@ -18,7 +20,6 @@ overrides:
   axios@>=1.15.0 <1.18.0: '>=1.18.0'
   axios@>=1.15.1 <1.18.0: '>=1.18.0'
   axios@>=1.13.0 <1.18.0: '>=1.18.0'
-  postcss: '>=8.5.26'
 
 importers:
 
@@ -28,7 +29,7 @@ importers:
         specifier: ^4.2.2
         version: 4.2.2(vite@8.0.16(jiti@2.6.1))
       axios:
-        specifier: '>=1.18.0'
+        specifier: ^1.18.0
         version: 1.18.1
       concurrently:
         specifier: ^9.2.1

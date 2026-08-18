@@ -19,7 +19,7 @@ export class OutboundMqttAdapter implements OutboundMqttPort {
       topic: string,
       payload: string,
       options?: OutboundPublishOptions,
-    ) => Promise<boolean>,
+    ) => Promise<void>,
     private readonly responseTopic: string,
     private readonly nowIso: () => string = () => new Date().toISOString(),
     private readonly tracing: TracingPort = noopTracing,
@@ -35,8 +35,7 @@ export class OutboundMqttAdapter implements OutboundMqttPort {
     const envelope = createEnvelope(body, this.nowIso);
 
     if (!tracesTopic(topic)) {
-      const delivered = await this.publishRaw(topic, JSON.stringify(envelope), options);
-      this.reportIfDropped(topic, envelope, delivered);
+      await this.publishTracked(topic, JSON.stringify(envelope), envelope, options);
 
       return;
     }
@@ -50,14 +49,14 @@ export class OutboundMqttAdapter implements OutboundMqttPort {
         // off, which leaves the payload exactly as it was before.
         const traceparent = this.tracing.currentTraceparent();
 
-        const delivered = await this.publishRaw(
+        await this.publishTracked(
           topic,
           JSON.stringify(
             traceparent ? { ...envelope, [TRACEPARENT_FIELD]: traceparent } : envelope,
           ),
+          envelope,
           options,
         );
-        this.reportIfDropped(topic, envelope, delivered);
       },
     );
   }
@@ -67,21 +66,26 @@ export class OutboundMqttAdapter implements OutboundMqttPort {
    * knows which message was lost. A dropped response is why a backend
    * transaction hangs, so it is named here rather than inferred from a topic.
    */
-  private reportIfDropped(
+  private async publishTracked(
     topic: string,
+    payload: string,
     envelope: Record<string, unknown>,
-    delivered: boolean,
-  ): void {
-    if (delivered) {
-      return;
+    options?: OutboundPublishOptions,
+  ): Promise<void> {
+    try {
+      await this.publishRaw(topic, payload, options);
+    } catch (error) {
+      this.log.error('Outbound MQTT message dropped before reaching the broker', {
+        topic,
+        messageId: envelope.message_id,
+        transactionId: envelope.transaction_id,
+        action: envelope.action,
+        error: error instanceof Error ? error.message : 'Unknown publish error',
+      });
+      // Rethrown so a dropped command response is still marked pending and
+      // retried; the log only names what was lost.
+      throw error;
     }
-
-    this.log.error('Outbound MQTT message dropped before reaching the broker', {
-      topic,
-      messageId: envelope.message_id,
-      transactionId: envelope.transaction_id,
-      action: envelope.action,
-    });
   }
 
   async publishCommandResponse(body: CommandResponseBody): Promise<void> {

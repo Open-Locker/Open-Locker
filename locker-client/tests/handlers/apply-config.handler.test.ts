@@ -2,7 +2,6 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { createApplyConfigHandler } from '../../src/adapters/mqtt/handlers/apply-config.handler';
 import { ApplyConfigUseCase } from '../../src/application/apply-config';
-import { OutboundMqttAdapter } from '../../src/adapters/mqtt/outbound-mqtt.adapter';
 import { computeAppliedConfigHash } from '../../src/domain/config-normalization';
 import { FakeLockerBus } from '../helpers/fake-locker-bus';
 import { MemoryOverlayStore } from '../helpers/memory-overlay-store';
@@ -15,16 +14,6 @@ function createApplyConfigHarness() {
   const overlayStore = new MemoryOverlayStore();
   const config = createTestConfigRepository({ compartments });
 
-  const published: string[] = [];
-  const outbound = new OutboundMqttAdapter(
-    async (_topic, payload) => {
-      published.push(payload);
-      return true;
-    },
-    'locker/test/response',
-    () => '2026-06-16T12:00:00.000Z',
-  );
-
   const applyConfig = new ApplyConfigUseCase({
     overlayStore,
     config,
@@ -33,16 +22,16 @@ function createApplyConfigHarness() {
     restartPolling: () => undefined,
   });
 
-  const handler = createApplyConfigHandler({ applyConfig, outbound });
+  const handler = createApplyConfigHandler({ applyConfig });
 
-  return { handler, published, overlayStore };
+  return { handler, overlayStore };
 }
 
-test('apply_config handler publishes success with applied_config_hash', async () => {
-  const { handler, published, overlayStore } = createApplyConfigHarness();
+test('apply_config handler returns success with applied_config_hash', async () => {
+  const { handler, overlayStore } = createApplyConfigHarness();
   const configHash = computeAppliedConfigHash(compartments);
 
-  await handler.handle(
+  const response = await handler.handle(
     { lockerUuid: 'test' },
     {
       action: 'apply_config',
@@ -58,12 +47,6 @@ test('apply_config handler publishes success with applied_config_hash', async ()
   );
 
   assert.ok(overlayStore.load()?.appliedConfigHash);
-  assert.equal(published.length, 1);
-  const response = JSON.parse(published[0]!) as {
-    action: string;
-    result: string;
-    applied_config_hash: string;
-  };
   assert.equal(response.action, 'apply_config');
   assert.equal(response.result, 'success');
   assert.equal(response.applied_config_hash, configHash);
@@ -84,7 +67,6 @@ test('apply_config handler propagates runtime apply failures', async () => {
       restartHeartbeat: () => undefined,
       restartPolling: () => undefined,
     }),
-    outbound: new OutboundMqttAdapter(async () => true, 'locker/test/response'),
   });
 
   await assert.rejects(
