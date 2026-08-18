@@ -1,33 +1,16 @@
 ---
+import { getLocaleFromUrl, useTranslations, type Locale } from '../i18n';
+
 type Props = {
 	heading?: string;
 	items?: string[];
 	durationSeconds?: number;
+	locale?: Locale;
 };
 
-const {
-	heading = 'Anwendungsfälle',
-	items = [
-		'Gemeinschaftsräume',
-		'Büros',
-		'Bäckereien',
-		'Smart Cities',
-		'Kommunen',
-		'Community Spaces',
-		'Hacker Spaces',
-		'Coworking Spaces',
-		'Vereine',
-		'Kindergarten',
-		'Schule',
-		'Fitnessstudio',
-		'Dorfladen',
-		'Automaten',
-		'Musikschule',
-		'Verleihservices',
-		"Abholstationen"
-	],
-	durationSeconds = 200,
-} = Astro.props;
+const { locale = getLocaleFromUrl(Astro.url), durationSeconds = 200 } = Astro.props;
+const t = useTranslations(locale).useCases;
+const { heading = t.heading, items = t.items } = Astro.props;
 
 const uniqueItems = items.map((item) => item.trim()).filter(Boolean);
 // Ensure the marquee is long enough to avoid visible gaps on wide screens.
@@ -44,7 +27,7 @@ const sequence = Array.from({ length: uniqueItems.length * repeatFactor }, (_, i
 					{heading}
 				</h2>
 				<p class="text-slate-700">
-					Open Locker passt überall dort, wo Dinge sicher gelagert, geteilt oder verliehen werden sollen.
+					{t.lead}
 				</p>
 			</div>
 		</div>
@@ -82,7 +65,7 @@ const sequence = Array.from({ length: uniqueItems.length * repeatFactor }, (_, i
 		</div>
 	</div>
 
-	<p class="sr-only">Anwendungsfälle: {uniqueItems.join(', ')}.</p>
+	<p class="sr-only">{t.srPrefix}: {uniqueItems.join(', ')}.</p>
 </section>
 
 <style>

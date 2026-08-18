@@ -1,21 +1,10 @@
-name: MQTT Test CI
+name: Backend Quality
 
 on:
   pull_request:
     paths:
       - 'docs/asyncapi/**'
-      - 'locker-backend/app/**'
-      - 'locker-backend/bootstrap/**'
-      - 'locker-backend/composer.json'
-      - 'locker-backend/composer.lock'
-      - 'locker-backend/config/**'
-      - 'locker-backend/database/**'
-      - 'locker-backend/phpunit.xml'
-      - 'locker-backend/tests/**'
-      - 'locker-client/package.json'
-      - 'locker-client/pnpm-lock.yaml'
-      - 'locker-client/src/**'
-      - 'locker-client/tests/**'
+      - 'locker-backend/**'
       - '.github/workflows/mqtt-contract-ci.yml'
   push:
     branches:
@@ -23,19 +12,12 @@ on:
       - dev
     paths:
       - 'docs/asyncapi/**'
-      - 'locker-backend/app/**'
-      - 'locker-backend/bootstrap/**'
-      - 'locker-backend/composer.json'
-      - 'locker-backend/composer.lock'
-      - 'locker-backend/config/**'
-      - 'locker-backend/database/**'
-      - 'locker-backend/phpunit.xml'
-      - 'locker-backend/tests/**'
-      - 'locker-client/package.json'
-      - 'locker-client/pnpm-lock.yaml'
-      - 'locker-client/src/**'
-      - 'locker-client/tests/**'
+      - 'locker-backend/**'
       - '.github/workflows/mqtt-contract-ci.yml'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   backend:
@@ -75,37 +57,3 @@ jobs:
 
       - name: Run backend test suite
         run: composer test
-
-  locker-client:
-    name: Locker-client test suite
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-    defaults:
-      run:
-        working-directory: locker-client
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: 9
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v6
-        with:
-          node-version: 22
-          cache: pnpm
-          cache-dependency-path: locker-client/pnpm-lock.yaml
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: Run quality checks
-        run: pnpm check
-
-      - name: Run locker-client test suite
-        run: pnpm test

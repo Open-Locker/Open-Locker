@@ -10,13 +10,12 @@ import { PollCompartmentStateUseCase } from '../../src/application/state-publish
 import { RunAfterCompleteScheduler } from '../../src/infrastructure/scheduler';
 import { createTestConfigRepository } from '../helpers/test-config-repository';
 
-test('open compartment handler responds success and preserves transaction_id', async () => {
+test('open compartment handler returns success and preserves transaction_id', async () => {
   const bus = new FakeLockerBus([1]);
   const published: string[] = [];
   const outbound = new OutboundMqttAdapter(
     async (_topic, payload) => {
       published.push(payload);
-      return true;
     },
     'locker/test/response',
     () => '2026-06-16T12:00:00.000Z',
@@ -40,11 +39,10 @@ test('open compartment handler responds success and preserves transaction_id', a
   );
   const handler = createOpenCompartmentHandler({
     openCompartment,
-    outbound,
     pollSnapshot,
   });
 
-  await handler.handle(
+  const response = await handler.handle(
     { lockerUuid: 'test' },
     {
       action: 'open_compartment',
@@ -57,18 +55,13 @@ test('open compartment handler responds success and preserves transaction_id', a
 
   openCompartment.stopAllMonitoring();
   assert.equal(bus.flashCalls.length, 1);
-  const responsePayload = published
-    .map((payload) => JSON.parse(payload) as { result?: string })
-    .find((message) => message.result === 'success');
-  assert.ok(responsePayload);
-  const response = responsePayload as {
-    result: string;
-    transaction_id: string;
-    message_id: string;
-    timestamp: string;
-  };
   assert.equal(response.result, 'success');
   assert.equal(response.transaction_id, 'tx-abc');
-  assert.equal(typeof response.message_id, 'string');
-  assert.equal(response.timestamp, '2026-06-16T12:00:00.000Z');
+  assert.equal(response.message, 'Unlock pulse sent.');
+  assert.equal(
+    published
+      .map((payload) => JSON.parse(payload) as { compartments?: unknown[] })
+      .filter((payload) => payload.compartments).length,
+    1,
+  );
 });

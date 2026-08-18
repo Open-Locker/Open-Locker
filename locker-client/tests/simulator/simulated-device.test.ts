@@ -43,7 +43,6 @@ async function createDeviceUnderTest(bank: SimulatorBankScenario = bankScenario(
     lockerUuid: LOCKER_UUID,
     publish: async (topic, payload, options) => {
       published.push({ topic, payload: JSON.parse(payload), options });
-      return true;
     },
     // No background polling: tests drive state changes explicitly so captures
     // stay deterministic.
