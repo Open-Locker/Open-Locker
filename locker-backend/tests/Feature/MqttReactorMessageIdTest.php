@@ -52,6 +52,8 @@ class MqttReactorMessageIdTest extends TestCase
 
         LockerBankFactory::new()->create([
             'id' => '11111111-1111-1111-1111-111111111111',
+            'provisioned_at' => now(),
+            'provisioning_generation' => '22222222-2222-2222-2222-222222222222',
         ]);
 
         MQTT::shouldReceive('connection')
@@ -62,6 +64,7 @@ class MqttReactorMessageIdTest extends TestCase
         $event = new LockerWasProvisioned(
             lockerBankUuid: '11111111-1111-1111-1111-111111111111',
             replyToTopic: 'locker/provisioning/reply/test-client',
+            provisioningGeneration: '22222222-2222-2222-2222-222222222222',
         );
 
         app(MqttReactor::class)->onLockerWasProvisioned($event);

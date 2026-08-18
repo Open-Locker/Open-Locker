@@ -7,7 +7,7 @@ import type {
 } from '../../domain/config';
 import { deriveConfiguredSlaveIds } from '../../domain/config';
 import { normalizeFlashDurationMs } from '../../domain/compartment';
-import type { ConfigRepositoryPort } from '../../ports/config.port';
+import type { ConfigRepositoryPort, RuntimeOverlayStorePort } from '../../ports/config.port';
 import type { MqttTransportSettings } from '../../ports/mqtt.port';
 import { CONFIG_FILE } from '../../infrastructure/paths';
 import { FileRuntimeOverlayStore } from './runtime-overlay.store';
@@ -57,7 +57,7 @@ export class YamlConfigRepository implements ConfigRepositoryPort {
   private config: EffectiveLockerConfig | null = null;
 
   constructor(
-    private readonly overlayStore = new FileRuntimeOverlayStore(),
+    private readonly overlayStore: RuntimeOverlayStorePort = new FileRuntimeOverlayStore(),
     private readonly configFilePath: string = CONFIG_FILE,
   ) {}
 

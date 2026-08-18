@@ -31,10 +31,19 @@ Route::get('/locale/{locale}', function (string $locale) {
     session()->put('locale', $locale);
     Cookie::queue(Cookie::forever('locale', $locale));
 
-    return redirect()->back(fallback: '/admin');
+    return redirect()->back(fallback: '/admin')->enforceSameOrigin('/admin');
 })->name('locale.switch');
 
 // Legacy dual-panel locale URLs (ADR-0024) — permanent redirect to the single panel.
-Route::get('/{locale}/admin/{path?}', fn (string $locale, ?string $path = null) => redirect('/admin'.($path !== null ? '/'.$path : ''), 301))
+Route::get('/{locale}/admin/{path?}', function (Request $request, string $locale, ?string $path = null) {
+    $target = '/admin'.($path !== null ? '/'.$path : '');
+    $query = $request->server->get('QUERY_STRING');
+
+    if (is_string($query) && $query !== '') {
+        $target .= '?'.$query;
+    }
+
+    return redirect($target, 301)->enforceSameOrigin('/admin');
+})
     ->where(['locale' => 'en|de', 'path' => '.*'])
     ->name('admin.legacy-locale.redirect');
