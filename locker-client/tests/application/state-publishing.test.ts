@@ -100,15 +100,16 @@ test('publishes initial unknown immediately when no known state exists', async (
   assert.equal(outbound.snapshots[0]?.compartments[0]?.door_state, 'unknown');
 });
 
-test('retries an unchanged snapshot after a failed publish', async () => {
+test('retries an unchanged snapshot after disconnect and reconnect', async () => {
   const bus = new FakeLockerBus([1]);
   const outbound = new RecordingOutbound();
-  outbound.failNextPublish = true;
+  outbound.connected = false;
   const poll = createPoll(bus, outbound);
 
   await poll.pollAndPublish();
   assert.equal(outbound.snapshots.length, 0);
 
+  outbound.connected = true;
   await poll.pollAndPublish();
   assert.equal(outbound.snapshots.length, 1);
 });
@@ -277,6 +278,7 @@ function queueNestedMicrotask(depth: number, callback: () => void): void {
 
 class RecordingOutbound implements OutboundMqttPort {
   failNextPublish = false;
+  connected = true;
   afterPublish: (() => void) | undefined;
   readonly snapshots: Array<{
     topic: string;
@@ -289,7 +291,7 @@ class RecordingOutbound implements OutboundMqttPort {
     body: Record<string, unknown>,
     options?: OutboundPublishOptions,
   ): Promise<void> {
-    if (this.failNextPublish) {
+    if (!this.connected || this.failNextPublish) {
       this.failNextPublish = false;
       throw new Error('MQTT unavailable');
     }

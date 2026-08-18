@@ -20,7 +20,6 @@ function createOutbound(tracing = new RecordingTracing()) {
   const outbound = new OutboundMqttAdapter(
     async (topic, payload) => {
       published.push({ topic, payload });
-      return true;
     },
     `locker/${LOCKER_UUID}/response`,
     () => '2026-07-28T10:00:00Z',
@@ -72,7 +71,6 @@ test('publishing without tracing leaves the payload exactly as it was', async ()
   const outbound = new OutboundMqttAdapter(
     async (_topic, payload) => {
       published.push(payload);
-      return true;
     },
     `locker/${LOCKER_UUID}/response`,
     () => '2026-07-28T10:00:00Z',
@@ -144,7 +142,7 @@ function createTracedDispatcher() {
 
   const dispatcher = new CommandDispatcher(
     new InboundProtocolGuard(dedup),
-    new OutboundMqttAdapter(async () => true, `locker/${LOCKER_UUID}/response`, undefined, tracing),
+    new OutboundMqttAdapter(async () => {}, `locker/${LOCKER_UUID}/response`, undefined, tracing),
     dedup,
     tracing,
   );
@@ -153,8 +151,13 @@ function createTracedDispatcher() {
     action: 'open_compartment',
     schema: z.object({ transaction_id: z.string() }).loose(),
     requiresTransactionId: () => true,
-    async handle() {
+    async handle(_context, payload) {
       handled.push('open_compartment');
+      return {
+        action: 'open_compartment',
+        result: 'success' as const,
+        transaction_id: (payload as { transaction_id: string }).transaction_id,
+      };
     },
   });
 

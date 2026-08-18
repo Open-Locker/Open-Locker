@@ -4,12 +4,10 @@ import {
   type OpenCompartmentCommand,
 } from '../../../domain/mqtt-schemas';
 import type { OpenCompartmentUseCase } from '../../../application/open-compartment';
-import type { OutboundMqttPort } from '../../../ports/mqtt.port';
 import type { PollCompartmentStateUseCase } from '../../../application/state-publishing';
 
 export function createOpenCompartmentHandler(deps: {
   openCompartment: OpenCompartmentUseCase;
-  outbound: OutboundMqttPort;
   pollSnapshot: PollCompartmentStateUseCase;
 }): InboundCommandHandler<OpenCompartmentCommand> {
   return {
@@ -21,13 +19,13 @@ export function createOpenCompartmentHandler(deps: {
       await deps.pollSnapshot.pollAndPublish(true);
 
       // Acknowledges the pulse only. Whether the door opened is reported
-      // separately on the event channel once detection completes (ADR-0031).
-      await deps.outbound.publishCommandResponse({
+      // separately on the event channel once detection completes.
+      return {
         action: command.action,
         result: 'success',
         transaction_id: command.transaction_id,
         message: 'Unlock pulse sent.',
-      });
+      };
     },
   };
 }

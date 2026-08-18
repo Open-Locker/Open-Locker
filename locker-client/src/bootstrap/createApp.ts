@@ -9,7 +9,6 @@ import { FileCredentialStore } from '../adapters/persistence/file-credential.sto
 import { FileDedupStore } from '../adapters/mqtt/dedup-store';
 import { MqttTransportAdapter } from '../adapters/mqtt/mqtt-transport.adapter';
 import { OutboundMqttAdapter } from '../adapters/mqtt/outbound-mqtt.adapter';
-import { recordCommandResponses } from '../adapters/mqtt/recording-outbound';
 import { InboundProtocolGuard } from '../adapters/mqtt/inbound-protocol-guard';
 import { CommandDispatcher } from '../adapters/mqtt/command-dispatcher';
 import { createOpenCompartmentHandler } from '../adapters/mqtt/handlers/open-compartment.handler';
@@ -33,17 +32,20 @@ import { connectionLostWillOptions } from '../infrastructure/mqtt-will';
 import { createTracing } from '../adapters/tracing/create-tracing';
 import { logger, setLogTraceContextProvider, shipLogsTo } from '../infrastructure/logging';
 import { createWinstonLoggerPort } from '../infrastructure/winston-logger.adapter';
-import { MQTT_CLIENT_ID_FILE } from '../infrastructure/paths';
+import { DATA_DIR, MQTT_CLIENT_ID_FILE } from '../infrastructure/paths';
+import { ensurePrivateDirectory } from '../infrastructure/file-persistence';
 
 export interface AppContext {
   shutdown(): Promise<void>;
 }
 
 export async function createApp(): Promise<AppContext> {
+  ensurePrivateDirectory(DATA_DIR);
   const configRepo = new YamlConfigRepository(new FileRuntimeOverlayStore());
   const config = configRepo.load();
   const credentialStore = new FileCredentialStore();
   const dedupStore = new FileDedupStore();
+  dedupStore.assertHealthy();
   const transport = new MqttTransportAdapter(configRepo.getMqttTransportSettings());
 
   const clientId = getOrCreateClientId(MQTT_CLIENT_ID_FILE);
@@ -118,15 +120,12 @@ export async function createApp(): Promise<AppContext> {
   const heartbeatTopic = `locker/${lockerUuid}/state/heartbeat`;
   const snapshotTopic = `locker/${lockerUuid}/state/compartments`;
 
-  const outbound = recordCommandResponses(
-    new OutboundMqttAdapter(
-      (topic, payload, options) => transport.publish(topic, payload, options),
-      responseTopic,
-      undefined,
-      tracing,
-      appLogger,
-    ),
-    dedupStore,
+  const outbound = new OutboundMqttAdapter(
+    (topic, payload, options) => transport.publish(topic, payload, options),
+    responseTopic,
+    undefined,
+    tracing,
+    appLogger,
   );
 
   const scheduler = new RunAfterCompleteScheduler();
@@ -178,23 +177,16 @@ export async function createApp(): Promise<AppContext> {
   dispatcher.register(
     createOpenCompartmentHandler({
       openCompartment,
-      outbound,
       pollSnapshot,
     }),
   );
-  dispatcher.register(createApplyConfigHandler({ applyConfig, outbound }));
+  dispatcher.register(createApplyConfigHandler({ applyConfig }));
+  dispatcher.recoverInterruptedCommands();
+  transport.onConnected(() => dispatcher.flushPendingResponses());
+  await dispatcher.flushPendingResponses();
 
   transport.onMessage((topic, payload) => {
-    if (topic === commandTopic) {
-      // Nothing awaits this, so without a catch a rejection escaping dispatch
-      // becomes an unhandled rejection and takes the process down.
-      void dispatcher.dispatch(topic, payload.toString()).catch((error: unknown) => {
-        appLogger.error('Inbound command dispatch failed', {
-          topic,
-          error: error instanceof Error ? error.message : String(error),
-        });
-      });
-    }
+    dispatchMqttMessage(dispatcher, commandTopic, topic, payload);
   });
 
   await transport.subscribe(commandTopic);
@@ -220,6 +212,28 @@ export async function createApp(): Promise<AppContext> {
       await tracing.shutdown();
     },
   };
+}
+
+interface DispatchErrorLogger {
+  error(message: string, metadata?: Record<string, unknown>): unknown;
+}
+
+export function dispatchMqttMessage(
+  dispatcher: Pick<CommandDispatcher, 'dispatch'>,
+  commandTopic: string,
+  topic: string,
+  payload: Buffer,
+  log: DispatchErrorLogger = logger,
+): void {
+  if (topic !== commandTopic) {
+    return;
+  }
+
+  void dispatcher.dispatch(topic, payload.toString()).catch((error: unknown) => {
+    log.error('Unexpected MQTT command dispatch failure', {
+      error: error instanceof Error ? error.message : 'Unknown dispatch error',
+    });
+  });
 }
 
 function sleep(ms: number): Promise<void> {
