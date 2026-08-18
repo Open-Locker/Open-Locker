@@ -53,7 +53,7 @@ class GroupAccessesRelationManager extends RelationManager
                 Tables\Columns\TextColumn::make('revoked_at')
                     ->label(__('Revoked at'))
                     ->dateTime()
-                    ->placeholder(fn (GroupCompartmentAccess $record): string => $record->group->isArchived()
+                    ->placeholder(fn (GroupCompartmentAccess $record): string => ($record->group?->isArchived() ?? false)
                         ? __('Inactive (group archived)')
                         : __('Active'))
                     ->sortable(),
