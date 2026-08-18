@@ -8,6 +8,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Mosq\AclRequest;
 use App\Http\Requests\Mosq\AuthRequest;
 use App\Models\MqttUser;
+use App\Mqtt\MqttTopicRedactor;
 use App\Services\MqttAclService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Hash;
@@ -68,7 +69,10 @@ class MosquittoAuthController extends Controller
         $topic = (string) $request->input('topic');
         $acc = (int) $request->input('acc'); // 1=subscribe, 2=publish
 
-        Log::channel('broker')->info("ACL Check: User={$username}, Topic={$topic}, Acc={$acc}");
+        // Every registration publish is ACL-checked, and its topic carries the
+        // provisioning token — so this line would otherwise leak a credential
+        // on each attempt.
+        Log::channel('broker')->info('ACL Check: User='.$username.', Topic='.MqttTopicRedactor::redact($topic).", Acc={$acc}");
 
         $provisioningUsername = config('mqtt-client.system.provisioning_username');
         $backendUsername = config('mqtt-client.system.backend_username');

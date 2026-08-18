@@ -7,6 +7,7 @@ namespace Tests\Feature;
 use App\Filament\Resources\AuditLogResource;
 use App\Filament\Resources\AuditLogResource\Pages\ListAuditLog;
 use App\Models\AuditEvent;
+use App\Models\Group;
 use App\Models\User;
 use App\Support\Audit\AuditEventPresenter;
 use Filament\Tables\Contracts\HasTable;
@@ -32,6 +33,7 @@ class AuditLogResourceTest extends TestCase
         $classes = app(AuditEventPresenter::class)->auditableEventClasses();
 
         $this->assertContains('App\\StorableEvents\\CompartmentAccessGranted', $classes);
+        $this->assertContains('App\\StorableEvents\\GroupArchived', $classes);
         $this->assertContains('App\\StorableEvents\\UserRoleGranted', $classes);
 
         // High-volume telemetry / internal events must not appear in the audit log.
@@ -60,6 +62,26 @@ class AuditLogResourceTest extends TestCase
         // No actor id => attributed to the system.
         $this->assertNull($presenter->actorName($event));
         $this->assertSame(__('Role granted'), $presenter->label($event->event_class));
+    }
+
+    public function test_presenter_renders_archived_group_with_actor(): void
+    {
+        $actor = User::factory()->create();
+        $group = Group::factory()->create(['name' => 'Logistics']);
+        $event = new AuditEvent([
+            'event_class' => 'App\\StorableEvents\\GroupArchived',
+            'event_properties' => [
+                'groupUuid' => (string) $group->id,
+                'actorUserId' => $actor->id,
+                'archivedAt' => now()->toIso8601String(),
+            ],
+        ]);
+
+        $presenter = app(AuditEventPresenter::class);
+
+        $this->assertSame(__('Group archived'), $presenter->label($event->event_class));
+        $this->assertStringContainsString('Logistics', $presenter->describe($event));
+        $this->assertSame($actor->fullName(), $presenter->actorName($event));
     }
 
     public function test_admin_can_access_audit_log(): void
