@@ -1,13 +1,19 @@
 import assert from 'node:assert/strict';
-import { test } from 'node:test';
-import { provisionDevice } from '../../src/application/provision-device';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import { test, type TestContext } from 'node:test';
+import { getOrCreateClientId, provisionDevice } from '../../src/application/provision-device';
 import {
   MqttSchemaValidationError,
   parseProvisioningResponse,
 } from '../../src/domain/mqtt-parsing';
+import { PersistentStateCorruptedError } from '../../src/infrastructure/file-persistence';
 import type { CredentialStorePort } from '../../src/ports/config.port';
 import type { MessageTransportPort, MqttTransportSettings } from '../../src/ports/mqtt.port';
 import { assertMatchesSchema, readAsyncApiExample } from '../contract/jsonSchema';
+
+const supportsUnixModes = process.platform !== 'win32';
 
 class FakeMessageTransport implements MessageTransportPort {
   published: Array<{ topic: string; payload: string }> = [];
@@ -19,14 +25,15 @@ class FakeMessageTransport implements MessageTransportPort {
 
   async subscribe(): Promise<void> {}
 
-  async publish(topic: string, payload: string): Promise<boolean> {
+  async publish(topic: string, payload: string): Promise<void> {
     this.published.push({ topic, payload });
-    return true;
   }
 
   onMessage(handler: (topic: string, payload: Buffer) => void): void {
     this.messageHandler = handler;
   }
+
+  onConnected(_handler: () => void | Promise<void>): void {}
 
   emitMessage(topic: string, payload: Record<string, unknown>): void {
     this.messageHandler?.(topic, Buffer.from(JSON.stringify(payload)));
@@ -62,6 +69,46 @@ class FakeCredentialStore implements CredentialStorePort {
     return this.savedCredentials !== null;
   }
 }
+
+test('client ID is created atomically and reused', (t) => {
+  const file = createClientIdFile(t);
+
+  const created = getOrCreateClientId(file);
+  const reused = getOrCreateClientId(file);
+
+  assert.match(created, /^locker-client-[a-f0-9]{8}$/);
+  assert.equal(reused, created);
+  assert.deepEqual(fs.readdirSync(path.dirname(file)), [path.basename(file)]);
+});
+
+test('existing client ID permissions are hardened on read', { skip: !supportsUnixModes }, (t) => {
+  const file = createClientIdFile(t);
+  fs.writeFileSync(file, 'locker-client-existing', { mode: 0o644 });
+  fs.chmodSync(file, 0o644);
+
+  assert.equal(getOrCreateClientId(file), 'locker-client-existing');
+  assert.equal(fs.statSync(file).mode & 0o777, 0o600);
+});
+
+test('empty client ID fails closed and remains available for operator recovery', (t) => {
+  const file = createClientIdFile(t);
+  fs.writeFileSync(file, '  \n', 'utf8');
+
+  assert.throws(
+    () => getOrCreateClientId(file),
+    (error: unknown) =>
+      error instanceof PersistentStateCorruptedError && error.stateType === 'MQTT client ID',
+  );
+  assert.equal(fs.readFileSync(file, 'utf8'), '  \n');
+});
+
+test('invalid client ID fails closed instead of silently replacing identity', (t) => {
+  const file = createClientIdFile(t);
+  fs.writeFileSync(file, 'invalid client id', 'utf8');
+
+  assert.throws(() => getOrCreateClientId(file), PersistentStateCorruptedError);
+  assert.equal(fs.readFileSync(file, 'utf8'), 'invalid client id');
+});
 
 test('parseProvisioningResponse accepts AsyncAPI success example', () => {
   const example = readAsyncApiExample('provisioning-success.json');
@@ -215,3 +262,9 @@ test('provisionDevice rejects contract-shaped error reply', async () => {
     }
   }
 });
+
+function createClientIdFile(t: TestContext): string {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'open-locker-client-id-'));
+  t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
+  return path.join(directory, '.mqtt-client-id');
+}
