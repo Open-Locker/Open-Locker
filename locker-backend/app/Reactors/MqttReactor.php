@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Reactors;
 
+use App\Models\LockerBank;
 use App\Mqtt\Publishers\ApplyConfigCommandPublisher;
 use App\Mqtt\Publishers\OpenCompartmentCommandPublisher;
 use App\Mqtt\Publishers\ProvisioningReplyPublisher;
@@ -14,6 +15,7 @@ use App\StorableEvents\LockerProvisioningFailed;
 use App\StorableEvents\LockerProvisioningReplyFailed;
 use App\StorableEvents\LockerWasProvisioned;
 use Illuminate\Contracts\Queue\ShouldQueue;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Spatie\EventSourcing\EventHandlers\Reactors\Reactor;
@@ -49,15 +51,49 @@ class MqttReactor extends Reactor implements ShouldQueue
     {
         Log::info('[MqttReactor] Handling LockerWasProvisioned event.', ['uuid' => $event->lockerBankUuid]);
 
+        if ($event->provisioningGeneration === null) {
+            Log::info('[MqttReactor] Ignoring stale LockerWasProvisioned event.', [
+                'uuid' => $event->lockerBankUuid,
+            ]);
+
+            return;
+        }
+
         $mqttUser = $event->lockerBankUuid;
         $mqttPassword = Str::random(32);
 
         try {
-            Log::info('[MqttReactor] Attempting to create MQTT user...');
-            $this->mqttUserService->createUser($mqttUser, $mqttPassword, $event->lockerBankUuid);
-            Log::info('[MqttReactor] MQTT user created successfully.');
+            $created = DB::transaction(function () use ($event, $mqttPassword, $mqttUser): bool {
+                if (! $this->lockCurrentGeneration($event)) {
+                    return false;
+                }
 
-            $this->provisioningReplyPublisher->publishSuccess($event, $mqttUser, $mqttPassword);
+                Log::info('[MqttReactor] Attempting to create MQTT user...');
+                $this->mqttUserService->createUser($mqttUser, $mqttPassword, $event->lockerBankUuid);
+                Log::info('[MqttReactor] MQTT user created successfully.');
+
+                return true;
+            });
+
+            if (! $created) {
+                $this->logStaleProvisioningEvent($event);
+
+                return;
+            }
+
+            $published = DB::transaction(function () use ($event, $mqttPassword, $mqttUser): bool {
+                if (! $this->lockCurrentGeneration($event)) {
+                    return false;
+                }
+
+                $this->provisioningReplyPublisher->publishSuccess($event, $mqttUser, $mqttPassword);
+
+                return true;
+            });
+
+            if (! $published) {
+                $this->logStaleProvisioningEvent($event);
+            }
         } catch (\Exception $e) {
             Log::error('[MqttReactor] Failed to provision MQTT user or send credentials.', [
                 'lockerBankUuid' => $event->lockerBankUuid,
@@ -74,6 +110,27 @@ class MqttReactor extends Reactor implements ShouldQueue
             // Rethrow to trigger queue retry strategy
             throw $e;
         }
+    }
+
+    private function lockCurrentGeneration(LockerWasProvisioned $event): bool
+    {
+        $lockerBank = LockerBank::query()
+            ->whereKey($event->lockerBankUuid)
+            ->lockForUpdate()
+            ->first();
+
+        return $lockerBank !== null
+            && $lockerBank->provisioned_at !== null
+            && $lockerBank->provisioning_generation !== null
+            && $event->provisioningGeneration !== null
+            && hash_equals($lockerBank->provisioning_generation, $event->provisioningGeneration);
+    }
+
+    private function logStaleProvisioningEvent(LockerWasProvisioned $event): void
+    {
+        Log::info('[MqttReactor] Ignoring stale LockerWasProvisioned event.', [
+            'uuid' => $event->lockerBankUuid,
+        ]);
     }
 
     public function onLockerProvisioningFailed(LockerProvisioningFailed $event): void

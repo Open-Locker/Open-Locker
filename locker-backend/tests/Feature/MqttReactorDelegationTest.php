@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\LockerBank;
 use App\Mqtt\Publishers\ApplyConfigCommandPublisher;
 use App\Mqtt\Publishers\OpenCompartmentCommandPublisher;
 use App\Mqtt\Publishers\ProvisioningReplyPublisher;
@@ -12,6 +13,7 @@ use App\StorableEvents\LockerConfigApplyRequested;
 use App\StorableEvents\LockerProvisioningFailed;
 use App\StorableEvents\LockerWasProvisioned;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Str;
 use Tests\TestCase;
 
 class MqttReactorDelegationTest extends TestCase
@@ -59,9 +61,17 @@ class MqttReactorDelegationTest extends TestCase
 
     public function test_provisioning_success_creates_user_and_delegates_reply_publish(): void
     {
+        $generation = (string) Str::uuid();
+        LockerBank::factory()->create([
+            'id' => '11111111-1111-1111-1111-111111111111',
+            'provisioned_at' => now(),
+            'provisioning_generation' => $generation,
+        ]);
+
         $event = new LockerWasProvisioned(
             lockerBankUuid: '11111111-1111-1111-1111-111111111111',
             replyToTopic: 'locker/provisioning/reply/test-client',
+            provisioningGeneration: $generation,
         );
         $generatedPassword = null;
 
@@ -89,6 +99,64 @@ class MqttReactorDelegationTest extends TestCase
 
                     return true;
                 });
+        });
+
+        app(MqttReactor::class)->onLockerWasProvisioned($event);
+    }
+
+    public function test_stale_provisioning_jobs_after_reset_or_new_generation_are_ignored(): void
+    {
+        $lockerBank = LockerBank::factory()->create([
+            'provisioned_at' => null,
+            'provisioning_generation' => null,
+        ]);
+        $event = new LockerWasProvisioned(
+            lockerBankUuid: (string) $lockerBank->id,
+            replyToTopic: 'locker/provisioning/reply/test-client',
+            provisioningGeneration: (string) Str::uuid(),
+        );
+
+        $this->mock(MqttUserService::class, function ($mock): void {
+            $mock->shouldReceive('createUser')->never();
+        });
+        $this->mock(ProvisioningReplyPublisher::class, function ($mock): void {
+            $mock->shouldReceive('publishSuccess')->never();
+        });
+
+        app(MqttReactor::class)->onLockerWasProvisioned($event);
+
+        $lockerBank->forceFill([
+            'provisioned_at' => now(),
+            'provisioning_generation' => (string) Str::uuid(),
+        ])->save();
+
+        app(MqttReactor::class)->onLockerWasProvisioned($event);
+    }
+
+    public function test_generation_is_rechecked_after_user_creation_before_credentials_are_published(): void
+    {
+        $generation = (string) Str::uuid();
+        $lockerBank = LockerBank::factory()->create([
+            'provisioned_at' => now(),
+            'provisioning_generation' => $generation,
+        ]);
+        $event = new LockerWasProvisioned(
+            lockerBankUuid: (string) $lockerBank->id,
+            replyToTopic: 'locker/provisioning/reply/test-client',
+            provisioningGeneration: $generation,
+        );
+
+        $this->mock(MqttUserService::class, function ($mock) use ($lockerBank): void {
+            $mock->shouldReceive('createUser')
+                ->once()
+                ->andReturnUsing(function () use ($lockerBank): void {
+                    $lockerBank->newQuery()
+                        ->whereKey($lockerBank->id)
+                        ->update(['provisioning_generation' => (string) Str::uuid()]);
+                });
+        });
+        $this->mock(ProvisioningReplyPublisher::class, function ($mock): void {
+            $mock->shouldReceive('publishSuccess')->never();
         });
 
         app(MqttReactor::class)->onLockerWasProvisioned($event);

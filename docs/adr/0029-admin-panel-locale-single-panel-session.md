@@ -51,14 +51,16 @@ no plugin:
   pre-auth render hooks as before) links to a small named route
   (`locale.switch`) that validates the locale against
   `config('app.supported_locales')`, stores it in the session plus a long-lived
-  cookie (so the choice survives session expiry), and redirects back.
+  cookie (so the choice survives session expiry), and redirects back only when
+  the referring URL has the same origin, otherwise falling back to `/admin`.
 - The `SetPanelLocale` panel middleware is repurposed: instead of reading URL
   segment 1, it applies the stored locale (session, then cookie); when nothing
   is stored it negotiates from the browser's `Accept-Language`, falling back to
   the first supported locale.
 - `AdminDePanelProvider` is removed. The panel moves back from `/en/admin` to
   `/admin`; old `/{en|de}/admin/...` URLs 301-redirect to the equivalent
-  `/admin/...` path.
+  `/admin/...` path while preserving the original query parameters, including
+  password-reset tokens. These redirects are constrained to the same origin.
 
 The **lazy-label discipline from ADR-0024 stays mandatory**: the session locale
 is still applied by request middleware after panel boot, so static label

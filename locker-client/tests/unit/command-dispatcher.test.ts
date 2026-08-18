@@ -1,10 +1,12 @@
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
 import { test } from 'node:test';
 import { CommandDispatcher } from '../../src/adapters/mqtt/command-dispatcher';
 import { InboundProtocolGuard } from '../../src/adapters/mqtt/inbound-protocol-guard';
-import { InMemoryDedupStore } from '../../src/adapters/mqtt/dedup-store';
+import { FileDedupStore, InMemoryDedupStore } from '../../src/adapters/mqtt/dedup-store';
 import { OutboundMqttAdapter } from '../../src/adapters/mqtt/outbound-mqtt.adapter';
-import { recordCommandResponses } from '../../src/adapters/mqtt/recording-outbound';
 import { createOpenCompartmentHandler } from '../../src/adapters/mqtt/handlers/open-compartment.handler';
 import { createApplyConfigHandler } from '../../src/adapters/mqtt/handlers/apply-config.handler';
 import { OpenCompartmentUseCase } from '../../src/application/open-compartment';
@@ -15,9 +17,11 @@ import { PollCompartmentStateUseCase } from '../../src/application/state-publish
 import { RunAfterCompleteScheduler } from '../../src/infrastructure/scheduler';
 import { computeAppliedConfigHash } from '../../src/domain/config-normalization';
 import { FakeLockerBus } from '../helpers/fake-locker-bus';
+import { FakeMqttTransport } from '../helpers/fake-mqtt-transport';
 import { MemoryOverlayStore } from '../helpers/memory-overlay-store';
 import { createTestConfigRepository } from '../helpers/test-config-repository';
 import type { ConfigRepositoryPort } from '../../src/ports/config.port';
+import type { DedupStorePort } from '../../src/ports/mqtt.port';
 
 const configStub: ConfigRepositoryPort = {
   load: () => ({
@@ -41,19 +45,23 @@ const configStub: ConfigRepositoryPort = {
   }),
 };
 
-function createDispatcherHarness(bus = new FakeLockerBus([1])) {
-  const dedup = new InMemoryDedupStore();
+function createDispatcherHarness(
+  bus = new FakeLockerBus([1]),
+  dedup: DedupStorePort = new InMemoryDedupStore(),
+) {
   const published: string[] = [];
-  const outbound = recordCommandResponses(
-    new OutboundMqttAdapter(
-      async (_topic, payload) => {
-        published.push(payload);
-        return true;
-      },
-      'locker/test/response',
-      () => '2026-04-11T10:00:00Z',
-    ),
-    dedup,
+  const attempted: string[] = [];
+  let connected = true;
+  const outbound = new OutboundMqttAdapter(
+    async (_topic, payload) => {
+      attempted.push(payload);
+      if (!connected) {
+        throw new Error('MQTT client is not connected');
+      }
+      published.push(payload);
+    },
+    'locker/test/response',
+    () => '2026-04-11T10:00:00Z',
   );
   const openCompartment = new OpenCompartmentUseCase({
     bus,
@@ -72,7 +80,6 @@ function createDispatcherHarness(bus = new FakeLockerBus([1])) {
   dispatcher.register(
     createOpenCompartmentHandler({
       openCompartment,
-      outbound,
       pollSnapshot,
     }),
   );
@@ -81,8 +88,13 @@ function createDispatcherHarness(bus = new FakeLockerBus([1])) {
     bus,
     dedup,
     dispatcher,
+    outbound,
     openCompartment,
     published,
+    attempted,
+    setConnected(value: boolean) {
+      connected = value;
+    },
   };
 }
 
@@ -135,6 +147,47 @@ test('dispatcher ignores duplicate message_id before side effects', async () => 
   assert.equal(commandResponses(published).length, 2);
 });
 
+test('legacy dedup migration never repeats a completed physical command', async (t) => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'open-locker-legacy-dedup-'));
+  t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
+  const file = path.join(directory, 'dedup.json');
+  fs.writeFileSync(
+    file,
+    JSON.stringify({
+      seenMessageIds: {},
+      commandRecords: {
+        'txn-legacy-completed': {
+          action: 'open_compartment',
+          status: 'completed',
+          updatedAt: '2026-04-11T10:00:00Z',
+        },
+      },
+    }),
+    'utf8',
+  );
+  const store = new FileDedupStore(file);
+  store.assertHealthy();
+  const { bus, dispatcher, openCompartment, published } = createDispatcherHarness(
+    new FakeLockerBus([1]),
+    store,
+  );
+
+  await dispatcher.dispatch(
+    'locker/test/command',
+    JSON.stringify({
+      action: 'open_compartment',
+      transaction_id: 'txn-legacy-completed',
+      message_id: 'msg-after-migration',
+      timestamp: '2026-04-11T10:00:00Z',
+      data: { compartment_number: 1 },
+    }),
+  );
+
+  openCompartment.stopAllMonitoring();
+  assert.equal(bus.flashCalls.length, 0);
+  assert.equal(commandResponses(published).length, 0);
+});
+
 test('dispatcher rejects invalid payload with structured error', async () => {
   const { bus, dispatcher, openCompartment, published } = createDispatcherHarness();
 
@@ -158,6 +211,92 @@ test('dispatcher rejects invalid payload with structured error', async () => {
   };
   assert.equal(response.result, 'error');
   assert.equal(response.error_code, 'INVALID_COMMAND');
+});
+
+test('invalid response remains persistently pending after publish failure and can be flushed', async (t) => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'open-locker-invalid-response-'));
+  t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
+  const file = path.join(directory, 'dedup.json');
+  const { bus, dispatcher, openCompartment, outbound, published, setConnected } =
+    createDispatcherHarness(new FakeLockerBus([1]), new FileDedupStore(file));
+  setConnected(false);
+
+  await dispatcher.dispatch(
+    'locker/test/command',
+    JSON.stringify({
+      action: 'open_compartment',
+      transaction_id: 'txn-invalid-pending',
+      message_id: 'msg-invalid-pending',
+      timestamp: '2026-04-11T10:00:00Z',
+      data: { compartment_number: 0 },
+    }),
+  );
+
+  const restartedStore = new FileDedupStore(file);
+  const pendingRecord = restartedStore.getCommandRecord('txn-invalid-pending');
+  assert.equal(bus.flashCalls.length, 0);
+  assert.equal(pendingRecord?.status, 'completed');
+  assert.equal(pendingRecord?.response?.error_code, 'INVALID_COMMAND');
+  assert.equal(pendingRecord?.responseDeliveredAt, undefined);
+
+  setConnected(true);
+  const restartedDispatcher = new CommandDispatcher(
+    new InboundProtocolGuard(restartedStore),
+    outbound,
+    restartedStore,
+  );
+  await restartedDispatcher.flushPendingResponses();
+
+  openCompartment.stopAllMonitoring();
+  assert.equal(commandResponses(published).length, 1);
+  assert.ok(restartedStore.getCommandRecord('txn-invalid-pending')?.responseDeliveredAt);
+});
+
+test('invalid duplicate does not overwrite a completed success response', async () => {
+  const { bus, dedup, dispatcher, openCompartment, published } = createDispatcherHarness();
+  const successResponse = {
+    result: 'success' as const,
+    message: 'Compartment opened.',
+  };
+  dedup.markCommandCompleted('txn-invalid-duplicate', 'open_compartment', successResponse);
+
+  await dispatcher.dispatch(
+    'locker/test/command',
+    JSON.stringify({
+      action: 'open_compartment',
+      transaction_id: 'txn-invalid-duplicate',
+      message_id: 'msg-invalid-duplicate',
+      timestamp: '2026-04-11T10:00:00Z',
+      data: { compartment_number: 0 },
+    }),
+  );
+
+  openCompartment.stopAllMonitoring();
+  assert.equal(bus.flashCalls.length, 0);
+  assert.deepEqual(dedup.getCommandRecord('txn-invalid-duplicate')?.response, successResponse);
+  assert.equal(commandResponses(published)[0]?.result, 'success');
+});
+
+test('invalid duplicate leaves an in_progress command untouched', async () => {
+  const { bus, dedup, dispatcher, openCompartment, published } = createDispatcherHarness();
+  dedup.markCommandInProgress('txn-invalid-in-progress', 'open_compartment');
+  const existing = dedup.getCommandRecord('txn-invalid-in-progress');
+
+  await dispatcher.dispatch(
+    'locker/test/command',
+    JSON.stringify({
+      action: 'open_compartment',
+      transaction_id: 'txn-invalid-in-progress',
+      message_id: 'msg-invalid-in-progress',
+      timestamp: '2026-04-11T10:00:00Z',
+      data: { compartment_number: 0 },
+    }),
+  );
+
+  openCompartment.stopAllMonitoring();
+  assert.equal(bus.flashCalls.length, 0);
+  assert.deepEqual(dedup.getCommandRecord('txn-invalid-in-progress'), existing);
+  assert.equal(commandResponses(published).length, 0);
 });
 
 test('dispatcher rejects missing transaction_id without side effects', async () => {
@@ -229,9 +368,12 @@ test('failed open marks completed and a retry is answered with the same failure'
   assert.equal(dedup.getCommandRecord('txn-retry')?.status, 'completed');
 });
 
-test('duplicate completed open_compartment is silently ignored', async () => {
+test('duplicate completed open_compartment replays its stored response', async () => {
   const { bus, dedup, dispatcher, openCompartment, published } = createDispatcherHarness();
-  dedup.markCommandCompleted('txn-dup', 'open_compartment');
+  dedup.markCommandCompleted('txn-dup', 'open_compartment', {
+    result: 'success',
+    message: 'Compartment opened.',
+  });
 
   await dispatcher.dispatch(
     'locker/test/command',
@@ -246,30 +388,35 @@ test('duplicate completed open_compartment is silently ignored', async () => {
 
   openCompartment.stopAllMonitoring();
   assert.equal(bus.flashCalls.length, 0);
-  assert.equal(commandResponses(published).length, 0);
+  assert.equal(commandResponses(published).length, 1);
+  assert.equal(commandResponses(published)[0]?.transaction_id, 'txn-dup');
 });
 
-test('apply_config deduplicates completed transaction without re-running', async () => {
+test('apply_config replays a completed response without re-running', async () => {
   const bus = new FakeLockerBus([1]);
   const dedup = new InMemoryDedupStore();
   const published: string[] = [];
   const outbound = new OutboundMqttAdapter(async (_topic, payload) => {
     published.push(payload);
-    return true;
   }, 'locker/test/response');
   const compartments = [{ compartment_number: 1, slaveId: 1, address: 0 }];
   const configHash = computeAppliedConfigHash(compartments);
+  const overlayStore = new MemoryOverlayStore();
   const applyConfig = new ApplyConfigUseCase({
-    overlayStore: new MemoryOverlayStore(),
+    overlayStore,
     config: createTestConfigRepository({ compartments }),
     bus,
     restartHeartbeat: () => undefined,
     restartPolling: () => undefined,
   });
   const dispatcher = new CommandDispatcher(new InboundProtocolGuard(dedup), outbound, dedup);
-  dispatcher.register(createApplyConfigHandler({ applyConfig, outbound }));
+  dispatcher.register(createApplyConfigHandler({ applyConfig }));
 
-  dedup.markCommandCompleted('txn-apply-dup', 'apply_config');
+  dedup.markCommandCompleted('txn-apply-dup', 'apply_config', {
+    result: 'success',
+    applied_config_hash: configHash,
+    message: 'Configuration applied.',
+  });
 
   await dispatcher.dispatch(
     'locker/test/command',
@@ -286,7 +433,258 @@ test('apply_config deduplicates completed transaction without re-running', async
     }),
   );
 
-  assert.equal(commandResponses(published).length, 0);
+  assert.equal(commandResponses(published).length, 1);
+  assert.equal(overlayStore.load(), null);
+});
+
+test('open response publish failure keeps a replayable final response', async () => {
+  const { bus, dedup, dispatcher, openCompartment, published, setConnected } =
+    createDispatcherHarness();
+  setConnected(false);
+
+  await dispatcher.dispatch(
+    'locker/test/command',
+    JSON.stringify({
+      action: 'open_compartment',
+      transaction_id: 'txn-pending-open',
+      message_id: 'msg-pending-open',
+      timestamp: '2026-04-11T10:00:00Z',
+      data: { compartment_number: 1 },
+    }),
+  );
+
+  const pendingRecord = dedup.getCommandRecord('txn-pending-open');
+  assert.equal(bus.flashCalls.length, 1);
+  assert.equal(pendingRecord?.status, 'completed');
+  assert.equal(pendingRecord?.response?.result, 'success');
+  assert.equal(pendingRecord?.responseDeliveredAt, undefined);
+
+  setConnected(true);
+  await dispatcher.dispatch(
+    'locker/test/command',
+    JSON.stringify({
+      action: 'open_compartment',
+      transaction_id: 'txn-pending-open',
+      message_id: 'msg-pending-open-retry',
+      timestamp: '2026-04-11T10:00:01Z',
+      data: { compartment_number: 1 },
+    }),
+  );
+
+  openCompartment.stopAllMonitoring();
+  assert.equal(bus.flashCalls.length, 1);
+  assert.equal(commandResponses(published).length, 1);
+  assert.ok(dedup.getCommandRecord('txn-pending-open')?.responseDeliveredAt);
+});
+
+test('startup recovery finalizes in_progress without executing hardware', async () => {
+  const { bus, dedup, dispatcher, openCompartment, published } = createDispatcherHarness();
+  dedup.markCommandInProgress('txn-interrupted', 'open_compartment');
+
+  dispatcher.recoverInterruptedCommands();
+  const recovered = dedup.getCommandRecord('txn-interrupted');
+
+  assert.equal(bus.flashCalls.length, 0);
+  assert.equal(recovered?.status, 'completed');
+  assert.equal(recovered?.response?.result, 'error');
+  assert.equal(recovered?.response?.error_code, 'UNKNOWN_ERROR');
+  assert.equal(recovered?.responseDeliveredAt, undefined);
+
+  await dispatcher.flushPendingResponses();
+  openCompartment.stopAllMonitoring();
+  assert.equal(commandResponses(published).length, 1);
+  assert.ok(dedup.getCommandRecord('txn-interrupted')?.responseDeliveredAt);
+});
+
+test('reconnect flushes pending responses without repeating hardware', async () => {
+  const { bus, dedup, dispatcher, openCompartment, published, setConnected } =
+    createDispatcherHarness();
+  const transport = new FakeMqttTransport();
+  await transport.connect();
+  transport.onConnected(async () => {
+    setConnected(true);
+    await dispatcher.flushPendingResponses();
+  });
+
+  setConnected(false);
+  transport.simulateBrokerDrop();
+  await dispatcher.dispatch(
+    'locker/test/command',
+    JSON.stringify({
+      action: 'open_compartment',
+      transaction_id: 'txn-reconnect',
+      message_id: 'msg-reconnect',
+      timestamp: '2026-04-11T10:00:00Z',
+      data: { compartment_number: 1 },
+    }),
+  );
+
+  await transport.simulateBrokerRestore();
+  transport.simulateBrokerDrop();
+  await transport.simulateBrokerRestore();
+  await dispatcher.dispatch(
+    'locker/test/command',
+    JSON.stringify({
+      action: 'open_compartment',
+      transaction_id: 'txn-reconnect',
+      message_id: 'msg-reconnect-duplicate',
+      timestamp: '2026-04-11T10:00:01Z',
+      data: { compartment_number: 1 },
+    }),
+  );
+
+  openCompartment.stopAllMonitoring();
+  assert.equal(bus.flashCalls.length, 1);
+  assert.equal(commandResponses(published).length, 2);
+  assert.ok(dedup.getCommandRecord('txn-reconnect')?.responseDeliveredAt);
+});
+
+test('failed delivered duplicate replay is pending and flushes on reconnect', async (t) => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'open-locker-delivered-replay-'));
+  t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
+  const file = path.join(directory, 'dedup.json');
+  const { bus, dedup, dispatcher, openCompartment, published, attempted, setConnected } =
+    createDispatcherHarness(new FakeLockerBus([1]), new FileDedupStore(file));
+  t.after(() => openCompartment.stopAllMonitoring());
+  const transport = new FakeMqttTransport();
+  await transport.connect();
+  transport.onConnected(() => dispatcher.flushPendingResponses());
+  const command = {
+    action: 'open_compartment',
+    transaction_id: 'txn-delivered-replay',
+    message_id: 'msg-delivered-original',
+    timestamp: '2026-04-11T10:00:00Z',
+    data: { compartment_number: 1 },
+  };
+
+  await dispatcher.dispatch('locker/test/command', JSON.stringify(command));
+  assert.ok(dedup.getCommandRecord(command.transaction_id)?.responseDeliveredAt);
+
+  setConnected(false);
+  transport.simulateBrokerDrop();
+  await dispatcher.dispatch(
+    'locker/test/command',
+    JSON.stringify({
+      ...command,
+      message_id: 'msg-delivered-duplicate',
+      timestamp: '2026-04-11T10:00:01Z',
+    }),
+  );
+
+  assert.equal(bus.flashCalls.length, 1);
+  assert.equal(dedup.getCommandRecord(command.transaction_id)?.responseDeliveredAt, undefined);
+  assert.equal(
+    new FileDedupStore(file).getCommandRecord(command.transaction_id)?.responseDeliveredAt,
+    undefined,
+  );
+
+  setConnected(true);
+  await transport.simulateBrokerRestore();
+
+  assert.equal(bus.flashCalls.length, 1);
+  assert.equal(commandResponses(published).length, 2);
+  assert.ok(dedup.getCommandRecord(command.transaction_id)?.responseDeliveredAt);
+  const responseMessageIds = attempted
+    .map((payload) => JSON.parse(payload) as { message_id: string; result?: string })
+    .filter((payload) => payload.result === 'success' || payload.result === 'error')
+    .map((payload) => payload.message_id);
+  assert.equal(new Set(responseMessageIds).size, 3);
+});
+
+test('flush rescans when requested while another flush is active', async () => {
+  const dedup = new InMemoryDedupStore();
+  dedup.markCommandCompleted('txn-first', 'open_compartment', {
+    result: 'success',
+  });
+  let releaseFirstPublish: (() => void) | undefined;
+  const firstPublishBlocked = new Promise<void>((resolve) => {
+    releaseFirstPublish = resolve;
+  });
+  let firstPublishStarted: (() => void) | undefined;
+  const firstPublishHasStarted = new Promise<void>((resolve) => {
+    firstPublishStarted = resolve;
+  });
+  const publishedTransactions: string[] = [];
+  const outbound = new OutboundMqttAdapter(async (_topic, payload) => {
+    const transactionId = (JSON.parse(payload) as { transaction_id: string }).transaction_id;
+    publishedTransactions.push(transactionId);
+    if (transactionId === 'txn-first') {
+      firstPublishStarted?.();
+      await firstPublishBlocked;
+    }
+  }, 'locker/test/response');
+  const dispatcher = new CommandDispatcher(new InboundProtocolGuard(dedup), outbound, dedup);
+
+  const firstFlush = dispatcher.flushPendingResponses();
+  await firstPublishHasStarted;
+  dedup.markCommandCompleted('txn-second', 'open_compartment', {
+    result: 'success',
+  });
+  const followUpFlush = dispatcher.flushPendingResponses();
+  assert.equal(firstFlush, followUpFlush);
+  assert.deepEqual(publishedTransactions, ['txn-first']);
+
+  releaseFirstPublish?.();
+  await Promise.all([firstFlush, followUpFlush]);
+
+  assert.deepEqual(publishedTransactions, ['txn-first', 'txn-second']);
+  assert.ok(dedup.getCommandRecord('txn-first')?.responseDeliveredAt);
+  assert.ok(dedup.getCommandRecord('txn-second')?.responseDeliveredAt);
+});
+
+test('apply_config response recovers without applying config twice', async () => {
+  const bus = new FakeLockerBus([1]);
+  const dedup = new InMemoryDedupStore();
+  const published: string[] = [];
+  let connected = false;
+  const outbound = new OutboundMqttAdapter(async (_topic, payload) => {
+    if (!connected) {
+      throw new Error('MQTT client is not connected');
+    }
+    published.push(payload);
+  }, 'locker/test/response');
+  const compartments = [{ compartment_number: 1, slaveId: 1, address: 0 }];
+  const configHash = computeAppliedConfigHash(compartments);
+  const applyConfig = new ApplyConfigUseCase({
+    overlayStore: new MemoryOverlayStore(),
+    config: createTestConfigRepository({ compartments }),
+    bus,
+    restartHeartbeat: () => undefined,
+    restartPolling: () => undefined,
+  });
+  let applyCalls = 0;
+  const execute = applyConfig.execute.bind(applyConfig);
+  applyConfig.execute = async (command) => {
+    applyCalls++;
+    return execute(command);
+  };
+  const dispatcher = new CommandDispatcher(new InboundProtocolGuard(dedup), outbound, dedup);
+  dispatcher.register(createApplyConfigHandler({ applyConfig }));
+  const command = {
+    action: 'apply_config',
+    transaction_id: 'txn-apply-pending',
+    message_id: 'msg-apply-pending',
+    timestamp: '2026-04-11T10:00:00Z',
+    data: {
+      config_hash: configHash,
+      heartbeat_interval_seconds: 30,
+      compartments,
+    },
+  };
+
+  await dispatcher.dispatch('locker/test/command', JSON.stringify(command));
+  connected = true;
+  await dispatcher.dispatch(
+    'locker/test/command',
+    JSON.stringify({ ...command, message_id: 'msg-apply-pending-retry' }),
+  );
+
+  assert.equal(applyCalls, 1);
+  assert.equal(commandResponses(published).length, 1);
+  assert.equal(
+    dedup.getCommandRecord('txn-apply-pending')?.response?.applied_config_hash,
+    configHash,
+  );
 });
 
 test('dispatcher answers an unknown action so the backend stops waiting', async () => {
@@ -448,26 +846,4 @@ test('a duplicate transaction replays the completed response', async () => {
   assert.equal(responses.length, 2);
   assert.equal(responses[1]?.result, 'success');
   assert.equal(responses[1]?.transaction_id, 'txn-replay-completed');
-});
-
-test('a duplicate with nothing stored to replay stays silent', async () => {
-  const { dedup, dispatcher, openCompartment, published } = createDispatcherHarness();
-
-  // A transaction marked completed without a retained response — what a restart
-  // that lost state looks like.
-  dedup.markCommandCompleted('txn-no-stored', 'open_compartment');
-
-  await dispatcher.dispatch(
-    'locker/test/command',
-    JSON.stringify({
-      action: 'open_compartment',
-      transaction_id: 'txn-no-stored',
-      message_id: 'msg-no-stored',
-      timestamp: '2026-04-11T10:00:00Z',
-      data: { compartment_number: 1 },
-    }),
-  );
-
-  openCompartment.stopAllMonitoring();
-  assert.equal(commandResponses(published).length, 0);
 });

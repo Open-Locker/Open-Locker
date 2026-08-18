@@ -23,20 +23,26 @@ function createRecordingLogger(): { logger: LoggerPort; entries: CapturedLog[] }
 test('a command response dropped before the broker is reported with its ids', async () => {
   const { logger, entries } = createRecordingLogger();
   const outbound = new OutboundMqttAdapter(
-    async () => false,
+    async () => {
+      throw new Error('MQTT client is not connected');
+    },
     'locker/test/response',
     () => '2026-07-30T10:00:00Z',
     undefined,
     logger,
   );
 
-  await outbound.publishCommandResponse({
-    action: 'open_compartment',
-    result: 'error',
-    transaction_id: 'txn-lost',
-    error_code: 'DOOR_JAMMED',
-    message: 'Door did not open',
-  });
+  // The publish still fails outward so the caller can keep the response
+  // pending; the point here is that the loss is named before it propagates.
+  await assert.rejects(
+    outbound.publishCommandResponse({
+      action: 'open_compartment',
+      result: 'error',
+      transaction_id: 'txn-lost',
+      error_code: 'DOOR_JAMMED',
+      message: 'Door did not open',
+    }),
+  );
 
   const dropped = entries.find((entry) => entry.message.includes('dropped before reaching'));
   assert.ok(dropped, 'expected the dropped response to be reported');
@@ -49,7 +55,7 @@ test('a command response dropped before the broker is reported with its ids', as
 test('a delivered message is not reported as dropped', async () => {
   const { logger, entries } = createRecordingLogger();
   const outbound = new OutboundMqttAdapter(
-    async () => true,
+    async () => {},
     'locker/test/response',
     () => '2026-07-30T10:00:00Z',
     undefined,
@@ -68,7 +74,9 @@ test('a delivered message is not reported as dropped', async () => {
 test('an untraced topic still reports a dropped publish', async () => {
   const { logger, entries } = createRecordingLogger();
   const outbound = new OutboundMqttAdapter(
-    async () => false,
+    async () => {
+      throw new Error('MQTT client is not connected');
+    },
     'locker/test/response',
     () => '2026-07-30T10:00:00Z',
     undefined,
@@ -76,7 +84,9 @@ test('an untraced topic still reports a dropped publish', async () => {
   );
 
   // Heartbeats bypass the tracing branch, so they exercise the other publish path.
-  await outbound.publishJson('locker/test/state/heartbeat', { uptime_seconds: 12 }, { qos: 1 });
+  await assert.rejects(
+    outbound.publishJson('locker/test/state/heartbeat', { uptime_seconds: 12 }, { qos: 1 }),
+  );
 
   assert.equal(entries.length, 1);
   assert.equal(entries[0]?.meta?.topic, 'locker/test/state/heartbeat');
