@@ -34,10 +34,15 @@
                 ],
                 'failed' => [
                     'title' => __('Open request failed'),
-                    'body' => __('Compartment :number of locker :locker. Details are in the server log.'),
+                    'body' => __('Compartment :number of locker :locker. Check the open command history for details.'),
                     'level' => 'danger',
                 ],
             ]);
+            const denialReasons = @js([
+                'unverified_email' => __('Your email address is not verified.'),
+                'missing_active_access' => __('You do not have active access to this compartment.'),
+            ]);
+            const defaultDenialReason = @js(__('You are not authorized to open this compartment.'));
 
             const compartmentStatus = window.Echo.private(`users.${userId}.compartment-status`);
 
@@ -48,10 +53,11 @@
                     return;
                 }
 
+                const reason = denialReasons[payload?.message] ?? defaultDenialReason;
                 const body = toast.body
                     .replace(':number', payload?.compartment_number ?? payload?.compartment_id ?? '?')
                     .replace(':locker', payload?.locker_name ?? '?')
-                    .replace(':reason', payload?.message ?? payload?.error_code ?? '-');
+                    .replace(':reason', reason);
 
                 const notification = new window.FilamentNotification()
                     .title(toast.title)

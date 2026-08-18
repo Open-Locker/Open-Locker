@@ -15,6 +15,7 @@ export class MqttTransportAdapter implements MessageTransportPort {
   private reconnectAttempts = 0;
   private connectInFlight: Promise<void> | null = null;
   private messageHandler: ((topic: string, payload: Buffer) => void) | null = null;
+  private readonly connectedHandlers: Array<() => void | Promise<void>> = [];
   private readonly transport: MqttTransportSettings;
 
   constructor(transport: MqttTransportSettings) {
@@ -79,15 +80,7 @@ export class MqttTransportAdapter implements MessageTransportPort {
     payload: string,
     options: OutboundPublishOptions = {},
   ): Promise<void> {
-    if (!this.client?.connected) {
-      logger.warn('MQTT publish skipped while disconnected', {
-        topic,
-        connectionState: this.connectionState,
-      });
-      return;
-    }
-
-    const client = this.client;
+    const client = this.requireClient();
     return new Promise((resolve, reject) => {
       client.publish(
         topic,
@@ -109,6 +102,10 @@ export class MqttTransportAdapter implements MessageTransportPort {
     if (this.client) {
       this.client.on('message', handler);
     }
+  }
+
+  onConnected(handler: () => void | Promise<void>): void {
+    this.connectedHandlers.push(handler);
   }
 
   private connectInternal(brokerUrl: string, options: Record<string, unknown>): Promise<void> {
@@ -137,6 +134,7 @@ export class MqttTransportAdapter implements MessageTransportPort {
         this.connectionState = 'connected';
         initialConnectSettled = true;
         resolve();
+        this.notifyConnected();
       });
 
       this.client.on('error', (error) => {
@@ -176,6 +174,16 @@ export class MqttTransportAdapter implements MessageTransportPort {
         this.connectionState = 'reconnecting';
       });
     });
+  }
+
+  private notifyConnected(): void {
+    for (const handler of this.connectedHandlers) {
+      Promise.resolve(handler()).catch((error: unknown) => {
+        logger.warn('MQTT connected handler failed', {
+          error: error instanceof Error ? error.message : 'Unknown connected handler error',
+        });
+      });
+    }
   }
 
   private requireClient(): MqttClient {

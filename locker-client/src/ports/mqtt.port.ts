@@ -5,8 +5,15 @@ export interface OutboundPublishOptions {
 
 export interface CommandResponseBody {
   action: string;
-  result: 'success' | 'error';
   transaction_id: string;
+  result: 'success' | 'error';
+  message?: string;
+  error_code?: string;
+  applied_config_hash?: string;
+}
+
+export interface StoredCommandResponse {
+  result: 'success' | 'error';
   message?: string;
   error_code?: string;
   applied_config_hash?: string;
@@ -29,6 +36,7 @@ export interface MessageTransportPort {
   subscribe(topic: string): Promise<void>;
   publish(topic: string, payload: string, options?: OutboundPublishOptions): Promise<void>;
   onMessage(handler: (topic: string, payload: Buffer) => void): void;
+  onConnected(handler: () => void | Promise<void>): void;
   getConnectionState(): MqttConnectionState;
   getTransportSettings(): MqttTransportSettings;
 }
@@ -41,12 +49,48 @@ export interface MqttTransportSettings {
   maxReconnectAttempts: number;
 }
 
+interface CommandRecordBase {
+  action: string;
+  updatedAt: string;
+}
+
+export interface InProgressCommandRecord extends CommandRecordBase {
+  status: 'in_progress';
+  response?: never;
+  responseDeliveredAt?: never;
+  legacyResponseUnavailable?: never;
+}
+
+export interface CompletedCommandRecord extends CommandRecordBase {
+  status: 'completed';
+  response: StoredCommandResponse;
+  responseDeliveredAt?: string;
+  legacyResponseUnavailable?: never;
+}
+
+export interface LegacyCompletedCommandRecord extends CommandRecordBase {
+  status: 'completed';
+  legacyResponseUnavailable: true;
+  response?: never;
+  responseDeliveredAt?: never;
+}
+
+export type CommandRecord =
+  | InProgressCommandRecord
+  | CompletedCommandRecord
+  | LegacyCompletedCommandRecord;
+
 export interface DedupStorePort {
   hasSeenMessageId(messageId: string): boolean;
   rememberMessageId(messageId: string): void;
-  getCommandRecord(
-    transactionId: string,
-  ): { action: string; status: 'in_progress' | 'completed' } | null;
+  getCommandRecord(transactionId: string): CommandRecord | null;
+  listCommandRecords(): Array<{ transactionId: string; record: CommandRecord }>;
   markCommandInProgress(transactionId: string, action: string): void;
-  markCommandCompleted(transactionId: string, action: string): void;
+  markCommandCompleted(
+    transactionId: string,
+    action: string,
+    response: StoredCommandResponse,
+  ): void;
+  markCommandResponsePending(transactionId: string): void;
+  markCommandResponseDelivered(transactionId: string): void;
 }
