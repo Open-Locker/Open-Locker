@@ -15,7 +15,7 @@ test('MqttTransportAdapter defaults to unlimited reconnect', () => {
 });
 
 // Full broker reconnect integration (aedes + live mqtt.connect) is not wired in CI yet.
-// These tests cover the observable contract: connection state transitions and graceful publish skip.
+// These tests cover the observable contract: connection state transitions and publish failure.
 test('MqttTransportAdapter reports reconnecting after simulated broker drop', () => {
   const transport = new MqttTransportAdapter({
     clean: false,
@@ -31,7 +31,7 @@ test('MqttTransportAdapter reports reconnecting after simulated broker drop', ()
   assert.equal(transport.getConnectionState(), 'reconnecting');
 });
 
-test('MqttTransportAdapter publish skips gracefully while disconnected', async () => {
+test('MqttTransportAdapter publish fails while disconnected', async () => {
   const transport = new MqttTransportAdapter({
     clean: false,
     keepalive: 60,
@@ -40,8 +40,32 @@ test('MqttTransportAdapter publish skips gracefully while disconnected', async (
     maxReconnectAttempts: 0,
   });
 
-  await assert.doesNotReject(() =>
-    transport.publish('locker/test/state/heartbeat', JSON.stringify({ uptime_seconds: 1 })),
+  await assert.rejects(
+    () => transport.publish('locker/test/state/heartbeat', JSON.stringify({ uptime_seconds: 1 })),
+    /not connected/,
   );
   assert.equal(transport.getConnectionState(), 'disconnected');
+});
+
+test('MqttTransportAdapter notifies registered connected handlers', async () => {
+  const transport = new MqttTransportAdapter({
+    clean: false,
+    keepalive: 60,
+    reconnectPeriod: 5000,
+    connectTimeout: 30000,
+    maxReconnectAttempts: 0,
+  });
+  let notifications = 0;
+  transport.onConnected(() => {
+    notifications++;
+  });
+
+  (
+    transport as unknown as {
+      notifyConnected(): void;
+    }
+  ).notifyConnected();
+
+  await new Promise<void>((resolve) => setImmediate(resolve));
+  assert.equal(notifications, 1);
 });

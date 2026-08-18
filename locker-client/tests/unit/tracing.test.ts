@@ -151,8 +151,13 @@ function createTracedDispatcher() {
     action: 'open_compartment',
     schema: z.object({ transaction_id: z.string() }).loose(),
     requiresTransactionId: () => true,
-    async handle() {
+    async handle(_context, payload) {
       handled.push('open_compartment');
+      return {
+        action: 'open_compartment',
+        result: 'success' as const,
+        transaction_id: (payload as { transaction_id: string }).transaction_id,
+      };
     },
   });
 

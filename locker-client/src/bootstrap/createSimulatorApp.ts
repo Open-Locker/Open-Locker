@@ -201,8 +201,8 @@ export function wireSimulatedDevice(options: WireSimulatedDeviceOptions): WiredS
     dedupStore,
     tracing,
   );
-  dispatcher.register(createOpenCompartmentHandler({ openCompartment, outbound, pollSnapshot }));
-  dispatcher.register(createApplyConfigHandler({ applyConfig, outbound }));
+  dispatcher.register(createOpenCompartmentHandler({ openCompartment, pollSnapshot }));
+  dispatcher.register(createApplyConfigHandler({ applyConfig }));
 
   const resolveTarget = (compartmentNumber: number) =>
     configRepo.getCompartmentConfig(compartmentNumber);

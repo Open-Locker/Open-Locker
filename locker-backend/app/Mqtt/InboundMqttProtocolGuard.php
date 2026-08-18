@@ -25,7 +25,7 @@ class InboundMqttProtocolGuard
 
         if (! is_string($messageId) || trim($messageId) === '') {
             Log::warning('Rejected inbound MQTT payload without message_id.', [
-                'topic' => $topic,
+                'topic' => MqttTopicRedactor::redact($topic),
                 'payload' => $payload,
                 'requires_transaction_id' => $requiresTransactionId,
             ]);
@@ -38,7 +38,7 @@ class InboundMqttProtocolGuard
 
             if (! is_string($transactionId) || trim($transactionId) === '') {
                 Log::warning('Rejected inbound MQTT payload without transaction_id.', [
-                    'topic' => $topic,
+                    'topic' => MqttTopicRedactor::redact($topic),
                     'message_id' => $messageId,
                     'payload' => $payload,
                 ]);
@@ -56,7 +56,7 @@ class InboundMqttProtocolGuard
 
         if (! $isFirst) {
             Log::info('Duplicate inbound MQTT payload ignored.', [
-                'topic' => $topic,
+                'topic' => MqttTopicRedactor::redact($topic),
                 'message_id' => $messageId,
             ]);
 

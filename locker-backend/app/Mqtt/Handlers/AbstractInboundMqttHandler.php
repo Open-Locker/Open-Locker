@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Mqtt\Handlers;
 
 use App\Mqtt\InboundMqttProtocolGuard;
+use App\Mqtt\MqttTopicRedactor;
 use App\Observability\MqttSpanAttributes;
 use App\Observability\MqttTraceContext;
 use App\Observability\SpanFlusher;
@@ -70,14 +71,14 @@ abstract class AbstractInboundMqttHandler
     private function processMessage(string $topic, string $message): void
     {
         Log::info($this->receivedLogMessage(), [
-            'topic' => $topic,
+            'topic' => MqttTopicRedactor::redact($topic),
             'message' => $message,
         ]);
 
         $payload = json_decode($message, true) ?? [];
         if (! is_array($payload)) {
             Log::warning('Invalid JSON payload received', [
-                'topic' => $topic,
+                'topic' => MqttTopicRedactor::redact($topic),
                 'raw' => $message,
             ]);
 
@@ -91,7 +92,7 @@ abstract class AbstractInboundMqttHandler
         $validator = $this->makeValidator($payload);
         if ($validator->fails()) {
             Log::warning('Rejected inbound MQTT payload due to validation errors.', [
-                'topic' => $topic,
+                'topic' => MqttTopicRedactor::redact($topic),
                 'payload' => $payload,
                 'errors' => $validator->errors()->toArray(),
                 'handler' => static::class,

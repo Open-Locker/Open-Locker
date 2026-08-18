@@ -15,3 +15,4 @@ coverage/
 # cache holds the MQTT password issued on a bank's one-and-only provisioning
 simulator-scenario.yml
 .simulator-credentials.json
+.e2e-171/
