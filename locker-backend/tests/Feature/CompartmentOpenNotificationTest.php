@@ -90,7 +90,7 @@ class CompartmentOpenNotificationTest extends TestCase
      * These pin its behaviour so it stays covered independently of the
      * compartment list, whose copy the tests above drive.
      */
-    public function test_denied_open_from_the_relation_manager_notifies_the_same_way(): void
+    public function test_denied_open_from_the_relation_manager_stays_silent_too(): void
     {
         $admin = User::factory()->unverified()->create();
         $admin->makeAdmin();
@@ -103,7 +103,7 @@ class CompartmentOpenNotificationTest extends TestCase
                 'pageClass' => EditLockerBank::class,
             ])
             ->callAction(TestAction::make('open')->table($compartment))
-            ->assertNotified(__('Open command denied'));
+            ->assertNotNotified();
     }
 
     public function test_open_failure_from_the_relation_manager_hides_exception_details(): void

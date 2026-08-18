@@ -48,18 +48,9 @@ final class OpenCompartmentAction
                         return;
                     }
 
-                    $decision = app(CompartmentAccessService::class)->requestOpen($user, $record);
-
-                    if (! $decision['authorized']) {
-                        Notification::make()
-                            ->title(__('Open command denied'))
-                            ->body(__('You are not authorized to open compartment :number of locker :locker.', [
-                                'number' => $record->number,
-                                'locker' => $record->lockerBank->name ?? __('Unknown'),
-                            ]))
-                            ->danger()
-                            ->send();
-                    }
+                    // A denial is announced over the realtime channel, so no
+                    // notification is raised here — two would arrive otherwise.
+                    app(CompartmentAccessService::class)->requestOpen($user, $record);
                 } catch (Throwable $e) {
                     // The message can carry internal detail, so it goes to the
                     // log and the operator sees a generic failure.
