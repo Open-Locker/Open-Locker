@@ -11,12 +11,14 @@ use App\Filament\Resources\LockerBankResource\RelationManagers\CompartmentsRelat
 use App\Models\Compartment;
 use App\Models\User;
 use App\Services\CompartmentAccessService;
+use App\StorableEvents\CompartmentOpenDenied;
 use Filament\Actions\Testing\TestAction;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
 use Mockery\MockInterface;
 use PhpMqtt\Client\Facades\MQTT;
 use RuntimeException;
+use Spatie\EventSourcing\StoredEvents\Models\EloquentStoredEvent;
 use Tests\Fakes\FakeMqttClient;
 use Tests\TestCase;
 
@@ -24,7 +26,7 @@ class CompartmentOpenNotificationTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_denied_open_notifies_without_exposing_command_id(): void
+    public function test_denied_open_relies_on_realtime_notification_only(): void
     {
         $admin = User::factory()->unverified()->create();
         $admin->makeAdmin();
@@ -34,7 +36,14 @@ class CompartmentOpenNotificationTest extends TestCase
         Livewire::actingAs($admin)
             ->test(ListCompartments::class)
             ->callAction(TestAction::make('open')->table($compartment))
-            ->assertNotified(__('Open command denied'));
+            ->assertNotNotified();
+
+        $storedEvent = EloquentStoredEvent::query()
+            ->where('event_class', CompartmentOpenDenied::class)
+            ->latest('id')
+            ->firstOrFail();
+
+        $this->assertSame('unverified_email', $storedEvent->event_properties['reason'] ?? null);
     }
 
     public function test_authorized_open_sends_no_synchronous_notification(): void

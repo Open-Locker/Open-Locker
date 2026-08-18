@@ -25,7 +25,6 @@ async function deviceUnderTest() {
     lockerUuid: LOCKER_UUID,
     publish: async (topic, payload) => {
       published.push({ topic, payload: JSON.parse(payload) });
-      return true;
     },
     pollIntervalMs: null,
   });

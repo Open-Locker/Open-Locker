@@ -84,16 +84,20 @@ class CompartmentAccessPickersTest extends TestCase
         $first = Group::factory()->create();
         $second = Group::factory()->create();
         $alreadyGranted = Group::factory()->create();
+        $archived = Group::factory()->create();
 
-        app(GroupAccessService::class)->grantCompartmentAccess(
+        $service = app(GroupAccessService::class);
+        $service->grantCompartmentAccess(
             group: $alreadyGranted,
             compartment: $compartment,
             actor: $admin,
         );
+        $service->archiveGroup($archived, actor: $admin);
 
         $options = $this->pickerOptions(GroupAccessesRelationManager::class, 'grantableGroupOptions', $compartment);
         $this->assertArrayHasKey((string) $first->id, $options);
         $this->assertArrayNotHasKey((string) $alreadyGranted->id, $options);
+        $this->assertArrayNotHasKey((string) $archived->id, $options);
 
         Livewire::actingAs($admin)
             ->test(GroupAccessesRelationManager::class, [
@@ -114,5 +118,12 @@ class CompartmentAccessPickersTest extends TestCase
                     ->exists()
             );
         }
+
+        $this->assertFalse(
+            GroupCompartmentAccess::query()
+                ->where('group_id', $archived->id)
+                ->where('compartment_id', $compartment->id)
+                ->exists()
+        );
     }
 }

@@ -18,6 +18,9 @@ use App\Services\CompartmentAccessService;
 use App\Services\GroupAccessService;
 use App\Services\UserAdministrationService;
 use App\StorableEvents\CompartmentOpenAuthorized;
+use Filament\Actions\EditAction;
+use Filament\Tables\Contracts\HasTable;
+use Filament\Tables\Table;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Spatie\EventSourcing\StoredEvents\Models\EloquentStoredEvent;
@@ -285,12 +288,19 @@ class ManagerAuthorizationTest extends TestCase
         $regular = User::factory()->create();
         $admin = User::factory()->create();
         $admin->makeAdmin();
+        app()->setLocale('de');
 
         \Livewire\Livewire::actingAs($manager)
             ->test(ListUsers::class)
             ->assertCanSeeTableRecords([$regular, $admin])
             ->assertTableActionVisible('edit', $regular)
             ->assertTableActionVisible('edit', $admin);
+
+        $tableAction = UserResource::table(Table::make($this->createMock(HasTable::class)))->getAction('edit');
+
+        $this->assertInstanceOf(EditAction::class, $tableAction);
+        $this->assertSame('Bearbeiten', $tableAction->record($regular)->getLabel());
+        $this->assertSame('Ansehen', $tableAction->record($admin)->getLabel());
     }
 
     public function test_manager_bulk_delete_cannot_delete_admin_user_records(): void

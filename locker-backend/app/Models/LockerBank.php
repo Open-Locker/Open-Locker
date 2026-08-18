@@ -7,13 +7,13 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasManyThrough;
-use Illuminate\Support\Str;
 
 /**
  * @property-read string $id
  * @property-read string $name
  * @property-read string $location_description
- * @property string $provisioning_token
+ * @property string|null $provisioning_token_hmac
+ * @property string|null $provisioning_generation
  * @property-read \Carbon\CarbonImmutable|null $provisioned_at
  * @property-read \Carbon\CarbonImmutable|null $last_heartbeat_at
  * @property-read int $heartbeat_interval_seconds
@@ -34,7 +34,8 @@ class LockerBank extends Model
     protected $fillable = [
         'name',
         'location_description',
-        'provisioning_token',
+        'provisioning_token_hmac',
+        'provisioning_generation',
         'provisioned_at',
         'last_heartbeat_at',
         'heartbeat_interval_seconds',
@@ -60,13 +61,6 @@ class LockerBank extends Model
         'last_config_sent_at' => 'datetime',
         'last_config_ack_at' => 'datetime',
     ];
-
-    public static function booted(): void
-    {
-        static::creating(function (self $lockerBank) {
-            $lockerBank->provisioning_token = Str::random(64);
-        });
-    }
 
     /**
      * @return HasMany<Compartment, $this>

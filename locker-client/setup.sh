@@ -10,6 +10,10 @@ echo ""
 # Create directories
 echo "Creating directories..."
 mkdir -p config data
+chmod 700 data
+if [ -f data/.mqtt-credentials.json ]; then
+    chmod 600 data/.mqtt-credentials.json
+fi
 
 # Download docker-compose.yml if not present
 if [ ! -f docker-compose.yml ]; then
