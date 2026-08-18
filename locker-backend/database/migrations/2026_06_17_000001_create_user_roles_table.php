@@ -8,7 +8,7 @@ use Illuminate\Support\Facades\Schema;
 
 /**
  * Read model for user -> role assignments. Written ONLY by UserRoleProjector
- * from UserRoleGranted/Revoked events (ADR-0021); rebuildable by replay.
+ * from UserRoleGranted/Revoked events; rebuildable by replay.
  */
 return new class extends Migration
 {

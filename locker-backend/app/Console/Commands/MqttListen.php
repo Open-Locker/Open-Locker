@@ -61,7 +61,7 @@ class MqttListen extends Command
 
     /**
      * Emit a liveness pulse on each loop iteration (throttled), so mqtt:health
-     * can detect a wedged-but-running listener. See ADR-0025.
+     * can detect a wedged-but-running listener.
      */
     private function registerHeartbeat(MqttClient $mqtt): void
     {

@@ -1,4 +1,6 @@
-# ADR-0029: Enforce Modbus RTU inter-frame delay
+# ADR-0035: Enforce Modbus RTU inter-frame delay
+
+> **Renumbered from ADR-0029** — ADR numbers were deduplicated and put in date order from 0018 up; see #214.
 
 ## Status
 

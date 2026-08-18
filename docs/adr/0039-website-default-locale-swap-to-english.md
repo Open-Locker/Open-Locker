@@ -1,4 +1,6 @@
-# ADR-0032: Swap website default locale to English, German moves to /de/
+# ADR-0039: Swap website default locale to English, German moves to /de/
+
+> **Renumbered from ADR-0032** — ADR numbers were deduplicated and put in date order from 0018 up; see #214.
 
 ## Status
 
@@ -10,7 +12,7 @@ Accepted
 
 ## Context
 
-ADR-0031 made German the default (unprefixed) locale for open-locker.org,
+ADR-0040 made German the default (unprefixed) locale for open-locker.org,
 with English additive under `/en/`, specifically to preserve the site's
 existing indexed URLs and SEO standing at the time English was added.
 
@@ -19,7 +21,7 @@ international/English-first, with German as a secondary, regionally-scoped
 locale. This ADR reverses the default: **English becomes the unprefixed
 default locale; German moves to `/de/…`.**
 
-This directly contradicts ADR-0031's stated rationale (root URLs held
+This directly contradicts ADR-0040's stated rationale (root URLs held
 constant to protect existing indexing), so it must be recorded as a
 superseding decision rather than an amendment.
 
@@ -45,7 +47,7 @@ are publicly reachable even though the change has not completed the normal
   the unprefixed default; the former root/German content moves under a
   `de/` prefix.
 - **Legal pages remain unchanged in substance**: the German Impressum/
-  Datenschutz text is still the legally binding original (per ADR-0031);
+  Datenschutz text is still the legally binding original (per ADR-0040);
   only its URL moves to `/de/impressum/` and `/de/datenschutz/`. The English
   pages use English slugs (`/imprint/` and `/privacy-policy/`) and keep their
   "courtesy translation, German is binding" notice, now pointing at the
@@ -80,7 +82,7 @@ are publicly reachable even though the change has not completed the normal
 - Existing component-level i18n abstraction (`src/i18n/index.ts`,
   `localizePath`/`getLocaleFromUrl`) needed changes in exactly one place;
   all consuming components picked up the new behavior without further
-  edits, confirming ADR-0031's abstraction paid off.
+  edits, confirming ADR-0040's abstraction paid off.
 
 ### Negative
 
@@ -88,7 +90,7 @@ are publicly reachable even though the change has not completed the normal
   instead of German and cannot redirect without hiding the new default
   content. Language-specific German legal slugs can redirect to `/de/`.
 - Content maintenance burden (dual-locale upkeep) is unchanged from
-  ADR-0031, just mirrored.
+  ADR-0040, just mirrored.
 
 ### Risks
 
@@ -113,13 +115,13 @@ are publicly reachable even though the change has not completed the normal
 
 ## Supersedes / Superseded By
 
-- Supersedes: ADR-0031 (website-url-path-localization) — the "German stays
+- Supersedes: ADR-0040 (website-url-path-localization) — the "German stays
   at root" decision specifically; the URL-path-prefix localization
   mechanism itself, translation storage strategy, and legal-page approach
-  from ADR-0031 remain in effect.
+  from ADR-0040 remain in effect.
 - Superseded by: —
 
 ## References
 
-- Related ADR: ADR-0031 (website-url-path-localization)
+- Related ADR: ADR-0040 (website-url-path-localization)
 - Related issues: #92

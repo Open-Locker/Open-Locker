@@ -18,7 +18,7 @@ class CommandResponseDerivationTest extends TestCase
     /**
      * A successful command response means the unlock pulse was sent, not that
      * the door opened. It must derive acknowledgement only — the physical
-     * outcome arrives separately on the event channel (ADR-0031).
+     * outcome arrives separately on the event channel.
      */
     public function test_open_compartment_response_derives_acknowledgement_not_opened(): void
     {

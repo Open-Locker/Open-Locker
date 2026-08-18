@@ -24,7 +24,7 @@ use Spatie\EventSourcing\StoredEvents\Models\EloquentStoredEvent;
 use Tests\TestCase;
 
 /**
- * Door-open detection derived from the device event channel (ADR-0031).
+ * Door-open detection derived from the device event channel.
  */
 class DoorDetectionTest extends TestCase
 {

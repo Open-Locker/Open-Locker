@@ -10,7 +10,7 @@ use App\Models\UserRole;
 
 /**
  * Resolves a user's effective roles and permissions from the event-sourced
- * user_roles read model plus static Role enum bindings. See ADR-0021.
+ * user_roles read model plus static Role enum bindings.
  *
  * `admin` is the super-role: it implicitly holds every permission in the
  * enum catalog (and is also short-circuited in Gate::before).

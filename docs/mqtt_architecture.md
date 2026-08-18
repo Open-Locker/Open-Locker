@@ -46,7 +46,7 @@ graph LR
 ## Health des MQTT-Listeners
 
 Der `mqtt-listener`-Container (`php artisan mqtt:listen`) meldet seine Liveness
-über einen Heartbeat (siehe ADR-0025):
+über einen Heartbeat (siehe ADR-0028):
 
 - Der Listener schreibt bei jeder Loop-Iteration einen Heartbeat-Zeitstempel in
   den Cache (gedrosselt auf `MQTT_LISTENER_HEARTBEAT_INTERVAL`, Standard 10s).

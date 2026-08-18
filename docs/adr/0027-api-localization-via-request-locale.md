@@ -1,4 +1,6 @@
- # ADR-0024: Localization — API via request locale, admin panel via URL-prefixed panels
+ # ADR-0027: Localization — API via request locale, admin panel via URL-prefixed panels
+
+> **Renumbered from ADR-0024** — ADR numbers were deduplicated and put in date order from 0018 up; see #214.
 
 ## Status
 
@@ -233,7 +235,7 @@ properties. RelationManager titles use the static
 ## Supersedes / Superseded By
 
 - Supersedes: none
-- Superseded by: ADR-0029 (admin-panel section only — single panel with a
+- Superseded by: ADR-0035 (admin-panel section only — single panel with a
   session-stored locale; the API `Accept-Language` mechanism in this ADR
   remains in force)
 
@@ -246,4 +248,4 @@ properties. RelationManager titles use the static
   `app/Providers/Filament/AdminDePanelProvider.php`,
   `app/Http/Middleware/SetPanelLocale.php`,
   `resources/views/filament/locale-switcher.blade.php`, ADR-0003, ADR-0011,
-  ADR-0018
+  ADR-0019

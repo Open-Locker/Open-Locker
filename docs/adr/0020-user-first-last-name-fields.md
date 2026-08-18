@@ -1,4 +1,6 @@
-# ADR-0019: Split user `name` into `first_name` and `last_name`
+# ADR-0020: Split user `name` into `first_name` and `last_name`
+
+> **Renumbered from ADR-0019** — ADR numbers were deduplicated and put in date order from 0018 up; see #214.
 
 ## Status
 
@@ -119,7 +121,7 @@ stored greeting name).
 2. Deploy backend (API + Filament).
 3. Deploy mobile app build that requires both name fields on profile save.
 4. Regenerate mobile client: `pnpm generate:api` against live `/docs/api.json`
-   (see [ADR-0018](0018-codegen-from-live-openapi-url.md)).
+   (see [ADR-0019](0019-codegen-from-live-openapi-url.md)).
 5. Communicate to operators: migrated accounts must add family name on next login
    / profile edit; verify admin-created users include both names.
 
@@ -132,4 +134,4 @@ stored greeting name).
 
 - PR: https://github.com/Open-Locker/Open-Locker/pull/91
 - Related: [ADR-0001](0001-terms-versioning-and-acceptance-gate.md) (terms acceptance audit)
-- Related: [ADR-0018](0018-codegen-from-live-openapi-url.md) (OpenAPI codegen after API change)
+- Related: [ADR-0019](0019-codegen-from-live-openapi-url.md) (OpenAPI codegen after API change)

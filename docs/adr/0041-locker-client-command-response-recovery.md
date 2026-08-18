@@ -1,4 +1,6 @@
-# ADR-0032: Recover locker-client command responses
+# ADR-0041: Recover locker-client command responses
+
+> **Renumbered from ADR-0032** — ADR numbers were deduplicated and put in date order from 0018 up; see #214.
 
 ## Status
 
@@ -26,7 +28,7 @@ operation is unknown.
 ADR-0002 separates the stable business `transaction_id` from the technical
 `message_id` of an individual MQTT publication. ADR-0014 defines persistent
 MQTT sessions and reconnect behavior, but neither decision provides a durable
-application-level response recovery mechanism. ADR-0030 requires a failed
+application-level response recovery mechanism. ADR-0038 requires a failed
 change-only snapshot publication to remain eligible for a later retry.
 
 ## Decision
@@ -144,6 +146,6 @@ message identifiers.
 - GitHub issue #168
 - `docs/adr/0002-mqtt-message-id-and-transaction-id-separation.md`
 - `docs/adr/0014-locker-client-mqtt-session-and-reconnect.md`
-- `docs/adr/0030-batched-door-polling-and-change-only-snapshots.md`
+- `docs/adr/0038-batched-door-polling-and-change-only-snapshots.md`
 - `locker-client/src/adapters/mqtt/command-dispatcher.ts`
 - `locker-client/src/adapters/mqtt/dedup-store.ts`

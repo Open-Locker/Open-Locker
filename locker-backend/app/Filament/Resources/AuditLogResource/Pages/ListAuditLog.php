@@ -16,7 +16,7 @@ class ListAuditLog extends ListRecords
 
     /**
      * Category tabs (Access / Devices / Admin / Terms) on top of the unified
-     * log, per ADR-0026. "All" is the default tab.
+     * log. "All" is the default tab.
      *
      * @return array<string, Tab>
      */

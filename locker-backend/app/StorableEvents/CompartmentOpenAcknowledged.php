@@ -10,7 +10,7 @@ use Spatie\EventSourcing\StoredEvents\ShouldBeStored;
  * The locker acknowledged the open command: the unlock pulse was sent.
  *
  * This is command execution, not a physical outcome. Whether the door opened is
- * reported separately (ADR-0031). Before ADR-0031 this fact was recorded as
+ * reported separately. This fact used to be recorded as
  * CompartmentOpened, which conflated the two.
  */
 class CompartmentOpenAcknowledged extends ShouldBeStored

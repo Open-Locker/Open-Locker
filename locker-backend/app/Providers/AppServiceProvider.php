@@ -23,7 +23,7 @@ class AppServiceProvider extends ServiceProvider
     public function register(): void
     {
         // Shared per-request so the audit log's actor/compartment/group lookups
-        // are memoised across rows when rendering a page. See ADR-0026.
+        // are memoised across rows when rendering a page.
         $this->app->singleton(AuditEventPresenter::class);
     }
 

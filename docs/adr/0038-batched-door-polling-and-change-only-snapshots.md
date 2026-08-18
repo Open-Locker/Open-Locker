@@ -1,4 +1,6 @@
-# ADR-0030: Batched door polling and change-only snapshots
+# ADR-0038: Batched door polling and change-only snapshots
+
+> **Renumbered from ADR-0030** — ADR numbers were deduplicated and put in date order from 0018 up; see #214.
 
 ## Status
 
@@ -34,7 +36,7 @@ vector changes. This decision refines how those requirements are implemented.
 2. Read one contiguous Modbus FC02 range per configured board, from its lowest
    configured compartment address through its highest configured address.
 3. Poll boards sequentially through the existing serialized bus actor and retain
-   the RTU inter-frame delay from ADR-0029.
+   the RTU inter-frame delay from ADR-0035.
 4. Map each configured compartment address to the corresponding value in its
    board batch.
 5. Publish the retained compartment snapshot after the first effective poll and
@@ -119,6 +121,6 @@ vector changes. This decision refines how those requirements are implemented.
 - GitHub issue #166
 - `docs/adr/0007-aggregate-state-polling-across-all-configured-modbus-boards.md`
 - `docs/adr/0016-retained-compartment-snapshot-and-door-state-persistence.md`
-- `docs/adr/0029-enforce-modbus-rtu-inter-frame-delay.md`
+- `docs/adr/0035-enforce-modbus-rtu-inter-frame-delay.md`
 - `locker-client/src/application/state-publishing.ts`
 - `locker-client/src/adapters/modbus/waveshare-modbus-bus-actor.ts`

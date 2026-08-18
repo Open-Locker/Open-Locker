@@ -7,7 +7,7 @@ use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
 /**
- * Splits command acknowledgement from door-open detection (ADR-0031).
+ * Splits command acknowledgement from door-open detection.
  *
  * `opened_at` keeps its column but changes meaning: it now records when the door
  * was observed open, not when the pulse was sent. Rows written before this

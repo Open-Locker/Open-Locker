@@ -1,4 +1,6 @@
-# ADR-0018: Generate the mobile API client from the live OpenAPI URL
+# ADR-0019: Generate the mobile API client from the live OpenAPI URL
+
+> **Renumbered from ADR-0018** — ADR numbers were deduplicated and put in date order from 0018 up; see #214.
 
 ## Status
 

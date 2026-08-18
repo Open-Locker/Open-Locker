@@ -20,7 +20,7 @@ export const COMPARTMENT_POLL_INTERVAL_MS = 500;
 export const UNKNOWN_PUBLISH_THRESHOLD = 3;
 
 /**
- * Wiring for uncommanded-open detection (ADR-0031): a door observed opening
+ * Wiring for uncommanded-open detection: a door observed opening
  * with no relay fire that could explain it.
  */
 export interface UncommandedOpenWatch {

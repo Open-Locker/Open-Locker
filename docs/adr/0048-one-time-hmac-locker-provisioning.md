@@ -1,4 +1,6 @@
-# ADR-0034: One-time HMAC locker provisioning
+# ADR-0048: One-time HMAC locker provisioning
+
+> **Renumbered from ADR-0034** — ADR numbers were deduplicated and put in date order from 0018 up; see #214.
 
 ## Status
 
@@ -157,5 +159,5 @@ revocation.
 - Issue #161 — per-generation MQTT identities and session revocation
 - ADR-0014 — locker-client MQTT session and reconnect
 - ADR-0017 — split MQTT state topics by lifecycle
-- ADR-0021 — role-based access control
-- ADR-0026 — admin audit log
+- ADR-0022 — role-based access control
+- ADR-0030 — admin audit log

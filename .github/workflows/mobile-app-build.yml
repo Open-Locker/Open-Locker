@@ -9,7 +9,7 @@
 # Plain (non-secret) value, set inline below:
 #   APP_ID_BASE = de.merona.openlocker
 #
-# See docs/adr/0028-mobile-internal-test-builds-ci.md for the decision record
+# See docs/adr/0032-mobile-internal-test-builds-ci.md for the decision record
 # and mobile-app/docs/internal-builds.md for the maintainer guide.
 
 name: Mobile App Build

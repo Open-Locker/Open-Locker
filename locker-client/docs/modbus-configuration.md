@@ -39,7 +39,7 @@ state snapshots remain empty. There is no implicit single-board fallback.
 
 All Modbus operations are serialized on the shared RTU bus. The driver enforces
 the required inter-frame silence from the configured serial parameters; see
-[ADR-0029](../../docs/adr/0029-enforce-modbus-rtu-inter-frame-delay.md).
+[ADR-0035](../../docs/adr/0035-enforce-modbus-rtu-inter-frame-delay.md).
 
 ## Base config fields
 

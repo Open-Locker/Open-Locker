@@ -1,4 +1,6 @@
-# ADR-0020: Group-based compartment access (event-sourced) with a projected effective-access read model
+# ADR-0021: Group-based compartment access (event-sourced) with a projected effective-access read model
+
+> **Renumbered from ADR-0020** — ADR numbers were deduplicated and put in date order from 0018 up; see #214.
 
 ## Status
 

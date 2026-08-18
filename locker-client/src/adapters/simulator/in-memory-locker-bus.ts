@@ -2,7 +2,7 @@ import type { CompartmentTarget, DoorState } from '../../domain/compartment';
 import type { ConnectionState, LockerBusPort } from '../../ports/locker-bus.port';
 
 /**
- * Fake hardware for the fleet simulator (ADR-0027).
+ * Fake hardware for the fleet simulator.
  *
  * Sibling of `WaveshareModbusBusActor`: same port, no Modbus. Relay and door
  * state live in memory, keyed by the `slaveId:address` pair the real driver
@@ -21,7 +21,7 @@ export interface InMemoryLockerBusOptions {
   /**
    * Compartments whose door will not open when the relay fires, keyed by
    * `slaveId:address`. Reproduces a jam, blocked door, or failed latch — the
-   * case ADR-0031 exists to detect.
+   * case door-open detection exists to catch.
    */
   jammedTargets?: Set<string>;
   /** Simulated round-trip delay per bus operation, in milliseconds. */

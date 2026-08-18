@@ -1,4 +1,6 @@
-# ADR-0035: Ship internal Android builds for physical-device ABIs only
+# ADR-0047: Ship internal Android builds for physical-device ABIs only
+
+> **Renumbered from ADR-0035** — ADR numbers were deduplicated and put in date order from 0018 up; see #214.
 
 ## Status
 
@@ -67,7 +69,7 @@ most likely source of a build that succeeds while being subtly wrong. The Gradle
 cache gets the same benefit with input-hash correctness.
 
 Signing behaviour is unchanged: credentials are still fetched from EAS at build time via
-`EXPO_TOKEN`, as decided in ADR-0028.
+`EXPO_TOKEN`, as decided in ADR-0033.
 
 ## Alternatives Considered
 
@@ -76,7 +78,7 @@ profile caps it at 3–4 minutes of 23. It would have shipped as a completed tic
 left the actual cost untouched.
 
 **Move to EAS cloud builds** instead of `--local`. Removes the runner from the critical
-path but reintroduces the build-minute cost that ADR-0028 chose local builds to avoid.
+path but reintroduces the build-minute cost that ADR-0033 chose local builds to avoid.
 
 **Build a single ABI (`arm64-v8a`).** Faster still, but `armeabi-v7a` is cheap relative
 to the emulator ABIs and dropping it would exclude older 32-bit test hardware.
@@ -112,6 +114,6 @@ adds a maintenance step that will otherwise drift.
 ## References
 
 - Issue #204 — Cache Android dependencies in local EAS builds
-- ADR-0028 — Mobile internal test builds in CI (`0028-mobile-internal-test-builds-ci.md`)
+- ADR-0033 — Mobile internal test builds in CI (`0032-mobile-internal-test-builds-ci.md`)
 - Profiled run: GitHub Actions run `28397897877`, `mobile-app-build.yml`
 - `mobile-app/eas.json`, `.github/workflows/mobile-app-build.yml`

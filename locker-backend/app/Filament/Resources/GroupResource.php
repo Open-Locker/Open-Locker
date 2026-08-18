@@ -56,7 +56,7 @@ class GroupResource extends Resource
     {
         // Name/description are set at creation via GroupCreated. v1 defines no
         // rename event, so editing them directly would drift from the event log
-        // on replay — keep them read-only on edit. See ADR-0020.
+        // on replay — keep them read-only on edit.
         return $form->schema([
             Forms\Components\TextInput::make('name')
                 ->label(__('Name'))
@@ -94,7 +94,7 @@ class GroupResource extends Resource
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->filters([
-                // Archived groups are event-sourced retired groups (ADR-0020 / #106),
+                // Archived groups are event-sourced retired groups (#106),
                 // not deleted — hidden from the list by default, filterable back in.
                 Tables\Filters\TernaryFilter::make('archived_at')
                     ->label(__('Archived'))

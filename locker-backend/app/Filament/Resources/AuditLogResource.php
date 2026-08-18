@@ -17,7 +17,7 @@ use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 
 /**
- * Admin audit log (issue #109, ADR-0026): a read-only view over the event store
+ * Admin audit log (#109): a read-only view over the event store
  * scoped to admin-meaningful events, rendered as human-readable entries.
  *
  * Backed directly by `stored_events` via {@see AuditEvent}; there is no separate
@@ -163,7 +163,7 @@ class AuditLogResource extends Resource
 
     public static function getEloquentQuery(): Builder
     {
-        // Scope to the curated, admin-meaningful events (ADR-0026); the
+        // Scope to the curated, admin-meaningful events; the
         // whitelist lives in the presenter as the single source of truth.
         return parent::getEloquentQuery()
             ->whereIn('event_class', app(AuditEventPresenter::class)->auditableEventClasses());

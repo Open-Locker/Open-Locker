@@ -10,7 +10,7 @@ import {
 const MAX_RELAY_ADDRESS = 7;
 
 /**
- * Scenario file for the fleet simulator (ADR-0027, Decision 6).
+ * Scenario file for the fleet simulator.
  *
  * Mirrors `locker-config.yml` conventions so a scenario reads like a locker
  * config: which banks to emulate (by provisioning token), their compartment
@@ -27,7 +27,7 @@ const compartmentSchema = z.object({
   door_state: doorStateSchema.default('closed'),
   /**
    * Relay fires but the door never moves — a jam, blockage, or worn latch. The
-   * case door-open detection exists to catch (ADR-0031).
+   * case door-open detection exists to catch.
    */
   jammed: z.boolean().default(false),
 });

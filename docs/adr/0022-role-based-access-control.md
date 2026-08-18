@@ -1,4 +1,6 @@
-# ADR-0021: Capability-based access control with static role-permission bindings
+# ADR-0022: Capability-based access control with static role-permission bindings
+
+> **Renumbered from ADR-0021** — ADR numbers were deduplicated and put in date order from 0018 up; see #214.
 
 ## Status
 
@@ -146,7 +148,7 @@ restore historical revoked admin timestamps.
 
 Manager-initiated compartment opens use `authorizationType:
 'manager_override'`, parallel to the existing `admin_override`,
-`granted_access`, and `group_access` values from ADR-0020. Realtime compartment
+`granted_access`, and `group_access` values from ADR-0021. Realtime compartment
 status broadcasts include users with direct/group access and users whose roles
 hold `compartment.open` (currently admins and managers), so operational managers
 see state changes for compartments they are allowed to operate.
@@ -366,10 +368,10 @@ runtime admin action that survives deploys — previously impossible.
 ## References
 
 - Related issues: #95 (this decision); builds toward #46 (group access,
-  ADR-0020), complements #48 (Filament navigation separation); relates to #55
+  ADR-0021), complements #48 (Filament navigation separation); relates to #55
   (user identification), #94 (door-open semantics).
-- Related ADRs: ADR-0020 (group-based compartment access - `authorizationType`
-  precedence, admin-only management it defers to #95), ADR-0019 (user fields).
+- Related ADRs: ADR-0021 (group-based compartment access - `authorizationType`
+  precedence, admin-only management it defers to #95), ADR-0020 (user fields).
 - Related code: `app/Models/User.php`, `app/Models/Concerns/HasPermissions.php`,
   `app/Enums/Permission.php`, `app/Enums/Role.php`,
   `app/Providers/AuthorizationServiceProvider.php`,

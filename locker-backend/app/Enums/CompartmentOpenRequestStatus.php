@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Enums;
 
 /**
- * Lifecycle of a compartment open request (ADR-0031).
+ * Lifecycle of a compartment open request.
  *
  * Up to and including Sent the status is backend lifecycle, before the device is
  * involved. From Acknowledged onward it mirrors what the device reported.

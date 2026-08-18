@@ -17,7 +17,7 @@ export interface UncommandedOpenEvent {
 }
 
 /**
- * Outbound port for door-open facts (ADR-0031). Separate from the command
+ * Outbound port for door-open facts. Separate from the command
  * response, which only ever reports that the pulse was sent.
  */
 export interface DoorEventPublisherPort {

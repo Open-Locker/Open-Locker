@@ -1,4 +1,6 @@
-# ADR-0028: Synchronous projectors, queued reactors
+# ADR-0033: Synchronous projectors, queued reactors
+
+> **Renumbered from ADR-0028** — ADR numbers were deduplicated and put in date order from 0018 up; see #214.
 
 ## Status
 
@@ -119,7 +121,7 @@ The relevant mechanics, verified in the Spatie source
 ## References
 
 - Issue #128 — run projectors synchronously, keep reactors queued
-- ADR-0020 — group-based compartment access (the read model whose async
+- ADR-0021 — group-based compartment access (the read model whose async
   projection surfaced the F5 problem)
 - `locker-backend/config/event-sourcing.php` — `queue`, `catch_exceptions`
 - `vendor/spatie/laravel-event-sourcing` — `StoredEvent::handle()`,

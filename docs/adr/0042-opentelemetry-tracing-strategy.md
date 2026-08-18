@@ -1,4 +1,6 @@
-# ADR-0032: OpenTelemetry observability strategy across backend and locker client
+# ADR-0042: OpenTelemetry observability strategy across backend and locker client
+
+> **Renumbered from ADR-0032** — ADR numbers were deduplicated and put in date order from 0018 up; see #214.
 
 ## Status
 
@@ -28,7 +30,7 @@ identical from the API side: a request that simply does not complete.
 The domain already records **what** happened, and records it well.
 `CompartmentOpenRequestStatus` carries the lifecycle
 (`requested → accepted → sent → acknowledged → opened`, plus `already_open`,
-`door_jammed`, `failed`), and ADR-0031 added deviation events for outcomes that
+`door_jammed`, `failed`), and ADR-0040 added deviation events for outcomes that
 were previously invisible. That layer is event sourced, permanent, and
 authoritative.
 
@@ -45,10 +47,10 @@ that second layer only. It does not add, replace, or duplicate any domain event.
   properties — the conventional transport for trace context — are therefore
   unavailable, regardless of what the Node client supports.
 - Any change to the external message contract requires AsyncAPI and JSON Schema
-  updates plus contract tests (ADR-0015, ADR-0018).
-- The locker client is hexagonal (ADR-0024). Domain and application layers must
+  updates plus contract tests (ADR-0015, ADR-0019).
+- The locker client is hexagonal (ADR-0027). Domain and application layers must
   not depend on an observability vendor.
-- Projectors run synchronously, reactors run queued (ADR-0028), so a trace must
+- Projectors run synchronously, reactors run queued (ADR-0033), so a trace must
   survive a process boundary to stay whole.
 
 ## Decision
@@ -93,7 +95,7 @@ queries, Redis, cache, events, views and console commands. Two of its features
 carry decisions in this ADR on their own:
 
 - **Queued jobs** produce a `PRODUCER` span on dispatch and a `CONSUMER` span on
-  execution, so a trace survives the reactor boundary (ADR-0028) with no
+  execution, so a trace survives the reactor boundary (ADR-0033) with no
   dispatch code to modify.
 - **`trace_id` is injected into log context automatically**, which is §9.
 
@@ -288,7 +290,7 @@ The MQTT layer is hand-written under either choice — the publishers, the
 handlers, the `traceparent` field and every domain attribute are ours. Writing
 everything by hand would not avoid that work; it would add HTTP and queue
 instrumentation on top of it, including trace context across the queued-reactor
-boundary, which is the one place a trace silently breaks (ADR-0028).
+boundary, which is the one place a trace silently breaks (ADR-0033).
 
 **Why `keepsuit/laravel-opentelemetry` rather than the official
 `opentelemetry-auto-laravel`.** The SIG package is the more "official" route and
@@ -319,7 +321,7 @@ mixed-version fleets working during rollout: all envelopes already declare
 `message_id` and `transaction_id`, so an added property changes no existing
 behaviour.
 
-**Why a port on the client.** ADR-0024 made the client hexagonal precisely so
+**Why a port on the client.** ADR-0027 made the client hexagonal precisely so
 that infrastructure choices stay at the edges. A tracing vendor imported into
 `OpenCompartmentUseCase` would undo that. A port with a no-op default also keeps
 the simulator and the test suite free of telemetry setup.
@@ -509,12 +511,12 @@ today. If `keepsuit` proves inadequate or unmaintained, Alternative A replaces �
 - Related docs:
   - ADR-0002 (message-id and transaction-id separation)
   - ADR-0015 (MQTT contract via AsyncAPI and JSON Schemas)
-  - ADR-0018 (contract validation through component test suites)
-  - ADR-0024 (locker-client v2 hexagonal rewrite)
-  - ADR-0026 (admin audit log)
-  - ADR-0028 (synchronous projectors, queued reactors)
-  - ADR-0030 (batched door polling and change-only snapshots)
-  - ADR-0031 (separate command acknowledgement from door-open detection)
+  - ADR-0019 (contract validation through component test suites)
+  - ADR-0027 (locker-client v2 hexagonal rewrite)
+  - ADR-0030 (admin audit log)
+  - ADR-0033 (synchronous projectors, queued reactors)
+  - ADR-0038 (batched door polling and change-only snapshots)
+  - ADR-0040 (separate command acknowledgement from door-open detection)
 - External:
   - `keepsuit/laravel-opentelemetry` —
     https://github.com/keepsuit/laravel-opentelemetry

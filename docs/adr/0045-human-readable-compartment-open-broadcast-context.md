@@ -1,4 +1,6 @@
-# ADR-0033: Human-readable context in compartment-open broadcasts
+# ADR-0045: Human-readable context in compartment-open broadcasts
+
+> **Renumbered from ADR-0033** — ADR numbers were deduplicated and put in date order from 0018 up; see #214.
 
 ## Status
 
@@ -38,7 +40,7 @@ Add `compartment_number` and `locker_name` to the
 
 This keeps localization in the receiving client while avoiding an extra network
 request for human-readable context. It builds on the private channel and event
-contract established by ADR-0016 and ADR-0022.
+contract established by ADR-0016 and ADR-0023.
 
 ## Alternatives Considered
 
@@ -81,7 +83,7 @@ to ignore the additional keys.
 - [Issue #165](https://github.com/Open-Locker/Open-Locker/issues/165)
 - [PR #178](https://github.com/Open-Locker/Open-Locker/pull/178)
 - `docs/adr/0016-retained-compartment-snapshot-and-door-state-persistence.md`
-- `docs/adr/0022-mobile-realtime-compartment-status-via-reverb.md`
+- `docs/adr/0023-mobile-realtime-compartment-status-via-reverb.md`
 - `docs/app_communication.md`
 - `locker-backend/app/Events/CompartmentOpenStatusUpdated.php`
 - `locker-backend/app/Reactors/CompartmentOpenStatusBroadcastReactor.php`

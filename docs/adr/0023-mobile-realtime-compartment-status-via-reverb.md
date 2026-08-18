@@ -1,4 +1,6 @@
-# ADR-0022: Mobile realtime compartment status via Reverb (Laravel Echo client)
+# ADR-0023: Mobile realtime compartment status via Reverb (Laravel Echo client)
+
+> **Renumbered from ADR-0022** — ADR numbers were deduplicated and put in date order from 0018 up; see #214.
 
 ## Status
 
@@ -13,7 +15,7 @@ Proposed
 The backend already broadcasts compartment updates. ADR-0016 chose a single
 private channel `users.{userId}.compartment-status` carrying both open-command
 progress (`CompartmentOpenStatusUpdated`) and door-state changes
-(`CompartmentDoorStateUpdated`), and ADR-0020 added
+(`CompartmentDoorStateUpdated`), and ADR-0021 added
 `CompartmentStatusBroadcastService::recipientUserIdsForCompartment()` to resolve
 recipients. `routes/channels.php` authorizes the channel for the matching user,
 and `BROADCAST_CONNECTION=reverb` with `laravel/reverb` is installed. The
@@ -169,7 +171,7 @@ ADR-0016) is not introduced.
 
 - Supersedes: none.
 - Superseded by: none.
-- Builds on: ADR-0016 (broadcast channel/events), ADR-0020 (recipient
+- Builds on: ADR-0016 (broadcast channel/events), ADR-0021 (recipient
   resolution).
 
 ## References
@@ -178,8 +180,8 @@ ADR-0016) is not introduced.
   - [#45](https://github.com/Open-Locker/Open-Locker/issues/45)
 - Related ADRs:
   - `docs/adr/0016-retained-compartment-snapshot-and-door-state-persistence.md`
-  - `docs/adr/0020-group-based-compartment-access.md`
-  - `docs/adr/0018-codegen-from-live-openapi-url.md`
+  - `docs/adr/0021-group-based-compartment-access.md`
+  - `docs/adr/0019-codegen-from-live-openapi-url.md`
 - Related code:
   - `locker-backend/app/Events/CompartmentDoorStateUpdated.php`
   - `locker-backend/routes/channels.php`

@@ -1,4 +1,6 @@
-# ADR-0023: Realtime compartment content-note updates via Reverb
+# ADR-0029: Realtime compartment content-note updates via Reverb
+
+> **Renumbered from ADR-0023** — ADR numbers were deduplicated and put in date order from 0018 up; see #214.
 
 ## Status
 
@@ -10,11 +12,11 @@ Proposed
 
 ## Context
 
-ADR-0022 implemented the mobile client side of the realtime compartment
+ADR-0023 implemented the mobile client side of the realtime compartment
 contract: a single private channel `users.{userId}.compartment-status` carrying
 door-state changes (`.compartment.door_state.updated`), consumed by the Expo app
 via a Laravel Echo client that patches the `getCompartmentsAccessible` RTK Query
-cache in place. ADR-0016 defined the channel and ADR-0020 added
+cache in place. ADR-0016 defined the channel and ADR-0021 added
 `CompartmentStatusBroadcastService::recipientUserIdsForCompartment()` for
 recipient resolution.
 
@@ -32,7 +34,7 @@ problem #45 solved for door-state.
 
 ## Decision
 
-Reuse the ADR-0022 pipeline end-to-end; add a second event on the **same**
+Reuse the ADR-0023 pipeline end-to-end; add a second event on the **same**
 channel rather than a new transport.
 
 1. **Backend broadcast event** `App\Events\CompartmentNoteUpdated`
@@ -61,7 +63,7 @@ fields already exist on the generated `AccessibleCompartments` type.
 
 - Pros: no new event/patcher.
 - Cons: a network round-trip per edit across all recipients; same objection
-  ADR-0022 raised for door-state.
+  ADR-0023 raised for door-state.
 - Why not chosen: the event already carries the changed fields; an in-place patch
   is cheaper and instant. Full refetch is retained only as the fallback.
 
@@ -97,9 +99,9 @@ fields already exist on the generated `AccessibleCompartments` type.
   - [#116](https://github.com/Open-Locker/Open-Locker/issues/116)
   - [#45](https://github.com/Open-Locker/Open-Locker/issues/45)
 - Related ADRs:
-  - `docs/adr/0022-mobile-realtime-compartment-status-via-reverb.md`
+  - `docs/adr/0023-mobile-realtime-compartment-status-via-reverb.md`
   - `docs/adr/0016-retained-compartment-snapshot-and-door-state-persistence.md`
-  - `docs/adr/0020-group-based-compartment-access.md`
+  - `docs/adr/0021-group-based-compartment-access.md`
 - Related code:
   - `locker-backend/app/Events/CompartmentNoteUpdated.php`
   - `locker-backend/app/Reactors/CompartmentContentNoteBroadcastReactor.php`

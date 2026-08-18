@@ -24,7 +24,7 @@ class CompartmentOpenStatusResource extends JsonResource
             'status' => true,
             'command_id' => $this->resource->command_id,
             // `opened` now means the door was observed open, not that the unlock
-            // pulse was sent — that is `acknowledged` (ADR-0031).
+            // pulse was sent — that is `acknowledged`.
             'state' => $this->resource->status->value,
             'compartment_id' => $this->resource->compartment_id,
             'authorization_type' => $this->resource->authorization_type,

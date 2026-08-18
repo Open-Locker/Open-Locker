@@ -5,7 +5,7 @@ import type { CredentialStorePort } from '../../ports/config.port';
  *
  * The production `FileCredentialStore` resolves its path from a module-level
  * constant, so it is process-global and cannot back several devices at once
- * (ADR-0027). A simulator device provisions by token at startup and has nothing
+ *. A simulator device provisions by token at startup and has nothing
  * worth persisting, so keeping credentials in memory both enables fleet mode and
  * guarantees the simulator never writes over a real device's `/data` files.
  */

@@ -15,7 +15,7 @@ return new class extends Migration
 
     /**
      * Recreate the table in its final pre-drop shape. The Item domain has been
-     * removed (see ADR-0024), so this is a best-effort rollback only.
+     * removed, so this is a best-effort rollback only.
      */
     public function down(): void
     {

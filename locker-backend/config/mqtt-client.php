@@ -131,7 +131,7 @@ return [
     |
     | mqtt:listen writes a heartbeat timestamp to the cache on each loop
     | iteration (throttled to `interval` seconds). mqtt:health reports unhealthy
-    | when the last heartbeat is older than `max_age` seconds. See ADR-0025.
+    | when the last heartbeat is older than `max_age` seconds.
     |
     */
 

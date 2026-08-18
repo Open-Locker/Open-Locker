@@ -1,4 +1,6 @@
-# ADR-0025: Liveness healthcheck for the mqtt-listener container
+# ADR-0028: Liveness healthcheck for the mqtt-listener container
+
+> **Renumbered from ADR-0025** — ADR numbers were deduplicated and put in date order from 0018 up; see #214.
 
 ## Status
 

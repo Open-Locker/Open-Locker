@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Enums;
 
 /**
- * Ways a compartment can fail to behave as an open command expected (ADR-0031).
+ * Ways a compartment can fail to behave as an open command expected.
  *
  * Every deviation is surfaced the same way — a red badge on the compartment, a
  * live danger toast, and an email — so no kind is quietly less visible than

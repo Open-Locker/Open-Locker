@@ -22,7 +22,7 @@ use Illuminate\Support\Facades\Notification;
 use Spatie\EventSourcing\EventHandlers\Reactors\Reactor;
 
 /**
- * Alerts operators about every way a compartment can misbehave (ADR-0031).
+ * Alerts operators about every way a compartment can misbehave.
  *
  * All deviations are treated alike: a live danger toast in the panel plus an
  * email. A jam is a maintenance problem and an uncommanded open is a security
@@ -30,7 +30,7 @@ use Spatie\EventSourcing\EventHandlers\Reactors\Reactor;
  * is made quieter than the other.
  *
  * The toast is broadcast over Reverb rather than stored, so it reaches whoever is
- * on the panel now; the durable record is the audit log (ADR-0026).
+ * on the panel now; the durable record is the audit log.
  */
 class CompartmentOpenDeviationAlertReactor extends Reactor implements ShouldQueue
 {

@@ -41,7 +41,7 @@ class CompartmentService
      * The actor must have active access (direct or via a group) or be allowed
      * to manage compartment access operationally.
      * A null note clears the note. CompartmentProjector runs synchronously
-     * (ADR-0028), so the read model is already persisted when this returns; we
+     *, so the read model is already persisted when this returns; we
      * reload it rather than faking the response with in-memory values.
      *
      * @throws AuthorizationException

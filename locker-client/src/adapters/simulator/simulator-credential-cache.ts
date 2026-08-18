@@ -12,8 +12,8 @@ type CacheFileShape = Record<string, CachedCredentials>;
  * Remembers MQTT credentials a simulated bank was issued, keyed by provisioning
  * token.
  *
- * ADR-0027 Decision 5 assumed the simulator could simply provision by token on
- * every start. It cannot: `LockerBankAggregate::provision()` refuses once
+ * The simulator was meant to simply provision by token on every start. It
+ * cannot: `LockerBankAggregate::provision()` refuses once
  * `provisioned_at` is set, so a bank provisions exactly once for its lifetime
  * and every later run is rejected with "Locker bank is already provisioned".
  * Without a cache the simulator is single-use per bank, which defeats the point.

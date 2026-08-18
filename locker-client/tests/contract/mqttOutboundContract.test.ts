@@ -137,7 +137,7 @@ test('provisioning register request matches AsyncAPI schema', () => {
   assertMatchesSchema('messages/provisioning-request.json', payload);
 });
 
-// --- door-open detection events (ADR-0031) ---
+// --- door-open detection events ---
 
 /** Captures what the publisher actually puts on the wire, envelope included. */
 function capturePublishedDoorEvents(): {

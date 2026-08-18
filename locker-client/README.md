@@ -6,7 +6,7 @@ physical locker hardware:
 `MQTT ↔ application use cases ↔ serialized Modbus RTU ↔ Waveshare relay boards`
 
 The current implementation is the hexagonal TypeScript rewrite accepted in
-[ADR-0024](../docs/adr/0024-locker-client-v2-hexagonal-rewrite.md).
+[ADR-0027](../docs/adr/0024-locker-client-v2-hexagonal-rewrite.md).
 
 ## Hardware warning
 
@@ -100,9 +100,9 @@ The backend pushes them via MQTT `apply_config`; the client persists the result
 in `/data/.runtime-config-overlay.json`. Until that first apply completes,
 `open_compartment` commands fail and compartment snapshots stay empty.
 
-See [ADR-0025](../docs/adr/0025-locker-client-v2-runtime-only-compartment-mapping.md).
+See [ADR-0028](../docs/adr/0026-locker-client-v2-runtime-only-compartment-mapping.md).
 Persistence and corruption behavior is defined in
-[ADR-0033](../docs/adr/0033-locker-client-local-persistence-hardening.md).
+[ADR-0046](../docs/adr/0046-locker-client-local-persistence-hardening.md).
 
 ## Fleet simulator
 
@@ -154,7 +154,7 @@ Two things worth knowing before you run it:
   pass `--allow-production`, and a bank must never be simulated while its real
   device is online — the broker drops one of them on session takeover.
 
-See [ADR-0027](../docs/adr/0027-contract-aligned-locker-fleet-simulator.md).
+See [ADR-0031](../docs/adr/0031-contract-aligned-locker-fleet-simulator.md).
 
 ## MQTT resilience
 

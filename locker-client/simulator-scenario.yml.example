@@ -1,4 +1,4 @@
-    # Open-Locker Fleet Simulator Scenario — see ADR-0027
+    # Open-Locker Fleet Simulator Scenario — see ADR-0031
 #
 #   cp simulator-scenario.yml.example config/simulator-scenario.yml
 #   pnpm sim

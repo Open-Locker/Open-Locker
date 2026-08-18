@@ -11,10 +11,10 @@ const OPEN_FAILED_EVENT = 'compartment_open_failed';
 const UNCOMMANDED_OPEN_EVENT = 'compartment_uncommanded_open';
 
 /**
- * Publishes door-open facts on the device event channel (ADR-0031).
+ * Publishes door-open facts on the device event channel.
  *
  * Deliberately not the response channel: a second `command_response` for the
- * same transaction would break inbound dedup (ADR-0002) and make the response's
+ * same transaction would break inbound dedup and make the response's
  * meaning ambiguous.
  */
 export class MqttDoorEventPublisher implements DoorEventPublisherPort {

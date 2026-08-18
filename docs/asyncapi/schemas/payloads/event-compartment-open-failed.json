@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "./event-compartment-open-failed.json",
   "title": "Compartment door never opened after an unlock pulse",
-  "description": "Published on locker/{locker_uuid}/event when the door has not been observed open within the detection window following an open_compartment pulse (ADR-0031). The relay fired and the command response already reported success; the door did not move. Causes include a jam, something blocking or holding the door, a worn latch, or a failed door sensor. The detection window follows the bank's heartbeat interval.",
+  "description": "Published on locker/{locker_uuid}/event when the door has not been observed open within the detection window following an open_compartment pulse (ADR-0040). The relay fired and the command response already reported success; the door did not move. Causes include a jam, something blocking or holding the door, a worn latch, or a failed door sensor. The detection window follows the bank's heartbeat interval.",
   "allOf": [
     {
       "$ref": "../messages/event.json"
