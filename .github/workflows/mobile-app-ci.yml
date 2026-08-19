@@ -62,4 +62,4 @@ jobs:
 
       - name: Expo doctor (non-blocking)
         continue-on-error: true
-        run: npx expo-doctor
+        run: pnpm run doctor
