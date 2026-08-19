@@ -6,7 +6,6 @@ import { createOpenCompartmentHandler } from '../adapters/mqtt/handlers/open-com
 import { InboundProtocolGuard } from '../adapters/mqtt/inbound-protocol-guard';
 import { MqttTransportAdapter } from '../adapters/mqtt/mqtt-transport.adapter';
 import { OutboundMqttAdapter } from '../adapters/mqtt/outbound-mqtt.adapter';
-import { recordCommandResponses } from '../adapters/mqtt/recording-outbound';
 import { InMemoryCredentialStore } from '../adapters/simulator/in-memory-credential.store';
 import { InMemoryLockerBus, busTargetKey } from '../adapters/simulator/in-memory-locker-bus';
 import { InMemoryRuntimeOverlayStore } from '../adapters/simulator/in-memory-overlay.store';
@@ -77,7 +76,7 @@ export type PublishFn = (
   topic: string,
   payload: string,
   options?: OutboundPublishOptions,
-) => Promise<boolean>;
+) => Promise<void>;
 
 export interface WiredSimulatedDevice {
   device: SimulatedDevice;
@@ -154,10 +153,7 @@ export function wireSimulatedDevice(options: WireSimulatedDeviceOptions): WiredS
   });
 
   const tracing = options.tracing ?? noopTracing;
-  const outbound = recordCommandResponses(
-    new OutboundMqttAdapter(publish, topics.response, undefined, tracing),
-    dedupStore,
-  );
+  const outbound = new OutboundMqttAdapter(publish, topics.response, undefined, tracing);
   const scheduler = new RunAfterCompleteScheduler();
   const appLogger = createWinstonLoggerPort();
 
@@ -206,8 +202,8 @@ export function wireSimulatedDevice(options: WireSimulatedDeviceOptions): WiredS
     dedupStore,
     tracing,
   );
-  dispatcher.register(createOpenCompartmentHandler({ openCompartment, outbound, pollSnapshot }));
-  dispatcher.register(createApplyConfigHandler({ applyConfig, outbound }));
+  dispatcher.register(createOpenCompartmentHandler({ openCompartment, pollSnapshot }));
+  dispatcher.register(createApplyConfigHandler({ applyConfig }));
 
   const resolveTarget = (compartmentNumber: number) =>
     configRepo.getCompartmentConfig(compartmentNumber);
