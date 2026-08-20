@@ -111,6 +111,19 @@ test('sentinel values that mean "disabled" stay allowed', () => {
   assert.equal(config.modbus.port, '/dev/ttyTEST');
 });
 
+test('a heartbeat the admin panel can legally set is accepted', () => {
+  writeConfig(['modbus:', '  port: /dev/ttyTEST']);
+
+  const overlay = new MemoryOverlayStore();
+  // Above the ceiling an earlier revision invented; the inbound schema is
+  // `positive()` and the panel sets only a minimum, so this must load.
+  overlay.save({ mqtt: { heartbeatInterval: 600 }, updatedAt: '2026-08-20T00:00:00Z' });
+
+  const config = new YamlConfigRepository(overlay, configFile).load();
+
+  assert.equal(config.mqtt?.heartbeatInterval, 600);
+});
+
 test('a corrupted overlay heartbeat is caught rather than reaching setInterval', () => {
   writeConfig(['modbus:', '  port: /dev/ttyTEST']);
 
@@ -120,5 +133,53 @@ test('a corrupted overlay heartbeat is caught rather than reaching setInterval',
   assert.throws(
     () => new YamlConfigRepository(overlay, configFile).load(),
     /heartbeatInterval must be between/,
+  );
+});
+
+test('a nonsensical baud rate fails at load rather than skewing RTU pacing', () => {
+  writeConfig(['modbus:', '  port: /dev/ttyTEST', '  baudRate: 12']);
+
+  assert.throws(
+    () => new YamlConfigRepository(new MemoryOverlayStore(), configFile).load(),
+    /baudRate must be between/,
+  );
+});
+
+test('a non-numeric baud rate is rejected', () => {
+  writeConfig(['modbus:', '  port: /dev/ttyTEST', '  baudRate: fast']);
+
+  assert.throws(
+    () => new YamlConfigRepository(new MemoryOverlayStore(), configFile).load(),
+    /baudRate must be a number/,
+  );
+});
+
+test('serial framing values outside the driver set are rejected', () => {
+  writeConfig(['modbus:', '  port: /dev/ttyTEST', '  dataBits: 9']);
+
+  assert.throws(
+    () => new YamlConfigRepository(new MemoryOverlayStore(), configFile).load(),
+    /dataBits must be one of 7, 8/,
+  );
+});
+
+test('an unusable serial timeout is rejected', () => {
+  writeConfig(['modbus:', '  port: /dev/ttyTEST', '  timeout: 0']);
+
+  assert.throws(
+    () => new YamlConfigRepository(new MemoryOverlayStore(), configFile).load(),
+    /timeout must be between/,
+  );
+});
+
+test('a fractional heartbeat is rejected, matching the inbound schema', () => {
+  writeConfig(['modbus:', '  port: /dev/ttyTEST']);
+
+  const overlay = new MemoryOverlayStore();
+  overlay.save({ mqtt: { heartbeatInterval: 1.5 }, updatedAt: '2026-08-20T00:00:00Z' });
+
+  assert.throws(
+    () => new YamlConfigRepository(overlay, configFile).load(),
+    /heartbeatInterval must be a whole number/,
   );
 });
