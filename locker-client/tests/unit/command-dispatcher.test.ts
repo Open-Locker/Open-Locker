@@ -934,3 +934,35 @@ test('a redelivery during shutdown replays its stored response instead of refusi
 
   openCompartment.stopAllMonitoring();
 });
+
+test('a command refused during shutdown leaves no in-progress record behind', async () => {
+  const dedup = new InMemoryDedupStore();
+  const { bus, dispatcher, published } = createDispatcherHarness(new FakeLockerBus([1]), dedup);
+
+  dispatcher.beginClosing();
+
+  await dispatcher.dispatch(
+    'locker/test/command',
+    JSON.stringify({
+      message_id: '44444444-4444-4444-4444-444444444444',
+      transaction_id: 'tx-refused-clean',
+      timestamp: '2026-04-11T10:00:00Z',
+      action: 'open_compartment',
+      data: { compartment_number: 1 },
+    }),
+  );
+
+  assert.equal(bus.flashCalls.length, 0, 'nothing ran');
+  assert.equal(
+    dedup.getCommandRecord('tx-refused-clean'),
+    null,
+    'a refused command must not be recorded as work in progress',
+  );
+
+  // Restart recovery must have nothing to report: the command already got a
+  // clean SHUTTING_DOWN, and a second answer would contradict it.
+  const before = published.length;
+  dispatcher.recoverInterruptedCommands();
+  await dispatcher.flushPendingResponses();
+  assert.equal(published.length, before, 'no contradictory answer after restart');
+});

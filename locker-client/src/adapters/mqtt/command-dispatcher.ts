@@ -108,6 +108,11 @@ export class CommandDispatcher {
       return;
     }
 
+    // Refuse here: past the duplicate lookup, so a redelivery still replays its
+    // stored answer, but before the command is claimed as running. Marking a
+    // refused command in progress would leave a record for a relay that never
+    // fired, and restart recovery would then publish a second, contradictory
+    // answer for it.
     if (arrivedWhileClosing) {
       logger.warn('Refused inbound MQTT command: shutting down', {
         topic,
@@ -122,6 +127,10 @@ export class CommandDispatcher {
       );
 
       return;
+    }
+
+    if (command.handler.requiresTransactionId()) {
+      this.dedup.markCommandInProgress(command.transactionId, command.action);
     }
 
     const response = await this.executeCommand(topic, command);
@@ -476,7 +485,6 @@ export class CommandDispatcher {
       return 'duplicate_in_progress';
     }
 
-    this.dedup.markCommandInProgress(transactionId, action);
     return 'ready';
   }
 }
