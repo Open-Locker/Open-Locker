@@ -847,3 +847,59 @@ test('a duplicate transaction replays the completed response', async () => {
   assert.equal(responses[1]?.result, 'success');
   assert.equal(responses[1]?.transaction_id, 'txn-replay-completed');
 });
+
+test('a command arriving during shutdown is refused, not silently dropped', async () => {
+  const { bus, dispatcher, published } = createDispatcherHarness();
+
+  dispatcher.beginClosing();
+
+  await dispatcher.dispatch(
+    'locker/test/command',
+    JSON.stringify({
+      message_id: '11111111-1111-1111-1111-111111111111',
+      transaction_id: 'tx-shutdown-1',
+      timestamp: '2026-04-11T10:00:00Z',
+      action: 'open_compartment',
+      data: { compartment_number: 1 },
+    }),
+  );
+
+  const responses = published
+    .map((payload) => JSON.parse(payload) as { result?: string; error_code?: string })
+    .filter((message) => message.result === 'error');
+
+  assert.equal(responses.length, 1, 'the backend is told, rather than left waiting');
+  assert.equal(responses[0].error_code, 'SHUTTING_DOWN');
+  assert.equal(bus.flashCalls.length, 0, 'no relay fires once closing has begun');
+});
+
+test('commands already running are unaffected by beginClosing', async () => {
+  const { bus, dispatcher, published, openCompartment } = createDispatcherHarness();
+
+  const inFlight = dispatcher.dispatch(
+    'locker/test/command',
+    JSON.stringify({
+      message_id: '22222222-2222-2222-2222-222222222222',
+      transaction_id: 'tx-inflight-1',
+      timestamp: '2026-04-11T10:00:00Z',
+      action: 'open_compartment',
+      data: { compartment_number: 1 },
+    }),
+  );
+
+  // Shutdown starts while the open is mid-flight.
+  dispatcher.beginClosing();
+  await inFlight;
+
+  const responses = published
+    .map((payload) => JSON.parse(payload) as { result?: string; transaction_id?: string })
+    .filter((message) => message.result === 'success');
+
+  assert.equal(responses.length, 1, 'the in-flight command still answers');
+  assert.equal(responses[0].transaction_id, 'tx-inflight-1');
+  assert.equal(bus.flashCalls.length, 1, 'and its relay did fire');
+
+  // The real shutdown clears monitoring after draining; without it the door
+  // watch keeps the event loop alive here too.
+  openCompartment.stopAllMonitoring();
+});

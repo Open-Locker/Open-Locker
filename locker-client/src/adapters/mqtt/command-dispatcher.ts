@@ -46,6 +46,7 @@ export class CommandDispatcher {
   private readonly handlers = new Map<string, InboundCommandHandler<unknown>>();
   private flushInFlight: Promise<void> | null = null;
   private flushRequested = false;
+  private closing = false;
 
   constructor(
     private readonly guard: InboundProtocolGuard,
@@ -58,7 +59,23 @@ export class CommandDispatcher {
     this.handlers.set(handler.action, handler);
   }
 
+  /**
+   * Stop accepting commands, ahead of the transport going away.
+   *
+   * Answering is the point: a command dropped in silence leaves the backend
+   * waiting for a response that will never come, while a refusal lets it fail
+   * the request now and let the user retry against a client that is running.
+   */
+  beginClosing(): void {
+    this.closing = true;
+  }
+
   async dispatch(topic: string, rawMessage: string): Promise<void> {
+    // Read once, at arrival. Parsing is async, so checking later would refuse a
+    // command that reached us before shutdown began — the very work the drain
+    // is meant to let finish.
+    const arrivedWhileClosing = this.closing;
+
     const resolved = await this.parseAndResolveHandler(topic, rawMessage);
     if (!resolved) {
       return;
@@ -73,11 +90,31 @@ export class CommandDispatcher {
         // rejecting the command.
         parentTraceparent: readTraceparent(resolved.payload),
       },
-      () => this.dispatchResolved(topic, resolved),
+      () => this.dispatchResolved(topic, resolved, arrivedWhileClosing),
     );
   }
 
-  private async dispatchResolved(topic: string, resolved: ResolvedCommand): Promise<void> {
+  private async dispatchResolved(
+    topic: string,
+    resolved: ResolvedCommand,
+    arrivedWhileClosing: boolean,
+  ): Promise<void> {
+    if (arrivedWhileClosing) {
+      logger.warn('Refused inbound MQTT command: shutting down', {
+        topic,
+        action: resolved.action,
+      });
+
+      await this.rejectCommand(
+        resolved.action,
+        resolved.payload,
+        MqttErrorCode.SHUTTING_DOWN,
+        'locker-client is shutting down and did not run this command.',
+      );
+
+      return;
+    }
+
     const command = await this.validateCommand(topic, resolved);
     if (!command || (await this.handleDuplicateCommand(command))) {
       return;

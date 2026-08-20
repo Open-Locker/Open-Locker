@@ -35,6 +35,13 @@ import { createWinstonLoggerPort } from '../infrastructure/winston-logger.adapte
 import { DATA_DIR, MQTT_CLIENT_ID_FILE } from '../infrastructure/paths';
 import { ensurePrivateDirectory } from '../infrastructure/file-persistence';
 
+/**
+ * How long any single shutdown step may take before the sequence moves on.
+ * Comfortably longer than a healthy close, short enough that several stuck
+ * steps still finish inside a raised `stop_grace_period`.
+ */
+export const SHUTDOWN_STEP_TIMEOUT_MS = 5_000;
+
 export interface AppContext {
   shutdown(): Promise<void>;
 }
@@ -119,6 +126,7 @@ export async function createApp(): Promise<AppContext> {
   const eventTopic = `locker/${lockerUuid}/event`;
   const heartbeatTopic = `locker/${lockerUuid}/state/heartbeat`;
   const snapshotTopic = `locker/${lockerUuid}/state/compartments`;
+  const connectionTopic = `locker/${lockerUuid}/state/connection`;
 
   const outbound = new OutboundMqttAdapter(
     (topic, payload, options) => transport.publish(topic, payload, options),
@@ -185,8 +193,15 @@ export async function createApp(): Promise<AppContext> {
   transport.onConnected(() => dispatcher.flushPendingResponses());
   await dispatcher.flushPendingResponses();
 
+  // Commands already running when shutdown starts must finish: an open whose
+  // relay has fired but whose response was never published leaves the backend
+  // waiting and the door in an unknown state.
+  const inFlight = new Set<Promise<void>>();
+
   transport.onMessage((topic, payload) => {
-    dispatchMqttMessage(dispatcher, commandTopic, topic, payload);
+    const dispatched = dispatchMqttMessage(dispatcher, commandTopic, topic, payload);
+    inFlight.add(dispatched);
+    void dispatched.finally(() => inFlight.delete(dispatched));
   });
 
   await transport.subscribe(commandTopic);
@@ -203,13 +218,33 @@ export async function createApp(): Promise<AppContext> {
 
   return {
     async shutdown() {
+      // Refuse new commands first, so nothing else joins the set being awaited.
+      dispatcher.beginClosing();
+
+      // Then let what is already running finish. Door detection is deliberately
+      // not waited on: its window can outlast the whole shutdown, and the
+      // backend's own timeout already covers a detection that never arrives.
+      await Promise.allSettled(inFlight);
+
+      // Only now are the timers safe to stop — clearing them earlier would kill
+      // the monitoring belonging to a command still in progress.
       clearInterval(pollTimer);
       openCompartment.stopAllMonitoring();
       heartbeat.stop();
-      await bus.disconnect();
-      await transport.disconnect();
+
+      // While the transport is still up: get any unsent responses out, then say
+      // goodbye explicitly. The Last Will only fires on an *ungraceful* drop, so
+      // without this a clean stop leaves the backend believing the bank is
+      // online until the heartbeat ages out.
+      await closeOrAbandon('flush-pending-responses', () => dispatcher.flushPendingResponses());
+      await closeOrAbandon('publish-offline-state', () =>
+        outbound.publishJson(connectionTopic, { status: 'offline', reason: 'shutdown' }),
+      );
+
+      await closeOrAbandon('transport-disconnect', () => transport.disconnect());
+      await closeOrAbandon('modbus-disconnect', () => bus.disconnect());
       // Last, so spans from the shutdown path are flushed too.
-      await tracing.shutdown();
+      await closeOrAbandon('tracing-shutdown', () => tracing.shutdown());
     },
   };
 }
@@ -218,22 +253,67 @@ interface DispatchErrorLogger {
   error(message: string, metadata?: Record<string, unknown>): unknown;
 }
 
+/**
+ * Returns the dispatch promise instead of discarding it, so shutdown can wait
+ * for a command that is already running. A dropped promise here means a relay
+ * can fire after the transport is gone, with no response and no record.
+ *
+ * Already-handled failures resolve rather than reject: callers track this to
+ * know when work is finished, not whether it succeeded.
+ */
 export function dispatchMqttMessage(
   dispatcher: Pick<CommandDispatcher, 'dispatch'>,
   commandTopic: string,
   topic: string,
   payload: Buffer,
   log: DispatchErrorLogger = logger,
-): void {
+): Promise<void> {
   if (topic !== commandTopic) {
-    return;
+    return Promise.resolve();
   }
 
-  void dispatcher.dispatch(topic, payload.toString()).catch((error: unknown) => {
+  return dispatcher.dispatch(topic, payload.toString()).catch((error: unknown) => {
     log.error('Unexpected MQTT command dispatch failure', {
       error: error instanceof Error ? error.message : 'Unknown dispatch error',
     });
   });
+}
+
+/**
+ * A shutdown step that cannot be allowed to hang the rest of the sequence.
+ *
+ * A wedged serial port or a half-open socket can leave `disconnect()` pending
+ * forever; waiting on it would skip every later step and hand the process to
+ * SIGKILL in a worse state than giving up here. By this point the command has
+ * run and its response is out, so abandoning the close costs nothing the OS
+ * will not reclaim on exit.
+ */
+export async function closeOrAbandon(
+  step: string,
+  close: () => Promise<void>,
+  timeoutMs: number = SHUTDOWN_STEP_TIMEOUT_MS,
+  log: DispatchErrorLogger = logger,
+): Promise<void> {
+  let timer: NodeJS.Timeout | undefined;
+
+  const abandoned = new Promise<'abandoned'>((resolve) => {
+    timer = setTimeout(() => resolve('abandoned'), timeoutMs);
+  });
+
+  try {
+    const outcome = await Promise.race([close().then(() => 'closed' as const), abandoned]);
+
+    if (outcome === 'abandoned') {
+      log.error('Shutdown step did not finish; continuing without it', { step, timeoutMs });
+    }
+  } catch (error: unknown) {
+    log.error('Shutdown step failed; continuing', {
+      step,
+      error: error instanceof Error ? error.message : 'Unknown shutdown error',
+    });
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 function sleep(ms: number): Promise<void> {
