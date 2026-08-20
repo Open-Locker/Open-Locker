@@ -966,3 +966,39 @@ test('a command refused during shutdown leaves no in-progress record behind', as
   await dispatcher.flushPendingResponses();
   assert.equal(published.length, before, 'no contradictory answer after restart');
 });
+
+test('two concurrent deliveries of one transaction open the door once', async () => {
+  const dedup = new InMemoryDedupStore();
+  const { bus, dispatcher, published, openCompartment } = createDispatcherHarness(
+    new FakeLockerBus([1]),
+    dedup,
+  );
+
+  // Same transaction, different message ids: only the transaction guard applies,
+  // and both arrive before either has finished.
+  const deliver = (messageId: string) =>
+    dispatcher.dispatch(
+      'locker/test/command',
+      JSON.stringify({
+        message_id: messageId,
+        transaction_id: 'tx-concurrent-1',
+        timestamp: '2026-04-11T10:00:00Z',
+        action: 'open_compartment',
+        data: { compartment_number: 1 },
+      }),
+    );
+
+  await Promise.all([
+    deliver('55555555-5555-5555-5555-555555555555'),
+    deliver('66666666-6666-6666-6666-666666666666'),
+  ]);
+
+  assert.equal(bus.flashCalls.length, 1, 'the relay must fire once for one request');
+
+  const responses = published
+    .map((payload) => JSON.parse(payload) as { result?: string })
+    .filter((message) => message.result === 'success');
+  assert.equal(responses.length, 1, 'and exactly one success is published');
+
+  openCompartment.stopAllMonitoring();
+});

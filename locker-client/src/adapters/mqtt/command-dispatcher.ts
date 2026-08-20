@@ -104,7 +104,7 @@ export class CommandDispatcher {
     // relay already fired with an error, contradicting a reply the backend may
     // have acted on — a worse failure than the silence this gate replaced.
     const command = await this.validateCommand(topic, resolved);
-    if (!command || (await this.handleDuplicateCommand(command))) {
+    if (!command || (await this.handleDuplicateCommand(command, !arrivedWhileClosing))) {
       return;
     }
 
@@ -127,10 +127,6 @@ export class CommandDispatcher {
       );
 
       return;
-    }
-
-    if (command.handler.requiresTransactionId()) {
-      this.dedup.markCommandInProgress(command.transactionId, command.action);
     }
 
     const response = await this.executeCommand(topic, command);
@@ -300,10 +296,13 @@ export class CommandDispatcher {
     await this.publishFinalResponse(transactionId, response);
   }
 
-  private async handleDuplicateCommand(command: ValidatedCommand): Promise<boolean> {
+  private async handleDuplicateCommand(
+    command: ValidatedCommand,
+    claim: boolean,
+  ): Promise<boolean> {
     const { action, handler, transactionId } = command;
     if (handler.requiresTransactionId()) {
-      const dedupResult = await this.guardTransactionExecution(action, transactionId);
+      const dedupResult = await this.guardTransactionExecution(action, transactionId, claim);
       if (dedupResult === 'duplicate_completed') {
         const existing = this.dedup.getCommandRecord(transactionId);
         if (existing?.response) {
@@ -473,9 +472,20 @@ export class CommandDispatcher {
     await this.replayFinalResponse(transactionId, record.action, record.response);
   }
 
+  /**
+   * Looks the transaction up and, when the caller intends to run it, claims it
+   * in the same synchronous block.
+   *
+   * The lookup and the claim must not be separated by an await. Two deliveries
+   * of one transaction id would otherwise both read "ready" and both execute —
+   * the same door opening twice on a single request. `claim` is false only when
+   * the caller is going to refuse the command, so nothing is recorded for a
+   * relay that never fires.
+   */
   private async guardTransactionExecution(
     action: string,
     transactionId: string,
+    claim: boolean,
   ): Promise<'ready' | 'duplicate_completed' | 'duplicate_in_progress'> {
     const existing = this.dedup.getCommandRecord(transactionId);
     if (existing?.status === 'completed') {
@@ -483,6 +493,10 @@ export class CommandDispatcher {
     }
     if (existing?.status === 'in_progress') {
       return 'duplicate_in_progress';
+    }
+
+    if (claim) {
+      this.dedup.markCommandInProgress(transactionId, action);
     }
 
     return 'ready';
