@@ -35,7 +35,12 @@ export class WaveshareModbusBusActor implements LockerBusPort {
   constructor(
     private readonly driver: WaveshareModbusDriver,
     reconnectOptions?: { maxAttempts?: number; delayMs?: number },
-    private readonly configuredSlaveIds: number[] = [1],
+    /**
+     * Accepts a getter so the boards are read when asked for, not captured once.
+     * A runtime `apply_config` can add or remove a board, and a snapshot taken
+     * at construction would still describe the fleet as it was at boot.
+     */
+    private readonly configuredSlaveIds: number[] | (() => number[]) = [1],
     private readonly tracing: TracingPort = noopTracing,
     private readonly log: LoggerPort = noopLogger,
   ) {
@@ -64,7 +69,9 @@ export class WaveshareModbusBusActor implements LockerBusPort {
   }
 
   getConfiguredSlaveIds(): number[] {
-    return [...this.configuredSlaveIds];
+    return typeof this.configuredSlaveIds === 'function'
+      ? [...this.configuredSlaveIds()]
+      : [...this.configuredSlaveIds];
   }
 
   async ensureConnected(): Promise<boolean> {

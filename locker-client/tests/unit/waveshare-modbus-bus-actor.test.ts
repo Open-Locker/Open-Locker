@@ -385,3 +385,20 @@ test('an unreachable bus is logged when ensureConnected gives up', async () => {
     'expected reconnect exhaustion to be logged at error level',
   );
 });
+
+test('configured slave ids are read live, so a runtime config change is visible', () => {
+  let boards = [1];
+  const driver = new FakeWaveshareModbusDriver();
+  const bus = new WaveshareModbusBusActor(driver, { maxAttempts: 0 }, () => boards);
+
+  assert.deepEqual(bus.getConfiguredSlaveIds(), [1]);
+
+  // apply_config adds a second relay board at runtime.
+  boards = [1, 2];
+
+  assert.deepEqual(
+    bus.getConfiguredSlaveIds(),
+    [1, 2],
+    'a board added after construction must be visible to the bus',
+  );
+});

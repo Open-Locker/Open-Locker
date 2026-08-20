@@ -73,3 +73,52 @@ test('YamlConfigRepository returns empty slave ids for explicit empty runtime ma
   assert.deepEqual(repository.getConfiguredSlaveIds(), []);
   assert.deepEqual(repository.load().compartments, []);
 });
+
+function writeConfig(lines: string[]): void {
+  fs.writeFileSync(configFile, lines.join('\n'), 'utf8');
+}
+
+test('a transport setting outside its bounds fails at load, not hours later', () => {
+  writeConfig(['modbus:', '  port: /dev/ttyTEST', 'mqtt:', '  connectTimeoutMs: 0']);
+
+  assert.throws(
+    () => new YamlConfigRepository(new MemoryOverlayStore(), configFile).load(),
+    /connectTimeoutMs must be between/,
+  );
+});
+
+test('a non-numeric transport setting is rejected', () => {
+  writeConfig(['modbus:', '  port: /dev/ttyTEST', 'mqtt:', '  keepaliveSeconds: soon']);
+
+  assert.throws(
+    () => new YamlConfigRepository(new MemoryOverlayStore(), configFile).load(),
+    /keepaliveSeconds must be a number/,
+  );
+});
+
+test('sentinel values that mean "disabled" stay allowed', () => {
+  writeConfig([
+    'modbus:',
+    '  port: /dev/ttyTEST',
+    'mqtt:',
+    '  keepaliveSeconds: 0',
+    '  reconnectPeriodMs: 0',
+    '  maxReconnectAttempts: 0',
+  ]);
+
+  const config = new YamlConfigRepository(new MemoryOverlayStore(), configFile).load();
+
+  assert.equal(config.modbus.port, '/dev/ttyTEST');
+});
+
+test('a corrupted overlay heartbeat is caught rather than reaching setInterval', () => {
+  writeConfig(['modbus:', '  port: /dev/ttyTEST']);
+
+  const overlay = new MemoryOverlayStore();
+  overlay.save({ mqtt: { heartbeatInterval: 0 }, updatedAt: '2026-08-20T00:00:00Z' });
+
+  assert.throws(
+    () => new YamlConfigRepository(overlay, configFile).load(),
+    /heartbeatInterval must be between/,
+  );
+});
