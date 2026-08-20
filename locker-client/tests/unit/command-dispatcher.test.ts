@@ -903,3 +903,34 @@ test('commands already running are unaffected by beginClosing', async () => {
   // watch keeps the event loop alive here too.
   openCompartment.stopAllMonitoring();
 });
+
+test('a redelivery during shutdown replays its stored response instead of refusing', async () => {
+  const { dispatcher, published, openCompartment } = createDispatcherHarness();
+
+  const command = JSON.stringify({
+    message_id: '33333333-3333-3333-3333-333333333333',
+    transaction_id: 'tx-redelivered-1',
+    timestamp: '2026-04-11T10:00:00Z',
+    action: 'open_compartment',
+    data: { compartment_number: 1 },
+  });
+
+  // Completed before shutdown; the broker redelivers it after closing begins.
+  await dispatcher.dispatch('locker/test/command', command);
+  dispatcher.beginClosing();
+  await dispatcher.dispatch('locker/test/command', command);
+
+  const responses = published
+    .map((payload) => JSON.parse(payload) as { result?: string; error_code?: string })
+    .filter((message) => message.result === 'success' || message.result === 'error');
+
+  assert.equal(responses.length, 2, 'the redelivery is answered');
+  assert.equal(
+    responses[1].result,
+    'success',
+    'a command whose relay already fired must not come back as an error',
+  );
+  assert.equal(responses[1].error_code, undefined);
+
+  openCompartment.stopAllMonitoring();
+});

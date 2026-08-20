@@ -308,7 +308,11 @@ export function wireSimulatedDevice(options: WireSimulatedDeviceOptions): WiredS
 
       const dispatched = dispatcher.dispatch(topic, rawMessage);
       inFlight.add(dispatched);
-      void dispatched.finally(() => inFlight.delete(dispatched));
+      // `.catch` rather than `.finally`: a rejection here — a refusal whose own
+      // publish failed, say — would otherwise surface as an unhandled rejection
+      // on this second chain and take the process down mid-shutdown. The caller
+      // still sees the original promise, rejection and all.
+      void dispatched.catch(() => undefined).finally(() => inFlight.delete(dispatched));
 
       return dispatched;
     },

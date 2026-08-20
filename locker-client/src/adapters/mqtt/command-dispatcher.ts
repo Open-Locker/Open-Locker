@@ -99,6 +99,15 @@ export class CommandDispatcher {
     resolved: ResolvedCommand,
     arrivedWhileClosing: boolean,
   ): Promise<void> {
+    // Validation first, even while closing: it is what routes a redelivery to
+    // its stored response. Refusing ahead of that would answer a command whose
+    // relay already fired with an error, contradicting a reply the backend may
+    // have acted on — a worse failure than the silence this gate replaced.
+    const command = await this.validateCommand(topic, resolved);
+    if (!command || (await this.handleDuplicateCommand(command))) {
+      return;
+    }
+
     if (arrivedWhileClosing) {
       logger.warn('Refused inbound MQTT command: shutting down', {
         topic,
@@ -112,11 +121,6 @@ export class CommandDispatcher {
         'locker-client is shutting down and did not run this command.',
       );
 
-      return;
-    }
-
-    const command = await this.validateCommand(topic, resolved);
-    if (!command || (await this.handleDuplicateCommand(command))) {
       return;
     }
 
