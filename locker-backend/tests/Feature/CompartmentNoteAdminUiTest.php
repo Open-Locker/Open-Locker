@@ -159,4 +159,22 @@ class CompartmentNoteAdminUiTest extends TestCase
 
         $this->assertSame('Checked by manager', $compartment->refresh()->content_note);
     }
+
+    public function test_a_note_beyond_the_column_length_is_refused_before_it_becomes_history(): void
+    {
+        $admin = User::factory()->create();
+        $admin->makeAdmin();
+
+        $compartment = Compartment::factory()->create();
+
+        // Both entry points cap this at 80. A caller that skipped validation would
+        // otherwise record a permanent event the read model cannot hold.
+        $this->expectException(\InvalidArgumentException::class);
+
+        app(CompartmentService::class)->updateContentNote(
+            actor: $admin,
+            compartment: $compartment,
+            note: str_repeat('a', 81),
+        );
+    }
 }
