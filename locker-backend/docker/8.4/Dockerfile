@@ -60,3 +60,9 @@ RUN OTEL_SDK_DISABLED=true composer dump-autoload --optimize
 
 # Clean up build dependencies
 RUN rm -rf node_modules
+
+# Bootstrap the ADMIN_EMAIL administrator on start. Lives in the base image's
+# entrypoint.d so it runs after migrations, on the one container that runs them.
+USER root
+COPY --chmod=755 docker/entrypoint.d/50-first-admin.sh /etc/entrypoint.d/50-first-admin.sh
+USER www-data
