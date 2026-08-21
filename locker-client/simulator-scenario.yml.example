@@ -1,0 +1,56 @@
+    # Open-Locker Fleet Simulator Scenario — see ADR-0027
+#
+#   cp simulator-scenario.yml.example config/simulator-scenario.yml
+#   pnpm sim
+#
+# The simulator emulates one or many locker banks in a single process. Each bank
+# provisions itself by token at startup (the backend does not store MQTT
+# passwords in plaintext), so every bank listed here needs its own provisioning
+# token from the admin panel.
+#
+# Nothing here touches real hardware or a real device's /data files: relay and
+# door state live in memory for the lifetime of the run.
+
+# Optional. Falls back to MQTT_BROKER_URL, then the client default.
+# The --broker flag overrides both.
+broker_url: mqtt://localhost:1883
+
+banks:
+  - # Label used in logs and interactive commands only; not part of the contract.
+    name: main
+    provisioning_token: replace-me-with-a-real-token
+
+    # Optional, defaults shown.
+    heartbeat_interval_seconds: 15
+    flash_duration_ms: 200
+    # Simulated bus round-trip delay — raise it to exercise slow-hardware paths.
+    latency_ms: 0
+
+    # Seeds the compartment mapping so the device is useful the moment it boots.
+    # An apply_config command from the backend overrides this at runtime, exactly
+    # as it would on real hardware.
+    compartments:
+      - compartment_number: 1
+        slaveId: 1
+        address: 0
+        door_state: closed
+      - compartment_number: 2
+        slaveId: 1
+        address: 1
+        door_state: closed
+      - compartment_number: 3
+        slaveId: 1
+        address: 2
+        door_state: open
+
+  # A second bank makes multi-locker behaviour testable without more processes.
+  # Remove it if you only need one.
+  - name: annex
+    provisioning_token: replace-me-with-another-token
+    compartments:
+      - compartment_number: 1
+        slaveId: 1
+        address: 0
+      - compartment_number: 2
+        slaveId: 2
+        address: 0

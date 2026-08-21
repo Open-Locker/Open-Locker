@@ -89,6 +89,12 @@ Source available in [`mobile-app/`](mobile-app/):
 - API integration patterns
 - Platform-specific builds (iOS/Android)
 
+### Locker Simulator (no hardware needed)
+
+Emulate one or many locker banks locally to develop and test the backend, admin
+panel, API and mobile app without physical lockers — see
+[`docs/simulator.md`](docs/simulator.md).
+
 ### Project Architecture
 
 Detailed system architecture documentation in
