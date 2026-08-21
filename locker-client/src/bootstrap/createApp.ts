@@ -87,11 +87,11 @@ export async function createApp(): Promise<AppContext> {
   // Built here because the locker UUID identifies this instance, and it is only
   // known once provisioning has completed. Returns a no-op unless a collector
   // endpoint is configured, in which case the SDK is never even loaded.
-  const tracing = await createTracing({ lockerUuid });
+  const appLogger = createWinstonLoggerPort();
+
+  const tracing = await createTracing({ lockerUuid, log: appLogger });
   setLogTraceContextProvider(() => tracing.currentCorrelation());
   shipLogsTo(tracing);
-
-  const appLogger = createWinstonLoggerPort();
 
   const driver = new WaveshareModbusRtuDriver(
     {

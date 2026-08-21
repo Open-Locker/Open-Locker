@@ -144,3 +144,70 @@ test('a failing operation is recorded on the span but still throws', async () =>
   assert.ok(span);
   assert.equal(span.status.code, 2, 'expected the span to be marked as an error');
 });
+
+test('repeated exporter failures are reported once per window, not per retry', async () => {
+  const { diag } = await import('@opentelemetry/api');
+  const warned: Array<{ message: string; meta?: Record<string, unknown> }> = [];
+  const log = {
+    warn: (message: string, meta?: Record<string, unknown>) => warned.push({ message, meta }),
+    error: () => undefined,
+  };
+
+  const adapter = new OtelTracingAdapter({
+    serviceName: 'test',
+    serviceInstanceId: 'test-instance',
+    endpoint: 'http://localhost:4318',
+    log,
+  });
+
+  // What an unreachable collector produces: the same complaint, forever.
+  for (let i = 0; i < 25; i++) {
+    diag.error('Export failure: connect ECONNREFUSED 127.0.0.1:4318');
+  }
+
+  // Other adapters built earlier in this process also register globals, and the
+  // SDK complains about that — count only the failure this test provoked.
+  const refused = () =>
+    warned.filter((entry) => String(entry.meta?.message).includes('ECONNREFUSED'));
+
+  assert.equal(refused().length, 1, 'a broken exporter is reported, but only once');
+
+  // A different failure is still its own signal.
+  diag.error('Export failure: 413 payload too large');
+  assert.equal(
+    warned.filter((entry) => String(entry.meta?.message).includes('413')).length,
+    1,
+    'a distinct failure is not swallowed by the throttle',
+  );
+
+  await adapter.shutdown();
+});
+
+test('a diagnostic carrying span ids still throttles despite the ids differing', async () => {
+  const { diag } = await import('@opentelemetry/api');
+  const warned: Array<{ meta?: Record<string, unknown> }> = [];
+
+  const adapter = new OtelTracingAdapter({
+    serviceName: 'test',
+    serviceInstanceId: 'test-instance',
+    endpoint: 'http://localhost:4318',
+    log: {
+      warn: (_m: string, meta?: Record<string, unknown>) => warned.push({ meta }),
+      error: () => undefined,
+    },
+  });
+
+  // The SDK embeds trace and span ids in some warnings, so every occurrence is a
+  // different string. Without normalisation each one is a new key: never
+  // throttled, and a permanent map entry on a Pi that runs for months.
+  for (let i = 0; i < 20; i++) {
+    diag.warn(
+      `Cannot execute the operation on ended Span {traceId: ${i.toString(16).padStart(32, '0')}}`,
+    );
+  }
+
+  const ended = warned.filter((entry) => String(entry.meta?.message).includes('ended Span'));
+  assert.equal(ended.length, 1, 'ids are normalised out of the throttle key');
+
+  await adapter.shutdown();
+});

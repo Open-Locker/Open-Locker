@@ -13,6 +13,8 @@ import { NodeTracerProvider } from '@opentelemetry/sdk-trace-node';
 import { ATTR_SERVICE_NAME, ATTR_SERVICE_VERSION } from '@opentelemetry/semantic-conventions';
 import {
   context,
+  diag,
+  DiagLogLevel,
   SpanKind,
   SpanStatusCode,
   trace,
@@ -21,6 +23,7 @@ import {
   type Span,
   type Tracer,
 } from '@opentelemetry/api';
+import { noopLogger, type LoggerPort } from '../../ports/logging.port';
 import type {
   ActiveSpan,
   LogShippingPort,
@@ -39,6 +42,8 @@ export interface OtelTracingOptions {
   serviceVersion?: string;
   /** OTLP/HTTP base endpoint, e.g. http://otel-collector:4318 */
   endpoint: string;
+  /** Where the SDK's own diagnostics go. Defaults to discarding them. */
+  log?: LoggerPort;
   /**
    * Replaces the OTLP exporter pipeline. Tests use it to keep spans in memory;
    * production leaves it unset.
@@ -67,6 +72,82 @@ const spanKinds: Record<TraceSpanKind, SpanKind> = {
   internal: SpanKind.INTERNAL,
 };
 
+/** How long an identical exporter complaint stays suppressed. */
+const DIAGNOSTIC_REPEAT_WINDOW_MS = 5 * 60 * 1000;
+
+/**
+ * Cap on distinct complaints remembered. Reached only by messages that embed
+ * identifiers, which normalisation should already have collapsed — the cap is
+ * there so an unforeseen shape cannot grow without bound on a Pi that runs for
+ * months.
+ */
+const DIAGNOSTIC_KEY_LIMIT = 256;
+
+/**
+ * Collapses the parts of a diagnostic that differ per occurrence.
+ *
+ * The SDK embeds trace and span ids in some warnings ("Cannot execute the
+ * operation on ended Span {traceId: …}"), which would make every occurrence a
+ * distinct key and defeat the throttle entirely.
+ */
+function throttleKey(message: string): string {
+  return message.replace(/\b[0-9a-f]{16,32}\b/gi, '<id>').slice(0, 200);
+}
+
+/**
+ * Routes OpenTelemetry's own diagnostics through the app logger, once per
+ * distinct message per window.
+ *
+ * A collector that is configured but unreachable — a flaky site link, a
+ * collector that moved — retries indefinitely, and each failure prints. On a Pi
+ * that accumulates for as long as the endpoint stays down, which makes the
+ * telemetry noisier than the flow it exists to observe. Losing the repeats
+ * costs nothing: the hundredth identical failure says what the first did.
+ *
+ * The first occurrence is always reported, so a broken exporter is still
+ * visible rather than silently swallowed.
+ *
+ * Note that `diag.setLogger` is process-global while this runs from a per-device
+ * constructor: a simulated fleet re-registers it once per bank, each replacing
+ * the previous throttle window. Harmless — the last registration wins and the
+ * behaviour is identical — but it is why the override warning is suppressed.
+ */
+function quietenExporterDiagnostics(log: LoggerPort): void {
+  const lastReportedAt = new Map<string, number>();
+
+  const reportOnce = (message: string): void => {
+    const key = throttleKey(message);
+    const previous = lastReportedAt.get(key);
+    const now = Date.now();
+
+    if (previous !== undefined && now - previous < DIAGNOSTIC_REPEAT_WINDOW_MS) {
+      return;
+    }
+
+    if (lastReportedAt.size >= DIAGNOSTIC_KEY_LIMIT) {
+      const oldest = lastReportedAt.keys().next().value;
+
+      if (oldest !== undefined) {
+        lastReportedAt.delete(oldest);
+      }
+    }
+
+    lastReportedAt.set(key, now);
+    log.warn('OpenTelemetry exporter reported a failure', { message });
+  };
+
+  diag.setLogger(
+    {
+      error: (message) => reportOnce(message),
+      warn: (message) => reportOnce(message),
+      info: () => undefined,
+      debug: () => undefined,
+      verbose: () => undefined,
+    },
+    { logLevel: DiagLogLevel.WARN, suppressOverrideMessage: true },
+  );
+}
+
 /**
  * OpenTelemetry implementation of {@link TracingPort}.
  *
@@ -81,6 +162,8 @@ export class OtelTracingAdapter implements TracingPort, LogShippingPort {
   private readonly propagator = new W3CTraceContextPropagator();
 
   constructor(options: OtelTracingOptions) {
+    quietenExporterDiagnostics(options.log ?? noopLogger);
+
     const resource = resourceFromAttributes({
       [ATTR_SERVICE_NAME]: options.serviceName,
       [SERVICE_INSTANCE_ID]: options.serviceInstanceId,
