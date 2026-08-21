@@ -97,3 +97,45 @@ test('configured slave ids are reported from the scenario mapping', () => {
 
   assert.deepEqual(bus.getConfiguredSlaveIds(), [1, 2]);
 });
+
+// --- jam mode (ADR-0031) ---
+
+test('a jammed compartment pulses the relay but its door stays shut', async () => {
+  const bus = new InMemoryLockerBus({
+    slaveIds: [1],
+    jammedTargets: new Set([busTargetKey(1, 0)]),
+  });
+  const target = { compartmentNumber: 1, slaveId: 1, relayAddress: 0 };
+
+  await bus.flashRelay(target, 200);
+
+  assert.equal(await bus.readRelayState(target), true, 'the relay still fires');
+  assert.deepEqual(await bus.readDoorSensors(1, 0, 1), ['closed'], 'the door does not move');
+});
+
+test('an unjammed compartment opens on the next pulse', async () => {
+  const bus = new InMemoryLockerBus({
+    slaveIds: [1],
+    jammedTargets: new Set([busTargetKey(1, 0)]),
+  });
+  const target = { compartmentNumber: 1, slaveId: 1, relayAddress: 0 };
+
+  await bus.flashRelay(target, 200);
+  assert.equal(bus.isJammed(1, 0), true);
+
+  bus.setJammed(1, 0, false);
+  await bus.flashRelay(target, 200);
+
+  assert.equal(bus.isJammed(1, 0), false);
+  assert.deepEqual(await bus.readDoorSensors(1, 0, 1), ['open']);
+});
+
+test('jamming a compartment at runtime stops it opening', async () => {
+  const bus = new InMemoryLockerBus({ slaveIds: [1] });
+  const target = { compartmentNumber: 1, slaveId: 1, relayAddress: 0 };
+
+  bus.setJammed(1, 0, true);
+  await bus.flashRelay(target, 200);
+
+  assert.deepEqual(await bus.readDoorSensors(1, 0, 1), ['closed']);
+});

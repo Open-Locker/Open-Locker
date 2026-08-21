@@ -15,14 +15,16 @@ export function createOpenCompartmentHandler(deps: {
     schema: openCompartmentCommandSchema,
     requiresTransactionId: () => true,
     async handle(_ctx: CommandContext, command: OpenCompartmentCommand) {
-      await deps.openCompartment.execute(command.data.compartment_number);
+      await deps.openCompartment.execute(command.data.compartment_number, command.transaction_id);
       await deps.pollSnapshot.pollAndPublish(true);
 
+      // Acknowledges the pulse only. Whether the door opened is reported
+      // separately on the event channel once detection completes.
       return {
         action: command.action,
         result: 'success',
         transaction_id: command.transaction_id,
-        message: 'Compartment opened.',
+        message: 'Unlock pulse sent.',
       };
     },
   };

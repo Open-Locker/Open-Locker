@@ -46,7 +46,16 @@ banks:
         slaveId: 1
         address: 1
         door_state: open
+      - compartment_number: 3
+        slaveId: 1
+        address: 2
+        door_state: closed
+        jammed: true                 # relay fires, door never moves
 ```
+
+`jammed` (default `false`) makes a compartment answer the relay normally while
+its door stays shut — a jam, a blocked door, a worn latch. It is how you
+reproduce a failed open; see [Testing a jammed door](#testing-a-jammed-door).
 
 `slaveId`/`address` need not match real hardware, but must be unique within a
 bank. The compartment list is a **seed** — an `apply_config` from the backend
@@ -102,15 +111,21 @@ door states.
 
 ## Using it
 
-While it runs, type commands at the prompt:
+While it runs, type commands at the prompt. The console is enabled automatically
+only when stdin is a TTY — if you pipe the simulator's input, it says so on start
+and you need `--interactive` to force it on:
 
 ```
 list                     show every bank and its door states
 open main 1              mark compartment 1 of bank "main" open
 close main 1             mark it closed
 unknown main 1           mark its state unknown (sensor failure)
+jam main 1               relay still fires, but the door stays shut
+unjam main 1             let it open normally again
 quit                     shut down
 ```
+
+`list` marks jammed compartments with `[jammed]`.
 
 Every door change publishes a fresh retained snapshot, so the read model and the
 mobile realtime path update as they would from real hardware.
@@ -123,6 +138,48 @@ Traffic is echoed to the console (`←` inbound, `→` outbound):
 [main] → response  open_compartment success tx=13a275c2
 ```
 
+### Testing a jammed door
+
+A successful unlock pulse does not mean the door opened. The client watches the
+door sensor after firing and reports the outcome separately, on the event channel
+(ADR-0031). Jam mode is how you exercise the failure path without hardware.
+
+```
+jam main 1
+```
+
+Then trigger an open on compartment 1 from the backend or admin panel. You will
+see the pulse acknowledged immediately, the snapshot stay `closed`, and — after
+the bank's `heartbeat_interval_seconds` — the failure event:
+
+```
+[main] ← command  open_compartment #1 tx=jam-test
+[main] → state/compartments (retained)  #1:closed #2:open
+[main] → response  open_compartment success tx=jam-test     ← pulse sent, nothing more
+[main] → event                                              ← ~10s later
+```
+
+The event payload:
+
+```json
+{
+  "event": "compartment_open_failed",
+  "data": {
+    "compartment_number": 1,
+    "transaction_id": "jam-test",
+    "outcome": "door_jammed",
+    "error_code": "DOOR_JAMMED"
+  }
+}
+```
+
+`unjam main 1` and repeat: the same command now produces
+`compartment_open_detected` with `outcome: opened` and a `detection_ms` of
+roughly one poll interval.
+
+Opening a door by hand with no command behind it (`open main 2` while nothing is
+pending) publishes `compartment_uncommanded_open` instead — the break-in case.
+
 ### Flags
 
 | Flag                 | Effect                                        |
@@ -130,6 +187,7 @@ Traffic is echoed to the console (`←` inbound, `→` outbound):
 | `--scenario <path>`  | Use a different scenario file                 |
 | `--broker <url>`     | Override the broker URL                       |
 | `--quiet`            | Stop echoing MQTT traffic                     |
+| `--interactive`      | Read commands from stdin even when it is not a TTY |
 | `--no-interactive`   | Do not read commands from stdin (scripts, CI) |
 | `--allow-production` | Permit running with `APP_ENV=production`      |
 

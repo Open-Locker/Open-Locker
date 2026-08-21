@@ -1,0 +1,9 @@
+{
+  "message_id": "018f2a3c-5d6e-7f80-9a1b-2c3d4e5f6074",
+  "event": "compartment_uncommanded_open",
+  "timestamp": "2026-07-26T03:14:09.220Z",
+  "data": {
+    "compartment_number": 5,
+    "milliseconds_since_last_relay_fire": 3600000
+  }
+}

@@ -18,6 +18,12 @@ export interface InMemoryLockerBusOptions {
   slaveIds: number[];
   /** Door states at startup, keyed by `slaveId:address`. Defaults to closed. */
   initialDoorStates?: Map<string, DoorState>;
+  /**
+   * Compartments whose door will not open when the relay fires, keyed by
+   * `slaveId:address`. Reproduces a jam, blocked door, or failed latch — the
+   * case ADR-0031 exists to detect.
+   */
+  jammedTargets?: Set<string>;
   /** Simulated round-trip delay per bus operation, in milliseconds. */
   latencyMs?: number;
 }
@@ -35,6 +41,8 @@ export class InMemoryLockerBus implements LockerBusPort {
 
   private readonly flashTimers = new Map<string, NodeJS.Timeout>();
 
+  private readonly jammedTargets = new Set<string>();
+
   private readonly slaveIds: number[];
 
   private readonly latencyMs: number;
@@ -45,6 +53,10 @@ export class InMemoryLockerBus implements LockerBusPort {
 
     for (const [key, state] of options.initialDoorStates ?? []) {
       this.doorStates.set(key, state);
+    }
+
+    for (const key of options.jammedTargets ?? []) {
+      this.jammedTargets.add(key);
     }
   }
 
@@ -81,6 +93,9 @@ export class InMemoryLockerBus implements LockerBusPort {
   /**
    * Pulse a relay. On real hardware the pulse releases the latch and the door
    * springs open, so the simulated door flips to `open` and stays there.
+   *
+   * A jammed compartment pulses normally but its door does not move, which is
+   * exactly what a real jam, blockage, or worn latch looks like from the bus.
    */
   async flashRelay(target: CompartmentTarget, durationMs: number): Promise<void> {
     await this.delay();
@@ -101,7 +116,9 @@ export class InMemoryLockerBus implements LockerBusPort {
       }, durationMs),
     );
 
-    this.doorStates.set(key, 'open');
+    if (!this.jammedTargets.has(key)) {
+      this.doorStates.set(key, 'open');
+    }
   }
 
   async readRelayState(target: CompartmentTarget): Promise<boolean> {
@@ -152,6 +169,23 @@ export class InMemoryLockerBus implements LockerBusPort {
 
   getDoorState(slaveId: number, address: number): DoorState {
     return this.doorStates.get(busTargetKey(slaveId, address)) ?? 'closed';
+  }
+
+  /** Jam or unjam a compartment at runtime, from the interactive console. */
+  setJammed(slaveId: number, address: number, jammed: boolean): void {
+    const key = busTargetKey(slaveId, address);
+
+    if (jammed) {
+      this.jammedTargets.add(key);
+
+      return;
+    }
+
+    this.jammedTargets.delete(key);
+  }
+
+  isJammed(slaveId: number, address: number): boolean {
+    return this.jammedTargets.has(busTargetKey(slaveId, address));
   }
 
   private delay(): Promise<void> {

@@ -25,6 +25,11 @@ const compartmentSchema = z.object({
   slaveId: z.number().int().positive(),
   address: z.number().int().min(0).max(MAX_RELAY_ADDRESS),
   door_state: doorStateSchema.default('closed'),
+  /**
+   * Relay fires but the door never moves — a jam, blockage, or worn latch. The
+   * case door-open detection exists to catch (ADR-0031).
+   */
+  jammed: z.boolean().default(false),
 });
 
 const bankSchema = z.object({

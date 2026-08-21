@@ -3,7 +3,11 @@ import path from 'path';
 import readline from 'readline';
 import { loadScenario, ScenarioValidationError } from './adapters/simulator/scenario';
 import { SimulatorCredentialCache } from './adapters/simulator/simulator-credential-cache';
-import { createSimulatorApp, type SimulatorContext } from './bootstrap/createSimulatorApp';
+import {
+  createSimulatorApp,
+  type SimulatedDevice,
+  type SimulatorContext,
+} from './bootstrap/createSimulatorApp';
 import type { DoorState } from './domain/compartment';
 import { CONFIG_DIR } from './infrastructure/paths';
 import { logger } from './infrastructure/logging';
@@ -46,6 +50,10 @@ function parseArgs(argv: string[]): CliOptions {
       case '--allow-production':
         options.allowProduction = true;
         break;
+      case '--interactive':
+        options.interactive = true;
+        break;
+
       case '--no-interactive':
         options.interactive = false;
         break;
@@ -86,6 +94,7 @@ function printUsage(): void {
       '  --scenario <path>     Scenario YAML file (default: $CONFIG_DIR/simulator-scenario.yml)',
       '  --broker <url>        MQTT broker URL (overrides the scenario file)',
       '  --allow-production    Permit running with NODE_ENV/APP_ENV=production',
+      '  --interactive         Read door commands from stdin even when it is not a TTY',
       '  --no-interactive      Do not read door commands from stdin',
       '  --quiet               Do not echo MQTT traffic to the console',
       '  -h, --help            Show this help',
@@ -95,6 +104,8 @@ function printUsage(): void {
       '  open <bank> <compartment>   Mark a door open',
       '  close <bank> <compartment>  Mark a door closed',
       '  unknown <bank> <compartment>  Mark a door state unknown',
+      '  jam <bank> <compartment>    Relay fires but the door stays shut',
+      '  unjam <bank> <compartment>  Let the door open normally again',
       '  quit                        Shut down',
       '',
     ].join('\n'),
@@ -156,6 +167,10 @@ async function main(): Promise<void> {
 
   if (options.interactive) {
     startInteractiveConsole(simulator, shutdown);
+  } else if (process.stdin.isTTY !== true) {
+    // Silently ignoring typed commands is the confusing failure here: stdin is a
+    // pipe, so the console defaulted off and nothing reported why.
+    write('Interactive console disabled: stdin is not a TTY. Pass --interactive to force it.');
   }
 }
 
@@ -203,7 +218,8 @@ function startInteractiveConsole(
         for (const device of simulator.devices) {
           write(`${device.name}  (${device.lockerUuid})`);
           for (const compartmentNumber of device.compartmentNumbers) {
-            write(`    #${compartmentNumber}  ${device.getDoorState(compartmentNumber)}`);
+            const jammed = device.isJammed(compartmentNumber) ? '  [jammed]' : '';
+            write(`    #${compartmentNumber}  ${device.getDoorState(compartmentNumber)}${jammed}`);
           }
         }
         return;
@@ -213,6 +229,11 @@ function startInteractiveConsole(
       case 'closed':
       case 'unknown':
         await applyDoorCommand(DOOR_STATE_BY_COMMAND[command.toLowerCase()]!, rest);
+        return;
+
+      case 'jam':
+      case 'unjam':
+        applyJamCommand(command.toLowerCase() === 'jam', rest);
         return;
 
       case 'quit':
@@ -226,32 +247,64 @@ function startInteractiveConsole(
     }
   }
 
-  async function applyDoorCommand(state: DoorState, args: string[]): Promise<void> {
-    // Bank names routinely contain spaces ("Simulator Bank"), so take the last
-    // argument as the compartment and treat everything before it as the name.
+  /**
+   * Bank names routinely contain spaces ("Simulator Bank"), so the last argument
+   * is the compartment and everything before it is the name.
+   */
+  function resolveTargetArgs(
+    verb: string,
+    args: string[],
+  ): { device: SimulatedDevice; compartmentNumber: number } | null {
     const rawCompartment = args.at(-1);
     const bankName = args.slice(0, -1).join(' ');
 
     if (!bankName || !rawCompartment) {
-      write(`Usage: ${state} <bank> <compartment>`);
-      return;
+      write(`Usage: ${verb} <bank> <compartment>`);
+      return null;
     }
 
     const device = simulator.findDevice(bankName);
     if (!device) {
       write(`No simulated bank named "${bankName}". Try "list".`);
-      return;
+      return null;
     }
 
     const compartmentNumber = Number.parseInt(rawCompartment, 10);
     if (!Number.isInteger(compartmentNumber)) {
       write(`"${rawCompartment}" is not a compartment number.`);
+      return null;
+    }
+
+    return { device, compartmentNumber };
+  }
+
+  async function applyDoorCommand(state: DoorState, args: string[]): Promise<void> {
+    const resolved = resolveTargetArgs(state, args);
+    if (!resolved) {
       return;
     }
 
     try {
-      await device.setDoorState(compartmentNumber, state);
-      write(`${device.name} #${compartmentNumber} -> ${state}`);
+      await resolved.device.setDoorState(resolved.compartmentNumber, state);
+      write(`${resolved.device.name} #${resolved.compartmentNumber} -> ${state}`);
+    } catch (error) {
+      write(error instanceof Error ? error.message : String(error));
+    }
+  }
+
+  function applyJamCommand(jammed: boolean, args: string[]): void {
+    const resolved = resolveTargetArgs(jammed ? 'jam' : 'unjam', args);
+    if (!resolved) {
+      return;
+    }
+
+    try {
+      resolved.device.setJammed(resolved.compartmentNumber, jammed);
+      write(
+        `${resolved.device.name} #${resolved.compartmentNumber} -> ${
+          jammed ? 'jammed (relay fires, door stays shut)' : 'not jammed'
+        }`,
+      );
     } catch (error) {
       write(error instanceof Error ? error.message : String(error));
     }
