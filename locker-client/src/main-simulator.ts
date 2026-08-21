@@ -3,6 +3,7 @@ import path from 'path';
 import readline from 'readline';
 import { loadScenario, ScenarioValidationError } from './adapters/simulator/scenario';
 import { SimulatorCredentialCache } from './adapters/simulator/simulator-credential-cache';
+import { assertNotProduction } from './adapters/simulator/production-guard';
 import {
   createSimulatorApp,
   type SimulatedDevice,
@@ -109,31 +110,6 @@ function printUsage(): void {
       '  quit                        Shut down',
       '',
     ].join('\n'),
-  );
-}
-
-/**
- * The simulator publishes fake state under a real locker UUID. Doing that
- * against production would corrupt live read models, so refuse by default
- *.
- */
-function assertNotProduction(allowProduction: boolean): void {
-  const environment = (process.env.APP_ENV ?? process.env.NODE_ENV ?? '').trim().toLowerCase();
-
-  if (environment !== 'production' && environment !== 'prod') {
-    return;
-  }
-
-  if (allowProduction) {
-    logger.warn('Simulator starting against a production environment by explicit override', {
-      environment,
-    });
-    return;
-  }
-
-  throw new Error(
-    `Refusing to start the simulator with APP_ENV/NODE_ENV="${environment}". ` +
-      'Pass --allow-production if this is genuinely intended.',
   );
 }
 
