@@ -10,13 +10,10 @@ use App\Filament\Resources\CompartmentResource\Pages;
 use App\Filament\Resources\CompartmentResource\RelationManagers\GroupAccessesRelationManager;
 use App\Filament\Resources\CompartmentResource\RelationManagers\UserAccessesRelationManager;
 use App\Filament\Support\CompartmentDoorStateColumn;
+use App\Filament\Support\OpenCompartmentAction;
 use App\Models\Compartment;
-use App\Models\User;
-use App\Services\CompartmentAccessService;
 use Filament\Actions\Action;
-use Filament\Facades\Filament;
 use Filament\Infolists\Components\TextEntry;
-use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
 use Filament\Tables;
@@ -24,7 +21,6 @@ use Filament\Tables\Grouping\Group;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Facades\Log;
 
 class CompartmentResource extends Resource
 {
@@ -160,41 +156,7 @@ class CompartmentResource extends Resource
                     ->label(__('Access'))
                     ->icon('heroicon-m-key')
                     ->url(fn (Compartment $record): string => static::getUrl('view', ['record' => $record])),
-                Action::make('open')
-                    ->label(__('Open'))
-                    ->icon('heroicon-m-bolt')
-                    ->requiresConfirmation()
-                    ->visible(fn (Compartment $record): bool => (Filament::auth()->user()?->can(Permission::CompartmentOpen->value) ?? false)
-                        && CompartmentDoorStateColumn::canBeOpened($record))
-                    ->action(function (Compartment $record): void {
-                        try {
-                            $user = Filament::auth()->user();
-                            if (! $user instanceof User) {
-                                Notification::make()
-                                    ->title(__('Unable to open compartment'))
-                                    ->body(__('Your session has expired. Please log in again.'))
-                                    ->danger()
-                                    ->send();
-
-                                return;
-                            }
-
-                            app(CompartmentAccessService::class)->requestOpen($user, $record);
-                        } catch (\Throwable $e) {
-                            Log::error('Failed to request compartment opening from Filament.', [
-                                'compartment_id' => $record->id,
-                                'locker_bank_id' => $record->locker_bank_id,
-                                'number' => $record->number,
-                                'error' => $e->getMessage(),
-                            ]);
-
-                            Notification::make()
-                                ->title(__('Failed to send open command'))
-                                ->body(__('Please try again. Details are in the server log.'))
-                                ->danger()
-                                ->send();
-                        }
-                    }),
+                OpenCompartmentAction::make(),
             ]);
     }
 

@@ -6,10 +6,10 @@ namespace App\Filament\Resources\LockerBankResource\RelationManagers;
 
 use App\Enums\Permission;
 use App\Filament\Support\CompartmentDoorStateColumn;
+use App\Filament\Support\OpenCompartmentAction;
 use App\Models\Compartment;
 use App\Models\LockerBank;
 use App\Models\User;
-use App\Services\CompartmentAccessService;
 use App\Services\CompartmentService;
 use App\Services\LockerService;
 use App\StorableEvents\CompartmentContentNoteUpdated;
@@ -88,16 +88,17 @@ class CompartmentsRelationManager extends RelationManager
         $actorNames = User::query()->whereIn('id', $actorIds)->get()
             ->mapWithKeys(fn (User $user): array => [$user->id => $user->fullName()]);
 
-        return $events->map(function (EloquentStoredEvent $event) use ($actorNames): array {
+        return array_values($events->map(function (EloquentStoredEvent $event) use ($actorNames): array {
             $properties = $event->event_properties;
             $actorId = $properties['actorUserId'] ?? null;
+            $note = $properties['note'] ?? null;
 
             return [
                 'changed_at' => Carbon::parse($event->created_at)->toDayDateTimeString(),
                 'actor' => $actorNames[$actorId] ?? "User #{$actorId}",
-                'note' => $properties['note'] ?? null,
+                'note' => is_string($note) ? $note : null,
             ];
-        })->all();
+        })->all());
     }
 
     public function table(Table $table): Table
@@ -132,7 +133,7 @@ class CompartmentsRelationManager extends RelationManager
                     ->wrap()
                     ->tooltip(fn (Compartment $record): ?string => $record->content_note)
                     ->description(fn (Compartment $record): ?string => $record->content_note_updated_at
-                        ? __('Updated :time', ['time' => $record->content_note_updated_at->diffForHumans()])
+                        ? (string) __('Updated :time', ['time' => $record->content_note_updated_at->diffForHumans()])
                         : null)
                     ->action(
                         Action::make('noteHistory')
@@ -217,43 +218,7 @@ class CompartmentsRelationManager extends RelationManager
             ])
             ->actions([
                 \Filament\Actions\EditAction::make(),
-                Action::make('open')
-                    ->label(__('Open'))
-                    ->icon('heroicon-m-bolt')
-                    ->requiresConfirmation()
-                    // Same rule as the compartment list: no permission, no button —
-                    // and an open door has nothing to open.
-                    ->visible(fn (Compartment $record): bool => (Filament::auth()->user()?->can(Permission::CompartmentOpen->value) ?? false)
-                        && CompartmentDoorStateColumn::canBeOpened($record))
-                    ->action(function (Compartment $record): void {
-                        try {
-                            $user = Filament::auth()->user();
-                            if (! $user instanceof \App\Models\User) {
-                                Notification::make()
-                                    ->title(__('Unable to open compartment'))
-                                    ->body(__('Your session has expired. Please log in again.'))
-                                    ->danger()
-                                    ->send();
-
-                                return;
-                            }
-
-                            app(CompartmentAccessService::class)->requestOpen($user, $record);
-                        } catch (\Throwable $e) {
-                            Log::error('Failed to request compartment opening from Filament.', [
-                                'compartment_id' => $record->id,
-                                'locker_bank_id' => $record->locker_bank_id,
-                                'number' => $record->number,
-                                'error' => $e->getMessage(),
-                            ]);
-
-                            Notification::make()
-                                ->title(__('Failed to send open command'))
-                                ->body(__('Please try again. Details are in the server log.'))
-                                ->danger()
-                                ->send();
-                        }
-                    }),
+                OpenCompartmentAction::make(),
                 Action::make('editContentNote')
                     ->label(__('Edit note'))
                     ->icon('heroicon-m-pencil-square')

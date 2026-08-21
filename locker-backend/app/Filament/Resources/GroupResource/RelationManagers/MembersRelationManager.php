@@ -114,7 +114,7 @@ class MembersRelationManager extends RelationManager
      * Users who can be added to the owner group: excludes users that are
      * already active members.
      *
-     * @return array<string, string>
+     * @return array<int|string, string>
      */
     private function addableUserOptions(): array
     {

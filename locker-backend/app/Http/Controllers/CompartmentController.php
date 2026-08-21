@@ -26,7 +26,7 @@ class CompartmentController extends Controller
      */
     public function accessible(Request $request, CompartmentAccessService $compartmentAccessService): JsonResponse
     {
-        $lockerBanks = $compartmentAccessService->accessibleLockerBanksFor($request->user());
+        $lockerBanks = $compartmentAccessService->accessibleLockerBanksFor($this->authenticatedUser($request));
 
         return (new AccessibleCompartmentsResource($lockerBanks))->response();
     }
@@ -61,7 +61,7 @@ class CompartmentController extends Controller
         Compartment $compartment,
         CompartmentAccessService $compartmentAccessService,
     ): JsonResponse {
-        $decision = $compartmentAccessService->requestOpen($request->user(), $compartment);
+        $decision = $compartmentAccessService->requestOpen($this->authenticatedUser($request), $compartment);
 
         if (! $decision['authorized']) {
             return (new CompartmentOpenDecisionResource([
@@ -95,7 +95,7 @@ class CompartmentController extends Controller
         CompartmentService $compartmentService,
     ): JsonResponse {
         $compartment = $compartmentService->updateContentNote(
-            $request->user(),
+            $this->authenticatedUser($request),
             $compartment,
             $request->validated('note'),
         );
@@ -122,7 +122,7 @@ class CompartmentController extends Controller
             ]))->response()->setStatusCode(404);
         }
 
-        $user = $request->user();
+        $user = $this->authenticatedUser($request);
         if (! $user->isAdmin() && $openRequest->actor_user_id !== $user->id) {
             return (new ApiErrorResource([
                 'status' => false,

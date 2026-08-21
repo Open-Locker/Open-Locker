@@ -27,7 +27,11 @@ class VerifyMosqHttpAuth
         }
 
         // 1. Try Query Parameter (?mosq_secret=...)
+        // query() hands back an array for `?mosq_secret[]=x`. Casting that to a
+        // string yields the literal "Array" and a PHP warning, so anything that
+        // is not a plain string is discarded here rather than compared.
         $providedSecret = $request->query('mosq_secret');
+        $providedSecret = is_string($providedSecret) ? $providedSecret : null;
 
         // 2. Fallback: Try Basic Auth Password (User is ignored)
         if (! $providedSecret) {
@@ -42,7 +46,7 @@ class VerifyMosqHttpAuth
         }
 
         // Use hash_equals to prevent timing attacks
-        if (! hash_equals($expectedSecret, (string) $providedSecret)) {
+        if (! hash_equals($expectedSecret, $providedSecret)) {
             Log::warning('Mosquitto Auth: Invalid secret provided.');
 
             return response()->json(['allow' => false, 'error' => 'Unauthorized - Invalid Secret'], 401);

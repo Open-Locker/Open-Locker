@@ -35,7 +35,7 @@ final class CompartmentDoorStateColumn
     public static function lastOpenFaultTooltip(Compartment $compartment): ?string
     {
         return self::lastOpenFailed($compartment)
-            ? __('The last unlock pulse was sent but the door never opened. The lock may be jammed or blocked, or the door sensor may have failed.')
+            ? (string) __('The last unlock pulse was sent but the door never opened. The lock may be jammed or blocked, or the door sensor may have failed.')
             : null;
     }
 

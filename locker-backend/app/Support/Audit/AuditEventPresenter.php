@@ -398,7 +398,7 @@ class AuditEventPresenter
 
         $id = (int) $id;
 
-        return $this->userCache[$id] ??= (User::find($id)?->fullName() ?: __('User #:id', ['id' => $id]));
+        return $this->userCache[$id] ??= (User::find($id)?->fullName() ?: (string) __('User #:id', ['id' => $id]));
     }
 
     private function compartment(?string $uuid): string
@@ -428,7 +428,7 @@ class AuditEventPresenter
             return __('Unknown');
         }
 
-        return $this->groupCache[$uuid] ??= (Group::find($uuid)?->name ?: __('Unknown'));
+        return $this->groupCache[$uuid] ??= (Group::find($uuid)?->name ?: (string) __('Unknown'));
     }
 
     private function lockerBank(?string $uuid): string
@@ -437,6 +437,6 @@ class AuditEventPresenter
             return __('Unknown');
         }
 
-        return $this->lockerBankCache[$uuid] ??= (LockerBank::find($uuid)?->name ?: __('Unknown'));
+        return $this->lockerBankCache[$uuid] ??= (LockerBank::find($uuid)?->name ?: (string) __('Unknown'));
     }
 }

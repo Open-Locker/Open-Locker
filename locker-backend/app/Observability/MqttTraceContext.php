@@ -62,6 +62,10 @@ final class MqttTraceContext
 
         $context = Tracer::extractContextFromPropagationHeaders([self::FIELD => $traceparent]);
 
+        if ($context === null) {
+            return null;
+        }
+
         // A malformed header extracts to the current context rather than
         // failing, so the span context is what says whether it parsed.
         return Span::fromContext($context)->getContext()->isValid() ? $context : null;
