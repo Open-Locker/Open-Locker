@@ -8,6 +8,7 @@ use App\Mqtt\InboundMqttProtocolGuard;
 use App\Services\CommandResponseInboxService;
 use App\StorableEvents\CommandResponseReceived;
 use Illuminate\Contracts\Validation\Validator;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator as ValidatorFacade;
 use Illuminate\Support\Str;
 
@@ -77,11 +78,25 @@ class CommandResponseHandler extends AbstractInboundMqttHandler
         $lockerBankUuid = Str::before($lockerBankUuid, '/');
         $transactionId = trim((string) $payload['transaction_id']);
 
-        $isFirst = $this->inbox->recordIfFirst($lockerBankUuid, $transactionId, $topic, $payload);
-        if (! $isFirst) {
-            return; // dedup: do not create duplicate side effects
-        }
+        // The inbox row and the domain event must land together. Recorded on its
+        // own, a row that survives a failed event write marks the transaction as
+        // seen forever, so every later replay is deduped away and the response is
+        // lost with nothing to recover it from.
+        DB::transaction(function () use ($topic, $payload, $lockerBankUuid, $transactionId): void {
+            $isFirst = $this->inbox->recordIfFirst($lockerBankUuid, $transactionId, $topic, $payload);
+            if (! $isFirst) {
+                return; // dedup: do not create duplicate side effects
+            }
 
+            $this->recordResponse($lockerBankUuid, $transactionId, $payload);
+        });
+    }
+
+    /**
+     * @param  array<string, mixed>  $payload
+     */
+    private function recordResponse(string $lockerBankUuid, string $transactionId, array $payload): void
+    {
         $action = (string) $payload['action'];
         $result = (string) $payload['result'];
         $timestamp = (string) $payload['timestamp'];
