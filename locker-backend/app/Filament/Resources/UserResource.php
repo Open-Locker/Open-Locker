@@ -176,6 +176,10 @@ class UserResource extends Resource
             ->bulkActions([
                 \Filament\Actions\BulkActionGroup::make([
                     \Filament\Actions\DeleteBulkAction::make()
+                        // Both guards below need the actual records. Without this
+                        // the "select all" path hands Filament a bare query and
+                        // deletes through it, skipping model events entirely.
+                        ->fetchSelectedRecords()
                         ->before(function (\Filament\Actions\DeleteBulkAction $action, Collection $records) {
                             if ($records->contains(fn (Model $record): bool => $record instanceof User && ! self::canManageRecord($record))) {
                                 Notification::make()
@@ -199,6 +203,31 @@ class UserResource extends Resource
                                     ->send();
                                 $action->cancel();
                             }
+                        })
+                        // Deleting the selection one record at a time can strand
+                        // the installation without an admin when another request
+                        // demotes one in between, so the service commits the whole
+                        // selection under a lock or none of it.
+                        ->using(function (\Filament\Actions\DeleteBulkAction $action, Collection $records): void {
+                            $actor = self::actor();
+                            abort_unless($actor instanceof User, 403);
+
+                            $deleted = app(UserAdministrationService::class)->deleteUsers(
+                                actor: $actor,
+                                targets: $records->filter(fn (Model $record): bool => $record instanceof User),
+                            );
+
+                            if ($deleted) {
+                                return;
+                            }
+
+                            $action->reportCompleteBulkProcessingFailure();
+
+                            Notification::make()
+                                ->title(__('Cannot delete user'))
+                                ->body(__('The last admin cannot be deleted.'))
+                                ->danger()
+                                ->send();
                         }),
                 ]),
             ]);
