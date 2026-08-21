@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Filament\Resources\LockerBankResource\RelationManagers;
 
+use App\Enums\Permission;
+use App\Filament\Support\CompartmentDoorStateColumn;
 use App\Models\Compartment;
 use App\Models\LockerBank;
 use App\Models\User;
@@ -22,6 +24,7 @@ use Filament\Support\Enums\FontWeight;
 use Filament\Support\Enums\Width;
 use Filament\Tables;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Log;
 use Spatie\EventSourcing\StoredEvents\Models\EloquentStoredEvent;
@@ -99,6 +102,9 @@ class CompartmentsRelationManager extends RelationManager
     {
         return $table
             ->recordTitleAttribute('number')
+            // The door badge reads the last open request to flag a jam, so load it
+            // with the rows rather than once per compartment.
+            ->modifyQueryUsing(fn (Builder $query): Builder => $query->with('latestOpenRequest'))
             ->columns([
                 Tables\Columns\TextColumn::make('number')
                     ->sortable()
@@ -114,6 +120,9 @@ class CompartmentsRelationManager extends RelationManager
                     ->label(__('Address'))
                     ->rules(['nullable', 'integer', 'min:0'])
                     ->tooltip(__('0-based relay address. Used for both coil and input.')),
+
+                CompartmentDoorStateColumn::column(),
+
                 Tables\Columns\TextColumn::make('content_note')
                     ->label(__('Note'))
                     ->placeholder(__('No note'))
@@ -158,18 +167,6 @@ class CompartmentsRelationManager extends RelationManager
                                     ->extraAttributes(['style' => 'max-height: 60vh; overflow-y: auto;']),
                             ]),
                     ),
-                Tables\Columns\TextColumn::make('latestOpenRequest.status')
-                    ->label(__('Last open status'))
-                    ->badge()
-                    ->color(fn (?string $state): string => match ($state) {
-                        'opened' => 'success',
-                        'failed', 'denied' => 'danger',
-                        'sent', 'accepted', 'requested' => 'warning',
-                        default => 'gray',
-                    })
-                    ->formatStateUsing(fn (?string $state): string => $state ? __($state) : '')
-                    ->placeholder(__('No requests'))
-                    ->sortable(),
                 Tables\Columns\TextColumn::make('latestOpenRequest.command_id')
                     ->label(__('Last command ID'))
                     ->copyable()
@@ -222,6 +219,10 @@ class CompartmentsRelationManager extends RelationManager
                     ->label(__('Open'))
                     ->icon('heroicon-m-bolt')
                     ->requiresConfirmation()
+                    // Same rule as the compartment list: no permission, no button —
+                    // and an open door has nothing to open.
+                    ->visible(fn (Compartment $record): bool => (Filament::auth()->user()?->can(Permission::CompartmentOpen->value) ?? false)
+                        && CompartmentDoorStateColumn::canBeOpened($record))
                     ->action(function (Compartment $record): void {
                         try {
                             $user = Filament::auth()->user();

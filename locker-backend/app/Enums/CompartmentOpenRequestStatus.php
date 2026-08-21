@@ -39,4 +39,20 @@ enum CompartmentOpenRequestStatus: string
             self::Failed => __('Failed'),
         };
     }
+
+    /**
+     * Filament badge colour for this status.
+     *
+     * Acknowledged is not a success: the unlock pulse was sent, but nothing has
+     * confirmed the door moved. AlreadyOpen warns because the open was a no-op.
+     */
+    public function color(): string
+    {
+        return match ($this) {
+            self::Opened => 'success',
+            self::Denied, self::DoorJammed, self::Failed => 'danger',
+            self::AlreadyOpen => 'warning',
+            self::Requested, self::Accepted, self::Sent, self::Acknowledged => 'info',
+        };
+    }
 }

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Filament\Resources\LockerBankResource\RelationManagers;
 
+use App\Enums\CompartmentOpenRequestStatus;
 use App\Models\CompartmentOpenRequest;
 use Filament\Resources\RelationManagers\RelationManager;
 use Filament\Schemas\Schema;
@@ -36,13 +37,8 @@ class OpenRequestsRelationManager extends RelationManager
                 Tables\Columns\TextColumn::make('status')
                     ->label(__('Status'))
                     ->badge()
-                    ->color(fn (?string $state): string => match ($state) {
-                        'opened' => 'success',
-                        'failed', 'denied' => 'danger',
-                        'sent', 'accepted', 'requested' => 'warning',
-                        default => 'gray',
-                    })
-                    ->formatStateUsing(fn (?string $state): string => $state ? __($state) : '')
+                    ->color(fn (?CompartmentOpenRequestStatus $state): string => $state?->color() ?? 'gray')
+                    ->formatStateUsing(fn (?CompartmentOpenRequestStatus $state): string => $state?->label() ?? '')
                     ->sortable(),
                 Tables\Columns\TextColumn::make('compartment.number')
                     ->label(__('Compartment'))
@@ -89,14 +85,10 @@ class OpenRequestsRelationManager extends RelationManager
                     ->label(__('Denied only'))
                     ->query(fn ($query) => $query->where('status', 'denied')),
                 Tables\Filters\SelectFilter::make('status')
-                    ->options([
-                        'requested' => __('requested'),
-                        'accepted' => __('accepted'),
-                        'sent' => __('sent'),
-                        'opened' => __('opened'),
-                        'failed' => __('failed'),
-                        'denied' => __('denied'),
-                    ]),
+                    ->label(__('Status'))
+                    ->options(fn (): array => collect(CompartmentOpenRequestStatus::cases())
+                        ->mapWithKeys(fn (CompartmentOpenRequestStatus $status): array => [$status->value => $status->label()])
+                        ->all()),
             ])
             ->actions([])
             ->bulkActions([]);

@@ -43,18 +43,7 @@ class CompartmentOpenRequestResource extends Resource
                 Tables\Columns\TextColumn::make('status')
                     ->label(__('Status'))
                     ->badge()
-                    ->color(fn (?CompartmentOpenRequestStatus $state): string => match ($state) {
-                        CompartmentOpenRequestStatus::Opened => 'success',
-                        CompartmentOpenRequestStatus::DoorJammed,
-                        CompartmentOpenRequestStatus::Failed,
-                        CompartmentOpenRequestStatus::Denied => 'danger',
-                        CompartmentOpenRequestStatus::AlreadyOpen => 'warning',
-                        CompartmentOpenRequestStatus::Acknowledged,
-                        CompartmentOpenRequestStatus::Sent,
-                        CompartmentOpenRequestStatus::Accepted,
-                        CompartmentOpenRequestStatus::Requested => 'info',
-                        default => 'gray',
-                    })
+                    ->color(fn (?CompartmentOpenRequestStatus $state): string => $state?->color() ?? 'gray')
                     ->formatStateUsing(fn (?CompartmentOpenRequestStatus $state): string => $state?->label() ?? '')
                     ->sortable(),
                 Tables\Columns\TextColumn::make('actor_display_name')

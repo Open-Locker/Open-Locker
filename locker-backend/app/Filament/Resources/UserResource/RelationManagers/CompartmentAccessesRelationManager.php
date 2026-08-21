@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Filament\Resources\UserResource\RelationManagers;
 
+use App\Enums\CompartmentOpenRequestStatus;
 use App\Enums\Permission;
 use App\Filament\Resources\UserResource;
 use App\Filament\Support\AccessPickerOptions;
@@ -72,12 +73,8 @@ class CompartmentAccessesRelationManager extends RelationManager
                 Tables\Columns\TextColumn::make('compartment.latestOpenRequest.status')
                     ->label(__('Last open status'))
                     ->badge()
-                    ->color(fn (?string $state): string => match ($state) {
-                        'opened' => 'success',
-                        'failed', 'denied' => 'danger',
-                        'sent', 'accepted', 'requested' => 'warning',
-                        default => 'gray',
-                    })
+                    ->color(fn (?CompartmentOpenRequestStatus $state): string => $state?->color() ?? 'gray')
+                    ->formatStateUsing(fn (?CompartmentOpenRequestStatus $state): string => $state?->label() ?? '')
                     ->placeholder(__('No requests'))
                     ->sortable(),
                 Tables\Columns\TextColumn::make('compartment.latestOpenRequest.opened_at')
