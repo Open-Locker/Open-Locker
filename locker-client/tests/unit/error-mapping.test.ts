@@ -55,3 +55,23 @@ test('only transport faults that reconnecting can clear are reconnectable', () =
   assert.equal(isReconnectableModbusError(new Error('connect ECONNREFUSED')), true);
   assert.equal(isReconnectableModbusError(new Error('something unrelated')), false);
 });
+
+test('a fault that merely mentions modbus is not reported as a hardware error', () => {
+  // A bare `modbus` match caught nearly every hardware-adjacent message here,
+  // including our own configuration and programming faults, and sent them to the
+  // backend as MODBUS_ERROR — a bug dressed as a broken bus.
+  assert.equal(
+    mapErrorToMqttCode(new Error('Invalid modbus register mapping for compartment 3')),
+    MqttErrorCode.UNKNOWN_ERROR,
+  );
+  assert.equal(
+    mapErrorToMqttCode(new Error('modbus config missing slaveId')),
+    MqttErrorCode.UNKNOWN_ERROR,
+  );
+});
+
+test('the specific library transport failures are still reported as MODBUS_ERROR', () => {
+  for (const message of ['Port Not Open', 'connect ECONNREFUSED', 'Timed out', 'CRC error']) {
+    assert.equal(mapErrorToMqttCode(new Error(message)), MqttErrorCode.MODBUS_ERROR, message);
+  }
+});
