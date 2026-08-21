@@ -10,5 +10,8 @@ export function createWinstonLoggerPort(): LoggerPort {
     warn(message, meta) {
       logger.warn(message, meta);
     },
+    error(message, meta) {
+      logger.error(message, meta);
+    },
   };
 }

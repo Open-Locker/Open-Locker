@@ -84,20 +84,27 @@ export async function createApp(): Promise<AppContext> {
   setLogTraceContextProvider(() => tracing.currentCorrelation());
   shipLogsTo(tracing);
 
-  const driver = new WaveshareModbusRtuDriver({
-    port: config.modbus.port,
-    baudRate: config.modbus.baudRate ?? 9600,
-    dataBits: config.modbus.dataBits ?? 8,
-    stopBits: config.modbus.stopBits ?? 1,
-    parity: config.modbus.parity ?? 'none',
-    timeout: config.modbus.timeout ?? 1000,
-  });
+  const appLogger = createWinstonLoggerPort();
+
+  const driver = new WaveshareModbusRtuDriver(
+    {
+      port: config.modbus.port,
+      baudRate: config.modbus.baudRate ?? 9600,
+      dataBits: config.modbus.dataBits ?? 8,
+      stopBits: config.modbus.stopBits ?? 1,
+      parity: config.modbus.parity ?? 'none',
+      timeout: config.modbus.timeout ?? 1000,
+    },
+    {},
+    appLogger,
+  );
 
   const bus = new WaveshareModbusBusActor(
     driver,
     { maxAttempts: DEFAULT_MODBUS_MAX_RECONNECT_ATTEMPTS, delayMs: 5000 },
     configRepo.getConfiguredSlaveIds(),
     tracing,
+    appLogger,
   );
 
   await transport.connect(brokerUrl, {
@@ -118,10 +125,10 @@ export async function createApp(): Promise<AppContext> {
     responseTopic,
     undefined,
     tracing,
+    appLogger,
   );
 
   const scheduler = new RunAfterCompleteScheduler();
-  const appLogger = createWinstonLoggerPort();
   const doorEvents = new MqttDoorEventPublisher(outbound, eventTopic);
   const relayFireLog = new RelayFireLog();
   const detectionTimeoutMs = (): number =>
@@ -148,6 +155,7 @@ export async function createApp(): Promise<AppContext> {
     heartbeatTopic,
     configRepo.getHeartbeatIntervalSeconds() * 1000,
     appLogger,
+    bus,
   );
 
   const applyConfig = new ApplyConfigUseCase({

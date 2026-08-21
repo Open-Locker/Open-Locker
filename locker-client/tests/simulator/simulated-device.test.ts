@@ -135,29 +135,29 @@ test('open_compartment flips the door open and publishes a fresh snapshot', asyn
   await wired.device.shutdown();
 });
 
-test('a repeated transaction_id replays the response and does not open again', async () => {
+test('a repeated transaction_id opens once and replays the same answer', async () => {
   const { wired, published } = await createDeviceUnderTest();
   const transactionId = randomUUID();
 
   await wired.dispatch(wired.topics.command, openCommand(1, transactionId));
-  const afterFirst = published.length;
   const firstResponse = lastOn(published, wired.topics.response);
+  const responsesAfterFirst = published.filter(
+    (entry) => entry.topic === wired.topics.response,
+  ).length;
 
   await wired.dispatch(wired.topics.command, openCommand(1, transactionId));
 
-  const replayed = published.slice(afterFirst);
-  assert.equal(replayed.length, 1, 'duplicate must publish exactly one message: the replay');
-  assert.equal(
-    replayed[0]!.topic,
-    wired.topics.response,
-    'the only message a duplicate produces is a replayed response',
-  );
+  const responses = published.filter((entry) => entry.topic === wired.topics.response);
+  // Business idempotency is about not executing twice (ADR-0002); the retry is
+  // still answered, because a backend that retried usually never saw the first
+  // reply. The answer it gets is the original one, not a new outcome.
+  assert.equal(responses.length, responsesAfterFirst + 1);
 
-  // The stored outcome is re-sent verbatim so a backend that missed the first
-  // response still gets it; only the technical message id differs.
-  const { message_id: _first, ...firstBody } = firstResponse.payload;
-  const { message_id: _replay, ...replayBody } = replayed[0]!.payload;
-  assert.deepEqual(replayBody, firstBody);
+  const replayed = responses[responses.length - 1]!;
+  assert.equal(replayed.payload.result, firstResponse.payload.result);
+  assert.equal(replayed.payload.transaction_id, transactionId);
+  // Fresh envelope id, or the backend's own message_id dedup would drop it.
+  assert.notEqual(replayed.payload.message_id, firstResponse.payload.message_id);
 
   await wired.device.shutdown();
 });

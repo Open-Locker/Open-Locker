@@ -34,6 +34,13 @@ export interface MessageTransportPort {
   connect(brokerUrl: string, options: Record<string, unknown>): Promise<void>;
   disconnect(): Promise<void>;
   subscribe(topic: string): Promise<void>;
+  /**
+   * Resolves true when the payload was handed to the broker, false when it was
+   * dropped because the transport is not connected. Callers that need delivery
+   * to be observable have to read this — a dropped publish is not an error the
+   * transport can raise without turning every fire-and-forget publish into an
+   * unhandled rejection.
+   */
   publish(topic: string, payload: string, options?: OutboundPublishOptions): Promise<void>;
   onMessage(handler: (topic: string, payload: Buffer) => void): void;
   onConnected(handler: () => void | Promise<void>): void;

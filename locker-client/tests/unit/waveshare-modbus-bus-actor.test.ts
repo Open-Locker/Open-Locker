@@ -5,6 +5,24 @@ import {
   type WaveshareModbusDriver,
 } from '../../src/adapters/modbus/waveshare-modbus-bus-actor';
 import { BusPriority } from '../../src/ports/locker-bus.port';
+import type { LoggerPort } from '../../src/ports/logging.port';
+
+interface CapturedLog {
+  level: 'warn' | 'error';
+  message: string;
+  meta?: Record<string, unknown>;
+}
+
+function createRecordingLogger(): { logger: LoggerPort; entries: CapturedLog[] } {
+  const entries: CapturedLog[] = [];
+  return {
+    entries,
+    logger: {
+      warn: (message, meta) => entries.push({ level: 'warn', message, meta }),
+      error: (message, meta) => entries.push({ level: 'error', message, meta }),
+    },
+  };
+}
 
 class FakeWaveshareModbusDriver implements WaveshareModbusDriver {
   readonly operations: string[] = [];
@@ -329,3 +347,41 @@ class ReconnectableFailureDriver implements WaveshareModbusDriver {
 function delay(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
+
+test('a board timeout is logged, not only substituted with unknown', async () => {
+  const driver = new ConfigurableDiscreteInputDriver(true);
+  driver.readDiscreteInputs = async () => {
+    throw new Error('Timed out');
+  };
+  const { logger, entries } = createRecordingLogger();
+  const bus = new WaveshareModbusBusActor(driver, { maxAttempts: 0 }, [1], undefined, logger);
+  await bus.connect();
+
+  await bus.readDoorSensors(7, 4, 2);
+
+  const logged = entries.find((entry) => entry.message.includes('Modbus door sensor read failed'));
+  assert.ok(logged, 'expected the swallowed read failure to be logged');
+  assert.equal(logged.meta?.slaveId, 7);
+  assert.equal(logged.meta?.error, 'Timed out');
+});
+
+test('an unreachable bus is logged when ensureConnected gives up', async () => {
+  const driver = new FailingConnectDriver();
+  const { logger, entries } = createRecordingLogger();
+  const bus = new WaveshareModbusBusActor(
+    driver,
+    { maxAttempts: 2, delayMs: 1 },
+    [1],
+    undefined,
+    logger,
+  );
+
+  assert.equal(await bus.ensureConnected(), false);
+
+  assert.ok(
+    entries.some(
+      (entry) => entry.level === 'error' && entry.message.includes('Modbus bus unreachable'),
+    ),
+    'expected reconnect exhaustion to be logged at error level',
+  );
+});

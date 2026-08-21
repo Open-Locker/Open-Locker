@@ -121,7 +121,7 @@ export function wireSimulatedDevice(options: WireSimulatedDeviceOptions): WiredS
   // built them — the log observes the seam, it does not participate in it.
   const publish: PublishFn = async (topic, payload, publishOptions) => {
     trafficLog.outbound(topic, payload, publishOptions);
-    await options.publish(topic, payload, publishOptions);
+    return options.publish(topic, payload, publishOptions);
   };
 
   const overlayStore = new InMemoryRuntimeOverlayStore();
@@ -183,6 +183,7 @@ export function wireSimulatedDevice(options: WireSimulatedDeviceOptions): WiredS
     topics.heartbeat,
     configRepo.getHeartbeatIntervalSeconds() * 1000,
     appLogger,
+    bus,
   );
 
   const applyConfig = new ApplyConfigUseCase({

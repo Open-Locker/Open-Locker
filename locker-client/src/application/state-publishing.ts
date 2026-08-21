@@ -126,7 +126,16 @@ export class PollCompartmentStateUseCase {
       let observedStates: DoorState[];
       try {
         observedStates = await this.bus.readDoorSensors(slaveId, startAddress, length);
-      } catch {
+      } catch (error) {
+        // The bus adapter substitutes 'unknown' for its own read failures, so
+        // reaching this catch means something above the hardware layer broke.
+        // Rare enough to be worth its own line rather than a silent empty read.
+        this.log.warn('Door sensor read threw during snapshot collection', {
+          slaveId,
+          startAddress,
+          length,
+          error: error instanceof Error ? error.message : String(error),
+        });
         observedStates = [];
       }
 
@@ -262,11 +271,17 @@ export class HeartbeatUseCase {
   private timer: ReturnType<typeof setInterval> | null = null;
   private readonly startTime = Date.now();
 
+  /**
+   * @param busHealth Reports whether the Modbus bus is currently usable. A Pi
+   *   with an unreachable bus still connects to MQTT and still heartbeats, so
+   *   without this a blind device is indistinguishable from a healthy one.
+   */
   constructor(
     private readonly outbound: OutboundMqttPort,
     private readonly topic: string,
     private intervalMs: number,
     private readonly log: LoggerPort = noopLogger,
+    private readonly busHealth?: Pick<LockerBusPort, 'getConnectionState'>,
   ) {}
 
   start(): void {
@@ -294,7 +309,18 @@ export class HeartbeatUseCase {
   private async publish(): Promise<void> {
     const uptimeSeconds = Math.floor((Date.now() - this.startTime) / 1000);
     try {
-      await this.outbound.publishJson(this.topic, { uptime_seconds: uptimeSeconds }, { qos: 1 });
+      await this.outbound.publishJson(
+        this.topic,
+        {
+          uptime_seconds: uptimeSeconds,
+          // Omitted rather than guessed when no bus is wired, so a consumer can
+          // tell "no hardware reported" from "hardware reported as down".
+          ...(this.busHealth === undefined
+            ? {}
+            : { modbus_connected: this.busHealth.getConnectionState() === 'connected' }),
+        },
+        { qos: 1 },
+      );
     } catch (error) {
       this.log.warn('Heartbeat publish failed', {
         error: error instanceof Error ? error.message : String(error),

@@ -2,6 +2,8 @@ import ModbusRTU from 'modbus-serial';
 import { performance } from 'node:perf_hooks';
 import type { WaveshareModbusDriver } from './waveshare-modbus-bus-actor';
 import { flashRelayOn, turnAllRelaysOff, type WaveshareModbusClient } from './waveshare-flash';
+import { noopLogger, type LoggerPort } from '../../ports/logging.port';
+import { ModbusTransportError } from '../../domain/errors';
 
 export interface ModbusConnectionConfig {
   port: string;
@@ -42,6 +44,7 @@ export class WaveshareModbusRtuDriver implements WaveshareModbusDriver {
   constructor(
     private readonly connection: ModbusConnectionConfig,
     timing: Partial<TimingDependencies> = {},
+    private readonly log: LoggerPort = noopLogger,
   ) {
     this.interFrameDelayMs = calculateModbusRtuInterFrameDelayMs(connection);
     this.timing = {
@@ -58,7 +61,14 @@ export class WaveshareModbusRtuDriver implements WaveshareModbusDriver {
     if (this.client) {
       try {
         await this.disconnect();
-      } catch {
+      } catch (error) {
+        // Reconnecting over a stale handle is still worth attempting, but a
+        // port that will not close cleanly is usually why the next connect
+        // fails too, so the reason is recorded before it is discarded.
+        this.log.warn('Discarding Modbus client that failed to close cleanly', {
+          port: this.connection.port,
+          error: error instanceof Error ? error.message : String(error),
+        });
         this.client = null;
       }
     }
@@ -122,7 +132,8 @@ export class WaveshareModbusRtuDriver implements WaveshareModbusDriver {
 
   private getClient(): ModbusRTU {
     if (!this.client?.isOpen) {
-      throw new Error('Port Not Open');
+      // Message kept verbatim: reconnect logic elsewhere still recognises it.
+      throw new ModbusTransportError('Port Not Open', true);
     }
     return this.client;
   }
@@ -130,7 +141,8 @@ export class WaveshareModbusRtuDriver implements WaveshareModbusDriver {
   private getWaveshareClient(): WaveshareModbusClient {
     const client = this.getClient() as ModbusRTU & WaveshareModbusClient;
     if (typeof client.customFunction !== 'function') {
-      throw new Error('modbus-serial customFunction API is unavailable');
+      // A build/packaging problem, not a link problem — reconnecting cannot fix it.
+      throw new ModbusTransportError('modbus-serial customFunction API is unavailable');
     }
     return client;
   }
