@@ -24,6 +24,11 @@ services:
     # Restart policy
     restart: unless-stopped
 
+    # Shutdown draining an in-flight open, publishing outstanding responses and
+    # releasing the Modbus port takes longer than Docker's 10s default, and a
+    # SIGKILL mid-open is exactly what the shutdown sequence exists to avoid.
+    stop_grace_period: 60s
+
     # Optional: Logging configuration
     logging:
       driver: 'json-file'

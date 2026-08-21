@@ -46,6 +46,7 @@ export class CommandDispatcher {
   private readonly handlers = new Map<string, InboundCommandHandler<unknown>>();
   private flushInFlight: Promise<void> | null = null;
   private flushRequested = false;
+  private closing = false;
 
   constructor(
     private readonly guard: InboundProtocolGuard,
@@ -58,7 +59,23 @@ export class CommandDispatcher {
     this.handlers.set(handler.action, handler);
   }
 
+  /**
+   * Stop accepting commands, ahead of the transport going away.
+   *
+   * Answering is the point: a command dropped in silence leaves the backend
+   * waiting for a response that will never come, while a refusal lets it fail
+   * the request now and let the user retry against a client that is running.
+   */
+  beginClosing(): void {
+    this.closing = true;
+  }
+
   async dispatch(topic: string, rawMessage: string): Promise<void> {
+    // Read once, at arrival. Parsing is async, so checking later would refuse a
+    // command that reached us before shutdown began — the very work the drain
+    // is meant to let finish.
+    const arrivedWhileClosing = this.closing;
+
     const resolved = await this.parseAndResolveHandler(topic, rawMessage);
     if (!resolved) {
       return;
@@ -73,13 +90,42 @@ export class CommandDispatcher {
         // rejecting the command.
         parentTraceparent: readTraceparent(resolved.payload),
       },
-      () => this.dispatchResolved(topic, resolved),
+      () => this.dispatchResolved(topic, resolved, arrivedWhileClosing),
     );
   }
 
-  private async dispatchResolved(topic: string, resolved: ResolvedCommand): Promise<void> {
+  private async dispatchResolved(
+    topic: string,
+    resolved: ResolvedCommand,
+    arrivedWhileClosing: boolean,
+  ): Promise<void> {
+    // Validation first, even while closing: it is what routes a redelivery to
+    // its stored response. Refusing ahead of that would answer a command whose
+    // relay already fired with an error, contradicting a reply the backend may
+    // have acted on — a worse failure than the silence this gate replaced.
     const command = await this.validateCommand(topic, resolved);
-    if (!command || (await this.handleDuplicateCommand(command))) {
+    if (!command || (await this.handleDuplicateCommand(command, !arrivedWhileClosing))) {
+      return;
+    }
+
+    // Refuse here: past the duplicate lookup, so a redelivery still replays its
+    // stored answer, but before the command is claimed as running. Marking a
+    // refused command in progress would leave a record for a relay that never
+    // fired, and restart recovery would then publish a second, contradictory
+    // answer for it.
+    if (arrivedWhileClosing) {
+      logger.warn('Refused inbound MQTT command: shutting down', {
+        topic,
+        action: resolved.action,
+      });
+
+      await this.rejectCommand(
+        resolved.action,
+        resolved.payload,
+        MqttErrorCode.SHUTTING_DOWN,
+        'locker-client is shutting down and did not run this command.',
+      );
+
       return;
     }
 
@@ -250,10 +296,13 @@ export class CommandDispatcher {
     await this.publishFinalResponse(transactionId, response);
   }
 
-  private async handleDuplicateCommand(command: ValidatedCommand): Promise<boolean> {
+  private async handleDuplicateCommand(
+    command: ValidatedCommand,
+    claim: boolean,
+  ): Promise<boolean> {
     const { action, handler, transactionId } = command;
     if (handler.requiresTransactionId()) {
-      const dedupResult = await this.guardTransactionExecution(action, transactionId);
+      const dedupResult = await this.guardTransactionExecution(action, transactionId, claim);
       if (dedupResult === 'duplicate_completed') {
         const existing = this.dedup.getCommandRecord(transactionId);
         if (existing?.response) {
@@ -423,9 +472,20 @@ export class CommandDispatcher {
     await this.replayFinalResponse(transactionId, record.action, record.response);
   }
 
+  /**
+   * Looks the transaction up and, when the caller intends to run it, claims it
+   * in the same synchronous block.
+   *
+   * The lookup and the claim must not be separated by an await. Two deliveries
+   * of one transaction id would otherwise both read "ready" and both execute —
+   * the same door opening twice on a single request. `claim` is false only when
+   * the caller is going to refuse the command, so nothing is recorded for a
+   * relay that never fires.
+   */
   private async guardTransactionExecution(
     action: string,
     transactionId: string,
+    claim: boolean,
   ): Promise<'ready' | 'duplicate_completed' | 'duplicate_in_progress'> {
     const existing = this.dedup.getCommandRecord(transactionId);
     if (existing?.status === 'completed') {
@@ -435,7 +495,10 @@ export class CommandDispatcher {
       return 'duplicate_in_progress';
     }
 
-    this.dedup.markCommandInProgress(transactionId, action);
+    if (claim) {
+      this.dedup.markCommandInProgress(transactionId, action);
+    }
+
     return 'ready';
   }
 }

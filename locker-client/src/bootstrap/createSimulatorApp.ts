@@ -134,6 +134,7 @@ export function wireSimulatedDevice(options: WireSimulatedDeviceOptions): WiredS
     event: `locker/${lockerUuid}/event`,
     heartbeat: `locker/${lockerUuid}/state/heartbeat`,
     snapshot: `locker/${lockerUuid}/state/compartments`,
+    connection: `locker/${lockerUuid}/state/connection`,
   };
 
   const bus = new InMemoryLockerBus({
@@ -196,6 +197,8 @@ export function wireSimulatedDevice(options: WireSimulatedDeviceOptions): WiredS
     },
   });
 
+  const inFlight = new Set<Promise<void>>();
+
   const dispatcher = new CommandDispatcher(
     new InboundProtocolGuard(dedupStore),
     outbound,
@@ -254,11 +257,23 @@ export function wireSimulatedDevice(options: WireSimulatedDeviceOptions): WiredS
       return target ? bus.isJammed(target.slaveId, target.address) : false;
     },
     async shutdown() {
+      // Same ordering as createApp: refuse, drain, then tear down. The
+      // simulator is only a faithful stand-in if it stops the way the real
+      // client stops.
+      dispatcher.beginClosing();
+      await Promise.allSettled(inFlight);
+
       if (pollTimer) {
         clearInterval(pollTimer);
       }
       openCompartment.stopAllMonitoring();
       heartbeat.stop();
+
+      // The Last Will only fires on an ungraceful drop, so a clean stop has to
+      // say so itself — otherwise the backend keeps the bank online until the
+      // heartbeat ages out. Same reason as in createApp.
+      await outbound.publishJson(topics.connection, { status: 'offline', reason: 'shutdown' });
+
       await bus.disconnect();
       await options.onShutdown?.();
     },
@@ -291,7 +306,15 @@ export function wireSimulatedDevice(options: WireSimulatedDeviceOptions): WiredS
     dispatch: (topic: string, rawMessage: string) => {
       trafficLog.inbound(topic, rawMessage);
 
-      return dispatcher.dispatch(topic, rawMessage);
+      const dispatched = dispatcher.dispatch(topic, rawMessage);
+      inFlight.add(dispatched);
+      // `.catch` rather than `.finally`: a rejection here — a refusal whose own
+      // publish failed, say — would otherwise surface as an unhandled rejection
+      // on this second chain and take the process down mid-shutdown. The caller
+      // still sees the original promise, rejection and all.
+      void dispatched.catch(() => undefined).finally(() => inFlight.delete(dispatched));
+
+      return dispatched;
     },
     topics,
   };
@@ -434,7 +457,14 @@ async function startSimulatedDevice(
 
   transport.onMessage((topic, payload) => {
     if (topic === wired.topics.command) {
-      void wired.dispatch(topic, payload.toString());
+      // Matches the boundary in createApp: a dispatch failure is logged, not
+      // left to reach the process-level handler and take the simulator down.
+      void wired.dispatch(topic, payload.toString()).catch((error: unknown) => {
+        logger.error('Unexpected MQTT command dispatch failure', {
+          bank: bank.name,
+          error: error instanceof Error ? error.message : 'Unknown dispatch error',
+        });
+      });
     }
   });
 
