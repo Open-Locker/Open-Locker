@@ -109,7 +109,7 @@ export async function createApp(): Promise<AppContext> {
   const bus = new WaveshareModbusBusActor(
     driver,
     { maxAttempts: DEFAULT_MODBUS_MAX_RECONNECT_ATTEMPTS, delayMs: 5000 },
-    configRepo.getConfiguredSlaveIds(),
+    () => configRepo.getConfiguredSlaveIds(),
     tracing,
     appLogger,
   );
