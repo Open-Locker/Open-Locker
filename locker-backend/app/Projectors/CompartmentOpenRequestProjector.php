@@ -74,7 +74,7 @@ class CompartmentOpenRequestProjector extends Projector
 
     /**
      * The unlock pulse was sent. Not a terminal state: door-open detection
-     * follows and may still report a jam (ADR-0031).
+     * follows and may still report a jam.
      *
      * Acknowledgement and the detection outcome are derived by two independent
      * queued reactors, so a fast detection can be projected before the
@@ -143,7 +143,7 @@ class CompartmentOpenRequestProjector extends Projector
     }
 
     /**
-     * Replay support only. Emitted before ADR-0031, when a successful command
+     * Replay support only. Emitted back when a successful command
      * response was recorded as the door having opened; new runs record
      * CompartmentOpenAcknowledged instead.
      */

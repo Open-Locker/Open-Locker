@@ -1,4 +1,6 @@
-# ADR-0026: Admin audit log backed directly by the event store
+# ADR-0030: Admin audit log backed directly by the event store
+
+> **Renumbered from ADR-0026** — ADR numbers were deduplicated and put in date order from 0018 up; see #214.
 
 ## Status
 
@@ -118,7 +120,7 @@ event classes in a way per-type tabs do not.
   reads degrade. Loading states are handled natively by Filament/Livewire — no
   custom loader is needed.
 - **Sensitive data exposure:** the log surfaces actor + action history.
-  Mitigation: gate access behind an admin role/permission (RBAC, ADR-0021);
+  Mitigation: gate access behind an admin role/permission (RBAC, ADR-0022);
   whitelist controls what event detail is rendered.
 - **Whitelist drift:** new events silently absent from the log. Mitigation:
   document the whitelist in one place and review it when adding events.
@@ -139,4 +141,4 @@ becomes a problem, supersede this ADR with a dedicated audit projection.
 
 - Related PRs:
 - Related issues: #109
-- Related docs: ADR-0021 (role-based access control)
+- Related docs: ADR-0022 (role-based access control)

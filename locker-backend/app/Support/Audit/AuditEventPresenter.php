@@ -12,7 +12,7 @@ use Spatie\EventSourcing\StoredEvents\Models\EloquentStoredEvent;
 
 /**
  * Turns raw {@see EloquentStoredEvent} rows into the curated, human-readable
- * shape used by the admin audit log (issue #109, ADR-0026).
+ * shape used by the admin audit log (#109).
  *
  * Only the event classes listed in {@see self::CATEGORIES} are considered
  * "auditable" — high-volume telemetry events (heartbeats, door-state changes,
@@ -21,8 +21,6 @@ use Spatie\EventSourcing\StoredEvents\Models\EloquentStoredEvent;
  *
  * Lookups are memoised per request so rendering a page of rows does not issue a
  * query per row for the same actor/compartment/group.
- *
- * @see docs/adr/0026-admin-audit-log.md
  */
 class AuditEventPresenter
 {

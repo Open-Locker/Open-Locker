@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\Model;
 
 /**
  * Read model (built by UserRoleProjector). Do not write directly — record a
- * UserRoleGranted/Revoked event via UserRoleAggregate instead. See ADR-0021.
+ * UserRoleGranted/Revoked event via UserRoleAggregate instead.
  */
 class UserRole extends Model
 {

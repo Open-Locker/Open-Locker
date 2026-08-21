@@ -52,7 +52,7 @@ class CompartmentOpenStatusBroadcastReactor extends Reactor implements ShouldQue
     /**
      * The unlock pulse was sent. Broadcast so the caller gets immediate feedback,
      * but this is not yet "the door opened" — that follows from detection
-     * (ADR-0031).
+     *.
      */
     public function onCompartmentOpenAcknowledged(CompartmentOpenAcknowledged $event): void
     {
@@ -93,7 +93,7 @@ class CompartmentOpenStatusBroadcastReactor extends Reactor implements ShouldQue
     }
 
     /**
-     * Replay support only: emitted before ADR-0031, when a successful command
+     * Replay support only: emitted back when a successful command
      * response was recorded as the door having opened.
      */
     public function onCompartmentOpened(CompartmentOpened $event): void

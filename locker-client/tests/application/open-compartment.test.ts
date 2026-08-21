@@ -103,7 +103,7 @@ test('OpenCompartmentUseCase throws when compartment is not configured', async (
   await assert.rejects(() => useCase.execute(99, 'txn-1'), /not configured/);
 });
 
-// --- door-open detection (ADR-0031) ---
+// --- door-open detection ---
 
 test('reports opened with the detection delay once the door moves', async () => {
   let nowMs = 0;

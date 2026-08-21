@@ -14,7 +14,7 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Log;
 
 /**
- * Validates MQTT compartment snapshots; persists facts via stored events and projections (see ADR-0016).
+ * Validates MQTT compartment snapshots; persists facts via stored events and projections.
  */
 class CompartmentSnapshotHandler extends AbstractInboundMqttHandler
 {

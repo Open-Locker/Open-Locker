@@ -163,7 +163,7 @@ class GroupAdminUiTest extends TestCase
 
     public function test_edit_group_page_has_archive_action_but_no_hard_delete(): void
     {
-        // Groups are archived, not hard-deleted. See ADR-0020 / #106.
+        // Groups are archived, not hard-deleted (#106).
         $page = app(EditGroup::class);
         $method = (new ReflectionClass($page))->getMethod('getHeaderActions');
         $method->setAccessible(true);

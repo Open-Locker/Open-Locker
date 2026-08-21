@@ -103,7 +103,7 @@ class CompartmentResource extends Resource
     /**
      * A jammed or already-open compartment reports `door_state: closed` exactly
      * like a healthy one, so the last open attempt is the only signal that the
-     * lock needs attention (ADR-0031).
+     * lock needs attention.
      */
     public static function table(Table $table): Table
     {

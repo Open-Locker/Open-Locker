@@ -1,4 +1,6 @@
-# ADR-0031: Separate command acknowledgement from door-open detection
+# ADR-0040: Separate command acknowledgement from door-open detection
+
+> **Renumbered from ADR-0031** — ADR numbers were deduplicated and put in date order from 0018 up; see #214.
 
 ## Status
 
@@ -32,7 +34,7 @@ The hardware already exposes both signals and the client already reads both:
 - `LockerBusPort.readDoorSensors()` — Modbus FC02 discrete inputs mapped to
   `open` / `closed` / `unknown` (input).
 
-The door signal is polled every 500 ms (ADR-0030) and published as the retained
+The door signal is polled every 500 ms (ADR-0038) and published as the retained
 `state/compartments` snapshot (ADR-0016), where the backend turns per-compartment
 deltas into `CompartmentDoorStateChanged`. That stream exists and works; it is
 simply never connected back to the open request that caused it.
@@ -54,15 +56,15 @@ records only one of them.
 
 ### Constraints
 
-- Backend domain behaviour must stay event sourced (ADR-0028). New statuses,
+- Backend domain behaviour must stay event sourced (ADR-0033). New statuses,
   correlation results, and alerts are stored events projected into read models,
   not direct model writes.
 - `state/compartments` remains the source of truth for **current** door state
   (ADR-0016). This decision does not change that.
-- Snapshots are **change-only** (ADR-0030). A door that is already open and
+- Snapshots are **change-only** (ADR-0038). A door that is already open and
   stays open publishes nothing.
 - Any change to the external message contract requires an AsyncAPI/JSON Schema
-  update and contract tests (ADR-0015, ADR-0018).
+  update and contract tests (ADR-0015, ADR-0019).
 
 ## Decision
 
@@ -174,7 +176,7 @@ cannot be expressed as a door state.
 
 Toasts are broadcast rather than stored. A stored Filament notification would need
 a `notifications` table and the panel's database-notification feature, sitting
-between two mechanisms that already do the job: the audit log (ADR-0026) is the
+between two mechanisms that already do the job: the audit log (ADR-0030) is the
 durable in-panel record, and email is what reaches someone who is not looking.
 
 Recipients are users holding the `compartment.open` permission, whose definition
@@ -196,7 +198,7 @@ client reads current state directly and does not have this blind spot.
 This also costs almost nothing structurally. `readDoorSensors` is already on
 `LockerBusPort`, so detection is an application-layer change — no new port, no
 new adapter, no hardware code touched. Both adapters already implement the port,
-so the simulator (ADR-0027) can reproduce a jammed door with no hardware.
+so the simulator (ADR-0031) can reproduce a jammed door with no hardware.
 
 **Why immediate reporting.** Holding the response until detection completes would
 delay all feedback to the timeout — for a jam, the mobile app would hear nothing
@@ -301,7 +303,7 @@ is a known trade-off (see Risks).
    the outcome this decision exists to detect. A jammed compartment fires the
    relay normally and leaves the door `closed`. Seedable from the scenario YAML
    and togglable from the interactive console. This is a feature within the
-   simulator shape decided in ADR-0027, not a change to it.
+   simulator shape decided in ADR-0031, not a change to it.
 3. Contract: add the detection event payload schemas, update
    `docs/asyncapi/mqtt.yaml`, extend contract tests.
 4. Backend: new stored events for detection outcomes and uncommanded opens;
@@ -341,10 +343,10 @@ acknowledgement as the terminal state, without a client rollback.
   - ADR-0002 (message-id and transaction-id separation)
   - ADR-0015 (MQTT contract via AsyncAPI and JSON Schemas)
   - ADR-0016 (retained compartment snapshot and door-state persistence)
-  - ADR-0018 (contract validation through component test suites)
-  - ADR-0021 (role-based access control)
-  - ADR-0024 (locker-client v2 hexagonal rewrite)
-  - ADR-0026 (admin audit log)
-  - ADR-0027 (contract-aligned locker fleet simulator)
-  - ADR-0028 (synchronous projectors, queued reactors)
-  - ADR-0030 (batched door polling and change-only snapshots)
+  - ADR-0019 (contract validation through component test suites)
+  - ADR-0022 (role-based access control)
+  - ADR-0027 (locker-client v2 hexagonal rewrite)
+  - ADR-0030 (admin audit log)
+  - ADR-0031 (contract-aligned locker fleet simulator)
+  - ADR-0033 (synchronous projectors, queued reactors)
+  - ADR-0038 (batched door polling and change-only snapshots)

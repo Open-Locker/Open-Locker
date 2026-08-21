@@ -1,4 +1,6 @@
-# ADR-0031: URL-path-based localization for the website
+# ADR-0037: URL-path-based localization for the website
+
+> **Renumbered from ADR-0031** — ADR numbers were deduplicated and put in date order from 0018 up; see #214.
 
 ## Status
 
@@ -10,7 +12,7 @@ Accepted
 
 ## Context
 
-The landing page at open-locker.org (`website/`, see ADR-0030) is German-only.
+The landing page at open-locker.org (`website/`, see ADR-0038) is German-only.
 Issue #90 asks for an English version. The site is a static Astro build on
 GitHub Pages, so there is no server-side logic available for language
 negotiation. The language mechanism determines the site's public URL
@@ -110,11 +112,11 @@ No migration needed for existing URLs; nothing changes for German visitors.
 ## Supersedes / Superseded By
 
 - Supersedes: —
-- Superseded by: ADR-0032 (partially — the "German stays at root" decision
+- Superseded by: ADR-0042 (partially — the "German stays at root" decision
   only; the URL-path-prefix mechanism, translation storage, and legal-page
   approach remain in effect)
 
 ## References
 
 - Related issues: #90, #92
-- Related docs: ADR-0030, `website/README.md`
+- Related docs: ADR-0038, `website/README.md`

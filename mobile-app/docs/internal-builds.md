@@ -1,7 +1,7 @@
 # Mobile App — Internal Test Builds & CI (Maintainer Guide)
 
 > **Scope:** repeatable INTERNAL testing pipeline. Public App Store / Play Store
-> release is explicitly OUT OF SCOPE (issue #19). Decision record: ADR-0028.
+> release is explicitly OUT OF SCOPE (issue #19). Decision record: ADR-0033.
 
 ## Overview
 
@@ -103,7 +103,7 @@ The Android job uploads an installable `.apk` as a GitHub Actions artifact.
 
 The APK is built for `armeabi-v7a` and `arm64-v8a` only — the emulator-only `x86`
 and `x86_64` ABIs cost about a third of the build time and never reach a real
-test device (see [ADR-0035](../../docs/adr/0035-android-internal-build-abi-and-cache-strategy.md)).
+test device (see [ADR-0047](../../docs/adr/0047-android-internal-build-abi-and-cache-strategy.md)).
 On Apple Silicon the default emulator image is arm64 and installs fine. On an
 x86 emulator, build locally with `pnpm android` instead.
 

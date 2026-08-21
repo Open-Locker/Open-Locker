@@ -11,14 +11,14 @@ use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 
 /**
- * A compartment did not behave as an open command expected (ADR-0031).
+ * A compartment did not behave as an open command expected.
  *
  * One notification for every deviation — jammed, already open, or opened with no
  * command behind it — so operators learn about all of them the same way rather
  * than having to know which kinds are surfaced where.
  *
  * Mail only. The live in-panel toast is broadcast separately, and the persistent
- * in-panel record is the audit log (ADR-0026).
+ * in-panel record is the audit log.
  */
 class CompartmentOpenDeviationNotification extends Notification implements ShouldQueue
 {

@@ -176,7 +176,7 @@ class GroupAccessTest extends TestCase
         $this->assertDatabaseCount('group_compartment_accesses', 1);
     }
 
-    // Archiving (event-sourced, not delete): see ADR-0020 / #106.
+    // Archiving (event-sourced, not delete): #106.
 
     public function test_archive_group_sets_archived_at_and_keeps_membership_and_grant_rows(): void
     {

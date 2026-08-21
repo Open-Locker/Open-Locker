@@ -1,4 +1,6 @@
-# ADR-0027: Contract-aligned locker fleet simulator
+# ADR-0031: Contract-aligned locker fleet simulator
+
+> **Renumbered from ADR-0027** — ADR numbers were deduplicated and put in date order from 0018 up; see #214.
 
 ## Status
 
@@ -44,7 +46,7 @@ source of truth per ADR-0015. The real device already speaks this contract insid
 
 Two properties of the current system shape the decision:
 
-- **`locker-client` v2 is hexagonal** (ADR-0024). Hardware is already isolated
+- **`locker-client` v2 is hexagonal** (ADR-0027). Hardware is already isolated
   behind `LockerBusPort`, which is precisely the seam a fake device needs. A
   simulator therefore requires no new abstraction to keep its concerns out of the
   production path — only a second implementation of an existing port.
@@ -173,7 +175,7 @@ provisioning token), their compartments, and each compartment's initial
 `door_state`. YAML keeps multi-bank scenarios repeatable and reviewable. **CLI
 flags override runtime basics** (`--scenario`, `--broker`).
 
-Production is runtime-only for the compartment mapping (ADR-0025): it arrives by
+Production is runtime-only for the compartment mapping (ADR-0028): it arrives by
 `apply_config` and lands in the overlay. The scenario **seeds** that mapping so a
 simulated device is useful the moment it boots, while an `apply_config` command
 still overrides it at runtime exactly as on real hardware, because the overlay is
@@ -193,7 +195,7 @@ production logging behaviour is unchanged.
 
 ### 7. Test coverage
 
-Per ADR-0018's component contract suites, tests assert that:
+Per ADR-0019's component contract suites, tests assert that:
 
 - generated response, heartbeat and snapshot payloads validate against the
   `docs/asyncapi/schemas` JSON Schemas;
@@ -310,9 +312,9 @@ both means two implementations to drift, which is the problem #82 names.
   - `docs/adr/0016-retained-compartment-snapshot-and-door-state-persistence.md`
   - `docs/adr/0017-split-mqtt-state-topics-by-lifecycle.md`
   - `docs/adr/0018-validate-mqtt-contracts-through-component-test-suites.md`
-  - `docs/adr/0022-mobile-realtime-compartment-status-via-reverb.md`
+  - `docs/adr/0023-mobile-realtime-compartment-status-via-reverb.md`
   - `docs/adr/0024-locker-client-v2-hexagonal-rewrite.md`
-  - `docs/adr/0025-locker-client-v2-runtime-only-compartment-mapping.md`
+  - `docs/adr/0026-locker-client-v2-runtime-only-compartment-mapping.md`
 - Related contract / docs:
   - `docs/asyncapi/mqtt.yaml`
   - `docs/asyncapi/schemas`

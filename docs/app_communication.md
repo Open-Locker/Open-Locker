@@ -66,7 +66,7 @@ All compartment-related push notifications use this channel:
 terminal notifications. They can be `null` when the compartment read model is
 unavailable. For denied requests, `message` contains a stable reason code such
 as `unverified_email` or `missing_active_access`; clients must localize known
-codes and use a generic denial message for unknown values. See ADR-0033.
+codes and use a generic denial message for unknown values. See ADR-0046.
 
 **Door state** (`.compartment.door_state.updated`):
 
@@ -104,11 +104,11 @@ Intermediate states:
 - `sent`
 - `acknowledged` (the unlock pulse was sent; the door has not been checked yet)
 
-> **`opened` changed meaning in ADR-0031.** It previously meant the unlock pulse
+> **`opened` changed meaning in ADR-0040.** It previously meant the unlock pulse
 > had been sent, which is now `acknowledged`. A client that treats `acknowledged`
 > as success will report doors as open that never moved. Expect `acknowledged`
 > first and a physical outcome after it, up to the locker bank's
-> `heartbeat_interval_seconds`. Rows written before ADR-0031 carry the old
+> `heartbeat_interval_seconds`. Rows written before ADR-0040 carry the old
 > meaning and are not reinterpreted.
 
 ## 5) Frontend Requirements

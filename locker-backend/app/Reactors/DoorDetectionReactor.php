@@ -18,7 +18,7 @@ use Spatie\EventSourcing\EventHandlers\Reactors\Reactor;
 use Spatie\EventSourcing\StoredEvents\Models\EloquentStoredEvent;
 
 /**
- * Derives door-open domain events from the generic device event stream (ADR-0031).
+ * Derives door-open domain events from the generic device event stream.
  *
  * The client reports the physical door separately from the command response, so
  * this is where "the door actually opened" enters the domain. Idempotent: a

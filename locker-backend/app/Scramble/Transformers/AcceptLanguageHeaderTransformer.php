@@ -11,7 +11,7 @@ use Dedoc\Scramble\Support\Generator\Types\StringType;
 
 /**
  * Documents the request-scoped `Accept-Language` header on every operation so
- * the OpenAPI spec reflects the locale negotiation introduced in ADR-0024.
+ * the OpenAPI spec reflects the locale negotiation the API performs.
  */
 class AcceptLanguageHeaderTransformer
 {

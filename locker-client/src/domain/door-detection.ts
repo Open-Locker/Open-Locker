@@ -1,5 +1,5 @@
 /**
- * Door-open detection vocabulary and relay-fire correlation (ADR-0031).
+ * Door-open detection vocabulary and relay-fire correlation.
  *
  * Firing the relay and the door actually opening are two different facts. The
  * command response reports the first; the outcomes below report the second.

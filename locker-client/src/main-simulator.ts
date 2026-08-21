@@ -13,7 +13,7 @@ import { CONFIG_DIR } from './infrastructure/paths';
 import { logger } from './infrastructure/logging';
 
 /**
- * Fleet simulator entrypoint (ADR-0027).
+ * Fleet simulator entrypoint.
  *
  * Separate from `main.ts`: production has no branch that can reach this file,
  * and this file imports nothing that changes production behaviour.
@@ -115,7 +115,7 @@ function printUsage(): void {
 /**
  * The simulator publishes fake state under a real locker UUID. Doing that
  * against production would corrupt live read models, so refuse by default
- * (ADR-0027, Decision 1).
+ *.
  */
 function assertNotProduction(allowProduction: boolean): void {
   const environment = (process.env.APP_ENV ?? process.env.NODE_ENV ?? '').trim().toLowerCase();

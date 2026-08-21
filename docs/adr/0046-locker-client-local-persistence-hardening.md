@@ -1,4 +1,6 @@
-# ADR-0033: Harden locker-client local persistence
+# ADR-0046: Harden locker-client local persistence
+
+> **Renumbered from ADR-0033** — ADR numbers were deduplicated and put in date order from 0018 up; see #214.
 
 ## Status
 
@@ -22,7 +24,7 @@ The locker client keeps four persistent files in `DATA_DIR`:
 These files previously used independent direct writes. A crash or storage error
 could therefore expose a partial JSON document. File modes were not consistently
 restricted, malformed credentials could be mistaken for an unprovisioned device,
-and deduplication data had no retention policy. ADR-0032 deliberately deferred
+and deduplication data had no retention policy. ADR-0042 deliberately deferred
 atomic persistence and bounded retention to issue #168.
 
 The runtime overlay determines which physical relay a command can address.
@@ -85,10 +87,10 @@ hold stale in-memory state and overwrite the other's newer state.
     retained for 30 days after delivery. A completed response without a delivery
     timestamp is never pruned. Marked legacy completed records without a response
     are never pruned because delivery is unknown. `in_progress` records and
-    recovered unknown-outcome records are never pruned until ADR-0032 has
+    recovered unknown-outcome records are never pruned until ADR-0042 has
     finalized and delivered their response. Migration and pruning never invoke a
     command handler.
-12. The MQTT topics, payload schemas, and ADR-0032 recovery behavior do not
+12. The MQTT topics, payload schemas, and ADR-0042 recovery behavior do not
     change. This decision does not implement general age-based command rejection.
 13. The production Docker entrypoint permits one writer per
     `${DATA_DIR:-/data}` by acquiring an exclusive, nonblocking util-linux
@@ -149,7 +151,7 @@ hold stale in-memory state and overwrite the other's newer state.
 - Corruption stops command processing instead of silently weakening deduplication
   or changing physical mapping.
 - Dedup growth is bounded where a safe deletion boundary exists.
-- Existing ADR-0032 state migrates without repeating hardware operations.
+- Existing ADR-0042 state migrates without repeating hardware operations.
 - The production deployment prevents concurrent processes from overwriting each
   other's local state.
 
@@ -201,7 +203,7 @@ hold stale in-memory state and overwrite the other's newer state.
 - GitHub issue #171
 - `docs/adr/0009-locker-client-runtime-config-overlay.md`
 - `docs/adr/0014-locker-client-mqtt-session-and-reconnect.md`
-- `docs/adr/0032-locker-client-command-response-recovery.md`
+- `docs/adr/0041-locker-client-command-response-recovery.md`
 - `locker-client/Dockerfile`
 - `locker-client/docker-entrypoint.sh`
 - `locker-client/src/infrastructure/file-persistence.ts`

@@ -1,4 +1,6 @@
-  # ADR-0034: Bootstrap the first admin from configuration, not from registration order
+  # ADR-0044: Bootstrap the first admin from configuration, not from registration order
+
+> **Renumbered from ADR-0034** — ADR numbers were deduplicated and put in date order from 0018 up; see #214.
 
 ## Status
 
@@ -184,7 +186,7 @@ the bootstrap simply stops being reachable.
 ## Supersedes / Superseded By
 
 - Supersedes: none. The behaviour being replaced predates the ADR process.
-- Related: ADR-0021 (role-based access control) defines the role this grants.
+- Related: ADR-0022 (role-based access control) defines the role this grants.
 
 ## References
 

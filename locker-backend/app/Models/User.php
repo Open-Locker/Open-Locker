@@ -114,7 +114,7 @@ class User extends Authenticatable implements FilamentUser, HasName, MustVerifyE
     }
 
     /**
-     * Active group memberships: not revoked and not expired (ADR-0020).
+     * Active group memberships: not revoked and not expired.
      *
      * @return BelongsToMany<Group, $this>
      */

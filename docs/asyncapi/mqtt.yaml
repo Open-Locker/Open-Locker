@@ -37,7 +37,7 @@ channels:
     address: locker/{locker_uuid}/event
     description: >-
       Non-retained spontaneous device events. Door-open detection outcomes are
-      published here (ADR-0031): `compartment_open_detected`,
+      published here (ADR-0040): `compartment_open_detected`,
       `compartment_open_failed`, and `compartment_uncommanded_open`. These report
       the *physical* door, separately from the command response, which only
       acknowledges that the unlock pulse was sent. Current door state remains the

@@ -1,4 +1,6 @@
-# ADR-0025: locker-client-v2 runtime-only compartment mapping
+# ADR-0026: locker-client-v2 runtime-only compartment mapping
+
+> **Renumbered from ADR-0025** — ADR numbers were deduplicated and put in date order from 0018 up; see #214.
 
 ## Status
 
@@ -88,7 +90,7 @@ Mitigations:
 ## Supersedes / Superseded By
 
 - Supersedes: legacy-fallback portion of [ADR-0010](0010-direct-slaveid-modbus-addressing.md) for **locker-client-v2 only** (v1 unchanged)
-- Related: [ADR-0009](0009-locker-client-runtime-config-overlay.md), [ADR-0024](0024-locker-client-v2-hexagonal-rewrite.md)
+- Related: [ADR-0009](0009-locker-client-runtime-config-overlay.md), [ADR-0027](0024-locker-client-v2-hexagonal-rewrite.md)
 
 ## References
 

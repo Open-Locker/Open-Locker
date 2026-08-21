@@ -3,7 +3,7 @@
 Emulates one or many locker banks without hardware. The backend cannot tell a
 simulated bank from a real one.
 
-Design rationale: [ADR-0027](adr/0027-contract-aligned-locker-fleet-simulator.md).
+Design rationale: [ADR-0031](adr/0031-contract-aligned-locker-fleet-simulator.md).
 
 Needs the backend stack running and at least one locker bank in your **local**
 database. Never point it at production — it publishes under a real bank's
@@ -161,7 +161,7 @@ Traffic is echoed to the console (`←` inbound, `→` outbound):
 
 A successful unlock pulse does not mean the door opened. The client watches the
 door sensor after firing and reports the outcome separately, on the event channel
-(ADR-0031). Jam mode is how you exercise the failure path without hardware.
+(ADR-0040). Jam mode is how you exercise the failure path without hardware.
 
 ```
 jam main 1
@@ -268,5 +268,5 @@ startup.
 
 The simulator replaces everything **above** the hardware port, so it cannot
 exercise anything below it: Modbus framing, RTU inter-frame timing
-([ADR-0029](adr/0029-enforce-modbus-rtu-inter-frame-delay.md)), relay wiring, or
+([ADR-0035](adr/0035-enforce-modbus-rtu-inter-frame-delay.md)), relay wiring, or
 reconnect behaviour against a real board. Those still need hardware.

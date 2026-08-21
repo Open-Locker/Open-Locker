@@ -102,9 +102,9 @@ class CommandResponseReactor extends Reactor implements ShouldQueue
 
             if ($result === 'success') {
                 // The pulse was sent. Whether the door opened arrives separately
-                // on the event channel and is derived by DoorDetectionReactor
-                // (ADR-0031). This used to record CompartmentOpened, conflating
-                // command execution with the physical door.
+                // on the event channel and is derived by DoorDetectionReactor.
+                // This used to record CompartmentOpened, conflating command
+                // execution with the physical door.
                 if ($this->derivedEventExists(CompartmentOpenAcknowledged::class, $event->transactionId)) {
                     return;
                 }

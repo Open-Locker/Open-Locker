@@ -1,4 +1,6 @@
-# ADR-0023: Compartment content note (event-sourced) replaces the structured Item domain
+# ADR-0025: Compartment content note (event-sourced) replaces the structured Item domain
+
+> **Renumbered from ADR-0023** — ADR numbers were deduplicated and put in date order from 0018 up; see #214.
 
 ## Status
 
@@ -35,10 +37,10 @@ Relevant existing structure:
 - `CompartmentProjector` already builds the `compartments` read model from compartment
   events (`Compartment::find($event->compartmentUuid)` → update columns).
 - Access is resolved by `CompartmentAccessService::hasActiveAccess(User, Compartment)`,
-  which already folds in **direct and group** access (ADR-0020).
+  which already folds in **direct and group** access (ADR-0021).
 - The mobile list is `GET /api/compartments/accessible` →
   `CompartmentController::accessible()` → `AccessibleCompartmentsResource`. The mobile app
-  consumes a TypeScript RTK Query client generated from the live OpenAPI spec (ADR-0018),
+  consumes a TypeScript RTK Query client generated from the live OpenAPI spec (ADR-0019),
   so any change to this response shape requires a client regeneration.
 
 Two existing compartment aggregates are about **other** lifecycles —
@@ -137,7 +139,7 @@ structured item duplicated meaning and confused the UI — removing it leaves a 
 clear descriptor and a leaner contract/admin/DB. The note is one small piece of text we
 **always** want alongside the compartment when we show it, so denormalizing onto
 `compartments` keeps the hot `accessible` read a single lookup with no join — consistent
-with the read-model approach in ADR-0020. Event sourcing already gives us a permanent,
+with the read-model approach in ADR-0021. Event sourcing already gives us a permanent,
 ordered audit trail for free, so a dedicated history table would be redundant for v1. A
 dedicated per-compartment aggregate keeps the new event stream semantically clean and
 matches the existing aggregate/projector idiom. Because storage sits behind a JSON
@@ -243,7 +245,7 @@ No data migration is needed for the note; existing compartments start with
 ## References
 
 - Related issues: #49
-- Related ADRs: ADR-0020 (group-based access, `hasActiveAccess`), ADR-0018 (codegen from live
+- Related ADRs: ADR-0021 (group-based access, `hasActiveAccess`), ADR-0019 (codegen from live
   OpenAPI URL)
 - Related code: `app/Models/Compartment.php`, `app/Projectors/CompartmentProjector.php`,
   `app/Services/CompartmentAccessService.php`, `app/Http/Controllers/CompartmentController.php`,

@@ -1,4 +1,6 @@
-# ADR-0030: Move website into monorepo and host on GitHub Pages
+# ADR-0036: Move website into monorepo and host on GitHub Pages
+
+> **Renumbered from ADR-0030** — ADR numbers were deduplicated and put in date order from 0018 up; see #214.
 
 ## Status
 

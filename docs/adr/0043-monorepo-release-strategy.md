@@ -1,4 +1,6 @@
-# ADR-0033: Per-component release strategy for the monorepo
+# ADR-0043: Per-component release strategy for the monorepo
+
+> **Renumbered from ADR-0033** — ADR numbers were deduplicated and put in date order from 0018 up; see #214.
 
 ## Status
 
@@ -276,13 +278,13 @@ Fallback: the tag triggers are additive. If the scheme proves wrong, the existin
 ## Supersedes / Superseded By
 
 - Supersedes: none.
-- Related: ADR-0028 (mobile internal test builds) explicitly deferred public release
-  strategy to this decision. ADR-0030 covers website deployment, which stays outside
+- Related: ADR-0033 (mobile internal test builds) explicitly deferred public release
+  strategy to this decision. ADR-0038 covers website deployment, which stays outside
   this model.
 
 ## References
 
 - Related issues: #50, #19 (mobile store release), #102 (dev-branch CI)
-- Related ADRs: ADR-0028, ADR-0030
+- Related ADRs: ADR-0033, ADR-0038
 - Related workflows: `.github/workflows/docker-ghcr.yml`,
   `.github/workflows/build-locker-client.yml`, `.github/workflows/mobile-app-build.yml`

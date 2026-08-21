@@ -27,7 +27,7 @@ const rawBaseQuery = fetchBaseQuery({
 
     headers.set('accept', 'application/json');
     // Tell the backend which language to render server-side strings in
-    // (API messages, web pages, queued emails) per ADR-0024. Tracks the
+    // (API messages, web pages, queued emails). Tracks the
     // user's settings-screen language switch, falling back to device locale.
     headers.set('accept-language', getCurrentAppLanguage());
     return headers;

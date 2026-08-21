@@ -148,7 +148,7 @@ test('a repeated transaction_id opens once and replays the same answer', async (
   await wired.dispatch(wired.topics.command, openCommand(1, transactionId));
 
   const responses = published.filter((entry) => entry.topic === wired.topics.response);
-  // Business idempotency is about not executing twice (ADR-0002); the retry is
+  // Business idempotency is about not executing twice; the retry is
   // still answered, because a backend that retried usually never saw the first
   // reply. The answer it gets is the original one, not a new outcome.
   assert.equal(responses.length, responsesAfterFirst + 1);

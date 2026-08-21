@@ -1,4 +1,6 @@
-# ADR-0028: Mobile internal test builds via GitHub Actions + `eas build --local`
+# ADR-0032: Mobile internal test builds via GitHub Actions + `eas build --local`
+
+> **Renumbered from ADR-0028** — ADR numbers were deduplicated and put in date order from 0018 up; see #214.
 
 ## Status
 

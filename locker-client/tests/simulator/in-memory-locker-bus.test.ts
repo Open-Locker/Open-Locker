@@ -98,7 +98,7 @@ test('configured slave ids are reported from the scenario mapping', () => {
   assert.deepEqual(bus.getConfiguredSlaveIds(), [1, 2]);
 });
 
-// --- jam mode (ADR-0031) ---
+// --- jam mode ---
 
 test('a jammed compartment pulses the relay but its door stays shut', async () => {
   const bus = new InMemoryLockerBus({

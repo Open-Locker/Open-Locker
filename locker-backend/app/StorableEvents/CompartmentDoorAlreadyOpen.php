@@ -10,7 +10,7 @@ use Spatie\EventSourcing\StoredEvents\ShouldBeStored;
  * The compartment door was already open when the unlock pulse was sent.
  *
  * A deviation rather than a plain success: the compartment was accessible before
- * anyone was authorized to open it (ADR-0031).
+ * anyone was authorized to open it.
  */
 class CompartmentDoorAlreadyOpen extends ShouldBeStored
 {

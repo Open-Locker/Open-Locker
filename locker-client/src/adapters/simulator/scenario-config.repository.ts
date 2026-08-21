@@ -9,7 +9,7 @@ import type { SimulatorBankScenario } from './scenario';
  * Config for one simulated device: the scenario file plays the role
  * `locker-config.yml` plus the runtime overlay play in production.
  *
- * Production is runtime-only for compartments (ADR-0025) — the mapping arrives
+ * Production is runtime-only for compartments — the mapping arrives
  * via `apply_config` and lands in the overlay. The simulator seeds the mapping
  * from the scenario so a device is useful the moment it boots, while an
  * `apply_config` command still overrides it exactly as on real hardware,

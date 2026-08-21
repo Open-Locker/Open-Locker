@@ -10,7 +10,7 @@ use Spatie\EventSourcing\StoredEvents\ShouldBeStored;
  * The compartment door was physically observed open after an unlock pulse.
  *
  * Distinct from the legacy CompartmentOpened, which recorded that the pulse was
- * sent. Any CompartmentOpened in the store predates ADR-0031 and carries the old
+ * sent. Any CompartmentOpened in the store predates that split and carries the old
  * meaning; this event is the door itself.
  */
 class CompartmentDoorOpenDetected extends ShouldBeStored

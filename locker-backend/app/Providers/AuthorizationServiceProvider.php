@@ -11,7 +11,7 @@ use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
 
 /**
- * Wires capability-based authorization into Laravel's Gate (ADR-0021):
+ * Wires capability-based authorization into Laravel's Gate:
  *
  * - `admin` is the super-role: it passes every check unconditionally, so
  *   "admin is a strict superset" holds independent of static catalog bindings.

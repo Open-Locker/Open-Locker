@@ -9,7 +9,7 @@ use Spatie\EventSourcing\StoredEvents\Models\EloquentStoredEvent;
 
 /**
  * Read-only view over the event store ({@see EloquentStoredEvent}) used as the
- * Filament model behind the admin audit log (issue #109, ADR-0026). Shares the
+ * Filament model behind the admin audit log (#109). Shares the
  * `stored_events` table and is never written to directly.
  *
  * The curated whitelist that scopes which events are admin-visible lives in

@@ -20,7 +20,7 @@ export interface OpenCompartmentDeps {
 
 /**
  * Fires the unlock pulse, then watches the door to find out whether it actually
- * opened (ADR-0031).
+ * opened.
  *
  * `execute()` returns as soon as the pulse is sent so the caller can acknowledge
  * immediately; detection continues in the background and reports its own
@@ -99,7 +99,7 @@ export class OpenCompartmentUseCase {
 
   /**
    * Detection window length. Follows the bank's heartbeat interval rather than a
-   * dedicated setting (ADR-0031); the trade-off is recorded there.
+   * dedicated setting; the trade-off is recorded there.
    */
   private detectionTimeoutMs(): number {
     return Math.max(1, this.config.getHeartbeatIntervalSeconds()) * 1000;
@@ -236,7 +236,7 @@ export async function runStartupFailsafe(bus: LockerBusPort): Promise<void> {
       await bus.turnAllRelaysOff(slaveId);
       successCount++;
     } catch {
-      // continue per ADR-0006
+      // One unreachable board must not stop the others from being cleared.
     }
   }
 

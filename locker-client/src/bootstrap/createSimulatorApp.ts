@@ -40,7 +40,7 @@ import { RunAfterCompleteScheduler } from '../infrastructure/scheduler';
 import { createWinstonLoggerPort } from '../infrastructure/winston-logger.adapter';
 
 /**
- * Fleet simulator composition root (ADR-0027).
+ * Fleet simulator composition root.
  *
  * Deliberately mirrors `createApp.ts` step for step, with exactly two
  * substitutions: the Modbus bus becomes `InMemoryLockerBus`, and the file-backed
@@ -57,7 +57,7 @@ export interface SimulatedDevice {
   /** Scripted or manual door change; publishes a fresh retained snapshot. */
   setDoorState(compartmentNumber: number, state: DoorState): Promise<void>;
   getDoorState(compartmentNumber: number): DoorState | null;
-  /** Jammed compartments pulse the relay but their door never moves (ADR-0031). */
+  /** Jammed compartments pulse the relay but their door never moves. */
   setJammed(compartmentNumber: number, jammed: boolean): void;
   isJammed(compartmentNumber: number): boolean;
   shutdown(): Promise<void>;

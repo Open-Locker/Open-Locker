@@ -1,4 +1,6 @@
-# ADR-0029: Admin panel locale via single panel + session-stored locale
+# ADR-0034: Admin panel locale via single panel + session-stored locale
+
+> **Renumbered from ADR-0029** — ADR numbers were deduplicated and put in date order from 0018 up; see #214.
 
 ## Status
 
@@ -10,7 +12,7 @@ Accepted
 
 ## Context
 
-ADR-0024 (admin-panel extension) localized the Filament admin panel by mounting
+ADR-0027 (admin-panel extension) localized the Filament admin panel by mounting
 one panel per locale under a URL prefix (`/en/admin`, `/de/admin`), with a
 `SetPanelLocale` middleware reading the locale from URL segment 1 and a
 hand-rolled `EN | DE` switcher injected via render hooks.
@@ -32,15 +34,15 @@ and the switcher had to rewrite URL prefixes.
 
 Issue #155 proposed moving to a single panel with the community
 `bezhansalleh/filament-language-switch` plugin (whose 5.x line now supports
-Filament v5, unlike when ADR-0024 rejected it). During implementation the team
+Filament v5, unlike when ADR-0027 rejected it). During implementation the team
 decided to keep the established inline `EN | DE` switcher look rather than the
 plugin's dropdown trigger — at which point the plugin would have contributed
 only ~20 lines of session/cookie glue, so it was dropped in favor of owning
-that glue directly (ADR-0024's "Alternative E", session-stored locale).
+that glue directly (ADR-0027's "Alternative E", session-stored locale).
 
-This supersedes only the **admin-panel section** of ADR-0024. The API locale
+This supersedes only the **admin-panel section** of ADR-0027. The API locale
 mechanism (`Accept-Language` header, `SetLocale` middleware) is unchanged and
-remains governed by ADR-0024.
+remains governed by ADR-0027.
 
 ## Decision
 
@@ -62,7 +64,7 @@ no plugin:
   `/admin/...` path while preserving the original query parameters, including
   password-reset tokens. These redirects are constrained to the same origin.
 
-The **lazy-label discipline from ADR-0024 stays mandatory**: the session locale
+The **lazy-label discipline from ADR-0027 stays mandatory**: the session locale
 is still applied by request middleware after panel boot, so static label
 properties would render in the boot-time locale. Navigation groups keep their
 closures and resources/pages keep their `get*Label()` overrides.
@@ -70,7 +72,7 @@ closures and resources/pages keep their `get*Label()` overrides.
 ## Rationale
 
 - One panel halves the panel-wiring surface and removes the "keep both panels
-  identical" consequence of ADR-0024.
+  identical" consequence of ADR-0027.
 - URL-stable language links provided no real value behind an auth wall.
 - The entire locale mechanism is ~30 lines of owned code (middleware + route +
   Blade view) with feature-test coverage — a dependency would not pull its
@@ -120,19 +122,19 @@ closures and resources/pages keep their `get*Label()` overrides.
 ### Risks
 
 - Static label properties silently render in the boot-time locale (same pitfall
-  as ADR-0024); mitigated by the established `get*Label()` convention and the
+  as ADR-0027); mitigated by the established `get*Label()` convention and the
   locale-switch feature tests.
 
 ## Supersedes / Superseded By
 
-- Supersedes: ADR-0024 (admin-panel section only; the API `Accept-Language`
+- Supersedes: ADR-0027 (admin-panel section only; the API `Accept-Language`
   mechanism remains in force)
 - Superseded by: none
 
 ## References
 
 - Related issues: #154, #155
-- Related docs: `docs/adr/0024-api-localization-via-request-locale.md`,
+- Related docs: `docs/adr/0027-api-localization-via-request-locale.md`,
   `locker-backend/app/Providers/Filament/AdminPanelProvider.php`,
   `locker-backend/app/Http/Middleware/SetPanelLocale.php`,
   `locker-backend/resources/views/filament/locale-switcher.blade.php`,
