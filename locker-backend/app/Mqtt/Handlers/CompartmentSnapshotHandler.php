@@ -39,6 +39,17 @@ class CompartmentSnapshotHandler extends AbstractInboundMqttHandler
     }
 
     /**
+     * Retained snapshots are re-delivered on every reconnect and are published
+     * on every door-state change, so they are the highest-volume inbound topic
+     * The door-state facts themselves remain visible as stored
+     * events; only the transport timing is left untraced.
+     */
+    protected function tracesInboundMessages(): bool
+    {
+        return false;
+    }
+
+    /**
      * @return array<string, mixed>
      */
     protected function rules(): array

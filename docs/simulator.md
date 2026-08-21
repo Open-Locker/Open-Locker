@@ -109,6 +109,25 @@ door states.
 
 ---
 
+## Tracing a simulated flow
+
+The simulator is instrumented exactly like a real client, so it is the easiest
+way to see a compartment open traced end to end without hardware. Point it at a
+collector:
+
+```bash
+OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318 pnpm sim
+```
+
+Each simulated bank reports as its own instance, so a fleet run looks to the
+dashboard exactly like a fleet of Pis. Setup and what to look for:
+[observability.md](observability.md).
+
+One thing it cannot show you: Modbus spans. The simulator drives an in-memory
+bus, so `modbus flash_relay` and friends only appear with real hardware.
+
+---
+
 ## Using it
 
 While it runs, type commands at the prompt. The console is enabled automatically

@@ -135,20 +135,29 @@ test('open_compartment flips the door open and publishes a fresh snapshot', asyn
   await wired.device.shutdown();
 });
 
-test('a repeated transaction_id is idempotent: no second response, no second open', async () => {
+test('a repeated transaction_id replays the response and does not open again', async () => {
   const { wired, published } = await createDeviceUnderTest();
   const transactionId = randomUUID();
 
   await wired.dispatch(wired.topics.command, openCommand(1, transactionId));
   const afterFirst = published.length;
+  const firstResponse = lastOn(published, wired.topics.response);
 
   await wired.dispatch(wired.topics.command, openCommand(1, transactionId));
 
+  const replayed = published.slice(afterFirst);
+  assert.equal(replayed.length, 1, 'duplicate must publish exactly one message: the replay');
   assert.equal(
-    published.length,
-    afterFirst,
-    'duplicate transaction_id must not publish anything further',
+    replayed[0]!.topic,
+    wired.topics.response,
+    'the only message a duplicate produces is a replayed response',
   );
+
+  // The stored outcome is re-sent verbatim so a backend that missed the first
+  // response still gets it; only the technical message id differs.
+  const { message_id: _first, ...firstBody } = firstResponse.payload;
+  const { message_id: _replay, ...replayBody } = replayed[0]!.payload;
+  assert.deepEqual(replayBody, firstBody);
 
   await wired.device.shutdown();
 });

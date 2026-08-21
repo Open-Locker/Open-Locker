@@ -29,7 +29,8 @@ import {
   provisionDevice,
 } from '../application/provision-device';
 import { connectionLostWillOptions } from '../infrastructure/mqtt-will';
-import { logger } from '../infrastructure/logging';
+import { createTracing } from '../adapters/tracing/create-tracing';
+import { logger, setLogTraceContextProvider, shipLogsTo } from '../infrastructure/logging';
 import { createWinstonLoggerPort } from '../infrastructure/winston-logger.adapter';
 import { DATA_DIR, MQTT_CLIENT_ID_FILE } from '../infrastructure/paths';
 import { ensurePrivateDirectory } from '../infrastructure/file-persistence';
@@ -46,21 +47,6 @@ export async function createApp(): Promise<AppContext> {
   const dedupStore = new FileDedupStore();
   dedupStore.assertHealthy();
   const transport = new MqttTransportAdapter(configRepo.getMqttTransportSettings());
-
-  const driver = new WaveshareModbusRtuDriver({
-    port: config.modbus.port,
-    baudRate: config.modbus.baudRate ?? 9600,
-    dataBits: config.modbus.dataBits ?? 8,
-    stopBits: config.modbus.stopBits ?? 1,
-    parity: config.modbus.parity ?? 'none',
-    timeout: config.modbus.timeout ?? 1000,
-  });
-
-  const bus = new WaveshareModbusBusActor(
-    driver,
-    { maxAttempts: DEFAULT_MODBUS_MAX_RECONNECT_ATTEMPTS, delayMs: 5000 },
-    configRepo.getConfiguredSlaveIds(),
-  );
 
   const clientId = getOrCreateClientId(MQTT_CLIENT_ID_FILE);
   const brokerUrl = process.env.MQTT_BROKER_URL?.trim() || DEFAULT_MQTT_BROKER_URL;
@@ -91,6 +77,29 @@ export async function createApp(): Promise<AppContext> {
     throw new Error('MQTT credentials username (locker UUID) is empty');
   }
 
+  // Built here because the locker UUID identifies this instance, and it is only
+  // known once provisioning has completed. Returns a no-op unless a collector
+  // endpoint is configured, in which case the SDK is never even loaded.
+  const tracing = await createTracing({ lockerUuid });
+  setLogTraceContextProvider(() => tracing.currentCorrelation());
+  shipLogsTo(tracing);
+
+  const driver = new WaveshareModbusRtuDriver({
+    port: config.modbus.port,
+    baudRate: config.modbus.baudRate ?? 9600,
+    dataBits: config.modbus.dataBits ?? 8,
+    stopBits: config.modbus.stopBits ?? 1,
+    parity: config.modbus.parity ?? 'none',
+    timeout: config.modbus.timeout ?? 1000,
+  });
+
+  const bus = new WaveshareModbusBusActor(
+    driver,
+    { maxAttempts: DEFAULT_MODBUS_MAX_RECONNECT_ATTEMPTS, delayMs: 5000 },
+    configRepo.getConfiguredSlaveIds(),
+    tracing,
+  );
+
   await transport.connect(brokerUrl, {
     username: credentials.username,
     password: credentials.password,
@@ -107,6 +116,8 @@ export async function createApp(): Promise<AppContext> {
   const outbound = new OutboundMqttAdapter(
     (topic, payload, options) => transport.publish(topic, payload, options),
     responseTopic,
+    undefined,
+    tracing,
   );
 
   const scheduler = new RunAfterCompleteScheduler();
@@ -153,6 +164,7 @@ export async function createApp(): Promise<AppContext> {
     new InboundProtocolGuard(dedupStore),
     outbound,
     dedupStore,
+    tracing,
   );
   dispatcher.register(
     createOpenCompartmentHandler({
@@ -188,6 +200,8 @@ export async function createApp(): Promise<AppContext> {
       heartbeat.stop();
       await bus.disconnect();
       await transport.disconnect();
+      // Last, so spans from the shutdown path are flushed too.
+      await tracing.shutdown();
     },
   };
 }

@@ -11,6 +11,9 @@
     "message_id": {
       "$ref": "../common/message-id.json"
     },
+    "traceparent": {
+      "$ref": "../common/traceparent.json"
+    },
     "timestamp": {
       "$ref": "../common/timestamp.json"
     }
