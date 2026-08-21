@@ -4,6 +4,7 @@ namespace App\Providers\Filament;
 
 use App\Filament\Pages\Auth\EditProfile;
 use App\Filament\Pages\Auth\Register;
+use App\Filament\Resources\CompartmentResource\Pages\ListCompartments;
 use App\Http\Middleware\SetPanelLocale;
 use App\Models\User;
 use Filament\Http\Middleware\Authenticate;
@@ -103,6 +104,12 @@ class AdminPanelProvider extends PanelProvider
             ->renderHook(
                 PanelsRenderHook::SIDEBAR_FOOTER,
                 fn (): \Illuminate\Contracts\View\View => view('filament.version')
+            )
+            // Only one locker bank stays open at a time on the compartment list (#167).
+            ->renderHook(
+                PanelsRenderHook::PAGE_END,
+                fn (): \Illuminate\Contracts\View\View => view('filament.compartments.accordion-groups'),
+                scopes: ListCompartments::class,
             )
             ->middleware([
                 EncryptCookies::class,
