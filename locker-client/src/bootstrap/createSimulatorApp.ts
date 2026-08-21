@@ -439,7 +439,10 @@ async function startSimulatedDevice(
 
   // Each simulated bank reports as its own instance, so a fleet run looks to the
   // trace backend exactly like a fleet of Pis.
-  const tracing = await createTracing({ lockerUuid });
+  // Passing the logger matters here: the simulator is how the tracing path gets
+  // exercised without hardware, so a misconfigured collector during a run should
+  // say so rather than be discarded.
+  const tracing = await createTracing({ lockerUuid, log: logger });
   setLogTraceContextProvider(() => tracing.currentCorrelation());
   shipLogsTo(tracing);
 

@@ -1,6 +1,6 @@
-    # Open-Locker Fleet Simulator Scenario — see ADR-0031
+# Open-Locker Fleet Simulator Scenario — see ADR-0031
 #
-#   cp simulator-scenario.yml.example config/simulator-scenario.yml
+#   cp simulator-scenario.yml.example simulator-scenario.yml
 #   pnpm sim
 #
 # The simulator emulates one or many locker banks in a single process. Each bank

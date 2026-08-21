@@ -10,9 +10,13 @@ use App\Models\Compartment;
 use App\Models\User;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Database\Eloquent\Collection;
+use InvalidArgumentException;
 
 class CompartmentService
 {
+    /** Matches the `content_note` column and both entry-point validations. */
+    public const CONTENT_NOTE_MAX_LENGTH = 80;
+
     public function __construct(
         private readonly CompartmentAccessService $accessService,
     ) {}
@@ -49,6 +53,17 @@ class CompartmentService
     public function updateContentNote(User $actor, Compartment $compartment, ?string $note): Compartment
     {
         $this->ensureCanEditNote($actor, $compartment);
+
+        // The Filament form and the API request each cap this at 80, matching the
+        // column. Enforced here as well because what gets past this point becomes
+        // a stored event: a caller that skipped validation would record permanent
+        // history the read model cannot hold, failing only when the projector
+        // writes it.
+        if ($note !== null && mb_strlen($note) > self::CONTENT_NOTE_MAX_LENGTH) {
+            throw new InvalidArgumentException(
+                sprintf('Content note may not exceed %d characters.', self::CONTENT_NOTE_MAX_LENGTH),
+            );
+        }
 
         CompartmentContentNoteAggregate::retrieve((string) $compartment->id)
             ->updateNote(

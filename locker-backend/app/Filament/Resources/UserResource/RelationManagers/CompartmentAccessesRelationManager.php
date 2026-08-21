@@ -38,6 +38,17 @@ class CompartmentAccessesRelationManager extends RelationManager
     {
         return $table
             ->recordTitleAttribute('id')
+            // Every column below reaches through `compartment`, and two reach a
+            // hop further into its latest open request. The actor columns reach
+            // sideways instead, resolved inside a per-row closure rather than a
+            // dotted column name — easy to miss for that reason, and just as
+            // much a query per row.
+            ->modifyQueryUsing(fn (Builder $query): Builder => $query->with([
+                'compartment.lockerBank',
+                'compartment.latestOpenRequest',
+                'grantedByUser',
+                'revokedByUser',
+            ]))
             ->columns([
                 Tables\Columns\TextColumn::make('compartment.number')
                     ->label(__('Compartment'))

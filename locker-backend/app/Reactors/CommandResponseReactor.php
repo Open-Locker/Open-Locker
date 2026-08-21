@@ -15,6 +15,12 @@ use Illuminate\Support\Facades\Log;
 use Spatie\EventSourcing\EventHandlers\Reactors\Reactor;
 use Spatie\EventSourcing\StoredEvents\Models\EloquentStoredEvent;
 
+/**
+ * Guards against re-deriving domain events from a redelivered command response
+ * with a read followed by a write, which is not atomic. That holds only while
+ * one worker consumes the `events` queue — see DoorDetectionReactor, which
+ * shares both the queue and the constraint.
+ */
 class CommandResponseReactor extends Reactor implements ShouldQueue
 {
     public string $queue = 'events';

@@ -32,7 +32,7 @@ Nächste Schritte
   - [x] Action triggert Aggregate-Event `CompartmentOpeningRequested`
   - [x] Reactor: Publish an `locker/{locker_bank_uuid}/command` (QoS 1)
   - [ ] Projector/Read-Model-Update (optional)
-  - [x] Tests (Feature + E2E via `mqtt:client-simulator`/Artisan)
+  - [x] Tests (Feature + E2E via the locker-client fleet simulator)
 - [ ] Heartbeat-Workflow implementieren (siehe `docs/mqtt_integration_plan.md`)
   - [ ] Listener für `locker/{uuid}/state` (Heartbeat/Telemetrie)
   - [x] Events/Projector: `HeartbeatReceived` → `last_seen`/`online_status`

@@ -28,7 +28,11 @@ cd locker-client
 cp simulator-scenario.yml.example simulator-scenario.yml
 ```
 
-Edit the copy — it is git-ignored, so your tokens stay out of the repo:
+Edit the copy — it is git-ignored, so your tokens stay out of the repo.
+The ignore rules cover exactly two names, `simulator-scenario.yml` and
+`.simulator-credentials.json`. A scenario kept under any other name, or a
+cache moved with `SIMULATOR_CREDENTIALS_FILE`, is **not** ignored and holds a
+real provisioning token — keep those outside the repository.
 
 ```yaml
 broker_url: mqtt://localhost:1883

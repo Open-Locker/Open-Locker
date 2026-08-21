@@ -132,14 +132,40 @@ class CompartmentOpenRequestProjector extends Projector
         ]);
     }
 
+    /**
+     * A command failure must not overwrite a door that was seen to move.
+     *
+     * The two race in one specific way: a command whose relay fired but whose
+     * response never published leaves an in-progress record on the client, and
+     * restart recovery answers it with an error — by which time detection may
+     * already have recorded the physical outcome. Letting that late failure win
+     * would discard an observed fact in favour of a stale one, which is the
+     * conflation this projection exists to prevent. The timestamp and error are
+     * still recorded, exactly as a late acknowledgement is.
+     */
     public function onCompartmentOpeningFailed(CompartmentOpeningFailed $event): void
     {
-        $this->applyToRequest($event->transactionId, [
-            'status' => CompartmentOpenRequestStatus::Failed,
+        $request = CompartmentOpenRequest::query()->where('command_id', $event->transactionId);
+
+        // What was reported is always recorded — the failure genuinely arrived,
+        // and a `failed_at` with no reason beside it leaves an admin reading the
+        // event stream to find out why. Only `status` is withheld, because that
+        // is the judgement about which fact wins.
+        (clone $request)->update([
             'failed_at' => $this->timestampOrNow($event->timestamp),
             'error_code' => $event->errorCode,
             'error_message' => $event->message,
         ]);
+
+        (clone $request)
+            ->whereNotIn('status', [
+                CompartmentOpenRequestStatus::Opened->value,
+                CompartmentOpenRequestStatus::AlreadyOpen->value,
+                CompartmentOpenRequestStatus::DoorJammed->value,
+            ])
+            ->update([
+                'status' => CompartmentOpenRequestStatus::Failed,
+            ]);
     }
 
     /**
@@ -170,7 +196,8 @@ class CompartmentOpenRequestProjector extends Projector
     /**
      * The app pins dates to CarbonImmutable (AppServiceProvider), but
      * Carbon::parse() hands back a mutable instance, so the two branches
-     * disagreed on type. Parse through the Date facade to honour the pin.
+     * disagreed on type. Parsing on CarbonImmutable directly keeps both
+     * branches immutable.
      */
     private function timestampOrNow(?string $timestamp): CarbonImmutable
     {

@@ -125,3 +125,10 @@ docker/mosquitto/config/password.conf
 hardware/models/spacer1.stl
 hardware/models/spacer2.stl
 hardware/models/fillets3d.scad
+
+# Simulator scenarios hold real provisioning tokens, and the credential cache
+# holds the MQTT password issued on a bank's one-and-only provisioning. The
+# cache is written beside the scenario file, wherever the operator points it,
+# so these are ignored repo-wide rather than only under locker-client/.
+simulator-scenario.yml
+.simulator-credentials.json

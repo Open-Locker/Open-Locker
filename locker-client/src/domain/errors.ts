@@ -43,6 +43,14 @@ export class ModbusTransportError extends LockerError {
  * The library throws plain `Error`s, so its message text is the only signal
  * available. Matching it is fragile, which is why it is confined to this one
  * function: everything we raise ourselves carries an explicit code instead.
+ *
+ * The patterns name specific transport failures deliberately. A bare `modbus`
+ * match caught nearly every hardware-adjacent message in this codebase,
+ * including our own configuration and programming faults, and reported them to
+ * the backend as MODBUS_ERROR — a bug dressed as a broken bus. Unrecognised
+ * errors are better reported as unknown than misattributed to the hardware.
+ *
+ * Reconnectability is decided separately, by `isReconnectableModbusError`.
  */
 function isModbusLibraryError(error: unknown): boolean {
   if (!(error instanceof Error)) {
@@ -55,8 +63,7 @@ function isModbusLibraryError(error: unknown): boolean {
     message.includes('port not open') ||
     message.includes('econnrefused') ||
     message.includes('timed out') ||
-    message.includes('crc error') ||
-    message.includes('modbus')
+    message.includes('crc error')
   );
 }
 

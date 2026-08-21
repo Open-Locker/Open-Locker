@@ -196,6 +196,12 @@ count and two services; that is the complete round trip.
 | `OTEL_TRACES_SAMPLER_TRACEIDRATIO_RATIO`| Sampling ratio when using `traceidratio`.                            |
 | `OTEL_WORKER_MODE_FLUSH_AFTER_EACH_ITERATION` | **Set this to `true`.** See below.                             |
 
+> Sampling defaults to `always_on`, which is right for development and for
+> tracing a single open flow end to end — the reason this exists. It is the wrong
+> default for a fleet: every span from every bank, kept. Before pointing a
+> deployment at a collector, set `OTEL_TRACES_SAMPLER_TYPE=traceidratio` with a
+> ratio, or accept the volume deliberately rather than by omission.
+
 > Queue workers batch their spans and only flush periodically, so a job that
 > throws exports nothing — a failed reactor leaves a trace that simply stops
 > after the job was queued, with no error anywhere. The Compose overlay sets

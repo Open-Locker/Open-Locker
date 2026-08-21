@@ -14,6 +14,7 @@ use App\Notifications\Security\CompartmentOpenDeviationNotification;
 use App\StorableEvents\CompartmentDoorAlreadyOpen;
 use App\StorableEvents\CompartmentDoorOpenDetected;
 use App\StorableEvents\CompartmentOpenAcknowledged;
+use App\StorableEvents\CompartmentOpeningFailed;
 use App\StorableEvents\CompartmentOpeningRequested;
 use App\StorableEvents\CompartmentOpenNotDetected;
 use App\StorableEvents\CompartmentUncommandedOpenDetected;
@@ -183,6 +184,62 @@ class DoorDetectionTest extends TestCase
         $this->assertSame(CompartmentOpenRequestStatus::Opened, $request?->status);
         $this->assertSame(501, $request?->open_detection_ms);
         $this->assertNotNull($request?->acknowledged_at, 'the pulse timestamp is still recorded');
+    }
+
+    public function test_a_late_failure_does_not_overwrite_a_detected_open(): void
+    {
+        $transactionId = 'txn-late-failure';
+        $this->givenAnOpenCommandWasSent($transactionId);
+
+        $this->receiveDeviceEvent('compartment_open_detected', [
+            'compartment_number' => 7,
+            'transaction_id' => $transactionId,
+            'outcome' => 'opened',
+            'detection_ms' => 412,
+        ]);
+
+        // The client fired the relay but never published its response; restart
+        // recovery answers the transaction with an error afterwards. The door
+        // was seen to move, so that late failure must not become the outcome.
+        event(new CompartmentOpeningFailed(
+            lockerBankUuid: $this->lockerBank->id,
+            compartmentUuid: (string) $this->compartment->id,
+            compartmentNumber: 7,
+            transactionId: $transactionId,
+            errorCode: 'UNKNOWN_ERROR',
+            message: 'Command outcome is unknown after locker-client restart.',
+            timestamp: now()->toIso8601String(),
+        ));
+
+        $request = CompartmentOpenRequest::query()->find($transactionId);
+        $this->assertSame(CompartmentOpenRequestStatus::Opened, $request?->status);
+        $this->assertSame(412, $request?->open_detection_ms);
+        $this->assertSame(
+            'UNKNOWN_ERROR',
+            $request?->error_code,
+            'what the client reported is recorded even though it did not win',
+        );
+        $this->assertNotNull($request?->failed_at, 'the failure timestamp is still recorded');
+    }
+
+    public function test_a_late_failure_still_lands_when_nothing_physical_was_observed(): void
+    {
+        $transactionId = 'txn-plain-failure';
+        $this->givenAnOpenCommandWasSent($transactionId);
+
+        event(new CompartmentOpeningFailed(
+            lockerBankUuid: $this->lockerBank->id,
+            compartmentUuid: (string) $this->compartment->id,
+            compartmentNumber: 7,
+            transactionId: $transactionId,
+            errorCode: 'MODBUS_ERROR',
+            message: 'Bus unreachable.',
+            timestamp: now()->toIso8601String(),
+        ));
+
+        $request = CompartmentOpenRequest::query()->find($transactionId);
+        $this->assertSame(CompartmentOpenRequestStatus::Failed, $request?->status);
+        $this->assertSame('MODBUS_ERROR', $request?->error_code);
     }
 
     public function test_a_late_acknowledgement_does_not_overwrite_a_jam(): void

@@ -17,9 +17,9 @@ sidebar:
 - **Canonical protocol contract** (AsyncAPI + JSON schemas):
   [`docs/asyncapi/`](https://github.com/Open-Locker/Open-Locker/tree/main/docs/asyncapi)
 - Topic structure and message/transaction IDs:
-  [ADR-0002](https://github.com/Open-Locker/Open-Locker/blob/main/docs/adr/0002-mqtt-message-id-transaction-id.md)
+  [ADR-0002](https://github.com/Open-Locker/Open-Locker/blob/main/docs/adr/0002-mqtt-message-id-and-transaction-id-separation.md)
 - Typed outbound publishers in the backend:
-  [ADR-0008](https://github.com/Open-Locker/Open-Locker/blob/main/docs/adr/0008-typed-mqtt-publisher-services.md)
+  [ADR-0008](https://github.com/Open-Locker/Open-Locker/blob/main/docs/adr/0008-typed-outbound-mqtt-publisher-services.md)
 - Broker authentication: `mosquitto-go-auth` against `/api/mosq/*`
 
 ## Hardware

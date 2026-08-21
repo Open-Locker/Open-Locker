@@ -26,10 +26,16 @@ class CommandResponseInboxService
     {
         $now = Carbon::now();
 
-        // message_id and traceparent identify the delivery, not the response. Hashing
-        // them would make every genuine replay — which always carries a fresh
-        // message_id — look like a payload that changed.
-        $semanticPayload = Arr::except($payload, ['message_id', MqttTraceContext::FIELD]);
+        // Fields that identify the delivery rather than the response: a genuine
+        // replay always carries a fresh message_id, usually a fresh timestamp,
+        // and its own trace context. Hashing any of them would make every
+        // legitimate replay look like a payload that changed, which is the
+        // opposite of what `payload_changed` is meant to tell an operator.
+        $semanticPayload = Arr::except($payload, [
+            'message_id',
+            'timestamp',
+            MqttTraceContext::FIELD,
+        ]);
         $payloadHash = hash('sha256', json_encode($semanticPayload, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) ?: '');
 
         $action = isset($payload['action']) && is_string($payload['action']) ? $payload['action'] : null;
@@ -83,8 +89,8 @@ class CommandResponseInboxService
                 'locker_uuid' => $lockerUuid,
                 'transaction_id' => $transactionId,
                 'topic' => $topic,
-                // Same outcome, different bytes (a re-sent response usually carries a
-                // fresh timestamp), so it is context on the info line rather than an alert.
+                // Same outcome, genuinely different content — delivery fields are
+                // excluded from the hash, so this is not merely a re-sent copy.
                 'payload_changed' => $existing !== null && $existing->payload_hash !== $payloadHash,
             ]);
         }

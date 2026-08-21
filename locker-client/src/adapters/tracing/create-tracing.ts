@@ -1,4 +1,5 @@
 import { noopTracing, type LogShippingPort, type TracingPort } from '../../ports/tracing.port';
+import type { LoggerPort } from '../../ports/logging.port';
 
 export const DEFAULT_SERVICE_NAME = 'open-locker-client';
 
@@ -6,6 +7,8 @@ export interface CreateTracingOptions {
   /** Locker UUID, used as `service.instance.id`. */
   lockerUuid: string;
   env?: NodeJS.ProcessEnv;
+  /** Where the SDK's own export failures are reported. */
+  log?: LoggerPort;
 }
 
 /**
@@ -34,5 +37,6 @@ export async function createTracing(
     serviceInstanceId: options.lockerUuid,
     serviceVersion: env.OTEL_SERVICE_VERSION?.trim() || undefined,
     endpoint,
+    log: options.log,
   });
 }

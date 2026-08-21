@@ -344,6 +344,46 @@ class CommandResponseDedupTest extends TestCase
             ->once();
     }
 
+    public function test_a_replay_with_a_fresh_timestamp_is_not_reported_as_changed(): void
+    {
+        Log::spy();
+
+        $handler = app(CommandResponseHandler::class);
+
+        $lockerUuid = '11111111-1111-1111-1111-111111111111';
+        $transactionId = '33333333-3333-3333-3333-333333333333';
+        $topic = "locker/{$lockerUuid}/response";
+
+        $payload = [
+            'type' => 'command_response',
+            'action' => 'open_compartment',
+            'result' => 'success',
+            'transaction_id' => $transactionId,
+            'message' => 'ok',
+        ];
+
+        $handler->handleMessage($topic, (string) json_encode($payload + [
+            'message_id' => 'cccccccc-0000-0000-0000-cccccccccccc',
+            'timestamp' => now()->toIso8601String(),
+        ]));
+
+        // A real replay is re-sent later, so it carries a fresh timestamp as well
+        // as a fresh message_id. Neither says anything about the response itself.
+        $this->travel(30)->seconds();
+
+        $handler->handleMessage($topic, (string) json_encode($payload + [
+            'message_id' => 'dddddddd-0000-0000-0000-dddddddddddd',
+            'timestamp' => now()->toIso8601String(),
+        ]));
+
+        $this->assertDatabaseCount('command_transactions', 1);
+
+        Log::shouldHaveReceived('info')
+            ->withArgs(fn (string $message, array $context = []) => $message === 'Duplicate command response received (deduped).'
+                && ($context['payload_changed'] ?? null) === false)
+            ->once();
+    }
+
     public function test_conflicting_replay_is_discarded_and_logged(): void
     {
         Log::spy();

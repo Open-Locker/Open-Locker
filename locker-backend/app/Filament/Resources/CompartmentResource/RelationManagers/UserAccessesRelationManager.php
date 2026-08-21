@@ -37,7 +37,7 @@ class UserAccessesRelationManager extends RelationManager
             ->recordTitleAttribute('id')
             ->modifyQueryUsing(function (Builder $query): Builder {
                 /** @var Builder<CompartmentAccess> $query */
-                return $query->active();
+                return $query->active()->with(['user', 'grantedByUser']);
             })
             ->columns([
                 Tables\Columns\TextColumn::make('user.email')
