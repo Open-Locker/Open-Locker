@@ -278,6 +278,15 @@ is a known trade-off (see Risks).
 
 ### Risks
 
+- **The `events` queue must stay single-worker.** `DoorDetectionReactor` and
+  `CommandResponseReactor` both keep a derivation idempotent by reading whether
+  the derived event exists and then emitting it. That pair is not atomic, so two
+  consumers handling one redelivery would each find nothing and each emit. In an
+  event-sourced store the duplicate is permanent history and every replay counts
+  the open twice. Recorded in both compose files beside the worker command;
+  making the guard safe — an advisory lock, or a unique index over the
+  transaction id per event class — would remove the constraint.
+
 - **Timeout coupling.** Raising `heartbeat_interval_seconds` for an unrelated
   reason (a flaky network) silently lengthens door-detection waits. Mitigation:
   documented here; if it bites, introduce Alternative D as its own column.

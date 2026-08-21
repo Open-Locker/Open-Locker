@@ -23,6 +23,13 @@ use Spatie\EventSourcing\StoredEvents\Models\EloquentStoredEvent;
  * The client reports the physical door separately from the command response, so
  * this is where "the door actually opened" enters the domain. Idempotent: a
  * redelivered device event does not produce a second derived event.
+ *
+ * That idempotence holds only while one worker consumes this queue. The guard
+ * is a read followed by a write, not an atomic operation, so two consumers
+ * handling the same redelivery would both find nothing recorded and both emit.
+ * Duplicated events here are permanent history — every replay would count the
+ * open twice — so the `events` queue must stay single-worker until the guard
+ * takes a lock or the store enforces uniqueness.
  */
 class DoorDetectionReactor extends Reactor implements ShouldQueue
 {

@@ -100,6 +100,11 @@ services:
       <<: *laravel_env_prod
       AUTORUN_ENABLED: "false"
       MQTT_PUBLISHER_CLIENT_ID: "laravel_backend_publisher_event_worker"
+    # Single worker on purpose. DoorDetectionReactor and CommandResponseReactor
+    # both guard against duplicate derived events with a read-then-write, which
+    # is not atomic — a second consumer would let a redelivered event be
+    # recorded twice, and duplicated events are permanent history. Do not scale
+    # this service without making those guards safe first.
     command: "php artisan queue:work --queue=events --tries=3 --timeout=90"
     depends_on:
       <<: *worker_depends_on_prod
