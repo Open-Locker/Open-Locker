@@ -121,6 +121,9 @@ Constraints / drivers:
 
 - Supersedes: none
 - Superseded by: none
+- Extended by: [ADR-0043](0043-monorepo-release-strategy.md) — its decision 7 adds
+  `dev` internal builds and `mobile-v*` tagged releases to the distribution
+  channels this ADR limits to `main`.
 
 ## References
 

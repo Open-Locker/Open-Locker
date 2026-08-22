@@ -32,7 +32,7 @@ Releases — so the Beta is the **first release**. This document therefore has t
 2. **Change log** — what landed, grouped by component and derived from the Conventional
    Commit history (path-filtered per component) plus the issues and pull requests.
 
-Per the monorepo release strategy (`#50`, PR `#195`; ADR-0043) the durable
+Per the monorepo release strategy (`#50`; ADR-0043) the durable
 form of this is generated per component into the GitHub Release attached to each tag
 (`backend-vX.Y.Z`, `client-vX.Y.Z`, `mobile-vX.Y.Z`). This file is the one-off Beta list;
 it is not a committed rolling `CHANGELOG.md`.
@@ -216,8 +216,8 @@ in the feature list and change log; collected here so they are hard to miss.
 - Dependency-audit gates, with security advisories patched as they surfaced.
 - Build-time work: isolated Docker caches, parallel Pint, superseded-run cancellation,
   single-platform client PR builds, Android internal build caching (`#204`; ADR-0047).
-- Per-component release strategy decided: independent tag namespaces, contract-tied
-  SemVer, generated release notes (`#50`, PR `#195`; ADR-0043).
+- Per-component release strategy decided: independent tag namespaces, standard
+  per-component SemVer, generated release notes (`#50`; ADR-0043).
 - Laravel Boost wired up for agent tooling (`#88`).
 
 ---
@@ -344,7 +344,7 @@ Grouped by component; `feat` / `fix` / `perf` from the Conventional Commit histo
 - Isolate Docker build caches; build one platform for client PRs
 - Cut Android internal build time (`#204`; ADR-0047)
 - Raise PHPStan to level 8 (`#199`)
-- Decide the per-component release strategy (`#50`, PR `#195`; ADR-0043)
+- Decide the per-component release strategy (`#50`; ADR-0043)
 - Laravel Boost for agent tooling (`#88`)
 
 ### Earlier (MVP and before)
@@ -372,9 +372,9 @@ biggest risk to the Beta date.
 and is 245 commits behind `dev`. Beta ships from `main`, so this is a hard gate. A fresh
 merge PR is likely cheaper than salvaging this one.
 
-**Roll out the monorepo release strategy (`#50`, PR `#195`) before cutting anything.**
+**Roll out the monorepo release strategy (`#50`; ADR-0043) before cutting anything.**
 There are still zero tags and zero Releases, so today there is no way to say "this Pi
-runs Beta" or to roll back. The open ADR's own rollout list also flags that
+runs Beta" or to roll back. The ADR's own rollout list also flags that
 `workflow_dispatch` on `docker-ghcr.yml` publishes `latest` from whatever branch it runs
 on — a dispatch from `dev` would overwrite production. Fix that before the first tag,
 not after.
@@ -399,14 +399,11 @@ used by two different ADRs. Commit messages and PR bodies reference ADRs by numb
 those references are currently ambiguous. Renumbering is trivial now and gets harder
 with every new ADR.
 
-**Promote the ADRs that describe shipped behaviour.** On the open stacked chain, the
-ADRs for separate ACK (`#94`), OpenTelemetry (`#65` / PR `#189`), monorepo release
-strategy (`#50` / PR `#195`), first-admin bootstrap (`#141`), and Android build caching
-(`#204`) are still `Proposed`, though their code is merged or in an open PR — including
-the release strategy the cut itself depends on. (On current `dev`, bare numbers 0031–0033
-already mean different Accepted decisions, so cite those stack ADRs by issue/PR until
-renumber lands.) A Proposed ADR describing what the system already does trains people to
-ignore the status field.
+**Promote the ADRs that describe shipped behaviour.** The ADRs for separate ACK
+(`#94`), OpenTelemetry (`#65`), first-admin bootstrap (`#141`), and Android build
+caching (`#204`) are still `Proposed`, though their code is merged. The release
+strategy the cut itself depends on is now Accepted (ADR-0043). A Proposed ADR
+describing what the system already does trains people to ignore the status field.
 
 **Close the issues whose work already shipped** — #109 (audit log), #52 (healthcheck),
 #122 (group memberships), plus the stack's issues as it merges. The milestone should
@@ -459,8 +456,8 @@ concentrated in release mechanics and field hardening, not in missing product.
 
 ## References
 
-- Monorepo release strategy — `#50`, PR `#195` (ADR-0043)
-- ADR-0033 — mobile internal test builds
-- ADR-0038 — website in the monorepo
+- Monorepo release strategy — `#50` (ADR-0043)
+- ADR-0032 — mobile internal test builds
+- ADR-0036 — website in the monorepo
 - Milestones: *Milestone 1 – Hardware MVP*, *Milestone 2 – Internal MVP*,
   *Milestone 3 – MVP*, *Beta*

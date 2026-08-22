@@ -4,15 +4,15 @@
 
 ## Status
 
-Proposed
+Accepted
 
 ## Date
 
-2026-07-31
+2026-08-14
 
 ## Context
 
-The monorepo holds three components that ship to real users and real hardware:
+The monorepo ships three independently deployable components:
 
 | Component | Artifact | Destination |
 | --- | --- | --- |
@@ -20,31 +20,29 @@ The monorepo holds three components that ship to real users and real hardware:
 | `locker-client` | Docker image | `ghcr.io/open-locker/locker-client` → Raspberry Pis in the field |
 | `mobile-app` | EAS build | TestFlight / app stores |
 
-`website/` also deploys from the monorepo, but continuously from `main` via GitHub
-Pages, with no artifact to roll back to. It is not part of this release model.
+`website/` deploys continuously from `main` via GitHub Pages and is outside this
+release model.
 
-The CI half of the problem is already solved. Six workflows exist, each filtered by
-path, so a backend change does not run mobile jobs. Both Docker images are built and
-pushed to GHCR. The mobile app builds and submits to TestFlight.
+Path-filtered CI already exists for these components, and images/builds already
+publish. What is missing is **versioning and a deliberate release policy**: the
+repository has had no component tags and no GitHub Releases. Images are published
+as `latest` plus a commit SHA, which makes "which version is on that Pi" and
+rollback hard to answer.
 
-What is missing is versioning. **The repository has zero tags and zero GitHub
-Releases.** Images are published only as `latest` plus a raw commit SHA. The practical
-consequences:
+The three components cannot ship in lockstep. Mobile waits on store review, Pis
+update on their own schedule, and the backend deploys quickly. A single
+repo-wide version would claim synchronisation that does not exist.
 
-- There is no way to answer "which version is on that Pi", only "which commit", which
-  nobody can read.
-- There is no way to ask for a specific earlier build, so there is no rollback.
-- The one release trigger that does exist (`docker-ghcr.yml` on tags matching `v*`) is
-  repo-global, which contradicts releasing components independently. It has never fired.
+Legacy Flutter and shared generated packages are out of scope; they are no longer
+part of the monorepo.
 
-The components cannot ship together even if we wanted them to. Mobile releases wait on
-store review, Pis update on their own schedule, and the backend deploys in a minute.
-Any single repo-wide version number would therefore claim a synchronisation that never
-exists in practice.
+This ADR decides the release **policy** needed for a first beta. Workflow
+implementation, changelog automation wiring, and deeper compatibility tooling
+are follow-up work after this decision is accepted.
 
 ## Decision
 
-**1. Each component is versioned and released independently, under its own tag
+**1. Each component is versioned and released independently under its own tag
 namespace.**
 
 ```
@@ -53,238 +51,267 @@ client-vX.Y.Z
 mobile-vX.Y.Z
 ```
 
-Pushing a tag is what publishes a release. The image or build is labelled with that
-version, alongside the existing `latest` and SHA tags.
+Tag names use short English component names (`backend`, `client`, `mobile`).
+The `locker-` directory prefix is omitted from tags. Existing workflow patterns
+that use `locker-client-v*` must be retargeted to `client-v*` as part of
+rollout (no historical tags exist yet).
 
-**2. Version numbers follow SemVer, with both leading digits tied to the contract.**
+Pushing a tag is what publishes a release. The image or build is labelled with
+that version, alongside `latest` (when applicable) and the commit SHA.
 
-The contract — the MQTT topics and payloads, and the HTTP API — is the only thing one
-component can break in another. The version number is therefore built around it rather
-than around how large a change felt:
+**2. Version numbers follow standard Semantic Versioning per component.**
 
-- **X (major)** — the contract changed in a way that is deliberately **not** backward
-  compatible. Requires its own ADR. Expected to be rare, possibly never; the slot costs
-  nothing until it is needed.
-- **Y (minor)** — the contract changed but stayed **backward compatible**: a new field,
-  a new topic, a new endpoint. This is the cross-component signal — when Y moves, the
-  other components are worth a look.
-- **Z (patch)** — everything else. Features, fixes and refactors that leave the contract
-  untouched, however big they are. This is where most releases land.
+Each component has its own public surface and therefore its own SemVer line
+([semver.org](https://semver.org/spec/v2.0.0.html)):
 
-The consequence is deliberate: a month of new admin screens or mobile UI is a **Z** bump,
-because nothing between components moved. Z will therefore grow large (`1.2.38` is
-normal and healthy) while Y stays quiet. That is the point — a reader can tell at a
-glance whether a release can affect anything outside its own component.
+- **X (major)** — backward-incompatible change for that component's consumers
+  (HTTP API, MQTT contract, mobile app behaviour that breaks older clients, and
+  similar). Deliberate majors require an ADR.
+- **Y (minor)** — backward-compatible new functionality.
+- **Z (patch)** — backward-compatible bug fixes.
 
-Components start at `1.0.0`, not `0.x`: this software runs on deployed hardware and the
-"anything may break" signal of `0.x` would be false.
+Components may diverge (for example `backend-v1.4.2` with `mobile-v1.1.0`).
+That is expected. They are one product operationally, but they are not one
+deployable artifact.
 
-**3. Releases are cut when enough has accumulated, tagged by hand.**
+All three start at `1.0.0` for the first production-line release. Pre-releases
+use SemVer pre-release labels, for example `backend-v1.0.0-beta.1`, and are
+allowed for the first beta cut.
 
-Merging to `main` does not release. A maintainer merges when ready and then pushes the
-tag deliberately, which allows several merges to be batched into one version. There is
-no fixed schedule: the team decides a release is due once enough has accumulated to be
-worth shipping, roughly monthly in practice. A component with nothing new is simply not
-tagged. Urgent fixes go out immediately without waiting for the next batch.
+Contract changes (OpenAPI / AsyncAPI) must be called out explicitly in the
+generated release notes for that release. The version digit itself follows
+standard SemVer for the component being released, not a special
+"contract-only" numbering scheme.
 
-Note that under decision 2 the digit is chosen by *what changed*, not by *how long it
-has been*. A batch release is normally a Z bump; it is only a Y if something in the
-contract moved during that batch.
+**3. Day-to-day development happens on `dev`; releases are cut from `main`.**
 
-**4. The backend is the compatibility authority, and stays backward compatible.**
+The branch flow is:
 
-Older `locker-client` and mobile versions must keep working against a newer backend.
-Each component documents only its own minimum supported backend version. We deliberately
-do **not** maintain a compatibility matrix — it would be stale within two releases.
+1. Feature work lands on `dev` (via PRs into `dev`).
+2. When a set of changes is ready to ship, `dev` is merged into `main`.
+3. A maintainer creates the component tag on the intended `main` commit.
+4. That tag publishes the versioned artifact and GitHub Release.
 
-**5. `dev` never publishes `latest`.**
+`dev` is the integration branch. `main` is the release branch. Merging to
+`main` still does **not** by itself create a SemVer release — the tag does.
+Hotfixes may land directly on `main` when needed, then be merged back to `dev`
+so the branches do not diverge permanently.
 
-`latest` means "current production `main`". If dev-branch artifacts are wanted they are
-published under a separate rolling `dev` tag.
+**4. Releases are cut deliberately by tagging; merging to `main` is not a
+release.**
 
-**6. Changelogs are generated per component from commit messages.**
+A maintainer pushes the component tag when a release is intended. Several merges
+may be batched into one version. There is no fixed calendar; urgent fixes may
+ship immediately. A component with nothing new is simply not tagged.
 
-Commits already follow Conventional Commits (`fix(backend): …`, `feat(admin): …`) and
-reference their issue, so release notes are produced from the log rather than
-hand-maintained. Hand-written changelogs rot the moment someone is in a hurry.
+**5. Tags create versioned releases; `workflow_dispatch` does not invent versions.**
 
-Generation is done with a tool that can **filter commits by path** (`git-cliff` or
-equivalent), so `locker-client/**` commits appear in the client's notes and not the
-backend's. This matters precisely because versions are per component. GitHub's built-in
-"generate release notes" is rejected for this reason: it cannot split a monorepo by
-component.
+- Tag push (`backend-v*`, `client-v*`, `mobile-v*`) creates the immutable
+  versioned artifact and the GitHub Release.
+- `workflow_dispatch` is for rebuild, verification, or retry from an allowed
+  ref. It must not publish `latest` from non-`main` branches and must not mint a
+  new SemVer without an explicit tag.
 
-The output goes into the **GitHub Release attached to the tag**. No committed
-`CHANGELOG.md` is introduced initially — it would duplicate the release notes. One can
-be added later per component if someone needs the history offline, for example while
-servicing a Pi without network access.
+**6. The backend is the compatibility authority and stays backward compatible
+within the support window.**
 
-**7. Release notes and contract documentation stay separate concerns.**
+Newer backends must keep working with older supported `locker-client` and
+mobile versions. Each client release may document a minimum backend version.
+We do **not** maintain a hand-written compatibility matrix in docs; it would go
+stale.
 
-They are often confused, so to be explicit:
+**7. Distribution channels: rolling images plus staged mobile tracks.**
 
-| Artefact | Answers | Produced by |
-| --- | --- | --- |
-| Changelog | "What changed since the last version?" | Generated from commits, per release |
-| Contract docs | "What does this interface accept today?" | Generated from code, continuously |
+For Docker artifacts (`backend`, `client`):
 
-Contract documentation already exists and is unaffected by this ADR: Scramble generates
-the OpenAPI spec live from the backend controllers and their annotations, and the MQTT
-contract lives in `docs/asyncapi/` with contract tests in CI. Code-level annotations
-(PHPDoc params, return types, enforced by PHPStan) feed those specs — they are not
-release history and are not a substitute for a changelog.
+- `latest` means current production `main` tip, not necessarily the newest
+  SemVer tag.
+- The `dev` branch never publishes `latest`.
+- If rolling artifacts from the integration branch are wanted, they use a
+  separate `dev` image/channel tag.
 
-The two meet at exactly one point: under decision 2 a Y bump *is* a contract change, so
-the regenerated OpenAPI or AsyncAPI spec is the evidence of what moved. A Y bump with no
-spec diff means the digit was chosen wrong — which makes the specs a cheap check on the
-version number.
+For the mobile app the store tracks map to branches and tags as follows:
 
-**8. Support window: the current contract line and the one before it.**
+| Source | Mobile distribution |
+| --- | --- |
+| `dev` | Internal tester builds only (sideload / Expo internal / equivalent). **Not** submitted to App Store or Play Store tracks. |
+| `main` | Store beta tracks: TestFlight (iOS) and Android beta / internal testing as configured. |
+| Tag `mobile-vX.Y.Z` (including `-beta.N` when used) | Versioned release candidate or production release submitted as the release for that version. |
 
-Supported means "we will fix bugs against it": the latest Z of the current `X.Y` line,
-and the latest Z of the previous one. Because Y moves rarely under decision 2, this is a
-deliberately generous window measured in contract generations rather than in releases —
-which is the right unit when the thing being supported is a Pi in the field.
+So: develop and smoke-test off-store on `dev`, put a broader beta on store tracks from `main`, and cut the immutable release from the SemVer tag. Builds from `dev` should still be produced when useful for QA; they must not enter App Store / Play production or public beta submission paths reserved for `main` and tags.
 
-Older releases are not supported, but published images are immutable and stay pullable
-indefinitely, so rolling back to one remains possible at any time.
+Immutable SemVer tags remain the source of truth for "which release is
+deployed" and for rollback.
+
+**8. Changelogs are generated per component with `git-cliff`.**
+
+Conventional Commits are the input. `git-cliff` filters by path and tag
+pattern so each GitHub Release lists only that component's commits, for
+example:
+
+- `locker-backend/**` with tags matching `backend-v*`
+- `locker-client/**` with tags matching `client-v*`
+- `mobile-app/**` with tags matching `mobile-v*`
+
+GitHub's built-in "generate release notes" is rejected because it cannot split
+a monorepo by component. No committed `CHANGELOG.md` is required initially;
+the GitHub Release body is the source of truth. Squash-merge PR titles must
+remain Conventional Commits so generation stays useful.
+
+**9. Support window for the beta era.**
+
+Supported means "we will fix bugs against it": the latest patch of the current
+minor line and the latest patch of the previous minor line for each component.
+Older images remain pullable for rollback but are unsupported.
+
+**10. Compatibility tooling is follow-up work, not a beta blocker.**
+
+For the first beta, operators rely on tagged versions, release notes, and
+(where already present) version visibility. The following are **explicitly
+deferred** to later issues after versioned releases exist:
+
+- CI contract diffs (for example `oasdiff` for OpenAPI, `asyncapi diff` for
+  MQTT) against the previous supported release
+- Cross-version integration matrices (new backend × previous client / mobile)
+- Runtime user-facing incompatibility warnings when a client talks to an
+  unsupported backend
+
+Those tools matter, especially runtime signalling, but they need immutable
+version tags first and are not required to cut a beta under this strategy.
 
 ## Rationale
 
-Independent versioning is the only honest option, because the three components
-physically cannot deploy together. A global version would force a mobile store
-submission for a backend-only bugfix, and would still not make the fleet consistent.
+Independent tags match how the system actually deploys. Standard SemVer matches
+how humans and automation already interpret `feat` / `fix` / breaking changes,
+including `git-cliff` bump hints. Keeping contract impact in release notes
+preserves cross-component signal without overloading the version number.
 
-Tying both leading digits to the contract makes the number operationally meaningful
-rather than decorative. The question an operator actually has is "can this break
-something else", and under this scheme the version answers it directly: X or Y moved
-means yes, Z means no. Sizing versions by how big a change felt would answer a question
-nobody asks — and would hide the one release in twenty that genuinely matters inside a
-stream of feature bumps.
+Using `dev` for integration and `main` for release keeps unfinished work off the
+production channel while still making releases a deliberate tag on `main`.
+Mobile follows the same idea with store tracks: off-store internals from `dev`,
+TestFlight / Android beta from `main`, versioned release from `mobile-v*` tags.
 
-The cost is that Z grows large and mobile reads slightly oddly, since a user-facing
-release with new screens is "only" a Z. We accept that: the audience for these numbers
-is whoever operates the system, not whoever uses the app, and the app stores already
-present their own release notes to users.
-
-Keeping the tag as the release trigger, rather than the merge, preserves the distinction
-between "this code is on main" and "this is what we are asking people to run". That
-distinction is what makes rollback meaningful.
-
-The existing workflows already do most of the mechanical work, so this decision is
-mostly about naming and policy rather than new pipelines.
+Deferring compatibility CI and runtime checks keeps the beta path short: decide
+naming and process now, implement workflows next, add deeper safety nets once
+real versioned artifacts exist.
 
 ## Alternatives Considered
 
 ### Alternative A: A single repo-wide version (`vX.Y.Z`)
 
-- Pros: one number to think about; matches the `v*` trigger already present in
-  `docker-ghcr.yml`; no ambiguity about which versions belong together.
-- Cons: every component bumps when any one changes, so a backend patch would push a new
-  mobile build through store review; the shared number implies a lockstep deployment
-  that never happens.
-- Why not chosen: the implied synchronisation would be false, and mobile store friction
-  makes the cost concrete rather than theoretical.
+- Pros: one number; matches the unused `v*` trigger in `docker-ghcr.yml`.
+- Cons: implies lockstep deployment; forces store submissions for unrelated
+  backend fixes.
+- Why not chosen: the synchronisation would be false.
 
 ### Alternative B: Release automatically on every merge to `main`
 
-- Pros: no manual step to forget; `main` and the released version never drift.
-- Cons: no way to batch changes into a coherent version; every merge consumes a version
-  number and, for mobile, a store submission.
-- Why not chosen: releasing should stay a deliberate act, especially for artifacts that
-  reach hardware we cannot easily touch.
+- Pros: no forgotten tag step.
+- Cons: no batching; burns versions; costly for mobile.
+- Why not chosen: releases to hardware and stores must stay deliberate.
 
-### Alternative C: Size versions by the scale of the change
+### Alternative C: Contract-tied SemVer (X/Y only move on HTTP/MQTT contract
+change; features are always patch)
 
-Y for "a batch of new features", Z for "fixes" — the everyday reading of SemVer for
-applications.
+- Pros: version digit signals cross-component risk directly.
+- Cons: large user-facing features look like patches; fights Conventional
+  Commit tooling; confusing for mobile/store audiences.
+- Why not chosen: standard SemVer plus explicit contract notes in release
+  notes is clearer and automates better.
 
-- Pros: familiar to anyone who has not thought about it hard; the version grows in a way
-  that matches how much work went in; reads naturally for a user-facing app.
-- Cons: Y stops carrying information, because it moves for reasons that cannot affect
-  anyone else; the one release that genuinely changes the contract looks identical to
-  the twenty that do not.
-- Why not chosen: for a system with hardware in the field, the only question the number
-  needs to answer is "can this break something else". Sizing by scale answers a
-  different question, and buries the one that matters.
+### Alternative D: Keep `locker-client-v*` tag prefix
 
-### Alternative D: Maintain a compatibility matrix across components
+- Pros: matches today's client workflow pattern string.
+- Cons: inconsistent with short `backend-` / `mobile-` names; no tags exist yet.
+- Why not chosen: rename once to `client-v*` while the cost is zero.
 
-- Pros: precise answer to "does this client work with that backend".
-- Cons: needs updating on every release of every component; goes stale silently, and a
-  stale matrix is worse than none.
-- Why not chosen: backward compatibility as a backend rule achieves the same guarantee
-  with no upkeep.
+### Alternative E: Build runtime compatibility gates before the first beta
+
+- Pros: users get early warnings for mismatched versions.
+- Cons: blocks beta on tooling that needs versioned releases to be meaningful.
+- Why not chosen: policy and tags first; runtime/CI compatibility as follow-up.
 
 ## Consequences
 
 ### Positive
 
-- "Which version is deployed" becomes answerable, for the backend and for each Pi.
-- Rollback becomes possible: an earlier image tag can simply be pulled.
-- Components stop blocking each other's release cadence.
-- Release notes come for free from commit messages already being written.
+- Deployed versions become answerable and rollback becomes possible.
+- Components release on independent cadences.
+- Release notes stay maintainable via Conventional Commits and `git-cliff`.
+- Beta can ship with pre-release tags without pretending the full
+  compatibility platform already exists.
 
 ### Negative
 
-- Three tag namespaces to remember instead of one.
-- Z inflates. Version numbers like `backend-v1.2.38` are normal here and will look
-  unfamiliar to anyone expecting version size to track effort.
-- Mobile reads oddly: a release full of new screens is a Z bump, because nothing between
-  components moved.
-- Determining which versions of different components were current at a given time
-  requires reading the release history rather than a single number.
-- Someone must remember to push the tag; a merged fix is not a released fix.
+- Three tag namespaces instead of one.
+- Divergent version numbers require reading each component's release history.
+- Someone must remember to push the tag; a merge alone is not a release.
 
 ### Risks
 
-- **Backward compatibility is now a standing obligation on the backend.** If it is
-  broken accidentally, fielded Pis fail with no local fix. Mitigation: the MQTT and
-  HTTP contracts are already covered by contract tests, and an X bump requires an ADR.
-- **The digit depends on judgement about the contract.** Someone shipping a contract
-  change as a Z bump silently removes the signal the scheme exists for. Mitigation: a Y
-  bump should show a matching OpenAPI or AsyncAPI diff, which makes the two checkable
-  against each other.
-- **Fleet drift.** Independent versioning makes it easier for Pis to fall far behind.
-  Mitigation: track the oldest `locker-client` version still deployed.
-- **`workflow_dispatch` on `docker-ghcr.yml` currently pushes `latest` from whichever
-  branch it runs on**, so a manual dispatch from `dev` would silently overwrite the
-  production tag. This must be fixed as part of rollout.
+- **Backend compatibility regressions** break fielded clients. Mitigation:
+  existing contract tests now; deferred `oasdiff` / `asyncapi diff` and
+  cross-version CI later; majors require an ADR.
+- **`workflow_dispatch` can overwrite `latest`** from a non-`main` branch in
+  current backend packaging. Must be fixed in rollout.
+- **Fleet drift** if Pis lag. Mitigation: track oldest deployed client version
+  operationally; runtime warnings later.
+- **Squash-merge titles that are not Conventional Commits** produce poor
+  changelogs. Mitigation: keep the existing commit/PR title convention.
 
 ## Rollout / Migration
 
-Nothing has ever been released, so there is no migration — only a first release.
+Nothing has been released yet, so there is no migration — only a first cut.
 
-1. Retarget the tag triggers: `v*` → `backend-v*` in `docker-ghcr.yml`, and add
-   `client-v*` to `build-locker-client.yml`.
-2. Gate `latest` on `main` in every push path, including `workflow_dispatch`.
-3. Add `workflow_dispatch` to the locker-client workflow, and a tag trigger to the
-   mobile workflow.
-4. Remove the `TEMP` condition in `mobile-app-build.yml` that allows TestFlight
-   submission from `feat/19-mobile-internal-builds`.
-5. Add per-component changelog generation from Conventional Commits (`git-cliff` or
-   equivalent), filtered by path so each component's notes contain only its own commits,
-   written into the GitHub Release for the tag.
-6. Document the required secrets (`EXPO_TOKEN`, the Apple ASC key held on EAS,
-   `GITHUB_TOKEN`, and whatever credentials the backend host uses to pull the image)
-   and how to cut and verify a release.
-7. Cut `backend-v1.0.0` and `client-v1.0.0` first — they share a workflow shape and
-   prove the scheme cheaply. `mobile-v1.0.0` follows once the convention has settled,
-   since store submission is the least forgiving place to discover a mistake.
+### Beta scope (do soon)
 
-Fallback: the tag triggers are additive. If the scheme proves wrong, the existing
-`latest` + SHA publishing continues to work untouched.
+0. Bring `main` up to date with `dev` first. Every tag below is cut on `main`, and
+   `main` currently trails `dev` by the whole beta stack, so there is nothing
+   taggable on it yet.
+1. Retarget tag triggers: `v*` → `backend-v*` in `docker-ghcr.yml`;
+   `locker-client-v*` → `client-v*` in `build-locker-client.yml`; add
+   `mobile-v*` to the mobile release path. Tags are expected on commits that
+   are on `main`.
+2. Gate `latest` on `main` for every push path, including `workflow_dispatch`.
+3. Wire `git-cliff` into tag-driven GitHub Releases per component.
+4. Document secrets/environments and the maintainer steps: integrate on `dev`,
+   merge to `main`, tag on `main`, verify the GitHub Release and artifact.
+5. Add a maintainer release checklist under `docs/` (for example
+   `docs/release-checklist.md`) that walks through a concrete release: what to
+   verify on `dev`, how to merge to `main`, which tag to create, how to confirm
+   the GitHub Release and changelog, and how to verify the published artifact
+   per component — including which mobile track each step uses (`dev` internal,
+   `main` TestFlight/Android beta, tag = versioned release).
+6. Wire mobile builds so `dev` produces internal tester builds only, `main`
+   can submit to TestFlight / Android beta, and `mobile-v*` tags drive the
+   versioned release submission.
+7. Cut first beta tags from `main` (for example `backend-v1.0.0-beta.1`,
+   `client-v1.0.0-beta.1`, then `mobile-v1.0.0-beta.1`).
+
+### After beta (separate issues)
+
+8. Remove remaining TEMP TestFlight branch exceptions in mobile workflows.
+9. Add OpenAPI and AsyncAPI breaking-change checks in CI.
+10. Add cross-version integration tests for the support window.
+11. Add runtime incompatibility signalling for unsupported client/backend pairs.
+
+Fallback: existing `latest` + SHA publishing continues if tag publishing is
+paused.
 
 ## Supersedes / Superseded By
 
 - Supersedes: none.
-- Related: ADR-0033 (mobile internal test builds) explicitly deferred public release
-  strategy to this decision. ADR-0038 covers website deployment, which stays outside
-  this model.
+- Related: mobile internal test-build decisions and website deployment stay
+  outside or adjacent to this model; website remains continuous deploy from
+  `main`.
 
 ## References
 
-- Related issues: #50, #19 (mobile store release), #102 (dev-branch CI)
-- Related ADRs: ADR-0033, ADR-0038
+- Related issues: #50
+- Related ADRs: [ADR-0032](0032-mobile-internal-test-builds-ci.md) — mobile
+  internal test builds; decision 7 here extends its distribution channels.
 - Related workflows: `.github/workflows/docker-ghcr.yml`,
-  `.github/workflows/build-locker-client.yml`, `.github/workflows/mobile-app-build.yml`
+  `.github/workflows/build-locker-client.yml`,
+  `.github/workflows/mobile-app-build.yml`
+- Tools: [Semantic Versioning](https://semver.org/spec/v2.0.0.html),
+  [git-cliff](https://github.com/orhun/git-cliff) (monorepo path/tag filters)
