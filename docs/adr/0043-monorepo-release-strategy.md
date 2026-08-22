@@ -265,6 +265,9 @@ Nothing has been released yet, so there is no migration — only a first cut.
 
 ### Beta scope (do soon)
 
+0. Bring `main` up to date with `dev` first. Every tag below is cut on `main`, and
+   `main` currently trails `dev` by the whole beta stack, so there is nothing
+   taggable on it yet.
 1. Retarget tag triggers: `v*` → `backend-v*` in `docker-ghcr.yml`;
    `locker-client-v*` → `client-v*` in `build-locker-client.yml`; add
    `mobile-v*` to the mobile release path. Tags are expected on commits that
