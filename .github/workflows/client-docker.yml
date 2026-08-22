@@ -4,7 +4,7 @@ on:
   pull_request:
     paths:
       - 'locker-client/**'
-      - '.github/workflows/build-locker-client.yml'
+      - '.github/workflows/client-docker.yml'
   push:
     branches:
       - main
@@ -13,7 +13,7 @@ on:
       - 'locker-client-v*'
     paths:
       - 'locker-client/**'
-      - '.github/workflows/build-locker-client.yml'
+      - '.github/workflows/client-docker.yml'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.run_id }}
