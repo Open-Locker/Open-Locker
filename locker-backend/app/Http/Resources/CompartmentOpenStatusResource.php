@@ -23,7 +23,9 @@ class CompartmentOpenStatusResource extends JsonResource
         return [
             'status' => true,
             'command_id' => $this->resource->command_id,
-            'state' => $this->resource->status,
+            // `opened` now means the door was observed open, not that the unlock
+            // pulse was sent — that is `acknowledged`.
+            'state' => $this->resource->status->value,
             'compartment_id' => $this->resource->compartment_id,
             'authorization_type' => $this->resource->authorization_type,
             'error_code' => $this->resource->error_code,
@@ -33,7 +35,9 @@ class CompartmentOpenStatusResource extends JsonResource
             'accepted_at' => $this->resource->accepted_at,
             'denied_at' => $this->resource->denied_at,
             'sent_at' => $this->resource->sent_at,
+            'acknowledged_at' => $this->resource->acknowledged_at,
             'opened_at' => $this->resource->opened_at,
+            'open_detection_ms' => $this->resource->open_detection_ms,
             'failed_at' => $this->resource->failed_at,
         ];
     }

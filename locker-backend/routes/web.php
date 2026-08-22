@@ -34,7 +34,7 @@ Route::get('/locale/{locale}', function (string $locale) {
     return redirect()->back(fallback: '/admin')->enforceSameOrigin('/admin');
 })->name('locale.switch');
 
-// Legacy dual-panel locale URLs (ADR-0024) — permanent redirect to the single panel.
+// Legacy dual-panel locale URLs — permanent redirect to the single panel.
 Route::get('/{locale}/admin/{path?}', function (Request $request, string $locale, ?string $path = null) {
     $target = '/admin'.($path !== null ? '/'.$path : '');
     $query = $request->server->get('QUERY_STRING');

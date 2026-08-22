@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Filament\Resources;
 
+use App\Enums\CompartmentOpenRequestStatus;
 use App\Filament\Resources\CompartmentOpenRequestResource\Pages;
 use App\Models\CompartmentOpenRequest;
 use Filament\Resources\Resource;
@@ -42,13 +43,8 @@ class CompartmentOpenRequestResource extends Resource
                 Tables\Columns\TextColumn::make('status')
                     ->label(__('Status'))
                     ->badge()
-                    ->color(fn (?string $state): string => match ($state) {
-                        'opened' => 'success',
-                        'failed', 'denied' => 'danger',
-                        'sent', 'accepted', 'requested' => 'warning',
-                        default => 'gray',
-                    })
-                    ->formatStateUsing(fn (?string $state): string => $state ? __($state) : '')
+                    ->color(fn (?CompartmentOpenRequestStatus $state): string => $state?->color() ?? 'gray')
+                    ->formatStateUsing(fn (?CompartmentOpenRequestStatus $state): string => $state?->label() ?? '')
                     ->sortable(),
                 Tables\Columns\TextColumn::make('actor_display_name')
                     ->label(__('Actor'))
@@ -100,19 +96,19 @@ class CompartmentOpenRequestResource extends Resource
             ->filters([
                 Tables\Filters\Filter::make('failed_only')
                     ->label(__('Failed only'))
-                    ->query(fn (Builder $query): Builder => $query->where('status', 'failed')),
+                    ->query(fn (Builder $query): Builder => $query->whereIn('status', [
+                        CompartmentOpenRequestStatus::Failed->value,
+                        CompartmentOpenRequestStatus::DoorJammed->value,
+                    ])),
                 Tables\Filters\Filter::make('denied_only')
                     ->label(__('Denied only'))
-                    ->query(fn (Builder $query): Builder => $query->where('status', 'denied')),
+                    ->query(fn (Builder $query): Builder => $query->where('status', CompartmentOpenRequestStatus::Denied->value)),
                 Tables\Filters\SelectFilter::make('status')
-                    ->options([
-                        'requested' => __('requested'),
-                        'accepted' => __('accepted'),
-                        'sent' => __('sent'),
-                        'opened' => __('opened'),
-                        'failed' => __('failed'),
-                        'denied' => __('denied'),
-                    ]),
+                    ->options(collect(CompartmentOpenRequestStatus::cases())
+                        ->mapWithKeys(fn (CompartmentOpenRequestStatus $status): array => [
+                            $status->value => $status->label(),
+                        ])
+                        ->all()),
             ])
             ->actions([])
             ->bulkActions([]);

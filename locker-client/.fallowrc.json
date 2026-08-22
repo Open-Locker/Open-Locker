@@ -1,6 +1,6 @@
 {
   "ignorePatterns": ["dist/**", "node_modules/**"],
-  "entry": ["src/main.ts", "tests/**/*.test.ts"],
+  "entry": ["src/main.ts", "src/main-simulator.ts", "tests/**/*.test.ts"],
   "rules": {
     "unused-files": "warn",
     "unused-exports": "warn",
@@ -13,7 +13,10 @@
       { "name": "application", "patterns": ["src/application/**"] },
       { "name": "adapters", "patterns": ["src/adapters/**"] },
       { "name": "infrastructure", "patterns": ["src/infrastructure/**"] },
-      { "name": "bootstrap", "patterns": ["src/bootstrap/**", "src/main.ts"] }
+      {
+        "name": "bootstrap",
+        "patterns": ["src/bootstrap/**", "src/main.ts", "src/main-simulator.ts"]
+      }
     ],
     "rules": [
       { "from": "domain", "allow": [] },

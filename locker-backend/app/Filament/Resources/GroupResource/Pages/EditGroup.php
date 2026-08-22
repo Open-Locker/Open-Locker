@@ -15,7 +15,7 @@ class EditGroup extends EditRecord
 {
     protected static string $resource = GroupResource::class;
 
-    // No hard delete (v1): groups are archived, not deleted. See ADR-0020 / #106.
+    // No hard delete (v1): groups are archived, not deleted (#106).
     protected function getHeaderActions(): array
     {
         return [

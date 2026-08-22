@@ -3,10 +3,12 @@
 namespace Tests\Feature;
 
 use App\Mqtt\Handlers\CommandResponseHandler;
+use App\Services\CommandResponseInboxService;
 use App\StorableEvents\CommandResponseReceived;
 use App\StorableEvents\LockerConfigAcknowledged;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Log;
 use Spatie\EventSourcing\StoredEvents\Models\EloquentStoredEvent;
 use Tests\TestCase;
 
@@ -297,5 +299,166 @@ class CommandResponseDedupTest extends TestCase
 
         $this->assertDatabaseCount('command_transactions', 0);
         $this->assertSame(0, EloquentStoredEvent::query()->count());
+    }
+
+    /**
+     * The transport guard only suppresses a repeated message_id. A device that
+     * re-sends the same transaction under a fresh message_id gets past it, so
+     * this is the replay the inbox itself has to catch.
+     */
+    public function test_business_replay_with_fresh_message_id_is_deduplicated(): void
+    {
+        Log::spy();
+
+        $handler = app(CommandResponseHandler::class);
+
+        $lockerUuid = '11111111-1111-1111-1111-111111111111';
+        $transactionId = '22222222-2222-2222-2222-222222222222';
+        $topic = "locker/{$lockerUuid}/response";
+
+        $payload = [
+            'type' => 'command_response',
+            'action' => 'open_compartment',
+            'result' => 'success',
+            'transaction_id' => $transactionId,
+            'timestamp' => now()->toIso8601String(),
+            'message' => 'ok',
+        ];
+
+        $handler->handleMessage($topic, (string) json_encode(
+            $payload + ['message_id' => 'aaaaaaaa-0000-0000-0000-aaaaaaaaaaaa']
+        ));
+        $handler->handleMessage($topic, (string) json_encode(
+            $payload + ['message_id' => 'bbbbbbbb-0000-0000-0000-bbbbbbbbbbbb']
+        ));
+
+        $this->assertDatabaseCount('command_transactions', 1);
+        $this->assertSame(1, EloquentStoredEvent::query()
+            ->where('event_class', CommandResponseReceived::class)
+            ->count());
+
+        // Only the message_id differed, so the response itself is unchanged.
+        Log::shouldHaveReceived('info')
+            ->withArgs(fn (string $message, array $context = []) => $message === 'Duplicate command response received (deduped).'
+                && ($context['payload_changed'] ?? null) === false)
+            ->once();
+    }
+
+    public function test_a_replay_with_a_fresh_timestamp_is_not_reported_as_changed(): void
+    {
+        Log::spy();
+
+        $handler = app(CommandResponseHandler::class);
+
+        $lockerUuid = '11111111-1111-1111-1111-111111111111';
+        $transactionId = '33333333-3333-3333-3333-333333333333';
+        $topic = "locker/{$lockerUuid}/response";
+
+        $payload = [
+            'type' => 'command_response',
+            'action' => 'open_compartment',
+            'result' => 'success',
+            'transaction_id' => $transactionId,
+            'message' => 'ok',
+        ];
+
+        $handler->handleMessage($topic, (string) json_encode($payload + [
+            'message_id' => 'cccccccc-0000-0000-0000-cccccccccccc',
+            'timestamp' => now()->toIso8601String(),
+        ]));
+
+        // A real replay is re-sent later, so it carries a fresh timestamp as well
+        // as a fresh message_id. Neither says anything about the response itself.
+        $this->travel(30)->seconds();
+
+        $handler->handleMessage($topic, (string) json_encode($payload + [
+            'message_id' => 'dddddddd-0000-0000-0000-dddddddddddd',
+            'timestamp' => now()->toIso8601String(),
+        ]));
+
+        $this->assertDatabaseCount('command_transactions', 1);
+
+        Log::shouldHaveReceived('info')
+            ->withArgs(fn (string $message, array $context = []) => $message === 'Duplicate command response received (deduped).'
+                && ($context['payload_changed'] ?? null) === false)
+            ->once();
+    }
+
+    public function test_conflicting_replay_is_discarded_and_logged(): void
+    {
+        Log::spy();
+
+        $handler = app(CommandResponseHandler::class);
+
+        $lockerUuid = '11111111-1111-1111-1111-111111111111';
+        $transactionId = '22222222-2222-2222-2222-222222222222';
+        $topic = "locker/{$lockerUuid}/response";
+
+        $handler->handleMessage($topic, (string) json_encode([
+            'message_id' => 'cccccccc-0000-0000-0000-cccccccccccc',
+            'type' => 'command_response',
+            'action' => 'open_compartment',
+            'result' => 'success',
+            'transaction_id' => $transactionId,
+            'timestamp' => now()->toIso8601String(),
+            'message' => 'ok',
+        ]));
+
+        // Same transaction, opposite outcome, fresh message_id.
+        $handler->handleMessage($topic, (string) json_encode([
+            'message_id' => 'dddddddd-0000-0000-0000-dddddddddddd',
+            'type' => 'command_response',
+            'action' => 'open_compartment',
+            'result' => 'error',
+            'error_code' => 'MODBUS_TIMEOUT',
+            'transaction_id' => $transactionId,
+            'timestamp' => now()->toIso8601String(),
+            'message' => 'no response from board',
+        ]));
+
+        // First writer wins: the recorded outcome is untouched and no second event exists.
+        $this->assertDatabaseCount('command_transactions', 1);
+        $this->assertDatabaseHas('command_transactions', [
+            'locker_uuid' => $lockerUuid,
+            'transaction_id' => $transactionId,
+            'result' => 'success',
+        ]);
+        $this->assertSame(1, EloquentStoredEvent::query()
+            ->where('event_class', CommandResponseReceived::class)
+            ->count());
+
+        Log::shouldHaveReceived('warning')
+            ->withArgs(fn (string $message, array $context = []) => $message === 'Conflicting command response replay discarded.'
+                && ($context['recorded_result'] ?? null) === 'success'
+                && ($context['replayed_result'] ?? null) === 'error'
+                && ($context['replayed_error_code'] ?? null) === 'MODBUS_TIMEOUT')
+            ->once();
+    }
+
+    /**
+     * Two workers can reach the inbox for one transaction at the same time. The
+     * unique index has to be what settles it, so exactly one caller is told it
+     * is first and may emit the event.
+     */
+    public function test_only_one_caller_is_told_it_recorded_the_transaction(): void
+    {
+        $inbox = app(CommandResponseInboxService::class);
+
+        $lockerUuid = '11111111-1111-1111-1111-111111111111';
+        $transactionId = '22222222-2222-2222-2222-222222222222';
+        $topic = "locker/{$lockerUuid}/response";
+        $payload = [
+            'action' => 'open_compartment',
+            'result' => 'success',
+            'transaction_id' => $transactionId,
+            'timestamp' => now()->toIso8601String(),
+        ];
+
+        $first = $inbox->recordIfFirst($lockerUuid, $transactionId, $topic, $payload);
+        $second = $inbox->recordIfFirst($lockerUuid, $transactionId, $topic, $payload);
+
+        $this->assertTrue($first);
+        $this->assertFalse($second);
+        $this->assertDatabaseCount('command_transactions', 1);
     }
 }

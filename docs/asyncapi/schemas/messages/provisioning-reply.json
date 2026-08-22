@@ -12,6 +12,9 @@
     "message_id": {
       "$ref": "../common/message-id.json"
     },
+    "traceparent": {
+      "$ref": "../common/traceparent.json"
+    },
     "status": {
       "type": "string",
       "enum": [

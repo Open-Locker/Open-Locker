@@ -113,9 +113,12 @@ class CompartmentAccessesRelationManager extends RelationManager
                         /** @var User|null $actor */
                         $actor = Filament::auth()->user();
 
+                        /** @var Compartment $compartment */
+                        $compartment = $record->compartment;
+
                         app(GroupAccessService::class)->revokeCompartmentAccess(
                             group: $group,
-                            compartment: $record->compartment,
+                            compartment: $compartment,
                             actor: $actor,
                         );
 

@@ -1,5 +1,6 @@
 {
   "message_id": "msg-state-heartbeat-001",
   "timestamp": "2026-04-14T19:33:00Z",
-  "uptime_seconds": 86400
+  "uptime_seconds": 86400,
+  "modbus_connected": true
 }

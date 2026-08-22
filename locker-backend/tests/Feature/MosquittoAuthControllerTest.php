@@ -35,6 +35,55 @@ class MosquittoAuthControllerTest extends TestCase
             ]);
     }
 
+    /**
+     * `?mosq_secret[]=x` makes query() return an array. Casting that to a string
+     * would compare the literal "Array" against the secret and emit a PHP
+     * warning, so a non-string secret must be rejected outright.
+     */
+    public function test_mosq_auth_rejects_an_array_shaped_secret(): void
+    {
+        $raised = [];
+        set_error_handler(static function (int $severity, string $message) use (&$raised): bool {
+            $raised[] = $message;
+
+            return true;
+        });
+
+        try {
+            $response = $this->postJson('/api/mosq/auth?mosq_secret[]=test-secret', [
+                'username' => 'provisioning_client',
+                'password' => 'provisioning-pass',
+            ]);
+        } finally {
+            restore_error_handler();
+        }
+
+        $response->assertStatus(401)
+            ->assertJson(['allow' => false]);
+
+        // Rejecting outright is what keeps this quiet; casting the array would
+        // still deny the request, but only after warning on every attempt.
+        $this->assertSame(
+            [],
+            array_values(array_filter($raised, static fn (string $m): bool => str_contains($m, 'Array to string conversion'))),
+            'An array-shaped secret must not reach a string cast.'
+        );
+    }
+
+    /**
+     * The array is discarded rather than smuggled through, even when the real
+     * secret is present as one of its elements.
+     */
+    public function test_an_array_shaped_secret_cannot_stand_in_for_the_real_one(): void
+    {
+        $response = $this->postJson('/api/mosq/auth?mosq_secret[0]=test-secret&mosq_secret[1]=x', [
+            'username' => 'provisioning_client',
+            'password' => 'provisioning-pass',
+        ]);
+
+        $response->assertStatus(401);
+    }
+
     public function test_mosq_auth_returns_500_when_secret_not_configured(): void
     {
         config()->set('mqtt-client.webhooks.pass', '');

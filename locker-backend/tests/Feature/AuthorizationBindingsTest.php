@@ -20,17 +20,26 @@ class AuthorizationBindingsTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_first_user_becomes_admin_via_an_event(): void
+    public function test_creating_a_user_no_longer_grants_admin(): void
     {
+        // Admin used to be granted to whoever happened to be user number one, from
+        // any creation path. Nothing creates an administrator implicitly now.
         $first = User::factory()->create();
 
-        $this->assertTrue($first->hasRole(Role::Admin->value));
-        $this->assertTrue($first->isAdmin());
+        $this->assertFalse($first->hasRole(Role::Admin->value));
+        $this->assertFalse($first->isAdmin());
+        $this->assertSame(0, User::adminRoleCount());
+    }
+
+    public function test_bootstrapped_admin_is_granted_through_an_auditable_event(): void
+    {
+        $admin = User::factory()->create();
+        $admin->makeAdmin();
 
         // The grant is recorded as an auditable event (system actor = null).
         $event = EloquentStoredEvent::query()
             ->where('event_class', UserRoleGranted::class)
-            ->where('aggregate_uuid', UserRoleAggregate::aggregateUuidFor($first->id))
+            ->where('aggregate_uuid', UserRoleAggregate::aggregateUuidFor($admin->id))
             ->latest('id')
             ->first();
 
@@ -41,7 +50,8 @@ class AuthorizationBindingsTest extends TestCase
 
     public function test_admin_is_a_super_role_passing_every_permission(): void
     {
-        $admin = User::factory()->create(); // bootstrap admin
+        $admin = User::factory()->create();
+        $admin->makeAdmin();
 
         $this->assertTrue($admin->can(Permission::LockerBankConfigure->value));
         $this->assertTrue($admin->can(Permission::SystemConfigure->value));
@@ -50,7 +60,6 @@ class AuthorizationBindingsTest extends TestCase
 
     public function test_manager_gets_only_static_catalog_permissions(): void
     {
-        User::factory()->create(); // bootstrap admin (so the next user is not first)
         $manager = User::factory()->create();
 
         UserRoleAggregate::retrieve(UserRoleAggregate::aggregateUuidFor($manager->id))
@@ -67,8 +76,6 @@ class AuthorizationBindingsTest extends TestCase
 
     public function test_revoking_a_role_removes_its_permissions(): void
     {
-        User::factory()->create(); // bootstrap admin
-
         $user = User::factory()->create();
         $uuid = UserRoleAggregate::aggregateUuidFor($user->id);
 
@@ -83,8 +90,6 @@ class AuthorizationBindingsTest extends TestCase
 
     public function test_make_admin_records_admin_role_without_legacy_column(): void
     {
-        User::factory()->create(); // bootstrap admin
-
         $user = User::factory()->create();
         $this->assertFalse($user->isAdmin());
         $this->assertFalse(Schema::hasColumn('users', 'is_admin_since'));
@@ -96,7 +101,6 @@ class AuthorizationBindingsTest extends TestCase
 
     public function test_legacy_admin_column_migration_backfills_admin_roles_before_drop(): void
     {
-        User::factory()->create(); // bootstrap admin
         $legacyAdmin = User::factory()->create();
         $grantedAt = now()->subDay();
 
@@ -132,6 +136,7 @@ class AuthorizationBindingsTest extends TestCase
     public function test_last_admin_delete_guard_uses_user_roles(): void
     {
         $admin = User::factory()->create();
+        $admin->makeAdmin();
 
         $this->assertFalse($admin->delete());
         $this->assertDatabaseHas('users', [

@@ -39,16 +39,24 @@ state snapshots remain empty. There is no implicit single-board fallback.
 
 All Modbus operations are serialized on the shared RTU bus. The driver enforces
 the required inter-frame silence from the configured serial parameters; see
-[ADR-0029](../../docs/adr/0029-enforce-modbus-rtu-inter-frame-delay.md).
+[ADR-0035](../../docs/adr/0035-enforce-modbus-rtu-inter-frame-delay.md).
 
 ## Base config fields
 
-| Field             | Required | Default | Description                            |
-| ----------------- | -------- | ------- | -------------------------------------- |
-| `port`            | Yes      | -       | Serial port path (e.g. `/dev/ttyACM0`) |
-| `baudRate`        | No       | 9600    | Serial baud rate                       |
-| `dataBits`        | No       | 8       | Data bits (7 or 8)                     |
-| `stopBits`        | No       | 1       | Stop bits (1 or 2)                     |
-| `parity`          | No       | `none`  | Parity (`none`, `even`, or `odd`)      |
-| `timeout`         | No       | 1000    | Response timeout in milliseconds       |
-| `flashDurationMs` | No       | 200     | Relay flash duration in milliseconds   |
+| Field             | Required | Default | Accepted            | Description                            |
+| ----------------- | -------- | ------- | ------------------- | -------------------------------------- |
+| `port`            | Yes      | -       | non-empty           | Serial port path (e.g. `/dev/ttyACM0`) |
+| `baudRate`        | No       | 9600    | 1200 – 921600       | Serial baud rate                       |
+| `dataBits`        | No       | 8       | 7 or 8              | Data bits                              |
+| `stopBits`        | No       | 1       | 1 or 2              | Stop bits                              |
+| `parity`          | No       | `none`  | `none`/`even`/`odd` | Parity                                 |
+| `timeout`         | No       | 1000    | 50 – 60000 ms       | Response timeout in milliseconds       |
+| `flashDurationMs` | No       | 200     | 100 – 500 ms        | Relay flash duration in milliseconds   |
+
+A value outside its accepted range **fails at startup** rather than being
+clamped or ignored, so a mistake surfaces at the moment of deployment instead of
+becoming odd behaviour hours later. `baudRate` is bounded because it also drives
+the RTU inter-frame delay — a wrong value there would skew bus pacing silently.
+
+Absent fields fall back to the default; only a value that is present and
+unusable is rejected.

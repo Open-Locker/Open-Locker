@@ -32,7 +32,7 @@ Releases — so the Beta is the **first release**. This document therefore has t
 2. **Change log** — what landed, grouped by component and derived from the Conventional
    Commit history (path-filtered per component) plus the issues and pull requests.
 
-Per the monorepo release strategy (`#50`, PR `#195`; ADR pending renumber) the durable
+Per the monorepo release strategy (`#50`, PR `#195`; ADR-0043) the durable
 form of this is generated per component into the GitHub Release attached to each tag
 (`backend-vX.Y.Z`, `client-vX.Y.Z`, `mobile-vX.Y.Z`). This file is the one-off Beta list;
 it is not a committed rolling `CHANGELOG.md`.
@@ -87,8 +87,8 @@ in the feature list and change log; collected here so they are hard to miss.
 
 **Access control**
 - Capability-based roles and permissions, including a dedicated **manager** role, with
-  manager boundaries enforced server-side (`#95`, ADR-0021).
-- Group-based compartment access, effective access exposed via the API (`#46`, ADR-0020).
+  manager boundaries enforced server-side (`#95`, ADR-0022).
+- Group-based compartment access, effective access exposed via the API (`#46`, ADR-0021).
 - User management in the Filament admin panel (`#18`).
 - Role-permission management screens in the admin panel.
 - Default role bindings seeded only on fresh installs.
@@ -103,11 +103,11 @@ in the feature list and change log; collected here so they are hard to miss.
 - Versioned terms workflow with an acceptance gate; terms document versions are managed
   in the admin panel and served to the app.
 - Self-service profile and password editing, for both the app and the admin panel.
-- First and last name captured for users (`#55`, ADR-0019).
+- First and last name captured for users (`#55`, ADR-0020).
 
 **Admin panel (Filament v5)**
 - Single panel with session-based locale switching, EN/DE throughout, incl. auth pages
-  and door-state labels, with the nav locale switcher fixed (`#154`, `#155`, ADR-0029).
+  and door-state labels, with the nav locale switcher fixed (`#154`, `#155`, ADR-0035).
 - Operations-oriented navigation: setup vs operations split, Users and Groups under an
   Access-management section, dashboard dropped in favour of the Compartments list
   (`#48`, `#126`).
@@ -128,7 +128,7 @@ in the feature list and change log; collected here so they are hard to miss.
 - Reduced and de-duplicated notifications (`#165`).
 - Application version exposed in the API and shown in the sidebar footer (`#33`).
 - Synchronous projectors with queued reactors, so admin edits read back immediately
-  (`#128`, ADR-0028 synchronous projectors).
+  (`#128`, ADR-0033 synchronous projectors).
 
 **Integration**
 - Canonical MQTT contract: message taxonomy and wire contract, AsyncAPI spec and shared
@@ -138,20 +138,20 @@ in the feature list and change log; collected here so they are hard to miss.
   complete dedup policy (`#39`, `#41`, ADR-0002).
 - Retained compartment state snapshots; command responses aligned to the contract.
 - Connection status derived from heartbeat telemetry, with a scheduled offline-locker
-  detector; liveness healthcheck for the MQTT listener (`#52`, ADR-0025).
+  detector; liveness healthcheck for the MQTT listener (`#52`, ADR-0028).
 - `identify` endpoint so the app can confirm which backend instance it is talking to
   before login (`#12`).
 - Mosquitto authenticates against the API via `mosquitto-go-auth` (`/api/mosq/*`).
-- Request-scoped API localization via `Accept-Language` (ADR-0024).
+- Request-scoped API localization via `Accept-Language` (ADR-0027).
 - Live OpenAPI spec via Scramble at `/docs/api.json`; `api.json` no longer tracked
-  (`#84`, ADR-0018).
+  (`#84`, ADR-0019).
 - Realtime broadcasting to mobile over Reverb (door state, content notes)
-  (`#45`, ADR-0022, ADR-0023), with door state verified end to end from MQTT snapshots
+  (`#45`, ADR-0023, ADR-0029), with door state verified end to end from MQTT snapshots
   and its projection updates fixed (`#44`, `#164`).
 - End-to-end tracing and logging of the open flow with OpenTelemetry
-  (`#65`, PR `#189`; OpenTelemetry ADR pending renumber).
+  (`#65`, PR `#189`; ADR-0042).
 - Command acknowledgement separated from door-open detection and alerting
-  (`#94`; separate-ACK ADR pending renumber).
+  (`#94`; ADR-0040).
 
 ### Mobile app — React Native / Expo
 
@@ -163,21 +163,21 @@ in the feature list and change log; collected here so they are hard to miss.
 - EN/DE localization with a persisted in-app language switcher; centralized theme and UI
   defaults, dark-mode-aware logo and splash scaling (`#93`, `#98`).
 - Internal test builds from CI: EAS build + TestFlight submission from `main`
-  (`#19`, ADR-0028).
+  (`#19`, ADR-0033).
 - Legacy auth context and hand-written API layer removed (`#85`).
 - react-doctor evaluated for code health, expo-doctor kept in the quality gate (`#64`).
 
 ### Locker client — Raspberry Pi / Node + Docker
 
-- **v2 hexagonal rewrite** replacing v1 (`#175`, ADR-0024 locker-client v2).
+- **v2 hexagonal rewrite** replacing v1 (`#175`, ADR-0027 locker-client v2).
 - MQTT provisioning with persisted, zod-validated credentials and client-ID persistence.
 - Command handling: `open_compartment`, `apply_config`, response ACKs, transaction-bound
   dedup, recoverable command responses (`#38`, `#40`, `#42`, `#171`).
 - Modbus adapters for Waveshare relay boards: pulse/flash relay control, all relays off
   at startup, serialized operations, enforced RTU inter-frame delay, tolerance for
-  unreachable boards (`#61`, ADR-0006, ADR-0007, ADR-0029).
+  unreachable boards (`#61`, ADR-0006, ADR-0007, ADR-0035).
 - Door-sensor polling batched at 500 ms, publishing change-only snapshots
-  (`#166`, ADR-0030).
+  (`#166`, ADR-0038).
 - Runtime configuration applied from the server, with overlay validation.
 - Heartbeat service for connection monitoring, plus an MQTT last-will message so the
   backend sees an ungraceful disconnect.
@@ -188,7 +188,7 @@ in the feature list and change log; collected here so they are hard to miss.
   (`#113`).
 - Contract-aligned locker fleet simulator: in-memory bus, credential and overlay stores,
   scenario files and a traffic log, so the whole stack runs without hardware
-  (`#82`, `#23`, ADR-0027, `docs/simulator.md`).
+  (`#82`, `#23`, ADR-0031, `docs/simulator.md`).
 - Watchtower-based update flow; ships as `ghcr.io/open-locker/locker-client:latest`.
 
 ### Hardware
@@ -201,8 +201,8 @@ in the feature list and change log; collected here so they are hard to miss.
 ### Website and documentation
 
 - Landing page moved into the monorepo, deployed to GitHub Pages at open-locker.org
-  (`#53`, ADR-0030).
-- English version of the site, URL-path-based localization (`#90`, ADR-0031).
+  (`#53`, ADR-0038).
+- English version of the site, URL-path-based localization (`#90`, ADR-0040).
 - Starlight documentation section with aligned branding; BOM migrated in as a Hardware
   page (`#92`); copy and layout fine-tuning (`#179`).
 - Architecture docs, MQTT architecture and integration plan, AsyncAPI specs,
@@ -215,10 +215,9 @@ in the feature list and change log; collected here so they are hard to miss.
 - Quality gates: Pint, PHPStan (level 8), Jest, `node --test`, expo-doctor (`#199`).
 - Dependency-audit gates, with security advisories patched as they surfaced.
 - Build-time work: isolated Docker caches, parallel Pint, superseded-run cancellation,
-  single-platform client PR builds, Android internal build caching (`#204`; Android build
-  cache ADR pending renumber).
+  single-platform client PR builds, Android internal build caching (`#204`; ADR-0047).
 - Per-component release strategy decided: independent tag namespaces, contract-tied
-  SemVer, generated release notes (`#50`, PR `#195`; ADR pending renumber).
+  SemVer, generated release notes (`#50`, PR `#195`; ADR-0043).
 - Laravel Boost wired up for agent tooling (`#88`).
 
 ---
@@ -243,8 +242,8 @@ Grouped by component; `feat` / `fix` / `perf` from the Conventional Commit histo
 - Role-permission management screens and capability-based roles with a manager role (`#95`)
 - Operations-oriented Filament nav and compartment access screen (`#48`)
 - Localize the Filament admin panel (EN/DE), incl. door-state labels and auth pages
-- Request-scoped API localization via `Accept-Language` (ADR-0024)
-- Group-based compartment access (ADR-0020)
+- Request-scoped API localization via `Accept-Language` (ADR-0027)
+- Group-based compartment access (ADR-0021)
 - Event-sourced compartment content note; drop the Item domain
 - Realtime broadcast of content-note updates to mobile
 - Liveness healthcheck for the MQTT listener (`#52`)
@@ -256,10 +255,8 @@ Grouped by component; `feat` / `fix` / `perf` from the Conventional Commit histo
 - Bootstrap the first admin from configuration (`#141`; first-admin bootstrap ADR pending
   renumber)
 - Compartment list navigation (`#167`)
-- End-to-end OpenTelemetry tracing of the open flow (`#65`, PR `#189`; OpenTelemetry ADR
-  pending renumber)
-- Separate command acknowledgement from door-open detection (`#94`; separate-ACK ADR
-  pending renumber)
+- End-to-end OpenTelemetry tracing of the open flow (`#65`, PR `#189`; ADR-0042)
+- Separate command acknowledgement from door-open detection (`#94`; ADR-0040)
 
 **Fixes**
 - Repair status badges and align the two compartment views (`#190`)
@@ -272,7 +269,7 @@ Grouped by component; `feat` / `fix` / `perf` from the Conventional Commit histo
 - Show the direct-users count in the compartment list (`#153`)
 - Secure locale redirects and preserve query strings
 - Enforce manager boundaries server-side; allow the managers group terms access
-- Seed default role bindings only on fresh installs (ADR-0021)
+- Seed default role bindings only on fresh installs (ADR-0022)
 - Type the reset-password success response and fix its message (`#86`)
 - Public password-reset and email-verification fallbacks; unblock admin recovery
 - Scope the `applyConfig` completeness check to the locker bank
@@ -315,13 +312,13 @@ Grouped by component; `feat` / `fix` / `perf` from the Conventional Commit histo
 - Validate persisted MQTT credentials with zod
 - Watchtower-based update flow
 - Log volume in `docker-compose`
-- Contract-aligned fleet simulator with scenario files and traffic log (`#82`, ADR-0027)
+- Contract-aligned fleet simulator with scenario files and traffic log (`#82`, ADR-0031)
 
 **Fixes**
 - Improve protocol errors and observability (`#173`)
 - Harden local persistence, persisted-state handling and credentials (`#168`)
 - Harden MQTT response recovery (`#171`)
-- Enforce the Modbus RTU inter-frame delay (ADR-0029)
+- Enforce the Modbus RTU inter-frame delay (ADR-0035)
 - Serialize Modbus operations; poll state across all boards; poll configured channels
   individually; skip relay reads for configured snapshots
 - Tolerate unreachable boards at startup
@@ -345,9 +342,9 @@ Grouped by component; `feat` / `fix` / `perf` from the Conventional Commit histo
 - Gate client releases on quality checks
 - Cancel superseded pull-request runs
 - Isolate Docker build caches; build one platform for client PRs
-- Cut Android internal build time (`#204`; Android build cache ADR pending renumber)
+- Cut Android internal build time (`#204`; ADR-0047)
 - Raise PHPStan to level 8 (`#199`)
-- Decide the per-component release strategy (`#50`, PR `#195`; ADR pending renumber)
+- Decide the per-component release strategy (`#50`, PR `#195`; ADR-0043)
 - Laravel Boost for agent tooling (`#88`)
 
 ### Earlier (MVP and before)
@@ -462,9 +459,8 @@ concentrated in release mechanics and field hardening, not in missing product.
 
 ## References
 
-- Monorepo release strategy — `#50`, PR `#195` (ADR pending renumber; not the ADR-0033
-  persistence file on current `dev`)
-- ADR-0028 — mobile internal test builds
-- ADR-0030 — website in the monorepo
+- Monorepo release strategy — `#50`, PR `#195` (ADR-0043)
+- ADR-0033 — mobile internal test builds
+- ADR-0038 — website in the monorepo
 - Milestones: *Milestone 1 – Hardware MVP*, *Milestone 2 – Internal MVP*,
   *Milestone 3 – MVP*, *Beta*

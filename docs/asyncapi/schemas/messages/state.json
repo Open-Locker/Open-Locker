@@ -11,6 +11,10 @@
     "message_id": {
       "$ref": "../common/message-id.json"
     },
+    "traceparent": {
+      "$ref": "../common/traceparent.json",
+      "description": "Reserved for symmetry with the other envelopes. State topics are deliberately excluded from tracing on both sides — heartbeats and retained snapshots would dominate the trace backend — so this field is not sent on state messages today."
+    },
     "timestamp": {
       "$ref": "../common/timestamp.json"
     }

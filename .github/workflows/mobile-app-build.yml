@@ -9,7 +9,7 @@
 # Plain (non-secret) value, set inline below:
 #   APP_ID_BASE = de.merona.openlocker
 #
-# See docs/adr/0028-mobile-internal-test-builds-ci.md for the decision record
+# See docs/adr/0032-mobile-internal-test-builds-ci.md for the decision record
 # and mobile-app/docs/internal-builds.md for the maintainer guide.
 
 name: Mobile App Build
@@ -28,6 +28,9 @@ concurrency:
 
 env:
   APP_ID_BASE: de.merona.openlocker
+  # Pinned rather than `@latest`: the build tool should not change underneath a
+  # release without a commit saying so. Bump deliberately.
+  EAS_CLI_VERSION: '21.8.0'
   EAS_BUILD_NO_EXPO_GO_WARNING: 'true'
 
 jobs:
@@ -54,6 +57,22 @@ jobs:
           distribution: temurin
           java-version: '17'
 
+      # The local EAS build runs Gradle under the runner's own GRADLE_USER_HOME,
+      # so this covers the wrapper distribution, the dependency cache and the
+      # Gradle build cache (task outputs keyed by input hash — the part that
+      # makes a warm run skip work rather than just skip downloads).
+      # Native dependency changes must not reuse stale outputs, so the key
+      # carries the lockfile and both Expo/EAS config files.
+      - name: Cache Gradle
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: gradle-${{ runner.os }}-${{ hashFiles('mobile-app/pnpm-lock.yaml', 'mobile-app/app.config.ts', 'mobile-app/eas.json') }}
+          restore-keys: |
+            gradle-${{ runner.os }}-
+
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
@@ -61,7 +80,7 @@ jobs:
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
         run: |
-          pnpm dlx eas-cli@latest build \
+          pnpm dlx eas-cli@${EAS_CLI_VERSION} build \
             --local --non-interactive \
             --profile production --platform android \
             --output ./build/openlocker-android.apk
@@ -98,7 +117,7 @@ jobs:
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
         run: |
-          pnpm dlx eas-cli@latest build \
+          pnpm dlx eas-cli@${EAS_CLI_VERSION} build \
             --local --non-interactive \
             --profile production --platform ios \
             --output ./build/openlocker-ios.ipa
@@ -120,7 +139,7 @@ jobs:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
           APP_VARIANT: production   # so app.config.ts resolves the production bundle id (no .dev suffix)
         run: |
-          pnpm dlx eas-cli@latest submit \
+          pnpm dlx eas-cli@${EAS_CLI_VERSION} submit \
             --non-interactive \
             --profile production --platform ios \
             --path ./build/openlocker-ios.ipa

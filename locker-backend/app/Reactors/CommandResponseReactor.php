@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Reactors;
 
 use App\StorableEvents\CommandResponseReceived;
-use App\StorableEvents\CompartmentOpened;
+use App\StorableEvents\CompartmentOpenAcknowledged;
 use App\StorableEvents\CompartmentOpeningFailed;
 use App\StorableEvents\CompartmentOpeningRequested;
 use App\StorableEvents\LockerConfigAckFailed;
@@ -15,6 +15,12 @@ use Illuminate\Support\Facades\Log;
 use Spatie\EventSourcing\EventHandlers\Reactors\Reactor;
 use Spatie\EventSourcing\StoredEvents\Models\EloquentStoredEvent;
 
+/**
+ * Guards against re-deriving domain events from a redelivered command response
+ * with a read followed by a write, which is not atomic. That holds only while
+ * one worker consumes the `events` queue — see DoorDetectionReactor, which
+ * shares both the queue and the constraint.
+ */
 class CommandResponseReactor extends Reactor implements ShouldQueue
 {
     public string $queue = 'events';
@@ -101,11 +107,15 @@ class CommandResponseReactor extends Reactor implements ShouldQueue
             }
 
             if ($result === 'success') {
-                if ($this->derivedEventExists(CompartmentOpened::class, $event->transactionId)) {
+                // The pulse was sent. Whether the door opened arrives separately
+                // on the event channel and is derived by DoorDetectionReactor.
+                // This used to record CompartmentOpened, conflating command
+                // execution with the physical door.
+                if ($this->derivedEventExists(CompartmentOpenAcknowledged::class, $event->transactionId)) {
                     return;
                 }
 
-                event(new CompartmentOpened(
+                event(new CompartmentOpenAcknowledged(
                     lockerBankUuid: $event->lockerBankUuid,
                     compartmentUuid: $compartmentUuid,
                     compartmentNumber: $compartmentNumber,

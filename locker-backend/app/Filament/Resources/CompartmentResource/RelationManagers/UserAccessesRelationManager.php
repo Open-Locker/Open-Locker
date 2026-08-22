@@ -37,7 +37,7 @@ class UserAccessesRelationManager extends RelationManager
             ->recordTitleAttribute('id')
             ->modifyQueryUsing(function (Builder $query): Builder {
                 /** @var Builder<CompartmentAccess> $query */
-                return $query->active();
+                return $query->active()->with(['user', 'grantedByUser']);
             })
             ->columns([
                 Tables\Columns\TextColumn::make('user.email')
@@ -114,8 +114,11 @@ class UserAccessesRelationManager extends RelationManager
                         /** @var User|null $actor */
                         $actor = Filament::auth()->user();
 
+                        /** @var User $user */
+                        $user = $record->user;
+
                         app(CompartmentAccessService::class)->revokeAccess(
-                            user: $record->user,
+                            user: $user,
                             compartment: $compartment,
                             actor: $actor,
                         );
@@ -129,7 +132,7 @@ class UserAccessesRelationManager extends RelationManager
      * Users who can be granted access to the owner compartment: excludes users
      * that already have active access to it.
      *
-     * @return array<string, string>
+     * @return array<int|string, string>
      */
     private function grantableUserOptions(): array
     {

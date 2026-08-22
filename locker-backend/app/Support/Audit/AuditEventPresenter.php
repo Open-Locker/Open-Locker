@@ -12,7 +12,7 @@ use Spatie\EventSourcing\StoredEvents\Models\EloquentStoredEvent;
 
 /**
  * Turns raw {@see EloquentStoredEvent} rows into the curated, human-readable
- * shape used by the admin audit log (issue #109, ADR-0026).
+ * shape used by the admin audit log (#109).
  *
  * Only the event classes listed in {@see self::CATEGORIES} are considered
  * "auditable" — high-volume telemetry events (heartbeats, door-state changes,
@@ -21,8 +21,6 @@ use Spatie\EventSourcing\StoredEvents\Models\EloquentStoredEvent;
  *
  * Lookups are memoised per request so rendering a page of rows does not issue a
  * query per row for the same actor/compartment/group.
- *
- * @see docs/adr/0026-admin-audit-log.md
  */
 class AuditEventPresenter
 {
@@ -38,6 +36,11 @@ class AuditEventPresenter
         'CompartmentOpenAuthorized' => 'access',
         'CompartmentOpenDenied' => 'access',
         'CompartmentOpened' => 'access',
+        'CompartmentOpenAcknowledged' => 'access',
+        'CompartmentDoorOpenDetected' => 'access',
+        'CompartmentDoorAlreadyOpen' => 'access',
+        'CompartmentOpenNotDetected' => 'access',
+        'CompartmentUncommandedOpenDetected' => 'access',
         'CompartmentOpeningFailed' => 'access',
         'CompartmentAccessGranted' => 'access',
         'CompartmentAccessRevoked' => 'access',
@@ -163,6 +166,11 @@ class AuditEventPresenter
             'CompartmentOpenAuthorized' => __('Open authorized'),
             'CompartmentOpenDenied' => __('Open denied'),
             'CompartmentOpened' => __('Compartment opened'),
+            'CompartmentOpenAcknowledged' => __('Unlock pulse sent'),
+            'CompartmentDoorOpenDetected' => __('Door opened'),
+            'CompartmentDoorAlreadyOpen' => __('Door was already open'),
+            'CompartmentOpenNotDetected' => __('Door did not open'),
+            'CompartmentUncommandedOpenDetected' => __('Uncommanded door opening'),
             'CompartmentOpeningFailed' => __('Opening failed'),
             'CompartmentAccessGranted' => __('Access granted'),
             'CompartmentAccessRevoked' => __('Access revoked'),
@@ -215,6 +223,22 @@ class AuditEventPresenter
                 'reason' => $p['reason'] ?? '-',
             ]),
             'CompartmentOpened' => __('Compartment :compartment was opened', [
+                'compartment' => $this->compartment($p['compartmentUuid'] ?? null),
+            ]),
+            'CompartmentOpenAcknowledged' => __('Unlock pulse sent to compartment :compartment', [
+                'compartment' => $this->compartment($p['compartmentUuid'] ?? null),
+            ]),
+            'CompartmentDoorOpenDetected' => __('Compartment :compartment door was observed open', [
+                'compartment' => $this->compartment($p['compartmentUuid'] ?? null),
+            ]),
+            'CompartmentDoorAlreadyOpen' => __('Compartment :compartment was already open when the pulse was sent', [
+                'compartment' => $this->compartment($p['compartmentUuid'] ?? null),
+            ]),
+            'CompartmentOpenNotDetected' => __('Compartment :compartment did not open after the unlock pulse (:error)', [
+                'compartment' => $this->compartment($p['compartmentUuid'] ?? null),
+                'error' => $p['errorCode'] ?? '-',
+            ]),
+            'CompartmentUncommandedOpenDetected' => __('Compartment :compartment was opened with no command behind it', [
                 'compartment' => $this->compartment($p['compartmentUuid'] ?? null),
             ]),
             'CompartmentOpeningFailed' => __('Opening of compartment :compartment failed (:error)', [
@@ -372,7 +396,7 @@ class AuditEventPresenter
 
         $id = (int) $id;
 
-        return $this->userCache[$id] ??= (User::find($id)?->fullName() ?: __('User #:id', ['id' => $id]));
+        return $this->userCache[$id] ??= (User::find($id)?->fullName() ?: (string) __('User #:id', ['id' => $id]));
     }
 
     private function compartment(?string $uuid): string
@@ -402,7 +426,7 @@ class AuditEventPresenter
             return __('Unknown');
         }
 
-        return $this->groupCache[$uuid] ??= (Group::find($uuid)?->name ?: __('Unknown'));
+        return $this->groupCache[$uuid] ??= (Group::find($uuid)?->name ?: (string) __('Unknown'));
     }
 
     private function lockerBank(?string $uuid): string
@@ -411,6 +435,6 @@ class AuditEventPresenter
             return __('Unknown');
         }
 
-        return $this->lockerBankCache[$uuid] ??= (LockerBank::find($uuid)?->name ?: __('Unknown'));
+        return $this->lockerBankCache[$uuid] ??= (LockerBank::find($uuid)?->name ?: (string) __('Unknown'));
     }
 }

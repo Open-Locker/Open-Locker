@@ -1,0 +1,78 @@
+# OpenTelemetry Collector configuration for local tracing.
+#
+# Used only by docker-compose.observability.yml, which is opt-in. Nothing in the
+# default stack reads this file.
+#
+# The collector is the single endpoint both the backend and the locker clients
+# point at, so switching where traces end up is a change to this file alone —
+# no application config, no redeploy of the Pis.
+
+receivers:
+    otlp:
+        protocols:
+            http:
+                # The backend and locker-client both speak OTLP over HTTP.
+                endpoint: 0.0.0.0:4318
+            grpc:
+                endpoint: 0.0.0.0:4317
+
+processors:
+    # Groups spans into batches before export. Without it every span is its own
+    # request, which is wasteful even at this fleet's volume.
+    batch:
+        timeout: 5s
+
+exporters:
+    # SigNoz running as its own Compose project on the host. `host.docker.internal`
+    # is how this container reaches it; the overlay maps that name for us.
+    #
+    # Deliberately OTLP over HTTP (4318) rather than gRPC (4317): SigNoz's
+    # bundled collector only serves gRPC once its server has handed it a config,
+    # so the gRPC port accepts a connection and then drops the handshake while it
+    # is still starting. HTTP has no such dependency and starts working sooner.
+    otlphttp/signoz:
+        endpoint: http://host.docker.internal:4318
+
+    # Prints a summary of every span to `docker compose logs otel-collector`.
+    # Useful when a trace is not showing up and you need to know whether the
+    # collector received it at all. Set verbosity to `detailed` for attributes.
+    debug:
+        verbosity: normal
+
+    # --- Sending somewhere else instead ---
+    #
+    # Replace `otlphttp/signoz` in the pipeline below with one of these. The
+    # applications do not change: they only ever know about this collector.
+    #
+    # Grafana Tempo:
+    #   otlp/tempo:
+    #     endpoint: host.docker.internal:4317
+    #     tls:
+    #       insecure: true
+    #
+    # Jaeger (all-in-one, with COLLECTOR_OTLP_ENABLED=true):
+    #   otlp/jaeger:
+    #     endpoint: host.docker.internal:4317
+    #     tls:
+    #       insecure: true
+    #
+    # Honeycomb:
+    #   otlp/honeycomb:
+    #     endpoint: api.honeycomb.io:443
+    #     headers:
+    #       x-honeycomb-team: ${env:HONEYCOMB_API_KEY}
+
+service:
+    pipelines:
+        traces:
+            receivers: [otlp]
+            processors: [batch]
+            exporters: [otlphttp/signoz, debug]
+
+        # Logs travel the same path as traces and carry the trace id, so a log
+        # line in the dashboard links back to the flow it came from. Without
+        # this pipeline the collector accepts log records and drops them.
+        logs:
+            receivers: [otlp]
+            processors: [batch]
+            exporters: [otlphttp/signoz, debug]

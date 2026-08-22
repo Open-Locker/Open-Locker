@@ -97,7 +97,7 @@ class CompartmentAccessService
      *
      * Admins see every bank and all compartments. Other users see only banks
      * containing at least one compartment they can reach directly or via a
-     * group (ADR-0020), with compartments filtered to those same ones. Results
+     * group, with compartments filtered to those same ones. Results
      * are ordered by bank name then compartment number.
      *
      * @return Collection<int, LockerBank>
@@ -182,7 +182,7 @@ class CompartmentAccessService
             ];
         }
 
-        // Managers may open any compartment operationally (ADR-0021 / #95),
+        // Managers may open any compartment operationally (#95),
         // recorded as a distinct authorization type for audit clarity.
         if ($user->can(Permission::CompartmentOpen->value)) {
             $aggregate->authorize(

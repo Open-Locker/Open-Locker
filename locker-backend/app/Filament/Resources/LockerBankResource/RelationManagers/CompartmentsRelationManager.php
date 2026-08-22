@@ -4,10 +4,13 @@ declare(strict_types=1);
 
 namespace App\Filament\Resources\LockerBankResource\RelationManagers;
 
+use App\Enums\Permission;
+use App\Filament\Support\CompartmentDoorStateColumn;
+use App\Filament\Support\OpenCompartmentAction;
 use App\Models\Compartment;
 use App\Models\LockerBank;
 use App\Models\User;
-use App\Services\CompartmentAccessService;
+use App\Services\CompartmentService;
 use App\Services\LockerService;
 use App\StorableEvents\CompartmentContentNoteUpdated;
 use Filament\Actions\Action;
@@ -22,6 +25,8 @@ use Filament\Support\Enums\FontWeight;
 use Filament\Support\Enums\Width;
 use Filament\Tables;
 use Filament\Tables\Table;
+use Illuminate\Auth\Access\AuthorizationException;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Log;
 use Spatie\EventSourcing\StoredEvents\Models\EloquentStoredEvent;
@@ -83,22 +88,26 @@ class CompartmentsRelationManager extends RelationManager
         $actorNames = User::query()->whereIn('id', $actorIds)->get()
             ->mapWithKeys(fn (User $user): array => [$user->id => $user->fullName()]);
 
-        return $events->map(function (EloquentStoredEvent $event) use ($actorNames): array {
+        return array_values($events->map(function (EloquentStoredEvent $event) use ($actorNames): array {
             $properties = $event->event_properties;
             $actorId = $properties['actorUserId'] ?? null;
+            $note = $properties['note'] ?? null;
 
             return [
                 'changed_at' => Carbon::parse($event->created_at)->toDayDateTimeString(),
                 'actor' => $actorNames[$actorId] ?? "User #{$actorId}",
-                'note' => $properties['note'] ?? null,
+                'note' => is_string($note) ? $note : null,
             ];
-        })->all();
+        })->all());
     }
 
     public function table(Table $table): Table
     {
         return $table
             ->recordTitleAttribute('number')
+            // The door badge reads the last open request to flag a jam, so load it
+            // with the rows rather than once per compartment.
+            ->modifyQueryUsing(fn (Builder $query): Builder => $query->with('latestOpenRequest'))
             ->columns([
                 Tables\Columns\TextColumn::make('number')
                     ->sortable()
@@ -114,6 +123,9 @@ class CompartmentsRelationManager extends RelationManager
                     ->label(__('Address'))
                     ->rules(['nullable', 'integer', 'min:0'])
                     ->tooltip(__('0-based relay address. Used for both coil and input.')),
+
+                CompartmentDoorStateColumn::column(),
+
                 Tables\Columns\TextColumn::make('content_note')
                     ->label(__('Note'))
                     ->placeholder(__('No note'))
@@ -121,7 +133,7 @@ class CompartmentsRelationManager extends RelationManager
                     ->wrap()
                     ->tooltip(fn (Compartment $record): ?string => $record->content_note)
                     ->description(fn (Compartment $record): ?string => $record->content_note_updated_at
-                        ? __('Updated :time', ['time' => $record->content_note_updated_at->diffForHumans()])
+                        ? (string) __('Updated :time', ['time' => $record->content_note_updated_at->diffForHumans()])
                         : null)
                     ->action(
                         Action::make('noteHistory')
@@ -158,18 +170,6 @@ class CompartmentsRelationManager extends RelationManager
                                     ->extraAttributes(['style' => 'max-height: 60vh; overflow-y: auto;']),
                             ]),
                     ),
-                Tables\Columns\TextColumn::make('latestOpenRequest.status')
-                    ->label(__('Last open status'))
-                    ->badge()
-                    ->color(fn (?string $state): string => match ($state) {
-                        'opened' => 'success',
-                        'failed', 'denied' => 'danger',
-                        'sent', 'accepted', 'requested' => 'warning',
-                        default => 'gray',
-                    })
-                    ->formatStateUsing(fn (?string $state): string => $state ? __($state) : '')
-                    ->placeholder(__('No requests'))
-                    ->sortable(),
                 Tables\Columns\TextColumn::make('latestOpenRequest.command_id')
                     ->label(__('Last command ID'))
                     ->copyable()
@@ -218,38 +218,59 @@ class CompartmentsRelationManager extends RelationManager
             ])
             ->actions([
                 \Filament\Actions\EditAction::make(),
-                Action::make('open')
-                    ->label(__('Open'))
-                    ->icon('heroicon-m-bolt')
-                    ->requiresConfirmation()
-                    ->action(function (Compartment $record): void {
-                        try {
-                            $user = Filament::auth()->user();
-                            if (! $user instanceof \App\Models\User) {
-                                Notification::make()
-                                    ->title(__('Unable to open compartment'))
-                                    ->body(__('Your session has expired. Please log in again.'))
-                                    ->danger()
-                                    ->send();
-
-                                return;
-                            }
-
-                            app(CompartmentAccessService::class)->requestOpen($user, $record);
-                        } catch (\Throwable $e) {
-                            Log::error('Failed to request compartment opening from Filament.', [
-                                'compartment_id' => $record->id,
-                                'locker_bank_id' => $record->locker_bank_id,
-                                'number' => $record->number,
-                                'error' => $e->getMessage(),
-                            ]);
-
+                OpenCompartmentAction::make(),
+                Action::make('editContentNote')
+                    ->label(__('Edit note'))
+                    ->icon('heroicon-m-pencil-square')
+                    ->modalHeading(fn (Compartment $record): string => __('Edit note — compartment #:number', ['number' => $record->number]))
+                    ->modalWidth(Width::Medium)
+                    ->modalSubmitActionLabel(__('Save note'))
+                    // The same permission CompartmentService enforces, so the
+                    // button is never offered to someone who would be refused.
+                    ->visible(fn (): bool => Filament::auth()->user()?->can(Permission::CompartmentAccessManage->value) ?? false)
+                    ->fillForm(fn (Compartment $record): array => ['note' => $record->content_note])
+                    ->form([
+                        Forms\Components\Textarea::make('note')
+                            ->label(__('Note'))
+                            ->rows(3)
+                            // Matches the column width and the API rule.
+                            ->maxLength(80)
+                            ->helperText(__('Leave empty to clear the note.')),
+                    ])
+                    ->action(function (Compartment $record, array $data): void {
+                        $user = Filament::auth()->user();
+                        if (! $user instanceof User) {
                             Notification::make()
-                                ->title(__('Failed to send open command'))
-                                ->body(__('Please try again. Details are in the server log.'))
+                                ->title(__('Unable to save note'))
+                                ->body(__('Your session has expired. Please log in again.'))
                                 ->danger()
                                 ->send();
+
+                            return;
                         }
+
+                        // Blank clears the note, same as the mobile endpoint.
+                        $note = trim((string) ($data['note'] ?? ''));
+
+                        try {
+                            app(CompartmentService::class)->updateContentNote(
+                                actor: $user,
+                                compartment: $record,
+                                note: $note === '' ? null : $note,
+                            );
+                        } catch (AuthorizationException) {
+                            Notification::make()
+                                ->title(__('Not allowed to edit this note'))
+                                ->danger()
+                                ->send();
+
+                            return;
+                        }
+
+                        Notification::make()
+                            ->title($note === '' ? __('Note cleared') : __('Note updated'))
+                            ->success()
+                            ->send();
                     }),
                 \Filament\Actions\DeleteAction::make(),
             ])

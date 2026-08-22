@@ -7,6 +7,7 @@ namespace App\Filament\Support;
 use App\Models\Compartment;
 use App\Models\Group;
 use App\Models\User;
+use Closure;
 use Filament\Forms\Components\DateTimePicker;
 use Filament\Forms\Components\Field;
 use Filament\Forms\Components\Select;
@@ -29,9 +30,9 @@ final class AccessPickerOptions
      * options come from one of the builders below. Used by every access/member
      * grant form so the pickers stay consistent (see issue #127).
      *
-     * @param  callable(): array<string, string>  $options
+     * @param  Closure(): array<int|string, string>  $options
      */
-    public static function select(string $name, string $label, callable $options): Select
+    public static function select(string $name, string $label, Closure $options): Select
     {
         return Select::make($name)
             ->label($label)
@@ -46,10 +47,10 @@ final class AccessPickerOptions
      * `expires_at` (and optionally `notes`) fields, so every grant modal
      * stays field-for-field identical (see issue #127).
      *
-     * @param  callable(): array<string, string>  $options
+     * @param  Closure(): array<int|string, string>  $options
      * @return array<int, Field>
      */
-    public static function grantForm(string $name, string $label, callable $options, bool $withNotes = true): array
+    public static function grantForm(string $name, string $label, Closure $options, bool $withNotes = true): array
     {
         $fields = [
             self::select($name, $label, $options),
@@ -99,7 +100,7 @@ final class AccessPickerOptions
             ->mapWithKeys(fn (Compartment $compartment): array => [
                 (string) $compartment->id => sprintf(
                     '%s / #%d',
-                    $compartment->lockerBank->name,
+                    $compartment->lockerBank->name ?? __('Unknown'),
                     (int) $compartment->number
                 ),
             ])
@@ -110,7 +111,7 @@ final class AccessPickerOptions
      * Users sorted by name, labelled "{full name} ({email})".
      *
      * @param  Builder<User>  $query
-     * @return array<string, string>
+     * @return array<int|string, string>
      */
     public static function users(Builder $query): array
     {

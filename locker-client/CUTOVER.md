@@ -9,7 +9,7 @@
 - [x] Heartbeat on `locker/{uuid}/state/heartbeat`
 - [x] Retained snapshot on `locker/{uuid}/state/compartments`
 - [x] Startup all-relays-off failsafe (ADR-0006)
-- [x] Sequential three-board polling on beta hardware (ADR-0007/ADR-0029)
+- [x] Sequential three-board polling on beta hardware (ADR-0007/ADR-0035)
 
 ## Safety
 

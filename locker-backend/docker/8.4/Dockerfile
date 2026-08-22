@@ -46,8 +46,23 @@ COPY --chown=www-data:www-data . .
 # Build frontend assets
 RUN pnpm run build
 
-# Generate optimized autoloader
-RUN composer dump-autoload --optimize
+# Generate optimized autoloader.
+#
+# This runs package:discover, which boots every service provider — including
+# OpenTelemetry's, which builds its exporters eagerly. There is nothing to
+# export while building an image, and an exporter that cannot be constructed
+# (an OTLP protocol whose transport package is not installed, say) fails the
+# build rather than degrading. Disabling the SDK for this one command keeps
+# image builds independent of telemetry configuration entirely.
+#
+# Scoped to the RUN, so it does not leak into the runtime image.
+RUN OTEL_SDK_DISABLED=true composer dump-autoload --optimize
 
 # Clean up build dependencies
 RUN rm -rf node_modules
+
+# Bootstrap the ADMIN_EMAIL administrator on start. Lives in the base image's
+# entrypoint.d so it runs after migrations, on the one container that runs them.
+USER root
+COPY --chmod=755 docker/entrypoint.d/50-first-admin.sh /etc/entrypoint.d/50-first-admin.sh
+USER www-data

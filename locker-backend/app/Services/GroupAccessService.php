@@ -114,7 +114,7 @@ class GroupAccessService
     }
 
     /**
-     * Archive a group (event-sourced, not a hard delete — see ADR-0020 / #106).
+     * Archive a group (event-sourced, not a hard delete — #106).
      * Ends effective access derived from this group; existing `group_user` /
      * `group_compartment_accesses` rows are left as-is (GroupProjector simply
      * stops counting an archived group as a source), preserving full history.

@@ -20,7 +20,10 @@ class CompartmentControllerTest extends TestCase
 
     public function test_compartments_endpoint_returns_compartments_with_contents(): void
     {
+        // Sees every compartment because they are an admin, which this test used to
+        // get implicitly from being the first user created.
         $user = User::factory()->create();
+        $user->makeAdmin();
 
         /** @var Compartment $firstCompartment */
         $firstCompartment = Compartment::factory()->create();

@@ -4,13 +4,19 @@ declare(strict_types=1);
 
 namespace App\Projectors;
 
+use App\Enums\CompartmentOpenRequestStatus;
 use App\Models\CompartmentOpenRequest;
+use App\StorableEvents\CompartmentDoorAlreadyOpen;
+use App\StorableEvents\CompartmentDoorOpenDetected;
+use App\StorableEvents\CompartmentOpenAcknowledged;
 use App\StorableEvents\CompartmentOpenAuthorized;
 use App\StorableEvents\CompartmentOpenDenied;
 use App\StorableEvents\CompartmentOpened;
 use App\StorableEvents\CompartmentOpeningFailed;
 use App\StorableEvents\CompartmentOpeningRequested;
+use App\StorableEvents\CompartmentOpenNotDetected;
 use App\StorableEvents\CompartmentOpenRequested;
+use Carbon\CarbonImmutable;
 use Illuminate\Support\Carbon;
 use Spatie\EventSourcing\EventHandlers\Projectors\Projector;
 
@@ -23,7 +29,7 @@ class CompartmentOpenRequestProjector extends Projector
             [
                 'actor_user_id' => $event->actorUserId,
                 'compartment_id' => $event->compartmentUuid,
-                'status' => 'requested',
+                'status' => CompartmentOpenRequestStatus::Requested,
                 'requested_at' => now(),
             ]
         );
@@ -37,7 +43,7 @@ class CompartmentOpenRequestProjector extends Projector
                 'actor_user_id' => $event->actorUserId,
                 'compartment_id' => $event->compartmentUuid,
                 'authorization_type' => $event->authorizationType,
-                'status' => 'accepted',
+                'status' => CompartmentOpenRequestStatus::Accepted,
                 'accepted_at' => now(),
                 'denied_reason' => null,
             ]
@@ -51,7 +57,7 @@ class CompartmentOpenRequestProjector extends Projector
             [
                 'actor_user_id' => $event->actorUserId,
                 'compartment_id' => $event->compartmentUuid,
-                'status' => 'denied',
+                'status' => CompartmentOpenRequestStatus::Denied,
                 'denied_reason' => $event->reason,
                 'denied_at' => now(),
             ]
@@ -60,35 +66,141 @@ class CompartmentOpenRequestProjector extends Projector
 
     public function onCompartmentOpeningRequested(CompartmentOpeningRequested $event): void
     {
-        CompartmentOpenRequest::query()
-            ->where('command_id', $event->commandId)
-            ->update([
-                'status' => 'sent',
-                'sent_at' => now(),
-            ]);
+        $this->applyToRequest($event->commandId, [
+            'status' => CompartmentOpenRequestStatus::Sent,
+            'sent_at' => now(),
+        ]);
     }
 
-    public function onCompartmentOpened(CompartmentOpened $event): void
+    /**
+     * The unlock pulse was sent. Not a terminal state: door-open detection
+     * follows and may still report a jam.
+     *
+     * Acknowledgement and the detection outcome are derived by two independent
+     * queued reactors, so a fast detection can be projected before the
+     * acknowledgement that preceded it. The timestamp is always recorded, but the
+     * status only moves forward — a late acknowledgement must never overwrite a
+     * physical outcome that has already arrived.
+     */
+    public function onCompartmentOpenAcknowledged(CompartmentOpenAcknowledged $event): void
     {
-        CompartmentOpenRequest::query()
-            ->where('command_id', $event->transactionId)
+        $request = CompartmentOpenRequest::query()->where('command_id', $event->transactionId);
+
+        (clone $request)->update([
+            'acknowledged_at' => $this->timestampOrNow($event->timestamp),
+        ]);
+
+        (clone $request)
+            ->whereIn('status', [
+                CompartmentOpenRequestStatus::Requested->value,
+                CompartmentOpenRequestStatus::Accepted->value,
+                CompartmentOpenRequestStatus::Sent->value,
+            ])
             ->update([
-                'status' => 'opened',
-                'opened_at' => $event->timestamp ? Carbon::parse($event->timestamp) : now(),
+                'status' => CompartmentOpenRequestStatus::Acknowledged,
                 'error_code' => null,
                 'error_message' => null,
             ]);
     }
 
+    public function onCompartmentDoorOpenDetected(CompartmentDoorOpenDetected $event): void
+    {
+        $this->applyToRequest($event->transactionId, [
+            'status' => CompartmentOpenRequestStatus::Opened,
+            'opened_at' => $this->timestampOrNow($event->timestamp),
+            'open_detection_ms' => $event->detectionMs,
+            'error_code' => null,
+            'error_message' => null,
+        ]);
+    }
+
+    public function onCompartmentDoorAlreadyOpen(CompartmentDoorAlreadyOpen $event): void
+    {
+        $this->applyToRequest($event->transactionId, [
+            'status' => CompartmentOpenRequestStatus::AlreadyOpen,
+            'opened_at' => $this->timestampOrNow($event->timestamp),
+        ]);
+    }
+
+    public function onCompartmentOpenNotDetected(CompartmentOpenNotDetected $event): void
+    {
+        $this->applyToRequest($event->transactionId, [
+            'status' => CompartmentOpenRequestStatus::DoorJammed,
+            'failed_at' => $this->timestampOrNow($event->timestamp),
+            'error_code' => $event->errorCode,
+            'error_message' => __('The unlock pulse was sent but the door did not open.'),
+        ]);
+    }
+
+    /**
+     * A command failure must not overwrite a door that was seen to move.
+     *
+     * The two race in one specific way: a command whose relay fired but whose
+     * response never published leaves an in-progress record on the client, and
+     * restart recovery answers it with an error — by which time detection may
+     * already have recorded the physical outcome. Letting that late failure win
+     * would discard an observed fact in favour of a stale one, which is the
+     * conflation this projection exists to prevent. The timestamp and error are
+     * still recorded, exactly as a late acknowledgement is.
+     */
     public function onCompartmentOpeningFailed(CompartmentOpeningFailed $event): void
     {
-        CompartmentOpenRequest::query()
-            ->where('command_id', $event->transactionId)
+        $request = CompartmentOpenRequest::query()->where('command_id', $event->transactionId);
+
+        // What was reported is always recorded — the failure genuinely arrived,
+        // and a `failed_at` with no reason beside it leaves an admin reading the
+        // event stream to find out why. Only `status` is withheld, because that
+        // is the judgement about which fact wins.
+        (clone $request)->update([
+            'failed_at' => $this->timestampOrNow($event->timestamp),
+            'error_code' => $event->errorCode,
+            'error_message' => $event->message,
+        ]);
+
+        (clone $request)
+            ->whereNotIn('status', [
+                CompartmentOpenRequestStatus::Opened->value,
+                CompartmentOpenRequestStatus::AlreadyOpen->value,
+                CompartmentOpenRequestStatus::DoorJammed->value,
+            ])
             ->update([
-                'status' => 'failed',
-                'failed_at' => $event->timestamp ? Carbon::parse($event->timestamp) : now(),
-                'error_code' => $event->errorCode,
-                'error_message' => $event->message,
+                'status' => CompartmentOpenRequestStatus::Failed,
             ]);
+    }
+
+    /**
+     * Replay support only. Emitted back when a successful command
+     * response was recorded as the door having opened; new runs record
+     * CompartmentOpenAcknowledged instead.
+     */
+    public function onCompartmentOpened(CompartmentOpened $event): void
+    {
+        $this->applyToRequest($event->transactionId, [
+            'status' => CompartmentOpenRequestStatus::Opened,
+            'opened_at' => $this->timestampOrNow($event->timestamp),
+            'error_code' => null,
+            'error_message' => null,
+        ]);
+    }
+
+    /**
+     * @param  array<string, mixed>  $attributes
+     */
+    private function applyToRequest(string $commandId, array $attributes): void
+    {
+        CompartmentOpenRequest::query()
+            ->where('command_id', $commandId)
+            ->update($attributes);
+    }
+
+    /**
+     * The app pins dates to CarbonImmutable (AppServiceProvider), but
+     * Carbon::parse() hands back a mutable instance, so the two branches
+     * disagreed on type. Parsing on CarbonImmutable directly keeps both
+     * branches immutable.
+     */
+    private function timestampOrNow(?string $timestamp): CarbonImmutable
+    {
+        return $timestamp ? CarbonImmutable::parse($timestamp) : CarbonImmutable::now();
     }
 }

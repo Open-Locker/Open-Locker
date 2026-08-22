@@ -3,9 +3,8 @@
 namespace App\Providers\Filament;
 
 use App\Filament\Pages\Auth\EditProfile;
-use App\Filament\Pages\Auth\Register;
+use App\Filament\Resources\CompartmentResource\Pages\ListCompartments;
 use App\Http\Middleware\SetPanelLocale;
-use App\Models\User;
 use Filament\Http\Middleware\Authenticate;
 use Filament\Http\Middleware\AuthenticateSession;
 use Filament\Http\Middleware\DisableBladeIconComponents;
@@ -17,29 +16,20 @@ use Filament\Support\Enums\Width;
 use Filament\View\PanelsRenderHook;
 use Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse;
 use Illuminate\Cookie\Middleware\EncryptCookies;
-use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Http\Middleware\VerifyCsrfToken;
 use Illuminate\Routing\Middleware\SubstituteBindings;
 use Illuminate\Session\Middleware\StartSession;
 use Illuminate\Support\Facades\App;
-use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\HtmlString;
 use Illuminate\View\Middleware\ShareErrorsFromSession;
-use PDOException;
 
 class AdminPanelProvider extends PanelProvider
 {
     public function panel(Panel $panel): Panel
     {
+        // No registration route: the panel never lets anyone sign themselves up.
+        // The first administrator comes from ADMIN_EMAIL via `first-admin:create`.
         $panel->default()->id('admin')->path('admin');
-
-        try {
-            if (Schema::hasTable('users') && User::count() === 0) {
-                $panel->registration(Register::class);
-            }
-        } catch (QueryException|PDOException) {
-            // During image builds/package discovery, database access may be unavailable.
-        }
 
         return $panel
             ->login()
@@ -103,6 +93,12 @@ class AdminPanelProvider extends PanelProvider
             ->renderHook(
                 PanelsRenderHook::SIDEBAR_FOOTER,
                 fn (): \Illuminate\Contracts\View\View => view('filament.version')
+            )
+            // Only one locker bank stays open at a time on the compartment list (#167).
+            ->renderHook(
+                PanelsRenderHook::PAGE_END,
+                fn (): \Illuminate\Contracts\View\View => view('filament.compartments.accordion-groups'),
+                scopes: ListCompartments::class,
             )
             ->middleware([
                 EncryptCookies::class,

@@ -2,6 +2,8 @@ import { test } from 'node:test';
 import { serializeOutboundPayload } from '../../src/adapters/mqtt/outbound-envelope';
 import { connectionLostWillOptions } from '../../src/infrastructure/mqtt-will';
 import { MqttErrorCode } from '../../src/domain/errors';
+import { MqttDoorEventPublisher } from '../../src/adapters/mqtt/door-event-publisher';
+import type { OutboundMqttPort } from '../../src/ports/mqtt.port';
 import { assertMatchesSchema } from './jsonSchema';
 
 test('heartbeat payload matches AsyncAPI schema', () => {
@@ -133,4 +135,90 @@ test('provisioning register request matches AsyncAPI schema', () => {
   );
 
   assertMatchesSchema('messages/provisioning-request.json', payload);
+});
+
+// --- door-open detection events ---
+
+/** Captures what the publisher actually puts on the wire, envelope included. */
+function capturePublishedDoorEvents(): {
+  publisher: MqttDoorEventPublisher;
+  published: Array<Record<string, unknown>>;
+} {
+  const published: Array<Record<string, unknown>> = [];
+  const outbound: OutboundMqttPort = {
+    async publishJson(_topic, body) {
+      published.push(
+        JSON.parse(serializeOutboundPayload(body, () => '2026-07-26T16:02:32.484Z')) as Record<
+          string,
+          unknown
+        >,
+      );
+    },
+    async publishCommandResponse() {
+      // not used by the door event publisher
+    },
+  };
+
+  return { publisher: new MqttDoorEventPublisher(outbound, 'locker/test-uuid/event'), published };
+}
+
+test('opened detection event matches AsyncAPI schema', async () => {
+  const { publisher, published } = capturePublishedDoorEvents();
+
+  await publisher.publishOpenDetection({
+    compartmentNumber: 1,
+    transactionId: 'tx-open',
+    outcome: 'opened',
+    detectionMs: 502,
+  });
+
+  assertMatchesSchema('payloads/event-compartment-open-detected.json', published[0]);
+});
+
+test('already_open detection event matches AsyncAPI schema', async () => {
+  const { publisher, published } = capturePublishedDoorEvents();
+
+  await publisher.publishOpenDetection({
+    compartmentNumber: 4,
+    transactionId: 'tx-already',
+    outcome: 'already_open',
+    detectionMs: null,
+  });
+
+  assertMatchesSchema('payloads/event-compartment-open-detected.json', published[0]);
+});
+
+test('door_jammed event matches AsyncAPI schema', async () => {
+  const { publisher, published } = capturePublishedDoorEvents();
+
+  await publisher.publishOpenDetection({
+    compartmentNumber: 2,
+    transactionId: 'tx-jam',
+    outcome: 'door_jammed',
+    detectionMs: null,
+  });
+
+  assertMatchesSchema('payloads/event-compartment-open-failed.json', published[0]);
+});
+
+test('uncommanded open event matches AsyncAPI schema', async () => {
+  const { publisher, published } = capturePublishedDoorEvents();
+
+  await publisher.publishUncommandedOpen({
+    compartmentNumber: 5,
+    millisecondsSinceLastRelayFire: 3_600_000,
+  });
+
+  assertMatchesSchema('payloads/event-compartment-uncommanded-open.json', published[0]);
+});
+
+test('uncommanded open with no prior relay fire matches AsyncAPI schema', async () => {
+  const { publisher, published } = capturePublishedDoorEvents();
+
+  await publisher.publishUncommandedOpen({
+    compartmentNumber: 7,
+    millisecondsSinceLastRelayFire: null,
+  });
+
+  assertMatchesSchema('payloads/event-compartment-uncommanded-open.json', published[0]);
 });

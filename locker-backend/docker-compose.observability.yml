@@ -1,0 +1,78 @@
+# Opt-in tracing overlay.
+#
+#   docker compose -f docker-compose.yml -f docker-compose.observability.yml up -d
+#
+# Never part of the default stack: without this overlay no OTLP endpoint is set,
+# so the backend and the locker clients record and export nothing.
+#
+# Adds an OpenTelemetry Collector and points every PHP process at it. No trace
+# UI is included: the collector forwards to whichever backend you are running,
+# which keeps this overlay small and keeps the choice of backend out of the
+# repo. See docs/observability.md.
+
+x-otel-env: &otel_env
+    OTEL_EXPORTER_OTLP_ENDPOINT: "http://otel-collector:4318"
+    OTEL_SERVICE_NAME: "open-locker-backend"
+    # Workers run for days, so their spans are batched and only flushed
+    # periodically. A job that throws would otherwise export nothing at all —
+    # the failure you most want to see is the one you would not get. Flushing
+    # per job costs one export per job, which this fleet's volume can afford.
+    OTEL_WORKER_MODE_FLUSH_AFTER_EACH_ITERATION: "true"
+    # Ships log records to the collector as well as traces, so logs and errors
+    # are visible in the same dashboard. The file log is kept: `otlp` is added
+    # to the stack rather than replacing `single`.
+    OTEL_LOGS_EXPORTER: "otlp"
+    LOG_STACK: "single,otlp"
+
+services:
+    otel-collector:
+        image: otel/opentelemetry-collector-contrib:0.115.1
+        restart: unless-stopped
+        command: ["--config=/etc/otel-collector.yml"]
+        volumes:
+            - "./docker/otel-collector.yml:/etc/otel-collector.yml:ro"
+        extra_hosts:
+            # Lets the collector forward to a trace backend running on the host
+            # as its own Compose project, rather than one embedded here.
+            - "host.docker.internal:host-gateway"
+        ports:
+            # Exposed on the host so a locker-client running outside Docker
+            # (a Pi on the same network, or `pnpm dev`) can reach it too.
+            #
+            # Most trace backends want 4317/4318 on the host as well. When one is
+            # running locally, move these:
+            #   FORWARD_OTLP_HTTP_PORT=4418 FORWARD_OTLP_GRPC_PORT=4417
+            - "${FORWARD_OTLP_HTTP_PORT:-4318}:4318"
+            - "${FORWARD_OTLP_GRPC_PORT:-4317}:4317"
+        networks:
+            - sail
+
+    # Every process that can start or continue a trace needs the endpoint.
+    # `environment` merges key-wise with the base file, so these are additions
+    # rather than replacements.
+    app:
+        environment:
+            <<: *otel_env
+            OTEL_SERVICE_INSTANCE_ID: "app"
+
+    queue-worker:
+        environment:
+            <<: *otel_env
+            OTEL_SERVICE_INSTANCE_ID: "queue-worker"
+
+    # Runs the reactors that publish MQTT commands, so this is where an open
+    # request continues after the HTTP response has already gone back.
+    event-worker:
+        environment:
+            <<: *otel_env
+            OTEL_SERVICE_INSTANCE_ID: "event-worker"
+
+    mqtt-listener:
+        environment:
+            <<: *otel_env
+            OTEL_SERVICE_INSTANCE_ID: "mqtt-listener"
+
+    scheduler:
+        environment:
+            <<: *otel_env
+            OTEL_SERVICE_INSTANCE_ID: "scheduler"

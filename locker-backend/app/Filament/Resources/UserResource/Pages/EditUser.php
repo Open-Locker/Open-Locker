@@ -151,6 +151,21 @@ class EditUser extends EditRecord
                             ->send();
                         $action->cancel();
                     }
+                })
+                // The check above is only fast feedback; the service re-checks
+                // under a lock so a concurrent demotion cannot slip through.
+                ->using(function (User $record): bool {
+                    $deleted = app(UserAdministrationService::class)->deleteUser(self::currentUser(), $record);
+
+                    if (! $deleted) {
+                        Notification::make()
+                            ->title(__('Cannot delete user'))
+                            ->body(__('The last admin cannot be deleted.'))
+                            ->danger()
+                            ->send();
+                    }
+
+                    return $deleted;
                 }),
         ];
     }

@@ -11,7 +11,7 @@ use Ramsey\Uuid\Uuid;
 use Spatie\EventSourcing\AggregateRoots\AggregateRoot;
 
 /**
- * One aggregate per user; owns that user's role assignments (ADR-0021).
+ * One aggregate per user; owns that user's role assignments.
  * `actorUserId` is null for system-initiated grants (bootstrap / backfill).
  */
 class UserRoleAggregate extends AggregateRoot

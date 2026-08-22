@@ -3,7 +3,15 @@ import type {
   OutboundMqttPort,
   OutboundPublishOptions,
 } from '../../ports/mqtt.port';
-import { serializeOutboundPayload } from './outbound-envelope';
+import { noopTracing, type TracingPort } from '../../ports/tracing.port';
+import {
+  mqttSpanAttributes,
+  spanDestination,
+  tracesTopic,
+} from '../../domain/mqtt-span-attributes';
+import { TRACEPARENT_FIELD } from '../../domain/trace-context';
+import { noopLogger, type LoggerPort } from '../../ports/logging.port';
+import { createEnvelope } from './outbound-envelope';
 
 export class OutboundMqttAdapter implements OutboundMqttPort {
   constructor(
@@ -14,6 +22,8 @@ export class OutboundMqttAdapter implements OutboundMqttPort {
     ) => Promise<void>,
     private readonly responseTopic: string,
     private readonly nowIso: () => string = () => new Date().toISOString(),
+    private readonly tracing: TracingPort = noopTracing,
+    private readonly log: LoggerPort = noopLogger,
   ) {}
 
   async publishJson(
@@ -21,8 +31,61 @@ export class OutboundMqttAdapter implements OutboundMqttPort {
     body: Record<string, unknown>,
     options?: OutboundPublishOptions,
   ): Promise<void> {
-    const payload = serializeOutboundPayload(body, this.nowIso);
-    await this.publishRaw(topic, payload, options);
+    // Built before the span so the span can report the message id it will send.
+    const envelope = createEnvelope(body, this.nowIso);
+
+    if (!tracesTopic(topic)) {
+      await this.publishTracked(topic, JSON.stringify(envelope), envelope, options);
+
+      return;
+    }
+
+    await this.tracing.inSpan(
+      `mqtt publish ${spanDestination(topic)}`,
+      { kind: 'producer', attributes: mqttSpanAttributes(topic, envelope) },
+      async () => {
+        // Stamped inside the span so the receiver continues from this publish
+        // rather than from whatever started the flow. Undefined when tracing is
+        // off, which leaves the payload exactly as it was before.
+        const traceparent = this.tracing.currentTraceparent();
+
+        await this.publishTracked(
+          topic,
+          JSON.stringify(
+            traceparent ? { ...envelope, [TRACEPARENT_FIELD]: traceparent } : envelope,
+          ),
+          envelope,
+          options,
+        );
+      },
+    );
+  }
+
+  /**
+   * The transport already logs that it skipped a publish, but only this layer
+   * knows which message was lost. A dropped response is why a backend
+   * transaction hangs, so it is named here rather than inferred from a topic.
+   */
+  private async publishTracked(
+    topic: string,
+    payload: string,
+    envelope: Record<string, unknown>,
+    options?: OutboundPublishOptions,
+  ): Promise<void> {
+    try {
+      await this.publishRaw(topic, payload, options);
+    } catch (error) {
+      this.log.error('Outbound MQTT message dropped before reaching the broker', {
+        topic,
+        messageId: envelope.message_id,
+        transactionId: envelope.transaction_id,
+        action: envelope.action,
+        error: error instanceof Error ? error.message : 'Unknown publish error',
+      });
+      // Rethrown so a dropped command response is still marked pending and
+      // retried; the log only names what was lost.
+      throw error;
+    }
   }
 
   async publishCommandResponse(body: CommandResponseBody): Promise<void> {

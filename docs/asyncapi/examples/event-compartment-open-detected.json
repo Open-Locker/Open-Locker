@@ -1,0 +1,11 @@
+{
+  "message_id": "018f2a3c-5d6e-7f80-9a1b-2c3d4e5f6071",
+  "event": "compartment_open_detected",
+  "timestamp": "2026-07-26T16:03:27.486Z",
+  "data": {
+    "compartment_number": 1,
+    "transaction_id": "ok-test-txn-002",
+    "outcome": "opened",
+    "detection_ms": 502
+  }
+}

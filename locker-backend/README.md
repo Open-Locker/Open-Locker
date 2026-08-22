@@ -232,7 +232,7 @@ DB_CONNECTION=pgsql
 ### MQTT Listener Health
 
 The `mqtt-listener` container runs `php artisan mqtt:listen` and reports
-liveness via a heartbeat (see ADR-0025):
+liveness via a heartbeat (see ADR-0028):
 
 - The listener writes a heartbeat timestamp to the cache on every loop iteration
   (throttled to `MQTT_LISTENER_HEARTBEAT_INTERVAL`, default 10s).

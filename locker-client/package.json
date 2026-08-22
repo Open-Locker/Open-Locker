@@ -5,6 +5,7 @@
   "license": "MIT",
   "scripts": {
     "dev": "ts-node src/main.ts",
+    "sim": "ts-node src/main-simulator.ts",
     "build": "tsc",
     "test": "pnpm run build && node --test dist/tests/**/*.test.js",
     "typecheck": "tsc --noEmit",
@@ -17,12 +18,23 @@
     "fallow:boundaries": "fallow dead-code --boundary-violations"
   },
   "dependencies": {
+    "@opentelemetry/api": "^1.9.1",
+    "@opentelemetry/api-logs": "^0.221.0",
+    "@opentelemetry/core": "^2.10.0",
+    "@opentelemetry/exporter-logs-otlp-http": "^0.221.0",
+    "@opentelemetry/exporter-trace-otlp-http": "^0.221.0",
+    "@opentelemetry/resources": "^2.10.0",
+    "@opentelemetry/sdk-logs": "^0.221.0",
+    "@opentelemetry/sdk-trace-base": "^2.10.0",
+    "@opentelemetry/sdk-trace-node": "^2.10.0",
+    "@opentelemetry/semantic-conventions": "^1.43.0",
     "dotenv": "^16.5.0",
-    "js-yaml": "^4.1.1",
+    "js-yaml": "^4.3.0",
     "modbus-serial": "^8.0.23-no-serial-port",
     "mqtt": "^5.13.1",
     "p-queue": "^8.1.0",
     "winston": "^3.17.0",
+    "winston-transport": "^4.9.0",
     "zod": "^4.3.6"
   },
   "devDependencies": {
@@ -36,5 +48,11 @@
     "ts-node": "^10.9.2",
     "typescript": "^5.8.3"
   },
-  "packageManager": "pnpm@9.0.0"
+  "packageManager": "pnpm@9.0.0",
+  "pnpm": {
+    "overrides": {
+      "fast-uri@>=3.0.0 <3.1.5": ">=3.1.5 <4.0.0",
+      "ip-address@<=10.3.0": ">=10.3.1 <11.0.0"
+    }
+  }
 }

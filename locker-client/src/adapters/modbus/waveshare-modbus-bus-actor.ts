@@ -2,6 +2,16 @@ import PQueue from 'p-queue';
 import type { CompartmentTarget, DoorState } from '../../domain/compartment';
 import { isReconnectableModbusError } from '../../domain/errors';
 import { BusPriority, ConnectionState, LockerBusPort } from '../../ports/locker-bus.port';
+import { noopLogger, type LoggerPort } from '../../ports/logging.port';
+import { noopTracing, type SpanAttributes, type TracingPort } from '../../ports/tracing.port';
+import {
+  COMPARTMENT_NUMBER,
+  MODBUS_ADDRESS,
+  MODBUS_DURATION_MS,
+  MODBUS_LENGTH,
+  MODBUS_OPERATION,
+  MODBUS_SLAVE_ID,
+} from '../../domain/trace-attributes';
 import { ReconnectCoordinator } from './reconnect-coordinator';
 
 /** Matches v1 `modbusService.maxReconnectAttempts`. */
@@ -25,12 +35,22 @@ export class WaveshareModbusBusActor implements LockerBusPort {
   constructor(
     private readonly driver: WaveshareModbusDriver,
     reconnectOptions?: { maxAttempts?: number; delayMs?: number },
-    private readonly configuredSlaveIds: number[] = [1],
+    /**
+     * Accepts a getter so the boards are read when asked for, not captured once.
+     * A runtime `apply_config` can add or remove a board, and a snapshot taken
+     * at construction would still describe the fleet as it was at boot.
+     */
+    private readonly configuredSlaveIds: number[] | (() => number[]) = [1],
+    private readonly tracing: TracingPort = noopTracing,
+    private readonly log: LoggerPort = noopLogger,
   ) {
-    this.reconnect = new ReconnectCoordinator({
-      maxAttempts: reconnectOptions?.maxAttempts ?? DEFAULT_MODBUS_MAX_RECONNECT_ATTEMPTS,
-      delayMs: reconnectOptions?.delayMs ?? 5000,
-    });
+    this.reconnect = new ReconnectCoordinator(
+      {
+        maxAttempts: reconnectOptions?.maxAttempts ?? DEFAULT_MODBUS_MAX_RECONNECT_ATTEMPTS,
+        delayMs: reconnectOptions?.delayMs ?? 5000,
+      },
+      log,
+    );
   }
 
   async connect(): Promise<void> {
@@ -49,7 +69,9 @@ export class WaveshareModbusBusActor implements LockerBusPort {
   }
 
   getConfiguredSlaveIds(): number[] {
-    return [...this.configuredSlaveIds];
+    return typeof this.configuredSlaveIds === 'function'
+      ? [...this.configuredSlaveIds()]
+      : [...this.configuredSlaveIds];
   }
 
   async ensureConnected(): Promise<boolean> {
@@ -61,7 +83,14 @@ export class WaveshareModbusBusActor implements LockerBusPort {
       try {
         await this.reconnect.run(() => this.connectInternal());
         return this.driver.isOpen();
-      } catch {
+      } catch (error) {
+        // Callers only see false, so without this line an unreachable bus looks
+        // identical to a bus that is merely busy.
+        this.log.error('Modbus bus unreachable after reconnect attempts', {
+          attempts: this.reconnect.getAttempts(),
+          connectionState: this.connectionState,
+          error: error instanceof Error ? error.message : String(error),
+        });
         return false;
       }
     }, BusPriority.MAINTENANCE);
@@ -76,16 +105,32 @@ export class WaveshareModbusBusActor implements LockerBusPort {
   }
 
   async flashRelay(target: CompartmentTarget, durationMs: number): Promise<void> {
-    return this.run(
-      () => this.driver.flashRelayOn(target.slaveId, target.relayAddress, durationMs),
-      BusPriority.COMMAND,
+    return this.traced(
+      'flash_relay',
+      {
+        [MODBUS_SLAVE_ID]: target.slaveId,
+        [MODBUS_ADDRESS]: target.relayAddress,
+        [MODBUS_DURATION_MS]: durationMs,
+        // Ties the electrical write back to the compartment a user asked for.
+        [COMPARTMENT_NUMBER]: target.compartmentNumber,
+      },
+      () =>
+        this.run(
+          () => this.driver.flashRelayOn(target.slaveId, target.relayAddress, durationMs),
+          BusPriority.COMMAND,
+        ),
     );
   }
 
   async readRelayState(target: CompartmentTarget): Promise<boolean> {
-    const values = await this.run(
-      () => this.driver.readCoils(target.slaveId, target.relayAddress, 1),
-      BusPriority.POLL,
+    const values = await this.traced(
+      'read_coils',
+      { [MODBUS_SLAVE_ID]: target.slaveId, [MODBUS_ADDRESS]: target.relayAddress },
+      () =>
+        this.run(
+          () => this.driver.readCoils(target.slaveId, target.relayAddress, 1),
+          BusPriority.POLL,
+        ),
     );
     return values[0] ?? false;
   }
@@ -96,22 +141,45 @@ export class WaveshareModbusBusActor implements LockerBusPort {
     length: number,
   ): Promise<DoorState[]> {
     try {
-      const values = await this.run(
-        () => this.driver.readDiscreteInputs(slaveId, startAddress, length),
-        BusPriority.SNAPSHOT,
+      const values = await this.traced(
+        'read_discrete_inputs',
+        {
+          [MODBUS_SLAVE_ID]: slaveId,
+          [MODBUS_ADDRESS]: startAddress,
+          [MODBUS_LENGTH]: length,
+        },
+        () =>
+          this.run(
+            () => this.driver.readDiscreteInputs(slaveId, startAddress, length),
+            BusPriority.SNAPSHOT,
+          ),
       );
 
       return Array.from({ length }, (_, offset) => {
         const value = values[offset];
         return typeof value === 'boolean' ? (value ? 'closed' : 'open') : 'unknown';
       });
-    } catch {
+    } catch (error) {
+      // An unreachable board reports unknown doors rather than failing. The span
+      // records the timeout, but traces are sampled and may be off entirely, so
+      // the reason a whole board went unknown is logged here too. This is the
+      // layer that owns hardware reporting: callers above only ever see the
+      // substituted 'unknown' values.
+      this.log.warn('Modbus door sensor read failed, reporting doors as unknown', {
+        slaveId,
+        startAddress,
+        length,
+        connectionState: this.connectionState,
+        error: error instanceof Error ? error.message : String(error),
+      });
       return Array.from({ length }, () => 'unknown');
     }
   }
 
   async turnAllRelaysOff(slaveId: number): Promise<void> {
-    return this.run(() => this.driver.turnAllRelaysOff(slaveId), BusPriority.MAINTENANCE);
+    return this.traced('turn_all_relays_off', { [MODBUS_SLAVE_ID]: slaveId }, () =>
+      this.run(() => this.driver.turnAllRelaysOff(slaveId), BusPriority.MAINTENANCE),
+    );
   }
 
   getQueue(): PQueue {
@@ -129,6 +197,25 @@ export class WaveshareModbusBusActor implements LockerBusPort {
     return this.queue.add(async () => this.runWithReconnectRetry(operation), {
       priority,
     }) as Promise<T>;
+  }
+
+  /**
+   * Wraps a bus operation in a span.
+   *
+   * The span starts before the operation is queued, so the time a write spends
+   * waiting behind other traffic is inside it. On this bus that wait is often
+   * the reason a door felt slow, and hiding it would make the trace misleading.
+   */
+  private traced<T>(
+    operation: string,
+    attributes: SpanAttributes,
+    fn: () => Promise<T>,
+  ): Promise<T> {
+    return this.tracing.inSpan(
+      `modbus ${operation}`,
+      { kind: 'internal', attributes: { ...attributes, [MODBUS_OPERATION]: operation } },
+      () => fn(),
+    );
   }
 
   private async runWithReconnectRetry<T>(operation: () => Promise<T>): Promise<T> {
