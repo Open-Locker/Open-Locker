@@ -1,8 +1,10 @@
-# ADR-0035: Per-component release strategy for the monorepo
+# ADR-0043: Per-component release strategy for the monorepo
+
+> **Renumbered from ADR-0033** — ADR numbers were deduplicated and put in date order from 0018 up; see #214.
 
 ## Status
 
-Proposed
+Accepted
 
 ## Date
 
@@ -303,6 +305,8 @@ paused.
 ## References
 
 - Related issues: #50
+- Related ADRs: [ADR-0032](0032-mobile-internal-test-builds-ci.md) — mobile
+  internal test builds; decision 7 here extends its distribution channels.
 - Related workflows: `.github/workflows/docker-ghcr.yml`,
   `.github/workflows/build-locker-client.yml`,
   `.github/workflows/mobile-app-build.yml`
