@@ -227,8 +227,26 @@ export class OpenCompartmentUseCase {
   }
 }
 
-export async function runStartupFailsafe(bus: LockerBusPort): Promise<void> {
+export async function runStartupFailsafe(
+  bus: LockerBusPort,
+  log: LoggerPort = noopLogger,
+): Promise<void> {
   const slaveIds = bus.getConfiguredSlaveIds();
+
+  // Two failures look alike from here and are not alike at all. A reachable bus
+  // whose boards all stay silent is a wiring or configuration fault: a human has
+  // to fix it, and startup should say so loudly by refusing to come up. A bus that
+  // is itself unreachable is recoverable — reconnect keeps trying, and exiting
+  // would only restart the process until the adapter came back, churning the MQTT
+  // session and flapping the bank each time round.
+  if (bus.getConnectionState() === 'unreachable') {
+    log.error('Startup failsafe skipped: Modbus bus unreachable, relays left as found', {
+      configuredBoards: slaveIds.length,
+    });
+
+    return;
+  }
+
   let successCount = 0;
 
   for (const slaveId of slaveIds) {

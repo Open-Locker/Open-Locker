@@ -109,7 +109,14 @@ export async function createApp(): Promise<AppContext> {
 
   const bus = new WaveshareModbusBusActor(
     driver,
-    { maxAttempts: DEFAULT_MODBUS_MAX_RECONNECT_ATTEMPTS, delayMs: 5000 },
+    {
+      maxAttempts: DEFAULT_MODBUS_MAX_RECONNECT_ATTEMPTS,
+      delayMs: 5000,
+      cooldownMs:
+        config.modbus.reconnectCooldownSeconds === undefined
+          ? undefined
+          : config.modbus.reconnectCooldownSeconds * 1000,
+    },
     () => configRepo.getConfiguredSlaveIds(),
     tracing,
     appLogger,
@@ -208,7 +215,7 @@ export async function createApp(): Promise<AppContext> {
   await transport.subscribe(commandTopic);
 
   await bus.connect();
-  await runStartupFailsafe(bus);
+  await runStartupFailsafe(bus, appLogger);
   heartbeat.start();
 
   const pollTimer = setInterval(() => {

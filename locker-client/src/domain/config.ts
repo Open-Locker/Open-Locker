@@ -20,6 +20,12 @@ export interface ModbusConfig {
   stopBits?: 1 | 2;
   parity?: 'none' | 'even' | 'odd';
   timeout?: number;
+  /**
+   * How long a spent reconnect cycle waits before another is allowed. Bounds the
+   * retry rate against hardware that is genuinely gone, without letting a spent
+   * budget outlive the outage that spent it.
+   */
+  reconnectCooldownSeconds?: number;
 }
 
 /** Operator-managed settings loaded from locker-config.yml. */
