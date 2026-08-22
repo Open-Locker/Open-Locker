@@ -4,12 +4,15 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use App\Aggregates\UserRoleAggregate;
+use App\Enums\Role;
 use App\Filament\Resources\LockerBankResource\Pages\EditLockerBank;
 use App\Filament\Resources\LockerBankResource\RelationManagers\CompartmentsRelationManager;
 use App\Models\Compartment;
 use App\Models\LockerBank;
 use App\Models\User;
 use App\Services\CompartmentService;
+use App\StorableEvents\CompartmentContentNoteUpdated;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
 use Tests\TestCase;
@@ -61,5 +64,117 @@ class CompartmentNoteAdminUiTest extends TestCase
             ])
             ->callTableColumnAction('content_note', $compartment->getKey())
             ->assertSuccessful();
+    }
+
+    public function test_admin_can_edit_a_content_note_through_the_event_sourced_path(): void
+    {
+        $admin = $this->admin();
+        $lockerBank = LockerBank::factory()->create();
+        $compartment = Compartment::factory()->for($lockerBank)->create(['content_note' => null]);
+
+        Livewire::actingAs($admin)
+            ->test(CompartmentsRelationManager::class, [
+                'ownerRecord' => $lockerBank,
+                'pageClass' => EditLockerBank::class,
+            ])
+            ->callTableAction('editContentNote', $compartment->getKey(), ['note' => 'Snow chains'])
+            ->assertHasNoTableActionErrors();
+
+        $compartment->refresh();
+        $this->assertSame('Snow chains', $compartment->content_note);
+        $this->assertSame($admin->id, $compartment->content_note_updated_by_user_id);
+
+        // The read model must be reached through the event, not written directly.
+        $this->assertDatabaseHas('stored_events', [
+            'aggregate_uuid' => $compartment->id,
+            'event_class' => CompartmentContentNoteUpdated::class,
+        ]);
+    }
+
+    public function test_admin_can_clear_a_content_note(): void
+    {
+        $admin = $this->admin();
+        $lockerBank = LockerBank::factory()->create();
+        $compartment = Compartment::factory()->for($lockerBank)->create();
+
+        app(CompartmentService::class)->updateContentNote($admin, $compartment, 'To be cleared');
+
+        Livewire::actingAs($admin)
+            ->test(CompartmentsRelationManager::class, [
+                'ownerRecord' => $lockerBank,
+                'pageClass' => EditLockerBank::class,
+            ])
+            ->callTableAction('editContentNote', $compartment->getKey(), ['note' => '   '])
+            ->assertHasNoTableActionErrors();
+
+        $this->assertNull($compartment->refresh()->content_note);
+    }
+
+    public function test_the_edit_action_is_prefilled_with_the_current_note(): void
+    {
+        $admin = $this->admin();
+        $lockerBank = LockerBank::factory()->create();
+        $compartment = Compartment::factory()->for($lockerBank)->create(['content_note' => 'Existing note']);
+
+        Livewire::actingAs($admin)
+            ->test(CompartmentsRelationManager::class, [
+                'ownerRecord' => $lockerBank,
+                'pageClass' => EditLockerBank::class,
+            ])
+            ->mountTableAction('editContentNote', $compartment->getKey())
+            ->assertTableActionDataSet(['note' => 'Existing note']);
+    }
+
+    public function test_a_plain_user_is_not_offered_the_edit_action(): void
+    {
+        $lockerBank = LockerBank::factory()->create();
+        $compartment = Compartment::factory()->for($lockerBank)->create();
+
+        Livewire::actingAs(User::factory()->create())
+            ->test(CompartmentsRelationManager::class, [
+                'ownerRecord' => $lockerBank,
+                'pageClass' => EditLockerBank::class,
+            ])
+            ->assertTableActionHidden('editContentNote', $compartment->getKey());
+    }
+
+    public function test_a_manager_may_edit_notes_because_the_service_allows_it(): void
+    {
+        $manager = User::factory()->create();
+        UserRoleAggregate::retrieve(UserRoleAggregate::aggregateUuidFor($manager->id))
+            ->grantRole($manager->id, Role::Manager->value, null, now())
+            ->persist();
+        $manager->flushPermissionCache();
+
+        $lockerBank = LockerBank::factory()->create();
+        $compartment = Compartment::factory()->for($lockerBank)->create();
+
+        Livewire::actingAs($manager)
+            ->test(CompartmentsRelationManager::class, [
+                'ownerRecord' => $lockerBank,
+                'pageClass' => EditLockerBank::class,
+            ])
+            ->callTableAction('editContentNote', $compartment->getKey(), ['note' => 'Checked by manager'])
+            ->assertHasNoTableActionErrors();
+
+        $this->assertSame('Checked by manager', $compartment->refresh()->content_note);
+    }
+
+    public function test_a_note_beyond_the_column_length_is_refused_before_it_becomes_history(): void
+    {
+        $admin = User::factory()->create();
+        $admin->makeAdmin();
+
+        $compartment = Compartment::factory()->create();
+
+        // Both entry points cap this at 80. A caller that skipped validation would
+        // otherwise record a permanent event the read model cannot hold.
+        $this->expectException(\InvalidArgumentException::class);
+
+        app(CompartmentService::class)->updateContentNote(
+            actor: $admin,
+            compartment: $compartment,
+            note: str_repeat('a', 81),
+        );
     }
 }

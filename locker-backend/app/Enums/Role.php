@@ -10,6 +10,15 @@ enum Role: string
     case Manager = 'manager';
     case Admin = 'admin';
 
+    public function label(): string
+    {
+        return match ($this) {
+            self::User => __('User'),
+            self::Manager => __('Manager'),
+            self::Admin => __('Administrator'),
+        };
+    }
+
     /**
      * @return list<Permission>
      */
@@ -27,19 +36,6 @@ enum Role: string
             ],
             self::Admin => Permission::cases(),
         };
-    }
-
-    /**
-     * Roles that can be assigned through the generic role-management action.
-     * `admin` is handled by dedicated guarded actions; `user` is the no-role default.
-     *
-     * @return list<self>
-     */
-    public static function assignable(): array
-    {
-        return [
-            self::Manager,
-        ];
     }
 
     /**

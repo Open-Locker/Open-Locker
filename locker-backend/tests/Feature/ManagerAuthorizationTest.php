@@ -18,6 +18,9 @@ use App\Services\CompartmentAccessService;
 use App\Services\GroupAccessService;
 use App\Services\UserAdministrationService;
 use App\StorableEvents\CompartmentOpenAuthorized;
+use Filament\Actions\EditAction;
+use Filament\Tables\Contracts\HasTable;
+use Filament\Tables\Table;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Spatie\EventSourcing\StoredEvents\Models\EloquentStoredEvent;
@@ -29,7 +32,6 @@ class ManagerAuthorizationTest extends TestCase
 
     private function makeManager(): User
     {
-        User::factory()->create(); // bootstrap admin (so manager is not the first user)
 
         $manager = User::factory()->create();
         UserRoleAggregate::retrieve(UserRoleAggregate::aggregateUuidFor($manager->id))
@@ -42,7 +44,6 @@ class ManagerAuthorizationTest extends TestCase
 
     private function makeRegularUser(): User
     {
-        User::factory()->create(); // bootstrap admin
         $user = User::factory()->create();
         $user->removeAdmin();
 
@@ -53,9 +54,11 @@ class ManagerAuthorizationTest extends TestCase
     {
         $manager = $this->makeManager();
 
-        $response = $this->actingAs($manager)->get(route('filament.admin.pages.dashboard'));
+        // The panel has no dashboard; its root redirects to the first nav item.
+        // A redirect (rather than 403) confirms the manager can enter the panel.
+        $response = $this->actingAs($manager)->get(route('filament.admin.home'));
 
-        $response->assertSuccessful();
+        $response->assertRedirect();
     }
 
     public function test_manager_can_grant_compartment_access_to_a_user(): void
@@ -93,7 +96,7 @@ class ManagerAuthorizationTest extends TestCase
         $admin->makeAdmin();
         $compartment = Compartment::factory()->create();
 
-        app(CompartmentAccessService::class)->grantAccess($admin, $compartment, actor: User::query()->firstOrFail());
+        app(CompartmentAccessService::class)->grantAccess($admin, $compartment, actor: $admin);
 
         $this->expectException(AuthorizationException::class);
 
@@ -113,7 +116,7 @@ class ManagerAuthorizationTest extends TestCase
                 'pageClass' => ViewCompartment::class,
             ])
             ->callTableAction('grantAccess', data: [
-                'user_id' => $admin->id,
+                'user_ids' => [$admin->id],
                 'expires_at' => null,
                 'notes' => null,
             ])
@@ -184,7 +187,7 @@ class ManagerAuthorizationTest extends TestCase
     {
         $user = $this->makeRegularUser();
 
-        $response = $this->actingAs($user)->get(route('filament.admin.pages.dashboard'));
+        $response = $this->actingAs($user)->get(route('filament.admin.home'));
 
         $response->assertForbidden();
     }
@@ -202,7 +205,8 @@ class ManagerAuthorizationTest extends TestCase
 
     public function test_admin_sees_all_filament_resources(): void
     {
-        $admin = User::factory()->create(); // bootstrap admin
+        $admin = User::factory()->create();
+        $admin->makeAdmin();
         $this->actingAs($admin);
 
         $this->assertTrue(\App\Filament\Resources\UserResource::canAccess());
@@ -213,12 +217,13 @@ class ManagerAuthorizationTest extends TestCase
 
     public function test_admin_can_assign_manager_role_via_panel_action(): void
     {
-        $admin = User::factory()->create(); // bootstrap admin
+        $admin = User::factory()->create();
+        $admin->makeAdmin();
         $target = User::factory()->create();
 
         \Livewire\Livewire::actingAs($admin)
             ->test(EditUser::class, ['record' => $target->getRouteKey()])
-            ->callAction('manageRoles', data: ['roles' => [Role::Manager->value]])
+            ->callAction('changeRole', data: ['role' => Role::Manager->value])
             ->assertHasNoActionErrors();
 
         $this->assertTrue($target->fresh()->hasRole(Role::Manager->value));
@@ -283,12 +288,19 @@ class ManagerAuthorizationTest extends TestCase
         $regular = User::factory()->create();
         $admin = User::factory()->create();
         $admin->makeAdmin();
+        app()->setLocale('de');
 
         \Livewire\Livewire::actingAs($manager)
             ->test(ListUsers::class)
             ->assertCanSeeTableRecords([$regular, $admin])
             ->assertTableActionVisible('edit', $regular)
             ->assertTableActionVisible('edit', $admin);
+
+        $tableAction = UserResource::table(Table::make($this->createMock(HasTable::class)))->getAction('edit');
+
+        $this->assertInstanceOf(EditAction::class, $tableAction);
+        $this->assertSame('Bearbeiten', $tableAction->record($regular)->getLabel());
+        $this->assertSame('Ansehen', $tableAction->record($admin)->getLabel());
     }
 
     public function test_manager_bulk_delete_cannot_delete_admin_user_records(): void
@@ -315,7 +327,7 @@ class ManagerAuthorizationTest extends TestCase
                 'pageClass' => EditUser::class,
             ])
             ->assertSuccessful()
-            ->assertSee('Grant access');
+            ->assertSee(__('Grant access'));
     }
 
     public function test_regular_user_does_not_see_grant_access_action(): void
@@ -342,12 +354,11 @@ class ManagerAuthorizationTest extends TestCase
                 'ownerRecord' => $admin,
                 'pageClass' => EditUser::class,
             ])
-            ->assertDontSee('Grant access');
+            ->assertDontSee(__('Grant access'));
     }
 
     public function test_manager_cannot_see_role_management_action(): void
     {
-        User::factory()->create(); // bootstrap admin
         $manager = User::factory()->create();
         UserRoleAggregate::retrieve(UserRoleAggregate::aggregateUuidFor($manager->id))
             ->grantRole($manager->id, Role::Manager->value, null, now())
@@ -355,9 +366,7 @@ class ManagerAuthorizationTest extends TestCase
 
         \Livewire\Livewire::actingAs($manager)
             ->test(EditUser::class, ['record' => $manager->getRouteKey()])
-            ->assertActionHidden('manageRoles')
-            ->assertActionHidden('setAsAdmin')
-            ->assertActionHidden('removeAdmin');
+            ->assertActionHidden('changeRole');
     }
 
     public function test_manager_cannot_make_user_admin_through_service(): void
@@ -367,7 +376,7 @@ class ManagerAuthorizationTest extends TestCase
 
         $this->expectException(AuthorizationException::class);
 
-        app(UserAdministrationService::class)->makeAdmin($manager, $target);
+        app(UserAdministrationService::class)->changeRole($manager, $target, Role::Admin);
     }
 
     public function test_manager_cannot_trigger_sensitive_actions_for_admin_users(): void
@@ -380,9 +389,7 @@ class ManagerAuthorizationTest extends TestCase
             ->test(EditUser::class, ['record' => $admin->getRouteKey()])
             ->assertActionHidden('sendPasswordResetLink')
             ->assertActionHidden('sendVerificationEmail')
-            ->assertActionHidden('manageRoles')
-            ->assertActionHidden('setAsAdmin')
-            ->assertActionHidden('removeAdmin')
+            ->assertActionHidden('changeRole')
             ->assertActionHidden('delete');
     }
 
@@ -399,7 +406,8 @@ class ManagerAuthorizationTest extends TestCase
 
     public function test_admin_can_manage_admin_user_records(): void
     {
-        $admin = User::factory()->create(); // bootstrap admin
+        $admin = User::factory()->create();
+        $admin->makeAdmin();
         $targetAdmin = User::factory()->create();
         $targetAdmin->makeAdmin();
 

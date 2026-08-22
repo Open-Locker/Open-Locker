@@ -4,23 +4,30 @@ declare(strict_types=1);
 
 namespace App\Filament\Resources\UserResource\RelationManagers;
 
+use App\Enums\CompartmentOpenRequestStatus;
 use App\Enums\Permission;
 use App\Filament\Resources\UserResource;
+use App\Filament\Support\AccessPickerOptions;
 use App\Models\Compartment;
 use App\Models\CompartmentAccess;
 use App\Models\User;
 use App\Services\CompartmentAccessService;
 use Filament\Facades\Filament;
-use Filament\Forms;
 use Filament\Resources\RelationManagers\RelationManager;
 use Filament\Schemas\Schema;
 use Filament\Tables;
 use Filament\Tables\Table;
-use Illuminate\Support\Carbon;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Model;
 
 class CompartmentAccessesRelationManager extends RelationManager
 {
     protected static string $relationship = 'compartmentAccesses';
+
+    public static function getTitle(Model $ownerRecord, string $pageClass): string
+    {
+        return __('Compartment accesses');
+    }
 
     public function form(Schema $form): Schema
     {
@@ -31,111 +38,106 @@ class CompartmentAccessesRelationManager extends RelationManager
     {
         return $table
             ->recordTitleAttribute('id')
+            // Every column below reaches through `compartment`, and two reach a
+            // hop further into its latest open request. The actor columns reach
+            // sideways instead, resolved inside a per-row closure rather than a
+            // dotted column name — easy to miss for that reason, and just as
+            // much a query per row.
+            ->modifyQueryUsing(fn (Builder $query): Builder => $query->with([
+                'compartment.lockerBank',
+                'compartment.latestOpenRequest',
+                'grantedByUser',
+                'revokedByUser',
+            ]))
             ->columns([
                 Tables\Columns\TextColumn::make('compartment.number')
-                    ->label('Compartment')
+                    ->label(__('Compartment'))
                     ->prefix('#')
                     ->sortable(),
                 Tables\Columns\TextColumn::make('compartment.lockerBank.name')
-                    ->label('Locker bank')
+                    ->label(__('Locker bank'))
                     ->sortable(),
                 Tables\Columns\TextColumn::make('granted_at')
+                    ->label(__('Granted at'))
                     ->dateTime()
                     ->sortable(),
                 Tables\Columns\TextColumn::make('granted_by_display_name')
-                    ->label('Granted by')
+                    ->label(__('Granted by'))
                     ->state(fn (CompartmentAccess $record): ?string => $record->grantedByUser?->fullName())
-                    ->placeholder('System')
+                    ->placeholder(__('System'))
                     ->toggleable(),
                 Tables\Columns\TextColumn::make('expires_at')
+                    ->label(__('Expires at'))
                     ->dateTime()
-                    ->placeholder('Never')
+                    ->placeholder(__('Never'))
                     ->sortable(),
                 Tables\Columns\TextColumn::make('revoked_at')
+                    ->label(__('Revoked at'))
                     ->dateTime()
-                    ->placeholder('Active')
+                    ->placeholder(__('Active'))
                     ->sortable(),
                 Tables\Columns\TextColumn::make('revoked_by_display_name')
-                    ->label('Revoked by')
+                    ->label(__('Revoked by'))
                     ->state(fn (CompartmentAccess $record): ?string => $record->revokedByUser?->fullName())
                     ->placeholder('-')
                     ->toggleable(),
                 Tables\Columns\TextColumn::make('compartment.latestOpenRequest.status')
-                    ->label('Last open status')
+                    ->label(__('Last open status'))
                     ->badge()
-                    ->color(fn (?string $state): string => match ($state) {
-                        'opened' => 'success',
-                        'failed', 'denied' => 'danger',
-                        'sent', 'accepted', 'requested' => 'warning',
-                        default => 'gray',
-                    })
-                    ->placeholder('No requests')
+                    ->color(fn (?CompartmentOpenRequestStatus $state): string => $state?->color() ?? 'gray')
+                    ->formatStateUsing(fn (?CompartmentOpenRequestStatus $state): string => $state?->label() ?? '')
+                    ->placeholder(__('No requests'))
                     ->sortable(),
                 Tables\Columns\TextColumn::make('compartment.latestOpenRequest.opened_at')
-                    ->label('Last opened at')
+                    ->label(__('Last opened at'))
                     ->dateTime()
                     ->placeholder('-')
                     ->toggleable(),
                 Tables\Columns\TextColumn::make('notes')
+                    ->label(__('Notes'))
                     ->limit(40)
                     ->toggleable(),
             ])
             ->headerActions([
                 \Filament\Actions\Action::make('grantAccess')
-                    ->label('Grant access')
+                    ->label(__('Grant access'))
                     ->icon('heroicon-m-key')
                     ->visible(fn (): bool => $this->currentUserCanManageAccess())
-                    ->form([
-                        Forms\Components\Select::make('compartment_id')
-                            ->label('Compartment')
-                            ->required()
-                            ->searchable()
-                            ->options(
-                                Compartment::query()
-                                    ->with('lockerBank')
-                                    ->get()
-                                    ->mapWithKeys(fn (Compartment $compartment): array => [
-                                        (string) $compartment->id => sprintf(
-                                            '%s / #%d',
-                                            $compartment->lockerBank?->name ?? 'Unknown locker bank',
-                                            (int) $compartment->number
-                                        ),
-                                    ])
-                                    ->all()
-                            ),
-                        Forms\Components\DateTimePicker::make('expires_at')
-                            ->label('Expires at')
-                            ->seconds(false),
-                        Forms\Components\Textarea::make('notes')
-                            ->rows(3)
-                            ->maxLength(2000),
-                    ])
+                    ->form(AccessPickerOptions::grantForm(
+                        'compartment_ids',
+                        __('Compartments'),
+                        fn (): array => $this->grantableCompartmentOptions(),
+                    ))
                     ->action(function (array $data): void {
                         /** @var User $user */
                         $user = $this->getOwnerRecord();
                         /** @var User|null $actor */
                         $actor = Filament::auth()->user();
-                        /** @var Compartment $compartment */
-                        $compartment = Compartment::query()->findOrFail($data['compartment_id']);
 
-                        $expiresAt = filled($data['expires_at'])
-                            ? Carbon::parse($data['expires_at'])
-                            : null;
+                        $expiresAt = AccessPickerOptions::parseExpiresAt($data);
 
-                        app(CompartmentAccessService::class)->grantAccess(
-                            user: $user,
-                            compartment: $compartment,
-                            expiresAt: $expiresAt,
-                            notes: $data['notes'] ?? null,
-                            actor: $actor
-                        );
+                        $service = app(CompartmentAccessService::class);
+
+                        $compartments = Compartment::query()
+                            ->whereIn('id', $data['compartment_ids'])
+                            ->get();
+
+                        foreach ($compartments as $compartment) {
+                            $service->grantAccess(
+                                user: $user,
+                                compartment: $compartment,
+                                expiresAt: $expiresAt,
+                                notes: $data['notes'] ?? null,
+                                actor: $actor
+                            );
+                        }
 
                         $this->resetTable();
                     }),
             ])
             ->actions([
                 \Filament\Actions\Action::make('revokeAccess')
-                    ->label('Revoke access')
+                    ->label(__('Revoke access'))
                     ->color('danger')
                     ->icon('heroicon-m-no-symbol')
                     ->visible(fn (): bool => $this->currentUserCanManageAccess())
@@ -146,15 +148,37 @@ class CompartmentAccessesRelationManager extends RelationManager
                         /** @var User|null $actor */
                         $actor = Filament::auth()->user();
 
+                        /** @var Compartment $compartment */
+                        $compartment = $record->compartment;
+
                         app(CompartmentAccessService::class)->revokeAccess(
                             user: $user,
-                            compartment: $record->compartment,
+                            compartment: $compartment,
                             actor: $actor
                         );
 
                         $this->resetTable();
                     }),
             ]);
+    }
+
+    /**
+     * Grantable compartments for the owner user: excludes compartments the
+     * user already has active access to.
+     *
+     * @return array<string, string>
+     */
+    private function grantableCompartmentOptions(): array
+    {
+        /** @var User $user */
+        $user = $this->getOwnerRecord();
+
+        return AccessPickerOptions::compartments(
+            Compartment::query()->whereDoesntHave(
+                'activeAccesses',
+                fn (Builder $query): Builder => $query->where('user_id', $user->id)
+            )
+        );
     }
 
     private function currentUserCanManageAccess(): bool

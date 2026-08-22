@@ -10,11 +10,10 @@ use App\StorableEvents\CompartmentContentNoteUpdated;
 use App\StorableEvents\CompartmentDoorStateChanged;
 use App\StorableEvents\CompartmentOpened;
 use App\StorableEvents\CompartmentOpeningFailed;
-use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Support\Carbon;
 use Spatie\EventSourcing\EventHandlers\Projectors\Projector;
 
-class CompartmentProjector extends Projector implements ShouldQueue
+class CompartmentProjector extends Projector
 {
     public function onCompartmentDoorStateChanged(CompartmentDoorStateChanged $event): void
     {

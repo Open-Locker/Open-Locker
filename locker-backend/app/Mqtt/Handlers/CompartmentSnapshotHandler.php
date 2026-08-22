@@ -14,7 +14,7 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Log;
 
 /**
- * Validates MQTT compartment snapshots; persists facts via stored events and projections (see ADR-0016).
+ * Validates MQTT compartment snapshots; persists facts via stored events and projections.
  */
 class CompartmentSnapshotHandler extends AbstractInboundMqttHandler
 {
@@ -36,6 +36,17 @@ class CompartmentSnapshotHandler extends AbstractInboundMqttHandler
     protected function receivedLogMessage(): string
     {
         return 'MQTT compartment snapshot received';
+    }
+
+    /**
+     * Retained snapshots are re-delivered on every reconnect and are published
+     * on every door-state change, so they are the highest-volume inbound topic
+     * The door-state facts themselves remain visible as stored
+     * events; only the transport timing is left untraced.
+     */
+    protected function tracesInboundMessages(): bool
+    {
+        return false;
     }
 
     /**

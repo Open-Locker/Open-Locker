@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class MqttUser extends Model
 {
+    /** @use HasFactory<\Database\Factories\MqttUserFactory> */
     use HasFactory;
 
     protected $fillable = [
@@ -24,6 +25,9 @@ class MqttUser extends Model
         'enabled' => 'boolean',
     ];
 
+    /**
+     * @return BelongsTo<LockerBank, $this>
+     */
     public function lockerBank(): BelongsTo
     {
         return $this->belongsTo(LockerBank::class);

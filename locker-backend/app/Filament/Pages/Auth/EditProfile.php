@@ -15,10 +15,12 @@ class EditProfile extends BaseEditProfile
         return $schema
             ->components([
                 TextInput::make('first_name')
+                    ->label(__('First name'))
                     ->required()
                     ->maxLength(255)
                     ->autofocus(),
                 TextInput::make('last_name')
+                    ->label(__('Last name'))
                     ->required()
                     ->maxLength(255),
                 $this->getEmailFormComponent(),

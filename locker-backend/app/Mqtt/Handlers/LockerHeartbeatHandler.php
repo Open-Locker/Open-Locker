@@ -31,6 +31,15 @@ class LockerHeartbeatHandler extends AbstractInboundMqttHandler
     }
 
     /**
+     * Heartbeats arrive on a timer from every locker forever, so tracing them
+     * would bury the flows worth looking at.
+     */
+    protected function tracesInboundMessages(): bool
+    {
+        return false;
+    }
+
+    /**
      * @return array<string, mixed>
      */
     protected function rules(): array
@@ -39,6 +48,8 @@ class LockerHeartbeatHandler extends AbstractInboundMqttHandler
             'message_id' => ['required', 'string'],
             'timestamp' => ['required', 'string'],
             'uptime_seconds' => ['required', 'integer', 'min:0'],
+            // Optional: older clients heartbeat without reporting hardware state.
+            'modbus_connected' => ['sometimes', 'boolean'],
         ];
     }
 
@@ -66,9 +77,16 @@ class LockerHeartbeatHandler extends AbstractInboundMqttHandler
         $ts = $timestamp ? Carbon::parse($timestamp) : now();
         $wasOffline = $lockerBank->connection_status === 'offline';
 
-        $lockerBank->forceFill([
-            'last_heartbeat_at' => $ts,
-        ])->save();
+        $attributes = ['last_heartbeat_at' => $ts];
+
+        // Absent means the device reported nothing about its bus, which must not
+        // be recorded as the bus being down. The previous value is left alone.
+        if (array_key_exists('modbus_connected', $payload)) {
+            $attributes['modbus_connected'] = (bool) $payload['modbus_connected'];
+            $attributes['modbus_status_reported_at'] = $ts;
+        }
+
+        $lockerBank->forceFill($attributes)->save();
 
         Log::info('Heartbeat received', [
             'uuid' => $lockerBankUuid,

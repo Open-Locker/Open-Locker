@@ -1,0 +1,8 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "./traceparent.json",
+  "title": "MQTT traceparent",
+  "type": "string",
+  "pattern": "^[0-9a-f]{2}-[0-9a-f]{32}-[0-9a-f]{16}-[0-9a-f]{2}$",
+  "description": "W3C trace context linking this message to the span that published it (ADR-0042). Optional in every direction: a receiver that gets no traceparent starts a new trace rather than rejecting the message. Transport metadata only — never persisted as domain data, never used for deduplication or business correlation, which remain the roles of message_id and transaction_id (ADR-0002)."
+}

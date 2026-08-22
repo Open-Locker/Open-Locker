@@ -14,6 +14,9 @@
     "message_id": {
       "$ref": "../common/message-id.json"
     },
+    "traceparent": {
+      "$ref": "../common/traceparent.json"
+    },
     "transaction_id": {
       "$ref": "../common/transaction-id.json"
     },

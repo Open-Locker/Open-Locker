@@ -1,284 +1,172 @@
 # Locker Client
 
-Docker-based client for managing Open Locker hardware via Modbus and MQTT.
+Docker-based Raspberry Pi service that bridges the Open-Locker backend and
+physical locker hardware:
 
-By default, deployments track `ghcr.io/open-locker/locker-client:latest`.
-Tagged client releases can also be deployed explicitly without coupling them to
-backend releases.
+`MQTT ↔ application use cases ↔ serialized Modbus RTU ↔ Waveshare relay boards`
 
-## Quick Start
+The current implementation is the hexagonal TypeScript rewrite accepted in
+[ADR-0027](../docs/adr/0024-locker-client-v2-hexagonal-rewrite.md).
 
-### Prerequisites
+## Hardware warning
 
-1. Create a configuration directory with `locker-config.yml`
-2. Copy `.env.example` to `.env`
-3. Set `PROVISIONING_TOKEN` in `.env` for new lockers
+Compartment open uses **Waveshare hardware flash** only. Locks must receive brief
+pulses (100–500ms). Never energize relays via software ON/OFF timers.
 
-See [docs/CONFIGURATION.md](docs/CONFIGURATION.md) for detailed setup instructions.
-
-### Run with Docker Compose (Recommended)
+## Raspberry Pi deployment
 
 ```bash
-# 1. Copy the example configuration files
+cp .env.example .env
+mkdir -p config data
+chmod 700 data
 cp locker-config.yml.example config/locker-config.yml
-cp .env.example .env
 
-# 2. Edit config/locker-config.yml with your settings
-
-# 3. Edit .env as needed
-# - set PROVISIONING_TOKEN for first-time provisioning
-# - keep LOCKER_CLIENT_IMAGE_TAG=latest for the default channel
-# - or pin a tagged client release
-
-# 4. Start the containers
-docker-compose up -d
+# Issue a one-time token in the backend admin, immediately set
+# PROVISIONING_TOKEN in .env, and adjust the serial port.
+docker compose up -d
+docker compose logs -f locker-client
 ```
 
-The Compose setup starts two services:
-- `locker-client` runs the actual client
-- `watchtower` watches for new images and recreates the labeled client
-  container automatically
-
-### Run with Docker
-
-```bash
-docker run -d \
-  --name locker-client \
-  --device=/dev/ttyACM0:/dev/ttyACM0 \
-  -e PROVISIONING_TOKEN="YOUR_TOKEN_HERE" \
-  -v $(pwd)/config:/config:ro \
-  -v locker-data:/data \
-  --restart unless-stopped \
-  ghcr.io/open-locker/locker-client:latest
-```
-
-## Environment File
-
-The client ships with a `.env.example` file for deployment-related variables:
-
-```bash
-cp .env.example .env
-```
-
-Common variables:
-- `LOCKER_CLIENT_IMAGE_TAG` chooses the image tag to deploy, defaulting to
-  `latest`
-- `PROVISIONING_TOKEN` is only needed for first-time provisioning
-- `WATCHTOWER_POLL_INTERVAL` controls how often Watchtower checks for updates
-- `TZ` sets the timezone used by Watchtower
-
-## Release And Deployment Process
-
-### Default Channel: `latest`
-
-The default Compose setup uses:
-
-```bash
-ghcr.io/open-locker/locker-client:${LOCKER_CLIENT_IMAGE_TAG:-latest}
-```
-
-If you do nothing, deployments stay on `latest` and Watchtower will pull new
-client images automatically.
-
-### Deploy A Tagged Client Release
-
-If you want a deterministic client deployment, pin the image tag in `.env`
-before running Compose:
-
-```bash
-sed -i.bak 's/^LOCKER_CLIENT_IMAGE_TAG=.*/LOCKER_CLIENT_IMAGE_TAG=1.2.3/' .env
-docker-compose pull
-docker-compose up -d
-```
-
-This keeps backend and client releases independent. The client image can be
-rolled forward or back by changing only `LOCKER_CLIENT_IMAGE_TAG`.
-
-### Publish An Independent Client Release
-
-The GitHub Actions workflow publishes the client image automatically:
-- pushes to `main` update the `latest` image
-- pushing a Git tag named `locker-client-v1.2.3` publishes the image tag
-  `1.2.3`
-
-Example:
-
-```bash
-git tag locker-client-v1.2.3
-git push origin locker-client-v1.2.3
-```
-
-That release flow is intentionally client-specific, so backend releases can
-happen independently.
-
-## Automatic Updates With Watchtower
-
-Watchtower is included in `docker-compose.yml` and is configured to update only
-containers explicitly labeled for Watchtower.
-
-Current defaults:
-- checks every 300 seconds
-- cleans up replaced images
-- only updates labeled containers
-- uses `TZ` from the environment, falling back to `UTC`
-
-Optional environment variables:
-
-```bash
-export TZ="Europe/Berlin"
-export WATCHTOWER_POLL_INTERVAL="300"
-```
-
-You can also set the same values in `.env`, which is the recommended approach
-for persistent deployments.
-
-### Watchtower Behavior With Tagged Releases
-
-Watchtower follows the tag configured for the running container image:
-- `latest` means the deployment automatically tracks the newest default image
-- `1.2.3` means the deployment stays pinned to `1.2.3` until you change the tag
-
-This keeps the default setup simple while still allowing controlled rollouts.
-
-## Configuration
-
-Configuration is now split between environment variables and YAML files.
-
-### Volume Structure
-
-- **`/config`** - Configuration files (mount read-only)
-  - `locker-config.yml` - Modbus/base hardware settings (required)
-
-- **`/data`** - Persistent runtime data (mount read-write)
-  - `.mqtt-client-id` - Generated client identifier
-  - `.mqtt-credentials.json` - Provisioned credentials
-  - `.provisioning-state` - Provisioning status
-
-### Environment
-
-Create a `.env` file (see [.env.example](.env.example)):
-
-```env
-MQTT_BROKER_URL=mqtt://open-locker.cloud
-MQTT_DEFAULT_USERNAME=provisioning_client
-MQTT_DEFAULT_PASSWORD=a_public_password
-LOG_LEVEL=info
-```
-
-### Hardware Configuration File
-
-Create a `locker-config.yml` file (see [locker-config.yml.example](locker-config.yml.example)):
-
-```yaml
-modbus:
-  port: /dev/ttyACM0
-  baudRate: 9600
-  dataBits: 8
-  stopBits: 1
-  parity: none
-  timeout: 1000
-  flashDurationMs: 200
-```
-
-**Note:** MQTT bootstrap values now come from `.env`. The YAML base config only
-contains shared bus settings. Compartment mapping and heartbeat interval are
-runtime values delivered by backend `apply_config`.
-`modbus.flashDurationMs` configures the hardware pulse duration for supported
-Waveshare boards with native flash support.
-Runtime values such as heartbeat interval and compartment mapping are applied by
-the backend via `apply_config` and stored separately from the base YAML config.
-
-### Device Access
-
-The container requires access to the serial device for Modbus communication:
-- **Device**: `/dev/ttyACM0` (or your specific serial device)
-- **Mount**: Use `--device` flag to grant container access
-
-⚠️ **Note**: Ensure your serial device path matches the one in your
-`config/locker-config.yml` file and the mapped device in `docker-compose.yml`.
-
-## Docker Commands
-
-### View Logs
-
-```bash
-docker logs -f locker-client
-```
-
-### View Watchtower Logs
-
-```bash
-docker logs -f locker-client-watchtower
-```
-
-### Stop Container
-
-```bash
-docker stop locker-client
-```
-
-### Remove Container
-
-```bash
-docker rm locker-client
-```
-
-### Restart Container
-
-```bash
-docker restart locker-client
-```
-
-### Redeploy A Specific Client Version
-
-```bash
-sed -i.bak 's/^LOCKER_CLIENT_IMAGE_TAG=.*/LOCKER_CLIENT_IMAGE_TAG=1.2.3/' .env
-docker-compose pull
-docker-compose up -d
-```
-
-## Troubleshooting
-
-### Permission Denied on Serial Device
-
-If you encounter permission errors accessing the serial device:
-
-1. Add your user to the `dialout` group (on the host):
-   ```bash
-   sudo usermod -a -G dialout $USER
-   ```
-
-2. Alternatively, run the container with elevated privileges:
-   ```bash
-   docker run -d \
-     --name locker-client \
-     --privileged \
-     --device=/dev/ttyACM0:/dev/ttyACM0 \
-     --env-file .env \
-     ghcr.io/open-locker/locker-client:latest
-   ```
-
-### Container Exits Immediately
-
-Check the logs to identify the issue:
-```bash
-docker logs locker-client
-```
-
-Common issues:
-- Missing or invalid `PROVISIONING_TOKEN` environment variable
-- Serial device not accessible
-- Incorrect MQTT broker configuration
-- Unexpected update behavior because `LOCKER_CLIENT_IMAGE_TAG` is pinned to an
-  older release
-
-### Finding Your Serial Device
-
-List available serial devices:
-```bash
-ls -l /dev/ttyACM* /dev/ttyUSB*
-```
+The backend never shows the token again. If it is lost or consumed before the
+client finishes provisioning, restart provisioning in the admin panel and use
+the newly issued token.
+
+Rotating the backend's Laravel `APP_KEY` invalidates outstanding, unconsumed
+provisioning tokens. Issue replacement tokens for those clients; already
+provisioned clients keep using their MQTT credentials and need no change.
+
+The Compose stack runs the client from
+`ghcr.io/open-locker/locker-client:${LOCKER_CLIENT_IMAGE_TAG:-latest}` and uses
+Watchtower for labeled automatic updates.
+
+Required mounts:
+
+- `/config/locker-config.yml`: operator-managed Modbus/base configuration
+- `/data`: client identity, MQTT credentials, runtime config, and dedup state
+
+Keep the host `data` directory private (`0700`). The client creates persistent
+files with mode `0600` and atomically replaces them. Never make the data directory
+world-writable and do not use `chmod 777`.
+
+The production image permits only one running client per `DATA_DIR`. Its
+entrypoint takes a nonblocking Linux `flock` on
+`/data/.locker-client.lock` (or `${DATA_DIR}/.locker-client.lock`) before starting
+Node and exits with code `75` if another process holds the lock. The lock belongs
+to the running client process and is released automatically when that process
+exits or is killed. The lock file itself may remain and must not be treated as
+stale state or deleted for recovery.
+
+This guarantee assumes `/data` is a bind mount on a local Linux filesystem, as in
+the provided Raspberry Pi deployment. Lock behavior on NFS and CIFS is not
+guaranteed. Starting Node directly outside the production Docker entrypoint
+bypasses this deployment lock.
+
+The persisted files are:
+
+- `.mqtt-client-id`: stable MQTT session identity
+- `.mqtt-credentials.json`: provisioned MQTT credentials
+- `.runtime-config-overlay.json`: backend-managed physical mapping
+- `.mqtt-dedup-state.json`: message deduplication, command outcomes, and pending
+  responses
+
+If an existing credentials, runtime-overlay, or dedup file is corrupt, startup
+fails without replacing it. Restore the file from backup or repair it while the
+service is stopped. An invalid client-ID file is also retained; restore it, set a
+valid `MQTT_CLIENT_ID`, or deliberately delete it to create a new MQTT session.
+Deleting dedup state or an invalid client ID can discard safety/session history
+and must not be used as an automatic recovery action.
+
+The production image currently remains root-based because Raspberry Pi serial
+device group IDs are host-specific. `/config` is mounted read-only and `/data` is
+writable, but switching to a fixed non-root UID without also mapping the real
+serial-device GID would break hardware access. Do not work around this with broad
+serial-device permissions. A non-root rollout must first provide an explicit
+serial GID and matching ownership for the host `data` directory.
 
 ## Development
 
-For development setup and building from source, see the main project documentation.
+```bash
+pnpm install
+pnpm test
+pnpm check
+pnpm dev
+```
+
+Requires `/config/locker-config.yml` and `/data` volumes (or env `CONFIG_DIR` /
+`DATA_DIR`).
+
+Compartment mapping and heartbeat interval are **not** part of the base YAML.
+The backend pushes them via MQTT `apply_config`; the client persists the result
+in `/data/.runtime-config-overlay.json`. Until that first apply completes,
+`open_compartment` commands fail and compartment snapshots stay empty.
+
+See [ADR-0028](../docs/adr/0026-locker-client-v2-runtime-only-compartment-mapping.md).
+Persistence and corruption behavior is defined in
+[ADR-0046](../docs/adr/0046-locker-client-local-persistence-hardening.md).
+
+## Fleet simulator
+
+Emulates one or many locker banks with no hardware, for developing the backend,
+the API/mobile visibility path, and MQTT workflows.
+
+**→ Step-by-step guide: [docs/simulator.md](../docs/simulator.md)**
+
+```bash
+cp simulator-scenario.yml.example config/simulator-scenario.yml
+# put a real provisioning token from the admin panel in each bank
+pnpm sim
+```
+
+```
+list                          show every bank and its door states
+open|close|unknown <bank> <n> change a door; publishes a fresh retained snapshot
+quit                          shut down
+```
+
+Flags: `--scenario <path>`, `--broker <url>`, `--no-interactive`, `--quiet`,
+`--allow-production`.
+
+Every MQTT message is echoed to the console, so you can watch a workflow without
+attaching an MQTT client (`--quiet` turns it off):
+
+```
+[bank-a] → state/compartments (retained)  #1:closed #2:closed
+[bank-a] ← command  open_compartment #1 tx=13a275c2
+[bank-a] → state/compartments (retained)  #1:open #2:closed
+[bank-a] → response  open_compartment success tx=13a275c2
+```
+
+The simulator is a **second adapter behind `LockerBusPort`**, not a mode of the
+real client: `InMemoryLockerBus` replaces Modbus, and everything above the port —
+use cases, dispatcher, envelope builder, dedup, schemas — is the production code
+path. That is what keeps its payloads contract-valid by construction.
+`src/main.ts` and `src/bootstrap/createApp.ts` are untouched by it.
+
+Two things worth knowing before you run it:
+
+- **A bank provisions exactly once.** The backend sets `provisioned_at` and
+  refuses every later attempt, so the credentials issued on the first run are
+  cached in `.simulator-credentials.json` beside the scenario file (git-ignored,
+  `0600`, override with `SIMULATOR_CREDENTIALS_FILE`). Delete that file and the
+  bank becomes unusable until an admin resets its provisioning.
+- **Never point it at production.** It publishes fake state under a real locker
+  UUID. It refuses to start when `APP_ENV`/`NODE_ENV` is `production` unless you
+  pass `--allow-production`, and a bank must never be simulated while its real
+  device is online — the broker drops one of them on session takeover.
+
+See [ADR-0031](../docs/adr/0031-contract-aligned-locker-fleet-simulator.md).
+
+## MQTT resilience
+
+Per ADR-0014: persistent session (`clean: false`), unlimited automatic reconnect.
+
+## Hardware and Modbus documentation
+
+- [Modbus configuration](docs/modbus-configuration.md)
+- [Waveshare integration](docs/WAVESHARE_INTEGRATION.md)
+
+## Build the image locally
+
+```bash
+docker build -t ghcr.io/open-locker/locker-client:local .
+```

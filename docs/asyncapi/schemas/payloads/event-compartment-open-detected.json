@@ -1,0 +1,53 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "./event-compartment-open-detected.json",
+  "title": "Compartment door observed open after an unlock pulse",
+  "description": "Published on locker/{locker_uuid}/event once the client has observed the physical door state following an open_compartment pulse (ADR-0040). The command response only acknowledges that the pulse was sent; this message reports whether the door actually opened. `outcome: opened` means the door was closed before the pulse and opened within the detection window, with `detection_ms` measuring pulse to observation. `outcome: already_open` means the door was already open before the pulse, so no window was opened and no `detection_ms` is reported.",
+  "allOf": [
+    {
+      "$ref": "../messages/event.json"
+    },
+    {
+      "type": "object",
+      "required": [
+        "event",
+        "data"
+      ],
+      "properties": {
+        "event": {
+          "const": "compartment_open_detected"
+        },
+        "data": {
+          "type": "object",
+          "required": [
+            "compartment_number",
+            "transaction_id",
+            "outcome"
+          ],
+          "properties": {
+            "compartment_number": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "transaction_id": {
+              "$ref": "../common/transaction-id.json"
+            },
+            "outcome": {
+              "type": "string",
+              "enum": [
+                "opened",
+                "already_open"
+              ]
+            },
+            "detection_ms": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Milliseconds from the unlock pulse to the door being observed open. Absent for already_open."
+            }
+          },
+          "additionalProperties": false
+        }
+      }
+    }
+  ]
+}

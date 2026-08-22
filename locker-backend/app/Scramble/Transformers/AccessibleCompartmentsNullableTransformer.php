@@ -58,6 +58,9 @@ final class AccessibleCompartmentsNullableTransformer
     {
         $items = $array->items;
 
+        // Scramble PHPDocs ArrayType::$items as Type, but setItems() is untyped and may hold a
+        // Schema at runtime; keep this branch as a defensive guard.
+        // @phpstan-ignore instanceof.alwaysFalse, booleanAnd.alwaysFalse
         if ($items instanceof Schema && $items->type instanceof ObjectType) {
             return $items->type;
         }

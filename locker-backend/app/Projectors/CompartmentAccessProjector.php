@@ -7,11 +7,10 @@ namespace App\Projectors;
 use App\Models\CompartmentAccess;
 use App\StorableEvents\CompartmentAccessGranted;
 use App\StorableEvents\CompartmentAccessRevoked;
-use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Support\Carbon;
 use Spatie\EventSourcing\EventHandlers\Projectors\Projector;
 
-class CompartmentAccessProjector extends Projector implements ShouldQueue
+class CompartmentAccessProjector extends Projector
 {
     public function onCompartmentAccessGranted(CompartmentAccessGranted $event): void
     {

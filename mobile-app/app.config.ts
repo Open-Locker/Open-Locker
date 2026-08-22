@@ -39,7 +39,10 @@ export default ({ config }: ConfigContext): ExpoConfig => {
   const defaultAppIdBase = 'com.openlocker.mobileapp';
   const existingEasProjectId = (config.extra as { eas?: { projectId?: string } } | undefined)?.eas
     ?.projectId;
-  const easProjectId = process.env.EXPO_EAS_PROJECT_ID ?? existingEasProjectId;
+  const easProjectId =
+    process.env.EXPO_EAS_PROJECT_ID ??
+    existingEasProjectId ??
+    '4fabf71b-3500-458d-b89c-59eca6c6ce82';
   const appIdBase = process.env.APP_ID_BASE ?? defaultAppIdBase;
   const iosAppIdBase = process.env.APP_ID_BASE_IOS ?? appIdBase;
   const androidAppIdBase = process.env.APP_ID_BASE_ANDROID ?? appIdBase;
@@ -60,6 +63,7 @@ export default ({ config }: ConfigContext): ExpoConfig => {
   return {
     ...config,
     name: getAppName(variant),
+    owner: 'merona-apps',
     slug: 'open-locker-mobile',
     version: process.env.APP_VERSION ?? '1.0.0',
     platforms: ['ios', 'android'],

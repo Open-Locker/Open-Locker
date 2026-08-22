@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "./event-compartment-uncommanded-open.json",
+  "title": "Compartment door opened with no command behind it",
+  "description": "Published on locker/{locker_uuid}/event when a compartment door is observed changing from closed to open without a relay fire that could explain it (ADR-0040). Operationally this is a break-in, tampering, a faulty lock, or a failing sensor. `milliseconds_since_last_relay_fire` carries the age of the last relay fire on that compartment so the backend can judge how unrelated it is; it is absent when the relay has never fired for this compartment in the current client session. No correlation cutoff is applied here — the delta is reported and thresholds live in backend alerting policy.",
+  "allOf": [
+    {
+      "$ref": "../messages/event.json"
+    },
+    {
+      "type": "object",
+      "required": [
+        "event",
+        "data"
+      ],
+      "properties": {
+        "event": {
+          "const": "compartment_uncommanded_open"
+        },
+        "data": {
+          "type": "object",
+          "required": [
+            "compartment_number"
+          ],
+          "properties": {
+            "compartment_number": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "milliseconds_since_last_relay_fire": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Age of the last relay fire on this compartment. Absent when it has never fired in this client session, which makes the opening definitively uncommanded."
+            }
+          },
+          "additionalProperties": false
+        }
+      }
+    }
+  ]
+}

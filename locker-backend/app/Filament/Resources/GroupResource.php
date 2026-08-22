@@ -9,6 +9,8 @@ use App\Filament\Resources\GroupResource\Pages;
 use App\Filament\Resources\GroupResource\RelationManagers\CompartmentAccessesRelationManager;
 use App\Filament\Resources\GroupResource\RelationManagers\MembersRelationManager;
 use App\Models\Group;
+use App\Services\GroupAccessService;
+use Filament\Facades\Filament;
 use Filament\Forms;
 use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
@@ -21,9 +23,27 @@ class GroupResource extends Resource
 
     protected static \BackedEnum|string|null $navigationIcon = 'heroicon-o-user-group';
 
-    protected static string|\UnitEnum|null $navigationGroup = 'Operations';
+    protected static ?int $navigationSort = 20;
 
-    protected static ?int $navigationSort = 30;
+    public static function getNavigationGroup(): ?string
+    {
+        return __('Access management');
+    }
+
+    public static function getNavigationLabel(): string
+    {
+        return __('Groups');
+    }
+
+    public static function getModelLabel(): string
+    {
+        return __('Group');
+    }
+
+    public static function getPluralModelLabel(): string
+    {
+        return __('Groups');
+    }
 
     public static function canAccess(): bool
     {
@@ -36,13 +56,15 @@ class GroupResource extends Resource
     {
         // Name/description are set at creation via GroupCreated. v1 defines no
         // rename event, so editing them directly would drift from the event log
-        // on replay — keep them read-only on edit. See ADR-0020.
+        // on replay — keep them read-only on edit.
         return $form->schema([
             Forms\Components\TextInput::make('name')
+                ->label(__('Name'))
                 ->required()
                 ->maxLength(255)
                 ->disabledOn('edit'),
             Forms\Components\Textarea::make('description')
+                ->label(__('Description'))
                 ->rows(3)
                 ->maxLength(2000)
                 ->disabledOn('edit'),
@@ -54,26 +76,47 @@ class GroupResource extends Resource
         return $table
             ->columns([
                 Tables\Columns\TextColumn::make('name')
+                    ->label(__('Name'))
                     ->searchable()
                     ->sortable(),
                 Tables\Columns\TextColumn::make('members_count')
-                    ->label('Members')
+                    ->label(__('Members'))
                     ->counts('members')
                     ->sortable(),
                 Tables\Columns\TextColumn::make('created_by')
-                    ->label('Created by')
+                    ->label(__('Created by'))
                     ->state(fn (Group $record): ?string => $record->createdByUser?->fullName())
-                    ->placeholder('System')
+                    ->placeholder(__('System'))
                     ->toggleable(),
                 Tables\Columns\TextColumn::make('created_at')
                     ->dateTime()
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
+            ->filters([
+                // Archived groups are event-sourced retired groups (#106),
+                // not deleted — hidden from the list by default, filterable back in.
+                Tables\Filters\TernaryFilter::make('archived_at')
+                    ->label(__('Archived'))
+                    ->nullable()
+                    ->trueLabel(__('Archived groups only'))
+                    ->falseLabel(__('Active groups only'))
+                    ->placeholder(__('All groups'))
+                    ->default(false),
+            ])
             ->actions([
                 \Filament\Actions\EditAction::make(),
+                \Filament\Actions\Action::make('archive')
+                    ->label(__('Archive'))
+                    ->icon('heroicon-o-archive-box')
+                    ->color('danger')
+                    ->requiresConfirmation()
+                    ->modalDescription(__('Archiving ends this group\'s access grants for members who have no other source of access. Membership and grant history are kept.'))
+                    ->visible(fn (Group $record): bool => ! $record->isArchived())
+                    ->action(function (Group $record): void {
+                        app(GroupAccessService::class)->archiveGroup($record, Filament::auth()->user());
+                    }),
             ]);
-        // No delete action (v1): groups cannot be deleted. See ADR-0020 / #106.
     }
 
     public static function getRelations(): array

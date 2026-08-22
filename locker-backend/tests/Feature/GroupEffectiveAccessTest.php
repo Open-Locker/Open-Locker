@@ -130,7 +130,6 @@ class GroupEffectiveAccessTest extends TestCase
 
     public function test_broadcast_recipients_include_operational_managers(): void
     {
-        User::factory()->create(); // bootstrap admin
         $manager = User::factory()->create();
         $compartment = Compartment::factory()->create();
 

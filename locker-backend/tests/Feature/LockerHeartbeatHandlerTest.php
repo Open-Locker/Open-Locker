@@ -119,4 +119,52 @@ class LockerHeartbeatHandlerTest extends TestCase
 
         $this->assertSame(strtotime($firstTs), strtotime((string) $lockerBank->last_heartbeat_at));
     }
+
+    public function test_heartbeat_records_reported_modbus_state(): void
+    {
+        $handler = app(LockerHeartbeatHandler::class);
+        $lockerBank = LockerBankFactory::new()->create([
+            'id' => '33333333-3333-3333-3333-333333333333',
+            'modbus_connected' => null,
+        ]);
+
+        $handler->handleMessage(
+            "locker/{$lockerBank->id}/state/heartbeat",
+            (string) json_encode([
+                'message_id' => '44444444-4444-4444-4444-444444444444',
+                'timestamp' => now()->toIso8601String(),
+                'uptime_seconds' => 30,
+                'modbus_connected' => false,
+            ]),
+        );
+
+        $lockerBank->refresh();
+
+        $this->assertFalse($lockerBank->modbus_connected);
+        $this->assertNotNull($lockerBank->modbus_status_reported_at);
+    }
+
+    public function test_heartbeat_without_modbus_state_leaves_the_previous_value(): void
+    {
+        $handler = app(LockerHeartbeatHandler::class);
+        $lockerBank = LockerBankFactory::new()->create([
+            'id' => '55555555-5555-5555-5555-555555555555',
+            'modbus_connected' => true,
+        ]);
+
+        // A client that reports no hardware state must not be read as reporting
+        // the bus is down.
+        $handler->handleMessage(
+            "locker/{$lockerBank->id}/state/heartbeat",
+            (string) json_encode([
+                'message_id' => '66666666-6666-6666-6666-666666666666',
+                'timestamp' => now()->toIso8601String(),
+                'uptime_seconds' => 60,
+            ]),
+        );
+
+        $lockerBank->refresh();
+
+        $this->assertTrue($lockerBank->modbus_connected);
+    }
 }

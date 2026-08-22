@@ -10,7 +10,7 @@ use App\Models\UserRole;
 
 /**
  * Resolves a user's effective roles and permissions from the event-sourced
- * user_roles read model plus static Role enum bindings. See ADR-0021.
+ * user_roles read model plus static Role enum bindings.
  *
  * `admin` is the super-role: it implicitly holds every permission in the
  * enum catalog (and is also short-circuited in Gate::before).
@@ -26,10 +26,15 @@ trait HasPermissions
     /** @return list<string> */
     public function roleNames(): array
     {
-        return $this->cachedRoleNames ??= UserRole::query()
-            ->where('user_id', $this->getKey())
-            ->pluck('role')
-            ->all();
+        return $this->cachedRoleNames ??= array_values(array_map(
+            static fn (mixed $role): string => (string) $role,
+            $this->relationLoaded('userRoles')
+                ? $this->userRoles->pluck('role')->all()
+                : UserRole::query()
+                    ->where('user_id', $this->getKey())
+                    ->pluck('role')
+                    ->all()
+        ));
     }
 
     public function hasRole(string $role): bool

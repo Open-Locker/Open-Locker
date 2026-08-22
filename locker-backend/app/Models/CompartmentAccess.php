@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class CompartmentAccess extends Model
 {
+    /** @use HasFactory<\Database\Factories\CompartmentAccessFactory> */
     use HasFactory;
 
     protected $fillable = [

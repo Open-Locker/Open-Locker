@@ -5,23 +5,26 @@ declare(strict_types=1);
 namespace App\Filament\Resources\CompartmentResource\RelationManagers;
 
 use App\Enums\Permission;
+use App\Filament\Support\AccessPickerOptions;
 use App\Models\Compartment;
 use App\Models\CompartmentAccess;
 use App\Models\User;
 use App\Services\CompartmentAccessService;
 use Filament\Facades\Filament;
-use Filament\Forms;
 use Filament\Resources\RelationManagers\RelationManager;
 use Filament\Schemas\Schema;
 use Filament\Tables;
 use Filament\Tables\Table;
-use Illuminate\Support\Carbon;
+use Illuminate\Database\Eloquent\Builder;
 
 class UserAccessesRelationManager extends RelationManager
 {
     protected static string $relationship = 'accesses';
 
-    protected static ?string $title = 'Users';
+    public static function getTitle(\Illuminate\Database\Eloquent\Model $ownerRecord, string $pageClass): string
+    {
+        return __('Users');
+    }
 
     public function form(Schema $form): Schema
     {
@@ -32,89 +35,78 @@ class UserAccessesRelationManager extends RelationManager
     {
         return $table
             ->recordTitleAttribute('id')
+            ->modifyQueryUsing(function (Builder $query): Builder {
+                /** @var Builder<CompartmentAccess> $query */
+                return $query->active()->with(['user', 'grantedByUser']);
+            })
             ->columns([
                 Tables\Columns\TextColumn::make('user.email')
-                    ->label('User')
+                    ->label(__('User'))
                     ->description(fn (CompartmentAccess $record): ?string => $record->user?->fullName())
                     ->searchable()
                     ->sortable(),
                 Tables\Columns\TextColumn::make('granted_at')
+                    ->label(__('Granted at'))
                     ->dateTime()
                     ->sortable(),
                 Tables\Columns\TextColumn::make('granted_by_display_name')
-                    ->label('Granted by')
+                    ->label(__('Granted by'))
                     ->state(fn (CompartmentAccess $record): ?string => $record->grantedByUser?->fullName())
-                    ->placeholder('System')
+                    ->placeholder(__('System'))
                     ->toggleable(),
                 Tables\Columns\TextColumn::make('expires_at')
+                    ->label(__('Expires at'))
                     ->dateTime()
-                    ->placeholder('Never')
-                    ->sortable(),
-                Tables\Columns\TextColumn::make('revoked_at')
-                    ->dateTime()
-                    ->placeholder('Active')
+                    ->placeholder(__('Never'))
                     ->sortable(),
                 Tables\Columns\TextColumn::make('notes')
+                    ->label(__('Notes'))
                     ->limit(40)
                     ->toggleable(),
             ])
             ->headerActions([
                 \Filament\Actions\Action::make('grantAccess')
-                    ->label('Grant user access')
+                    ->label(__('Grant user access'))
                     ->icon('heroicon-m-key')
                     ->visible(fn (): bool => $this->currentUserCanManageAccess())
-                    ->form([
-                        Forms\Components\Select::make('user_id')
-                            ->label('User')
-                            ->required()
-                            ->searchable()
-                            ->getSearchResultsUsing(fn (string $search): array => User::query()
-                                ->where('email', 'like', "%{$search}%")
-                                ->orWhere('first_name', 'like', "%{$search}%")
-                                ->orWhere('last_name', 'like', "%{$search}%")
-                                ->limit(50)
-                                ->get()
-                                ->mapWithKeys(fn (User $user): array => [
-                                    $user->id => sprintf('%s (%s)', $user->fullName(), $user->email),
-                                ])
-                                ->all())
-                            ->getOptionLabelUsing(fn ($value): ?string => User::find($value)?->email),
-                        Forms\Components\DateTimePicker::make('expires_at')
-                            ->label('Expires at')
-                            ->seconds(false),
-                        Forms\Components\Textarea::make('notes')
-                            ->rows(3)
-                            ->maxLength(2000),
-                    ])
+                    ->form(AccessPickerOptions::grantForm(
+                        'user_ids',
+                        __('Users'),
+                        fn (): array => $this->grantableUserOptions(),
+                    ))
                     ->action(function (array $data): void {
                         /** @var Compartment $compartment */
                         $compartment = $this->getOwnerRecord();
                         /** @var User|null $actor */
                         $actor = Filament::auth()->user();
-                        /** @var User $user */
-                        $user = User::query()->findOrFail($data['user_id']);
 
-                        $expiresAt = filled($data['expires_at'])
-                            ? Carbon::parse($data['expires_at'])
-                            : null;
+                        $expiresAt = AccessPickerOptions::parseExpiresAt($data);
 
-                        app(CompartmentAccessService::class)->grantAccess(
-                            user: $user,
-                            compartment: $compartment,
-                            expiresAt: $expiresAt,
-                            notes: $data['notes'] ?? null,
-                            actor: $actor,
-                        );
+                        $service = app(CompartmentAccessService::class);
+
+                        $users = User::query()
+                            ->whereIn('id', $data['user_ids'])
+                            ->get();
+
+                        foreach ($users as $user) {
+                            $service->grantAccess(
+                                user: $user,
+                                compartment: $compartment,
+                                expiresAt: $expiresAt,
+                                notes: $data['notes'] ?? null,
+                                actor: $actor,
+                            );
+                        }
 
                         $this->resetTable();
                     }),
             ])
             ->actions([
                 \Filament\Actions\Action::make('revokeAccess')
-                    ->label('Revoke')
+                    ->label(__('Revoke'))
                     ->color('danger')
                     ->icon('heroicon-m-no-symbol')
-                    ->visible(fn (CompartmentAccess $record): bool => $this->currentUserCanManageAccess() && $record->revoked_at === null)
+                    ->visible(fn (): bool => $this->currentUserCanManageAccess())
                     ->requiresConfirmation()
                     ->action(function (CompartmentAccess $record): void {
                         /** @var Compartment $compartment */
@@ -122,8 +114,11 @@ class UserAccessesRelationManager extends RelationManager
                         /** @var User|null $actor */
                         $actor = Filament::auth()->user();
 
+                        /** @var User $user */
+                        $user = $record->user;
+
                         app(CompartmentAccessService::class)->revokeAccess(
-                            user: $record->user,
+                            user: $user,
                             compartment: $compartment,
                             actor: $actor,
                         );
@@ -131,6 +126,25 @@ class UserAccessesRelationManager extends RelationManager
                         $this->resetTable();
                     }),
             ]);
+    }
+
+    /**
+     * Users who can be granted access to the owner compartment: excludes users
+     * that already have active access to it.
+     *
+     * @return array<int|string, string>
+     */
+    private function grantableUserOptions(): array
+    {
+        /** @var Compartment $compartment */
+        $compartment = $this->getOwnerRecord();
+
+        return AccessPickerOptions::users(
+            User::query()->whereDoesntHave(
+                'activeCompartmentAccesses',
+                fn (Builder $query): Builder => $query->where('compartment_id', $compartment->id)
+            )
+        );
     }
 
     private function currentUserCanManageAccess(): bool

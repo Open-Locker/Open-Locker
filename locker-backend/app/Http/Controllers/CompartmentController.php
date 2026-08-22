@@ -12,7 +12,6 @@ use App\Http\Resources\CompartmentOpenDecisionResource;
 use App\Http\Resources\CompartmentOpenStatusResource;
 use App\Models\Compartment;
 use App\Models\CompartmentOpenRequest;
-use App\Models\LockerBank;
 use App\Services\CompartmentAccessService;
 use App\Services\CompartmentService;
 use Illuminate\Http\JsonResponse;
@@ -25,40 +24,11 @@ class CompartmentController extends Controller
      *
      * @response AccessibleCompartmentsResource
      */
-    public function accessible(Request $request): JsonResponse
+    public function accessible(Request $request, CompartmentAccessService $compartmentAccessService): JsonResponse
     {
-        $user = $request->user();
+        $lockerBanks = $compartmentAccessService->accessibleLockerBanksFor($this->authenticatedUser($request));
 
-        $lockerBanksQuery = LockerBank::query()
-            ->orderBy('name');
-
-        if ($user->isAdmin()) {
-            $lockerBanksQuery->with([
-                'compartments' => fn ($query) => $query
-                    ->orderBy('number'),
-            ]);
-        } else {
-            // A compartment is accessible if reachable directly OR via a group.
-            $accessibleToUser = function ($query) use ($user): void {
-                $query
-                    ->whereHas('accesses', function ($accessQuery) use ($user): void {
-                        $accessQuery->where('user_id', $user->id)->active();
-                    })
-                    ->orWhereHas('userGroupAccesses', function ($groupQuery) use ($user): void {
-                        $groupQuery->where('user_id', $user->id)->active();
-                    });
-            };
-
-            $lockerBanksQuery
-                ->whereHas('compartments', $accessibleToUser)
-                ->with([
-                    'compartments' => fn ($query) => $query
-                        ->where($accessibleToUser)
-                        ->orderBy('number'),
-                ]);
-        }
-
-        return (new AccessibleCompartmentsResource($lockerBanksQuery->get()))->response();
+        return (new AccessibleCompartmentsResource($lockerBanks))->response();
     }
 
     /**
@@ -91,7 +61,7 @@ class CompartmentController extends Controller
         Compartment $compartment,
         CompartmentAccessService $compartmentAccessService,
     ): JsonResponse {
-        $decision = $compartmentAccessService->requestOpen($request->user(), $compartment);
+        $decision = $compartmentAccessService->requestOpen($this->authenticatedUser($request), $compartment);
 
         if (! $decision['authorized']) {
             return (new CompartmentOpenDecisionResource([
@@ -125,7 +95,7 @@ class CompartmentController extends Controller
         CompartmentService $compartmentService,
     ): JsonResponse {
         $compartment = $compartmentService->updateContentNote(
-            $request->user(),
+            $this->authenticatedUser($request),
             $compartment,
             $request->validated('note'),
         );
@@ -152,7 +122,7 @@ class CompartmentController extends Controller
             ]))->response()->setStatusCode(404);
         }
 
-        $user = $request->user();
+        $user = $this->authenticatedUser($request);
         if (! $user->isAdmin() && $openRequest->actor_user_id !== $user->id) {
             return (new ApiErrorResource([
                 'status' => false,

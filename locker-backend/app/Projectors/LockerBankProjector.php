@@ -9,12 +9,13 @@ use App\StorableEvents\CompartmentStateChangesApplied;
 use App\StorableEvents\LockerConfigAcknowledged;
 use App\StorableEvents\LockerConnectionLost;
 use App\StorableEvents\LockerConnectionRestored;
+use App\StorableEvents\LockerProvisioningReset;
+use App\StorableEvents\LockerProvisioningTokenIssued;
 use App\StorableEvents\LockerWasProvisioned;
-use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Support\Carbon;
 use Spatie\EventSourcing\EventHandlers\Projectors\Projector;
 
-class LockerBankProjector extends Projector implements ShouldQueue
+class LockerBankProjector extends Projector
 {
     public function onCompartmentStateChangesApplied(CompartmentStateChangesApplied $event): void
     {
@@ -40,8 +41,60 @@ class LockerBankProjector extends Projector implements ShouldQueue
         $lockerBank = LockerBank::find($event->lockerBankUuid);
 
         if ($lockerBank) {
-            $lockerBank->update(['provisioned_at' => now()]);
+            $lockerBank->forceFill([
+                'provisioned_at' => $event->createdAt() ?? now(),
+                'provisioning_token_hmac' => null,
+                'provisioning_generation' => $event->provisioningGeneration,
+            ])->save();
         }
+    }
+
+    public function onLockerProvisioningTokenIssued(LockerProvisioningTokenIssued $event): void
+    {
+        $lockerBank = LockerBank::find($event->lockerBankUuid);
+
+        if (! $lockerBank) {
+            return;
+        }
+
+        $lockerBank->forceFill([
+            'provisioning_token_hmac' => $event->provisioningTokenHmac,
+            'provisioning_generation' => $event->provisioningGeneration,
+        ])->save();
+    }
+
+    /**
+     * A reset invalidates everything the backend believed about the device.
+     *
+     * The bank goes offline because the client it was talking to can no longer
+     * authenticate, and the configuration state is cleared because a
+     * replacement client has acknowledged nothing — leaving the old "clean"
+     * hashes would make the bank look configured when the new device has never
+     * seen a config. It stays dirty until a fresh apply_config is sent and
+     * acknowledged.
+     *
+     * The following token-issued event restores the new HMAC and generation.
+     */
+    public function onLockerProvisioningReset(LockerProvisioningReset $event): void
+    {
+        $lockerBank = LockerBank::find($event->lockerBankUuid);
+
+        if (! $lockerBank) {
+            return;
+        }
+
+        $lockerBank->forceFill([
+            'provisioning_token_hmac' => null,
+            'provisioning_generation' => null,
+            'provisioned_at' => null,
+            'connection_status' => 'offline',
+            'connection_status_changed_at' => Carbon::parse($event->resetAtIso8601),
+            'last_heartbeat_at' => null,
+            'last_config_sent_at' => null,
+            'last_config_sent_hash' => null,
+            'last_config_ack_at' => null,
+            'last_config_ack_hash' => null,
+        ])->save();
     }
 
     public function onLockerConnectionLost(LockerConnectionLost $event): void

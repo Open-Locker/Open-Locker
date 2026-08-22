@@ -9,21 +9,18 @@ use App\Enums\Permission;
 use App\Filament\Resources\CompartmentResource\Pages;
 use App\Filament\Resources\CompartmentResource\RelationManagers\GroupAccessesRelationManager;
 use App\Filament\Resources\CompartmentResource\RelationManagers\UserAccessesRelationManager;
+use App\Filament\Support\CompartmentDoorStateColumn;
+use App\Filament\Support\OpenCompartmentAction;
 use App\Models\Compartment;
-use App\Models\User;
-use App\Services\CompartmentAccessService;
 use Filament\Actions\Action;
-use Filament\Facades\Filament;
 use Filament\Infolists\Components\TextEntry;
-use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
 use Filament\Tables;
-use Filament\Tables\Filters\SelectFilter;
+use Filament\Tables\Grouping\Group;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Facades\Log;
 
 class CompartmentResource extends Resource
 {
@@ -31,11 +28,27 @@ class CompartmentResource extends Resource
 
     protected static \BackedEnum|string|null $navigationIcon = 'heroicon-o-inbox-stack';
 
-    protected static ?string $navigationLabel = 'Compartments';
-
-    protected static string|\UnitEnum|null $navigationGroup = 'Operations';
-
     protected static ?int $navigationSort = 10;
+
+    public static function getNavigationLabel(): string
+    {
+        return __('Compartments');
+    }
+
+    public static function getNavigationGroup(): ?string
+    {
+        return __('Operations');
+    }
+
+    public static function getModelLabel(): string
+    {
+        return __('Compartment');
+    }
+
+    public static function getPluralModelLabel(): string
+    {
+        return __('Compartments');
+    }
 
     public static function canAccess(): bool
     {
@@ -63,22 +76,22 @@ class CompartmentResource extends Resource
     {
         return $schema->components([
             TextEntry::make('lockerBank.name')
-                ->label('Locker bank'),
+                ->label(__('Locker bank')),
             TextEntry::make('number')
-                ->label('Compartment')
+                ->label(__('Compartment'))
                 ->prefix('#'),
             TextEntry::make('door_state')
-                ->label('Door')
+                ->label(__('Door'))
                 ->badge()
-                ->formatStateUsing(fn (CompartmentDoorState $state): string => $state->value)
+                ->formatStateUsing(fn (CompartmentDoorState $state): string => $state->label())
                 ->color(fn (CompartmentDoorState $state): string => match ($state) {
                     CompartmentDoorState::Open => 'warning',
                     CompartmentDoorState::Closed => 'success',
                     CompartmentDoorState::Unknown => 'gray',
                 }),
             TextEntry::make('content_note')
-                ->label('Note')
-                ->placeholder('No note'),
+                ->label(__('Note'))
+                ->placeholder(__('No note')),
         ]);
     }
 
@@ -87,97 +100,63 @@ class CompartmentResource extends Resource
         return parent::getEloquentQuery()->with(['lockerBank', 'latestOpenRequest']);
     }
 
+    /**
+     * A jammed or already-open compartment reports `door_state: closed` exactly
+     * like a healthy one, so the last open attempt is the only signal that the
+     * lock needs attention.
+     */
     public static function table(Table $table): Table
     {
         return $table
-            ->defaultSort('lockerBank.name')
+            // Bank ordering comes from the group itself; within a bank, compartments
+            // read naturally by number.
+            ->defaultSort('number')
+            // Compartments are only meaningful per locker bank, so the list is always
+            // grouped and folded shut — the admin picks one bank instead of scanning
+            // every compartment in the system (#167).
+            ->groups([
+                Group::make('lockerBank.name')
+                    ->label(__('Locker bank'))
+                    // The header is unambiguous on its own; the label prefix just
+                    // repeats "Locker bank:" on every row group.
+                    ->titlePrefixedWithLabel(false)
+                    ->collapsible(),
+            ])
+            ->defaultGroup('lockerBank.name')
+            ->collapsedGroupsByDefault()
+            ->groupingSettingsHidden()
+            // Record pagination would split a locker bank across pages. Every group
+            // loads collapsed, so the page is a short list of bank headers no matter
+            // how many compartments exist — the grouping is the pagination (#167).
+            ->paginated(false)
+            ->modifyQueryUsing(fn (Builder $query): Builder => $query->with('latestOpenRequest'))
             ->columns([
-                Tables\Columns\TextColumn::make('lockerBank.name')
-                    ->label('Locker bank')
-                    ->searchable()
-                    ->sortable(),
                 Tables\Columns\TextColumn::make('number')
-                    ->label('Compartment')
+                    ->label(__('Compartment'))
                     ->prefix('#')
                     ->sortable(),
-                Tables\Columns\TextColumn::make('door_state')
-                    ->label('Door')
-                    ->badge()
-                    ->formatStateUsing(fn (CompartmentDoorState $state): string => $state->value)
-                    ->color(fn (CompartmentDoorState $state): string => match ($state) {
-                        CompartmentDoorState::Open => 'warning',
-                        CompartmentDoorState::Closed => 'success',
-                        CompartmentDoorState::Unknown => 'gray',
-                    })
-                    ->placeholder('unknown'),
-                Tables\Columns\TextColumn::make('activeAccesses_count')
-                    ->label('Direct users')
+                CompartmentDoorStateColumn::column(),
+                Tables\Columns\TextColumn::make('active_accesses_count')
+                    ->label(__('Direct users'))
                     ->counts('activeAccesses')
                     ->badge()
                     ->color('gray'),
                 Tables\Columns\TextColumn::make('content_note')
-                    ->label('Note')
-                    ->placeholder('No note')
+                    ->label(__('Note'))
+                    ->placeholder(__('No note'))
                     ->limit(40)
                     ->wrap()
                     ->tooltip(fn (Compartment $record): ?string => $record->content_note)
                     ->toggleable(),
             ])
-            ->filters([
-                SelectFilter::make('locker_bank_id')
-                    ->label('Locker bank')
-                    ->relationship('lockerBank', 'name')
-                    ->searchable()
-                    ->preload(),
-            ])
+            // No search or filters: the collapsed bank groups are the only navigation
+            // this list needs, and a locker-bank filter would just duplicate them (#167).
             ->actions([
                 Action::make('access')
-                    ->label('Access')
+                    ->label(__('Access'))
                     ->icon('heroicon-m-key')
                     ->url(fn (Compartment $record): string => static::getUrl('view', ['record' => $record])),
-                Action::make('open')
-                    ->label('Open')
-                    ->icon('heroicon-m-bolt')
-                    ->requiresConfirmation()
-                    ->visible(fn (Compartment $record): bool => (Filament::auth()->user()?->can(Permission::CompartmentOpen->value) ?? false)
-                        && in_array($record->door_state, [CompartmentDoorState::Closed, CompartmentDoorState::Unknown], true))
-                    ->action(function (Compartment $record): void {
-                        try {
-                            $user = Filament::auth()->user();
-                            if (! $user instanceof User) {
-                                Notification::make()
-                                    ->title('Unable to open compartment')
-                                    ->body('No authenticated user context available.')
-                                    ->danger()
-                                    ->send();
-
-                                return;
-                            }
-
-                            $decision = app(CompartmentAccessService::class)->requestOpen($user, $record);
-
-                            $notification = Notification::make()
-                                ->title($decision['authorized'] ? 'Open command accepted' : 'Open command denied')
-                                ->body("Compartment {$record->number} command ID: {$decision['command_id']}");
-
-                            $decision['authorized'] ? $notification->success() : $notification->danger();
-
-                            $notification->send();
-                        } catch (\Throwable $e) {
-                            Log::error('Failed to request compartment opening from Filament.', [
-                                'compartment_id' => $record->id,
-                                'locker_bank_id' => $record->locker_bank_id,
-                                'number' => $record->number,
-                                'error' => $e->getMessage(),
-                            ]);
-
-                            Notification::make()
-                                ->title('Failed to queue open command')
-                                ->body($e->getMessage())
-                                ->danger()
-                                ->send();
-                        }
-                    }),
+                OpenCompartmentAction::make(),
             ]);
     }
 

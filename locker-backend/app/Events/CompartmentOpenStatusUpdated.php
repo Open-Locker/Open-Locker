@@ -21,6 +21,8 @@ class CompartmentOpenStatusUpdated implements ShouldBroadcastNow
         public readonly string $status,
         public readonly ?string $errorCode = null,
         public readonly ?string $message = null,
+        public readonly ?int $compartmentNumber = null,
+        public readonly ?string $lockerName = null,
     ) {}
 
     public function broadcastOn(): array
@@ -33,6 +35,9 @@ class CompartmentOpenStatusUpdated implements ShouldBroadcastNow
         return 'compartment.open.status.updated';
     }
 
+    /**
+     * @return array<string, mixed>
+     */
     public function broadcastWith(): array
     {
         return [
@@ -41,6 +46,8 @@ class CompartmentOpenStatusUpdated implements ShouldBroadcastNow
             'status' => $this->status,
             'error_code' => $this->errorCode,
             'message' => $this->message,
+            'compartment_number' => $this->compartmentNumber,
+            'locker_name' => $this->lockerName,
         ];
     }
 }

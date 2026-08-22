@@ -3,11 +3,14 @@
 namespace App\Filament\Resources;
 
 use App\Enums\Permission;
+use App\Enums\Role;
 use App\Filament\Resources\UserResource\Pages;
 use App\Filament\Resources\UserResource\RelationManagers\CompartmentAccessesRelationManager;
+use App\Filament\Resources\UserResource\RelationManagers\GroupMembershipsRelationManager;
 use App\Models\User;
 use App\Services\UserAdministrationService;
 use Filament\Forms;
+use Filament\Infolists\Components\TextEntry;
 use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
@@ -23,9 +26,27 @@ class UserResource extends Resource
 
     protected static \BackedEnum|string|null $navigationIcon = 'heroicon-o-rectangle-stack';
 
-    protected static string|\UnitEnum|null $navigationGroup = 'Operations';
+    protected static ?int $navigationSort = 10;
 
-    protected static ?int $navigationSort = 20;
+    public static function getNavigationGroup(): ?string
+    {
+        return __('Access management');
+    }
+
+    public static function getNavigationLabel(): string
+    {
+        return __('Users');
+    }
+
+    public static function getModelLabel(): string
+    {
+        return __('User');
+    }
+
+    public static function getPluralModelLabel(): string
+    {
+        return __('Users');
+    }
 
     public static function canAccess(): bool
     {
@@ -62,49 +83,85 @@ class UserResource extends Resource
         return $form
             ->schema([
                 Forms\Components\TextInput::make('first_name')
+                    ->label(__('First name'))
                     ->required()
                     ->disabled(fn (?User $record): bool => $record instanceof User && ! self::canEdit($record)),
                 Forms\Components\TextInput::make('last_name')
+                    ->label(__('Last name'))
                     ->required()
                     ->disabled(fn (?User $record): bool => $record instanceof User && ! self::canEdit($record)),
                 Forms\Components\TextInput::make('email')
+                    ->label(__('Email'))
                     ->email()
                     ->required()
                     ->disabled(fn (?User $record): bool => $record instanceof User && ! self::canEdit($record)),
+                TextEntry::make('roles')
+                    ->label(__('Roles'))
+                    ->badge()
+                    ->state(fn (?User $record): array => $record instanceof User ? self::roleLabels($record) : [])
+                    ->visible(fn (?User $record): bool => $record instanceof User),
             ]);
+    }
+
+    /**
+     * Localized labels for the user's assigned roles; users without any
+     * stored role binding are plain users.
+     *
+     * @return list<string>
+     */
+    public static function roleLabels(User $user): array
+    {
+        $labels = [];
+
+        foreach ($user->roleNames() as $roleName) {
+            $role = Role::tryFrom($roleName);
+
+            if ($role !== null) {
+                $labels[] = $role->label();
+            }
+        }
+
+        return $labels === [] ? [Role::User->label()] : $labels;
     }
 
     public static function table(Table $table): Table
     {
         return $table
+            ->modifyQueryUsing(fn ($query) => $query->with('userRoles'))
             ->columns([
                 Tables\Columns\TextColumn::make('first_name')
+                    ->label(__('First name'))
                     ->searchable(),
                 Tables\Columns\TextColumn::make('last_name')
+                    ->label(__('Last name'))
                     ->searchable(),
                 Tables\Columns\TextColumn::make('email')
+                    ->label(__('Email'))
                     ->searchable(),
                 Tables\Columns\TextColumn::make('email_verified_at')
+                    ->label(__('Email verified at'))
                     ->dateTime()
                     ->sortable(),
                 Tables\Columns\TextColumn::make('created_at')
+                    ->label(__('Created at'))
                     ->dateTime()
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),
                 Tables\Columns\TextColumn::make('updated_at')
+                    ->label(__('Updated at'))
                     ->dateTime()
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),
-                Tables\Columns\IconColumn::make('is_admin')
-                    ->label('Admin')
-                    ->boolean()
-                    ->state(fn (User $record): bool => $record->isAdmin()),
+                Tables\Columns\TextColumn::make('roles')
+                    ->label(__('Roles'))
+                    ->badge()
+                    ->state(fn (User $record): array => self::roleLabels($record)),
                 Tables\Columns\IconColumn::make('terms_current_accepted')
-                    ->label('Current terms accepted')
+                    ->label(__('Current terms accepted'))
                     ->boolean()
                     ->state(fn (User $record): bool => $record->hasAcceptedCurrentTerms()),
                 Tables\Columns\TextColumn::make('latest_terms_version')
-                    ->label('Last accepted terms version')
+                    ->label(__('Last accepted terms version'))
                     ->state(fn (User $record): ?int => $record->latestAcceptedTermsVersion())
                     ->placeholder('-'),
             ])
@@ -114,16 +171,20 @@ class UserResource extends Resource
             ->actions([
                 \Filament\Actions\EditAction::make()
                     ->authorize(fn (User $record): bool => self::canView($record))
-                    ->label(fn (User $record): string => self::canEdit($record) ? 'Edit' : 'View'),
+                    ->label(fn (User $record): string => self::canEdit($record) ? __('Edit') : __('View')),
             ])->actionsAlignment('left')
             ->bulkActions([
                 \Filament\Actions\BulkActionGroup::make([
                     \Filament\Actions\DeleteBulkAction::make()
+                        // Both guards below need the actual records. Without this
+                        // the "select all" path hands Filament a bare query and
+                        // deletes through it, skipping model events entirely.
+                        ->fetchSelectedRecords()
                         ->before(function (\Filament\Actions\DeleteBulkAction $action, Collection $records) {
-                            if ($records->contains(fn (User $record): bool => ! self::canManageRecord($record))) {
+                            if ($records->contains(fn (Model $record): bool => $record instanceof User && ! self::canManageRecord($record))) {
                                 Notification::make()
-                                    ->title('Aktion abgebrochen')
-                                    ->body('Dieser Nutzer kann nicht gelöscht werden.')
+                                    ->title(__('Cannot delete user'))
+                                    ->body(__('This user cannot be deleted.'))
                                     ->danger()
                                     ->send();
                                 $action->cancel();
@@ -132,16 +193,41 @@ class UserResource extends Resource
                             }
 
                             $adminCount = User::adminRoleCount();
-                            $deletedAdmins = $records->filter(fn (User $record): bool => $record->isAdmin())->count();
+                            $deletedAdmins = $records->filter(fn (Model $record): bool => $record instanceof User && $record->isAdmin())->count();
 
                             if ($adminCount - $deletedAdmins < 1) {
                                 Notification::make()
-                                    ->title('Aktion abgebrochen')
-                                    ->body('Der letzte Admin kann nicht gelöscht werden.')
+                                    ->title(__('Cannot delete user'))
+                                    ->body(__('The last admin cannot be deleted.'))
                                     ->danger()
                                     ->send();
                                 $action->cancel();
                             }
+                        })
+                        // Deleting the selection one record at a time can strand
+                        // the installation without an admin when another request
+                        // demotes one in between, so the service commits the whole
+                        // selection under a lock or none of it.
+                        ->using(function (\Filament\Actions\DeleteBulkAction $action, Collection $records): void {
+                            $actor = self::actor();
+                            abort_unless($actor instanceof User, 403);
+
+                            $deleted = app(UserAdministrationService::class)->deleteUsers(
+                                actor: $actor,
+                                targets: $records->filter(fn (Model $record): bool => $record instanceof User),
+                            );
+
+                            if ($deleted) {
+                                return;
+                            }
+
+                            $action->reportCompleteBulkProcessingFailure();
+
+                            Notification::make()
+                                ->title(__('Cannot delete user'))
+                                ->body(__('The last admin cannot be deleted.'))
+                                ->danger()
+                                ->send();
                         }),
                 ]),
             ]);
@@ -151,6 +237,7 @@ class UserResource extends Resource
     {
         return [
             CompartmentAccessesRelationManager::class,
+            GroupMembershipsRelationManager::class,
         ];
     }
 

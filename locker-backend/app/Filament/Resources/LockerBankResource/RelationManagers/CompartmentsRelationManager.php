@@ -4,10 +4,13 @@ declare(strict_types=1);
 
 namespace App\Filament\Resources\LockerBankResource\RelationManagers;
 
+use App\Enums\Permission;
+use App\Filament\Support\CompartmentDoorStateColumn;
+use App\Filament\Support\OpenCompartmentAction;
 use App\Models\Compartment;
 use App\Models\LockerBank;
 use App\Models\User;
-use App\Services\CompartmentAccessService;
+use App\Services\CompartmentService;
 use App\Services\LockerService;
 use App\StorableEvents\CompartmentContentNoteUpdated;
 use Filament\Actions\Action;
@@ -22,6 +25,8 @@ use Filament\Support\Enums\FontWeight;
 use Filament\Support\Enums\Width;
 use Filament\Tables;
 use Filament\Tables\Table;
+use Illuminate\Auth\Access\AuthorizationException;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Log;
 use Spatie\EventSourcing\StoredEvents\Models\EloquentStoredEvent;
@@ -30,33 +35,39 @@ class CompartmentsRelationManager extends RelationManager
 {
     protected static string $relationship = 'compartments';
 
+    public static function getTitle(\Illuminate\Database\Eloquent\Model $ownerRecord, string $pageClass): string
+    {
+        return __('Compartments');
+    }
+
     public function form(Schema $form): Schema
     {
         return $form
             ->schema([
                 Forms\Components\TextInput::make('number')
+                    ->label(__('Number'))
                     ->numeric()
                     ->required()
                     ->step(1)
                     ->minValue(1)
-                    ->helperText('1-based compartment number (logical ID used by MQTT commands).'),
+                    ->helperText(__('1-based compartment number (logical ID used by MQTT commands).')),
 
                 Forms\Components\TextInput::make('slave_id')
-                    ->label('Slave ID')
+                    ->label(__('Slave ID'))
                     ->numeric()
                     ->required()
                     ->step(1)
                     ->minValue(1)
                     ->maxValue(255)
-                    ->helperText('Modbus slave ID of the IO board (1-255).'),
+                    ->helperText(__('Modbus slave ID of the IO board (1-255).')),
 
                 Forms\Components\TextInput::make('address')
-                    ->label('Address')
+                    ->label(__('Address'))
                     ->numeric()
                     ->required()
                     ->step(1)
                     ->minValue(0)
-                    ->helperText('0-based relay address on the given slave. Used for both coil and input.'),
+                    ->helperText(__('0-based relay address on the given slave. Used for both coil and input.')),
             ]);
     }
 
@@ -77,53 +88,60 @@ class CompartmentsRelationManager extends RelationManager
         $actorNames = User::query()->whereIn('id', $actorIds)->get()
             ->mapWithKeys(fn (User $user): array => [$user->id => $user->fullName()]);
 
-        return $events->map(function (EloquentStoredEvent $event) use ($actorNames): array {
+        return array_values($events->map(function (EloquentStoredEvent $event) use ($actorNames): array {
             $properties = $event->event_properties;
             $actorId = $properties['actorUserId'] ?? null;
+            $note = $properties['note'] ?? null;
 
             return [
                 'changed_at' => Carbon::parse($event->created_at)->toDayDateTimeString(),
                 'actor' => $actorNames[$actorId] ?? "User #{$actorId}",
-                'note' => $properties['note'] ?? null,
+                'note' => is_string($note) ? $note : null,
             ];
-        })->all();
+        })->all());
     }
 
     public function table(Table $table): Table
     {
         return $table
             ->recordTitleAttribute('number')
+            // The door badge reads the last open request to flag a jam, so load it
+            // with the rows rather than once per compartment.
+            ->modifyQueryUsing(fn (Builder $query): Builder => $query->with('latestOpenRequest'))
             ->columns([
                 Tables\Columns\TextColumn::make('number')
                     ->sortable()
-                    ->label('Compartment')
+                    ->label(__('Compartment'))
                     ->prefix('#'),
 
                 Tables\Columns\TextInputColumn::make('slave_id')
-                    ->label('Slave ID')
+                    ->label(__('Slave ID'))
                     ->rules(['nullable', 'integer', 'min:1', 'max:255'])
-                    ->tooltip('Modbus slave ID (1-255).'),
+                    ->tooltip(__('Modbus slave ID (1-255).')),
 
                 Tables\Columns\TextInputColumn::make('address')
-                    ->label('Address')
+                    ->label(__('Address'))
                     ->rules(['nullable', 'integer', 'min:0'])
-                    ->tooltip('0-based relay address. Used for both coil and input.'),
+                    ->tooltip(__('0-based relay address. Used for both coil and input.')),
+
+                CompartmentDoorStateColumn::column(),
+
                 Tables\Columns\TextColumn::make('content_note')
-                    ->label('Note')
-                    ->placeholder('No note')
+                    ->label(__('Note'))
+                    ->placeholder(__('No note'))
                     ->limit(40)
                     ->wrap()
                     ->tooltip(fn (Compartment $record): ?string => $record->content_note)
                     ->description(fn (Compartment $record): ?string => $record->content_note_updated_at
-                        ? 'Updated '.$record->content_note_updated_at->diffForHumans()
+                        ? (string) __('Updated :time', ['time' => $record->content_note_updated_at->diffForHumans()])
                         : null)
                     ->action(
                         Action::make('noteHistory')
-                            ->label('Note history')
+                            ->label(__('Note history'))
                             ->icon('heroicon-m-clock')
-                            ->modalHeading(fn (Compartment $record): string => "Note history — compartment #{$record->number}")
+                            ->modalHeading(fn (Compartment $record): string => __('Note history — compartment #:number', ['number' => $record->number]))
                             ->modalSubmitAction(false)
-                            ->modalCancelActionLabel('Close')
+                            ->modalCancelActionLabel(__('Close'))
                             ->modalWidth(Width::Medium)
                             ->infolist([
                                 RepeatableEntry::make('noteHistory')
@@ -132,7 +150,7 @@ class CompartmentsRelationManager extends RelationManager
                                     ->schema([
                                         TextEntry::make('note')
                                             ->hiddenLabel()
-                                            ->placeholder('Note cleared')
+                                            ->placeholder(__('Note cleared'))
                                             ->weight(FontWeight::Medium)
                                             ->columnSpanFull(),
                                         TextEntry::make('actor')
@@ -152,19 +170,8 @@ class CompartmentsRelationManager extends RelationManager
                                     ->extraAttributes(['style' => 'max-height: 60vh; overflow-y: auto;']),
                             ]),
                     ),
-                Tables\Columns\TextColumn::make('latestOpenRequest.status')
-                    ->label('Last open status')
-                    ->badge()
-                    ->color(fn (?string $state): string => match ($state) {
-                        'opened' => 'success',
-                        'failed', 'denied' => 'danger',
-                        'sent', 'accepted', 'requested' => 'warning',
-                        default => 'gray',
-                    })
-                    ->placeholder('No requests')
-                    ->sortable(),
                 Tables\Columns\TextColumn::make('latestOpenRequest.command_id')
-                    ->label('Last command ID')
+                    ->label(__('Last command ID'))
                     ->copyable()
                     ->toggleable(),
             ])
@@ -173,7 +180,7 @@ class CompartmentsRelationManager extends RelationManager
             ])
             ->headerActions([
                 \Filament\Actions\Action::make('sendConfigToClient')
-                    ->label('Send config to client')
+                    ->label(__('Send config to client'))
                     ->icon('heroicon-m-paper-airplane')
                     ->requiresConfirmation()
                     ->disabled(function (): bool {
@@ -190,14 +197,19 @@ class CompartmentsRelationManager extends RelationManager
                             app(LockerService::class)->applyConfig($lockerBank);
 
                             Notification::make()
-                                ->title('Config queued for sending')
-                                ->body('An apply_config command was queued and will be sent via MQTT.')
+                                ->title(__('Configuration sent'))
+                                ->body(__('The locker bank will apply the new configuration.'))
                                 ->success()
                                 ->send();
                         } catch (\Throwable $e) {
+                            Log::error('Failed to queue apply_config from Filament.', [
+                                'locker_bank_id' => $lockerBank->id,
+                                'error' => $e->getMessage(),
+                            ]);
+
                             Notification::make()
-                                ->title('Failed to queue config')
-                                ->body($e->getMessage())
+                                ->title(__('Failed to send configuration'))
+                                ->body(__('Please try again. Details are in the server log.'))
                                 ->danger()
                                 ->send();
                         }
@@ -206,50 +218,59 @@ class CompartmentsRelationManager extends RelationManager
             ])
             ->actions([
                 \Filament\Actions\EditAction::make(),
-                Action::make('open')
-                    ->label('Open')
-                    ->icon('heroicon-m-bolt')
-                    ->requiresConfirmation()
-                    ->action(function (Compartment $record): void {
-                        try {
-                            $user = Filament::auth()->user();
-                            if (! $user instanceof \App\Models\User) {
-                                Notification::make()
-                                    ->title('Unable to open compartment')
-                                    ->body('No authenticated user context available.')
-                                    ->danger()
-                                    ->send();
-
-                                return;
-                            }
-
-                            $decision = app(CompartmentAccessService::class)->requestOpen($user, $record);
-
-                            $notification = Notification::make()
-                                ->title($decision['authorized'] ? 'Open command accepted' : 'Open command denied')
-                                ->body("Compartment {$record->number} command ID: {$decision['command_id']}");
-
-                            if ($decision['authorized']) {
-                                $notification->success();
-                            } else {
-                                $notification->danger();
-                            }
-
-                            $notification->send();
-                        } catch (\Throwable $e) {
-                            Log::error('Failed to request compartment opening from Filament.', [
-                                'compartment_id' => $record->id,
-                                'locker_bank_id' => $record->locker_bank_id,
-                                'number' => $record->number,
-                                'error' => $e->getMessage(),
-                            ]);
-
+                OpenCompartmentAction::make(),
+                Action::make('editContentNote')
+                    ->label(__('Edit note'))
+                    ->icon('heroicon-m-pencil-square')
+                    ->modalHeading(fn (Compartment $record): string => __('Edit note — compartment #:number', ['number' => $record->number]))
+                    ->modalWidth(Width::Medium)
+                    ->modalSubmitActionLabel(__('Save note'))
+                    // The same permission CompartmentService enforces, so the
+                    // button is never offered to someone who would be refused.
+                    ->visible(fn (): bool => Filament::auth()->user()?->can(Permission::CompartmentAccessManage->value) ?? false)
+                    ->fillForm(fn (Compartment $record): array => ['note' => $record->content_note])
+                    ->form([
+                        Forms\Components\Textarea::make('note')
+                            ->label(__('Note'))
+                            ->rows(3)
+                            // Matches the column width and the API rule.
+                            ->maxLength(80)
+                            ->helperText(__('Leave empty to clear the note.')),
+                    ])
+                    ->action(function (Compartment $record, array $data): void {
+                        $user = Filament::auth()->user();
+                        if (! $user instanceof User) {
                             Notification::make()
-                                ->title('Failed to queue open command')
-                                ->body($e->getMessage())
+                                ->title(__('Unable to save note'))
+                                ->body(__('Your session has expired. Please log in again.'))
                                 ->danger()
                                 ->send();
+
+                            return;
                         }
+
+                        // Blank clears the note, same as the mobile endpoint.
+                        $note = trim((string) ($data['note'] ?? ''));
+
+                        try {
+                            app(CompartmentService::class)->updateContentNote(
+                                actor: $user,
+                                compartment: $record,
+                                note: $note === '' ? null : $note,
+                            );
+                        } catch (AuthorizationException) {
+                            Notification::make()
+                                ->title(__('Not allowed to edit this note'))
+                                ->danger()
+                                ->send();
+
+                            return;
+                        }
+
+                        Notification::make()
+                            ->title($note === '' ? __('Note cleared') : __('Note updated'))
+                            ->success()
+                            ->send();
                     }),
                 \Filament\Actions\DeleteAction::make(),
             ])

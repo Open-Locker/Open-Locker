@@ -25,10 +25,6 @@ class TermsDocumentVersionResource extends Resource
 
     protected static \BackedEnum|string|null $navigationIcon = 'heroicon-o-document-text';
 
-    protected static ?string $navigationLabel = 'Terms & Policies';
-
-    protected static string|\UnitEnum|null $navigationGroup = 'Docs/Legal';
-
     protected static ?int $navigationSort = 10;
 
     public static function canAccess(): bool
@@ -36,10 +32,6 @@ class TermsDocumentVersionResource extends Resource
         // Legal / system configuration is admin-only (#95).
         return auth()->user()?->can(Permission::SystemConfigure->value) ?? false;
     }
-
-    protected static ?string $modelLabel = 'legal document version';
-
-    protected static ?string $pluralModelLabel = 'legal document versions';
 
     public static function getNavigationLabel(): string
     {
@@ -72,34 +64,37 @@ class TermsDocumentVersionResource extends Resource
             ->defaultSort('version', 'desc')
             ->columns([
                 Tables\Columns\TextColumn::make('version')
+                    ->label(__('Version'))
                     ->badge()
                     ->sortable(),
                 Tables\Columns\TextColumn::make('document.name')
-                    ->label('Document')
+                    ->label(__('Document'))
                     ->state(fn (TermsDocumentVersion $record): string => (string) ($record->document_name_snapshot ?: $record->document?->name ?: '-'))
                     ->searchable(),
                 Tables\Columns\IconColumn::make('is_active')
                     ->boolean()
-                    ->label('Active'),
+                    ->label(__('Active')),
                 Tables\Columns\IconColumn::make('is_published')
                     ->boolean()
-                    ->label('Published'),
+                    ->label(__('Published')),
                 Tables\Columns\TextColumn::make('created_by_display_name')
-                    ->label('Created by')
+                    ->label(__('Created by'))
                     ->state(fn (TermsDocumentVersion $record): ?string => $record->createdByUser?->fullName())
                     ->placeholder('-'),
                 Tables\Columns\TextColumn::make('published_at')
+                    ->label(__('Published at'))
                     ->dateTime()
                     ->placeholder('-')
                     ->sortable(),
                 Tables\Columns\TextColumn::make('created_at')
+                    ->label(__('Created at'))
                     ->dateTime()
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->actions([
                 Action::make('editDraft')
-                    ->label('Edit draft')
+                    ->label(__('Edit draft'))
                     ->icon('heroicon-o-pencil-square')
                     ->visible(fn (TermsDocumentVersion $record): bool => ! $record->is_published)
                     ->form([
@@ -136,7 +131,7 @@ class TermsDocumentVersionResource extends Resource
                             ->send();
                     }),
                 Action::make('publishDraft')
-                    ->label('Publish')
+                    ->label(__('Publish'))
                     ->icon('heroicon-o-paper-airplane')
                     ->color('success')
                     ->visible(fn (TermsDocumentVersion $record): bool => ! $record->is_published)

@@ -18,14 +18,15 @@ class CreateUser extends CreateRecord
         $tempPassword = Str::random(32);
         $data['password'] = Hash::make($tempPassword);
 
+        /** @var \App\Models\User $user */
         $user = static::getModel()::create($data);
 
         $passwordResetService = app(AuthService::class);
         $status = $passwordResetService->sendResetLink($user->email);
 
         Notification::make()
-            ->title('Nutzer erstellt')
-            ->body('Link zum Zurücksetzen des Passworts versendet.')
+            ->title(__('User created'))
+            ->body(__('Password reset link sent.'))
             ->success()
             ->send();
 

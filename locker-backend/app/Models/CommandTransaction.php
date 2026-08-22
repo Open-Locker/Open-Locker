@@ -23,7 +23,7 @@ use Illuminate\Database\Eloquent\Model;
  */
 class CommandTransaction extends Model
 {
-    /** @var array<int, string> */
+    /** @var list<string> */
     protected $fillable = [
         'locker_uuid',
         'transaction_id',

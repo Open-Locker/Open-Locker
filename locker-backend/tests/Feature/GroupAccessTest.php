@@ -8,9 +8,12 @@ use App\Models\Compartment;
 use App\Models\Group;
 use App\Models\User;
 use App\Services\GroupAccessService;
+use App\StorableEvents\GroupArchived;
 use App\StorableEvents\GroupCreated;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use LogicException;
+use Spatie\EventSourcing\StoredEvents\Models\EloquentStoredEvent;
 use Tests\TestCase;
 
 class GroupAccessTest extends TestCase
@@ -171,5 +174,131 @@ class GroupAccessTest extends TestCase
         $this->service()->grantCompartmentAccess($group, $compartment, actor: $admin);
 
         $this->assertDatabaseCount('group_compartment_accesses', 1);
+    }
+
+    // Archiving (event-sourced, not delete): #106.
+
+    public function test_archive_group_sets_archived_at_and_keeps_membership_and_grant_rows(): void
+    {
+        $admin = $this->createAdminUser();
+        $user = $this->createRegularUser();
+        $compartment = Compartment::factory()->create();
+
+        $group = $this->service()->createGroup('Team', actor: $admin);
+        $this->service()->addUser($group, $user, actor: $admin);
+        $this->service()->grantCompartmentAccess($group, $compartment, actor: $admin);
+
+        $this->service()->archiveGroup(Group::find($group->id), actor: $admin);
+
+        $this->assertDatabaseHas('groups', ['id' => $group->id, 'archived_by_user_id' => $admin->id]);
+        $this->assertNotNull(Group::find($group->id)->archived_at);
+
+        // Membership and grant history are preserved, not revoked or deleted.
+        $this->assertDatabaseHas('group_user', [
+            'group_id' => $group->id,
+            'user_id' => $user->id,
+            'revoked_at' => null,
+        ]);
+        $this->assertDatabaseHas('group_compartment_accesses', [
+            'group_id' => $group->id,
+            'compartment_id' => (string) $compartment->id,
+            'revoked_at' => null,
+        ]);
+    }
+
+    public function test_archiving_group_removes_effective_access_when_it_was_the_only_source(): void
+    {
+        $admin = $this->createAdminUser();
+        $user = $this->createRegularUser();
+        $compartment = Compartment::factory()->create();
+
+        $group = $this->service()->createGroup('Team', actor: $admin);
+        $this->service()->addUser($group, $user, actor: $admin);
+        $this->service()->grantCompartmentAccess($group, $compartment, actor: $admin);
+
+        $this->service()->archiveGroup(Group::find($group->id), actor: $admin);
+
+        $this->assertDatabaseMissing('user_group_compartment_accesses', [
+            'user_id' => $user->id,
+            'compartment_id' => (string) $compartment->id,
+        ]);
+    }
+
+    public function test_archiving_group_with_overlapping_access_keeps_effective_access_from_other_group(): void
+    {
+        $admin = $this->createAdminUser();
+        $user = $this->createRegularUser();
+        $compartment = Compartment::factory()->create();
+
+        $groupA = $this->service()->createGroup('A', actor: $admin);
+        $groupB = $this->service()->createGroup('B', actor: $admin);
+
+        foreach ([$groupA, $groupB] as $group) {
+            $this->service()->addUser($group, $user, actor: $admin);
+            $this->service()->grantCompartmentAccess($group, $compartment, actor: $admin);
+        }
+
+        // Archive group A only; group B still grants it, so the effective row must survive.
+        $this->service()->archiveGroup(Group::find($groupA->id), actor: $admin);
+
+        $this->assertDatabaseHas('user_group_compartment_accesses', [
+            'user_id' => $user->id,
+            'compartment_id' => (string) $compartment->id,
+            'group_id' => (string) $groupB->id,
+        ]);
+        $this->assertDatabaseCount('user_group_compartment_accesses', 1);
+    }
+
+    public function test_regular_user_cannot_archive_group(): void
+    {
+        $admin = $this->createAdminUser();
+        $user = $this->createRegularUser();
+        $group = $this->service()->createGroup('Team', actor: $admin);
+
+        $this->expectException(AuthorizationException::class);
+        $this->service()->archiveGroup(Group::find($group->id), actor: $user);
+    }
+
+    public function test_archived_group_rejects_new_members(): void
+    {
+        $admin = $this->createAdminUser();
+        $user = $this->createRegularUser();
+        $group = Group::find($this->service()->createGroup('Team', actor: $admin)->id);
+        $this->service()->archiveGroup($group, actor: $admin);
+
+        $this->expectException(LogicException::class);
+        $this->service()->addUser($group->refresh(), $user, actor: $admin);
+    }
+
+    public function test_archived_group_rejects_new_compartment_grants(): void
+    {
+        $admin = $this->createAdminUser();
+        $group = Group::find($this->service()->createGroup('Team', actor: $admin)->id);
+        $compartment = Compartment::factory()->create();
+        $this->service()->archiveGroup($group, actor: $admin);
+
+        $this->expectException(LogicException::class);
+        $this->service()->grantCompartmentAccess($group->refresh(), $compartment, actor: $admin);
+    }
+
+    public function test_repeated_archive_keeps_original_attribution(): void
+    {
+        $firstAdmin = $this->createAdminUser();
+        $secondAdmin = $this->createAdminUser();
+        $group = Group::find($this->service()->createGroup('Team', actor: $firstAdmin)->id);
+
+        $this->service()->archiveGroup($group, actor: $firstAdmin);
+        $archived = $group->refresh();
+
+        $this->service()->archiveGroup($archived, actor: $secondAdmin);
+
+        $this->assertSame($firstAdmin->id, $archived->refresh()->archived_by_user_id);
+        $this->assertSame(
+            1,
+            EloquentStoredEvent::query()
+                ->where('event_class', GroupArchived::class)
+                ->where('event_properties->groupUuid', (string) $group->id)
+                ->count(),
+        );
     }
 }

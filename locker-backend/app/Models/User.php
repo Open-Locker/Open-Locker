@@ -15,6 +15,7 @@ use Filament\Panel;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
@@ -22,6 +23,9 @@ use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Facades\Password;
 use Laravel\Sanctum\HasApiTokens;
 
+/**
+ * @property \Carbon\CarbonImmutable|null $email_verified_at
+ */
 class User extends Authenticatable implements FilamentUser, HasName, MustVerifyEmail
 {
     /** @use HasFactory<UserFactory> */
@@ -94,6 +98,33 @@ class User extends Authenticatable implements FilamentUser, HasName, MustVerifyE
             ->where(function (Builder $query): void {
                 $query->whereNull('expires_at')
                     ->orWhere('expires_at', '>', now());
+            });
+    }
+
+    /**
+     * Groups this user belongs to (inverse of Group::members).
+     *
+     * @return BelongsToMany<Group, $this>
+     */
+    public function groups(): BelongsToMany
+    {
+        return $this->belongsToMany(Group::class, 'group_user')
+            ->withPivot(['added_at', 'expires_at', 'revoked_at', 'added_by_user_id', 'removed_by_user_id'])
+            ->withTimestamps();
+    }
+
+    /**
+     * Active group memberships: not revoked and not expired.
+     *
+     * @return BelongsToMany<Group, $this>
+     */
+    public function activeGroups(): BelongsToMany
+    {
+        return $this->groups()
+            ->wherePivotNull('revoked_at')
+            ->where(function (Builder $query): void {
+                $query->whereNull('group_user.expires_at')
+                    ->orWhere('group_user.expires_at', '>', now());
             });
     }
 
@@ -248,13 +279,6 @@ class User extends Authenticatable implements FilamentUser, HasName, MustVerifyE
 
     protected static function booted()
     {
-        static::created(function (User $user) {
-            // First registered user becomes admin through an auditable system event.
-            if (User::count() === 1) {
-                $user->makeAdmin();
-            }
-        });
-
         static::deleting(function (User $user) {
             if ($user->isAdmin() && ! self::hasOtherAdmin($user->id)) {
                 return false;

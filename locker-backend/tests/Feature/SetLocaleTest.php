@@ -15,7 +15,7 @@ class SetLocaleTest extends TestCase
         parent::setUp();
 
         // Lightweight API route that simply reports the resolved locale so the
-        // SetLocale middleware (ADR-0024) can be asserted in isolation.
+        // SetLocale middleware can be asserted in isolation.
         Route::middleware('api')->get('/api/_test/locale', fn () => ['locale' => App::getLocale()]);
     }
 

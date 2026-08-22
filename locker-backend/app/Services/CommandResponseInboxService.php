@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Services;
 
 use App\Models\CommandTransaction;
+use App\Observability\MqttTraceContext;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -23,7 +25,18 @@ class CommandResponseInboxService
     public function recordIfFirst(string $lockerUuid, string $transactionId, string $topic, array $payload): bool
     {
         $now = Carbon::now();
-        $payloadHash = hash('sha256', json_encode($payload, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) ?: '');
+
+        // Fields that identify the delivery rather than the response: a genuine
+        // replay always carries a fresh message_id, usually a fresh timestamp,
+        // and its own trace context. Hashing any of them would make every
+        // legitimate replay look like a payload that changed, which is the
+        // opposite of what `payload_changed` is meant to tell an operator.
+        $semanticPayload = Arr::except($payload, [
+            'message_id',
+            'timestamp',
+            MqttTraceContext::FIELD,
+        ]);
+        $payloadHash = hash('sha256', json_encode($semanticPayload, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) ?: '');
 
         $action = isset($payload['action']) && is_string($payload['action']) ? $payload['action'] : null;
         $result = isset($payload['result']) && is_string($payload['result']) ? $payload['result'] : null;
@@ -50,11 +63,37 @@ class CommandResponseInboxService
             return true;
         }
 
-        Log::info('Duplicate command response received (deduped).', [
-            'locker_uuid' => $lockerUuid,
-            'transaction_id' => $transactionId,
-            'topic' => $topic,
-        ]);
+        $existing = CommandTransaction::query()
+            ->where('locker_uuid', $lockerUuid)
+            ->where('transaction_id', $transactionId)
+            ->first();
+
+        // The first response wins, so a replay reporting a different outcome is
+        // discarded in silence. That is the one duplicate worth an alert: the
+        // device and the backend disagree about how this transaction ended.
+        $conflictsOnOutcome = $existing !== null
+            && ($existing->result !== $result || $existing->error_code !== $errorCode);
+
+        if ($conflictsOnOutcome) {
+            Log::warning('Conflicting command response replay discarded.', [
+                'locker_uuid' => $lockerUuid,
+                'transaction_id' => $transactionId,
+                'topic' => $topic,
+                'recorded_result' => $existing->result,
+                'replayed_result' => $result,
+                'recorded_error_code' => $existing->error_code,
+                'replayed_error_code' => $errorCode,
+            ]);
+        } else {
+            Log::info('Duplicate command response received (deduped).', [
+                'locker_uuid' => $lockerUuid,
+                'transaction_id' => $transactionId,
+                'topic' => $topic,
+                // Same outcome, genuinely different content — delivery fields are
+                // excluded from the hash, so this is not merely a re-sent copy.
+                'payload_changed' => $existing !== null && $existing->payload_hash !== $payloadHash,
+            ]);
+        }
 
         CommandTransaction::query()
             ->where('locker_uuid', $lockerUuid)

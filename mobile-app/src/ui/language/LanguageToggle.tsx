@@ -20,7 +20,7 @@ type LanguageToggleProps = {
 /**
  * App-language switch shared across authenticated and pre-auth screens.
  * Changing it persists the choice and updates the `Accept-Language` header
- * sent on every API request (ADR-0024).
+ * sent on every API request.
  */
 export function LanguageToggle({ variant = 'segmented', style }: LanguageToggleProps) {
   const { t } = useTranslation();

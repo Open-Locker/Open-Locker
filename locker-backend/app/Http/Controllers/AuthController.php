@@ -36,14 +36,16 @@ class AuthController extends Controller
      */
     public function verifyEmail(EmailVerificationRequest $request): JsonResponse
     {
-        if ($request->user()->hasVerifiedEmail()) {
+        $user = $this->authenticatedUser($request);
+
+        if ($user->hasVerifiedEmail()) {
             return (new ApiErrorResource([
                 'message' => __('Email already verified'),
             ]))->response();
         }
 
-        if ($request->user()->markEmailAsVerified()) {
-            event(new Verified($request->user()));
+        if ($user->markEmailAsVerified()) {
+            event(new Verified($user));
         }
 
         return response()->json([
@@ -94,7 +96,7 @@ class AuthController extends Controller
      */
     public function logout(Request $request): JsonResponse
     {
-        $request->user()->currentAccessToken()->delete();
+        $this->authenticatedUser($request)->currentAccessToken()->delete();
 
         return response()->json([
             'message' => __('Logged out successfully'),
@@ -117,14 +119,15 @@ class AuthController extends Controller
      */
     public function sendVerificationEmail(Request $request): JsonResponse
     {
+        $user = $this->authenticatedUser($request);
 
-        if ($request->user()->hasVerifiedEmail()) {
+        if ($user->hasVerifiedEmail()) {
             return (new ApiErrorResource([
                 'message' => __('Email already verified'),
             ]))->response();
         }
 
-        $request->user()->sendEmailVerificationNotification();
+        $user->sendEmailVerificationNotification();
 
         return response()->json([
             'message' => __('Email verification link sent'),
@@ -211,7 +214,7 @@ class AuthController extends Controller
     {
         $validated = $request->validated();
 
-        $user = $request->user();
+        $user = $this->authenticatedUser($request);
         $user->fill([
             'first_name' => $validated['first_name'],
             'last_name' => $validated['last_name'],
@@ -239,7 +242,7 @@ class AuthController extends Controller
     {
         $validated = $request->validated();
 
-        $user = $request->user();
+        $user = $this->authenticatedUser($request);
         $user->forceFill([
             'password' => Hash::make($validated['password']),
             'remember_token' => Str::random(60),

@@ -11,7 +11,7 @@ use Symfony\Component\HttpFoundation\Response;
 
 /**
  * Resolves the request locale from the client-supplied `Accept-Language`
- * header, validated against the application's supported locales (ADR-0024).
+ * header, validated against the application's supported locales.
  *
  * Requests without a usable header keep the default `app.locale`.
  */

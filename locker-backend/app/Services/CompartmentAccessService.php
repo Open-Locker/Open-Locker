@@ -9,10 +9,12 @@ use App\Aggregates\CompartmentOpenAggregate;
 use App\Enums\Permission;
 use App\Models\Compartment;
 use App\Models\CompartmentAccess;
+use App\Models\LockerBank;
 use App\Models\User;
 use App\Models\UserGroupCompartmentAccess;
 use Carbon\CarbonInterface;
 use Illuminate\Auth\Access\AuthorizationException;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Str;
 
@@ -91,6 +93,52 @@ class CompartmentAccessService
     }
 
     /**
+     * Locker banks (with their compartments) accessible to the given user.
+     *
+     * Admins see every bank and all compartments. Other users see only banks
+     * containing at least one compartment they can reach directly or via a
+     * group, with compartments filtered to those same ones. Results
+     * are ordered by bank name then compartment number.
+     *
+     * @return Collection<int, LockerBank>
+     */
+    public function accessibleLockerBanksFor(User $user): Collection
+    {
+        $lockerBanksQuery = LockerBank::query()
+            ->orderBy('name');
+
+        if ($user->isAdmin()) {
+            $lockerBanksQuery->with([
+                'compartments' => fn ($query) => $query
+                    ->orderBy('number'),
+            ]);
+
+            return $lockerBanksQuery->get();
+        }
+
+        // A compartment is accessible if reachable directly OR via a group.
+        $accessibleToUser = function ($query) use ($user): void {
+            $query
+                ->whereHas('accesses', function ($accessQuery) use ($user): void {
+                    $accessQuery->where('user_id', $user->id)->active();
+                })
+                ->orWhereHas('userGroupAccesses', function ($groupQuery) use ($user): void {
+                    $groupQuery->where('user_id', $user->id)->active();
+                });
+        };
+
+        $lockerBanksQuery
+            ->whereHas('compartments', $accessibleToUser)
+            ->with([
+                'compartments' => fn ($query) => $query
+                    ->where($accessibleToUser)
+                    ->orderBy('number'),
+            ]);
+
+        return $lockerBanksQuery->get();
+    }
+
+    /**
      * Record an open request and authorization decision via event sourcing.
      * Admins and managers are always authorized.
      *
@@ -134,7 +182,7 @@ class CompartmentAccessService
             ];
         }
 
-        // Managers may open any compartment operationally (ADR-0021 / #95),
+        // Managers may open any compartment operationally (#95),
         // recorded as a distinct authorization type for audit clarity.
         if ($user->can(Permission::CompartmentOpen->value)) {
             $aggregate->authorize(

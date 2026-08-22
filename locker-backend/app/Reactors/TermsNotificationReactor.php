@@ -19,7 +19,7 @@ class TermsNotificationReactor extends Reactor implements ShouldQueue
     public function onTermsVersionPublished(TermsVersionPublished $event): void
     {
         $document = TermsDocument::query()->find($event->documentId);
-        $documentName = $document?->name ?? 'Terms';
+        $documentName = $document !== null ? $document->name : 'Terms';
 
         User::query()
             ->select(['id', 'email'])

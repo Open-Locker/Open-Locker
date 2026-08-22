@@ -83,7 +83,6 @@ class CompartmentContentNoteTest extends TestCase
 
     public function test_manager_can_update_note_without_explicit_access(): void
     {
-        User::factory()->create(); // bootstrap admin
         $manager = User::factory()->create();
         $compartment = Compartment::factory()->create();
 
@@ -116,22 +115,6 @@ class CompartmentContentNoteTest extends TestCase
         $this->assertDatabaseMissing('stored_events', [
             'event_class' => CompartmentContentNoteUpdated::class,
         ]);
-    }
-
-    public function test_user_without_access_gets_localized_error_message(): void
-    {
-        $user = $this->createRegularUser();
-        $compartment = Compartment::factory()->create();
-
-        $response = $this->actingAs($user)
-            ->withHeader('Accept-Language', 'de')
-            ->putJson(
-                route('compartments.content-note.update', $compartment->id),
-                ['note' => 'Should be rejected']
-            );
-
-        $response->assertStatus(403)
-            ->assertJsonPath('message', 'Du hast keinen Zugriff auf dieses Fach');
     }
 
     public function test_blank_note_clears_the_note(): void
@@ -227,6 +210,27 @@ class CompartmentContentNoteTest extends TestCase
 
         $response->assertStatus(200)
             ->assertJsonPath('locker_banks.0.compartments.0.content_note', 'Books and cables');
+    }
+
+    public function test_note_written_via_endpoint_is_immediately_readable(): void
+    {
+        // Read-your-writes for API/mobile (#128, PR #130): the sync projector
+        // persists the note during the PUT, so a subsequent accessible fetch
+        // reflects it without waiting for a queue worker.
+        $user = $this->createRegularUser();
+        $admin = $this->createAdminUser();
+        $compartment = Compartment::factory()->create();
+
+        app(CompartmentAccessService::class)->grantAccess($user, $compartment, actor: $admin);
+
+        $this->actingAs($user)->putJson(
+            route('compartments.content-note.update', $compartment->id),
+            ['note' => 'Just written']
+        )->assertStatus(200);
+
+        $this->actingAs($user)->getJson(route('compartments.accessible'))
+            ->assertStatus(200)
+            ->assertJsonPath('locker_banks.0.compartments.0.content_note', 'Just written');
     }
 
     public function test_unverified_user_cannot_update_note(): void

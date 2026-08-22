@@ -21,13 +21,13 @@ class UserResource extends JsonResource
      *     first_name: string,
      *     last_name: string|null,
      *     email: string,
-     *     email_verified_at: \Illuminate\Support\Carbon|null,
+     *     email_verified_at: \Carbon\CarbonImmutable|null,
      *     is_admin: bool,
      *     terms_last_accepted_version: int|null,
      *     terms_current_version: int|null,
      *     terms_current_accepted: bool,
-     *     created_at: \Illuminate\Support\Carbon|null,
-     *     updated_at: \Illuminate\Support\Carbon|null
+     *     created_at: \Carbon\CarbonImmutable|null,
+     *     updated_at: \Carbon\CarbonImmutable|null
      * }
      */
     public function toArray(Request $request): array

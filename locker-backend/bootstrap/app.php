@@ -16,15 +16,16 @@ return Application::configure(basePath: dirname(__DIR__))
         commands: __DIR__.'/../routes/console.php',
         health: '/up',
     )
-    // Mobile clients authenticate with a Sanctum bearer token, while Filament
-    // uses the session-backed web guard. Keep both stacks on /broadcasting/auth.
+    // Mobile clients authenticate with a Sanctum bearer token, so the
+    // private-channel handshake at /broadcasting/auth must use the token
+    // guard rather than the default web/session guard.
     ->withBroadcasting(
         __DIR__.'/../routes/channels.php',
-        ['middleware' => ['web', 'auth:sanctum']],
+        ['middleware' => ['auth:sanctum']],
     )
     ->withMiddleware(function (Middleware $middleware) {
         $middleware->trustProxies(at: '*');
-        // Resolve request locale from Accept-Language early (ADR-0024) so
+        // Resolve request locale from Accept-Language early so
         // localized API messages, web pages, and queued emails all match.
         $middleware->api(prepend: [SetLocale::class]);
         $middleware->redirectGuestsTo(function (Request $request): ?string {

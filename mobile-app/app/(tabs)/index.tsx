@@ -197,6 +197,9 @@ export default function CompartmentsScreen() {
     })();
   }, [noteDraft, selectedCompartment, updateContentNote, refetchCompartments, t]);
 
+  const noteHasChanges = noteDraft.trim() !== (selectedCompartment?.content_note ?? '').trim();
+  const canSaveNote = noteHasChanges && !updateContentNoteState.isLoading;
+
   const closeCompartmentSheet = React.useCallback(() => {
     compartmentSheetRef.current?.dismiss();
   }, []);
@@ -213,11 +216,6 @@ export default function CompartmentsScreen() {
     }
     return selectedCompartment;
   }, [selectedCompartment, data]);
-  const selectedContentNote = selectedCompartmentLive
-    ? (selectedCompartmentLive.content_note ?? null)
-    : (selectedCompartment?.content_note ?? null);
-  const noteHasChanges = noteDraft.trim() !== (selectedContentNote ?? '').trim();
-  const canSaveNote = noteHasChanges && !updateContentNoteState.isLoading;
   const effectiveLockerBankId = React.useMemo(() => {
     if (lockerBanks.length === 0) return '';
 
@@ -511,7 +509,7 @@ export default function CompartmentsScreen() {
                   disabled={updateContentNoteState.isLoading}
                   onPress={() => {
                     setIsEditingNote(false);
-                    setNoteDraft(selectedContentNote ?? '');
+                    setNoteDraft(selectedCompartment?.content_note ?? '');
                   }}
                 >
                   {t('common.cancel')}
@@ -532,9 +530,12 @@ export default function CompartmentsScreen() {
               <View style={styles.noteViewRow}>
                 <Text
                   variant="bodyMedium"
-                  style={[styles.noteText, !selectedContentNote?.trim() && styles.noteTextEmpty]}
+                  style={[
+                    styles.noteText,
+                    !selectedCompartment?.content_note?.trim() && styles.noteTextEmpty,
+                  ]}
                 >
-                  {selectedContentNote?.trim() || t('compartments.contentNoteEmpty')}
+                  {selectedCompartment?.content_note?.trim() || t('compartments.contentNoteEmpty')}
                 </Text>
                 <Button
                   mode="text"
@@ -542,7 +543,7 @@ export default function CompartmentsScreen() {
                   onPress={() => {
                     setModalError(null);
                     setModalInfo(null);
-                    setNoteDraft(selectedContentNote ?? '');
+                    setNoteDraft(selectedCompartment?.content_note ?? '');
                     setIsEditingNote(true);
                   }}
                 >

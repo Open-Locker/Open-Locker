@@ -12,7 +12,7 @@ use Spatie\EventSourcing\EventHandlers\Projectors\Projector;
 
 /**
  * Builds the user_roles read model. Intentionally NOT queued: role changes must
- * take effect immediately for the next authorization check (ADR-0021).
+ * take effect immediately for the next authorization check.
  */
 class UserRoleProjector extends Projector
 {

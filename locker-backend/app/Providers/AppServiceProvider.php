@@ -5,6 +5,7 @@ namespace App\Providers;
 use App\Scramble\Transformers\AcceptLanguageHeaderTransformer;
 use App\Scramble\Transformers\AccessibleCompartmentsNullableTransformer;
 use App\Scramble\Transformers\NullableFieldsTransformer;
+use App\Support\Audit\AuditEventPresenter;
 use Carbon\CarbonImmutable;
 use Dedoc\Scramble\Scramble;
 use Dedoc\Scramble\Support\Generator\OpenApi;
@@ -16,6 +17,16 @@ use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
 {
+    /**
+     * Register any application services.
+     */
+    public function register(): void
+    {
+        // Shared per-request so the audit log's actor/compartment/group lookups
+        // are memoised across rows when rendering a page.
+        $this->app->singleton(AuditEventPresenter::class);
+    }
+
     /**
      * Bootstrap any application services.
      */

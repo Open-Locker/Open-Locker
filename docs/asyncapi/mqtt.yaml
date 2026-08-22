@@ -36,16 +36,25 @@ channels:
   lockerEvent:
     address: locker/{locker_uuid}/event
     description: >-
-      Non-retained spontaneous device events. No concrete runtime events are
-      implemented in the current contract. Future candidates include
-      `qr_scanned` and `tamper_detected`; current door state is reported through
-      `locker/{locker_uuid}/state/compartments` instead.
+      Non-retained spontaneous device events. Door-open detection outcomes are
+      published here (ADR-0040): `compartment_open_detected`,
+      `compartment_open_failed`, and `compartment_uncommanded_open`. These report
+      the *physical* door, separately from the command response, which only
+      acknowledges that the unlock pulse was sent. Current door state remains the
+      retained snapshot on `locker/{locker_uuid}/state/compartments`. Future
+      candidates include `qr_scanned` and `tamper_detected`.
     parameters:
       locker_uuid:
         $ref: '#/components/parameters/locker_uuid'
     messages:
       deviceEvent:
         $ref: '#/components/messages/deviceEvent'
+      compartmentOpenDetectedEvent:
+        $ref: '#/components/messages/compartmentOpenDetectedEvent'
+      compartmentOpenFailedEvent:
+        $ref: '#/components/messages/compartmentOpenFailedEvent'
+      compartmentUncommandedOpenEvent:
+        $ref: '#/components/messages/compartmentUncommandedOpenEvent'
   lockerStateHeartbeat:
     address: locker/{locker_uuid}/state/heartbeat
     parameters:
@@ -265,6 +274,24 @@ components:
       contentType: application/json
       payload:
         $ref: './schemas/messages/event.json'
+    compartmentOpenDetectedEvent:
+      name: compartmentOpenDetectedEvent
+      title: Compartment door observed open after an unlock pulse
+      contentType: application/json
+      payload:
+        $ref: './schemas/payloads/event-compartment-open-detected.json'
+    compartmentOpenFailedEvent:
+      name: compartmentOpenFailedEvent
+      title: Compartment door never opened after an unlock pulse
+      contentType: application/json
+      payload:
+        $ref: './schemas/payloads/event-compartment-open-failed.json'
+    compartmentUncommandedOpenEvent:
+      name: compartmentUncommandedOpenEvent
+      title: Compartment door opened with no command behind it
+      contentType: application/json
+      payload:
+        $ref: './schemas/payloads/event-compartment-uncommanded-open.json'
     heartbeatState:
       name: heartbeatState
       title: Periodic heartbeat state

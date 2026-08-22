@@ -7,37 +7,43 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasManyThrough;
-use Illuminate\Support\Str;
 
 /**
  * @property-read string $id
  * @property-read string $name
  * @property-read string $location_description
- * @property-read string $provisioning_token
- * @property-read \Illuminate\Support\CarbonImmutable|null $provisioned_at
- * @property-read \Illuminate\Support\CarbonImmutable|null $last_heartbeat_at
+ * @property string|null $provisioning_token_hmac
+ * @property string|null $provisioning_generation
+ * @property-read \Carbon\CarbonImmutable|null $provisioned_at
+ * @property-read \Carbon\CarbonImmutable|null $last_heartbeat_at
  * @property-read int $heartbeat_interval_seconds
  * @property-read int $heartbeat_timeout_seconds
  * @property-read string $connection_status
- * @property-read \Illuminate\Support\CarbonImmutable|null $connection_status_changed_at
- * @property-read \Illuminate\Support\CarbonImmutable|null $last_compartment_state_change_at
+ * @property-read \Carbon\CarbonImmutable|null $connection_status_changed_at
+ * @property-read \Carbon\CarbonImmutable|null $last_compartment_state_change_at
  * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\Compartment> $compartments
  * @property-read int|null $compartments_count
  */
 class LockerBank extends Model
 {
-    use HasFactory, HasUuids;
+    /** @use HasFactory<\Database\Factories\LockerBankFactory> */
+    use HasFactory;
+
+    use HasUuids;
 
     protected $fillable = [
         'name',
         'location_description',
-        'provisioning_token',
+        'provisioning_token_hmac',
+        'provisioning_generation',
         'provisioned_at',
         'last_heartbeat_at',
         'heartbeat_interval_seconds',
         'heartbeat_timeout_seconds',
         'connection_status',
         'connection_status_changed_at',
+        'modbus_connected',
+        'modbus_status_reported_at',
         'last_compartment_state_change_at',
         'last_config_sent_at',
         'last_config_sent_hash',
@@ -49,18 +55,16 @@ class LockerBank extends Model
         'provisioned_at' => 'datetime',
         'last_heartbeat_at' => 'datetime',
         'connection_status_changed_at' => 'datetime',
+        'modbus_connected' => 'boolean',
+        'modbus_status_reported_at' => 'datetime',
         'last_compartment_state_change_at' => 'datetime',
         'last_config_sent_at' => 'datetime',
         'last_config_ack_at' => 'datetime',
     ];
 
-    public static function booted(): void
-    {
-        static::creating(function (self $lockerBank) {
-            $lockerBank->provisioning_token = Str::random(64);
-        });
-    }
-
+    /**
+     * @return HasMany<Compartment, $this>
+     */
     public function compartments(): HasMany
     {
         return $this->hasMany(Compartment::class);
