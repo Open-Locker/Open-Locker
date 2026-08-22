@@ -52,8 +52,64 @@ test('only transport faults that reconnecting can clear are reconnectable', () =
     ),
     false,
   );
-  assert.equal(isReconnectableModbusError(new Error('connect ECONNREFUSED')), true);
+  // Real socket failures carry the code; the wording is incidental.
+  assert.equal(
+    isReconnectableModbusError(withCode(new Error('connect failed'), 'ECONNREFUSED')),
+    true,
+  );
   assert.equal(isReconnectableModbusError(new Error('something unrelated')), false);
+});
+
+/** Attaches a `code` the way the runtime does, so tests match real error shapes. */
+function withCode(error: Error, code: string, cause?: unknown): Error {
+  Object.assign(error, { code, ...(cause === undefined ? {} : { cause }) });
+
+  return error;
+}
+
+test('a serial port that went away is reconnectable, by code rather than wording', () => {
+  // What an unplugged USB adapter actually reports. None of these messages contain
+  // the strings the old classification looked for, so the most recoverable failure
+  // there is used to be treated as permanent.
+  for (const code of ['ENOENT', 'ENXIO', 'EIO', 'EBADF']) {
+    assert.equal(
+      isReconnectableModbusError(withCode(new Error('no such file or directory'), code)),
+      true,
+      `expected ${code} to be reconnectable`,
+    );
+  }
+});
+
+test('a permissions fault is not reconnectable', () => {
+  // EACCES means the container user may not open the device — a missing dialout
+  // group, say. It fails identically every time, so retrying only produces noise
+  // until a human changes something.
+  assert.equal(
+    isReconnectableModbusError(withCode(new Error('permission denied'), 'EACCES')),
+    false,
+  );
+});
+
+test('a code carried on a nested cause is still found', () => {
+  // serialport wraps in some paths, and a code we cannot reach classifies as
+  // unknown — which, with no catch-all, means no reconnect at all.
+  const wrapped = new Error('failed to open port');
+  Object.assign(wrapped, { cause: withCode(new Error('device not configured'), 'ENXIO') });
+
+  assert.equal(isReconnectableModbusError(wrapped), true);
+});
+
+test('a serial fault reports MODBUS_ERROR rather than unknown', () => {
+  // The device reconnects correctly; the backend must not be told the client hit
+  // something it could not identify.
+  assert.equal(
+    mapErrorToMqttCode(withCode(new Error('no such file or directory'), 'ENOENT')),
+    MqttErrorCode.MODBUS_ERROR,
+  );
+  assert.equal(
+    mapErrorToMqttCode(withCode(new Error('nope'), 'ESOMETHINGELSE')),
+    MqttErrorCode.UNKNOWN_ERROR,
+  );
 });
 
 test('a fault that merely mentions modbus is not reported as a hardware error', () => {

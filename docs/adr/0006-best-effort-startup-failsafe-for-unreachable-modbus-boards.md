@@ -79,6 +79,15 @@ could continue.
   reset until connectivity is restored
 - polling is less noisy during startup because it begins on a reachable board
 
+## Supersedes / Superseded By
+
+- Superseded in part by
+  [ADR-0051](0051-modbus-reconnect-declares-an-unreachable-bus.md): the rule below
+  that startup fails when every configured board fails the failsafe no longer
+  applies when the Modbus bus itself is unreachable, which is recoverable and is
+  handled by reconnect instead. It still applies when the bus is reachable and the
+  boards are silent. Everything else here stands.
+
 ## References
 
 - `docs/adr/0004-waveshare-hardware-flash-and-supported-boards.md`

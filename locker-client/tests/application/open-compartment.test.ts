@@ -76,6 +76,29 @@ test('runStartupFailsafe skips boards when no runtime mapping exists', async () 
   assert.deepEqual(bus.turnAllOffCalls, []);
 });
 
+test('an unreachable bus does not fail startup', async () => {
+  // Exiting here would restart the process until the adapter came back, churning
+  // the MQTT session and flapping the bank each time round. Reconnect keeps
+  // trying instead, and the bus reports itself unreachable meanwhile.
+  const bus = new FakeLockerBus([1, 2]);
+  bus.unreachable = true;
+
+  await assert.doesNotReject(runStartupFailsafe(bus));
+
+  assert.deepEqual(bus.turnAllOffCalls, [], 'no point sweeping a bus we cannot reach');
+});
+
+test('a reachable bus whose boards all stay silent still fails startup', async () => {
+  // The other half of the distinction: the bus is fine, so silence means wiring or
+  // configuration — something only a human can fix, and startup should say so.
+  const bus = new FakeLockerBus([1, 2]);
+  bus.turnAllRelaysOff = async (): Promise<void> => {
+    throw new Error('board did not answer');
+  };
+
+  await assert.rejects(runStartupFailsafe(bus), /all Modbus boards unreachable/);
+});
+
 test('OpenCompartmentUseCase throws when runtime mapping is missing', async () => {
   const { useCase } = build({
     bus: new FakeLockerBus([]),
