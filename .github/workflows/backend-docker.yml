@@ -7,7 +7,7 @@ on:
   pull_request:
     paths:
       - "locker-backend/**"
-      - ".github/workflows/docker-ghcr.yml"
+      - ".github/workflows/backend-docker.yml"
   push:
     branches:
       - main
@@ -16,7 +16,7 @@ on:
       - "v*"
     paths:
       - "locker-backend/**"
-      - ".github/workflows/docker-ghcr.yml"
+      - ".github/workflows/backend-docker.yml"
   workflow_dispatch:
 
 concurrency:
