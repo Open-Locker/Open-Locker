@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\LockerBank;
+use App\Models\MqttUser;
 use App\Mqtt\Publishers\ApplyConfigCommandPublisher;
 use App\Mqtt\Publishers\OpenCompartmentCommandPublisher;
 use App\Mqtt\Publishers\ProvisioningReplyPublisher;
@@ -75,13 +76,24 @@ class MqttReactorDelegationTest extends TestCase
         );
         $generatedPassword = null;
 
-        $this->mock(MqttUserService::class, function ($mock) use ($event, &$generatedPassword): void {
+        $generatedUsername = null;
+
+        $this->mock(MqttUserService::class, function ($mock) use ($event, &$generatedPassword, &$generatedUsername): void {
+            $mock->shouldReceive('revokeForLockerBank')
+                ->once()
+                ->with($event->lockerBankUuid)
+                ->andReturn(0);
+
             $mock->shouldReceive('createUser')
                 ->once()
-                ->withArgs(function (string $username, string $password, string $lockerBankUuid) use ($event, &$generatedPassword): bool {
+                ->withArgs(function (string $username, string $password, string $lockerBankUuid) use ($event, &$generatedPassword, &$generatedUsername): bool {
                     $generatedPassword = $password;
+                    $generatedUsername = $username;
 
-                    $this->assertSame($event->lockerBankUuid, $username);
+                    // The username must no longer be the locker uuid: that is the
+                    // coupling that let a revoked identity be recreated.
+                    $this->assertNotSame($event->lockerBankUuid, $username);
+                    $this->assertNotSame('', $username);
                     $this->assertSame($event->lockerBankUuid, $lockerBankUuid);
                     $this->assertNotSame('', $password);
 
@@ -89,12 +101,14 @@ class MqttReactorDelegationTest extends TestCase
                 });
         });
 
-        $this->mock(ProvisioningReplyPublisher::class, function ($mock) use ($event, &$generatedPassword): void {
+        $this->mock(ProvisioningReplyPublisher::class, function ($mock) use ($event, &$generatedPassword, &$generatedUsername): void {
             $mock->shouldReceive('publishSuccess')
                 ->once()
-                ->withArgs(function (LockerWasProvisioned $publishedEvent, string $mqttUser, string $mqttPassword) use ($event, &$generatedPassword): bool {
+                ->withArgs(function (LockerWasProvisioned $publishedEvent, string $mqttUser, string $mqttPassword) use ($event, &$generatedPassword, &$generatedUsername): bool {
                     $this->assertSame($event, $publishedEvent);
-                    $this->assertSame($event->lockerBankUuid, $mqttUser);
+                    // The client is told the identity that was issued, not the
+                    // locker uuid — that travels as its own field in the reply.
+                    $this->assertSame($generatedUsername, $mqttUser);
                     $this->assertSame($generatedPassword, $mqttPassword);
 
                     return true;
@@ -147,6 +161,7 @@ class MqttReactorDelegationTest extends TestCase
         );
 
         $this->mock(MqttUserService::class, function ($mock) use ($lockerBank): void {
+            $mock->shouldReceive('revokeForLockerBank')->once()->andReturn(0);
             $mock->shouldReceive('createUser')
                 ->once()
                 ->andReturnUsing(function () use ($lockerBank): void {
@@ -176,5 +191,79 @@ class MqttReactorDelegationTest extends TestCase
         });
 
         app(MqttReactor::class)->onLockerProvisioningFailed($event);
+    }
+
+    public function test_a_retried_provisioning_event_leaves_exactly_one_live_identity(): void
+    {
+        // This reactor is queued and rethrows to trigger a retry, so the same
+        // generation can be handled more than once. Issuing an opaque username per
+        // attempt would accumulate live identities unless each issuance revokes
+        // what came before it.
+        $generation = (string) Str::uuid();
+        $lockerBank = LockerBank::factory()->create([
+            'provisioned_at' => now(),
+            'provisioning_generation' => $generation,
+        ]);
+
+        $event = new LockerWasProvisioned(
+            lockerBankUuid: (string) $lockerBank->id,
+            replyToTopic: 'locker/provisioning/reply/test-client',
+            provisioningGeneration: $generation,
+        );
+
+        $publishedUsernames = [];
+        $this->mock(ProvisioningReplyPublisher::class, function ($mock) use (&$publishedUsernames): void {
+            $mock->shouldReceive('publishSuccess')
+                ->twice()
+                ->andReturnUsing(function (LockerWasProvisioned $e, string $mqttUser) use (&$publishedUsernames): void {
+                    $publishedUsernames[] = $mqttUser;
+                });
+        });
+
+        $reactor = app(MqttReactor::class);
+        $reactor->onLockerWasProvisioned($event);
+        $reactor->onLockerWasProvisioned($event);
+
+        $identities = MqttUser::query()->where('locker_bank_id', $lockerBank->id)->get();
+
+        $this->assertCount(2, $identities, 'each attempt issues its own identity');
+        $this->assertCount(1, $identities->where('enabled', true), 'only one may remain live');
+        $this->assertSame(
+            $publishedUsernames[1],
+            (string) $identities->firstWhere('enabled', true)?->username,
+            'the live identity is the one whose credentials were published last',
+        );
+
+        foreach ($identities->where('enabled', false) as $revoked) {
+            $this->assertNotNull($revoked->revoked_at, 'a retired identity is stamped, not deleted');
+        }
+    }
+
+    public function test_each_provisioning_issues_a_different_username_and_password(): void
+    {
+        $bankA = LockerBank::factory()->create(['provisioned_at' => now(), 'provisioning_generation' => (string) Str::uuid()]);
+        $bankB = LockerBank::factory()->create(['provisioned_at' => now(), 'provisioning_generation' => (string) Str::uuid()]);
+
+        $seen = [];
+        $this->mock(ProvisioningReplyPublisher::class, function ($mock) use (&$seen): void {
+            $mock->shouldReceive('publishSuccess')
+                ->twice()
+                ->andReturnUsing(function (LockerWasProvisioned $e, string $user, string $password) use (&$seen): void {
+                    $seen[] = [$user, $password];
+                });
+        });
+
+        $reactor = app(MqttReactor::class);
+        foreach ([$bankA, $bankB] as $bank) {
+            $reactor->onLockerWasProvisioned(new LockerWasProvisioned(
+                lockerBankUuid: (string) $bank->id,
+                replyToTopic: 'locker/provisioning/reply/test-client',
+                provisioningGeneration: (string) $bank->provisioning_generation,
+            ));
+        }
+
+        $this->assertNotSame($seen[0][0], $seen[1][0], 'usernames must differ');
+        $this->assertNotSame($seen[0][1], $seen[1][1], 'passwords must differ');
+        $this->assertNotSame((string) $bankA->id, $seen[0][0], 'the username is not the locker uuid');
     }
 }

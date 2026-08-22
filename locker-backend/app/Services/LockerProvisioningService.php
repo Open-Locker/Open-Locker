@@ -59,7 +59,7 @@ class LockerProvisioningService
                 )
                 ->persist();
 
-            $this->mqttUserService->deleteUser((string) $lockedLockerBank->id);
+            $this->mqttUserService->revokeForLockerBank((string) $lockedLockerBank->id);
 
             return $token;
         });

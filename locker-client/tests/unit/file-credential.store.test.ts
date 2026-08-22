@@ -15,7 +15,11 @@ test(
     const file = createCredentialFile(t);
     const store = new FileCredentialStore(file);
 
-    store.saveCredentials({ username: 'locker-user', password: 'test-password' });
+    store.saveCredentials({
+      username: 'locker-user',
+      password: 'test-password',
+      lockerUuid: 'locker-uuid',
+    });
 
     assert.equal(fs.statSync(file).mode & 0o777, 0o600);
   },
@@ -33,7 +37,11 @@ test(
 
     const credentials = new FileCredentialStore(file).getCredentials();
 
-    assert.deepEqual(credentials, { username: 'locker-user', password: 'test-password' });
+    assert.deepEqual(credentials, {
+      username: 'locker-user',
+      password: 'test-password',
+      lockerUuid: 'locker-user',
+    });
     assert.equal(fs.statSync(file).mode & 0o777, 0o600);
   },
 );
@@ -58,3 +66,42 @@ function createCredentialFile(t: TestContext): string {
   t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
   return path.join(directory, 'credentials.json');
 }
+
+test('a credentials file written before per-provisioning identities still loads', (t) => {
+  // Back then the username was the locker uuid, so an absent lockerUuid means
+  // "the username is the uuid" — an existing install must not need rewriting.
+  const file = createCredentialFile(t);
+  fs.writeFileSync(
+    file,
+    JSON.stringify({
+      username: '019e5a20-8a02-718d-9146-a8a656edabbd',
+      password: 'test-password',
+    }),
+    { mode: 0o600 },
+  );
+
+  const credentials = new FileCredentialStore(file).getCredentials();
+
+  assert.deepEqual(credentials, {
+    username: '019e5a20-8a02-718d-9146-a8a656edabbd',
+    password: 'test-password',
+    lockerUuid: '019e5a20-8a02-718d-9146-a8a656edabbd',
+  });
+});
+
+test('an opaque username and its locker uuid round-trip separately', (t) => {
+  const file = createCredentialFile(t);
+  const store = new FileCredentialStore(file);
+
+  store.saveCredentials({
+    username: 'hzv2uqMeZ0iMThq2ZCqM5uefe9OqoWtb',
+    password: 'test-password',
+    lockerUuid: '019e5a20-8a02-718d-9146-a8a656edabbd',
+  });
+
+  const credentials = new FileCredentialStore(file).getCredentials();
+
+  assert.equal(credentials?.username, 'hzv2uqMeZ0iMThq2ZCqM5uefe9OqoWtb');
+  assert.equal(credentials?.lockerUuid, '019e5a20-8a02-718d-9146-a8a656edabbd');
+  assert.notEqual(credentials?.username, credentials?.lockerUuid);
+});

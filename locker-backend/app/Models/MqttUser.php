@@ -18,11 +18,13 @@ class MqttUser extends Model
         'username',
         'password_hash',
         'enabled',
+        'revoked_at',
         'notes',
     ];
 
     protected $casts = [
         'enabled' => 'boolean',
+        'revoked_at' => 'datetime',
     ];
 
     /**

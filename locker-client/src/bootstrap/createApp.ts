@@ -78,10 +78,11 @@ export async function createApp(): Promise<AppContext> {
     throw new Error('MQTT credentials unavailable after provisioning');
   }
 
-  // MQTT username is the locker bank UUID; all locker topics use this namespace.
-  const lockerUuid = credentials.username.trim();
+  // The username authenticates to the broker and carries no topic meaning; the
+  // locker namespace comes from the uuid the provisioning reply supplied.
+  const lockerUuid = credentials.lockerUuid.trim();
   if (!lockerUuid) {
-    throw new Error('MQTT credentials username (locker UUID) is empty');
+    throw new Error('MQTT credentials locker UUID is empty');
   }
 
   // Built here because the locker UUID identifies this instance, and it is only

@@ -9,7 +9,7 @@ import {
   parseProvisioningResponse,
 } from '../../src/domain/mqtt-parsing';
 import { PersistentStateCorruptedError } from '../../src/infrastructure/file-persistence';
-import type { CredentialStorePort } from '../../src/ports/config.port';
+import type { CredentialStorePort, DeviceCredentials } from '../../src/ports/config.port';
 import type { MessageTransportPort, MqttTransportSettings } from '../../src/ports/mqtt.port';
 import { assertMatchesSchema, readAsyncApiExample } from '../contract/jsonSchema';
 
@@ -55,13 +55,13 @@ class FakeMessageTransport implements MessageTransportPort {
 }
 
 class FakeCredentialStore implements CredentialStorePort {
-  savedCredentials: { username: string; password: string } | null = null;
+  savedCredentials: DeviceCredentials | null = null;
 
   getCredentials() {
     return this.savedCredentials;
   }
 
-  saveCredentials(credentials: { username: string; password: string }): void {
+  saveCredentials(credentials: DeviceCredentials): void {
     this.savedCredentials = credentials;
   }
 
@@ -120,8 +120,10 @@ test('parseProvisioningResponse accepts AsyncAPI success example', () => {
     assert.fail('Expected provisioning success response');
   }
 
-  assert.equal(response.data.mqtt_user, '11111111-1111-1111-1111-111111111111');
+  assert.equal(response.data.mqtt_user, 'hzv2uqMeZ0iMThq2ZCqM5uefe9OqoWtb');
   assert.equal(response.data.mqtt_password, 'super-secret-password');
+  // The username is opaque; the locker namespace travels as its own field.
+  assert.equal(response.data.locker_uuid, '11111111-1111-1111-1111-111111111111');
 });
 
 test('parseProvisioningResponse accepts AsyncAPI error example', () => {
@@ -156,7 +158,7 @@ test('parseProvisioningResponse rejects malformed replies', () => {
   );
 });
 
-test('provisionDevice saves credentials from contract-shaped success reply', async () => {
+test('provisionDevice saves credentials from a pre-locker_uuid backend reply', async () => {
   const previousUsername = process.env.MQTT_DEFAULT_USERNAME;
   const previousPassword = process.env.MQTT_DEFAULT_PASSWORD;
   process.env.MQTT_DEFAULT_USERNAME = 'default-user';
@@ -204,6 +206,9 @@ test('provisionDevice saves credentials from contract-shaped success reply', asy
     assert.deepEqual(credentialStore.savedCredentials, {
       username: 'mqtt-user',
       password: 'mqtt-password',
+      // No locker_uuid in this reply, so it falls back to the username — which is
+      // what a backend from before per-provisioning identities sends.
+      lockerUuid: 'mqtt-user',
     });
     assert.equal(credentialStore.isProvisioned(), true);
   } finally {
@@ -268,3 +273,55 @@ function createClientIdFile(t: TestContext): string {
   t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
   return path.join(directory, '.mqtt-client-id');
 }
+
+test('provisionDevice keeps an opaque username and its locker uuid apart', async () => {
+  const previousUsername = process.env.MQTT_DEFAULT_USERNAME;
+  const previousPassword = process.env.MQTT_DEFAULT_PASSWORD;
+  process.env.MQTT_DEFAULT_USERNAME = 'default-user';
+  process.env.MQTT_DEFAULT_PASSWORD = 'default-password';
+
+  const transport = new FakeMessageTransport();
+  const credentialStore = new FakeCredentialStore();
+
+  try {
+    const provisionPromise = provisionDevice({
+      transport,
+      brokerUrl: 'mqtt://localhost',
+      clientId: 'prov-client-2',
+      provisioningToken: 'token-2',
+      credentialStore,
+    });
+
+    setImmediate(() => {
+      transport.emitMessage('locker/provisioning/reply/prov-client-2', {
+        message_id: 'reply-2',
+        status: 'success',
+        timestamp: '2026-01-01T00:00:00.000Z',
+        data: {
+          mqtt_user: 'hzv2uqMeZ0iMThq2ZCqM5uefe9OqoWtb',
+          mqtt_password: 'mqtt-password',
+          locker_uuid: '019e5a20-8a02-718d-9146-a8a656edabbd',
+        },
+      });
+    });
+
+    await assert.doesNotReject(provisionPromise);
+
+    assert.deepEqual(credentialStore.savedCredentials, {
+      username: 'hzv2uqMeZ0iMThq2ZCqM5uefe9OqoWtb',
+      password: 'mqtt-password',
+      lockerUuid: '019e5a20-8a02-718d-9146-a8a656edabbd',
+    });
+  } finally {
+    if (previousUsername === undefined) {
+      delete process.env.MQTT_DEFAULT_USERNAME;
+    } else {
+      process.env.MQTT_DEFAULT_USERNAME = previousUsername;
+    }
+    if (previousPassword === undefined) {
+      delete process.env.MQTT_DEFAULT_PASSWORD;
+    } else {
+      process.env.MQTT_DEFAULT_PASSWORD = previousPassword;
+    }
+  }
+});
