@@ -400,7 +400,13 @@ async function startSimulatedDevice(
   const cached = credentialCache.get(bank.provisioning_token);
 
   if (cached) {
-    credentialStore.saveCredentials(cached);
+    // A cache written before per-provisioning identities has no lockerUuid; back
+    // then the username was the locker uuid, so that is the right fallback.
+    credentialStore.saveCredentials({
+      username: cached.username,
+      password: cached.password,
+      lockerUuid: cached.lockerUuid ?? cached.username,
+    });
     logger.info('reusing cached simulator credentials', {
       bank: bank.name,
       cache: credentialCache.location,
@@ -424,8 +430,9 @@ async function startSimulatedDevice(
     credentialCache.set(bank.provisioning_token, credentials);
   }
 
-  // MQTT username is the locker bank UUID; all locker topics use this namespace.
-  const lockerUuid = credentials.username.trim();
+  // The username authenticates to the broker and carries no topic meaning; the
+  // locker namespace comes from the uuid the provisioning reply supplied.
+  const lockerUuid = credentials.lockerUuid.trim();
   if (!lockerUuid) {
     throw new Error(`Provisioned credentials for bank "${bank.name}" have an empty locker UUID`);
   }

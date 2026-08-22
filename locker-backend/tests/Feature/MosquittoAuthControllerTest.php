@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\LockerBank;
 use App\Models\MqttUser;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
@@ -256,17 +257,18 @@ class MosquittoAuthControllerTest extends TestCase
 
     public function test_device_user_can_publish_split_state_topics_response_and_event(): void
     {
-        MqttUser::factory()->create([
+        $user = MqttUser::factory()->create([
             'username' => 'device_1',
             'enabled' => true,
         ]);
+        $lockerUuid = (string) $user->locker_bank_id;
 
         foreach ([
-            'locker/device_1/state/heartbeat',
-            'locker/device_1/state/compartments',
-            'locker/device_1/state/connection',
-            'locker/device_1/response',
-            'locker/device_1/event',
+            "locker/{$lockerUuid}/state/heartbeat",
+            "locker/{$lockerUuid}/state/compartments",
+            "locker/{$lockerUuid}/state/connection",
+            "locker/{$lockerUuid}/response",
+            "locker/{$lockerUuid}/event",
         ] as $topic) {
             $r = $this->postJson('/api/mosq/acl?mosq_secret=test-secret', [
                 'username' => 'device_1',
@@ -280,23 +282,34 @@ class MosquittoAuthControllerTest extends TestCase
         $commandDenied = $this->postJson('/api/mosq/acl?mosq_secret=test-secret', [
             'username' => 'device_1',
             'clientid' => 'device_1_client',
-            'topic' => 'locker/device_1/command',
+            'topic' => "locker/{$lockerUuid}/command",
             'acc' => 2,
         ]);
         $commandDenied->assertStatus(403)->assertJson(['allow' => false, 'ok' => false]);
+
+        // The username is not a topic namespace: publishing under it must fail
+        // even though it authenticates.
+        $usernameTopicDenied = $this->postJson('/api/mosq/acl?mosq_secret=test-secret', [
+            'username' => 'device_1',
+            'clientid' => 'device_1_client',
+            'topic' => 'locker/device_1/event',
+            'acc' => 2,
+        ]);
+        $usernameTopicDenied->assertStatus(403)->assertJson(['allow' => false, 'ok' => false]);
     }
 
     public function test_device_user_can_subscribe_only_to_command_topic(): void
     {
-        MqttUser::factory()->create([
+        $user = MqttUser::factory()->create([
             'username' => 'device_1',
             'enabled' => true,
         ]);
+        $lockerUuid = (string) $user->locker_bank_id;
 
         $allowed = $this->postJson('/api/mosq/acl?mosq_secret=test-secret', [
             'username' => 'device_1',
             'clientid' => 'device_1_client',
-            'topic' => 'locker/device_1/command',
+            'topic' => "locker/{$lockerUuid}/command",
             'acc' => 1,
         ]);
         $allowed->assertOk()->assertJson(['allow' => true, 'ok' => true]);
@@ -304,7 +317,7 @@ class MosquittoAuthControllerTest extends TestCase
         $stateDenied = $this->postJson('/api/mosq/acl?mosq_secret=test-secret', [
             'username' => 'device_1',
             'clientid' => 'device_1_client',
-            'topic' => 'locker/device_1/state/heartbeat',
+            'topic' => "locker/{$lockerUuid}/state/heartbeat",
             'acc' => 1,
         ]);
         $stateDenied->assertStatus(403)->assertJson(['allow' => false, 'ok' => false]);
@@ -312,7 +325,7 @@ class MosquittoAuthControllerTest extends TestCase
         $extraDenied = $this->postJson('/api/mosq/acl?mosq_secret=test-secret', [
             'username' => 'device_1',
             'clientid' => 'device_1_client',
-            'topic' => 'locker/device_1/command/extra',
+            'topic' => "locker/{$lockerUuid}/command/extra",
             'acc' => 1,
         ]);
         $extraDenied->assertStatus(403)->assertJson(['allow' => false, 'ok' => false]);
@@ -333,5 +346,92 @@ class MosquittoAuthControllerTest extends TestCase
         ]);
 
         $response->assertStatus(403)->assertJson(['allow' => false, 'ok' => false]);
+    }
+
+    public function test_legacy_uuid_username_is_authorised_through_the_same_mapping(): void
+    {
+        // Identities issued before opaque usernames have username == locker uuid.
+        // They must keep working with no special case: the mapping authorises them.
+        $bank = LockerBank::factory()->create();
+        MqttUser::factory()->create([
+            'locker_bank_id' => $bank->id,
+            'username' => (string) $bank->id,
+            'enabled' => true,
+        ]);
+
+        $allowed = $this->postJson('/api/mosq/acl?mosq_secret=test-secret', [
+            'username' => (string) $bank->id,
+            'clientid' => 'legacy_client',
+            'topic' => "locker/{$bank->id}/event",
+            'acc' => 2,
+        ]);
+
+        $allowed->assertOk()->assertJson(['allow' => true, 'ok' => true]);
+    }
+
+    public function test_device_user_cannot_reach_another_lockers_topics(): void
+    {
+        $own = MqttUser::factory()->create(['username' => 'device_own', 'enabled' => true]);
+        $other = LockerBank::factory()->create();
+
+        $denied = $this->postJson('/api/mosq/acl?mosq_secret=test-secret', [
+            'username' => 'device_own',
+            'clientid' => 'device_own_client',
+            'topic' => "locker/{$other->id}/command",
+            'acc' => 1,
+        ]);
+
+        $denied->assertStatus(403)->assertJson(['allow' => false, 'ok' => false]);
+        $this->assertNotSame((string) $own->locker_bank_id, (string) $other->id);
+    }
+
+    public function test_wildcard_usernames_cannot_widen_device_access(): void
+    {
+        // A username of '#' or '+' must be compared literally, never expanded,
+        // or an identity could name its way into every locker's topics.
+        foreach (['#', '+'] as $wildcard) {
+            $user = MqttUser::factory()->create(['username' => $wildcard, 'enabled' => true]);
+            $other = LockerBank::factory()->create();
+
+            $denied = $this->postJson('/api/mosq/acl?mosq_secret=test-secret', [
+                'username' => $wildcard,
+                'clientid' => 'wildcard_client',
+                'topic' => "locker/{$other->id}/event",
+                'acc' => 2,
+            ]);
+            $denied->assertStatus(403)->assertJson(['allow' => false, 'ok' => false]);
+
+            $ownAllowed = $this->postJson('/api/mosq/acl?mosq_secret=test-secret', [
+                'username' => $wildcard,
+                'clientid' => 'wildcard_client',
+                'topic' => "locker/{$user->locker_bank_id}/event",
+                'acc' => 2,
+            ]);
+            $ownAllowed->assertOk()->assertJson(['allow' => true, 'ok' => true]);
+        }
+    }
+
+    public function test_disabled_identity_is_denied_for_auth_and_acl(): void
+    {
+        $user = MqttUser::factory()->create([
+            'username' => 'revoked_device',
+            'password_hash' => Hash::make('password123'),
+            'enabled' => false,
+            'revoked_at' => now(),
+        ]);
+
+        $auth = $this->postJson('/api/mosq/auth?mosq_secret=test-secret', [
+            'username' => 'revoked_device',
+            'password' => 'password123',
+        ]);
+        $auth->assertJson(['allow' => false, 'ok' => false]);
+
+        $acl = $this->postJson('/api/mosq/acl?mosq_secret=test-secret', [
+            'username' => 'revoked_device',
+            'clientid' => 'revoked_client',
+            'topic' => "locker/{$user->locker_bank_id}/event",
+            'acc' => 2,
+        ]);
+        $acl->assertStatus(403)->assertJson(['allow' => false, 'ok' => false]);
     }
 }

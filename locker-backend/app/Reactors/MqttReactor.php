@@ -59,7 +59,11 @@ class MqttReactor extends Reactor implements ShouldQueue
             return;
         }
 
-        $mqttUser = $event->lockerBankUuid;
+        // Opaque and unique per provisioning: a username that equalled the locker
+        // uuid could be recreated after revocation, which is how a still-connected
+        // old session used to regain access. Nothing may parse this value — the
+        // locker it may address comes from its `locker_bank_id` mapping.
+        $mqttUser = Str::random(32);
         $mqttPassword = Str::random(32);
 
         try {
@@ -68,9 +72,16 @@ class MqttReactor extends Reactor implements ShouldQueue
                     return false;
                 }
 
-                Log::info('[MqttReactor] Attempting to create MQTT user...');
+                // Retire whatever the bank had before issuing the replacement, in
+                // this same locked transaction. This reactor is queued and rethrows
+                // to retry, so a failure after the insert re-runs the handler for an
+                // unchanged generation; without revoking first, every retry would
+                // leave another live identity behind.
+                $this->mqttUserService->revokeForLockerBank($event->lockerBankUuid);
+
+                Log::info('[MqttReactor] Attempting to issue MQTT identity...');
                 $this->mqttUserService->createUser($mqttUser, $mqttPassword, $event->lockerBankUuid);
-                Log::info('[MqttReactor] MQTT user created successfully.');
+                Log::info('[MqttReactor] MQTT identity issued successfully.');
 
                 return true;
             });

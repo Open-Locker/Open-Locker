@@ -4,6 +4,9 @@ import path from 'path';
 interface CachedCredentials {
   username: string;
   password: string;
+  // Optional: caches written before per-provisioning identities hold a username
+  // that was itself the locker uuid, and must keep working untouched.
+  lockerUuid?: string;
 }
 
 type CacheFileShape = Record<string, CachedCredentials>;

@@ -122,16 +122,27 @@ class MosquittoAuthController extends Controller
             return response()->json(['allow' => false, 'ok' => false], 403); // Explicitly deny
         }
 
-        // Device users
+        // Device users. The authorised locker comes from the identity's mapping,
+        // not from its username: a username is opaque and says nothing about which
+        // bank it belongs to. Legacy identities, whose username happens to be their
+        // locker uuid, are authorised by the same lookup.
         $user = MqttUser::where('username', $username)->where('enabled', true)->first();
         if ($user !== null) {
+            $lockerUuid = (string) $user->locker_bank_id;
+
+            if ($lockerUuid === '') {
+                Log::channel('broker')->info('ACL Device: Denied (identity has no locker mapping)');
+
+                return response()->json(['allow' => false, 'ok' => false], 403);
+            }
+
             $isWriteAcc = in_array($acc, [self::ACC_WRITE, self::ACC_READWRITE], true);
             $isReadAcc = in_array($acc, [self::ACC_READ, self::ACC_READWRITE, self::ACC_SUBSCRIBE], true);
 
             if ($isWriteAcc) { // publish (device -> backend)
-                $allow = $this->acl->topicMatches('locker/%u/state/#', $topic, $username, $clientId)
-                    || $this->acl->topicMatches('locker/%u/response', $topic, $username, $clientId)
-                    || $this->acl->topicMatches('locker/%u/event', $topic, $username, $clientId);
+                $allow = $this->acl->topicMatches('locker/%l/state/#', $topic, $username, $clientId, $lockerUuid)
+                    || $this->acl->topicMatches('locker/%l/response', $topic, $username, $clientId, $lockerUuid)
+                    || $this->acl->topicMatches('locker/%l/event', $topic, $username, $clientId, $lockerUuid);
 
                 return response()->json([
                     'allow' => $allow,
@@ -141,7 +152,7 @@ class MosquittoAuthController extends Controller
 
             // For device users, treat read-style acc values as subscribe-like (without double-counting readwrite).
             if ($isReadAcc) { // subscribe / unsubscribe / other read-style access (write already handled above)
-                $allow = $this->acl->topicMatches('locker/%u/command', $topic, $username, $clientId);
+                $allow = $this->acl->topicMatches('locker/%l/command', $topic, $username, $clientId, $lockerUuid);
 
                 return response()->json([
                     'allow' => $allow,
