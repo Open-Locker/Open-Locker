@@ -11,9 +11,8 @@ use App\StorableEvents\UserAcceptedTermsVersion;
 use Carbon\CarbonInterface;
 use LogicException;
 use Ramsey\Uuid\Uuid;
-use Spatie\EventSourcing\AggregateRoots\AggregateRoot;
 
-class TermsDocumentAggregate extends AggregateRoot
+class TermsDocumentAggregate extends TransactionalAggregateRoot
 {
     private bool $documentCreated = false;
 

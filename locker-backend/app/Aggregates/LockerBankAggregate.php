@@ -15,9 +15,8 @@ use App\StorableEvents\LockerWasProvisioned;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
-use Spatie\EventSourcing\AggregateRoots\AggregateRoot;
 
-class LockerBankAggregate extends AggregateRoot
+class LockerBankAggregate extends TransactionalAggregateRoot
 {
     // We will add methods here to handle commands like
     // `registerLockerBank` which will then record events

@@ -94,7 +94,7 @@ return [
      * can change this to a class of your own. The only restriction is that
      * it should implement \Spatie\EventSourcing\StoredEvents\HandleDomainEventJob.
      */
-    'stored_event_job' => Spatie\EventSourcing\StoredEvents\HandleStoredEventJob::class,
+    'stored_event_job' => App\Support\EventSourcing\HandleStoredEventAfterCommitJob::class,
 
     /*
      * Similar to Relation::enforceMorphMap() this option will make sure that every event has a

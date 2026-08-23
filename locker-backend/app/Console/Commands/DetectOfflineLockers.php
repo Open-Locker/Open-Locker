@@ -6,10 +6,16 @@ namespace App\Console\Commands;
 
 use App\Models\LockerBank;
 use App\StorableEvents\LockerConnectionLost;
+use App\Support\EventSourcing\StoredEventDispatcher;
 use Illuminate\Console\Command;
 
 class DetectOfflineLockers extends Command
 {
+    public function __construct(private readonly StoredEventDispatcher $storedEventDispatcher)
+    {
+        parent::__construct();
+    }
+
     /** @var string */
     protected $signature = 'locker:detect-offline {--dry-run : Do not write changes or emit events}';
 
@@ -53,7 +59,7 @@ class DetectOfflineLockers extends Command
             if ($affected === 1) {
                 $lost++;
 
-                event(new LockerConnectionLost(
+                $this->storedEventDispatcher->dispatch(new LockerConnectionLost(
                     lockerBankUuid: (string) $lockerBank->id,
                     detectedAtIso8601: $now->toIso8601String(),
                     lastHeartbeatAtIso8601: $lockerBank->last_heartbeat_at?->toIso8601String(),
