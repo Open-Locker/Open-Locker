@@ -5,7 +5,7 @@ The idea is to have a central service so the users do not have to configure it. 
 - [Locker as a service](#locker-as-a-service)
   - [Hosting](#hosting)
   - [Services](#services)
-    - [Traeffik Reverse Proxy](#traeffik-reverse-proxy)
+    - [Traefik Reverse Proxy](#traefik-reverse-proxy)
     - [Mosquitto](#mosquitto)
     - [Locker Client](#locker-client)
       - [Registration process](#registration-process)
@@ -31,13 +31,31 @@ We need to setup a domain and book a server. The server needs a docker installat
   * Report state
   * Setup Guide
 
-### Traeffik Reverse Proxy
+### Traefik Reverse Proxy
 
-Setup a traeffik Reverse Proxy for SSL Certificate termination and to have a single entrypoint.
+Production uses Traefik as the public TLS boundary:
+
+- HTTPS is exposed on TCP 443 for the API, admin panel, and Reverb.
+- MQTTS is exposed on TCP 8883 for locker clients.
+- Traefik terminates both TLS protocols and manages certificates through ACME.
+- Laravel remains on HTTP 8080 and Mosquitto remains on MQTT 1883 inside the
+  private Docker network.
+
+Normal production deployments do not publish port 1883. An existing fleet may
+retain it only through the explicit, time-limited migration overlay while MQTTS
+is brought up and clients are migrated; it is removed immediately afterward.
+Coolify uses its managed Traefik proxy; the standalone Docker reference starts
+Traefik through a Compose overlay. See
+[ADR-0053](adr/0053-terminate-public-mqtt-tls-at-traefik.md) and the
+[installation guide](Installation.md) for both deployment procedures.
 
 ### Mosquitto
 
-Deploy a Mosquitto Mqtt broker used  to communicate with the lockers.
+Mosquitto provides username/password authentication and topic ACLs through the
+Laravel HTTP auth backend. It accepts plaintext MQTT only on the private Docker
+network because public transport security is enforced by Traefik. Locker
+clients connect to `mqtts://<mqtt-domain>:8883` and validate the public
+certificate and hostname.
 
 ### Locker Client
 

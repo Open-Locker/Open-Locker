@@ -6,6 +6,12 @@
 
 ## Beta goal
 
+Open Locker has no production deployment. This Beta is a **controlled
+pre-production pilot**, not a production launch or an unrestricted public
+rollout. Execution is governed by the
+[Beta release checklist](../release-checklist.md) and
+[Beta rollback runbook](beta-rollback.md).
+
 The goal of this Beta is to exercise the **core loop** end-to-end — authenticate, see
 accessible compartments, open one, and watch door state update live — and to establish a
 **baseline for collecting user feedback**. Feature completeness beyond that loop is
@@ -13,19 +19,19 @@ secondary; field hardening and release mechanics are what make the exercise trus
 
 ## Highlights (TL;DR)
 
-- First tagged release of the monorepo (no prior tags or GitHub Releases).
+- Planned first tagged release of the monorepo under component-specific tags.
 - Core loop: sign in → list accessible compartments → open → live door state + content notes.
 - Event-sourced compartment domain with auditable content notes (Item domain removed).
 - Capability-based roles (incl. manager), group access, terms gate, EN/DE in app and admin.
 - Canonical MQTT contract; locker-client v2 on Pi with Modbus, recovery, and fleet simulator.
 - Mobile app on Expo with RTK Query codegen and Reverb realtime.
 - Filament v5 ops-oriented admin: users, groups, compartments, open requests, audit log.
-- Beta cut assumes open PRs listed below are merged first (stacked chain + related work).
+- The Beta cut requires every hard gate in the release checklist to be closed.
 
 ## Scope
 
-Nothing has ever been tagged or released — the repository has zero tags and zero GitHub
-Releases — so the Beta is the **first release**. This document therefore has two parts:
+This Beta is intended to be the first coordinated component-tagged release. This
+document therefore has two parts:
 
 1. **Feature list** — what the system does at Beta, by component. This is the
    "what do we have" answer.
@@ -37,10 +43,10 @@ form of this is generated per component into the GitHub Release attached to each
 (`backend-vX.Y.Z`, `client-vX.Y.Z`, `mobile-vX.Y.Z`). This file is the one-off Beta list;
 it is not a committed rolling `CHANGELOG.md`.
 
-**Verification basis:** a feature counts as done if its code is merged into `dev` **or**
-sits in an open pull request intended for the Beta cut. Work that exists only as an issue
-is out of scope. Open PRs remain in the feature list below; cutting Beta assumes those
-PRs (notably the stacked chain in §3) have merged.
+**Verification basis:** a feature counts as done only when its code is merged into
+`dev` and passes the relevant checks. Open pull requests and issues are candidate work,
+not shipped Beta functionality. Before release, the approved candidate is synchronized
+from `dev` to `main` and tagged there.
 
 The baseline is the end of *Milestone 3 – MVP*. Everything below the "Earlier (MVP and
 before)" headings predates that and is listed only for completeness of the feature set.
@@ -163,7 +169,7 @@ in the feature list and change log; collected here so they are hard to miss.
 - EN/DE localization with a persisted in-app language switcher; centralized theme and UI
   defaults, dark-mode-aware logo and splash scaling (`#93`, `#98`).
 - Internal test builds from CI: EAS build + TestFlight submission from `main`
-  (`#19`, ADR-0033).
+  (`#19`, ADR-0032).
 - Legacy auth context and hand-written API layer removed (`#85`).
 - react-doctor evaluated for code health, expo-doctor kept in the quality gate (`#64`).
 
@@ -189,7 +195,8 @@ in the feature list and change log; collected here so they are hard to miss.
 - Contract-aligned locker fleet simulator: in-memory bus, credential and overlay stores,
   scenario files and a traffic log, so the whole stack runs without hardware
   (`#82`, `#23`, ADR-0031, `docs/simulator.md`).
-- Watchtower-based update flow; ships as `ghcr.io/open-locker/locker-client:latest`.
+- Watchtower-based update flow; the Beta pins a verified immutable client image tag
+  rather than `latest`.
 
 ### Hardware
 
@@ -206,7 +213,7 @@ in the feature list and change log; collected here so they are hard to miss.
 - Starlight documentation section with aligned branding; BOM migrated in as a Hardware
   page (`#92`); copy and layout fine-tuning (`#179`).
 - Architecture docs, MQTT architecture and integration plan, AsyncAPI specs,
-  observability notes, installation and simulator guides, 43 ADRs.
+  observability notes, installation and simulator guides, and ADRs.
 
 ### CI / infrastructure
 
@@ -358,105 +365,54 @@ Modbus simulator, and the first locker-client implementation.
 
 ## 3. Beta readiness — finish, consolidate, tighten
 
-Ordered by what would stop the release, not by effort.
+The [Beta release checklist](../release-checklist.md) is the source of truth for
+execution and evidence. The following items remain hard gates; this document does not
+claim they are complete merely because related code or a pull request exists:
 
-### Would block shipping
+- **#50 — release mechanics:** implement and verify the ADR-0043 tag namespaces,
+  artifact publishing, component-scoped release notes, and protection against
+  non-`main` or manual runs publishing a misleading `latest`.
+- **#134 — stale commands:** accept and test an age policy so a delayed
+  `open_compartment` command cannot unexpectedly actuate a door.
+- **#163 — MQTTS:** complete transport security and pass an external end-to-end smoke
+  test. The current plaintext development listener is not Beta-ready.
+- **#169 — Raspberry Pi soak:** record the agreed soak duration, resource behavior,
+  reconnect evidence, and real Modbus hardware result.
+- **#209 — Beta readiness:** close the milestone/release decision with no unresolved
+  blocker.
 
-**Land the stacked PR chain (#183 → #210).** Fourteen of the features listed above sit
-in one bottom-up stack, plus #120 separately. Nothing in it is released until the whole
-chain merges, and every day it stays open the rebase cost grows. This is the single
-biggest risk to the Beta date.
+Issue #67 is also required Beta work and must have a recorded outcome before the pilot,
+although it is tracked separately from the hard-gate list.
 
-**Resolve or replace PR #107 (`dev` → `main`).** It is open since 2026-06-11, marked
-`CONFLICTING`, and carries +145,808/−9,447. Meanwhile `main` last moved on 2026-07-20
-and is 245 commits behind `dev`. Beta ships from `main`, so this is a hard gate. A fresh
-merge PR is likely cheaper than salvaging this one.
+### Required rollout order
 
-**Roll out the monorepo release strategy (`#50`; ADR-0043) before cutting anything.**
-There are still zero tags and zero Releases, so today there is no way to say "this Pi
-runs Beta" or to roll back. The ADR's own rollout list also flags that
-`workflow_dispatch` on `docker-ghcr.yml` publishes `latest` from whatever branch it runs
-on — a dispatch from `dev` would overwrite production. Fix that before the first tag,
-not after.
+1. Complete all component checks on `dev`, synchronize the approved candidate to
+   `main`, and rerun protected checks.
+2. Create only the required component tags (`backend-v*`, `client-v*`, `mobile-v*`) on
+   the intended `main` commit and verify immutable artifacts and release notes.
+3. Take and verify backups and record component-specific rollback tags.
+4. For PR #227, deploy the compatible client first and prohibit re-provisioning until it
+   is confirmed. Then deploy the backend migration/code and restart all queue workers
+   before allowing opaque MQTT credential issuance.
+5. Accept PR #228's Modbus reconnect behavior only after #169 confirms the assumed
+   real-device error codes, unreachable state, and automatic recovery on a Pi.
+6. Run backend, MQTTS, Pi/Modbus, and mobile smoke tests; distribute iOS through
+   TestFlight and Android through the configured controlled Beta/internal track.
+7. At the named decision point, the release owner records **continue**, **pause**, or
+   **roll back** using the [Beta rollback runbook](beta-rollback.md).
 
-**MQTT TLS (#163).** `mosquitto.conf.template` defines only `listener 1883` with
-`auth_opt_http_with_tls false`. Broker credentials and open commands cross the network in
-clear. This is the one security item worth hard-blocking on: a Beta runs on someone
-else's network.
-
-**Soak-test the v2 client on a Pi (#169).** v1 was replaced wholesale. The rewrite is
-well covered by tests, but nothing here shows it running for days against real Modbus
-hardware. Beta is exactly where an undetected slow leak or a wedged bus shows up.
-
-**Make client shutdown and async lifecycle safe (#170).** An unclean stop in the middle
-of a Modbus write is how a relay gets left energised. Cheap to fix, unpleasant to
-discover in the field.
-
-### Consolidate
-
-**Fix the duplicate ADR numbers.** 0018, 0023, 0024, 0025, 0028, 0029 and 0030 are each
-used by two different ADRs. Commit messages and PR bodies reference ADRs by number, so
-those references are currently ambiguous. Renumbering is trivial now and gets harder
-with every new ADR.
-
-**Promote the ADRs that describe shipped behaviour.** The ADRs for separate ACK
-(`#94`), OpenTelemetry (`#65`), first-admin bootstrap (`#141`), and Android build
-caching (`#204`) are still `Proposed`, though their code is merged. The release
-strategy the cut itself depends on is now Accepted (ADR-0043). A Proposed ADR
-describing what the system already does trains people to ignore the status field.
-
-**Close the issues whose work already shipped** — #109 (audit log), #52 (healthcheck),
-#122 (group memberships), plus the stack's issues as it merges. The milestone should
-read true on release day, and right now it undercounts what is done.
-
-**Refactor the CI workflows (#99).** It is the last structural CI item. Doing it after
-the stack lands means touching six workflows once instead of twice.
-
-### Remove
-
-**`TODO.md`.** A German checklist from the pre-MQTT architecture rebuild, with every box
-already ticked. It is superseded by the ADRs and the issue tracker, and a stale roadmap
-in the repo root is the first thing a new contributor reads.
-
-**The stale-docs warning in `CLAUDE.md`.** It still calls out a Flutter app and Dart
-client that the README no longer describes. The root `docker-compose.yml` mention is
-partly still fair — the README tree still lists one — so trim the Flutter/Dart half of
-the warning rather than deleting the whole note.
-
-### Decide before calling it Beta
-
-**What "Beta" means for distribution.** `eas.json` submits Android to the `internal`
-track and builds an APK, and iOS goes to TestFlight internally (#19). That is a team
-build, not a beta programme. If external testers are the point, this needs a closed or
-open testing track and an AAB — worth settling before the tag, since store review is the
-slowest link.
-
-**Stale `open_compartment` commands (#134).** Still an open discussion. A command
-replayed after a long delay opens a physical door with nobody expecting it. Beta is the
-right moment to decide, because it is the first time real doors are involved.
-
-**Where OpenTelemetry traces go.** PR #189 instruments the open flow end to end, but no
-collector or backend is deployed or documented. Instrumentation with nowhere to send
-data is cost without benefit — and the open flow is precisely what you want traced when
-a Beta site reports "the door didn't open".
-
-**Runtime config completeness (#174).** Left open, and it determines how much a locker
-can be reconfigured without a redeploy — which is what you want during a Beta, when
-settings change often and physical access is inconvenient.
-
-### Not missing, worth stating
-
-No gaps found in the core loop: authenticate, see accessible compartments, open one,
-watch its door state update live, with the whole path audited and event-sourced. The
-admin side covers users, groups, roles, access grants, compartments, open requests,
-terms and an audit log, in EN and DE. For a Beta, the feature set is there — the risk is
-concentrated in release mechanics and field hardening, not in missing product.
+The core feature set is intended to support authenticate → list accessible compartments
+→ open → live door-state update. The Beta decision still depends on operational evidence,
+not feature inventory alone.
 
 ---
 
 ## References
 
 - Monorepo release strategy — `#50` (ADR-0043)
+- [Beta release checklist](../release-checklist.md)
+- [Beta rollback runbook](beta-rollback.md)
+- [ADR-0052: Controlled beta release and rollback](../adr/0052-controlled-beta-release-and-rollback.md)
 - ADR-0032 — mobile internal test builds
 - ADR-0036 — website in the monorepo
 - Milestones: *Milestone 1 – Hardware MVP*, *Milestone 2 – Internal MVP*,

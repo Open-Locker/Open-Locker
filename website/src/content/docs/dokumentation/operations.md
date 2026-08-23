@@ -8,12 +8,35 @@ sidebar:
 ## Deploying the cloud backend
 
 The backend runs as a Docker Compose stack on a central server (VPS or cloud
-instance):
+instance). A standalone deployment adds the maintained Traefik edge:
 
 ```bash
 cd locker-backend
-docker compose -f docker-compose.prod.yml up -d
+docker compose \
+  -f docker-compose.prod.yml \
+  -f docker-compose.prod.traefik.yml \
+  up -d
 ```
+
+Set `APP_DOMAIN`, `REVERB_DOMAIN`, `MQTT_DOMAIN`, and `ACME_EMAIL` first. The
+public contract is HTTPS on 443 and MQTTS on 8883. Mosquitto port 1883 is
+plaintext only inside the Docker network and is not published in production.
+
+For Coolify v4, use the Git-based **Docker Compose** build pack and set
+**Docker Compose Location** to
+`/locker-backend/docker-compose.prod.coolify.yml`. The entry file loads the base
+stack with Compose `extends`; Coolify's similarly named custom Compose override
+configures Coolify's own infrastructure and is not an application overlay. The
+managed Traefik proxy must publish a TCP `mqtts` entrypoint on 8883; the adapter
+routes `HostSNI(MQTT_DOMAIN)` through that entrypoint to Mosquitto port 1883. A
+normal HTTPS domain route or direct port mapping does not secure MQTT. Follow
+the installation guide for the exact procedure and required external
+verification; live Coolify routing and certificate issuance are not proven by
+repository validation.
+
+The complete standalone and Coolify procedures, including firewall, DNS,
+certificate, and smoke-test steps, are maintained in the repository
+[installation guide](https://github.com/Open-Locker/Open-Locker/blob/main/docs/Installation.md).
 
 ### Pin the image version (recommended)
 
@@ -43,6 +66,11 @@ just setup-mqtt
 Without `just`: copy `mosquitto.conf` from the example and add
 `mosq_secret=<MOSQ_HTTP_PASS>` to the webhook URIs, then restart the
 Mosquitto container.
+
+Locker clients use `mqtts://<mqtt-domain>:8883` and validate the public
+certificate and hostname. Before accepting a deployment, test an authenticated
+MQTT round trip through 8883 and confirm that port 1883 is unreachable from
+outside the Docker host.
 
 Set the same valid Laravel `APP_KEY` on every backend instance. The backend
 derives a domain-separated provisioning-token HMAC subkey from it; no additional
