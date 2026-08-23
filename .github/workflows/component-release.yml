@@ -1,0 +1,105 @@
+name: Component GitHub Release
+
+on:
+  workflow_call:
+    inputs:
+      component:
+        description: Human-readable component name
+        required: true
+        type: string
+      tag-prefix:
+        description: Component tag prefix including the v
+        required: true
+        type: string
+      cliff-config:
+        description: Component git-cliff configuration
+        required: true
+        type: string
+      artifact-note:
+        description: Artifact publication status shown above generated notes
+        required: true
+        type: string
+
+jobs:
+  release:
+    name: Publish release notes
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repository history
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: Validate component tag
+        env:
+          TAG_PREFIX: ${{ inputs.tag-prefix }}
+        run: |
+          if [[ "${GITHUB_REF_TYPE}" != "tag" || "${GITHUB_REF_NAME}" != "${TAG_PREFIX}"* ]]; then
+            echo "::error::Component releases require a ${TAG_PREFIX}* tag."
+            exit 1
+          fi
+
+      - name: Generate component release notes
+        uses: orhun/git-cliff-action@f50e11560dce63f7c33227798f90b924471a88b5 # v4.8.0
+        with:
+          version: v2.13.1
+          config: ${{ inputs.cliff-config }}
+          args: --current --strip header --output release-notes.generated.md
+          github_token: ${{ github.token }}
+
+      - name: Prepare release notes
+        env:
+          ARTIFACT_NOTE: ${{ inputs.artifact-note }}
+          COMPONENT: ${{ inputs.component }}
+        run: |
+          {
+            printf '%s\n\n' "${ARTIFACT_NOTE}"
+            printf '## %s changes\n\n' "${COMPONENT}"
+            cat release-notes.generated.md
+          } > release-notes.md
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG_PREFIX: ${{ inputs.tag-prefix }}
+        run: |
+          version="${GITHUB_REF_NAME#"${TAG_PREFIX}"}"
+          expected_prerelease=false
+          if [[ "${version}" == *-* ]]; then
+            expected_prerelease=true
+          fi
+
+          if release_json="$(gh release view "${GITHUB_REF_NAME}" --json tagName,name,body,isDraft,isPrerelease 2>/dev/null)"; then
+            if jq -e \
+              --arg tag "${GITHUB_REF_NAME}" \
+              --arg title "${GITHUB_REF_NAME}" \
+              --argjson prerelease "${expected_prerelease}" \
+              --rawfile notes release-notes.md \
+              '.tagName == $tag and
+               .name == $title and
+               .isDraft == false and
+               .isPrerelease == $prerelease and
+               (.body | rtrimstr("\n")) == ($notes | rtrimstr("\n"))' \
+              <<< "${release_json}" >/dev/null; then
+              echo "Release ${GITHUB_REF_NAME} already exists and matches the expected title and notes."
+              exit 0
+            fi
+
+            echo "::error::Release ${GITHUB_REF_NAME} already exists with incompatible state."
+            exit 1
+          fi
+
+          prerelease=()
+          if [[ "${expected_prerelease}" == "true" ]]; then
+            prerelease+=(--prerelease)
+          fi
+          gh release create "${GITHUB_REF_NAME}" \
+            --verify-tag \
+            --title "${GITHUB_REF_NAME}" \
+            --notes-file release-notes.md \
+            --latest=false \
+            "${prerelease[@]}"
