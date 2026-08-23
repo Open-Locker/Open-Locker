@@ -30,9 +30,14 @@ EAS `autoIncrement` supplies the platform build number/version code. This keeps
 store-visible versions numeric while preserving the full prerelease identity in
 runtime and diagnostic metadata.
 
-Android and iOS store paths each use one global GitHub concurrency group. A
-newer store run cancels the older in-progress run, and reruns from a stale
-`main` commit fail before building or submitting.
+The complete mobile store workflow uses one global `mobile-store` concurrency
+group with `cancel-in-progress: false`. A running tag release therefore finishes
+before a `main` or later tag run can start, so neither platform can be canceled
+halfway through a release. GitHub retains only one pending run per concurrency
+group: a newly queued store run replaces an older pending run before any of its
+jobs start. If that replaces a pending tag run, rerun that original tag-triggered
+workflow from the Actions UI. Reruns from a stale `main` commit still fail before
+building or submitting.
 
 ## Project facts
 
