@@ -4,39 +4,100 @@ on:
   pull_request:
     paths:
       - 'locker-client/**'
+      - '.github/git-cliff/client.toml'
       - '.github/workflows/client-docker.yml'
+      - '.github/workflows/component-release.yml'
   push:
     branches:
       - main
       - dev
     tags:
-      - 'locker-client-v*'
+      - 'client-v*'
     paths:
       - 'locker-client/**'
+      - '.github/git-cliff/client.toml'
       - '.github/workflows/client-docker.yml'
+      - '.github/workflows/component-release.yml'
+  workflow_dispatch:
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.run_id }}
+  group: client-docker-${{ github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
+  release-gate:
+    name: Verify release tag is on main
+    if: startsWith(github.ref, 'refs/tags/client-v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout repository history
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - name: Verify tag commit belongs to main
+        run: |
+          if [[ ! "${GITHUB_REF_NAME}" =~ ^client-v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]]; then
+            echo "::error::Release tag ${GITHUB_REF_NAME} is not a client SemVer tag."
+            exit 1
+          fi
+          git fetch --no-tags origin main
+          if ! git merge-base --is-ancestor "${GITHUB_SHA}" origin/main; then
+            echo "::error::Release tag ${GITHUB_REF_NAME} is not contained in main."
+            exit 1
+          fi
+
   release-quality:
-    name: Release quality gate
-    if: startsWith(github.ref, 'refs/tags/locker-client-v')
+    name: Client release quality gate
+    if: startsWith(github.ref, 'refs/tags/client-v')
+    needs: release-gate
     uses: ./.github/workflows/locker-client-ci.yml
     permissions:
       contents: read
 
   build:
-    needs: release-quality
-    if: always() && (needs.release-quality.result == 'success' || needs.release-quality.result == 'skipped')
+    name: Verify client image
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Docker image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./locker-client
+          file: ./locker-client/Dockerfile
+          push: false
+          platforms: linux/amd64
+          cache-from: type=gha,scope=locker-client
+          cache-to: type=gha,mode=max,scope=locker-client
+
+  publish:
+    name: Publish client image
+    if: >-
+      always() &&
+      needs.build.result == 'success' &&
+      (needs.release-gate.result == 'success' || needs.release-gate.result == 'skipped') &&
+      (needs.release-quality.result == 'success' || needs.release-quality.result == 'skipped') &&
+      (github.ref == 'refs/heads/main' ||
+       github.ref == 'refs/heads/dev' ||
+       startsWith(github.ref, 'refs/tags/client-v'))
+    needs:
+      - release-gate
+      - release-quality
+      - build
     runs-on: ubuntu-latest
     permissions:
       contents: read
       packages: write
-
     steps:
-      - name: Checkout code
+      - name: Checkout repository
         uses: actions/checkout@v7
 
       - name: Log in to GitHub Container Registry
@@ -44,35 +105,50 @@ jobs:
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          password: ${{ github.token }}
 
-      - name: Extract metadata
+      - name: Extract image metadata
         id: meta
         uses: docker/metadata-action@v5
         with:
           images: ghcr.io/${{ github.repository_owner }}/locker-client
           tags: |
-            type=ref,event=branch
-            type=ref,event=pr
-            type=sha,prefix={{branch}}-,enable=${{ github.event_name != 'pull_request' }}
-            type=match,pattern=locker-client-v(.*),group=1
-            type=raw,value=latest,enable={{is_default_branch}}
+            type=sha,format=long,prefix=sha-
+            type=raw,value=dev,enable=${{ github.ref == 'refs/heads/dev' }}
+            type=raw,value=${{ github.ref_name }},enable=${{ startsWith(github.ref, 'refs/tags/client-v') }}
+            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
 
       - name: Set up QEMU
-        if: github.event_name != 'pull_request'
         uses: docker/setup-qemu-action@v3
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
       - name: Build and push Docker image
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v6
         with:
           context: ./locker-client
           file: ./locker-client/Dockerfile
-          platforms: ${{ github.event_name == 'pull_request' && 'linux/amd64' || 'linux/amd64,linux/arm64' }}
-          push: ${{ github.event_name != 'pull_request' }}
+          platforms: linux/amd64,linux/arm64
+          push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha,scope=locker-client
           cache-to: type=gha,mode=max,scope=locker-client
+
+  release:
+    name: Create client release
+    if: startsWith(github.ref, 'refs/tags/client-v')
+    needs:
+      - release-quality
+      - publish
+    permissions:
+      contents: write
+    uses: ./.github/workflows/component-release.yml
+    with:
+      component: Locker client
+      tag-prefix: client-v
+      cliff-config: .github/git-cliff/client.toml
+      artifact-note: >-
+        Published multi-architecture `ghcr.io/open-locker/locker-client:${{ github.ref_name }}`
+        and immutable `sha-${{ github.sha }}` after the client quality and image gates passed.

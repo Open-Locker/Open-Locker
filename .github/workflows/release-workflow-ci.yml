@@ -1,0 +1,44 @@
+name: Release Workflow Validation
+
+on:
+  pull_request:
+    paths:
+      - '.github/git-cliff/**'
+      - '.github/scripts/validate_release_workflows.py'
+      - '.github/workflows/backend-docker.yml'
+      - '.github/workflows/client-docker.yml'
+      - '.github/workflows/component-release.yml'
+      - '.github/workflows/mobile-app-build.yml'
+      - '.github/workflows/release-workflow-ci.yml'
+      - 'locker-client/package.json'
+      - 'mobile-app/eas.json'
+  push:
+    branches:
+      - main
+      - dev
+    paths:
+      - '.github/git-cliff/**'
+      - '.github/scripts/validate_release_workflows.py'
+      - '.github/workflows/backend-docker.yml'
+      - '.github/workflows/client-docker.yml'
+      - '.github/workflows/component-release.yml'
+      - '.github/workflows/mobile-app-build.yml'
+      - '.github/workflows/release-workflow-ci.yml'
+      - 'locker-client/package.json'
+      - 'mobile-app/eas.json'
+
+concurrency:
+  group: release-workflow-validation-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Validate release invariants
+        run: python3 .github/scripts/validate_release_workflows.py

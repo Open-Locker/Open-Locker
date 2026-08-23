@@ -1,6 +1,7 @@
 name: Backend Quality
 
 on:
+  workflow_call:
   pull_request:
     paths:
       - 'docs/asyncapi/**'
