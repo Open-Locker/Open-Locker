@@ -39,6 +39,9 @@ test('apply_config handler returns success with applied_config_hash', async () =
       transaction_id: 'tx-1',
       timestamp: '2026-06-16T12:00:00.000Z',
       data: {
+        adapter_type: 'waveshare_modbus',
+        channel_count: 8,
+        feedback_type: 'door_closing',
         config_hash: configHash,
         heartbeat_interval_seconds: 30,
         compartments,
@@ -79,6 +82,9 @@ test('apply_config handler propagates runtime apply failures', async () => {
           transaction_id: 'tx-2',
           timestamp: '2026-06-16T12:00:00.000Z',
           data: {
+            adapter_type: 'waveshare_modbus',
+            channel_count: 8,
+            feedback_type: 'door_closing',
             config_hash: computeAppliedConfigHash(compartments),
             heartbeat_interval_seconds: 30,
             compartments,

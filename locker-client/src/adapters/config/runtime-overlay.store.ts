@@ -1,6 +1,12 @@
 import fs from 'fs';
 import type { CompartmentConfig } from '../../domain/compartment';
-import type { RuntimeConfigOverlay } from '../../domain/config';
+import type {
+  AdapterType,
+  ChannelCount,
+  FeedbackType,
+  RuntimeConfigOverlay,
+} from '../../domain/config';
+import { SUPPORTED_CHANNEL_COUNTS } from '../../domain/config';
 import { normalizeCompartments } from '../../domain/config-normalization';
 import { RUNTIME_CONFIG_OVERLAY_FILE } from '../../infrastructure/paths';
 import {
@@ -9,14 +15,18 @@ import {
   readPrivateFileSync,
 } from '../../infrastructure/file-persistence';
 
-const MAX_RELAY_ADDRESS = 7;
-
 export function sanitizeRuntimeConfigOverlay(value: unknown): RuntimeConfigOverlay {
   const overlay = value as Record<string, unknown> | null;
   if (overlay === null || typeof overlay !== 'object' || Array.isArray(overlay)) {
     throw new Error('runtime config overlay must be an object');
   }
-  const allowedKeys = new Set(['mqtt', 'compartments', 'appliedConfigHash', 'updatedAt']);
+  const allowedKeys = new Set([
+    'mqtt',
+    'hardwareProfile',
+    'compartments',
+    'appliedConfigHash',
+    'updatedAt',
+  ]);
   const keys = Object.keys(overlay);
   if (keys.length === 0 || keys.some((key) => !allowedKeys.has(key))) {
     throw new Error('runtime config overlay contains unsupported fields');
@@ -51,14 +61,51 @@ export function sanitizeRuntimeConfigOverlay(value: unknown): RuntimeConfigOverl
           !Number.isInteger(entry.slaveId) ||
           entry.slaveId <= 0 ||
           !Number.isInteger(entry.address) ||
-          entry.address < 0 ||
-          entry.address > MAX_RELAY_ADDRESS
+          entry.address < 0
         ) {
           throw new Error('invalid compartment entry in overlay');
         }
         return entry;
       }),
     );
+  }
+
+  if (overlay.hardwareProfile !== undefined) {
+    const profile = overlay.hardwareProfile as Record<string, unknown> | null;
+    if (
+      profile === null ||
+      typeof profile !== 'object' ||
+      Array.isArray(profile) ||
+      Object.keys(profile).some(
+        (key) => !['adapterType', 'channelCount', 'feedbackType'].includes(key),
+      ) ||
+      !['waveshare_modbus', 'rs485_lock_board'].includes(String(profile.adapterType)) ||
+      !SUPPORTED_CHANNEL_COUNTS.includes(
+        Number(profile.channelCount) as (typeof SUPPORTED_CHANNEL_COUNTS)[number],
+      ) ||
+      !['door_closing', 'door_opening'].includes(String(profile.feedbackType))
+    ) {
+      throw new Error('invalid hardware profile in overlay');
+    }
+    sanitized.hardwareProfile = {
+      adapterType: profile.adapterType as AdapterType,
+      channelCount: Number(profile.channelCount) as ChannelCount,
+      feedbackType: profile.feedbackType as FeedbackType,
+    };
+  }
+
+  if (
+    sanitized.compartments &&
+    sanitized.hardwareProfile &&
+    sanitized.compartments.some((entry) => entry.address >= sanitized.hardwareProfile!.channelCount)
+  ) {
+    throw new Error('compartment address exceeds hardware channel count');
+  }
+  if (
+    sanitized.hardwareProfile?.adapterType === 'rs485_lock_board' &&
+    sanitized.compartments?.some((entry) => entry.slaveId > 31)
+  ) {
+    throw new Error('RS485 lock board address exceeds DIP range');
   }
 
   if (overlay.appliedConfigHash !== undefined) {

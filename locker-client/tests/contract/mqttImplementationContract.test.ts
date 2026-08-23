@@ -105,6 +105,9 @@ test('handler-built apply_config success matches AsyncAPI schema', async () => {
       transaction_id: 'txn-config-001',
       timestamp: '2026-04-14T19:31:00Z',
       data: {
+        adapter_type: 'waveshare_modbus',
+        channel_count: 8,
+        feedback_type: 'door_closing',
         config_hash: configHash,
         heartbeat_interval_seconds: 30,
         compartments,

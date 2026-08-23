@@ -426,6 +426,9 @@ test('apply_config replays a completed response without re-running', async () =>
       message_id: 'msg-apply-dup',
       timestamp: '2026-04-11T10:00:00Z',
       data: {
+        adapter_type: 'waveshare_modbus',
+        channel_count: 8,
+        feedback_type: 'door_closing',
         config_hash: configHash,
         heartbeat_interval_seconds: 30,
         compartments,
@@ -666,6 +669,9 @@ test('apply_config response recovers without applying config twice', async () =>
     message_id: 'msg-apply-pending',
     timestamp: '2026-04-11T10:00:00Z',
     data: {
+      adapter_type: 'waveshare_modbus',
+      channel_count: 8,
+      feedback_type: 'door_closing',
       config_hash: configHash,
       heartbeat_interval_seconds: 30,
       compartments,
