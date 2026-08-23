@@ -12,10 +12,7 @@ export class SerialPortTransactionTransport implements Rs485TransactionTransport
   private port: SerialPort | null = null;
   private deferredError: HardwareTransportError | null = null;
   private readonly onPortError = (error: Error): void => {
-    this.deferredError = new HardwareTransportError(
-      `RS485 serial error: ${error.message}`,
-      true,
-    );
+    this.deferredError = new HardwareTransportError(`RS485 serial error: ${error.message}`, true);
   };
 
   constructor(
