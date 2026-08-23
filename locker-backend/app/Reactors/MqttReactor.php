@@ -14,6 +14,7 @@ use App\StorableEvents\LockerConfigApplyRequested;
 use App\StorableEvents\LockerProvisioningFailed;
 use App\StorableEvents\LockerProvisioningReplyFailed;
 use App\StorableEvents\LockerWasProvisioned;
+use App\Support\EventSourcing\StoredEventDispatcher;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -27,6 +28,7 @@ class MqttReactor extends Reactor implements ShouldQueue
         private readonly ApplyConfigCommandPublisher $applyConfigCommandPublisher,
         private readonly ProvisioningReplyPublisher $provisioningReplyPublisher,
         private readonly MqttUserService $mqttUserService,
+        private readonly StoredEventDispatcher $storedEventDispatcher,
     ) {}
 
     /**
@@ -112,7 +114,7 @@ class MqttReactor extends Reactor implements ShouldQueue
             ]);
 
             // Record a failure event so we have a durable audit trail
-            event(new LockerProvisioningReplyFailed(
+            $this->storedEventDispatcher->dispatch(new LockerProvisioningReplyFailed(
                 lockerBankUuid: $event->lockerBankUuid,
                 replyToTopic: $event->replyToTopic,
                 reason: $e->getMessage(),

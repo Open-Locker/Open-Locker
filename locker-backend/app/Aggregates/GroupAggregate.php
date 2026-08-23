@@ -12,13 +12,12 @@ use App\StorableEvents\UserAddedToGroup;
 use App\StorableEvents\UserRemovedFromGroup;
 use Carbon\CarbonInterface;
 use LogicException;
-use Spatie\EventSourcing\AggregateRoots\AggregateRoot;
 
 /**
  * One aggregate per group; the group's UUID is the aggregate UUID (the group is
  * itself the consistency boundary, so no derived UUID is needed).
  */
-class GroupAggregate extends AggregateRoot
+class GroupAggregate extends TransactionalAggregateRoot
 {
     private bool $archived = false;
 

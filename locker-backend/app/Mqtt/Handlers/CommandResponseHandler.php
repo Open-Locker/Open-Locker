@@ -7,6 +7,7 @@ namespace App\Mqtt\Handlers;
 use App\Mqtt\InboundMqttProtocolGuard;
 use App\Services\CommandResponseInboxService;
 use App\StorableEvents\CommandResponseReceived;
+use App\Support\EventSourcing\StoredEventDispatcher;
 use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator as ValidatorFacade;
@@ -16,6 +17,7 @@ class CommandResponseHandler extends AbstractInboundMqttHandler
 {
     public function __construct(
         private readonly CommandResponseInboxService $inbox,
+        private readonly StoredEventDispatcher $storedEventDispatcher,
         InboundMqttProtocolGuard $guard,
     ) {
         parent::__construct($guard);
@@ -110,7 +112,7 @@ class CommandResponseHandler extends AbstractInboundMqttHandler
             $data['applied_config_hash'] = $payload['applied_config_hash'];
         }
 
-        event(new CommandResponseReceived(
+        $this->storedEventDispatcher->dispatch(new CommandResponseReceived(
             lockerBankUuid: $lockerBankUuid,
             transactionId: $transactionId,
             action: $action,

@@ -8,13 +8,12 @@ use App\StorableEvents\UserRoleGranted;
 use App\StorableEvents\UserRoleRevoked;
 use Carbon\CarbonInterface;
 use Ramsey\Uuid\Uuid;
-use Spatie\EventSourcing\AggregateRoots\AggregateRoot;
 
 /**
  * One aggregate per user; owns that user's role assignments.
  * `actorUserId` is null for system-initiated grants (bootstrap / backfill).
  */
-class UserRoleAggregate extends AggregateRoot
+class UserRoleAggregate extends TransactionalAggregateRoot
 {
     /** @var array<string, true> currently-held roles, rebuilt from events */
     private array $roles = [];

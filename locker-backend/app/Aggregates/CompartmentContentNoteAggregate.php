@@ -6,9 +6,8 @@ namespace App\Aggregates;
 
 use App\StorableEvents\CompartmentContentNoteUpdated;
 use Carbon\CarbonInterface;
-use Spatie\EventSourcing\AggregateRoots\AggregateRoot;
 
-class CompartmentContentNoteAggregate extends AggregateRoot
+class CompartmentContentNoteAggregate extends TransactionalAggregateRoot
 {
     public function updateNote(
         int $actorUserId,
