@@ -10,6 +10,13 @@ export interface Rs485TransactionTransport {
 
 export class SerialPortTransactionTransport implements Rs485TransactionTransport {
   private port: SerialPort | null = null;
+  private deferredError: HardwareTransportError | null = null;
+  private readonly onPortError = (error: Error): void => {
+    this.deferredError = new HardwareTransportError(
+      `RS485 serial error: ${error.message}`,
+      true,
+    );
+  };
 
   constructor(
     private readonly path: string,
@@ -29,15 +36,33 @@ export class SerialPortTransactionTransport implements Rs485TransactionTransport
       parity: 'none',
       autoOpen: false,
     });
-    await callbackPromise((done) => port.open(done));
-    this.port = port;
+    this.deferredError = null;
+    port.on('error', this.onPortError);
+    try {
+      await callbackPromise((done) => port.open(done));
+      this.port = port;
+    } catch (error) {
+      port.off('error', this.onPortError);
+      throw new HardwareTransportError(
+        `Could not open RS485 serial port: ${error instanceof Error ? error.message : String(error)}`,
+        true,
+      );
+    }
   }
 
   async close(): Promise<void> {
     const port = this.port;
     this.port = null;
-    if (port?.isOpen) {
-      await callbackPromise((done) => port.close(done));
+    this.deferredError = null;
+    if (!port) {
+      return;
+    }
+    try {
+      if (port.isOpen) {
+        await callbackPromise((done) => port.close(done));
+      }
+    } finally {
+      port.off('error', this.onPortError);
     }
   }
 
@@ -53,6 +78,11 @@ export class SerialPortTransactionTransport implements Rs485TransactionTransport
     const port = this.port;
     if (!port?.isOpen) {
       throw new HardwareTransportError('RS485 port is not open', true);
+    }
+    if (this.deferredError) {
+      const error = this.deferredError;
+      this.deferredError = null;
+      throw error;
     }
 
     return new Promise<Buffer>((resolve, reject) => {

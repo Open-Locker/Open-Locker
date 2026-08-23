@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Filament\Resources\LockerBankResource\RelationManagers;
 
+use App\Enums\LockerAdapterType;
 use App\Enums\Permission;
 use App\Filament\Support\CompartmentDoorStateColumn;
 use App\Filament\Support\OpenCompartmentAction;
@@ -58,8 +59,10 @@ class CompartmentsRelationManager extends RelationManager
                     ->required()
                     ->step(1)
                     ->minValue(1)
-                    ->maxValue(255)
-                    ->helperText(__('Modbus slave ID of the IO board (1-255).')),
+                    ->maxValue(fn (): int => $this->getOwnerRecord()->adapter_type === LockerAdapterType::Rs485LockBoard ? 31 : 255)
+                    ->helperText(fn (): string => $this->getOwnerRecord()->adapter_type === LockerAdapterType::Rs485LockBoard
+                        ? __('RS485 board address set by the DIP switches (1-31).')
+                        : __('Modbus slave ID of the IO board (1-255).')),
 
                 Forms\Components\TextInput::make('address')
                     ->label(__('Address'))
@@ -67,6 +70,7 @@ class CompartmentsRelationManager extends RelationManager
                     ->required()
                     ->step(1)
                     ->minValue(0)
+                    ->maxValue(fn (): int => max(0, (int) $this->getOwnerRecord()->channel_count - 1))
                     ->helperText(__('0-based relay address on the given slave. Used for both coil and input.')),
             ]);
     }

@@ -64,7 +64,7 @@ export class WaveshareModbusBusActor implements LockerBusPort {
 
   async disconnect(): Promise<void> {
     this.reconnect.cancelScheduled();
-    this.queue.clear();
+    await this.queue.onIdle();
     await this.driver.disconnect();
     this.connectionState = 'disconnected';
   }
