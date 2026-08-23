@@ -1,14 +1,12 @@
 # Beta Release Checklist
 
 Open Locker has **no production deployment yet**. This beta is a controlled
-pre-production pilot with named testers, selected Raspberry Pis, and an explicit
-stop/rollback decision. It is not approval for an unrestricted production
-rollout.
+pre-production pilot with named testers and selected Raspberry Pis. It is not
+approval for an unrestricted production rollout.
 
-Use this checklist with the
-[beta rollback runbook](releases/beta-rollback.md). The operational rollout is
-tracked in [issue #209](https://github.com/Open-Locker/Open-Locker/issues/209);
-component tags follow [ADR-0043](adr/0043-monorepo-release-strategy.md).
+The operational rollout is tracked in
+[issue #209](https://github.com/Open-Locker/Open-Locker/issues/209); component
+tags follow [ADR-0043](adr/0043-monorepo-release-strategy.md).
 
 ## Release record
 
@@ -18,31 +16,27 @@ component tags follow [ADR-0043](adr/0043-monorepo-release-strategy.md).
 - [ ] Mobile operator:
 - [ ] Pilot site and tester group:
 - [ ] Planned start, decision time, and monitoring window:
-- [ ] Previous tags: `backend-v________`, `client-v________`,
-      `mobile-v________`
 - [ ] Candidate tags: `backend-v________`, `client-v________`,
       `mobile-v________`
+- [ ] Immutable candidate/baseline commits and image digests:
 - [ ] Database backup identifier and timestamp:
-- [ ] Pi configuration and `/data` backup location:
 
 ## 1. Hard gates
 
-Do not synchronize `dev` to `main`, create release tags, submit store builds, or
-re-provision a locker until every hard gate is closed and verified.
+Do not create release tags or submit store builds until every hard gate is
+closed and verified.
 
 - [ ] #50 — per-component release workflows and notes are operational with
       `backend-v*`, `client-v*`, and `mobile-v*`.
-- [ ] #134 — stale `open_compartment` commands have an accepted and tested age
-      policy; delayed commands cannot unexpectedly open a door.
-- [ ] #163 — MQTTS is verified end to end through the selected production
-      Traefik adapter, and plaintext port 1883 is confirmed unreachable from
-      outside the Docker network.
-- [ ] #169 — the Raspberry Pi soak test has completed for the agreed duration
-      with recorded logs, resource use, reconnect behavior, and hardware result.
 - [ ] #209 — the beta scope and release-readiness issue is closed or has explicit
       release-owner acceptance with no unresolved blocker.
 - [ ] #67 — complete the Beta task and record its outcome. It is required Beta
       work even though it is tracked separately from the hard-gate list above.
+
+The real deployment checks require the versioned images produced by this
+release. External MQTTS acceptance (#233) and the Raspberry Pi/Modbus soak
+(#169), together with the stale-command policy (#134), are therefore Beta 2
+work and do not block the first Beta artifacts.
 
 ## 2. Candidate and branch preparation
 
@@ -72,7 +66,7 @@ re-provision a locker until every hard gate is closed and verified.
       mint a SemVer release.
 - [ ] Create each required component tag using the approved release process.
 - [ ] Verify each generated release contains component-scoped notes, contract
-      changes, migration instructions, known risks, and rollback tags.
+      changes, migration instructions, and known risks.
 - [ ] Backend image exists under the immutable version tag and reports that
       version from `GET /api/identify`.
 - [ ] Client multi-architecture image exists under the immutable version tag,
@@ -82,19 +76,19 @@ re-provision a locker until every hard gate is closed and verified.
 - [ ] Record immutable tags and image digests. Do not deploy `latest` to the beta
       pilot.
 
-## 4. Backups and rollback readiness
+## 4. Abort and recovery
 
-- [ ] Take a database backup immediately before rollout; record its timestamp,
-      size, storage location, and readability/restore verification.
-- [ ] Review migrations for old-backend/new-schema compatibility.
-- [ ] State whether backend code rollback is safe without schema rollback.
-- [ ] If restore might be required, state the maximum accepted data-loss window
-      and who may authorize it. Restore remains the last resort.
-- [ ] Back up Pi `config/` and `/data` without changing permissions or deleting
-      client identity, credentials, runtime overlay, or dedup state.
-- [ ] Confirm previous immutable component tags remain pullable/installable.
-- [ ] Review and assign every step in the
-      [beta rollback runbook](releases/beta-rollback.md).
+There is no previous official version to restore for this first beta pilot.
+
+- [ ] Document the immutable candidate and baseline before rollout.
+- [ ] Take and verify a database backup immediately before migrations.
+- [ ] If the pilot must stop, pause store distribution and further deployments.
+- [ ] Preserve each Pi's `config/` and `/data`, including identity, credentials,
+      runtime overlay, and deduplication state.
+- [ ] Prefer a forward fix from the documented candidate.
+- [ ] Restore the pre-migration database backup only when necessary and only
+      after the release owner accepts and records the resulting data-loss
+      window.
 
 ## 5. MQTT credential rollout (PR #227)
 
@@ -116,7 +110,21 @@ bank is deliberately re-provisioned.
       the revoked identity.
 - [ ] Do not delete or reuse revoked identity rows.
 
-## 6. Modbus acceptance (PR #228)
+## 6. Beta 2 field acceptance
+
+Run this section after the versioned Beta images exist. It validates the release
+in a controlled deployment and does not block creating those artifacts.
+
+### MQTTS acceptance (#233)
+
+- [ ] Deploy the versioned backend and client images with the accepted TLS
+      configuration.
+- [ ] Verify trusted DNS/SNI and certificate handling on port 8883.
+- [ ] Confirm plaintext MQTT is not externally reachable.
+- [ ] Verify authentication, ACL denial, and the complete locker flow through
+      the deployed endpoint.
+
+### Raspberry Pi and Modbus acceptance (#169, PR #228)
 
 - [ ] Record the exact Pi, USB/serial adapter, Waveshare board, port, and client
       tag used for acceptance.
@@ -134,7 +142,7 @@ bank is deliberately re-provisioned.
       Waveshare hardware-flash pulse limits, and one supervised open cycle.
 - [ ] Attach this evidence to the #169 Pi soak result.
 
-## 7. Pre-production deployment and smoke tests
+## 7. Beta 2 deployment smoke tests
 
 - [ ] Deploy the pinned backend tag, run migrations, and restart long-running
       services and queue workers.
@@ -175,25 +183,19 @@ bank is deliberately re-provisioned.
 - [ ] Release notes state that this is a controlled pre-production beta and that
       no production deployment currently exists.
 - [ ] Notes list all component tags/digests, schema and contract changes,
-      PR #227 credential ordering, PR #228 Modbus acceptance evidence, known
-      issues, upgrade steps, and rollback targets.
-- [ ] The release owner reviews hard gates, soak evidence, backups, artifact
-      evidence, and smoke-test results.
-- [ ] Record one decision: **continue**, **pause**, or **roll back**, with owner,
+      PR #227 credential ordering, known issues, upgrade steps, and the immutable
+      candidate/baseline. Add PR #228 field evidence after Beta 2 validation.
+- [ ] The release owner reviews hard gates, backups, artifact evidence, and
+      release-workflow results.
+- [ ] Record one decision: **continue**, **pause**, or **abort**, with owner,
       time, rationale, and affected versions.
 
-## 10. Post-release monitoring
+## 10. Pilot observation
 
-- [ ] Monitor API errors and latency, queue failures/depth, MQTT auth/ACL denials,
-      reconnects, duplicate commands, Reverb delivery, and database health.
-- [ ] Monitor Pi CPU, memory, disk, container restarts, MQTT stability, Modbus
-      reconnect cycles, heartbeat freshness, and relay/door anomalies.
-- [ ] Monitor mobile crashes, sign-in failures, open-flow failures, and tester
-      feedback on both platforms.
-- [ ] Check at the agreed early interval, after 24 hours, and at the end of the
-      pilot observation window.
+- [ ] Observe the core open/status flow, Pi and MQTT connectivity, hardware
+      anomalies, mobile failures, and named-tester feedback during the agreed
+      pilot window.
 - [ ] Stop expansion immediately for a security boundary failure, data
       corruption, unexpected door actuation, repeated stuck relay, credential
       cross-access, or loss of the core open/status flow.
-- [ ] Close the pilot only after monitoring evidence and follow-up actions are
-      recorded; otherwise keep it paused or execute the rollback runbook.
+- [ ] Record the pilot outcome and any required forward fix.
