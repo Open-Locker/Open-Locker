@@ -7,6 +7,20 @@ import type {
 } from '../../ports/mqtt.port';
 import { logger } from '../../infrastructure/logging';
 
+export function withVerifiedMqttTls(
+  brokerUrl: string,
+  options: Record<string, unknown>,
+): Record<string, unknown> {
+  if (!brokerUrl.toLowerCase().startsWith('mqtts://')) {
+    return options;
+  }
+
+  return {
+    ...options,
+    rejectUnauthorized: true,
+  };
+}
+
 export class MqttTransportAdapter implements MessageTransportPort {
   private client: MqttClient | null = null;
   private connectionState: MqttConnectionState = 'disconnected';
@@ -114,13 +128,13 @@ export class MqttTransportAdapter implements MessageTransportPort {
     this.connectionState = 'connecting';
 
     return new Promise((resolve, reject) => {
-      const clientOptions = {
+      const clientOptions = withVerifiedMqttTls(brokerUrl, {
         keepalive: this.transport.keepalive,
         clean: this.transport.clean,
         reconnectPeriod: this.transport.reconnectPeriod,
         connectTimeout: this.transport.connectTimeout,
         ...options,
-      };
+      });
 
       this.client = mqtt.connect(brokerUrl, clientOptions);
       let initialConnectSettled = false;

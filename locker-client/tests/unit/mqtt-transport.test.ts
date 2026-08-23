@@ -1,6 +1,26 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { MqttTransportAdapter } from '../../src/adapters/mqtt/mqtt-transport.adapter';
+import {
+  MqttTransportAdapter,
+  withVerifiedMqttTls,
+} from '../../src/adapters/mqtt/mqtt-transport.adapter';
+
+test('MQTTS always verifies the certificate and hostname', () => {
+  assert.deepEqual(
+    withVerifiedMqttTls('mqtts://mqtt.example.com:8883', {
+      rejectUnauthorized: false,
+    }),
+    {
+      rejectUnauthorized: true,
+    },
+  );
+});
+
+test('local plaintext MQTT keeps its connection options', () => {
+  const options = { clientId: 'local-client' };
+
+  assert.strictEqual(withVerifiedMqttTls('mqtt://localhost:1883', options), options);
+});
 
 test('MqttTransportAdapter defaults to unlimited reconnect', () => {
   const transport = new MqttTransportAdapter({

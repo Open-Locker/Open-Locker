@@ -34,6 +34,7 @@ import { logger, setLogTraceContextProvider, shipLogsTo } from '../infrastructur
 import { createWinstonLoggerPort } from '../infrastructure/winston-logger.adapter';
 import { DATA_DIR, MQTT_CLIENT_ID_FILE } from '../infrastructure/paths';
 import { ensurePrivateDirectory } from '../infrastructure/file-persistence';
+import { assertSecureProductionMqttUrl } from '../infrastructure/mqtt-url-policy';
 
 /**
  * How long any single shutdown step may take before the sequence moves on.
@@ -47,6 +48,9 @@ export interface AppContext {
 }
 
 export async function createApp(): Promise<AppContext> {
+  const brokerUrl = process.env.MQTT_BROKER_URL?.trim() || DEFAULT_MQTT_BROKER_URL;
+  assertSecureProductionMqttUrl(brokerUrl);
+
   ensurePrivateDirectory(DATA_DIR);
   const configRepo = new YamlConfigRepository(new FileRuntimeOverlayStore());
   const config = configRepo.load();
@@ -56,7 +60,6 @@ export async function createApp(): Promise<AppContext> {
   const transport = new MqttTransportAdapter(configRepo.getMqttTransportSettings());
 
   const clientId = getOrCreateClientId(MQTT_CLIENT_ID_FILE);
-  const brokerUrl = process.env.MQTT_BROKER_URL?.trim() || DEFAULT_MQTT_BROKER_URL;
 
   if (!credentialStore.isProvisioned()) {
     const token = process.env.PROVISIONING_TOKEN?.trim();

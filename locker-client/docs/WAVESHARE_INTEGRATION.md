@@ -113,7 +113,7 @@ Command execution is deduplicated by:
 Example `.env`:
 
 ```env
-MQTT_BROKER_URL=mqtt://open-locker.cloud
+MQTT_BROKER_URL=mqtts://mqtt.example.com:8883
 MQTT_DEFAULT_USERNAME=provisioning_client
 MQTT_DEFAULT_PASSWORD=a_public_password
 LOG_LEVEL=info

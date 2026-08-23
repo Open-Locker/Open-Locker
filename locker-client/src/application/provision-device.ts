@@ -11,7 +11,7 @@ import {
   readPrivateFileSync,
 } from '../infrastructure/file-persistence';
 
-export const DEFAULT_MQTT_BROKER_URL = 'mqtt://open-locker.cloud';
+export const DEFAULT_MQTT_BROKER_URL = 'mqtts://open-locker.cloud:8883';
 
 export function getOrCreateClientId(clientIdFilePath: string): string {
   const configuredClientId = process.env.MQTT_CLIENT_ID?.trim();

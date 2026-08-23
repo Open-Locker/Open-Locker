@@ -1,0 +1,7 @@
+# TEMPORARY MQTT TLS MIGRATION ONLY.
+# Do not include this overlay in a normal production deployment. Remove it as
+# soon as every locker client uses MQTTS and verify port 1883 is unreachable.
+services:
+  mqtt:
+    ports:
+      - "${MQTT_MIGRATION_BIND_ADDRESS:?Set only during the scheduled migration}:1883:1883"
