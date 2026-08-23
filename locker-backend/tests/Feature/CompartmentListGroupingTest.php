@@ -10,6 +10,7 @@ use App\Models\LockerBank;
 use App\Models\User;
 use Filament\Tables\Table;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\HtmlString;
 use Livewire\Livewire;
 use Tests\TestCase;
 
@@ -37,6 +38,13 @@ class CompartmentListGroupingTest extends TestCase
         $admin->makeAdmin();
 
         return $admin;
+    }
+
+    private function visibleGroupTitle(mixed $title): string
+    {
+        $withoutHiddenId = preg_replace('/<span hidden>.*?<\/span>/', '', (string) $title) ?? (string) $title;
+
+        return trim(strip_tags($withoutHiddenId));
     }
 
     public function test_the_list_is_grouped_by_locker_bank_by_default(): void
@@ -112,11 +120,14 @@ class CompartmentListGroupingTest extends TestCase
         $this->assertSame((string) $firstBank->id, $group->getStringKey($firstCompartment));
         $this->assertSame((string) $secondBank->id, $group->getStringKey($secondCompartment));
         $this->assertNotSame($group->getStringKey($firstCompartment), $group->getStringKey($secondCompartment));
-        $this->assertSame('Main office — North wing · '.$firstBank->id, $group->getTitle($firstCompartment));
-        $this->assertSame('Main office — South wing · '.$secondBank->id, $group->getTitle($secondCompartment));
+        $this->assertSame('Main office', $this->visibleGroupTitle($group->getTitle($firstCompartment)));
+        $this->assertSame('Main office', $this->visibleGroupTitle($group->getTitle($secondCompartment)));
+        $this->assertNotSame((string) $group->getTitle($firstCompartment), (string) $group->getTitle($secondCompartment));
+        $this->assertSame('North wing', $group->getDescription($firstCompartment, $group->getTitle($firstCompartment)));
+        $this->assertSame('South wing', $group->getDescription($secondCompartment, $group->getTitle($secondCompartment)));
     }
 
-    public function test_same_named_banks_with_the_same_location_still_get_distinct_titles(): void
+    public function test_same_named_banks_with_the_same_location_keep_distinct_titles(): void
     {
         $admin = $this->admin();
 
@@ -134,9 +145,10 @@ class CompartmentListGroupingTest extends TestCase
         $group = $this->tableFor($admin)->getDefaultGroup();
 
         $this->assertNotNull($group);
-        $this->assertSame('Main office — North wing · '.$firstBank->id, $group->getTitle($firstCompartment));
-        $this->assertSame('Main office — North wing · '.$secondBank->id, $group->getTitle($secondCompartment));
-        $this->assertNotSame($group->getTitle($firstCompartment), $group->getTitle($secondCompartment));
+        $this->assertInstanceOf(HtmlString::class, $group->getTitle($firstCompartment));
+        $this->assertSame('North wing', $group->getDescription($firstCompartment, $group->getTitle($firstCompartment)));
+        $this->assertSame('North wing', $group->getDescription($secondCompartment, $group->getTitle($secondCompartment)));
+        $this->assertNotSame((string) $group->getTitle($firstCompartment), (string) $group->getTitle($secondCompartment));
     }
 
     public function test_same_named_banks_without_a_location_still_get_distinct_titles(): void
@@ -153,7 +165,14 @@ class CompartmentListGroupingTest extends TestCase
         $group = $this->tableFor($admin)->getDefaultGroup();
 
         $this->assertNotNull($group);
-        $this->assertSame('Main office · '.$firstBank->id, $group->getTitle($firstCompartment->unsetRelation('lockerBank')));
-        $this->assertSame('Main office · '.$secondBank->id, $group->getTitle($secondCompartment->unsetRelation('lockerBank')));
+        $this->assertSame('Main office', $this->visibleGroupTitle($group->getTitle($firstCompartment->unsetRelation('lockerBank'))));
+        $this->assertSame('Main office', $this->visibleGroupTitle($group->getTitle($secondCompartment->unsetRelation('lockerBank'))));
+        $this->assertNull($group->getDescription($firstCompartment, $group->getTitle($firstCompartment)));
+        $this->assertNotSame((string) $group->getTitle($firstCompartment), (string) $group->getTitle($secondCompartment));
+    }
+
+    public function test_the_actions_column_has_a_header_label(): void
+    {
+        $this->assertSame(__('Actions'), $this->tableFor($this->admin())->getRecordActionsColumnLabel());
     }
 }

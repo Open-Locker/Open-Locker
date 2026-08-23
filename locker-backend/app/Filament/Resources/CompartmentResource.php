@@ -22,6 +22,7 @@ use Filament\Tables\Grouping\Group;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\HtmlString;
 
 class CompartmentResource extends Resource
 {
@@ -118,15 +119,19 @@ class CompartmentResource extends Resource
             ->groups([
                 Group::make('locker_bank_id')
                     ->label(__('Locker bank'))
-                    // Filament and the accordion script key groups by title, so
-                    // the title must stay unique even when name and location match.
-                    ->getTitleFromRecordUsing(function (Compartment $record): string {
-                        $bank = $record->lockerBank;
-                        $name = $bank?->name ?: __('Locker bank');
-                        $location = $bank?->location_description;
-                        $label = filled($location) ? "{$name} — {$location}" : $name;
+                    // Visible title is the bank name. Location is the subtitle.
+                    // A hidden id keeps Filament/accordion titles unique.
+                    ->getTitleFromRecordUsing(function (Compartment $record): HtmlString {
+                        $name = $record->lockerBank?->name ?: __('Locker bank');
 
-                        return $label.' · '.$record->locker_bank_id;
+                        return new HtmlString(
+                            e($name).'<span hidden>'.e((string) $record->locker_bank_id).'</span>'
+                        );
+                    })
+                    ->getDescriptionFromRecordUsing(function (Compartment $record): ?string {
+                        $location = $record->lockerBank?->location_description;
+
+                        return filled($location) ? $location : null;
                     })
                     ->orderQueryUsing(function (Builder $query, string $direction): Builder {
                         return $query
@@ -172,6 +177,7 @@ class CompartmentResource extends Resource
             ])
             // No search or filters: the collapsed bank groups are the only navigation
             // this list needs, and a locker-bank filter would just duplicate them (#167).
+            ->recordActionsColumnLabel(__('Actions'))
             ->actions([
                 Action::make('access')
                     ->label(__('Access'))
