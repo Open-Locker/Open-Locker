@@ -40,9 +40,9 @@ jobs:
       run:
         working-directory: mobile-app
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v6
         with:
           version: 9
 
@@ -52,7 +52,7 @@ jobs:
           cache: pnpm
           cache-dependency-path: mobile-app/pnpm-lock.yaml
 
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: '17'
@@ -64,7 +64,7 @@ jobs:
       # Native dependency changes must not reuse stale outputs, so the key
       # carries the lockfile and both Expo/EAS config files.
       - name: Cache Gradle
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: |
             ~/.gradle/caches
@@ -85,7 +85,7 @@ jobs:
             --profile production --platform android \
             --output ./build/openlocker-android.apk
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         with:
           name: openlocker-android
           path: mobile-app/build/openlocker-android.apk
@@ -98,9 +98,9 @@ jobs:
       run:
         working-directory: mobile-app
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v6
         with:
           version: 9
 
@@ -122,7 +122,7 @@ jobs:
             --profile production --platform ios \
             --output ./build/openlocker-ios.ipa
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         with:
           name: openlocker-ios
           path: mobile-app/build/openlocker-ios.ipa
