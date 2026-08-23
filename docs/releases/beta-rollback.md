@@ -2,8 +2,8 @@
 
 This runbook applies to the controlled pre-production beta pilot. Open Locker
 does not currently have a production deployment. The policy behind this runbook
-is proposed in
-[ADR-0052](../adr/0052-controlled-beta-release-and-rollback.md).
+is tracked in
+[issue #209](https://github.com/Open-Locker/Open-Locker/issues/209).
 
 ## Before rollout
 

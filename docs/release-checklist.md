@@ -6,10 +6,9 @@ stop/rollback decision. It is not approval for an unrestricted production
 rollout.
 
 Use this checklist with the
-[beta rollback runbook](releases/beta-rollback.md). The operational decision is
-recorded in
-[ADR-0052](adr/0052-controlled-beta-release-and-rollback.md); component tags
-follow [ADR-0043](adr/0043-monorepo-release-strategy.md).
+[beta rollback runbook](releases/beta-rollback.md). The operational rollout is
+tracked in [issue #209](https://github.com/Open-Locker/Open-Locker/issues/209);
+component tags follow [ADR-0043](adr/0043-monorepo-release-strategy.md).
 
 ## Release record
 

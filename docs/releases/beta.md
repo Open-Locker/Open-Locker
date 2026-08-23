@@ -412,7 +412,7 @@ not feature inventory alone.
 - Monorepo release strategy — `#50` (ADR-0043)
 - [Beta release checklist](../release-checklist.md)
 - [Beta rollback runbook](beta-rollback.md)
-- [ADR-0052: Controlled beta release and rollback](../adr/0052-controlled-beta-release-and-rollback.md)
+- [Controlled beta rollout tracking — issue #209](https://github.com/Open-Locker/Open-Locker/issues/209)
 - ADR-0032 — mobile internal test builds
 - ADR-0036 — website in the monorepo
 - Milestones: *Milestone 1 – Hardware MVP*, *Milestone 2 – Internal MVP*,

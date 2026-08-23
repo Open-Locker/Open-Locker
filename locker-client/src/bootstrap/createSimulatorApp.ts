@@ -29,7 +29,7 @@ import {
   HeartbeatUseCase,
   PollCompartmentStateUseCase,
 } from '../application/state-publishing';
-import { DEFAULT_MQTT_BROKER_URL, provisionDevice } from '../application/provision-device';
+import { provisionDevice } from '../application/provision-device';
 import type { DoorState } from '../domain/compartment';
 import { createTracing } from '../adapters/tracing/create-tracing';
 import { logger, setLogTraceContextProvider, shipLogsTo } from '../infrastructure/logging';
@@ -71,6 +71,7 @@ export interface SimulatorContext {
 
 /** The contract's door states; anything else is rejected by the backend. */
 const DOOR_STATES: DoorState[] = ['open', 'closed', 'unknown'];
+export const DEFAULT_SIMULATOR_MQTT_BROKER_URL = 'mqtt://localhost:1883';
 
 export type PublishFn = (
   topic: string,
@@ -338,7 +339,9 @@ export async function createSimulatorApp(
   options: CreateSimulatorOptions,
 ): Promise<SimulatorContext> {
   const brokerUrl =
-    options.brokerUrl?.trim() || options.scenario.broker_url?.trim() || DEFAULT_MQTT_BROKER_URL;
+    options.brokerUrl?.trim() ||
+    options.scenario.broker_url?.trim() ||
+    DEFAULT_SIMULATOR_MQTT_BROKER_URL;
   const credentialCache = options.credentialCache ?? new EphemeralCredentialCache();
   const logTraffic = options.logTraffic ?? true;
 
