@@ -62,6 +62,11 @@ The locker client selects an adapter from `adapter_type`:
 The adapter converts that electrical/protocol signal into the common
 `open|closed|unknown` door-state model before publishing MQTT snapshots.
 
+The client serializes inbound commands and adapter lifecycle changes so an
+`apply_config` cannot switch protocol or remap a target during an unlock.
+Background door detection stops without publishing an outcome if that target is
+remapped after the command acknowledgement.
+
 `config_hash` is SHA-256 over a compact UTF-8 JSON object containing exactly
 `adapter_type`, `channel_count`, `feedback_type`, and `compartments`, in that key
 order. Compartments are sorted ascending by `compartment_number`; each object

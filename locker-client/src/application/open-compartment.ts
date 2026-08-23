@@ -58,8 +58,8 @@ export class OpenCompartmentUseCase {
   }
 
   async execute(compartmentNumber: number, transactionId: string): Promise<void> {
-    const { target, doorStateBefore, unlockFeedback } = await this.bus.runExclusive(
-      async (exclusiveBus) => {
+    const { target, targetConfigKey, doorStateBefore, unlockFeedback } =
+      await this.bus.runExclusive(async (exclusiveBus) => {
         const target = this.resolveTarget(compartmentNumber);
         const connected = await exclusiveBus.ensureConnected();
         if (!connected) {
@@ -75,11 +75,15 @@ export class OpenCompartmentUseCase {
         // indistinguishable from one the pulse opened.
         const doorStateBefore = await this.readDoorState(target, exclusiveBus);
         const unlockFeedback = await exclusiveBus.flashRelay(target, durationMs);
-        return { target, doorStateBefore, unlockFeedback };
-      },
-    );
+        return {
+          target,
+          targetConfigKey: this.targetConfigKey(target),
+          doorStateBefore,
+          unlockFeedback,
+        };
+      });
     this.relayFireLog.recordFire(compartmentNumber, this.now());
-    this.startRelayMonitoring(target);
+    this.startRelayMonitoring(target, targetConfigKey);
 
     if (doorStateBefore === 'open') {
       await this.reportOutcome({
@@ -112,7 +116,7 @@ export class OpenCompartmentUseCase {
       return;
     }
 
-    this.startDoorDetection(target, transactionId);
+    this.startDoorDetection(target, transactionId, targetConfigKey);
   }
 
   stopAllMonitoring(): void {
@@ -129,7 +133,11 @@ export class OpenCompartmentUseCase {
     return Math.max(1, this.config.getHeartbeatIntervalSeconds()) * 1000;
   }
 
-  private startDoorDetection(target: CompartmentTarget, transactionId: string): void {
+  private startDoorDetection(
+    target: CompartmentTarget,
+    transactionId: string,
+    targetConfigKey: string,
+  ): void {
     const compartmentNumber = target.compartmentNumber;
     const timeoutMs = this.detectionTimeoutMs();
     const startedAt = this.now();
@@ -137,6 +145,14 @@ export class OpenCompartmentUseCase {
     this.relayFireLog.beginDetection(compartmentNumber);
 
     const tick = async (): Promise<void> => {
+      if (this.targetConfigKey(target) !== targetConfigKey) {
+        this.relayFireLog.endDetection(compartmentNumber);
+        this.log.warn('Door detection stopped because the compartment mapping changed', {
+          compartmentNumber,
+        });
+        return;
+      }
+
       const doorState = await this.readDoorState(target);
       const elapsedMs = this.now() - startedAt;
 
@@ -228,7 +244,7 @@ export class OpenCompartmentUseCase {
     };
   }
 
-  private startRelayMonitoring(target: CompartmentTarget): void {
+  private startRelayMonitoring(target: CompartmentTarget, targetConfigKey: string): void {
     if (this.monitoringKeys.has(target.compartmentNumber)) {
       return;
     }
@@ -236,6 +252,11 @@ export class OpenCompartmentUseCase {
     this.monitoringKeys.add(target.compartmentNumber);
 
     const tick = async (): Promise<void> => {
+      if (this.targetConfigKey(target) !== targetConfigKey) {
+        this.monitoringKeys.delete(target.compartmentNumber);
+        return;
+      }
+
       try {
         const relayOn = await this.bus.readRelayState(target);
         if (!relayOn) {
@@ -251,6 +272,18 @@ export class OpenCompartmentUseCase {
     };
 
     void tick();
+  }
+
+  private targetConfigKey(target: CompartmentTarget): string {
+    const effective = this.config.load();
+    const mapping =
+      effective.compartments?.find(
+        (entry) => entry.compartment_number === target.compartmentNumber,
+      ) ?? null;
+    return JSON.stringify({
+      hardwareProfile: effective.hardwareProfile ?? null,
+      mapping,
+    });
   }
 }
 

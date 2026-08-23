@@ -151,6 +151,26 @@ test('reports door_jammed when the door never opens within the window', async ()
   });
 });
 
+test('stops door detection when apply_config remaps the compartment', async () => {
+  let compartments = ONE_COMPARTMENT;
+  const baseConfig = createTestConfigRepository({ compartments });
+  const config: ConfigRepositoryPort = {
+    ...baseConfig,
+    load: () => ({
+      ...baseConfig.load(),
+      compartments,
+    }),
+  };
+  const { doorEvents, relayFireLog, scheduler, useCase } = build({ config });
+
+  await useCase.execute(1, 'txn-remapped');
+  compartments = [{ compartment_number: 1, slaveId: 2, address: 1 }];
+  await (scheduler as ManualScheduler).drain(5);
+
+  assert.deepEqual(doorEvents.detections, []);
+  assert.equal(relayFireLog.isDetecting(1), false);
+});
+
 test('reports already_open without waiting when the door was open before the pulse', async () => {
   const bus = new FakeLockerBus([1]);
   bus.setDoorState(TARGET, 'open');

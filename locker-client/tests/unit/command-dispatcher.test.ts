@@ -123,6 +123,47 @@ test('dispatcher executes valid open_compartment once', async () => {
   assert.equal(commandResponses(published)[0]?.result, 'success');
 });
 
+test('dispatcher serializes hardware and configuration commands', async () => {
+  const bus = new FakeLockerBus([1]);
+  let flashCount = 0;
+  let notifyFirstFlash!: () => void;
+  const firstFlashStarted = new Promise<void>((resolve) => {
+    notifyFirstFlash = resolve;
+  });
+  let releaseFirstFlash!: () => void;
+  const firstFlashGate = new Promise<void>((resolve) => {
+    releaseFirstFlash = resolve;
+  });
+  bus.flashRelay = async () => {
+    flashCount++;
+    if (flashCount === 1) {
+      notifyFirstFlash();
+      await firstFlashGate;
+    }
+    return 'pulse_sent';
+  };
+  const { dispatcher, openCompartment } = createDispatcherHarness(bus);
+  const command = (suffix: string) =>
+    JSON.stringify({
+      action: 'open_compartment',
+      transaction_id: `txn-serial-${suffix}`,
+      message_id: `msg-serial-${suffix}`,
+      timestamp: '2026-08-23T12:00:00Z',
+      data: { compartment_number: 1 },
+    });
+
+  const first = dispatcher.dispatch('locker/test/command', command('first'));
+  await firstFlashStarted;
+  const second = dispatcher.dispatch('locker/test/command', command('second'));
+  await Promise.resolve();
+  assert.equal(flashCount, 1);
+
+  releaseFirstFlash();
+  await Promise.all([first, second]);
+  openCompartment.stopAllMonitoring();
+  assert.equal(flashCount, 2);
+});
+
 test('dispatcher ignores duplicate message_id before side effects', async () => {
   const { bus, dispatcher, openCompartment, published } = createDispatcherHarness();
 
