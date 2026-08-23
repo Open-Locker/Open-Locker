@@ -204,5 +204,7 @@ class CompartmentListGroupingTest extends TestCase
         $this->assertStringContainsString('fi-color-success', (string) $group->getTitle($onlineCompartment));
         $this->assertStringContainsString(__('offline'), (string) $group->getTitle($offlineCompartment));
         $this->assertStringContainsString('fi-color-danger', (string) $group->getTitle($offlineCompartment));
+        $this->assertStringNotContainsString('"', (string) $group->getTitle($onlineCompartment));
+        $this->assertStringNotContainsString('"', (string) $group->getTitle($offlineCompartment));
     }
 }

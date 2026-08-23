@@ -24,12 +24,15 @@ final class LockerBankGroupHeading
             default => 'gray',
         };
 
+        // Filament puts the title into aria-label="..." without escaping
+        // Htmlable values. Double quotes would close that attribute and dump
+        // the collapse button markup onto the page.
         return new HtmlString(
-            '<span class="inline-flex items-center gap-2">'
+            '<span class=\'inline-flex items-center gap-2\'>'
             .'<span data-group-name>'.e($name).'</span>'
             .'<span hidden>'.e((string) $record->locker_bank_id).'</span>'
-            .'<span class="fi-badge fi-size-sm fi-color fi-color-'.$color.'">'
-            .'<span class="fi-badge-label-ctn"><span class="fi-badge-label">'.e(__($status)).'</span></span>'
+            .'<span class=\'fi-badge fi-size-sm fi-color fi-color-'.$color.'\'>'
+            .'<span class=\'fi-badge-label-ctn\'><span class=\'fi-badge-label\'>'.e(__($status)).'</span></span>'
             .'</span>'
             .'</span>'
         );
