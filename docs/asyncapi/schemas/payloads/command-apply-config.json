@@ -89,6 +89,27 @@
               }
             }
           },
+          "allOf": [
+            {
+              "if": {
+                "properties": {
+                  "adapter_type": {
+                    "const": "waveshare_modbus"
+                  }
+                },
+                "required": [
+                  "adapter_type"
+                ]
+              },
+              "then": {
+                "properties": {
+                  "channel_count": {
+                    "const": 8
+                  }
+                }
+              }
+            }
+          ],
           "additionalProperties": true
         }
       }

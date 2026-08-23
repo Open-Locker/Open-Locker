@@ -77,6 +77,13 @@ export class ApplyConfigUseCase {
     channelCount: number,
     adapterType: ApplyConfigCommand['data']['adapter_type'],
   ): void {
+    if (adapterType === 'waveshare_modbus' && channelCount !== 8) {
+      throw new LockerError(
+        MqttErrorCode.INVALID_CONFIG,
+        'the supported Waveshare board has exactly 8 channels',
+      );
+    }
+
     const seenNumbers = new Set<number>();
     const seenTargets = new Set<string>();
 

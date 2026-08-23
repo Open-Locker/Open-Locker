@@ -79,6 +79,22 @@ test('runtime overlay rejects unsupported variants and out-of-range channels', (
   assert.throws(() => new FileRuntimeOverlayStore(file).load(), PersistentStateCorruptedError);
 });
 
+test('runtime overlay rejects non-eight-channel Waveshare profiles', (t) => {
+  const file = createOverlayFile(t);
+  fs.writeFileSync(
+    file,
+    JSON.stringify({
+      hardwareProfile: {
+        adapterType: 'waveshare_modbus',
+        channelCount: 12,
+        feedbackType: 'door_closing',
+      },
+    }),
+  );
+
+  assert.throws(() => new FileRuntimeOverlayStore(file).load(), PersistentStateCorruptedError);
+});
+
 function createOverlayFile(t: TestContext): string {
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'open-locker-overlay-'));
   t.after(() => fs.rmSync(directory, { recursive: true, force: true }));

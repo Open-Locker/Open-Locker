@@ -92,6 +92,12 @@ export function sanitizeRuntimeConfigOverlay(value: unknown): RuntimeConfigOverl
       channelCount: Number(profile.channelCount) as ChannelCount,
       feedbackType: profile.feedbackType as FeedbackType,
     };
+    if (
+      sanitized.hardwareProfile.adapterType === 'waveshare_modbus' &&
+      sanitized.hardwareProfile.channelCount !== 8
+    ) {
+      throw new Error('the supported Waveshare hardware profile must have 8 channels');
+    }
   }
 
   if (

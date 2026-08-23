@@ -60,6 +60,10 @@ class LockerService
             throw new \RuntimeException('Config is invalid: channel_count must be one of 8, 12, 18, 24, 36, or 50.');
         }
 
+        if ($lockerBank->adapter_type === LockerAdapterType::WaveshareModbus && $channelCount !== 8) {
+            throw new \RuntimeException('Config is invalid: the supported Waveshare board has exactly 8 channels.');
+        }
+
         $outOfRange = $lockerBank->compartments()
             ->where('address', '>=', $channelCount)
             ->count();
@@ -70,7 +74,12 @@ class LockerService
 
         if (
             $lockerBank->adapter_type === LockerAdapterType::Rs485LockBoard
-            && $lockerBank->compartments()->where('slave_id', '>', 31)->exists()
+            && $lockerBank->compartments()
+                ->where(function ($query): void {
+                    $query->where('slave_id', '<', 1)
+                        ->orWhere('slave_id', '>', 31);
+                })
+                ->exists()
         ) {
             throw new \RuntimeException('Config is invalid: RS485 locker board slave_id must be between 1 and 31.');
         }
