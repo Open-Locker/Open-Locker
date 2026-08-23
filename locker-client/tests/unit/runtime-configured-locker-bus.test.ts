@@ -67,3 +67,44 @@ test('constructs and reconnects the matching adapter when profile changes', asyn
   assert.equal(built[1]?.profile.adapterType, 'rs485_lock_board');
   assert.deepEqual(built[1]?.bus.turnAllOffCalls, [3]);
 });
+
+test('waits for an active bus operation before switching adapters', async () => {
+  const config = mutableConfig();
+  const built: FakeLockerBus[] = [];
+  const bus = new RuntimeConfiguredLockerBus(config.port, () => {
+    const adapter = new FakeLockerBus();
+    built.push(adapter);
+    return adapter;
+  });
+  await bus.connect();
+  config.set({ adapterType: 'waveshare_modbus', channelCount: 8, feedbackType: 'door_closing' });
+  await bus.reloadRuntimeConfig();
+
+  let releaseFlash!: () => void;
+  const flashStarted = new Promise<void>((resolve) => {
+    built[0]!.flashRelay = async () => {
+      resolve();
+      await new Promise<void>((release) => {
+        releaseFlash = release;
+      });
+      return 'pulse_sent';
+    };
+  });
+  const flash = bus.flashRelay({ compartmentNumber: 1, slaveId: 1, relayAddress: 0 }, 200);
+  await flashStarted;
+
+  config.set({
+    adapterType: 'rs485_lock_board',
+    channelCount: 8,
+    feedbackType: 'door_closing',
+  });
+  const reload = bus.reloadRuntimeConfig();
+  await Promise.resolve();
+  assert.equal(built[0]?.getConnectionState(), 'connected');
+
+  releaseFlash();
+  await flash;
+  await reload;
+  assert.equal(built[0]?.getConnectionState(), 'disconnected');
+  assert.equal(built.length, 2);
+});

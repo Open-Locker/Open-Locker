@@ -1,12 +1,19 @@
+import PQueue from 'p-queue';
 import type { CompartmentTarget, DoorState } from '../../domain/compartment';
 import type { HardwareProfile } from '../../domain/config';
 import { LockerError, MqttErrorCode } from '../../domain/errors';
 import type { ConfigRepositoryPort } from '../../ports/config.port';
-import type { ConnectionState, LockerBusPort, UnlockFeedback } from '../../ports/locker-bus.port';
+import {
+  BusPriority,
+  type ConnectionState,
+  type LockerBusPort,
+  type UnlockFeedback,
+} from '../../ports/locker-bus.port';
 
 export type LockerBusFactory = (profile: HardwareProfile) => LockerBusPort;
 
 export class RuntimeConfiguredLockerBus implements LockerBusPort {
+  private readonly queue = new PQueue({ concurrency: 1 });
   private active: LockerBusPort | null = null;
   private activeProfileKey: string | null = null;
   private shouldBeConnected = false;
@@ -16,45 +23,62 @@ export class RuntimeConfiguredLockerBus implements LockerBusPort {
     private readonly factory: LockerBusFactory,
   ) {}
 
-  async connect(): Promise<void> {
-    this.shouldBeConnected = true;
-    await this.reconcile();
+  connect(): Promise<void> {
+    return this.enqueue(async () => {
+      this.shouldBeConnected = true;
+      await this.reconcile();
+    }, BusPriority.MAINTENANCE);
   }
 
-  async disconnect(): Promise<void> {
-    this.shouldBeConnected = false;
-    await this.active?.disconnect();
+  disconnect(): Promise<void> {
+    return this.enqueue(async () => {
+      this.shouldBeConnected = false;
+      await this.active?.disconnect();
+      this.active = null;
+      this.activeProfileKey = null;
+    }, BusPriority.COMMAND + 1);
   }
 
   getConnectionState(): ConnectionState {
     return this.active?.getConnectionState() ?? 'disconnected';
   }
 
-  async ensureConnected(): Promise<boolean> {
-    if (!this.active) {
-      await this.reconcile();
-    }
-    return (await this.active?.ensureConnected()) ?? false;
+  ensureConnected(): Promise<boolean> {
+    return this.enqueue(async () => {
+      if (!this.active) {
+        await this.reconcile();
+      }
+      return (await this.active?.ensureConnected()) ?? false;
+    }, BusPriority.MAINTENANCE);
   }
 
-  async reloadRuntimeConfig(): Promise<void> {
-    await this.reconcile(true);
+  reloadRuntimeConfig(): Promise<void> {
+    return this.enqueue(() => this.reconcile(true), BusPriority.COMMAND + 1);
   }
 
   flashRelay(target: CompartmentTarget, durationMs: number): Promise<UnlockFeedback> {
-    return this.requireActive().flashRelay(target, durationMs);
+    return this.enqueue(
+      () => this.requireActive().flashRelay(target, durationMs),
+      BusPriority.COMMAND,
+    );
   }
 
   readRelayState(target: CompartmentTarget): Promise<boolean> {
-    return this.requireActive().readRelayState(target);
+    return this.enqueue(() => this.requireActive().readRelayState(target), BusPriority.POLL);
   }
 
   readDoorSensors(slaveId: number, startAddress: number, length: number): Promise<DoorState[]> {
-    return this.requireActive().readDoorSensors(slaveId, startAddress, length);
+    return this.enqueue(
+      () => this.requireActive().readDoorSensors(slaveId, startAddress, length),
+      BusPriority.SNAPSHOT,
+    );
   }
 
   initializeBoard(slaveId: number): Promise<void> {
-    return this.requireActive().initializeBoard(slaveId);
+    return this.enqueue(
+      () => this.requireActive().initializeBoard(slaveId),
+      BusPriority.MAINTENANCE,
+    );
   }
 
   getConfiguredSlaveIds(): number[] {
@@ -65,6 +89,11 @@ export class RuntimeConfiguredLockerBus implements LockerBusPort {
     const profile = this.config.load().hardwareProfile;
     const nextKey = profile ? JSON.stringify(profile) : null;
     if (nextKey === this.activeProfileKey && this.active) {
+      if (this.shouldBeConnected && this.active.getConnectionState() !== 'connected') {
+        await this.active.connect();
+        await this.initializeConfiguredBoards(this.active);
+        return;
+      }
       if (forceReload) {
         await this.active.reloadRuntimeConfig();
         await this.initializeConfiguredBoards(this.active);
@@ -115,5 +144,9 @@ export class RuntimeConfiguredLockerBus implements LockerBusPort {
       );
     }
     return this.active;
+  }
+
+  private enqueue<T>(operation: () => Promise<T>, priority: number): Promise<T> {
+    return this.queue.add(operation, { priority }) as Promise<T>;
   }
 }

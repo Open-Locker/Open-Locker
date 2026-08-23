@@ -22,6 +22,8 @@ use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
+use Filament\Schemas\Components\Utilities\Get;
+use Filament\Schemas\Components\Utilities\Set;
 use Filament\Schemas\Schema;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
@@ -82,17 +84,25 @@ class LockerBankResource extends Resource
                     ])
                     ->default(LockerAdapterType::WaveshareModbus->value)
                     ->required()
+                    ->live()
+                    ->afterStateUpdated(function (Set $set, ?string $state): void {
+                        if ($state === LockerAdapterType::WaveshareModbus->value) {
+                            $set('channel_count', 8);
+                        }
+                    })
                     ->helperText(__('Selects the board protocol and relay pulse implementation used by the locker client.')),
                 Select::make('channel_count')
                     ->label(__('Channels per board'))
-                    ->options([
-                        8 => '8',
-                        12 => '12',
-                        18 => '18',
-                        24 => '24',
-                        36 => '36',
-                        50 => '50',
-                    ])
+                    ->options(fn (Get $get): array => $get('adapter_type') === LockerAdapterType::WaveshareModbus->value
+                        ? [8 => '8']
+                        : [
+                            8 => '8',
+                            12 => '12',
+                            18 => '18',
+                            24 => '24',
+                            36 => '36',
+                            50 => '50',
+                        ])
                     ->default(8)
                     ->required()
                     ->helperText(__('Every compartment address must be lower than this channel count.')),
