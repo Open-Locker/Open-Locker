@@ -42,6 +42,10 @@ class CompartmentListGroupingTest extends TestCase
 
     private function visibleGroupTitle(mixed $title): string
     {
+        if (preg_match('/data-group-name[^>]*>(.*?)</', (string) $title, $matches) === 1) {
+            return html_entity_decode($matches[1], ENT_QUOTES | ENT_HTML5);
+        }
+
         $withoutHiddenId = preg_replace('/<span hidden>.*?<\/span>/', '', (string) $title) ?? (string) $title;
 
         return trim(strip_tags($withoutHiddenId));
@@ -174,5 +178,31 @@ class CompartmentListGroupingTest extends TestCase
     public function test_the_actions_column_has_a_header_label(): void
     {
         $this->assertSame(__('Actions'), $this->tableFor($this->admin())->getRecordActionsColumnLabel());
+    }
+
+    public function test_group_titles_show_the_bank_connection_status(): void
+    {
+        $admin = $this->admin();
+
+        $onlineBank = LockerBank::factory()->create([
+            'name' => 'Online bank',
+            'connection_status' => 'online',
+        ]);
+        $offlineBank = LockerBank::factory()->create([
+            'name' => 'Offline bank',
+            'connection_status' => 'offline',
+        ]);
+        $onlineCompartment = Compartment::factory()->for($onlineBank)->create();
+        $offlineCompartment = Compartment::factory()->for($offlineBank)->create();
+
+        $group = $this->tableFor($admin)->getDefaultGroup();
+
+        $this->assertNotNull($group);
+        $this->assertSame('Online bank', $this->visibleGroupTitle($group->getTitle($onlineCompartment)));
+        $this->assertSame('Offline bank', $this->visibleGroupTitle($group->getTitle($offlineCompartment)));
+        $this->assertStringContainsString(__('online'), (string) $group->getTitle($onlineCompartment));
+        $this->assertStringContainsString('fi-color-success', (string) $group->getTitle($onlineCompartment));
+        $this->assertStringContainsString(__('offline'), (string) $group->getTitle($offlineCompartment));
+        $this->assertStringContainsString('fi-color-danger', (string) $group->getTitle($offlineCompartment));
     }
 }

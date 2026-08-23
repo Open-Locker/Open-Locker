@@ -10,6 +10,7 @@ use App\Filament\Resources\CompartmentResource\Pages;
 use App\Filament\Resources\CompartmentResource\RelationManagers\GroupAccessesRelationManager;
 use App\Filament\Resources\CompartmentResource\RelationManagers\UserAccessesRelationManager;
 use App\Filament\Support\CompartmentDoorStateColumn;
+use App\Filament\Support\LockerBankGroupHeading;
 use App\Filament\Support\OpenCompartmentAction;
 use App\Models\Compartment;
 use App\Models\LockerBank;
@@ -22,7 +23,6 @@ use Filament\Tables\Grouping\Group;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\HtmlString;
 
 class CompartmentResource extends Resource
 {
@@ -119,20 +119,10 @@ class CompartmentResource extends Resource
             ->groups([
                 Group::make('locker_bank_id')
                     ->label(__('Locker bank'))
-                    // Visible title is the bank name. Location is the subtitle.
-                    // A hidden id keeps Filament/accordion titles unique.
-                    ->getTitleFromRecordUsing(function (Compartment $record): HtmlString {
-                        $name = $record->lockerBank?->name ?: __('Locker bank');
-
-                        return new HtmlString(
-                            e($name).'<span hidden>'.e((string) $record->locker_bank_id).'</span>'
-                        );
-                    })
-                    ->getDescriptionFromRecordUsing(function (Compartment $record): ?string {
-                        $location = $record->lockerBank?->location_description;
-
-                        return filled($location) ? $location : null;
-                    })
+                    // Visible title is the bank name plus a connection badge.
+                    // Location is the subtitle. A hidden id keeps titles unique.
+                    ->getTitleFromRecordUsing(LockerBankGroupHeading::title(...))
+                    ->getDescriptionFromRecordUsing(LockerBankGroupHeading::description(...))
                     ->orderQueryUsing(function (Builder $query, string $direction): Builder {
                         return $query
                             ->orderBy(
