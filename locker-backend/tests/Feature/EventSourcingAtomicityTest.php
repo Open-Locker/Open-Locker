@@ -52,14 +52,16 @@ class EventSourcingAtomicityTest extends TestCase
         $this->assertSame(0, EloquentStoredEvent::query()->count());
     }
 
-    public function test_stored_event_job_is_enqueued_only_after_the_outer_transaction_commits(): void
+    public function test_aggregate_stored_event_job_is_enqueued_only_after_the_outer_transaction_commits(): void
     {
         config()->set('queue.default', 'database');
         app(Projectionist::class)->addReactor(QueuedAtomicityReactor::class);
 
         DB::beginTransaction();
 
-        app(StoredEventDispatcher::class)->dispatch(new AtomicityTestEvent('commit'));
+        AtomicityTestAggregate::retrieve('aggregate-commit')
+            ->record('commit')
+            ->persist();
 
         $this->assertDatabaseCount('stored_events', 1);
         $this->assertDatabaseCount('jobs', 0);
