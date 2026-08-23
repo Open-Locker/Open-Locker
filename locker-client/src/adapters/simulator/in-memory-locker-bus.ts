@@ -78,6 +78,10 @@ export class InMemoryLockerBus implements LockerBusPort {
     return this.connectionState;
   }
 
+  runExclusive<T>(operation: (bus: LockerBusPort) => Promise<T>): Promise<T> {
+    return operation(this);
+  }
+
   async ensureConnected(): Promise<boolean> {
     if (this.connectionState !== 'connected') {
       await this.connect();

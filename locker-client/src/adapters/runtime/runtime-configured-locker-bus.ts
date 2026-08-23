@@ -43,6 +43,13 @@ export class RuntimeConfiguredLockerBus implements LockerBusPort {
     return this.active?.getConnectionState() ?? 'disconnected';
   }
 
+  runExclusive<T>(operation: (bus: LockerBusPort) => Promise<T>): Promise<T> {
+    return this.enqueue(async () => {
+      await this.reconcile();
+      return operation(this.requireActive());
+    }, BusPriority.COMMAND);
+  }
+
   ensureConnected(): Promise<boolean> {
     return this.enqueue(async () => {
       if (!this.active) {

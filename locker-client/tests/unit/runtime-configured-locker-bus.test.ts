@@ -68,7 +68,7 @@ test('constructs and reconnects the matching adapter when profile changes', asyn
   assert.deepEqual(built[1]?.bus.turnAllOffCalls, [3]);
 });
 
-test('waits for an active bus operation before switching adapters', async () => {
+test('keeps a multi-step exclusive operation on one adapter before switching', async () => {
   const config = mutableConfig();
   const built: FakeLockerBus[] = [];
   const bus = new RuntimeConfiguredLockerBus(config.port, () => {
@@ -80,18 +80,21 @@ test('waits for an active bus operation before switching adapters', async () => 
   config.set({ adapterType: 'waveshare_modbus', channelCount: 8, feedbackType: 'door_closing' });
   await bus.reloadRuntimeConfig();
 
-  let releaseFlash!: () => void;
-  const flashStarted = new Promise<void>((resolve) => {
-    built[0]!.flashRelay = async () => {
-      resolve();
-      await new Promise<void>((release) => {
-        releaseFlash = release;
-      });
-      return 'pulse_sent';
-    };
+  let notifyOperationStarted!: () => void;
+  const operationStarted = new Promise<void>((resolve) => {
+    notifyOperationStarted = resolve;
   });
-  const flash = bus.flashRelay({ compartmentNumber: 1, slaveId: 1, relayAddress: 0 }, 200);
-  await flashStarted;
+  let releaseOperation!: () => void;
+  const operationGate = new Promise<void>((resolve) => {
+    releaseOperation = resolve;
+  });
+  const exclusiveOperation = bus.runExclusive(async (activeBus) => {
+    assert.equal(await activeBus.ensureConnected(), true);
+    notifyOperationStarted();
+    await operationGate;
+    return activeBus.flashRelay({ compartmentNumber: 1, slaveId: 1, relayAddress: 0 }, 200);
+  });
+  await operationStarted;
 
   config.set({
     adapterType: 'rs485_lock_board',
@@ -102,8 +105,8 @@ test('waits for an active bus operation before switching adapters', async () => 
   await Promise.resolve();
   assert.equal(built[0]?.getConnectionState(), 'connected');
 
-  releaseFlash();
-  await flash;
+  releaseOperation();
+  await exclusiveOperation;
   await reload;
   assert.equal(built[0]?.getConnectionState(), 'disconnected');
   assert.equal(built.length, 2);
