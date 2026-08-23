@@ -112,8 +112,30 @@ class CompartmentListGroupingTest extends TestCase
         $this->assertSame((string) $firstBank->id, $group->getStringKey($firstCompartment));
         $this->assertSame((string) $secondBank->id, $group->getStringKey($secondCompartment));
         $this->assertNotSame($group->getStringKey($firstCompartment), $group->getStringKey($secondCompartment));
-        $this->assertSame('Main office — North wing', $group->getTitle($firstCompartment));
-        $this->assertSame('Main office — South wing', $group->getTitle($secondCompartment));
+        $this->assertSame('Main office — North wing · '.$firstBank->id, $group->getTitle($firstCompartment));
+        $this->assertSame('Main office — South wing · '.$secondBank->id, $group->getTitle($secondCompartment));
+    }
+
+    public function test_same_named_banks_with_the_same_location_still_get_distinct_titles(): void
+    {
+        $admin = $this->admin();
+
+        $firstBank = LockerBank::factory()->create([
+            'name' => 'Main office',
+            'location_description' => 'North wing',
+        ]);
+        $secondBank = LockerBank::factory()->create([
+            'name' => 'Main office',
+            'location_description' => 'North wing',
+        ]);
+        $firstCompartment = Compartment::factory()->for($firstBank)->create(['number' => 1]);
+        $secondCompartment = Compartment::factory()->for($secondBank)->create(['number' => 1]);
+
+        $group = $this->tableFor($admin)->getDefaultGroup();
+
+        $this->assertNotNull($group);
+        $this->assertSame('Main office — North wing · '.$firstBank->id, $group->getTitle($firstCompartment));
+        $this->assertSame('Main office — North wing · '.$secondBank->id, $group->getTitle($secondCompartment));
         $this->assertNotSame($group->getTitle($firstCompartment), $group->getTitle($secondCompartment));
     }
 
@@ -131,7 +153,7 @@ class CompartmentListGroupingTest extends TestCase
         $group = $this->tableFor($admin)->getDefaultGroup();
 
         $this->assertNotNull($group);
-        $this->assertSame('Main office — '.$firstBank->id, $group->getTitle($firstCompartment->unsetRelation('lockerBank')));
-        $this->assertSame('Main office — '.$secondBank->id, $group->getTitle($secondCompartment->unsetRelation('lockerBank')));
+        $this->assertSame('Main office · '.$firstBank->id, $group->getTitle($firstCompartment->unsetRelation('lockerBank')));
+        $this->assertSame('Main office · '.$secondBank->id, $group->getTitle($secondCompartment->unsetRelation('lockerBank')));
     }
 }

@@ -118,16 +118,15 @@ class CompartmentResource extends Resource
             ->groups([
                 Group::make('locker_bank_id')
                     ->label(__('Locker bank'))
-                    // Filament starts a new header when titles change, so the
-                    // title must stay unique even when two banks share a name.
+                    // Filament and the accordion script key groups by title, so
+                    // the title must stay unique even when name and location match.
                     ->getTitleFromRecordUsing(function (Compartment $record): string {
                         $bank = $record->lockerBank;
                         $name = $bank?->name ?: __('Locker bank');
                         $location = $bank?->location_description;
+                        $label = filled($location) ? "{$name} — {$location}" : $name;
 
-                        return filled($location)
-                            ? "{$name} — {$location}"
-                            : $name.' — '.$record->locker_bank_id;
+                        return $label.' · '.$record->locker_bank_id;
                     })
                     ->orderQueryUsing(function (Builder $query, string $direction): Builder {
                         return $query
