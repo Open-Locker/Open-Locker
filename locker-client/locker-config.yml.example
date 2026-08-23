@@ -1,7 +1,8 @@
 # Locker Client v2 Configuration — mount at /config/locker-config.yml
 #
-# Compartment mapping and heartbeat interval are server-managed via MQTT
-# apply_config and persisted in the runtime overlay under DATA_DIR.
+# Adapter type, board variant, feedback wiring, compartment mapping, and heartbeat
+# interval are server-managed via MQTT apply_config and persisted under DATA_DIR.
+# No hardware adapter or channel count is selected locally.
 
 modbus:
   port: /dev/ttyACM0
@@ -10,7 +11,7 @@ modbus:
   stopBits: 1
   parity: none
   timeout: 1000
-  # Waveshare flash pulse (100ms steps, min 100ms, max 500ms enforced in v2)
+  # Used only when the runtime adapter_type is waveshare_modbus.
   flashDurationMs: 200
 
 mqtt:

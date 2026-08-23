@@ -168,8 +168,11 @@ Compartment-Zuordnung.
   "action": "apply_config",
   "timestamp": "2026-04-14T19:31:00Z",
   "data": {
-    "config_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "config_hash": "12d9df0453da04ed41b9dd21c603715cb4370cfb21958aadc5f73fc195848003",
     "heartbeat_interval_seconds": 15,
+    "adapter_type": "rs485_lock_board",
+    "channel_count": 12,
+    "feedback_type": "door_closing",
     "compartments": [
       {
         "compartment_number": 1,
@@ -183,6 +186,24 @@ Compartment-Zuordnung.
 
 `compartment_number` bezeichnet dieselbe fachliche Nummer wie bei
 `open_compartment`.
+
+`adapter_type`, `channel_count` und `feedback_type` sind bankweite
+Hardwareprofil-Felder. `address` ist nullbasiert und muss kleiner als
+`channel_count` sein.
+
+`config_hash` ist der hexadezimale SHA-256-Hash der kompakten
+UTF-8-JSON-Serialisierung eines Objekts mit genau diesen Schlüsseln in dieser
+Reihenfolge:
+
+1. `adapter_type`
+2. `channel_count`
+3. `feedback_type`
+4. `compartments`
+
+`compartments` wird vor der Serialisierung aufsteigend nach
+`compartment_number` sortiert. Die Serialisierung enthält keine zusätzlichen
+Leerzeichen. `heartbeat_interval_seconds` liegt ausdrücklich außerhalb des
+Hashes.
 
 ## 7. Responses
 

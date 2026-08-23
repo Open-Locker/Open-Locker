@@ -44,8 +44,13 @@ export class ApplyConfigUseCase {
 
   private buildOverlay(command: ApplyConfigCommand) {
     const normalized = normalizeCompartments(command.data.compartments);
-    this.validateCompartments(normalized);
-    const hash = computeAppliedConfigHash(normalized);
+    this.validateCompartments(normalized, command.data.channel_count, command.data.adapter_type);
+    const hash = computeAppliedConfigHash({
+      adapter_type: command.data.adapter_type,
+      channel_count: command.data.channel_count,
+      feedback_type: command.data.feedback_type,
+      compartments: normalized,
+    });
 
     if (hash.toLowerCase() !== command.data.config_hash.toLowerCase()) {
       throw new LockerError(
@@ -56,21 +61,36 @@ export class ApplyConfigUseCase {
 
     return {
       mqtt: { heartbeatInterval: command.data.heartbeat_interval_seconds },
+      hardwareProfile: {
+        adapterType: command.data.adapter_type,
+        channelCount: command.data.channel_count,
+        feedbackType: command.data.feedback_type,
+      },
       compartments: normalized,
       appliedConfigHash: hash,
       updatedAt: new Date().toISOString(),
     };
   }
 
-  private validateCompartments(compartments: CompartmentConfig[]): void {
+  private validateCompartments(
+    compartments: CompartmentConfig[],
+    channelCount: number,
+    adapterType: ApplyConfigCommand['data']['adapter_type'],
+  ): void {
     const seenNumbers = new Set<number>();
     const seenTargets = new Set<string>();
 
     for (const c of compartments) {
-      if (c.address > 7) {
+      if (c.address >= channelCount) {
         throw new LockerError(
           MqttErrorCode.INVALID_CONFIG,
-          'compartment addresses must be between 0 and 7',
+          `compartment addresses must be between 0 and ${channelCount - 1}`,
+        );
+      }
+      if (adapterType === 'rs485_lock_board' && c.slaveId > 31) {
+        throw new LockerError(
+          MqttErrorCode.INVALID_CONFIG,
+          'RS485 lock board slaveId must be between 1 and 31',
         );
       }
       if (seenNumbers.has(c.compartment_number)) {

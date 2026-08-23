@@ -37,6 +37,16 @@ export class ModbusTransportError extends LockerError {
   }
 }
 
+export class HardwareTransportError extends LockerError {
+  constructor(
+    message: string,
+    public readonly reconnectable = false,
+  ) {
+    super(MqttErrorCode.HARDWARE_ERROR, message);
+    this.name = 'HardwareTransportError';
+  }
+}
+
 /**
  * Transport failures raised by `modbus-serial` itself.
  *

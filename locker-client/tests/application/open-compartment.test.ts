@@ -1,6 +1,9 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { OpenCompartmentUseCase, runStartupFailsafe } from '../../src/application/open-compartment';
+import {
+  OpenCompartmentUseCase,
+  runStartupInitialization,
+} from '../../src/application/open-compartment';
 import { RelayFireLog } from '../../src/domain/door-detection';
 import { FakeLockerBus } from '../helpers/fake-locker-bus';
 import { FakeDoorEventPublisher } from '../helpers/fake-door-event-publisher';
@@ -64,15 +67,15 @@ test('OpenCompartmentUseCase uses hardware flash only', async () => {
   assert.equal(bus.writeCoilCalls.length, 0);
 });
 
-test('runStartupFailsafe commands all relays off per board', async () => {
+test('startup initialization invokes the adapter capability per board', async () => {
   const bus = new FakeLockerBus([1, 2]);
-  await runStartupFailsafe(bus);
+  await runStartupInitialization(bus);
   assert.deepEqual(bus.turnAllOffCalls, [1, 2]);
 });
 
-test('runStartupFailsafe skips boards when no runtime mapping exists', async () => {
+test('startup initialization skips boards when no runtime mapping exists', async () => {
   const bus = new FakeLockerBus([]);
-  await runStartupFailsafe(bus);
+  await runStartupInitialization(bus);
   assert.deepEqual(bus.turnAllOffCalls, []);
 });
 
@@ -163,6 +166,48 @@ test('reports already_open without waiting when the door was open before the pul
   });
   assert.equal(bus.flashCalls.length, 1, 'the relay still fires');
   assert.equal(relayFireLog.isDetecting(1), false, 'no detection window is opened');
+});
+
+test('reports opened immediately when a closed door returns proprietary opened feedback', async () => {
+  const bus = new FakeLockerBus([1]);
+  bus.unlockFeedback = 'opened';
+  const { doorEvents, relayFireLog, useCase } = build({ bus });
+
+  await useCase.execute(1, 'txn-board-opened');
+
+  assert.deepEqual(doorEvents.lastDetection(), {
+    compartmentNumber: 1,
+    transactionId: 'txn-board-opened',
+    outcome: 'opened',
+    detectionMs: 0,
+  });
+  assert.equal(relayFireLog.isDetecting(1), false);
+});
+
+test('reports door_jammed immediately on proprietary failed feedback', async () => {
+  const bus = new FakeLockerBus([1]);
+  bus.unlockFeedback = 'failed';
+  const { doorEvents, relayFireLog, useCase } = build({ bus });
+
+  await useCase.execute(1, 'txn-board-failed');
+
+  assert.deepEqual(doorEvents.lastDetection(), {
+    compartmentNumber: 1,
+    transactionId: 'txn-board-failed',
+    outcome: 'door_jammed',
+    detectionMs: null,
+  });
+  assert.equal(relayFireLog.isDetecting(1), false);
+});
+
+test('already_open takes precedence over proprietary unlock feedback', async () => {
+  const bus = new FakeLockerBus([1]);
+  bus.setDoorState(TARGET, 'open');
+  bus.unlockFeedback = 'failed';
+  const { doorEvents, useCase } = build({ bus });
+
+  await useCase.execute(1, 'txn-board-already');
+  assert.equal(doorEvents.lastDetection()?.outcome, 'already_open');
 });
 
 test('records the relay fire so a later door opening can be attributed', async () => {

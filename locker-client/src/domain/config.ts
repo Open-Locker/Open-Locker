@@ -22,6 +22,17 @@ export interface ModbusConfig {
   timeout?: number;
 }
 
+export const SUPPORTED_CHANNEL_COUNTS = [8, 12, 18, 24, 36, 50] as const;
+export type ChannelCount = (typeof SUPPORTED_CHANNEL_COUNTS)[number];
+export type AdapterType = 'waveshare_modbus' | 'rs485_lock_board';
+export type FeedbackType = 'door_closing' | 'door_opening';
+
+export interface HardwareProfile {
+  adapterType: AdapterType;
+  channelCount: ChannelCount;
+  feedbackType: FeedbackType;
+}
+
 /** Operator-managed settings loaded from locker-config.yml. */
 export interface BaseLockerConfig {
   mqtt?: MqttTransportConfig;
@@ -32,6 +43,7 @@ export interface BaseLockerConfig {
 export interface EffectiveLockerConfig {
   mqtt?: MqttRuntimeConfig;
   modbus: ModbusConfig;
+  hardwareProfile?: HardwareProfile;
   compartments?: CompartmentConfig[];
 }
 
@@ -40,6 +52,7 @@ export interface RuntimeConfigOverlay {
     heartbeatInterval?: number;
   };
   compartments?: CompartmentConfig[];
+  hardwareProfile?: HardwareProfile;
   appliedConfigHash?: string;
   updatedAt?: string;
 }

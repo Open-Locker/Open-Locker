@@ -23,7 +23,7 @@ import {
 import { ApplyConfigUseCase } from '../application/apply-config';
 import { MqttDoorEventPublisher } from '../adapters/mqtt/door-event-publisher';
 import { RelayFireLog } from '../domain/door-detection';
-import { OpenCompartmentUseCase, runStartupFailsafe } from '../application/open-compartment';
+import { OpenCompartmentUseCase, runStartupInitialization } from '../application/open-compartment';
 import {
   COMPARTMENT_POLL_INTERVAL_MS,
   HeartbeatUseCase,
@@ -283,7 +283,7 @@ export function wireSimulatedDevice(options: WireSimulatedDeviceOptions): WiredS
 
   const start = async () => {
     await bus.connect();
-    await runStartupFailsafe(bus);
+    await runStartupInitialization(bus);
     heartbeat.start();
 
     // Publish the seeded door states immediately so the backend read model is

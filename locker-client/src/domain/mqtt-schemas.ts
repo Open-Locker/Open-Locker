@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { SUPPORTED_CHANNEL_COUNTS } from './config';
 
 export const nonEmptyString = z.string().trim().min(1);
 
@@ -21,6 +22,9 @@ export type OpenCompartmentCommand = z.infer<typeof openCompartmentCommandSchema
 export const applyConfigCommandSchema = mqttCommandEnvelopeSchema.extend({
   action: z.literal('apply_config'),
   data: z.object({
+    adapter_type: z.enum(['waveshare_modbus', 'rs485_lock_board']),
+    channel_count: z.union(SUPPORTED_CHANNEL_COUNTS.map((count) => z.literal(count))),
+    feedback_type: z.enum(['door_closing', 'door_opening']),
     config_hash: z.string().regex(/^[a-f0-9]{64}$/i),
     heartbeat_interval_seconds: z.number().int().positive(),
     compartments: z.array(

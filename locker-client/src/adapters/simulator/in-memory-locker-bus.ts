@@ -97,7 +97,7 @@ export class InMemoryLockerBus implements LockerBusPort {
    * A jammed compartment pulses normally but its door does not move, which is
    * exactly what a real jam, blockage, or worn latch looks like from the bus.
    */
-  async flashRelay(target: CompartmentTarget, durationMs: number): Promise<void> {
+  async flashRelay(target: CompartmentTarget, durationMs: number): Promise<'pulse_sent'> {
     await this.delay();
 
     const key = busTargetKey(target.slaveId, target.relayAddress);
@@ -119,6 +119,7 @@ export class InMemoryLockerBus implements LockerBusPort {
     if (!this.jammedTargets.has(key)) {
       this.doorStates.set(key, 'open');
     }
+    return 'pulse_sent';
   }
 
   async readRelayState(target: CompartmentTarget): Promise<boolean> {
@@ -145,7 +146,7 @@ export class InMemoryLockerBus implements LockerBusPort {
     );
   }
 
-  async turnAllRelaysOff(slaveId: number): Promise<void> {
+  async initializeBoard(slaveId: number): Promise<void> {
     await this.delay();
 
     // Safe to iterate live: only existing keys are reassigned, none added or removed.
@@ -154,6 +155,11 @@ export class InMemoryLockerBus implements LockerBusPort {
         this.relayStates.set(key, false);
       }
     }
+  }
+
+  /** Simulator compatibility helper for scenarios that explicitly test relay clearing. */
+  async turnAllRelaysOff(slaveId: number): Promise<void> {
+    await this.initializeBoard(slaveId);
   }
 
   getConfiguredSlaveIds(): number[] {

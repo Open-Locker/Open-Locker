@@ -95,10 +95,12 @@ pnpm dev
 Requires `/config/locker-config.yml` and `/data` volumes (or env `CONFIG_DIR` /
 `DATA_DIR`).
 
-Compartment mapping and heartbeat interval are **not** part of the base YAML.
-The backend pushes them via MQTT `apply_config`; the client persists the result
-in `/data/.runtime-config-overlay.json`. Until that first apply completes,
-`open_compartment` commands fail and compartment snapshots stay empty.
+Hardware adapter (`waveshare_modbus` or `rs485_lock_board`), channel count,
+feedback wiring, compartment mapping, and heartbeat interval are **not** part of
+the base YAML. The backend pushes them via MQTT `apply_config`; the client
+persists the result in `/data/.runtime-config-overlay.json`. Until that first
+apply completes, MQTT can run without opening a serial adapter,
+`open_compartment` commands fail, and compartment snapshots stay empty.
 
 See [ADR-0028](../docs/adr/0026-locker-client-v2-runtime-only-compartment-mapping.md).
 Persistence and corruption behavior is defined in

@@ -3,6 +3,10 @@ import {
   WaveshareModbusBusActor,
 } from '../adapters/modbus/waveshare-modbus-bus-actor';
 import { WaveshareModbusRtuDriver } from '../adapters/modbus/waveshare-modbus-rtu.driver';
+import { Rs485LockBoardBusActor } from '../adapters/rs485/rs485-lock-board-bus-actor';
+import { Rs485LockBoardDriver } from '../adapters/rs485/rs485-lock-board.driver';
+import { SerialPortTransactionTransport } from '../adapters/rs485/serialport-transaction.transport';
+import { RuntimeConfiguredLockerBus } from '../adapters/runtime/runtime-configured-locker-bus';
 import { YamlConfigRepository } from '../adapters/config/yaml-config.repository';
 import { FileRuntimeOverlayStore } from '../adapters/config/runtime-overlay.store';
 import { FileCredentialStore } from '../adapters/persistence/file-credential.store';
@@ -15,7 +19,7 @@ import { createOpenCompartmentHandler } from '../adapters/mqtt/handlers/open-com
 import { createApplyConfigHandler } from '../adapters/mqtt/handlers/apply-config.handler';
 import { MqttDoorEventPublisher } from '../adapters/mqtt/door-event-publisher';
 import { RelayFireLog } from '../domain/door-detection';
-import { OpenCompartmentUseCase, runStartupFailsafe } from '../application/open-compartment';
+import { OpenCompartmentUseCase } from '../application/open-compartment';
 import { ApplyConfigUseCase } from '../application/apply-config';
 import {
   COMPARTMENT_POLL_INTERVAL_MS,
@@ -93,26 +97,43 @@ export async function createApp(): Promise<AppContext> {
   setLogTraceContextProvider(() => tracing.currentCorrelation());
   shipLogsTo(tracing);
 
-  const driver = new WaveshareModbusRtuDriver(
-    {
-      port: config.modbus.port,
-      baudRate: config.modbus.baudRate ?? 9600,
-      dataBits: config.modbus.dataBits ?? 8,
-      stopBits: config.modbus.stopBits ?? 1,
-      parity: config.modbus.parity ?? 'none',
-      timeout: config.modbus.timeout ?? 1000,
-    },
-    {},
-    appLogger,
-  );
+  const bus = new RuntimeConfiguredLockerBus(configRepo, (profile) => {
+    if (profile.adapterType === 'rs485_lock_board') {
+      const driver = new Rs485LockBoardDriver(
+        new SerialPortTransactionTransport(config.modbus.port, 9600),
+        profile.channelCount,
+        profile.feedbackType,
+        config.modbus.timeout ?? 1500,
+      );
+      return new Rs485LockBoardBusActor(
+        driver,
+        () => configRepo.getConfiguredSlaveIds(),
+        { maxAttempts: DEFAULT_MODBUS_MAX_RECONNECT_ATTEMPTS, delayMs: 5000 },
+        tracing,
+        appLogger,
+      );
+    }
 
-  const bus = new WaveshareModbusBusActor(
-    driver,
-    { maxAttempts: DEFAULT_MODBUS_MAX_RECONNECT_ATTEMPTS, delayMs: 5000 },
-    () => configRepo.getConfiguredSlaveIds(),
-    tracing,
-    appLogger,
-  );
+    const driver = new WaveshareModbusRtuDriver(
+      {
+        port: config.modbus.port,
+        baudRate: config.modbus.baudRate ?? 9600,
+        dataBits: config.modbus.dataBits ?? 8,
+        stopBits: config.modbus.stopBits ?? 1,
+        parity: config.modbus.parity ?? 'none',
+        timeout: config.modbus.timeout ?? 1000,
+      },
+      {},
+      appLogger,
+    );
+    return new WaveshareModbusBusActor(
+      driver,
+      { maxAttempts: DEFAULT_MODBUS_MAX_RECONNECT_ATTEMPTS, delayMs: 5000 },
+      () => configRepo.getConfiguredSlaveIds(),
+      tracing,
+      appLogger,
+    );
+  });
 
   await transport.connect(brokerUrl, {
     username: credentials.username,
@@ -207,7 +228,6 @@ export async function createApp(): Promise<AppContext> {
   await transport.subscribe(commandTopic);
 
   await bus.connect();
-  await runStartupFailsafe(bus);
   heartbeat.start();
 
   const pollTimer = setInterval(() => {

@@ -8,6 +8,7 @@ export enum BusPriority {
 }
 
 export type ConnectionState = 'disconnected' | 'connecting' | 'connected';
+export type UnlockFeedback = 'pulse_sent' | 'opened' | 'failed';
 
 export interface LockerBusPort {
   connect(): Promise<void>;
@@ -15,10 +16,10 @@ export interface LockerBusPort {
   getConnectionState(): ConnectionState;
   ensureConnected(): Promise<boolean>;
   reloadRuntimeConfig(): Promise<void>;
-  flashRelay(target: CompartmentTarget, durationMs: number): Promise<void>;
+  flashRelay(target: CompartmentTarget, durationMs: number): Promise<UnlockFeedback>;
   readRelayState(target: CompartmentTarget): Promise<boolean>;
   readDoorSensors(slaveId: number, startAddress: number, length: number): Promise<DoorState[]>;
-  turnAllRelaysOff(slaveId: number): Promise<void>;
+  initializeBoard(slaveId: number): Promise<void>;
   getConfiguredSlaveIds(): number[];
 }
 

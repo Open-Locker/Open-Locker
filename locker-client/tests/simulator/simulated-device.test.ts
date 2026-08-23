@@ -208,6 +208,9 @@ test('apply_config remaps compartments and answers with the applied hash', async
       timestamp: new Date().toISOString(),
       transaction_id: transactionId,
       data: {
+        adapter_type: 'waveshare_modbus',
+        channel_count: 8,
+        feedback_type: 'door_closing',
         compartments,
         heartbeat_interval_seconds: 30,
         config_hash: computeAppliedConfigHash(compartments),
