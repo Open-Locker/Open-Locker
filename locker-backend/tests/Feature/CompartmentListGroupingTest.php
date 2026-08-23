@@ -200,10 +200,12 @@ class CompartmentListGroupingTest extends TestCase
         $this->assertNotNull($group);
         $this->assertSame('Online bank', $this->visibleGroupTitle($group->getTitle($onlineCompartment)));
         $this->assertSame('Offline bank', $this->visibleGroupTitle($group->getTitle($offlineCompartment)));
-        $this->assertStringContainsString(__('online'), (string) $group->getTitle($onlineCompartment));
-        $this->assertStringContainsString('fi-color-success', (string) $group->getTitle($onlineCompartment));
-        $this->assertStringContainsString(__('offline'), (string) $group->getTitle($offlineCompartment));
-        $this->assertStringContainsString('fi-color-danger', (string) $group->getTitle($offlineCompartment));
+        $this->assertStringContainsString('white-space:nowrap', (string) $group->getTitle($onlineCompartment));
+        $this->assertStringContainsString("data-connection-status='online'", (string) $group->getTitle($onlineCompartment));
+        $this->assertStringContainsString("title='".__('online')."'", (string) $group->getTitle($onlineCompartment));
+        $this->assertStringContainsString("data-connection-status='offline'", (string) $group->getTitle($offlineCompartment));
+        $this->assertStringContainsString("title='".__('offline')."'", (string) $group->getTitle($offlineCompartment));
+        $this->assertStringNotContainsString('fi-badge', (string) $group->getTitle($onlineCompartment));
         $this->assertStringNotContainsString('"', (string) $group->getTitle($onlineCompartment));
         $this->assertStringNotContainsString('"', (string) $group->getTitle($offlineCompartment));
     }
