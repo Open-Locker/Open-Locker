@@ -3,7 +3,11 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { test, type TestContext } from 'node:test';
-import { getOrCreateClientId, provisionDevice } from '../../src/application/provision-device';
+import {
+  DEFAULT_MQTT_BROKER_URL,
+  getOrCreateClientId,
+  provisionDevice,
+} from '../../src/application/provision-device';
 import {
   MqttSchemaValidationError,
   parseProvisioningResponse,
@@ -14,6 +18,10 @@ import type { MessageTransportPort, MqttTransportSettings } from '../../src/port
 import { assertMatchesSchema, readAsyncApiExample } from '../contract/jsonSchema';
 
 const supportsUnixModes = process.platform !== 'win32';
+
+test('default broker uses the verified production MQTTS endpoint', () => {
+  assert.equal(DEFAULT_MQTT_BROKER_URL, 'mqtts://open-locker.cloud:8883');
+});
 
 class FakeMessageTransport implements MessageTransportPort {
   published: Array<{ topic: string; payload: string }> = [];
