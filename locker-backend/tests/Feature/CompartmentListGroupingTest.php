@@ -150,6 +150,8 @@ class CompartmentListGroupingTest extends TestCase
 
         $this->assertNotNull($group);
         $this->assertInstanceOf(HtmlString::class, $group->getTitle($firstCompartment));
+        $this->assertSame('Main office', $this->visibleGroupTitle($group->getTitle($firstCompartment)));
+        $this->assertSame('Main office', $this->visibleGroupTitle($group->getTitle($secondCompartment)));
         $this->assertSame('North wing', $group->getDescription($firstCompartment, $group->getTitle($firstCompartment)));
         $this->assertSame('North wing', $group->getDescription($secondCompartment, $group->getTitle($secondCompartment)));
         $this->assertNotSame((string) $group->getTitle($firstCompartment), (string) $group->getTitle($secondCompartment));
