@@ -46,13 +46,13 @@ class CompartmentListGroupingTest extends TestCase
         // Asserting the default alone is not enough: getDefaultGroup() synthesises
         // a Group when the id is absent from groups(), so deleting the grouping
         // entirely would still satisfy it.
-        $this->assertArrayHasKey('lockerBank.name', $table->getGroups());
-        $this->assertSame('lockerBank.name', $table->getDefaultGroup()?->getId());
+        $this->assertArrayHasKey('locker_bank_id', $table->getGroups());
+        $this->assertSame('locker_bank_id', $table->getDefaultGroup()?->getId());
     }
 
     public function test_the_bank_group_is_collapsible_so_the_accordion_has_something_to_toggle(): void
     {
-        $group = $this->tableFor($this->admin())->getGroups()['lockerBank.name'] ?? null;
+        $group = $this->tableFor($this->admin())->getGroups()['locker_bank_id'] ?? null;
 
         // Group::$isCollapsible defaults to false, and Filament gates both the
         // toggle handler and the fi-collapsed binding on it. Without it the
@@ -89,5 +89,49 @@ class CompartmentListGroupingTest extends TestCase
         Livewire::actingAs($admin)
             ->test(ListCompartments::class)
             ->assertCanSeeTableRecords($compartments);
+    }
+
+    public function test_locker_banks_with_the_same_name_stay_in_separate_groups(): void
+    {
+        $admin = $this->admin();
+
+        $firstBank = LockerBank::factory()->create([
+            'name' => 'Main office',
+            'location_description' => 'North wing',
+        ]);
+        $secondBank = LockerBank::factory()->create([
+            'name' => 'Main office',
+            'location_description' => 'South wing',
+        ]);
+        $firstCompartment = Compartment::factory()->for($firstBank)->create(['number' => 1]);
+        $secondCompartment = Compartment::factory()->for($secondBank)->create(['number' => 1]);
+
+        $group = $this->tableFor($admin)->getDefaultGroup();
+
+        $this->assertNotNull($group);
+        $this->assertSame((string) $firstBank->id, $group->getStringKey($firstCompartment));
+        $this->assertSame((string) $secondBank->id, $group->getStringKey($secondCompartment));
+        $this->assertNotSame($group->getStringKey($firstCompartment), $group->getStringKey($secondCompartment));
+        $this->assertSame('Main office — North wing', $group->getTitle($firstCompartment));
+        $this->assertSame('Main office — South wing', $group->getTitle($secondCompartment));
+        $this->assertNotSame($group->getTitle($firstCompartment), $group->getTitle($secondCompartment));
+    }
+
+    public function test_same_named_banks_without_a_location_still_get_distinct_titles(): void
+    {
+        $admin = $this->admin();
+
+        $firstBank = LockerBank::factory()->create(['name' => 'Main office']);
+        $secondBank = LockerBank::factory()->create(['name' => 'Main office']);
+        $firstBank->forceFill(['location_description' => null])->save();
+        $secondBank->forceFill(['location_description' => null])->save();
+        $firstCompartment = Compartment::factory()->for($firstBank)->create();
+        $secondCompartment = Compartment::factory()->for($secondBank)->create();
+
+        $group = $this->tableFor($admin)->getDefaultGroup();
+
+        $this->assertNotNull($group);
+        $this->assertSame('Main office — '.$firstBank->id, $group->getTitle($firstCompartment->unsetRelation('lockerBank')));
+        $this->assertSame('Main office — '.$secondBank->id, $group->getTitle($secondCompartment->unsetRelation('lockerBank')));
     }
 }
