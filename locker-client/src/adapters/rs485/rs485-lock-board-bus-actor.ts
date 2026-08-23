@@ -48,6 +48,10 @@ export class Rs485LockBoardBusActor implements LockerBusPort {
     return this.connectionState;
   }
 
+  runExclusive<T>(operation: (bus: LockerBusPort) => Promise<T>): Promise<T> {
+    return operation(this);
+  }
+
   async ensureConnected(): Promise<boolean> {
     return this.run(async () => {
       if (this.driver.isOpen()) {

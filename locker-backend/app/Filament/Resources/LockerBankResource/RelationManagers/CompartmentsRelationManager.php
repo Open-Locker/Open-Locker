@@ -120,12 +120,24 @@ class CompartmentsRelationManager extends RelationManager
 
                 Tables\Columns\TextInputColumn::make('slave_id')
                     ->label(__('Slave ID'))
-                    ->rules(['nullable', 'integer', 'min:1', 'max:255'])
-                    ->tooltip(__('Modbus slave ID (1-255).')),
+                    ->rules(fn (): array => [
+                        'nullable',
+                        'integer',
+                        'min:1',
+                        'max:'.($this->getOwnerRecord()->adapter_type === LockerAdapterType::Rs485LockBoard ? 31 : 255),
+                    ])
+                    ->tooltip(fn (): string => $this->getOwnerRecord()->adapter_type === LockerAdapterType::Rs485LockBoard
+                        ? __('RS485 board address set by the DIP switches (1-31).')
+                        : __('Modbus slave ID (1-255).')),
 
                 Tables\Columns\TextInputColumn::make('address')
                     ->label(__('Address'))
-                    ->rules(['nullable', 'integer', 'min:0'])
+                    ->rules(fn (): array => [
+                        'nullable',
+                        'integer',
+                        'min:0',
+                        'max:'.max(0, (int) $this->getOwnerRecord()->channel_count - 1),
+                    ])
                     ->tooltip(__('0-based relay address. Used for both coil and input.')),
 
                 CompartmentDoorStateColumn::column(),

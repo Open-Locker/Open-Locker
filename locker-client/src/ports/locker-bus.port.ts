@@ -14,6 +14,7 @@ export interface LockerBusPort {
   connect(): Promise<void>;
   disconnect(): Promise<void>;
   getConnectionState(): ConnectionState;
+  runExclusive<T>(operation: (bus: LockerBusPort) => Promise<T>): Promise<T>;
   ensureConnected(): Promise<boolean>;
   reloadRuntimeConfig(): Promise<void>;
   flashRelay(target: CompartmentTarget, durationMs: number): Promise<UnlockFeedback>;

@@ -4,7 +4,10 @@ import { ModbusTransportError } from '../../domain/errors';
 export class ReconnectCoordinator {
   private inFlight: Promise<void> | null = null;
   private attempts = 0;
-  private timers: ReturnType<typeof setTimeout>[] = [];
+  private timers: Array<{
+    timer: ReturnType<typeof setTimeout>;
+    resolve: () => void;
+  }> = [];
   private readonly maxAttempts: number;
   private readonly delayMs: number;
 
@@ -37,8 +40,9 @@ export class ReconnectCoordinator {
   }
 
   cancelScheduled(): void {
-    for (const timer of this.timers) {
-      clearTimeout(timer);
+    for (const scheduled of this.timers) {
+      clearTimeout(scheduled.timer);
+      scheduled.resolve();
     }
     this.timers = [];
   }
@@ -80,9 +84,10 @@ export class ReconnectCoordinator {
   private scheduleRetry(reconnectFn: () => Promise<void>): Promise<void> {
     return new Promise((resolve, reject) => {
       const timer = setTimeout(() => {
+        this.timers = this.timers.filter((scheduled) => scheduled.timer !== timer);
         this.runInternal(reconnectFn).then(resolve).catch(reject);
       }, this.delayMs);
-      this.timers.push(timer);
+      this.timers.push({ timer, resolve });
     });
   }
 }

@@ -58,22 +58,26 @@ export class OpenCompartmentUseCase {
   }
 
   async execute(compartmentNumber: number, transactionId: string): Promise<void> {
-    const target = this.resolveTarget(compartmentNumber);
-    const connected = await this.bus.ensureConnected();
-    if (!connected) {
-      throw new LockerError(
-        MqttErrorCode.HARDWARE_ERROR,
-        'Cannot open compartment: hardware bus unavailable',
-      );
-    }
+    const { target, doorStateBefore, unlockFeedback } = await this.bus.runExclusive(
+      async (exclusiveBus) => {
+        const target = this.resolveTarget(compartmentNumber);
+        const connected = await exclusiveBus.ensureConnected();
+        if (!connected) {
+          throw new LockerError(
+            MqttErrorCode.HARDWARE_ERROR,
+            'Cannot open compartment: hardware bus unavailable',
+          );
+        }
 
-    const durationMs = this.config.getFlashDurationMs();
+        const durationMs = this.config.getFlashDurationMs();
 
-    // Read before firing: a door that is already open would otherwise be
-    // indistinguishable from one the pulse opened.
-    const doorStateBefore = await this.readDoorState(target);
-
-    const unlockFeedback = await this.bus.flashRelay(target, durationMs);
+        // Read before firing: a door that is already open would otherwise be
+        // indistinguishable from one the pulse opened.
+        const doorStateBefore = await this.readDoorState(target, exclusiveBus);
+        const unlockFeedback = await exclusiveBus.flashRelay(target, durationMs);
+        return { target, doorStateBefore, unlockFeedback };
+      },
+    );
     this.relayFireLog.recordFire(compartmentNumber, this.now());
     this.startRelayMonitoring(target);
 
@@ -184,9 +188,12 @@ export class OpenCompartmentUseCase {
   }
 
   /** Single-compartment door read; `unknown` on any bus failure. */
-  private async readDoorState(target: CompartmentTarget): Promise<DoorState> {
+  private async readDoorState(
+    target: CompartmentTarget,
+    bus: LockerBusPort = this.bus,
+  ): Promise<DoorState> {
     try {
-      const states = await this.bus.readDoorSensors(target.slaveId, target.relayAddress, 1);
+      const states = await bus.readDoorSensors(target.slaveId, target.relayAddress, 1);
 
       return states[0] ?? 'unknown';
     } catch {

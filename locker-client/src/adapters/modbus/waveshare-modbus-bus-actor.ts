@@ -73,6 +73,10 @@ export class WaveshareModbusBusActor implements LockerBusPort {
     return this.connectionState;
   }
 
+  runExclusive<T>(operation: (bus: LockerBusPort) => Promise<T>): Promise<T> {
+    return operation(this);
+  }
+
   getConfiguredSlaveIds(): number[] {
     return typeof this.configuredSlaveIds === 'function'
       ? [...this.configuredSlaveIds()]

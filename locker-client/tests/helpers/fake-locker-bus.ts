@@ -36,6 +36,10 @@ export class FakeLockerBus implements LockerBusPort {
     return this.connected ? ('connected' as const) : ('disconnected' as const);
   }
 
+  runExclusive<T>(operation: (bus: LockerBusPort) => Promise<T>): Promise<T> {
+    return operation(this);
+  }
+
   async ensureConnected(): Promise<boolean> {
     return this.connected;
   }
