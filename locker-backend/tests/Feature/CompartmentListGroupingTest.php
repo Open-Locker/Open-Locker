@@ -10,6 +10,7 @@ use App\Models\LockerBank;
 use App\Models\User;
 use Filament\Tables\Table;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\HtmlString;
 use Livewire\Livewire;
 use Tests\TestCase;
 
@@ -37,6 +38,17 @@ class CompartmentListGroupingTest extends TestCase
         $admin->makeAdmin();
 
         return $admin;
+    }
+
+    private function visibleGroupTitle(mixed $title): string
+    {
+        if (preg_match('/data-group-name[^>]*>(.*?)</', (string) $title, $matches) === 1) {
+            return html_entity_decode($matches[1], ENT_QUOTES | ENT_HTML5);
+        }
+
+        $withoutHiddenId = preg_replace('/<span hidden>.*?<\/span>/', '', (string) $title) ?? (string) $title;
+
+        return trim(strip_tags($withoutHiddenId));
     }
 
     public function test_the_list_is_grouped_by_locker_bank_by_default(): void
@@ -112,11 +124,14 @@ class CompartmentListGroupingTest extends TestCase
         $this->assertSame((string) $firstBank->id, $group->getStringKey($firstCompartment));
         $this->assertSame((string) $secondBank->id, $group->getStringKey($secondCompartment));
         $this->assertNotSame($group->getStringKey($firstCompartment), $group->getStringKey($secondCompartment));
-        $this->assertSame('Main office — North wing · '.$firstBank->id, $group->getTitle($firstCompartment));
-        $this->assertSame('Main office — South wing · '.$secondBank->id, $group->getTitle($secondCompartment));
+        $this->assertSame('Main office', $this->visibleGroupTitle($group->getTitle($firstCompartment)));
+        $this->assertSame('Main office', $this->visibleGroupTitle($group->getTitle($secondCompartment)));
+        $this->assertNotSame((string) $group->getTitle($firstCompartment), (string) $group->getTitle($secondCompartment));
+        $this->assertSame('North wing', $group->getDescription($firstCompartment, $group->getTitle($firstCompartment)));
+        $this->assertSame('South wing', $group->getDescription($secondCompartment, $group->getTitle($secondCompartment)));
     }
 
-    public function test_same_named_banks_with_the_same_location_still_get_distinct_titles(): void
+    public function test_same_named_banks_with_the_same_location_keep_distinct_titles(): void
     {
         $admin = $this->admin();
 
@@ -134,9 +149,12 @@ class CompartmentListGroupingTest extends TestCase
         $group = $this->tableFor($admin)->getDefaultGroup();
 
         $this->assertNotNull($group);
-        $this->assertSame('Main office — North wing · '.$firstBank->id, $group->getTitle($firstCompartment));
-        $this->assertSame('Main office — North wing · '.$secondBank->id, $group->getTitle($secondCompartment));
-        $this->assertNotSame($group->getTitle($firstCompartment), $group->getTitle($secondCompartment));
+        $this->assertInstanceOf(HtmlString::class, $group->getTitle($firstCompartment));
+        $this->assertSame('Main office', $this->visibleGroupTitle($group->getTitle($firstCompartment)));
+        $this->assertSame('Main office', $this->visibleGroupTitle($group->getTitle($secondCompartment)));
+        $this->assertSame('North wing', $group->getDescription($firstCompartment, $group->getTitle($firstCompartment)));
+        $this->assertSame('North wing', $group->getDescription($secondCompartment, $group->getTitle($secondCompartment)));
+        $this->assertNotSame((string) $group->getTitle($firstCompartment), (string) $group->getTitle($secondCompartment));
     }
 
     public function test_same_named_banks_without_a_location_still_get_distinct_titles(): void
@@ -153,7 +171,44 @@ class CompartmentListGroupingTest extends TestCase
         $group = $this->tableFor($admin)->getDefaultGroup();
 
         $this->assertNotNull($group);
-        $this->assertSame('Main office · '.$firstBank->id, $group->getTitle($firstCompartment->unsetRelation('lockerBank')));
-        $this->assertSame('Main office · '.$secondBank->id, $group->getTitle($secondCompartment->unsetRelation('lockerBank')));
+        $this->assertSame('Main office', $this->visibleGroupTitle($group->getTitle($firstCompartment->unsetRelation('lockerBank'))));
+        $this->assertSame('Main office', $this->visibleGroupTitle($group->getTitle($secondCompartment->unsetRelation('lockerBank'))));
+        $this->assertNull($group->getDescription($firstCompartment, $group->getTitle($firstCompartment)));
+        $this->assertNotSame((string) $group->getTitle($firstCompartment), (string) $group->getTitle($secondCompartment));
+    }
+
+    public function test_the_actions_column_has_a_header_label(): void
+    {
+        $this->assertSame(__('Actions'), $this->tableFor($this->admin())->getRecordActionsColumnLabel());
+    }
+
+    public function test_group_titles_show_the_bank_connection_status(): void
+    {
+        $admin = $this->admin();
+
+        $onlineBank = LockerBank::factory()->create([
+            'name' => 'Online bank',
+            'connection_status' => 'online',
+        ]);
+        $offlineBank = LockerBank::factory()->create([
+            'name' => 'Offline bank',
+            'connection_status' => 'offline',
+        ]);
+        $onlineCompartment = Compartment::factory()->for($onlineBank)->create();
+        $offlineCompartment = Compartment::factory()->for($offlineBank)->create();
+
+        $group = $this->tableFor($admin)->getDefaultGroup();
+
+        $this->assertNotNull($group);
+        $this->assertSame('Online bank', $this->visibleGroupTitle($group->getTitle($onlineCompartment)));
+        $this->assertSame('Offline bank', $this->visibleGroupTitle($group->getTitle($offlineCompartment)));
+        $this->assertStringContainsString('white-space:nowrap', (string) $group->getTitle($onlineCompartment));
+        $this->assertStringContainsString("data-connection-status='online'", (string) $group->getTitle($onlineCompartment));
+        $this->assertStringContainsString("title='".__('online')."'", (string) $group->getTitle($onlineCompartment));
+        $this->assertStringContainsString("data-connection-status='offline'", (string) $group->getTitle($offlineCompartment));
+        $this->assertStringContainsString("title='".__('offline')."'", (string) $group->getTitle($offlineCompartment));
+        $this->assertStringNotContainsString('fi-badge', (string) $group->getTitle($onlineCompartment));
+        $this->assertStringNotContainsString('"', (string) $group->getTitle($onlineCompartment));
+        $this->assertStringNotContainsString('"', (string) $group->getTitle($offlineCompartment));
     }
 }
