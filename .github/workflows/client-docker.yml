@@ -27,7 +27,7 @@ concurrency:
 jobs:
   release-gate:
     name: Verify release tag is on main
-    if: startsWith(github.ref, 'refs/tags/client-v')
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/client-v')
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -43,6 +43,10 @@ jobs:
             exit 1
           fi
           git fetch --no-tags origin main
+          if [[ "${GITHUB_REF_NAME}" == "client-v1.0.0-beta.1" && "${GITHUB_SHA}" != "$(git rev-parse origin/main)" ]]; then
+            echo "::error::The first beta release tag must point to the current main tip."
+            exit 1
+          fi
           if ! git merge-base --is-ancestor "${GITHUB_SHA}" origin/main; then
             echo "::error::Release tag ${GITHUB_REF_NAME} is not contained in main."
             exit 1
@@ -50,7 +54,7 @@ jobs:
 
   release-quality:
     name: Client release quality gate
-    if: startsWith(github.ref, 'refs/tags/client-v')
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/client-v')
     needs: release-gate
     uses: ./.github/workflows/locker-client-ci.yml
     permissions:
@@ -58,6 +62,31 @@ jobs:
 
   build:
     name: Verify client image
+    if: ${{ !(github.event_name == 'push' && startsWith(github.ref, 'refs/tags/client-v')) }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Docker image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./locker-client
+          file: ./locker-client/Dockerfile
+          push: false
+          platforms: linux/amd64
+          cache-from: type=gha,scope=locker-client
+          cache-to: type=gha,mode=max,scope=locker-client
+
+  release-build:
+    name: Verify tagged client image
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/client-v')
+    needs: release-quality
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -82,9 +111,11 @@ jobs:
     name: Publish client image
     if: >-
       always() &&
-      needs.build.result == 'success' &&
+      (needs.build.result == 'success' || needs.build.result == 'skipped') &&
+      (needs.release-build.result == 'success' || needs.release-build.result == 'skipped') &&
       (needs.release-gate.result == 'success' || needs.release-gate.result == 'skipped') &&
       (needs.release-quality.result == 'success' || needs.release-quality.result == 'skipped') &&
+      github.event_name == 'push' &&
       (github.ref == 'refs/heads/main' ||
        github.ref == 'refs/heads/dev' ||
        startsWith(github.ref, 'refs/tags/client-v'))
@@ -92,6 +123,7 @@ jobs:
       - release-gate
       - release-quality
       - build
+      - release-build
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -116,13 +148,22 @@ jobs:
             type=sha,format=long,prefix=sha-
             type=raw,value=dev,enable=${{ github.ref == 'refs/heads/dev' }}
             type=raw,value=${{ github.ref_name }},enable=${{ startsWith(github.ref, 'refs/tags/client-v') }}
-            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
+            type=raw,value=latest,enable=${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
+
+      - name: Verify current main tip before publishing latest
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: |
+          git fetch --no-tags origin main
+          if [[ "${GITHUB_SHA}" != "$(git rev-parse origin/main)" ]]; then
+            echo "::error::Refusing to publish latest from a stale main commit."
+            exit 1
+          fi
 
       - name: Build and push Docker image
         uses: docker/build-push-action@v6
@@ -138,7 +179,7 @@ jobs:
 
   release:
     name: Create client release
-    if: startsWith(github.ref, 'refs/tags/client-v')
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/client-v')
     needs:
       - release-quality
       - publish

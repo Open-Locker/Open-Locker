@@ -20,7 +20,7 @@ conventional_commits = true
 filter_unconventional = true
 filter_commits = false
 tag_pattern = "^client-v[0-9]+\\.[0-9]+\\.[0-9]+(?:-[0-9A-Za-z.-]+)?$"
-include_paths = ["locker-client/**"]
+include_paths = ["locker-client/**", "docs/asyncapi/**"]
 commit_parsers = [
     { message = "^feat", group = "Features" },
     { message = "^fix", group = "Bug Fixes" },

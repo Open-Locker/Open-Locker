@@ -26,7 +26,7 @@ env:
 jobs:
   release-gate:
     name: Verify release tag is on main
-    if: startsWith(github.ref, 'refs/tags/mobile-v')
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/mobile-v')
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -42,6 +42,10 @@ jobs:
             exit 1
           fi
           git fetch --no-tags origin main
+          if [[ "${GITHUB_REF_NAME}" == "mobile-v1.0.0-beta.1" && "${GITHUB_SHA}" != "$(git rev-parse origin/main)" ]]; then
+            echo "::error::The first beta release tag must point to the current main tip."
+            exit 1
+          fi
           if ! git merge-base --is-ancestor "${GITHUB_SHA}" origin/main; then
             echo "::error::Release tag ${GITHUB_REF_NAME} is not contained in main."
             exit 1
@@ -49,7 +53,7 @@ jobs:
 
   release-quality:
     name: Mobile release quality gate
-    if: startsWith(github.ref, 'refs/tags/mobile-v')
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/mobile-v')
     needs: release-gate
     uses: ./.github/workflows/mobile-app-ci.yml
     permissions:
@@ -64,6 +68,9 @@ jobs:
     needs:
       - release-gate
       - release-quality
+    concurrency:
+      group: mobile-android-${{ github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/mobile-v')) && 'store' || github.ref }}
+      cancel-in-progress: ${{ github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/mobile-v')) }}
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -114,10 +121,20 @@ jobs:
             exit 1
           fi
 
+      - name: Verify current main tip for store build
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        working-directory: ${{ github.workspace }}
+        run: |
+          git fetch --no-tags origin main
+          if [[ "${GITHUB_SHA}" != "$(git rev-parse origin/main)" ]]; then
+            echo "::error::Refusing to submit a stale main build."
+            exit 1
+          fi
+
       - name: Select Android distribution
         id: distribution
         run: |
-          if [[ "${GITHUB_REF}" == "refs/heads/main" || "${GITHUB_REF}" == refs/tags/mobile-v* ]]; then
+          if [[ "${GITHUB_EVENT_NAME}" == "push" && ("${GITHUB_REF}" == "refs/heads/main" || "${GITHUB_REF}" == refs/tags/mobile-v*) ]]; then
             echo "profile=store" >> "${GITHUB_OUTPUT}"
             echo "artifact=openlocker-android.aab" >> "${GITHUB_OUTPUT}"
             echo "channel=production" >> "${GITHUB_OUTPUT}"
@@ -126,6 +143,18 @@ jobs:
             echo "artifact=openlocker-android.apk" >> "${GITHUB_OUTPUT}"
             echo "channel=preview" >> "${GITHUB_OUTPUT}"
           fi
+
+      - name: Derive tagged app version
+        if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/mobile-v')
+        run: |
+          release_version="${GITHUB_REF_NAME#mobile-v}"
+          marketing_version="${release_version%%-*}"
+          {
+            echo "APP_VERSION=${marketing_version}"
+            echo "APP_RUNTIME_VERSION=${release_version}"
+            echo "APP_RELEASE_TAG=${GITHUB_REF_NAME}"
+            echo "APP_RELEASE_VERSION=${release_version}"
+          } >> "${GITHUB_ENV}"
 
       - name: Build Android (${{ steps.distribution.outputs.channel }})
         env:
@@ -146,7 +175,7 @@ jobs:
           retention-days: 14
 
       - name: Submit Android store candidate
-        if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/mobile-v')
+        if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/mobile-v'))
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
         run: |
@@ -164,6 +193,9 @@ jobs:
     needs:
       - release-gate
       - release-quality
+    concurrency:
+      group: mobile-ios-${{ github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/mobile-v')) && 'store' || github.ref }}
+      cancel-in-progress: ${{ github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/mobile-v')) }}
     runs-on: macos-26
     permissions:
       contents: read
@@ -198,16 +230,38 @@ jobs:
             exit 1
           fi
 
+      - name: Verify current main tip for store build
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        working-directory: ${{ github.workspace }}
+        run: |
+          git fetch --no-tags origin main
+          if [[ "${GITHUB_SHA}" != "$(git rev-parse origin/main)" ]]; then
+            echo "::error::Refusing to submit a stale main build."
+            exit 1
+          fi
+
       - name: Select iOS distribution
         id: distribution
         run: |
-          if [[ "${GITHUB_REF}" == "refs/heads/main" || "${GITHUB_REF}" == refs/tags/mobile-v* ]]; then
+          if [[ "${GITHUB_EVENT_NAME}" == "push" && ("${GITHUB_REF}" == "refs/heads/main" || "${GITHUB_REF}" == refs/tags/mobile-v*) ]]; then
             echo "profile=store" >> "${GITHUB_OUTPUT}"
             echo "channel=production" >> "${GITHUB_OUTPUT}"
           else
             echo "profile=preview" >> "${GITHUB_OUTPUT}"
             echo "channel=preview" >> "${GITHUB_OUTPUT}"
           fi
+
+      - name: Derive tagged app version
+        if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/mobile-v')
+        run: |
+          release_version="${GITHUB_REF_NAME#mobile-v}"
+          marketing_version="${release_version%%-*}"
+          {
+            echo "APP_VERSION=${marketing_version}"
+            echo "APP_RUNTIME_VERSION=${release_version}"
+            echo "APP_RELEASE_TAG=${GITHUB_REF_NAME}"
+            echo "APP_RELEASE_VERSION=${release_version}"
+          } >> "${GITHUB_ENV}"
 
       - name: Build iOS (${{ steps.distribution.outputs.channel }})
         env:
@@ -228,7 +282,7 @@ jobs:
           retention-days: 14
 
       - name: Submit TestFlight candidate
-        if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/mobile-v')
+        if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/mobile-v'))
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
           APP_VARIANT: production
@@ -240,7 +294,7 @@ jobs:
 
   release:
     name: Create mobile release
-    if: startsWith(github.ref, 'refs/tags/mobile-v')
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/mobile-v')
     needs:
       - release-quality
       - android

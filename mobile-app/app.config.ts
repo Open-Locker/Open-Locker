@@ -49,6 +49,10 @@ export default ({ config }: ConfigContext): ExpoConfig => {
   const appleTeamId = process.env.EXPO_APPLE_TEAM_ID;
   const appDomain = 'open-locker.cloud';
   const marketingDomain = 'open-locker.org';
+  const appVersion = process.env.APP_VERSION ?? '1.0.0';
+  const runtimeVersion = process.env.APP_RUNTIME_VERSION;
+  const releaseTag = process.env.APP_RELEASE_TAG;
+  const releaseVersion = process.env.APP_RELEASE_VERSION;
 
   if (variant === 'production') {
     const iosUsesDefaultId = iosAppIdBase === defaultAppIdBase;
@@ -65,14 +69,14 @@ export default ({ config }: ConfigContext): ExpoConfig => {
     name: getAppName(variant),
     owner: 'merona-apps',
     slug: 'open-locker-mobile',
-    version: process.env.APP_VERSION ?? '1.0.0',
+    version: appVersion,
     platforms: ['ios', 'android'],
     orientation: 'portrait',
     icon: './assets/images/icon.png',
     scheme: 'open-locker',
     userInterfaceStyle: 'automatic',
     newArchEnabled: true,
-    runtimeVersion: {
+    runtimeVersion: runtimeVersion ?? {
       policy: 'appVersion',
     },
     ios: {
@@ -147,6 +151,8 @@ export default ({ config }: ConfigContext): ExpoConfig => {
       appVariant: variant,
       appDomain,
       marketingDomain,
+      ...(releaseTag ? { releaseTag } : {}),
+      ...(releaseVersion ? { releaseVersion } : {}),
     },
   };
 };
