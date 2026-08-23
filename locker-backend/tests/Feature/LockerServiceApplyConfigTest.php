@@ -172,6 +172,19 @@ class LockerServiceApplyConfigTest extends TestCase
         app(LockerService::class)->applyConfig($lockerBank);
     }
 
+    public function test_apply_config_rejects_non_eight_channel_waveshare_profile(): void
+    {
+        $lockerBank = LockerBankFactory::new()->create([
+            'adapter_type' => LockerAdapterType::WaveshareModbus,
+            'channel_count' => 12,
+        ]);
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('Config is invalid: the supported Waveshare board has exactly 8 channels.');
+
+        app(LockerService::class)->applyConfig($lockerBank);
+    }
+
     public function test_apply_config_rejects_rs485_board_address_outside_dip_range(): void
     {
         $lockerBank = LockerBankFactory::new()->create([

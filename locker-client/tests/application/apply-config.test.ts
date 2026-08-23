@@ -82,6 +82,39 @@ test('apply config hashes and persists the complete runtime hardware profile', a
   );
 });
 
+test('apply config rejects unsupported Waveshare channel counts', async () => {
+  const compartments = [{ compartment_number: 1, slaveId: 1, address: 0 }];
+  const profile = {
+    adapter_type: 'waveshare_modbus' as const,
+    channel_count: 12 as const,
+    feedback_type: 'door_closing' as const,
+    compartments,
+  };
+  const useCase = new ApplyConfigUseCase({
+    overlayStore: new MemoryOverlayStore(),
+    config: createTestConfigRepository(),
+    bus: new FakeLockerBus([1]),
+    restartHeartbeat: () => undefined,
+    restartPolling: () => undefined,
+  });
+
+  await assert.rejects(
+    () =>
+      useCase.execute({
+        action: 'apply_config',
+        message_id: 'msg-waveshare-channels',
+        transaction_id: 'tx-waveshare-channels',
+        timestamp: '2026-08-23T12:00:00.000Z',
+        data: {
+          ...profile,
+          config_hash: computeAppliedConfigHash(profile),
+          heartbeat_interval_seconds: 30,
+        },
+      }),
+    /exactly 8 channels/,
+  );
+});
+
 test('apply config restores previous overlay when runtime reload fails', async () => {
   const previousOverlay = {
     mqtt: { heartbeatInterval: 15 },

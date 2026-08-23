@@ -45,6 +45,9 @@ These fields are required in the MQTT contract and are stored on
 `waveshare_modbus`, `8`, and `door_closing`. The existing compartment mapping
 continues to use `slaveId` and zero-based `address`; no board table is added.
 Every address must be less than the bank's `channel_count`.
+The only verified Waveshare profile remains the 8-channel Relay (D), so
+`waveshare_modbus` requires `channel_count: 8`; the larger variants apply only
+to `rs485_lock_board`.
 
 The locker client selects an adapter from `adapter_type`:
 
