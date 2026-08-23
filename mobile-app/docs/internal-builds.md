@@ -1,21 +1,23 @@
-# Mobile App — Internal Test Builds & CI (Maintainer Guide)
+# Mobile App — Build and Release CI (Maintainer Guide)
 
-> **Scope:** repeatable INTERNAL testing pipeline. Public App Store / Play Store
-> release is explicitly OUT OF SCOPE (issue #19). Decision record: ADR-0033.
+This guide covers the branch and tag channels implemented by
+[ADR-0043](../../docs/adr/0043-monorepo-release-strategy.md). Signing credentials
+remain on EAS; GitHub Actions receives only `EXPO_TOKEN`.
 
 ## Overview
 
-On every push to `main` that touches `mobile-app/**`, GitHub Actions produces a
-new **internal test build** for Android and iOS using `eas build --local` on
-GitHub runners. Signing credentials live on EAS and are fetched at build time via
-`EXPO_TOKEN` — **never in the repo**.
+GitHub Actions uses `eas build --local` on GitHub-hosted runners:
 
 ```
-push to main ──▶ GitHub Actions (.github/workflows/mobile-app-build.yml)
-                   ├─ ubuntu-latest : eas build --local --platform android
-                   └─ macos-latest  : eas build --local --platform ios
-                         └─ signing creds fetched from EAS via EXPO_TOKEN
+dev / manual ──▶ preview profile ──▶ internal artifacts only
+main         ──▶ store profile   ──▶ TestFlight + Android internal track
+mobile-v*    ──▶ main ancestry gate + quality
+             ──▶ store profile + submissions + GitHub Release
 ```
+
+Store processing is asynchronous. The tag workflow creates the GitHub Release
+after both `eas submit` commands accept the artifacts; availability in
+TestFlight and Google Play must still be confirmed separately.
 
 ## Project facts
 
@@ -27,7 +29,9 @@ push to main ──▶ GitHub Actions (.github/workflows/mobile-app-build.yml)
 | Bundle ID (iOS + Android) | `de.merona.openlocker` (set via `APP_ID_BASE`)                                            |
 | Apple Team                | `UKC9C5ZQPC` (merona, Company/Organization)                                               |
 | Google Play account       | merona                                                                                    |
-| Build profile             | `production` (so the same artifact can be promoted later)                                 |
+| Internal build profile    | `preview` (`dev` and manual runs; no store submission)                                    |
+| Store build profile       | `store` (`main` and validated `mobile-v*` tags)                                           |
+| Store submit profile      | `production` (TestFlight and Android internal track)                                      |
 
 > ⚠️ `app.config.ts` **throws** for the `production` variant unless `APP_ID_BASE`
 > (or `APP_ID_BASE_IOS`/`APP_ID_BASE_ANDROID`) is set. CI sets it inline.
@@ -87,13 +91,14 @@ This writes (all **gitignored**, never commit): `credentials.json`,
 
 ## Distribution to testers
 
-- **Android:** the `production` profile sets `android.buildType: "apk"`, so the
-  build is an installable `.apk` uploaded as a GitHub Actions artifact. Testers
-  download it from the workflow run and sideload it.
-- **iOS:** the workflow runs `eas submit` to push the `.ipa` to **TestFlight**
-  (App Store Connect beta — internal testing, not a public release). Testers
-  accept a TestFlight invite. (Ad-hoc install would need device UDIDs registered
-  — not set up.)
+- **`dev` and manual runs:** the `preview` profile produces internal artifacts;
+  neither platform is submitted to a store.
+- **`main`:** the `store` profile produces an Android App Bundle and iOS IPA.
+  The workflow submits them using the `production` submit profile to the Android
+  internal track and TestFlight.
+- **`mobile-v*`:** the same store path runs only after the tag commit is proven
+  to be contained in `main` and mobile quality checks pass. Accepted submissions
+  are followed by a component-scoped GitHub Release.
 
 ## Installing a build (for testers)
 
@@ -143,12 +148,14 @@ TestFlight. The iOS job runs `eas submit`, which uploads the build to TestFlight
 
 ## Manual rebuild
 
-From the GitHub Actions tab use **Run workflow** (`workflow_dispatch`), or locally:
+**Run workflow** (`workflow_dispatch`) is deliberately an internal `preview`
+build, regardless of the selected ref. It never submits to a store or creates a
+versioned release. Build locally with:
 
 ```bash
 cd mobile-app
-APP_ID_BASE=de.merona.openlocker eas build --local --profile production --platform android
-APP_ID_BASE=de.merona.openlocker eas build --local --profile production --platform ios
+APP_ID_BASE=de.merona.openlocker eas build --local --profile preview --platform android
+APP_ID_BASE=de.merona.openlocker eas build --local --profile preview --platform ios
 ```
 
 (Local builds need Java/Android SDK for Android and Xcode for iOS.)
@@ -169,7 +176,8 @@ and the TestFlight submit completes.
 
 ## Open items (track before declaring done)
 
-- [x] Android artifact: `.apk` for sideload internal (`android.buildType: "apk"` in `eas.json`).
+- [x] Android internal artifact: `.apk` for sideload builds.
+- [x] Android store artifact: `.aab` submitted to the configured internal track.
 - [x] iOS: TestFlight upload step added (`eas submit` in the workflow).
 - [ ] Add `EXPO_TOKEN` secret to the GitHub repo.
 - [ ] Validate via `workflow_dispatch`, then a real push to `main`.

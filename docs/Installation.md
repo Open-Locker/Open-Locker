@@ -51,7 +51,7 @@ Component source tags are independent:
 For beta deployments, set `BACKEND_IMAGE_TAG` and `LOCKER_CLIENT_IMAGE_TAG` to
 the exact immutable GHCR tags produced and verified for the corresponding source
 tags. Do not deploy a pilot with `latest`. Verify the image digest because
-release workflow implementation is itself tracked by #50.
+the release workflows also publish a commit-specific `sha-<commit>` tag.
 
 Production MQTT is exposed only as MQTTS on port 8883 through Traefik. Plaintext
 port 1883 remains available inside the production Docker network and in the

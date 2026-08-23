@@ -16,8 +16,8 @@ tags follow [ADR-0043](adr/0043-monorepo-release-strategy.md).
 - [ ] Mobile operator:
 - [ ] Pilot site and tester group:
 - [ ] Planned start, decision time, and monitoring window:
-- [ ] Candidate tags: `backend-v________`, `client-v________`,
-      `mobile-v________`
+- [ ] First candidate tags: `backend-v1.0.0-beta.1`,
+      `client-v1.0.0-beta.1`, `mobile-v1.0.0-beta.1`
 - [ ] Immutable candidate/baseline commits and image digests:
 - [ ] Database backup identifier and timestamp:
 
@@ -64,6 +64,11 @@ work and do not block the first Beta artifacts.
 - [ ] Confirm each tag will point to the intended commit on `main`.
 - [ ] Confirm non-`main` and manual workflow runs cannot overwrite `latest` or
       mint a SemVer release.
+- [ ] Confirm the repository `EXPO_TOKEN` secret is available to the mobile
+      workflow and EAS holds valid Android, iOS, and App Store Connect
+      credentials.
+- [ ] Confirm Actions can write GHCR packages and GitHub Releases through the
+      workflow-scoped `GITHUB_TOKEN` permissions.
 - [ ] Create each required component tag using the approved release process.
 - [ ] Verify each generated release contains component-scoped notes, contract
       changes, migration instructions, and known risks.
