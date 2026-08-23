@@ -12,6 +12,7 @@ use App\Filament\Resources\CompartmentResource\RelationManagers\UserAccessesRela
 use App\Filament\Support\CompartmentDoorStateColumn;
 use App\Filament\Support\OpenCompartmentAction;
 use App\Models\Compartment;
+use App\Models\LockerBank;
 use Filament\Actions\Action;
 use Filament\Infolists\Components\TextEntry;
 use Filament\Resources\Resource;
@@ -115,14 +116,34 @@ class CompartmentResource extends Resource
             // grouped and folded shut — the admin picks one bank instead of scanning
             // every compartment in the system (#167).
             ->groups([
-                Group::make('lockerBank.name')
+                Group::make('locker_bank_id')
                     ->label(__('Locker bank'))
+                    // Filament and the accordion script key groups by title, so
+                    // the title must stay unique even when name and location match.
+                    ->getTitleFromRecordUsing(function (Compartment $record): string {
+                        $bank = $record->lockerBank;
+                        $name = $bank?->name ?: __('Locker bank');
+                        $location = $bank?->location_description;
+                        $label = filled($location) ? "{$name} — {$location}" : $name;
+
+                        return $label.' · '.$record->locker_bank_id;
+                    })
+                    ->orderQueryUsing(function (Builder $query, string $direction): Builder {
+                        return $query
+                            ->orderBy(
+                                LockerBank::query()
+                                    ->select('name')
+                                    ->whereColumn('locker_banks.id', 'compartments.locker_bank_id'),
+                                $direction,
+                            )
+                            ->orderBy('compartments.locker_bank_id', $direction);
+                    })
                     // The header is unambiguous on its own; the label prefix just
                     // repeats "Locker bank:" on every row group.
                     ->titlePrefixedWithLabel(false)
                     ->collapsible(),
             ])
-            ->defaultGroup('lockerBank.name')
+            ->defaultGroup('locker_bank_id')
             ->collapsedGroupsByDefault()
             ->groupingSettingsHidden()
             // Record pagination would split a locker bank across pages. Every group
