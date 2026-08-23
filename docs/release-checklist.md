@@ -62,6 +62,8 @@ work and do not block the first Beta artifacts.
       example `backend-v1.0.0-beta.1`, `client-v1.0.0-beta.1`, and
       `mobile-v1.0.0-beta.1`.
 - [ ] Confirm each tag will point to the intended commit on `main`.
+- [ ] For the three first `1.0.0-beta.1` tags, confirm the candidate commit is
+      also the current `main` tip; their workflows reject older `main` commits.
 - [ ] Confirm non-`main` and manual workflow runs cannot overwrite `latest` or
       mint a SemVer release.
 - [ ] Confirm the repository `EXPO_TOKEN` secret is available to the mobile

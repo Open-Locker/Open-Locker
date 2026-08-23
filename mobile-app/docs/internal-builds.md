@@ -19,6 +19,21 @@ Store processing is asynchronous. The tag workflow creates the GitHub Release
 after both `eas submit` commands accept the artifacts; availability in
 TestFlight and Google Play must still be confirmed separately.
 
+For a tag such as `mobile-v1.0.0-beta.1`, CI maps versions as follows:
+
+- App Store / Play marketing version: `1.0.0`
+- Expo runtime version: `1.0.0-beta.1`
+- `extra.releaseTag`: `mobile-v1.0.0-beta.1`
+- `extra.releaseVersion`: `1.0.0-beta.1`
+
+EAS `autoIncrement` supplies the platform build number/version code. This keeps
+store-visible versions numeric while preserving the full prerelease identity in
+runtime and diagnostic metadata.
+
+Android and iOS store paths each use one global GitHub concurrency group. A
+newer store run cancels the older in-progress run, and reruns from a stale
+`main` commit fail before building or submitting.
+
 ## Project facts
 
 | Thing                     | Value                                                                                     |
