@@ -48,7 +48,7 @@ jobs:
         with:
           version: v2.13.1
           config: ${{ inputs.cliff-config }}
-          args: --latest --strip header --output release-notes.generated.md
+          args: --current --strip header --output release-notes.generated.md
           github_token: ${{ github.token }}
 
       - name: Prepare release notes

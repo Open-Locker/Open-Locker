@@ -209,6 +209,8 @@ end
 
 def validate_release_workflow
   release = workflow('component-release.yml').fetch('jobs').fetch('release')
+  notes_step = step(release, 'Generate component release notes')
+  assert(notes_step.fetch('with').fetch('args').start_with?('--current '), 'release notes must use the checked-out tag')
   create_step = step(release, 'Create GitHub Release')
   script = create_step.fetch('run')
   assert(script.index('gh release view') < script.index('gh release create'), 'release idempotency check must run first')
