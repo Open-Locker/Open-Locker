@@ -40,8 +40,7 @@ The runtime flow is:
 
 There is currently **no production deployment**. The first beta is a controlled
 pre-production pilot governed by the
-[beta release checklist](release-checklist.md) and
-[rollback runbook](releases/beta-rollback.md).
+[beta release checklist](release-checklist.md).
 
 Component source tags are independent:
 
@@ -51,13 +50,14 @@ Component source tags are independent:
 
 For beta deployments, set `BACKEND_IMAGE_TAG` and `LOCKER_CLIENT_IMAGE_TAG` to
 the exact immutable GHCR tags produced and verified for the corresponding source
-tags. Do not deploy or roll back a pilot with `latest`. Verify the image digest
-because release workflow implementation is itself tracked by #50.
+tags. Do not deploy a pilot with `latest`. Verify the image digest because
+release workflow implementation is itself tracked by #50.
 
 Production MQTT is exposed only as MQTTS on port 8883 through Traefik. Plaintext
 port 1883 remains available inside the production Docker network and in the
 explicit development stack, but is not published by production Compose. Passing
-the end-to-end MQTTS smoke test below remains a beta release gate.
+the end-to-end MQTTS smoke test below is tracked as Beta 2 acceptance in #233,
+after the first versioned backend and client images exist.
 
 ## Cloud backend setup
 
@@ -251,7 +251,7 @@ nc -vz "${MQTT_DOMAIN}" 1883
 
 For final acceptance, that command must fail. During the staged migration it
 will still succeed by design, so record the MQTTS checks but do not close the
-release gate until the migration overlay or legacy Coolify mapping is removed.
+#233 acceptance until the migration overlay or legacy Coolify mapping is removed.
 Also verify provisioning, heartbeat, a supervised open command, response, and
 state update from a real client using `mqtts://${MQTT_DOMAIN}:8883`. HTTPS health
 does not substitute for this TCP/TLS test.
@@ -380,5 +380,5 @@ pnpm generate:api
 Run that command with the backend available at `EXPO_PUBLIC_API_BASE_URL` after
 an API contract change. Beta distribution uses TestFlight for iOS and the
 configured Android beta/internal track; versioned mobile releases use
-`mobile-v*` tags. Store rollout and rollback follow the release checklist rather
-than the Docker deployment process.
+`mobile-v*` tags. Store distribution and pilot recovery follow the release
+checklist rather than the Docker deployment process.
