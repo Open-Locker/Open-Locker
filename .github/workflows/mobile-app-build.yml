@@ -15,7 +15,7 @@ on:
   workflow_dispatch:
 
 concurrency:
-  group: mobile-build-${{ github.ref }}
+  group: ${{ github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/mobile-v')) && 'mobile-store' || format('mobile-preview-{0}', github.ref) }}
   cancel-in-progress: false
 
 env:
@@ -42,12 +42,8 @@ jobs:
             exit 1
           fi
           git fetch --no-tags origin main
-          if [[ "${GITHUB_REF_NAME}" == "mobile-v1.0.0-beta.1" && "${GITHUB_SHA}" != "$(git rev-parse origin/main)" ]]; then
-            echo "::error::The first beta release tag must point to the current main tip."
-            exit 1
-          fi
-          if ! git merge-base --is-ancestor "${GITHUB_SHA}" origin/main; then
-            echo "::error::Release tag ${GITHUB_REF_NAME} is not contained in main."
+          if [[ "${GITHUB_SHA}" != "$(git rev-parse origin/main)" ]]; then
+            echo "::error::Release tag ${GITHUB_REF_NAME} must point to the current main tip."
             exit 1
           fi
 
@@ -68,9 +64,6 @@ jobs:
     needs:
       - release-gate
       - release-quality
-    concurrency:
-      group: mobile-android-${{ github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/mobile-v')) && 'store' || github.ref }}
-      cancel-in-progress: ${{ github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/mobile-v')) }}
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -135,13 +128,17 @@ jobs:
         id: distribution
         run: |
           if [[ "${GITHUB_EVENT_NAME}" == "push" && ("${GITHUB_REF}" == "refs/heads/main" || "${GITHUB_REF}" == refs/tags/mobile-v*) ]]; then
-            echo "profile=store" >> "${GITHUB_OUTPUT}"
-            echo "artifact=openlocker-android.aab" >> "${GITHUB_OUTPUT}"
-            echo "channel=production" >> "${GITHUB_OUTPUT}"
+            {
+              echo "profile=store"
+              echo "artifact=openlocker-android.aab"
+              echo "channel=production"
+            } >> "${GITHUB_OUTPUT}"
           else
-            echo "profile=preview" >> "${GITHUB_OUTPUT}"
-            echo "artifact=openlocker-android.apk" >> "${GITHUB_OUTPUT}"
-            echo "channel=preview" >> "${GITHUB_OUTPUT}"
+            {
+              echo "profile=preview"
+              echo "artifact=openlocker-android.apk"
+              echo "channel=preview"
+            } >> "${GITHUB_OUTPUT}"
           fi
 
       - name: Derive tagged app version
@@ -160,7 +157,7 @@ jobs:
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
         run: |
-          pnpm dlx eas-cli@${EAS_CLI_VERSION} build \
+          pnpm dlx "eas-cli@${EAS_CLI_VERSION}" build \
             --local --non-interactive \
             --profile "${{ steps.distribution.outputs.profile }}" \
             --platform android \
@@ -179,7 +176,7 @@ jobs:
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
         run: |
-          pnpm dlx eas-cli@${EAS_CLI_VERSION} submit \
+          pnpm dlx "eas-cli@${EAS_CLI_VERSION}" submit \
             --non-interactive \
             --profile production --platform android \
             --path "./build/${{ steps.distribution.outputs.artifact }}"
@@ -193,9 +190,6 @@ jobs:
     needs:
       - release-gate
       - release-quality
-    concurrency:
-      group: mobile-ios-${{ github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/mobile-v')) && 'store' || github.ref }}
-      cancel-in-progress: ${{ github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/mobile-v')) }}
     runs-on: macos-26
     permissions:
       contents: read
@@ -244,11 +238,15 @@ jobs:
         id: distribution
         run: |
           if [[ "${GITHUB_EVENT_NAME}" == "push" && ("${GITHUB_REF}" == "refs/heads/main" || "${GITHUB_REF}" == refs/tags/mobile-v*) ]]; then
-            echo "profile=store" >> "${GITHUB_OUTPUT}"
-            echo "channel=production" >> "${GITHUB_OUTPUT}"
+            {
+              echo "profile=store"
+              echo "channel=production"
+            } >> "${GITHUB_OUTPUT}"
           else
-            echo "profile=preview" >> "${GITHUB_OUTPUT}"
-            echo "channel=preview" >> "${GITHUB_OUTPUT}"
+            {
+              echo "profile=preview"
+              echo "channel=preview"
+            } >> "${GITHUB_OUTPUT}"
           fi
 
       - name: Derive tagged app version
@@ -267,7 +265,7 @@ jobs:
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
         run: |
-          pnpm dlx eas-cli@${EAS_CLI_VERSION} build \
+          pnpm dlx "eas-cli@${EAS_CLI_VERSION}" build \
             --local --non-interactive \
             --profile "${{ steps.distribution.outputs.profile }}" \
             --platform ios \
@@ -287,7 +285,7 @@ jobs:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
           APP_VARIANT: production
         run: |
-          pnpm dlx eas-cli@${EAS_CLI_VERSION} submit \
+          pnpm dlx "eas-cli@${EAS_CLI_VERSION}" submit \
             --non-interactive \
             --profile production --platform ios \
             --path ./build/openlocker-ios.ipa

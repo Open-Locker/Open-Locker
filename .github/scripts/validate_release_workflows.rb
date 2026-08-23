@@ -69,10 +69,9 @@ def validate_container_workflow(filename, prefix)
     "#{filename}: GitHub Release must be push-only",
   )
 
-  beta_tag = "#{prefix}1.0.0-beta.1"
   gate_script = step(jobs.fetch('release-gate'), 'Verify tag commit belongs to main').fetch('run')
-  assert(gate_script.include?(beta_tag), "#{filename}: first beta tag must be named explicitly")
-  assert(gate_script.include?('git rev-parse origin/main'), "#{filename}: first beta must target main tip")
+  assert(gate_script.include?('GITHUB_SHA'), "#{filename}: tag commit is not checked")
+  assert(gate_script.include?('git rev-parse origin/main'), "#{filename}: every release tag must target main tip")
 
 end
 
@@ -82,13 +81,13 @@ def container_policy(component:, event:, ref:, current_main_tip: true)
   main = ref == 'refs/heads/main'
   dev = ref == 'refs/heads/dev'
   push = event == :push
-  publish = push && ((main && current_main_tip) || (component == :client && dev) || tag)
+  publish = push && ((main && current_main_tip) || (component == :client && dev) || (tag && current_main_tip))
 
   {
     triggered: true,
     publish: publish,
     latest: publish && main,
-    release: push && tag,
+    release: push && tag && current_main_tip,
   }
 end
 
@@ -96,14 +95,22 @@ def mobile_policy(event:, ref:, current_main_tip: true)
   push = event == :push
   main = ref == 'refs/heads/main'
   tag = ref.start_with?('refs/tags/mobile-v')
-  blocked = push && main && !current_main_tip
+  blocked = push && (main || tag) && !current_main_tip
   store = push && (main || tag) && !blocked
 
   {
     triggered: event != :pull_request,
     profile: blocked ? :blocked : (store ? :store : :preview),
     submit: store,
-    release: push && tag,
+    release: push && tag && current_main_tip,
+  }
+end
+
+def mobile_concurrency(event:, ref:)
+  store = event == :push && (ref == 'refs/heads/main' || ref.start_with?('refs/tags/mobile-v'))
+  {
+    group: store ? 'mobile-store' : "mobile-preview-#{ref}",
+    cancel_in_progress: false,
   }
 end
 
@@ -114,6 +121,7 @@ def validate_event_matrix
     [:push, 'refs/heads/main', true, true, true, false],
     [:push, 'refs/heads/main', false, false, false, false],
     [:push, 'refs/tags/backend-v1.0.0-beta.1', true, true, false, true],
+    [:push, 'refs/tags/backend-v1.0.0-beta.1', false, false, false, false],
     [:workflow_dispatch, 'refs/tags/backend-v1.0.0-beta.1', true, false, false, false],
   ]
 
@@ -145,6 +153,7 @@ def validate_event_matrix
     [:push, 'refs/heads/main', true, true, :store, true, false],
     [:push, 'refs/heads/main', false, true, :blocked, false, false],
     [:push, 'refs/tags/mobile-v1.0.0-beta.1', true, true, :store, true, true],
+    [:push, 'refs/tags/mobile-v1.0.0-beta.1', false, true, :blocked, false, false],
     [:workflow_dispatch, 'refs/tags/mobile-v1.0.0-beta.1', true, true, :preview, false, false],
   ]
   mobile_cases.each do |event, ref, tip, triggered, profile, submit, release|
@@ -152,11 +161,22 @@ def validate_event_matrix
     expected = { triggered: triggered, profile: profile, submit: submit, release: release }
     assert(result == expected, "mobile matrix failed for #{event} #{ref}")
   end
+
+  running_tag = mobile_concurrency(event: :push, ref: 'refs/tags/mobile-v1.0.0-beta.1')
+  arriving_main = mobile_concurrency(event: :push, ref: 'refs/heads/main')
+  assert(running_tag[:group] == arriving_main[:group], 'tag and main store runs must serialize globally')
+  assert(running_tag[:cancel_in_progress] == false, 'a running tag release must not be canceled')
+  assert(arriving_main[:cancel_in_progress] == false, 'main must not cancel a running tag release')
 end
 
 def validate_mobile_workflow
   document = workflow('mobile-app-build.yml')
   jobs = document.fetch('jobs')
+  concurrency = document.fetch('concurrency')
+
+  expected_group = "${{ github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/mobile-v')) && 'mobile-store' || format('mobile-preview-{0}', github.ref) }}"
+  assert(concurrency.fetch('group') == expected_group, 'mobile workflow must serialize complete store runs')
+  assert(concurrency.fetch('cancel-in-progress') == false, 'mobile store runs must never cancel in-progress releases')
 
   %w[release-gate release-quality release].each do |job_name|
     assert(
@@ -167,15 +187,23 @@ def validate_mobile_workflow
 
   %w[android ios].each do |job_name|
     job = jobs.fetch(job_name)
-    assert(job.fetch('concurrency').fetch('group').include?("'store'"), "#{job_name}: store concurrency missing")
-    assert(job.fetch('concurrency').fetch('cancel-in-progress').include?("github.event_name == 'push'"), "#{job_name}: cancellation guard missing")
+    assert(!job.key?('concurrency'), "#{job_name}: concurrency must protect the complete workflow")
     main_tip = step(job, 'Verify current main tip for store build')
     assert(main_tip.fetch('if').include?("github.event_name == 'push'"), "#{job_name}: stale main guard missing")
     assert(main_tip.fetch('run').include?('origin/main'), "#{job_name}: stale main comparison missing")
     distribution = step(job, "Select #{job_name == 'ios' ? 'iOS' : 'Android'} distribution")
     assert(distribution.fetch('run').include?('GITHUB_EVENT_NAME'), "#{job_name}: manual dispatch is not preview-only")
+    assert(distribution.fetch('run').scan(/>> "\$\{GITHUB_OUTPUT\}"/).length == 2, "#{job_name}: outputs must be grouped per branch")
     version = step(job, 'Derive tagged app version')
     assert(version.fetch('if').start_with?("github.event_name == 'push'"), "#{job_name}: tag version must be push-only")
+
+    submit_name = job_name == 'ios' ? 'Submit TestFlight candidate' : 'Submit Android store candidate'
+    submit = step(job, submit_name)
+    expected_submit_if = "github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/mobile-v'))"
+    assert(submit.fetch('if') == expected_submit_if, "#{job_name}: submit expression is not push-only")
+    assert(submit.fetch('run').include?('pnpm dlx "eas-cli@${EAS_CLI_VERSION}" submit'), "#{job_name}: EAS submit package must be quoted")
+    build = step(job, "Build #{job_name == 'ios' ? 'iOS' : 'Android'} (${{ steps.distribution.outputs.channel }})")
+    assert(build.fetch('run').include?('pnpm dlx "eas-cli@${EAS_CLI_VERSION}" build'), "#{job_name}: EAS build package must be quoted")
   end
 end
 
@@ -184,6 +212,9 @@ def validate_release_workflow
   create_step = step(release, 'Create GitHub Release')
   script = create_step.fetch('run')
   assert(script.index('gh release view') < script.index('gh release create'), 'release idempotency check must run first')
+  assert(script.include?('--json tagName,name,body,isDraft,isPrerelease'), 'release validation must read title and notes')
+  assert(script.include?('.name == $title'), 'release validation must compare the title')
+  assert(script.include?('.body | rtrimstr'), 'release validation must compare the notes')
   assert(script.include?('--verify-tag'), 'release creation must verify the existing tag')
 end
 

@@ -43,12 +43,8 @@ jobs:
             exit 1
           fi
           git fetch --no-tags origin main
-          if [[ "${GITHUB_REF_NAME}" == "backend-v1.0.0-beta.1" && "${GITHUB_SHA}" != "$(git rev-parse origin/main)" ]]; then
-            echo "::error::The first beta release tag must point to the current main tip."
-            exit 1
-          fi
-          if ! git merge-base --is-ancestor "${GITHUB_SHA}" origin/main; then
-            echo "::error::Release tag ${GITHUB_REF_NAME} is not contained in main."
+          if [[ "${GITHUB_SHA}" != "$(git rev-parse origin/main)" ]]; then
+            echo "::error::Release tag ${GITHUB_REF_NAME} must point to the current main tip."
             exit 1
           fi
 

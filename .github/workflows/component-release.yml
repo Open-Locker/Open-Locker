@@ -73,13 +73,19 @@ jobs:
             expected_prerelease=true
           fi
 
-          if release_json="$(gh release view "${GITHUB_REF_NAME}" --json tagName,isDraft,isPrerelease 2>/dev/null)"; then
+          if release_json="$(gh release view "${GITHUB_REF_NAME}" --json tagName,name,body,isDraft,isPrerelease 2>/dev/null)"; then
             if jq -e \
               --arg tag "${GITHUB_REF_NAME}" \
+              --arg title "${GITHUB_REF_NAME}" \
               --argjson prerelease "${expected_prerelease}" \
-              '.tagName == $tag and .isDraft == false and .isPrerelease == $prerelease' \
+              --rawfile notes release-notes.md \
+              '.tagName == $tag and
+               .name == $title and
+               .isDraft == false and
+               .isPrerelease == $prerelease and
+               (.body | rtrimstr("\n")) == ($notes | rtrimstr("\n"))' \
               <<< "${release_json}" >/dev/null; then
-              echo "Release ${GITHUB_REF_NAME} already exists and matches the tag state."
+              echo "Release ${GITHUB_REF_NAME} already exists and matches the expected title and notes."
               exit 0
             fi
 
