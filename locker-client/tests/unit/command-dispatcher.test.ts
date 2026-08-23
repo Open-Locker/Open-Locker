@@ -104,6 +104,16 @@ function commandResponses(published: string[]) {
     .filter((message) => message.result === 'success' || message.result === 'error');
 }
 
+function serializedOpenCommand(suffix: string): string {
+  return JSON.stringify({
+    action: 'open_compartment',
+    transaction_id: `txn-serial-${suffix}`,
+    message_id: `msg-serial-${suffix}`,
+    timestamp: '2026-08-23T12:00:00Z',
+    data: { compartment_number: 1 },
+  });
+}
+
 test('dispatcher executes valid open_compartment once', async () => {
   const { bus, dispatcher, openCompartment, published } = createDispatcherHarness();
 
@@ -143,18 +153,10 @@ test('dispatcher serializes hardware and configuration commands', async () => {
     return 'pulse_sent';
   };
   const { dispatcher, openCompartment } = createDispatcherHarness(bus);
-  const command = (suffix: string) =>
-    JSON.stringify({
-      action: 'open_compartment',
-      transaction_id: `txn-serial-${suffix}`,
-      message_id: `msg-serial-${suffix}`,
-      timestamp: '2026-08-23T12:00:00Z',
-      data: { compartment_number: 1 },
-    });
 
-  const first = dispatcher.dispatch('locker/test/command', command('first'));
+  const first = dispatcher.dispatch('locker/test/command', serializedOpenCommand('first'));
   await firstFlashStarted;
-  const second = dispatcher.dispatch('locker/test/command', command('second'));
+  const second = dispatcher.dispatch('locker/test/command', serializedOpenCommand('second'));
   await Promise.resolve();
   assert.equal(flashCount, 1);
 
@@ -1021,8 +1023,8 @@ test('two concurrent deliveries of one transaction open the door once', async ()
     dedup,
   );
 
-  // Same transaction, different message ids: only the transaction guard applies,
-  // and both arrive before either has finished.
+  // Same transaction, different message ids: the command queue executes the
+  // physical operation once, then the second delivery replays its answer.
   const deliver = (messageId: string) =>
     dispatcher.dispatch(
       'locker/test/command',
@@ -1040,12 +1042,11 @@ test('two concurrent deliveries of one transaction open the door once', async ()
     deliver('66666666-6666-6666-6666-666666666666'),
   ]);
 
+  openCompartment.stopAllMonitoring();
   assert.equal(bus.flashCalls.length, 1, 'the relay must fire once for one request');
 
   const responses = published
     .map((payload) => JSON.parse(payload) as { result?: string })
     .filter((message) => message.result === 'success');
-  assert.equal(responses.length, 1, 'and exactly one success is published');
-
-  openCompartment.stopAllMonitoring();
+  assert.equal(responses.length, 2, 'both deliveries receive the successful result');
 });
