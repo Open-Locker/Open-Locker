@@ -23,7 +23,7 @@ tags follow [ADR-0043](adr/0043-monorepo-release-strategy.md).
 
 ## 1. Hard gates
 
-Do not create release tags or submit store builds until every hard gate is
+Do not create a component's release tag until its applicable hard gates are
 closed and verified.
 
 - [ ] #50 — per-component release workflows and notes are operational with
@@ -32,6 +32,9 @@ closed and verified.
       release-owner acceptance with no unresolved blocker.
 - [ ] #67 — complete the Beta task and record its outcome. It is required Beta
       work even though it is tracked separately from the hard-gate list above.
+- [ ] #242 — before any `mobile-v*` tag, provision iOS signing and validate the
+      signed Beta 2 build on a physical device. This does not block backend or
+      locker-client tags.
 
 The real deployment checks require the versioned images produced by this
 release. External MQTTS acceptance (#233) and the Raspberry Pi/Modbus soak
@@ -66,9 +69,10 @@ work and do not block the first Beta artifacts.
       component release workflow rejects tags on older `main` commits.
 - [ ] Confirm non-`main` and manual workflow runs cannot overwrite `latest` or
       mint a SemVer release.
-- [ ] Confirm the repository `EXPO_TOKEN` secret is available to the mobile
-      workflow and EAS holds valid Android, iOS, and App Store Connect
-      credentials.
+- [ ] Before a `mobile-v*` tag, confirm the repository `EXPO_TOKEN` secret is
+      available and EAS holds valid Android, iOS, and App Store Connect
+      credentials. Branch and manual CI use Android preview and unsigned iOS
+      Simulator builds.
 - [ ] Confirm Actions can write GHCR packages and GitHub Releases through the
       workflow-scoped `GITHUB_TOKEN` permissions.
 - [ ] Create each required component tag using the approved release process.
@@ -79,7 +83,7 @@ work and do not block the first Beta artifacts.
 - [ ] Client multi-architecture image exists under the immutable version tag,
       has the expected digest, and is pullable on the target Pi architecture.
 - [ ] Mobile artifacts identify the intended version/build and originated from
-      the tagged or approved `main` release path.
+      the validated `mobile-v*` release path.
 - [ ] Record immutable tags and image digests. Do not deploy `latest` to the beta
       pilot.
 
@@ -172,10 +176,12 @@ in a controlled deployment and does not block creating those artifacts.
 
 ## 8. Mobile beta distribution
 
+- [ ] Complete #242 in Beta 2 before creating a `mobile-v*` tag; record signing,
+      provisioning, and physical-device evidence.
 - [ ] Verify the candidate against the beta backend on physical iOS and Android
       devices before submission.
-- [ ] Submit the approved `mobile-v*` build to TestFlight and the configured
-      Android Beta/internal testing track from the release path.
+- [ ] Push the approved `mobile-v*` tag to invoke the only workflow path allowed
+      to submit to TestFlight and the configured Android Beta/internal track.
 - [ ] Confirm the Android artifact and track are appropriate for the named pilot;
       an internal APK is not automatically an external beta programme.
 - [ ] Restrict access to the named pilot tester group.

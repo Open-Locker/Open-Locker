@@ -1,6 +1,12 @@
 name: Mobile App Build
 
 on:
+  pull_request:
+    paths:
+      - 'mobile-app/**'
+      - '.github/git-cliff/mobile.toml'
+      - '.github/workflows/component-release.yml'
+      - '.github/workflows/mobile-app-build.yml'
   push:
     branches:
       - main
@@ -15,7 +21,7 @@ on:
   workflow_dispatch:
 
 concurrency:
-  group: ${{ github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/mobile-v')) && 'mobile-store' || format('mobile-preview-{0}', github.ref) }}
+  group: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/tags/mobile-v') && 'mobile-store' || format('mobile-preview-{0}', github.ref) }}
   cancel-in-progress: false
 
 env:
@@ -114,20 +120,10 @@ jobs:
             exit 1
           fi
 
-      - name: Verify current main tip for store build
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-        working-directory: ${{ github.workspace }}
-        run: |
-          git fetch --no-tags origin main
-          if [[ "${GITHUB_SHA}" != "$(git rev-parse origin/main)" ]]; then
-            echo "::error::Refusing to submit a stale main build."
-            exit 1
-          fi
-
       - name: Select Android distribution
         id: distribution
         run: |
-          if [[ "${GITHUB_EVENT_NAME}" == "push" && ("${GITHUB_REF}" == "refs/heads/main" || "${GITHUB_REF}" == refs/tags/mobile-v*) ]]; then
+          if [[ "${GITHUB_EVENT_NAME}" == "push" && "${GITHUB_REF}" == refs/tags/mobile-v* ]]; then
             {
               echo "profile=store"
               echo "artifact=openlocker-android.aab"
@@ -166,13 +162,13 @@ jobs:
       - name: Upload Android artifact
         uses: actions/upload-artifact@v6
         with:
-          name: openlocker-android-${{ github.ref_name }}
+          name: openlocker-android-${{ github.run_id }}-${{ github.run_attempt }}
           path: mobile-app/build/${{ steps.distribution.outputs.artifact }}
           if-no-files-found: error
           retention-days: 14
 
       - name: Submit Android store candidate
-        if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/mobile-v'))
+        if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/mobile-v')
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
         run: |
@@ -224,28 +220,20 @@ jobs:
             exit 1
           fi
 
-      - name: Verify current main tip for store build
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-        working-directory: ${{ github.workspace }}
-        run: |
-          git fetch --no-tags origin main
-          if [[ "${GITHUB_SHA}" != "$(git rev-parse origin/main)" ]]; then
-            echo "::error::Refusing to submit a stale main build."
-            exit 1
-          fi
-
       - name: Select iOS distribution
         id: distribution
         run: |
-          if [[ "${GITHUB_EVENT_NAME}" == "push" && ("${GITHUB_REF}" == "refs/heads/main" || "${GITHUB_REF}" == refs/tags/mobile-v*) ]]; then
+          if [[ "${GITHUB_EVENT_NAME}" == "push" && "${GITHUB_REF}" == refs/tags/mobile-v* ]]; then
             {
               echo "profile=store"
+              echo "artifact=openlocker-ios.ipa"
               echo "channel=production"
             } >> "${GITHUB_OUTPUT}"
           else
             {
-              echo "profile=preview"
-              echo "channel=preview"
+              echo "profile=ios-simulator"
+              echo "artifact=openlocker-ios-simulator.tar.gz"
+              echo "channel=simulator"
             } >> "${GITHUB_OUTPUT}"
           fi
 
@@ -269,18 +257,18 @@ jobs:
             --local --non-interactive \
             --profile "${{ steps.distribution.outputs.profile }}" \
             --platform ios \
-            --output ./build/openlocker-ios.ipa
+            --output "./build/${{ steps.distribution.outputs.artifact }}"
 
       - name: Upload iOS artifact
         uses: actions/upload-artifact@v6
         with:
-          name: openlocker-ios-${{ github.ref_name }}
-          path: mobile-app/build/openlocker-ios.ipa
+          name: openlocker-ios-${{ github.run_id }}-${{ github.run_attempt }}
+          path: mobile-app/build/${{ steps.distribution.outputs.artifact }}
           if-no-files-found: error
           retention-days: 14
 
       - name: Submit TestFlight candidate
-        if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/mobile-v'))
+        if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/mobile-v')
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
           APP_VARIANT: production
@@ -288,7 +276,7 @@ jobs:
           pnpm dlx "eas-cli@${EAS_CLI_VERSION}" submit \
             --non-interactive \
             --profile production --platform ios \
-            --path ./build/openlocker-ios.ipa
+            --path "./build/${{ steps.distribution.outputs.artifact }}"
 
   release:
     name: Create mobile release

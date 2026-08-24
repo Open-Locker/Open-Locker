@@ -183,8 +183,9 @@ in the feature list and change log; collected here so they are hard to miss.
 - Auto-logout on `401` with a session-expired message (`#60`).
 - EN/DE localization with a persisted in-app language switcher; centralized theme and UI
   defaults, dark-mode-aware logo and splash scaling (`#93`, `#98`).
-- Internal test builds from CI: EAS build + TestFlight submission from `main`
-  (`#19`, ADR-0032).
+- Branch CI builds Android preview and unsigned iOS Simulator artifacts; signed
+  TestFlight distribution is reserved for `mobile-v*` after Beta 2 issue #242
+  (`#19`, ADR-0032, ADR-0055).
 - Legacy auth context and hand-written API layer removed (`#85`).
 - react-doctor evaluated for code health, expo-doctor kept in the quality gate (`#64`).
 
@@ -312,7 +313,7 @@ Grouped by component; `feat` / `fix` / `perf` from the Conventional Commit histo
 ### Mobile app
 
 **Features**
-- Internal test build CI from `main`, EAS + TestFlight (`#19`)
+- Android preview and unsigned iOS Simulator CI from `main` (`#19`, ADR-0055)
 - Realtime compartment door state via Reverb (`#45`)
 - Auto-logout on `401` with a session-expired message
 - Content notes and the event-sourced compartment model
@@ -323,7 +324,8 @@ Grouped by component; `feat` / `fix` / `perf` from the Conventional Commit histo
 
 **Fixes**
 - Align the Expo patch version; align `expo-localization` with the SDK
-- Set `ascAppId` and `APP_VARIANT` for non-interactive iOS TestFlight submits (`#19`)
+- Set `ascAppId` and `APP_VARIANT` for tag-only non-interactive iOS TestFlight
+  submits (`#19`)
 - Correct logo and splash-screen scaling, with dark-mode support (`#93`)
 - Prevent an empty-compartments flash on load
 - Guard the reset-password response message
@@ -412,16 +414,17 @@ Beta artifacts.
 
 1. Complete all component checks on `dev`, synchronize the approved candidate to
    `main`, and rerun protected checks.
-2. Create only the required component tags (`backend-v*`, `client-v*`,
-   `mobile-v*`) on the intended `main` commit and verify immutable artifacts and
-   release notes.
+2. Create the required `backend-v*` and `client-v*` tags on the intended `main`
+   commit and verify immutable artifacts and release notes. Defer `mobile-v*`
+   until Beta 2 issue #242 validates signing and a physical iOS device.
 3. Record the immutable tags, image digests, compatibility notes, and the mandatory
    client-first credential rollout order from PR `#227`. Do not deploy `latest`.
 
-Beta 2 then deploys those immutable artifacts for external MQTTS acceptance
-(#233), the Raspberry Pi/Modbus soak (#169), and the remaining controlled pilot
-checks. Those field results determine whether the pilot continues; they are not
-prerequisites for cutting the Beta 1 tags.
+Beta 2 then deploys those immutable backend/client artifacts for external MQTTS
+acceptance (#233), the Raspberry Pi/Modbus soak (#169), and the remaining
+controlled pilot checks. It also completes #242 before creating the first
+`mobile-v*` tag. Those field results determine whether the pilot continues; they
+are not prerequisites for cutting the Beta 1 backend and client tags.
 
 The core feature set is intended to support authenticate → list accessible
 compartments → open → live door-state update. The artifact cut depends on the
