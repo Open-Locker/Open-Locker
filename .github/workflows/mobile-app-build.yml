@@ -162,7 +162,7 @@ jobs:
       - name: Upload Android artifact
         uses: actions/upload-artifact@v6
         with:
-          name: openlocker-android-${{ github.ref_name }}
+          name: openlocker-android-${{ github.run_id }}-${{ github.run_attempt }}
           path: mobile-app/build/${{ steps.distribution.outputs.artifact }}
           if-no-files-found: error
           retention-days: 14
@@ -262,7 +262,7 @@ jobs:
       - name: Upload iOS artifact
         uses: actions/upload-artifact@v6
         with:
-          name: openlocker-ios-${{ github.ref_name }}
+          name: openlocker-ios-${{ github.run_id }}-${{ github.run_attempt }}
           path: mobile-app/build/${{ steps.distribution.outputs.artifact }}
           if-no-files-found: error
           retention-days: 14
