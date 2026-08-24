@@ -10,8 +10,10 @@ use App\Filament\Resources\CompartmentResource\Pages;
 use App\Filament\Resources\CompartmentResource\RelationManagers\GroupAccessesRelationManager;
 use App\Filament\Resources\CompartmentResource\RelationManagers\UserAccessesRelationManager;
 use App\Filament\Support\CompartmentDoorStateColumn;
+use App\Filament\Support\LockerBankGroupHeading;
 use App\Filament\Support\OpenCompartmentAction;
 use App\Models\Compartment;
+use App\Models\LockerBank;
 use Filament\Actions\Action;
 use Filament\Infolists\Components\TextEntry;
 use Filament\Resources\Resource;
@@ -115,14 +117,28 @@ class CompartmentResource extends Resource
             // grouped and folded shut — the admin picks one bank instead of scanning
             // every compartment in the system (#167).
             ->groups([
-                Group::make('lockerBank.name')
+                Group::make('locker_bank_id')
                     ->label(__('Locker bank'))
+                    // Visible title is the bank name plus a connection badge.
+                    // Location is the subtitle. A hidden id keeps titles unique.
+                    ->getTitleFromRecordUsing(LockerBankGroupHeading::title(...))
+                    ->getDescriptionFromRecordUsing(LockerBankGroupHeading::description(...))
+                    ->orderQueryUsing(function (Builder $query, string $direction): Builder {
+                        return $query
+                            ->orderBy(
+                                LockerBank::query()
+                                    ->select('name')
+                                    ->whereColumn('locker_banks.id', 'compartments.locker_bank_id'),
+                                $direction,
+                            )
+                            ->orderBy('compartments.locker_bank_id', $direction);
+                    })
                     // The header is unambiguous on its own; the label prefix just
                     // repeats "Locker bank:" on every row group.
                     ->titlePrefixedWithLabel(false)
                     ->collapsible(),
             ])
-            ->defaultGroup('lockerBank.name')
+            ->defaultGroup('locker_bank_id')
             ->collapsedGroupsByDefault()
             ->groupingSettingsHidden()
             // Record pagination would split a locker bank across pages. Every group
@@ -151,6 +167,7 @@ class CompartmentResource extends Resource
             ])
             // No search or filters: the collapsed bank groups are the only navigation
             // this list needs, and a locker-bank filter would just duplicate them (#167).
+            ->recordActionsColumnLabel(__('Actions'))
             ->actions([
                 Action::make('access')
                     ->label(__('Access'))

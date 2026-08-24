@@ -1,0 +1,64 @@
+services:
+  traefik:
+    image: traefik:v3.6.1
+    restart: unless-stopped
+    command:
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--entrypoints.web.address=:80"
+      - "--entrypoints.web.http.redirections.entrypoint.to=websecure"
+      - "--entrypoints.web.http.redirections.entrypoint.scheme=https"
+      - "--entrypoints.websecure.address=:443"
+      - "--entrypoints.mqtts.address=:8883"
+      - "--certificatesresolvers.letsencrypt.acme.email=${ACME_EMAIL:?Set ACME_EMAIL}"
+      - "--certificatesresolvers.letsencrypt.acme.storage=/letsencrypt/acme.json"
+      - "--certificatesresolvers.letsencrypt.acme.httpchallenge.entrypoint=web"
+      - "--ping=true"
+    ports:
+      - "80:80"
+      - "443:443"
+      - "8883:8883"
+    volumes:
+      - "/var/run/docker.sock:/var/run/docker.sock:ro"
+      - "traefik-certificates:/letsencrypt"
+    security_opt:
+      - "no-new-privileges:true"
+    healthcheck:
+      test: ["CMD", "traefik", "healthcheck", "--ping"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  app:
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.open-locker-app.rule=Host(`${APP_DOMAIN:?Set APP_DOMAIN}`)"
+      - "traefik.http.routers.open-locker-app.entrypoints=websecure"
+      - "traefik.http.routers.open-locker-app.tls=true"
+      - "traefik.http.routers.open-locker-app.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.open-locker-app.service=open-locker-app"
+      - "traefik.http.services.open-locker-app.loadbalancer.server.port=8080"
+
+  reverb:
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.open-locker-reverb.rule=Host(`${REVERB_DOMAIN:?Set REVERB_DOMAIN}`)"
+      - "traefik.http.routers.open-locker-reverb.entrypoints=websecure"
+      - "traefik.http.routers.open-locker-reverb.tls=true"
+      - "traefik.http.routers.open-locker-reverb.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.open-locker-reverb.service=open-locker-reverb"
+      - "traefik.http.services.open-locker-reverb.loadbalancer.server.port=8080"
+
+  mqtt:
+    labels:
+      - "traefik.enable=true"
+      - "traefik.tcp.routers.open-locker-mqtt.rule=HostSNI(`${MQTT_DOMAIN:?Set MQTT_DOMAIN}`)"
+      - "traefik.tcp.routers.open-locker-mqtt.entrypoints=mqtts"
+      - "traefik.tcp.routers.open-locker-mqtt.tls=true"
+      - "traefik.tcp.routers.open-locker-mqtt.tls.certresolver=letsencrypt"
+      - "traefik.tcp.routers.open-locker-mqtt.service=open-locker-mqtt"
+      - "traefik.tcp.services.open-locker-mqtt.loadbalancer.server.port=1883"
+
+volumes:
+  traefik-certificates:
+    driver: local

@@ -146,6 +146,12 @@ export class YamlConfigRepository implements ConfigRepositoryPort {
     // rather than failing loudly.
     requireBoundedSetting(base.modbus.baudRate, 'modbus.baudRate', 1_200, 921_600);
     requireBoundedSetting(base.modbus.timeout, 'modbus.timeout', 50, 60_000);
+    requireBoundedSetting(
+      base.modbus.reconnectCooldownSeconds,
+      'modbus.reconnectCooldownSeconds',
+      5,
+      3600,
+    );
     requireEnumSetting(base.modbus.dataBits, 'modbus.dataBits', [7, 8]);
     requireEnumSetting(base.modbus.stopBits, 'modbus.stopBits', [1, 2]);
     requireEnumSetting(base.modbus.parity, 'modbus.parity', ['none', 'even', 'odd']);

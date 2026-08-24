@@ -34,6 +34,7 @@ import { logger, setLogTraceContextProvider, shipLogsTo } from '../infrastructur
 import { createWinstonLoggerPort } from '../infrastructure/winston-logger.adapter';
 import { DATA_DIR, MQTT_CLIENT_ID_FILE } from '../infrastructure/paths';
 import { ensurePrivateDirectory } from '../infrastructure/file-persistence';
+import { assertSecureProductionMqttUrl } from '../infrastructure/mqtt-url-policy';
 
 /**
  * How long any single shutdown step may take before the sequence moves on.
@@ -47,6 +48,9 @@ export interface AppContext {
 }
 
 export async function createApp(): Promise<AppContext> {
+  const brokerUrl = process.env.MQTT_BROKER_URL?.trim() || DEFAULT_MQTT_BROKER_URL;
+  assertSecureProductionMqttUrl(brokerUrl);
+
   ensurePrivateDirectory(DATA_DIR);
   const configRepo = new YamlConfigRepository(new FileRuntimeOverlayStore());
   const config = configRepo.load();
@@ -56,7 +60,6 @@ export async function createApp(): Promise<AppContext> {
   const transport = new MqttTransportAdapter(configRepo.getMqttTransportSettings());
 
   const clientId = getOrCreateClientId(MQTT_CLIENT_ID_FILE);
-  const brokerUrl = process.env.MQTT_BROKER_URL?.trim() || DEFAULT_MQTT_BROKER_URL;
 
   if (!credentialStore.isProvisioned()) {
     const token = process.env.PROVISIONING_TOKEN?.trim();
@@ -78,10 +81,11 @@ export async function createApp(): Promise<AppContext> {
     throw new Error('MQTT credentials unavailable after provisioning');
   }
 
-  // MQTT username is the locker bank UUID; all locker topics use this namespace.
-  const lockerUuid = credentials.username.trim();
+  // The username authenticates to the broker and carries no topic meaning; the
+  // locker namespace comes from the uuid the provisioning reply supplied.
+  const lockerUuid = credentials.lockerUuid.trim();
   if (!lockerUuid) {
-    throw new Error('MQTT credentials username (locker UUID) is empty');
+    throw new Error('MQTT credentials locker UUID is empty');
   }
 
   // Built here because the locker UUID identifies this instance, and it is only
@@ -108,7 +112,14 @@ export async function createApp(): Promise<AppContext> {
 
   const bus = new WaveshareModbusBusActor(
     driver,
-    { maxAttempts: DEFAULT_MODBUS_MAX_RECONNECT_ATTEMPTS, delayMs: 5000 },
+    {
+      maxAttempts: DEFAULT_MODBUS_MAX_RECONNECT_ATTEMPTS,
+      delayMs: 5000,
+      cooldownMs:
+        config.modbus.reconnectCooldownSeconds === undefined
+          ? undefined
+          : config.modbus.reconnectCooldownSeconds * 1000,
+    },
     () => configRepo.getConfiguredSlaveIds(),
     tracing,
     appLogger,
@@ -207,7 +218,7 @@ export async function createApp(): Promise<AppContext> {
   await transport.subscribe(commandTopic);
 
   await bus.connect();
-  await runStartupFailsafe(bus);
+  await runStartupFailsafe(bus, appLogger);
   heartbeat.start();
 
   const pollTimer = setInterval(() => {

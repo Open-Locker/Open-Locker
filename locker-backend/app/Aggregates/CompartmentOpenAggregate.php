@@ -7,9 +7,8 @@ namespace App\Aggregates;
 use App\StorableEvents\CompartmentOpenAuthorized;
 use App\StorableEvents\CompartmentOpenDenied;
 use App\StorableEvents\CompartmentOpenRequested;
-use Spatie\EventSourcing\AggregateRoots\AggregateRoot;
 
-class CompartmentOpenAggregate extends AggregateRoot
+class CompartmentOpenAggregate extends TransactionalAggregateRoot
 {
     public function requestOpen(string $commandId, int $actorUserId, string $compartmentUuid): self
     {

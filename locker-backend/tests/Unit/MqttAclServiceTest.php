@@ -50,4 +50,31 @@ class MqttAclServiceTest extends TestCase
         $this->assertTrue($acl->topicMatches('locker/#', 'locker/a/b/c', 'u', 'c'));
         $this->assertFalse($acl->topicMatches('locker/#', 'server/status', 'u', 'c'));
     }
+
+    public function test_locker_placeholder_matches_the_mapped_uuid_literally(): void
+    {
+        $acl = new MqttAclService;
+        $uuid = '019e5a20-8a02-718d-9146-a8a656edabbd';
+
+        $this->assertTrue($acl->topicMatches('locker/%l/command', "locker/{$uuid}/command", 'opaque-name', 'c', $uuid));
+        $this->assertFalse($acl->topicMatches('locker/%l/command', 'locker/opaque-name/command', 'opaque-name', 'c', $uuid));
+        $this->assertFalse($acl->topicMatches('locker/%l/command', 'locker/other-uuid/command', 'opaque-name', 'c', $uuid));
+    }
+
+    public function test_locker_placeholder_is_not_expanded_as_a_wildcard(): void
+    {
+        $acl = new MqttAclService;
+
+        // A '#' reaching the placeholder must be compared, never expanded.
+        $this->assertFalse($acl->topicMatches('locker/%l/event', 'locker/anything/event', 'u', 'c', '#'));
+        $this->assertTrue($acl->topicMatches('locker/%l/event', 'locker/#/event', 'u', 'c', '#'));
+    }
+
+    public function test_locker_placeholder_fails_closed_without_a_mapping(): void
+    {
+        $acl = new MqttAclService;
+
+        $this->assertFalse($acl->topicMatches('locker/%l/event', 'locker/anything/event', 'u', 'c', null));
+        $this->assertFalse($acl->topicMatches('locker/%l/event', 'locker//event', 'u', 'c', ''));
+    }
 }

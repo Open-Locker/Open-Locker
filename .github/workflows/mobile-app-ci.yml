@@ -1,6 +1,7 @@
 name: Mobile App CI
 
 on:
+  workflow_call:
   pull_request:
     paths:
       - 'mobile-app/**'
@@ -28,10 +29,10 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Setup pnpm
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@v6
         with:
           version: 9
 
@@ -58,8 +59,8 @@ jobs:
         run: pnpm run test:ci
 
       - name: Expo dependency check
-        run: npx expo install --check
+        run: pnpm exec expo install --check
 
       - name: Expo doctor (non-blocking)
         continue-on-error: true
-        run: npx expo-doctor
+        run: pnpm exec expo-doctor

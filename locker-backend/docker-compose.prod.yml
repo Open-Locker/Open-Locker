@@ -27,6 +27,11 @@ x-laravel-env-prod: &laravel_env_prod
 
 x-laravel-service-prod: &laravel_service_prod
   image: ghcr.io/open-locker/locker-backend:${BACKEND_IMAGE_TAG:-latest}
+  # Compose's project .env is only used for interpolation. Laravel processes
+  # need the same file explicitly loaded into every app/worker container.
+  env_file:
+    - path: ./.env
+      required: true
   volumes:
     # Mount storage for persistent file uploads
     - "locker-storage:/var/www/html/storage/app/public"
@@ -183,10 +188,10 @@ services:
       retries: 3
 
   mqtt:
-    image: iegomez/mosquitto-go-auth:latest
+    image: iegomez/mosquitto-go-auth:2.1.0-mosquitto_2.0.15
     restart: unless-stopped
-    ports:
-      - "1883:1883"
+    expose:
+      - "1883"
     volumes:
       - "./mosquitto/mosquitto.conf:/etc/mosquitto/mosquitto.conf:ro"
       - "locker-mqtt-data:/mosquitto/data"

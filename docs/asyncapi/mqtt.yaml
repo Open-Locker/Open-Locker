@@ -10,6 +10,12 @@ servers:
     host: localhost:1883
     protocol: mqtt
     description: Example local MQTT broker used for development.
+  productionBroker:
+    host: open-locker.cloud:8883
+    protocol: mqtts
+    description: >-
+      Production MQTT broker behind the TLS-terminating edge proxy. Clients
+      must validate the certificate chain and open-locker.cloud hostname.
 channels:
   lockerCommand:
     address: locker/{locker_uuid}/command

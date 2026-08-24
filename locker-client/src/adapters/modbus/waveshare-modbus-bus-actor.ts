@@ -34,7 +34,7 @@ export class WaveshareModbusBusActor implements LockerBusPort {
 
   constructor(
     private readonly driver: WaveshareModbusDriver,
-    reconnectOptions?: { maxAttempts?: number; delayMs?: number },
+    reconnectOptions?: { maxAttempts?: number; delayMs?: number; cooldownMs?: number },
     /**
      * Accepts a getter so the boards are read when asked for, not captured once.
      * A runtime `apply_config` can add or remove a board, and a snapshot taken
@@ -48,13 +48,22 @@ export class WaveshareModbusBusActor implements LockerBusPort {
       {
         maxAttempts: reconnectOptions?.maxAttempts ?? DEFAULT_MODBUS_MAX_RECONNECT_ATTEMPTS,
         delayMs: reconnectOptions?.delayMs ?? 5000,
+        cooldownMs: reconnectOptions?.cooldownMs,
       },
       log,
     );
   }
 
+  /**
+   * Startup gets the same cycle of attempts as any later drop, and gives up
+   * quietly when it is spent: a device whose adapter is missing must still finish
+   * starting, so the fault surfaces as an unreachable bus rather than as a boot
+   * that never completes or a process that exits.
+   */
   async connect(): Promise<void> {
-    return this.run(() => this.connectInternal(), BusPriority.MAINTENANCE);
+    return this.run(async () => {
+      await this.dial();
+    }, BusPriority.MAINTENANCE);
   }
 
   async disconnect(): Promise<void> {
@@ -80,26 +89,16 @@ export class WaveshareModbusBusActor implements LockerBusPort {
         return true;
       }
 
-      try {
-        await this.reconnect.run(() => this.connectInternal());
-        return this.driver.isOpen();
-      } catch (error) {
-        // Callers only see false, so without this line an unreachable bus looks
-        // identical to a bus that is merely busy.
-        this.log.error('Modbus bus unreachable after reconnect attempts', {
-          attempts: this.reconnect.getAttempts(),
-          connectionState: this.connectionState,
-          error: error instanceof Error ? error.message : String(error),
-        });
-        return false;
-      }
+      return this.dial();
     }, BusPriority.MAINTENANCE);
   }
 
   async reloadRuntimeConfig(): Promise<void> {
     return this.run(async () => {
       if (!this.driver.isOpen()) {
-        await this.connectInternal();
+        // A reload arriving while the adapter is briefly away should not be the
+        // one path that still gets a single attempt.
+        await this.dial();
       }
     }, BusPriority.MAINTENANCE);
   }
@@ -186,6 +185,39 @@ export class WaveshareModbusBusActor implements LockerBusPort {
     return this.queue;
   }
 
+  /**
+   * Every dial goes through here, so a spent cycle is recorded in one place.
+   * Returns whether the bus ended up open; callers that only care about that see
+   * `false` rather than an exception.
+   */
+  private async dial(): Promise<boolean> {
+    try {
+      await this.reconnect.run(() => this.connectInternal());
+      return this.driver.isOpen();
+    } catch (error) {
+      this.markUnreachable(error);
+      return false;
+    }
+  }
+
+  /**
+   * A spent cycle is a statement, not a silence: without it the bus keeps
+   * reporting `connecting` — which claims an attempt is in flight — for as long as
+   * the adapter stays away.
+   */
+  private markUnreachable(error: unknown): void {
+    if (!this.reconnect.isCycleSpent()) {
+      return;
+    }
+
+    this.connectionState = 'unreachable';
+    this.log.error('Modbus bus unreachable after reconnect attempts', {
+      attempts: this.reconnect.getAttempts(),
+      connectionState: this.connectionState,
+      error: error instanceof Error ? error.message : String(error),
+    });
+  }
+
   private async connectInternal(): Promise<void> {
     this.connectionState = 'connecting';
     await this.driver.connect();
@@ -228,7 +260,16 @@ export class WaveshareModbusBusActor implements LockerBusPort {
 
       await this.driver.disconnect();
       this.connectionState = 'disconnected';
-      await this.reconnect.run(() => this.connectInternal());
+
+      // Reached by the compartment poll as well as by commands, so this is the
+      // path that notices a bus dying between commands at all.
+      try {
+        await this.reconnect.run(() => this.connectInternal());
+      } catch (reconnectError) {
+        this.markUnreachable(reconnectError);
+        throw reconnectError;
+      }
+
       return operation();
     }
   }

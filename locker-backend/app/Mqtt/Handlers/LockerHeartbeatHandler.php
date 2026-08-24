@@ -7,6 +7,7 @@ namespace App\Mqtt\Handlers;
 use App\Models\LockerBank;
 use App\Mqtt\InboundMqttProtocolGuard;
 use App\StorableEvents\LockerConnectionRestored;
+use App\Support\EventSourcing\StoredEventDispatcher;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Log;
 
@@ -15,8 +16,10 @@ use Illuminate\Support\Facades\Log;
  */
 class LockerHeartbeatHandler extends AbstractInboundMqttHandler
 {
-    public function __construct(InboundMqttProtocolGuard $guard)
-    {
+    public function __construct(
+        InboundMqttProtocolGuard $guard,
+        private readonly StoredEventDispatcher $storedEventDispatcher,
+    ) {
         parent::__construct($guard);
     }
 
@@ -94,7 +97,7 @@ class LockerHeartbeatHandler extends AbstractInboundMqttHandler
         ]);
 
         if ($wasOffline) {
-            event(new LockerConnectionRestored(
+            $this->storedEventDispatcher->dispatch(new LockerConnectionRestored(
                 lockerBankUuid: $lockerBankUuid,
                 restoredAtIso8601: $ts->toIso8601String(),
                 reason: 'heartbeat',

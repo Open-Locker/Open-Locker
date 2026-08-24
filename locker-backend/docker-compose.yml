@@ -200,7 +200,7 @@ services:
             - sail
 
     mqtt:
-        image: iegomez/mosquitto-go-auth:latest
+        image: iegomez/mosquitto-go-auth:2.1.0-mosquitto_2.0.15
         restart: unless-stopped
         ports:
             - "1883:1883"

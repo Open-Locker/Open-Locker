@@ -1,70 +1,105 @@
-# Builds internal test apps on every push to main that touches mobile-app/**.
-# Uses `eas build --local` on GitHub runners (free for public repos).
-# Signing credentials are fetched from EAS at build time via EXPO_TOKEN
-# (credentialsSource: remote) — so the keystore/cert do NOT need to be GitHub
-# secrets. Only EXPO_TOKEN is required.
-#
-# Required GitHub secret:
-#   EXPO_TOKEN  — expo.dev → Account → Access Tokens (scoped to merona-apps)
-# Plain (non-secret) value, set inline below:
-#   APP_ID_BASE = de.merona.openlocker
-#
-# See docs/adr/0032-mobile-internal-test-builds-ci.md for the decision record
-# and mobile-app/docs/internal-builds.md for the maintainer guide.
-
 name: Mobile App Build
 
 on:
-  push:
-    branches: [main]
+  pull_request:
     paths:
       - 'mobile-app/**'
+      - '.github/git-cliff/mobile.toml'
+      - '.github/workflows/component-release.yml'
       - '.github/workflows/mobile-app-build.yml'
-  workflow_dispatch: {}   # allow manual rebuild from the Actions tab
+  push:
+    branches:
+      - main
+      - dev
+    tags:
+      - 'mobile-v*'
+    paths:
+      - 'mobile-app/**'
+      - '.github/git-cliff/mobile.toml'
+      - '.github/workflows/component-release.yml'
+      - '.github/workflows/mobile-app-build.yml'
+  workflow_dispatch:
 
 concurrency:
-  group: mobile-build-${{ github.ref }}
+  group: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/tags/mobile-v') && 'mobile-store' || format('mobile-preview-{0}', github.ref) }}
   cancel-in-progress: false
 
 env:
   APP_ID_BASE: de.merona.openlocker
-  # Pinned rather than `@latest`: the build tool should not change underneath a
-  # release without a commit saying so. Bump deliberately.
   EAS_CLI_VERSION: '21.8.0'
   EAS_BUILD_NO_EXPO_GO_WARNING: 'true'
 
 jobs:
-  android:
+  release-gate:
+    name: Verify release tag is on main
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/mobile-v')
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout repository history
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - name: Verify tag commit belongs to main
+        run: |
+          if [[ ! "${GITHUB_REF_NAME}" =~ ^mobile-v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]]; then
+            echo "::error::Release tag ${GITHUB_REF_NAME} is not a mobile SemVer tag."
+            exit 1
+          fi
+          git fetch --no-tags origin main
+          if [[ "${GITHUB_SHA}" != "$(git rev-parse origin/main)" ]]; then
+            echo "::error::Release tag ${GITHUB_REF_NAME} must point to the current main tip."
+            exit 1
+          fi
+
+  release-quality:
+    name: Mobile release quality gate
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/mobile-v')
+    needs: release-gate
+    uses: ./.github/workflows/mobile-app-ci.yml
+    permissions:
+      contents: read
+
+  android:
+    name: Build Android
+    if: >-
+      always() &&
+      (needs.release-gate.result == 'success' || needs.release-gate.result == 'skipped') &&
+      (needs.release-quality.result == 'success' || needs.release-quality.result == 'skipped')
+    needs:
+      - release-gate
+      - release-quality
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
     defaults:
       run:
         working-directory: mobile-app
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v7
 
-      - uses: pnpm/action-setup@v4
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
         with:
           version: 9
 
-      - uses: actions/setup-node@v6
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
         with:
           node-version: 22
           cache: pnpm
           cache-dependency-path: mobile-app/pnpm-lock.yaml
 
-      - uses: actions/setup-java@v4
+      - name: Setup Java
+        uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: '17'
 
-      # The local EAS build runs Gradle under the runner's own GRADLE_USER_HOME,
-      # so this covers the wrapper distribution, the dependency cache and the
-      # Gradle build cache (task outputs keyed by input hash — the part that
-      # makes a warm run skip work rather than just skip downloads).
-      # Native dependency changes must not reuse stale outputs, so the key
-      # carries the lockfile and both Expo/EAS config files.
       - name: Cache Gradle
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: |
             ~/.gradle/caches
@@ -76,35 +111,98 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Build Android (internal)
+      - name: Check Expo authentication
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
         run: |
-          pnpm dlx eas-cli@${EAS_CLI_VERSION} build \
-            --local --non-interactive \
-            --profile production --platform android \
-            --output ./build/openlocker-android.apk
+          if [[ -z "${EXPO_TOKEN}" ]]; then
+            echo "::error::The EXPO_TOKEN repository secret is required."
+            exit 1
+          fi
 
-      - uses: actions/upload-artifact@v4
+      - name: Select Android distribution
+        id: distribution
+        run: |
+          if [[ "${GITHUB_EVENT_NAME}" == "push" && "${GITHUB_REF}" == refs/tags/mobile-v* ]]; then
+            {
+              echo "profile=store"
+              echo "artifact=openlocker-android.aab"
+              echo "channel=production"
+            } >> "${GITHUB_OUTPUT}"
+          else
+            {
+              echo "profile=preview"
+              echo "artifact=openlocker-android.apk"
+              echo "channel=preview"
+            } >> "${GITHUB_OUTPUT}"
+          fi
+
+      - name: Derive tagged app version
+        if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/mobile-v')
+        run: |
+          release_version="${GITHUB_REF_NAME#mobile-v}"
+          marketing_version="${release_version%%-*}"
+          {
+            echo "APP_VERSION=${marketing_version}"
+            echo "APP_RUNTIME_VERSION=${release_version}"
+            echo "APP_RELEASE_TAG=${GITHUB_REF_NAME}"
+            echo "APP_RELEASE_VERSION=${release_version}"
+          } >> "${GITHUB_ENV}"
+
+      - name: Build Android (${{ steps.distribution.outputs.channel }})
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: |
+          pnpm dlx "eas-cli@${EAS_CLI_VERSION}" build \
+            --local --non-interactive \
+            --profile "${{ steps.distribution.outputs.profile }}" \
+            --platform android \
+            --output "./build/${{ steps.distribution.outputs.artifact }}"
+
+      - name: Upload Android artifact
+        uses: actions/upload-artifact@v6
         with:
-          name: openlocker-android
-          path: mobile-app/build/openlocker-android.apk
+          name: openlocker-android-${{ github.run_id }}-${{ github.run_attempt }}
+          path: mobile-app/build/${{ steps.distribution.outputs.artifact }}
           if-no-files-found: error
           retention-days: 14
 
+      - name: Submit Android store candidate
+        if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/mobile-v')
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: |
+          pnpm dlx "eas-cli@${EAS_CLI_VERSION}" submit \
+            --non-interactive \
+            --profile production --platform android \
+            --path "./build/${{ steps.distribution.outputs.artifact }}"
+
   ios:
-    runs-on: macos-26   # Xcode 26 / iOS 26 SDK — required by App Store Connect for uploads
+    name: Build iOS
+    if: >-
+      always() &&
+      (needs.release-gate.result == 'success' || needs.release-gate.result == 'skipped') &&
+      (needs.release-quality.result == 'success' || needs.release-quality.result == 'skipped')
+    needs:
+      - release-gate
+      - release-quality
+    runs-on: macos-26
+    permissions:
+      contents: read
     defaults:
       run:
         working-directory: mobile-app
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v7
 
-      - uses: pnpm/action-setup@v4
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
         with:
           version: 9
 
-      - uses: actions/setup-node@v6
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
         with:
           node-version: 22
           cache: pnpm
@@ -113,33 +211,87 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Build iOS (internal)
+      - name: Check Expo authentication
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
         run: |
-          pnpm dlx eas-cli@${EAS_CLI_VERSION} build \
-            --local --non-interactive \
-            --profile production --platform ios \
-            --output ./build/openlocker-ios.ipa
+          if [[ -z "${EXPO_TOKEN}" ]]; then
+            echo "::error::The EXPO_TOKEN repository secret is required."
+            exit 1
+          fi
 
-      - uses: actions/upload-artifact@v4
+      - name: Select iOS distribution
+        id: distribution
+        run: |
+          if [[ "${GITHUB_EVENT_NAME}" == "push" && "${GITHUB_REF}" == refs/tags/mobile-v* ]]; then
+            {
+              echo "profile=store"
+              echo "artifact=openlocker-ios.ipa"
+              echo "channel=production"
+            } >> "${GITHUB_OUTPUT}"
+          else
+            {
+              echo "profile=ios-simulator"
+              echo "artifact=openlocker-ios-simulator.tar.gz"
+              echo "channel=simulator"
+            } >> "${GITHUB_OUTPUT}"
+          fi
+
+      - name: Derive tagged app version
+        if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/mobile-v')
+        run: |
+          release_version="${GITHUB_REF_NAME#mobile-v}"
+          marketing_version="${release_version%%-*}"
+          {
+            echo "APP_VERSION=${marketing_version}"
+            echo "APP_RUNTIME_VERSION=${release_version}"
+            echo "APP_RELEASE_TAG=${GITHUB_REF_NAME}"
+            echo "APP_RELEASE_VERSION=${release_version}"
+          } >> "${GITHUB_ENV}"
+
+      - name: Build iOS (${{ steps.distribution.outputs.channel }})
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: |
+          pnpm dlx "eas-cli@${EAS_CLI_VERSION}" build \
+            --local --non-interactive \
+            --profile "${{ steps.distribution.outputs.profile }}" \
+            --platform ios \
+            --output "./build/${{ steps.distribution.outputs.artifact }}"
+
+      - name: Upload iOS artifact
+        uses: actions/upload-artifact@v6
         with:
-          name: openlocker-ios
-          path: mobile-app/build/openlocker-ios.ipa
+          name: openlocker-ios-${{ github.run_id }}-${{ github.run_attempt }}
+          path: mobile-app/build/${{ steps.distribution.outputs.artifact }}
           if-no-files-found: error
           retention-days: 14
 
-      # Uploads the build to TestFlight (App Store Connect beta — internal
-      # testing, not a public release). Uses the ASC API key stored on EAS.
-      # If ASC requires the app's numeric id, set submit.production.ios.ascAppId
-      # in eas.json.
-      - name: Submit to TestFlight
-        if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/feat/19-mobile-internal-builds'   # TEMP: allow TestFlight submit from feat/19 for testing
+      - name: Submit TestFlight candidate
+        if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/mobile-v')
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
-          APP_VARIANT: production   # so app.config.ts resolves the production bundle id (no .dev suffix)
+          APP_VARIANT: production
         run: |
-          pnpm dlx eas-cli@${EAS_CLI_VERSION} submit \
+          pnpm dlx "eas-cli@${EAS_CLI_VERSION}" submit \
             --non-interactive \
             --profile production --platform ios \
-            --path ./build/openlocker-ios.ipa
+            --path "./build/${{ steps.distribution.outputs.artifact }}"
+
+  release:
+    name: Create mobile release
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/mobile-v')
+    needs:
+      - release-quality
+      - android
+      - ios
+    permissions:
+      contents: write
+    uses: ./.github/workflows/component-release.yml
+    with:
+      component: Mobile app
+      tag-prefix: mobile-v
+      cliff-config: .github/git-cliff/mobile.toml
+      artifact-note: >-
+        EAS accepted the Android and iOS store submissions for `${{ github.ref_name }}`.
+        App Store Connect and Google Play processing continue asynchronously after this release.

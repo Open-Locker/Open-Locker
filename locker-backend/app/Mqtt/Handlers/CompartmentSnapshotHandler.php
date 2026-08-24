@@ -10,6 +10,7 @@ use App\Models\LockerBank;
 use App\Mqtt\InboundMqttProtocolGuard;
 use App\StorableEvents\CompartmentDoorStateChanged;
 use App\StorableEvents\CompartmentStateChangesApplied;
+use App\Support\EventSourcing\StoredEventDispatcher;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Log;
 
@@ -18,8 +19,10 @@ use Illuminate\Support\Facades\Log;
  */
 class CompartmentSnapshotHandler extends AbstractInboundMqttHandler
 {
-    public function __construct(InboundMqttProtocolGuard $guard)
-    {
+    public function __construct(
+        InboundMqttProtocolGuard $guard,
+        private readonly StoredEventDispatcher $storedEventDispatcher,
+    ) {
         parent::__construct($guard);
     }
 
@@ -124,7 +127,7 @@ class CompartmentSnapshotHandler extends AbstractInboundMqttHandler
 
             $hadDoorDelta = true;
 
-            event(new CompartmentDoorStateChanged(
+            $this->storedEventDispatcher->dispatch(new CompartmentDoorStateChanged(
                 lockerBankUuid: $lockerBankUuid,
                 compartmentUuid: (string) $compartment->id,
                 compartmentNumber: $number,
@@ -136,7 +139,7 @@ class CompartmentSnapshotHandler extends AbstractInboundMqttHandler
         }
 
         if ($hadDoorDelta) {
-            event(new CompartmentStateChangesApplied(
+            $this->storedEventDispatcher->dispatch(new CompartmentStateChangesApplied(
                 lockerBankUuid: $lockerBankUuid,
                 changesObservedAtIso8601: $ts->toIso8601String(),
                 mqttMessageId: $mqttMessageId,

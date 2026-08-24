@@ -1,4 +1,4 @@
-import type { CredentialStorePort } from '../../ports/config.port';
+import type { CredentialStorePort, DeviceCredentials } from '../../ports/config.port';
 
 /**
  * Credentials for one simulated device, held only for the lifetime of the run.
@@ -10,13 +10,13 @@ import type { CredentialStorePort } from '../../ports/config.port';
  * guarantees the simulator never writes over a real device's `/data` files.
  */
 export class InMemoryCredentialStore implements CredentialStorePort {
-  private credentials: { username: string; password: string } | null = null;
+  private credentials: DeviceCredentials | null = null;
 
-  getCredentials(): { username: string; password: string } | null {
+  getCredentials(): DeviceCredentials | null {
     return this.credentials;
   }
 
-  saveCredentials(credentials: { username: string; password: string }): void {
+  saveCredentials(credentials: DeviceCredentials): void {
     this.credentials = { ...credentials };
   }
 
