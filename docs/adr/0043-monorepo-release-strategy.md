@@ -301,6 +301,9 @@ paused.
 ## Supersedes / Superseded By
 
 - Supersedes: none.
+- Superseded in part by:
+  [ADR-0055](0055-tag-only-mobile-store-distribution.md) replaces decision 7's
+  mobile `main` store mapping with tag-only store distribution.
 - Related: mobile internal test-build decisions and website deployment stay
   outside or adjacent to this model; website remains continuous deploy from
   `main`.
