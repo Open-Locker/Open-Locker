@@ -29,6 +29,7 @@ import {
   usePutCompartmentsByCompartmentContentNoteMutation,
 } from '@/src/store/generatedApi';
 import { useAppSelector } from '@/src/store/hooks';
+import { useUserName } from '@/src/auth/useUserName';
 import {
   getCompartmentStatusPalette,
   getLockerStatusPalette,
@@ -125,7 +126,7 @@ function getFakeLockerStatus(lockerBankId: string): LockerVisualStatus {
 export default function CompartmentsScreen() {
   const { t } = useTranslation();
   const token = useAppSelector((state) => state.auth.token);
-  const userName = useAppSelector((state) => state.auth.userName);
+  const userName = useUserName();
   const theme = useTheme();
   const insets = useSafeAreaInsets();
   const scrollY = React.useRef(new Animated.Value(0)).current;
