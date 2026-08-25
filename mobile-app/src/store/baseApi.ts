@@ -2,6 +2,7 @@ import type { BaseQueryFn, FetchArgs, FetchBaseQueryError } from '@reduxjs/toolk
 import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react';
 
 import { getApiBaseUrl } from '@/src/api/baseUrl';
+import { isTermsNotAcceptedError } from './termsGate';
 import { getCurrentAppLanguage } from '@/src/i18n';
 import { markSessionExpired } from '@/src/store/authSlice';
 import { clearPersistedAuth } from '@/src/store/authStorage';
@@ -74,11 +75,23 @@ const baseQueryWithSessionExpiry: BaseQueryFn<
     }
   }
 
+  // A 403 from the terms gate means the user's cached profile is out of date: new
+  // terms were activated after it was fetched. Without this the app keeps showing
+  // a stale `terms_current_accepted`, so the banner that explains the refusal
+  // never appears and every action fails for no visible reason.
+  if (result.error?.status === 403 && isTermsNotAcceptedError(result.error.data)) {
+    api.dispatch(baseApi.util.invalidateTags(['Auth']));
+  }
+
   return result;
 };
 
 export const baseApi = createApi({
   reducerPath: 'openLockerApi',
   baseQuery: baseQueryWithSessionExpiry,
+  // The generated API adds the rest through `enhanceEndpoints`. `Auth` is declared
+  // here because the base query itself invalidates it, and importing the generated
+  // list from here would be circular.
+  tagTypes: ['Auth'],
   endpoints: () => ({}),
 });

@@ -25,6 +25,7 @@ import { ActivityIndicator, Button, Chip, HelperText, Text, useTheme } from 'rea
 import {
   type GetCompartmentsAccessibleApiResponse,
   useGetCompartmentsAccessibleQuery,
+  useGetUserQuery,
   usePostCompartmentsByCompartmentOpenMutation,
   usePutCompartmentsByCompartmentContentNoteMutation,
 } from '@/src/store/generatedApi';
@@ -127,6 +128,8 @@ export default function CompartmentsScreen() {
   const { t } = useTranslation();
   const token = useAppSelector((state) => state.auth.token);
   const userName = useUserName();
+  const { refetch: refetchUser } = useGetUserQuery();
+  const [isPullRefreshing, setIsPullRefreshing] = React.useState(false);
   const theme = useTheme();
   const insets = useSafeAreaInsets();
   const scrollY = React.useRef(new Animated.Value(0)).current;
@@ -137,7 +140,6 @@ export default function CompartmentsScreen() {
     data,
     error,
     isLoading,
-    isFetching,
     refetch: refetchCompartments,
   } = useGetCompartmentsAccessibleQuery(token ? undefined : skipToken);
   const [selectedCompartment, setSelectedCompartment] = React.useState<CompartmentEntry | null>(
@@ -341,9 +343,18 @@ export default function CompartmentsScreen() {
         scrollEventThrottle={16}
         refreshControl={
           <RefreshControl
-            refreshing={isFetching && !isLoading}
+            refreshing={isPullRefreshing}
             onRefresh={() => {
-              void refetchCompartments();
+              // Tied to the gesture rather than to either query's fetching flag:
+              // a realtime event or a 403 also refetches these, and a spinner
+              // nobody pulled looks like a bug.
+              setIsPullRefreshing(true);
+              // Pulling down is the gesture people reach for when something looks
+              // wrong, and stale terms acceptance is one of the things that can be
+              // wrong — the tab layout reads it to decide whether to prompt.
+              void Promise.all([refetchCompartments(), refetchUser()]).finally(() =>
+                setIsPullRefreshing(false),
+              );
             }}
           />
         }
