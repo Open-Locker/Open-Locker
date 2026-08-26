@@ -337,8 +337,8 @@ contract changes:
 - ESP firmware is updated through signed HTTPS OTA with A/B rollback instead of
   Docker/Watchtower;
 - local config and state use flash partitions instead of YAML and JSON files;
-- local commissioning may use USB, BLE, or SoftAP to provide network and
-  bootstrap inputs;
+- V1 local commissioning uses a temporary SoftAP to provide Wi-Fi and bootstrap
+  inputs; a USB fixture may remain available for manufacturing and recovery;
 - local diagnostics use UART/JTAG and a bounded flash log/crash store rather
   than `docker logs`.
 
@@ -370,6 +370,12 @@ persistence, or Modbus scheduling.
 
 ## 5. Hardware selection
 
+Version 1 is Wi-Fi-only. It uses a temporary SoftAP for local commissioning and
+then joins the configured infrastructure Wi-Fi network. Ethernet is deferred to
+a later version and is not part of the V1 implementation or acceptance scope.
+Candidate selection should nevertheless avoid unnecessary barriers to a future
+Ethernet-capable board variant.
+
 ### 5.1 Selection criteria
 
 Do not approve a chip or board from CPU frequency alone. Prototype candidates
@@ -388,16 +394,20 @@ must be scored against:
 
 - one dedicated UART with TX/RX/RTS for half-duplex RS-485;
 - separate UART or native USB Serial/JTAG for production diagnostics;
-- Ethernet strongly preferred for fixed installations;
-- Wi-Fi acceptable as fallback or for installations without cabling;
-- enough non-strapping GPIO after Ethernet, flash/PSRAM, USB/JTAG, reset,
-  status, and service inputs are allocated;
+- integrated Wi-Fi with antenna performance suitable for the intended metal
+  cabinet and installation environment;
+- enough non-strapping GPIO after flash/PSRAM, USB/JTAG, reset, status, and
+  service inputs are allocated;
+- a future board variant may add Ethernet without changing application,
+  MQTT, provisioning, or Modbus contracts;
 - hardware RNG and supported Secure Boot v2/Flash Encryption.
 
 **Network**
 
-- integrated EMAC + external PHY, or a supported external SPI Ethernet device;
-- stable link and reconnect behavior under cable pulls and DHCP renewal;
+- stable Wi-Fi association, DHCP, reconnect, roaming, and credential-recovery
+  behavior;
+- a bounded, authenticated SoftAP commissioning mode that is disabled after
+  successful setup;
 - certificate bundle or pinned trust-anchor support;
 - a workable cold-boot time bootstrap for X.509 validation.
 
@@ -425,16 +435,16 @@ must be scored against:
 
 | Candidate | Strengths | Material risks | Prototype role |
 | --- | --- | --- | --- |
-| ESP32-S3 module with PSRAM and external W5500/SPI Ethernet | Dual core, three UARTs, USB Serial/JTAG and USB OTG, PSRAM options, mature ESP-IDF support | No integrated EMAC; SPI Ethernet consumes pins/bus and moved to an external managed driver in ESP-IDF 6 | Primary firmware and industrial-board evaluation |
-| ESP32-S3-ETH-8DI-8RO-class industrial board | Existing 7–36 V input, Ethernet, isolated RS-485, digital isolation, inputs, service USB, optional PoE variants | Board variants and schematics must be verified; onboard relays are not proven to provide the required hardware-timed 100–500 ms flash semantics | Fast HIL prototype as controller for external Modbus Relay (D) boards |
-| ESP32-WROOM-32E + RMII PHY / ESP32-Ethernet-Kit reference | Integrated 10/100 EMAC, three UARTs, well-understood wired gateway reference | Older generation; fixed RMII pins and GPIO0 clock/strapping constraints; security capability depends on chip revision | Wired-reference and fallback candidate |
-| ESP32-C6 + external SPI Ethernet | Wi-Fi 6, RISC-V, modern security, low cost | Single core, no PSRAM, no integrated EMAC, only two main UARTs, tighter RAM/GPIO budget | Cost-down feasibility only after full-stack memory profiling |
-| ESP32-P4 + RMII PHY | Integrated EMAC, high performance, abundant SRAM/GPIO, strong diagnostics headroom | No integrated Wi-Fi, likely oversized and higher BOM/complexity; PSRAM/RMII clock interactions require care | High-headroom wired reference, not default |
+| ESP32-S3 module with PSRAM | Dual core, integrated Wi-Fi, three UARTs, USB Serial/JTAG and USB OTG, PSRAM options, mature ESP-IDF support | Antenna placement and coexistence with cabinet electronics require measurement | Primary V1 firmware and custom/industrial-board evaluation |
+| ESP32-S3-ETH-8DI-8RO-class industrial board | Existing 7–36 V input, Wi-Fi, Ethernet, isolated RS-485, digital isolation, inputs, service USB, optional PoE variants | Board variants and schematics must be verified; onboard relays are not proven to provide the required hardware-timed 100–500 ms flash semantics | Fast V1 HIL prototype over Wi-Fi; Ethernet remains disabled/deferred |
+| ESP32-C6 | Wi-Fi 6, RISC-V, modern security, low cost | Single core, no PSRAM, only two main UARTs, tighter RAM/GPIO budget | V1 cost-down feasibility only after full-stack memory profiling |
+| ESP32-WROOM-32E + RMII PHY / ESP32-Ethernet-Kit reference | Integrated Wi-Fi and 10/100 EMAC, three UARTs, well-understood wired gateway reference | Older generation; fixed RMII pins and GPIO0 clock/strapping constraints; security capability depends on chip revision | Later Ethernet compatibility reference, not a V1 target |
+| ESP32-P4 + RMII PHY | Integrated EMAC, high performance, abundant SRAM/GPIO, strong diagnostics headroom | No integrated Wi-Fi, likely oversized and higher BOM/complexity; PSRAM/RMII clock interactions require care | Later Ethernet-only reference, not eligible for V1 |
 
 The shortlist intentionally does not choose a winner. Phase 1 must produce
 measured flash, internal SRAM, peak heap, task stack high-water marks, TLS
-handshake headroom, Modbus timing, Ethernet stability, boot time, and power
-transient results for at least the S3 primary and one wired-reference candidate.
+handshake headroom, Modbus timing, Wi-Fi/SoftAP stability, boot time, and power
+transient results for at least the S3 primary and one cost-down candidate.
 
 ### 5.3 Electrical requirements
 
@@ -451,7 +461,8 @@ For any custom or selected board:
 - specify input reverse-polarity, surge, over-current, and ESD protection;
 - validate 7–36 V or selected cabinet input across load dump and relay events;
 - size local capacitance and regulator transient response to avoid brownouts;
-- route antenna and Ethernet magnetics according to vendor guidance;
+- route the Wi-Fi antenna according to vendor guidance and preserve applicable
+  layout constraints if a later board variant adds Ethernet magnetics;
 - expose reset, boot, UART, and JTAG pads for fixtures;
 - define how debug access is disabled or authenticated in production;
 - consider an external supervisor/watchdog only after testing the internal
@@ -470,7 +481,7 @@ continues safely through task stalls, watchdog resets, and power interruption.
 app_main
   ├─ Boot/Security/Reset Diagnostics
   ├─ Configuration & Persistent State
-  ├─ Network Manager (Ethernet/Wi-Fi)
+  ├─ Network Manager (Wi-Fi; future Ethernet extension)
   ├─ Time Manager
   ├─ Provisioning State Machine
   ├─ MQTT State Machine
@@ -504,7 +515,7 @@ Recommended tasks:
 
 | Task | Responsibility | Blocking rule |
 | --- | --- | --- |
-| Network manager | Ethernet/Wi-Fi link and IP state | Owns network state only |
+| Network manager | Wi-Fi station, SoftAP commissioning, and IP state | Owns network state only |
 | MQTT manager | Connect/reconnect/subscribe, MQTT event translation | Never performs Modbus or long flash writes in callback |
 | Command dispatcher | Parse, validate, deduplicate, persist transaction claim, enqueue execution | Bounded input; backpressure produces a deterministic error where correlation is available |
 | Modbus worker | Sole owner of UART/ESP-Modbus master and reconnect state | Processes one priority queue item at a time |
@@ -623,15 +634,18 @@ commissioning action, never automatic recovery.
 
 Provisioning has two layers:
 
-1. **Local commissioning:** obtain Ethernet/Wi-Fi settings, bootstrap MQTT
-   credentials, broker URL/trust policy, and one-time provisioning token.
+1. **Local commissioning:** use the device's temporary SoftAP to obtain Wi-Fi
+   settings, bootstrap MQTT credentials, broker URL/trust policy, and one-time
+   provisioning token.
 2. **Existing backend MQTT provisioning:** execute the current register/reply
    exchange unchanged.
 
-Pilot devices may use a fixture/USB command with secret-safe output. Production
-wireless commissioning should use ESP-IDF network provisioning over BLE or
-SoftAP with `protocomm_security2` (SRP6a + AES-GCM), a unique per-device
-verifier, and a limited commissioning window. Security 0 is prohibited.
+Pilot devices may also use a fixture/USB command with secret-safe output.
+Production V1 commissioning uses ESP-IDF network provisioning over SoftAP with
+`protocomm_security2` (SRP6a + AES-GCM), a unique per-device verifier, and a
+limited commissioning window. Security 0 is prohibited. The SoftAP must stop
+after successful commissioning and may be reopened only by a deliberate
+physical or authenticated recovery action.
 
 Do not compile fleet-wide bootstrap secrets or provisioning tokens into
 firmware. Manufacturing must inject per-device commissioning material or use a
@@ -903,7 +917,8 @@ Rollback: documentation and fixtures only; no deployed effect.
 
 Implement throwaway vertical spikes on at least two candidates:
 
-- Ethernet/Wi-Fi acquisition and reconnect;
+- Wi-Fi station acquisition, reconnect, and credential recovery;
+- authenticated SoftAP commissioning and shutdown after successful setup;
 - trusted-time bootstrap;
 - verified MQTTS connection and QoS 1 round trip;
 - exact raw Waveshare FC05 and FC02 through isolated RS-485;
@@ -1240,7 +1255,8 @@ Gate:
 
 Inject at deterministic state-machine boundaries:
 
-- Ethernet cable/Wi-Fi loss and DHCP expiry;
+- Wi-Fi loss, access-point restart/change, wrong credentials, weak signal, and
+  DHCP expiry;
 - broker stop/restart and TLS proxy restart;
 - duplicate and out-of-order commands;
 - old persistent-session commands;
@@ -1324,8 +1340,7 @@ Before production:
   to the deployment/product classification;
 - RS-485 common-mode and cable-length testing;
 - thermal soak in enclosure;
-- Ethernet/Wi-Fi coexistence and antenna performance;
-- PoE behavior where applicable.
+- Wi-Fi antenna performance and interference in the intended metal cabinet.
 
 Acceptance values must be set with the electrical engineer and applicable
 standards laboratory. Passing firmware tests is not evidence of EMC or product
@@ -1367,13 +1382,15 @@ safety compliance.
 ## 12. Open decisions
 
 - Which shortlisted SoC/module/board wins measured Phase 1 evaluation?
-- Ethernet-only, Wi-Fi-only, or Ethernet with Wi-Fi fallback?
+- What evidence and product milestone should trigger the later Ethernet variant,
+  and should it replace or supplement Wi-Fi?
 - Is a battery-backed RTC required, or can authenticated time bootstrap meet
   cold-boot TLS requirements?
 - What exact flash size and partition table meet OTA, journal, and crash needs?
 - Which authenticated journal construction and device-rooted anti-rollback
   mechanism protect command state beyond accidental-error CRC detection?
-- Will production commissioning use a fixture, BLE, SoftAP, or more than one?
+- What exact SoftAP setup UX, physical activation method, commissioning-window
+  duration, and per-device verifier delivery process will V1 use?
 - Is optional OTLP export required for first production parity or deferred after
   trace-context/log parity?
 - What is the approved stale-command policy after long MQTT sessions? Any change

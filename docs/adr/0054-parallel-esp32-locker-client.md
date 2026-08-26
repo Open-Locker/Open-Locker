@@ -22,11 +22,20 @@ a direct source-code port: its task model, flash persistence, update mechanism,
 security lifecycle, time bootstrap, and failure modes differ materially from a
 Linux host.
 
-The Raspberry Pi client remains supported. The backend and broker must serve a
-mixed fleet without knowing which implementation controls a locker bank.
-AsyncAPI and the shared JSON Schemas are already the authoritative MQTT
-contract, and the physical safety boundary already requires the verified
-Waveshare hardware flash operation rather than software-timed relay writes.
+Lower system complexity and a smaller maintenance surface may make an ESP
+controller more stable than the Linux-based Raspberry Pi client. ESP hardware
+may also have a lower and more predictable acquisition cost and better
+availability than Raspberry Pi hardware during periods of elevated Pi pricing.
+These are hypotheses to test, not established facts. Purchase price alone is
+not an adequate decision basis; BOM/TCO, supply, energy, operating effort,
+failure rate, and recovery behavior all affect suitability.
+
+The Raspberry Pi client remains a supported parallel alternative. The backend
+and broker must serve a mixed fleet without knowing which implementation
+controls a locker bank. AsyncAPI and the shared JSON Schemas are already the
+authoritative MQTT contract, and the physical safety boundary already requires
+the verified Waveshare hardware flash operation rather than software-timed
+relay writes.
 
 [ADR-0005](0005-esp-build-controller-board-selection.md) proposed one integrated
 ESP32-S3 relay board before the firmware, electrical, and hardware-timed pulse
@@ -37,9 +46,6 @@ flash behavior. A production board decision is therefore premature.
 
 The implementation and validation plan is
 [Parallel ESP32 Locker Client Implementation Plan](../plans/esp32-locker-client.md).
-Because this ADR is `Proposed`, it records a candidate decision and is not
-binding architecture until it is reviewed and accepted. The same applies to any
-other proposed decision referenced by the plan.
 
 ## Decision
 
@@ -64,18 +70,41 @@ The ESP client will:
 6. use signed HTTPS OTA with rollback instead of the Pi's
    Docker/Watchtower update path;
 7. keep the Raspberry Pi implementation deployable throughout development and
-   rollout, with one active controller per locker bank.
-
-Implementation may be coordinated by humans or coding agents in Cursor, Claude
-Code, or other tools. Those tools and their worktree/subagent features are
-optional execution surfaces; the architecture and verification gates remain
-tool-independent.
+   rollout, with one active controller per locker bank;
+8. implement every feature through a failing automated test, the minimum
+   passing implementation, and refactoring under a green suite;
+9. treat no feature as migrated until requirement/feature traceability links
+   its automated unit, contract/golden-vector, integration, target, HIL, and
+   fault-injection coverage as applicable to reviewed acceptance evidence.
 
 No production SoC, module, controller board, network medium, or direct-relay
 design is selected by this ADR. Hardware selection remains gated by measured
 resource use, Ethernet/Wi-Fi needs, UART/RS-485 behavior, trusted-time bootstrap,
 flash partition sizing, isolation, power integrity, brownout, EMC/ESD, secure
 manufacturing, debugging, and HIL results.
+
+The ESP pilot will compare against a Raspberry Pi baseline using predeclared,
+measurable criteria:
+
+- complete controller BOM and TCO, including commissioning, updates, spares,
+  maintenance, incident recovery, and energy;
+- dated acquisition quotes, price variance, supplier availability, stock, and
+  lead time;
+- idle, typical, and peak power plus projected annual energy use;
+- measured commissioning, update, routine-maintenance, and recovery effort;
+- observed failure rate, automatic-recovery rate, and P50/P95 recovery time
+  under equivalent workload and injected faults.
+
+Selection thresholds must be fixed before the pilot is evaluated. The evidence
+may support ESP, Pi, or continued parallel deployment.
+
+Coverage gates will report line and branch coverage separately for a declared
+scope and exclusions. They will be combined with requirement traceability and
+layer-specific evidence rather than replaced by a misleading aggregate 100%
+target. Static QA will use compiler warnings as errors, the ESP-IDF GCC Static
+Analyzer, and IDF Clang-Tidy with its documented still-in-development status;
+Cppcheck may run as an independent second analyzer. Static analysis does not
+replace target or HIL testing.
 
 The initial physical parity target remains external Waveshare Modbus RTU Relay
 (D) boards over isolated RS-485. Integrated ESP-board relays may be evaluated
@@ -97,6 +126,11 @@ not optional libraries around an Arduino sketch.
 Contract-driven parallel development lets the two implementations coexist and
 gives the ESP client executable parity targets. It also avoids destabilizing the
 Pi client while persistence, OTA, and hardware behavior are validated.
+
+Testing the stability, supply, and cost hypotheses against a common Pi baseline
+prevents lower component price or lower apparent software complexity from being
+mistaken for lower lifecycle cost or proven reliability. Binding TDD,
+traceability, and layer-specific gates make parity claims auditable.
 
 Leaving hardware open prevents an integrated-board convenience from weakening
 the accepted hardware-flash safety boundary. It also allows measured comparison
@@ -161,12 +195,17 @@ ESP32-P4 headroom before production commitment.
 - The Raspberry Pi path remains available during development and pilot rollback.
 - Safety and idempotency have explicit MCU persistence and power-loss gates.
 - Hardware selection is based on measured requirements.
+- ESP and Pi remain comparable using explicit cost, supply, energy,
+  maintainability, failure, and recovery evidence.
+- TDD and feature-to-acceptance traceability make migration claims reviewable.
 - OTA, boot integrity, flash confidentiality, and watchdog recovery become
   first-class production concerns.
 
 ### Negative
 
 - Two client implementations must track future contract changes.
+- Comparable Pi/ESP pilots, HIL, fault injection, and acceptance-evidence
+  maintenance increase near-term effort.
 - ESP firmware, electrical hardware, manufacturing, and HIL introduce new
   toolchains and operational responsibilities.
 - Behavior that Linux provides through its filesystem, CA store, clock, and
@@ -196,26 +235,31 @@ ESP32-P4 headroom before production commitment.
 ## Rollout / Migration
 
 1. Freeze MQTT and Modbus golden vectors from the Pi implementation.
-2. Run hardware/resource/time/persistence/OTA spikes on at least two candidates.
-3. Implement host-tested protocol and state-machine modules.
-4. Deliver provisioning + heartbeat, then one safe open, then full config/state
+2. Freeze the Pi cost, supply, energy, operating-effort, failure, and recovery
+   baseline plus the comparison thresholds before evaluating ESP results.
+3. Run hardware/resource/time/persistence/OTA spikes on at least two candidates.
+4. Implement host-tested protocol and state-machine modules using
+   red-green-refactor and requirement-to-evidence traceability.
+5. Deliver provisioning + heartbeat, then one safe open, then full config/state
    as separate vertical slices.
-5. Validate signed OTA, production security, electrical design, HIL fault
+6. Validate signed OTA, production security, electrical design, HIL fault
    injection, soak, and longevity.
-6. Pilot one non-critical locker bank, then progress through controlled canary
+7. Pilot one non-critical locker bank, then progress through controlled canary
    stages.
-7. Keep a tested Raspberry Pi rollback kit and never operate Pi and ESP clients
+8. Keep a tested Raspberry Pi rollback kit and never operate Pi and ESP clients
    simultaneously for one locker identity.
 
 Detailed exit criteria and rollback steps are defined in the implementation
-plan. Its Phase 0 decisions and the separate OTA ADR are mandatory prerequisites
-to implementation, not implicit decisions made by this proposed ADR.
+plan.
 
 ## Supersedes / Superseded By
 
-- Supersedes:
-  [ADR-0005](0005-esp-build-controller-board-selection.md), which selected a
-  board before the required hardware and firmware validation.
+- Supersedes: none while this ADR remains `Proposed`.
+- If accepted, this ADR would supersede only the production board-selection
+  decision in
+  [ADR-0005](0005-esp-build-controller-board-selection.md): hardware would
+  remain unselected until the resource, safety, electrical, cost/supply, and HIL
+  gates pass. ADR-0005 remains unchanged until that lifecycle transition.
 - Superseded by: none.
 
 ## References
@@ -234,3 +278,5 @@ to implementation, not implicit decisions made by this proposed ADR.
   - [ADR-0041](0041-locker-client-command-response-recovery.md)
   - [ADR-0046](0046-locker-client-local-persistence-hardening.md)
   - [ADR-0050](0050-per-provisioning-mqtt-credential-identities.md)
+  - [ESP-IDF GCC Static Analyzer](https://docs.espressif.com/projects/esp-idf/en/stable/esp32/api-guides/code-quality/static-analyzer.html)
+  - [IDF Clang-Tidy](https://docs.espressif.com/projects/esp-idf/en/stable/esp32/api-guides/tools/idf-clang-tidy.html)
