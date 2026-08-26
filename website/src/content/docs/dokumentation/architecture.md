@@ -40,10 +40,14 @@ Lock → Locker client → MQTT broker → Backend → Push (WebSocket) → App
 
 - Commands go through REST (`POST /api/compartments/{id}/open` →
   `command_id`)
-- Progress and door state arrive as **WebSocket pushes** (Laravel Reverb +
-  Echo) on the private channel `users.{userId}.compartment-status`
-- If the WebSocket connection is unavailable, the app polls
-  `GET /api/compartments/open-requests/{commandId}` as a fallback
+- The current app applies door-state and content-note **WebSocket pushes**
+  (Laravel Reverb + Echo) from the private channel
+  `users.{userId}.compartment-status`
+- When realtime is unavailable or the app returns to the foreground, it
+  refetches the accessible-compartments list
+- The backend also exposes open-progress events and
+  `GET /api/compartments/open-requests/{commandId}`, but the current mobile app
+  does not consume them
 
 Details and payloads: [App Communication Guide](https://github.com/Open-Locker/Open-Locker/blob/main/docs/app_communication.md).
 
@@ -63,8 +67,8 @@ Details and payloads: [App Communication Guide](https://github.com/Open-Locker/O
 
 - TypeScript/Node service, runs as a Docker container on a **Raspberry Pi**
   at the cabinet
-- Subscribes to commands via MQTT and translates them into **Modbus** signals
-  (TCP or RTU) for the relay boards
+- Subscribes to commands via MQTT and translates them into serialized
+  **Modbus RTU** signals for Waveshare relay boards
 - Modbus operations are serialized and tolerate unreachable boards — only the
   client talks to the hardware, never the backend directly
 

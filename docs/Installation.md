@@ -38,9 +38,11 @@ The runtime flow is:
 
 ## Release and security status
 
-There is currently **no production deployment**. The first beta is a controlled
-pre-production pilot governed by the
-[beta release checklist](release-checklist.md).
+There is currently **no production deployment**. The first beta source tags
+have been cut, but artifact publication and field acceptance are not complete.
+The controlled pre-production pilot is governed by the
+[beta release checklist](release-checklist.md); the verified cut outcome is
+recorded in the [Beta release notes](releases/beta.md).
 
 Component source tags are independent:
 
@@ -365,13 +367,24 @@ Install and check the Expo application with pnpm:
 
 ```bash
 cd mobile-app
+cp .env.example .env
 pnpm install
 pnpm check
 pnpm test:ci
-pnpm start
 ```
 
-The generated RTK Query client comes from the live backend OpenAPI document:
+Set `EXPO_PUBLIC_API_BASE_URL` in `.env` to the running backend, including the
+`/api` path. Realtime uses `EXPO_PUBLIC_REVERB_KEY`,
+`EXPO_PUBLIC_REVERB_PORT`, and `EXPO_PUBLIC_REVERB_SCHEME`; set
+`EXPO_PUBLIC_REVERB_HOST` only when it differs from the API host. Keep those
+values aligned with the backend's public Reverb configuration.
+
+`pnpm start` targets an installed Expo development client. Build and launch one
+with `pnpm android` or `pnpm ios`. Use `pnpm start:go` only for the more limited
+Expo Go workflow.
+
+The generated RTK Query client comes from the running backend's live Scramble
+OpenAPI document at `/docs/api.json`:
 
 ```bash
 pnpm generate:api

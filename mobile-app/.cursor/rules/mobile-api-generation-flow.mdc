@@ -1,15 +1,15 @@
 ---
 description: Explain backend-to-mobile API generation flow
-globs: mobile-app/{openapi-codegen.config.json,package.json,src/store/baseApi.ts,src/store/generatedApi.ts}
+globs: mobile-app/{openapi-codegen.config.js,package.json,src/store/baseApi.ts,src/store/generatedApi.ts}
 alwaysApply: false
 ---
 
 # API Generation Flow (Backend -> Mobile)
 
-- OpenAPI source is generated in `locker-backend/api.json` via Scramble.
-- Mobile client code is generated from that file using RTK Query codegen.
-- `openapi-codegen.config.json` defines the mapping:
-  - `schemaFile`: `../locker-backend/api.json`
+- Scramble serves the live OpenAPI source at `/docs/api.json`.
+- `openapi-codegen.config.js` builds that URL from
+  `EXPO_PUBLIC_API_BASE_URL` and defines:
+  - `schemaFile`: the live backend URL
   - `apiFile`: `./src/store/baseApi.ts`
   - `outputFile`: `./src/store/generatedApi.ts`
   - `exportName`: `openLockerApi`
@@ -17,15 +17,11 @@ alwaysApply: false
 ## Commands
 
 ```bash
-# 1) Update OpenAPI spec from backend code
-cd locker-backend && composer export:api
-
-# 2) Regenerate RTK Query API in mobile app (includes TypeScript check)
-cd ../mobile-app && pnpm run generate:api
+# Run from mobile-app with the backend reachable at EXPO_PUBLIC_API_BASE_URL.
+pnpm run generate:api
 ```
 
-`pnpm run generate:api` must fail fast when TypeScript types break after
-regeneration.
+The command regenerates RTK Query hooks and then runs TypeScript checking.
 
 For full post-generation quality checks, run:
 
@@ -38,6 +34,5 @@ pnpm run quality:api
 - Do edit `src/store/baseApi.ts` for shared base query behavior (headers, auth, base URL).
 - Never manually edit `src/store/generatedApi.ts` because it is fully generated.
 - If endpoint names or request/response types change, regenerate first and then update consumer code (screens/hooks/services), not the generated file.
-- If you see unstaged/manual edits in `src/store/generatedApi.ts`, discard them and regenerate via codegen.
-- After backend endpoint/schema changes, always rerun both steps above.
+- After backend endpoint/schema changes, regenerate against the running backend.
 - Always run a TypeScript check after generation (already enforced by `generate:api`).

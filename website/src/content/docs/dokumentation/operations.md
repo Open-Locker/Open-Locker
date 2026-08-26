@@ -38,18 +38,24 @@ The complete standalone and Coolify procedures, including firewall, DNS,
 certificate, and smoke-test steps, are maintained in the repository
 [installation guide](https://github.com/Open-Locker/Open-Locker/blob/main/docs/Installation.md).
 
-### Pin the image version (recommended)
+### Pin the image version
 
-By default the `latest` tag is used. For production, pin the image to an
-immutable tag — a commit SHA or release tag in `locker-backend/.env`:
+For beta and production deployments, pin the image to an immutable release tag
+in `locker-backend/.env`; do not deploy `latest`:
 
 ```bash
-BACKEND_IMAGE_TAG=<github_sha>
+BACKEND_IMAGE_TAG=backend-v1.0.0-beta.1
 ```
 
 ```bash
-docker compose -f docker-compose.prod.yml pull
-docker compose -f docker-compose.prod.yml up -d --force-recreate
+docker compose \
+  -f docker-compose.prod.yml \
+  -f docker-compose.prod.traefik.yml \
+  pull
+docker compose \
+  -f docker-compose.prod.yml \
+  -f docker-compose.prod.traefik.yml \
+  up -d --force-recreate
 ```
 
 The running version is exposed via `GET /api/identify` as `version`.
@@ -81,11 +87,14 @@ credentials.
 
 ### Create an admin user
 
+Set `ADMIN_EMAIL` before the first deployment, or run:
+
 ```bash
-docker compose exec app php artisan filament:user
+docker compose exec app php artisan first-admin:create admin@example.com
 ```
 
-The admin panel is available at `https://<your-domain>/admin`.
+Mail delivery must work so the administrator can set a password. The admin
+panel is available at `https://<your-domain>/admin`.
 
 ## Monitoring
 
@@ -95,24 +104,26 @@ The admin panel is available at `https://<your-domain>/admin`.
   container. An `autoheal` sidecar automatically restarts unhealthy
   containers. Note: `autoheal` uses the Docker restart API — restarts show up
   in the `autoheal` logs, not in `RestartCount`.
-- **Status polling**: `php artisan locker:poll-status` continuously monitors
-  locker states (separate container)
+- **Offline detection**: the scheduler runs
+  `php artisan locker:detect-offline` every minute
 
 ## Locker client on site
 
 The locker client runs as a Docker container on a Raspberry Pi (3/4/5 or
 Zero 2 W, Raspberry Pi OS Lite 64-bit):
 
-- Image: `ghcr.io/open-locker/locker-client:latest`
+- Image: pin an immutable release such as
+  `ghcr.io/open-locker/locker-client:client-v1.0.0-beta.1`
 - Requires `config/locker-config.yml` and a `.env` with a
   `PROVISIONING_TOKEN`
-- Connects to the backend via MQTT and drives the locks via Modbus
-  (TCP or RTU)
+- Connects to the backend via MQTT and drives Waveshare relay boards via
+  serialized Modbus RTU
 
 Issue or restart provisioning in the admin panel, copy the token from the
-one-time dialog directly into the client's `.env`, clear stale local
-provisioning state if replacing a client, and restart it. The token cannot be
-viewed again; issue a new one if it is lost.
+one-time dialog directly into the client's `.env`, and restart it. The token
+cannot be viewed again; issue a new one if it is lost. Do not delete persisted
+identity, credentials, runtime configuration, or deduplication state as a
+routine recovery step.
 
 Recommended hardware: see the
 [Bill of Materials](https://github.com/Open-Locker/Open-Locker/blob/main/docs/Bill-of-Materials.md).
