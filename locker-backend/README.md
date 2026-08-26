@@ -1,281 +1,107 @@
 # Open-Locker Backend
 
-Laravel 11 API backend for the Open-Locker project - an IoT-based locker sharing
-system.
+The Open-Locker backend is a Laravel 12 application that provides the mobile
+REST API, Filament 5 administration, event-sourced domain workflows, MQTT
+coordination, and realtime client updates.
 
-## Overview
+## Responsibilities
 
-This Laravel application provides:
+- Authenticate API clients with Laravel Sanctum.
+- Manage users, roles, terms, groups, locker banks, compartments, content notes,
+  and direct or group-based compartment access.
+- Authorize compartment open requests and persist their progress as domain
+  events and projected read models.
+- Publish typed MQTT commands and process responses, device events, heartbeats,
+  and compartment snapshots.
+- Broadcast compartment updates through Laravel Reverb.
+- Serve the Filament 5 admin panel.
+- Generate the live OpenAPI contract with Scramble.
 
-- **REST API** for mobile app communication
-- **Filament Admin Panel** for system administration
-- **MQTT Integration** for locker-client communication
-- **OpenAPI Documentation** via Scramble
+The backend does **not** communicate over Modbus. Physical control belongs to
+[`locker-client`](../locker-client/README.md), which runs on the Raspberry Pi and
+bridges MQTT to serialized Modbus RTU.
 
-## Tech Stack
+## Stack
 
-- **Framework:** Laravel 11
-- **Admin Panel:** Filament 3.x
-- **Authentication:** Laravel Sanctum
-- **Database:** SQLite (development) / PostgreSQL (production)
-- **IoT Bridge:** MQTT to locker-client (Modbus runs on the Pi)
-- **Documentation:** Scramble OpenAPI Generator
-- **PHP Version:** 8.4+
+- PHP 8.2+ and Laravel 12
+- Filament 5
+- PostgreSQL
+- `spatie/laravel-event-sourcing`
+- Laravel Sanctum
+- Laravel Reverb
+- Scramble
+- `php-mqtt/laravel-client` with Mosquitto HTTP authentication
 
-## Quick Start
+## Architecture
 
-### Prerequisites
+Domain state changes flow through aggregates in `app/Aggregates`, persisted
+events in `app/StorableEvents`, and projectors in `app/Projectors`. Reactors in
+`app/Reactors` handle follow-up work such as MQTT publication and Reverb
+broadcasting. Eloquent models represent read models; do not update them directly
+when an aggregate/event workflow exists.
 
-- Docker & Docker Compose
-- PHP 8.4+
-- Composer
+The principal domain concepts are:
 
-### Installation
+- **Locker banks** — provisioned on-site devices and their runtime
+  configuration.
+- **Compartments** — physical mapping, observed door state, and content notes.
+- **Access** — assignments to individual users or groups.
+- **Open requests** — authorization and hardware-command lifecycle.
 
-1. **Clone and setup:**
-   ```bash
-   git clone <repository-url>
-   cd locker-backend
-   composer install
-   ```
+See [the system architecture](../docs/Architecture.md) for component boundaries.
 
-2. **Environment:**
-   ```bash
-   cp .env.example .env
-   php artisan key:generate
-   ```
+## Contracts
 
-3. **Database:**
-   ```bash
-   php artisan migrate --seed
-   ```
+Scramble generates the OpenAPI specification live at `/docs/api.json`. This
+runtime endpoint is the source used by mobile-app RTK Query code generation; an
+exported `api.json` is not the canonical or committed contract.
 
-4. **Start development server:**
-   ```bash
-   php artisan serve
-   ```
+Realtime subscriptions, event names, and fallback polling are documented in
+[the app communication guide](../docs/app_communication.md). MQTT topics,
+payloads, and operation directions are defined by
+[the AsyncAPI contract](../docs/asyncapi/mqtt.yaml).
 
-### Using Laravel Sail (Docker)
+Keep these contracts synchronized when changing an endpoint, broadcast payload,
+or MQTT message.
 
-```bash
-# Start containers
-./vendor/bin/sail up -d
+## Development
 
-# Run migrations
-./vendor/bin/sail artisan migrate --seed
-
-# Access admin panel
-# Visit: http://localhost/admin
-```
-
-## Development Guidelines
-
-### Code Standards
-
-- **PSR-12** coding standard
-- `declare(strict_types=1);` in all PHP files
-- Full class imports instead of FQCNs
-- Comprehensive docblocks on all methods
-
-### Architecture Patterns
-
-- **Service Pattern** for business logic
-- **Form Requests** for validation
-- **JSON Resources** for API responses
-- **Policies** for authorization
-- **Feature Tests** preferred over Unit Tests
-
-### Laravel Best Practices
-
-- Use `artisan make:*` commands for boilerplate
-- Keep controllers thin - delegate to services
-- Use route model binding
-- Mass assignment protection on models
-- Migrations for schema changes
-
-### Project-Specific Rules
-
-- **API Only**: No public-facing views (except admin)
-- **MQTT Contracts**: Keep command/response payloads aligned with locker-client
-- **OpenAPI**: Document all endpoints with Scramble
-- **Testing**: Feature tests for workflows, mocks for MQTT/hardware side effects
-
-## Key Components
-
-### Models
-
-- `User` - System users with admin capabilities
-- `Item` - Physical objects available for borrowing
-- `Locker` - Hardware-controlled storage compartments
-- `ItemLoan` - Borrowing/returning transaction records
-
-### Services
-
-- MQTT handlers and publishers for locker-client commands and provisioning
-
-### Controllers
-
-- `AuthController` - User authentication endpoints
-- `ItemController` - Item management and borrowing
-- `LockerController` - Hardware control and status
-
-### Admin Panel
-
-- Filament resources for CRUD operations
-- User management with admin privileges
-- Item and locker monitoring
-- System statistics and reporting
-
-## API Documentation
-
-### OpenAPI Specification
-
-- **Generated documentation:** `/docs/api`
-- **Specification file:** `api.json`
-- **Auto-generated:** Via Scramble from Laravel code
-
-### Key Endpoints
-
-- `POST /api/auth/login` - User authentication
-- `GET /api/items` - List available items
-- `POST /api/items/{id}/borrow` - Borrow an item
-- `POST /api/items/{id}/return` - Return an item
-- `GET /api/lockers/status` - Get locker status
-
-## Testing
-
-### Running Tests
+Installation and deployment instructions are maintained in
+[the installation guide](../docs/Installation.md). Once dependencies and the
+environment are ready, the main backend commands are:
 
 ```bash
-# All tests
+composer dev
 composer test
-
-# With coverage
-composer test:coverage
-
-# Parallel execution
+composer test:filter CompartmentControllerTest
 composer test:parallel
-
-# Specific test
-composer test tests/Feature/ItemControllerTest.php
+composer test:coverage
+composer format
+composer analyse
+composer quality
+composer export:api
 ```
 
-### Test Structure
+`composer export:api` is useful for inspecting an exported specification. The
+mobile app normally generates against the running backend's live
+`/docs/api.json` endpoint.
 
-- **Feature Tests** (preferred): End-to-end API testing
-- **Unit Tests** (minimal): Isolated component logic
-- **Factories**: Test data generation
-- **Mocks**: Hardware service mocking
+Backend code follows PSR-12 and uses `declare(strict_types=1);`. Keep controllers
+thin, use Form Requests for validation, JSON Resources for responses, Policies
+for authorization, and feature tests for workflows. MQTT and other external
+side effects should be mocked at their boundaries in tests.
 
-## Hardware Integration
+## Operations
 
-Physical Modbus control runs in **locker-client** on the Raspberry Pi. The
-backend publishes MQTT commands and processes structured responses.
+The backend Compose stacks include PostgreSQL, queue workers, Mosquitto, the MQTT
+listener, and Reverb. Operational configuration and deployment procedures live
+in [the installation guide](../docs/Installation.md) rather than in this
+component overview.
 
-### Safety Features
-
-- Idempotent command handling and deduplication
-- Structured error responses from locker-client
-- Operational logging with transaction IDs
-
-## Commands
-
-### Artisan Commands
-
-```bash
-# Generate API documentation
-php artisan scramble:export
-
-# Run code style checks
-php artisan pint
-php artisan stan
-```
-
-### Composer Scripts
-
-```bash
-# Code quality
-composer lint           # Run Pint (code style)
-composer analyse        # Run PHPStan (static analysis)
-
-# Testing
-composer test           # Run all tests
-composer test:coverage  # Run tests with coverage
-composer test:parallel  # Run tests in parallel
-
-# Documentation
-composer export:api         # Export OpenAPI spec (for mobile-app RTK Query codegen)
-```
-
-## Production Deployment
-
-### Docker Configuration
-
-- Multi-stage builds for optimization
-- PHP 8.4
-- Supervisor for background tasks
-- Nginx reverse proxy
-
-### Environment Variables
-
-```env
-APP_ENV=production
-APP_DEBUG=false
-DB_CONNECTION=pgsql
-```
-
-### Background Services
-
-- Queue workers for background jobs
-- Scheduled tasks for maintenance
-
-### MQTT Listener Health
-
-The `mqtt-listener` container runs `php artisan mqtt:listen` and reports
-liveness via a heartbeat (see ADR-0028):
-
-- The listener writes a heartbeat timestamp to the cache on every loop iteration
-  (throttled to `MQTT_LISTENER_HEARTBEAT_INTERVAL`, default 10s).
-- `php artisan mqtt:health` is the container's `healthcheck`. It exits `0`
-  (healthy) when the last heartbeat is newer than `MQTT_LISTENER_HEARTBEAT_MAX_AGE`
-  (default 35s), and `1` (unhealthy) when the pulse is stale or missing.
-
-Interpreting status:
-
-- **healthy** — the listener loop is turning (normal; stays healthy even while
-  the broker is briefly down/reconnecting, since the pulse tracks the loop, not
-  message flow).
-- **unhealthy** — no fresh pulse: the process is hung/wedged or the cache is
-  unreachable. The `autoheal` sidecar restarts any `unhealthy` container
-  labelled `autoheal: "true"` (plain Compose does not restart on health status
-  by itself).
-
-Check it manually:
-
-```bash
-docker inspect --format '{{.State.Health.Status}}' <mqtt-listener-container>
-docker compose exec mqtt-listener php artisan mqtt:health
-```
-
-## Contributing
-
-1. Follow PSR-12 coding standards
-2. Write Feature tests for new functionality
-3. Update OpenAPI documentation
-4. Use Conventional Commits for messages
-5. Run `composer lint` and `composer analyse` before commits
-
-## Cursor Rules
-
-This project uses Cursor Rules for development guidance:
-
-- **Scramble OpenAPI**: Documentation generation guidelines
-- **Hardware Integration**: MQTT bridge to locker-client
-- **Domain Guidelines**: Business logic conventions
-- **Testing Guidelines**: Feature test preferences
-
-See `.cursor/rules/` for detailed guidelines.
+The MQTT listener consumes device traffic continuously; locker status is
+reported through MQTT heartbeats, events, responses, and retained snapshots.
+There is no backend Modbus status poller.
 
 ## License
 
-Open source under the MIT License.
+Open-Locker is available under the [MIT License](../LICENSE).

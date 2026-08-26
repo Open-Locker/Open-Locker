@@ -275,6 +275,21 @@ def validate_git_cliff
   end
 end
 
+def validate_documentation_filters(filename, component)
+  triggers = workflow(filename).fetch('on')
+  expected_exclusions = [
+    "!#{component}/**/*.md",
+    "!#{component}/.cursor/**",
+  ]
+
+  %w[pull_request push].each do |event|
+    paths = triggers.fetch(event).fetch('paths')
+    expected_exclusions.each do |exclusion|
+      assert(paths.include?(exclusion), "#{filename}: #{event} must exclude #{exclusion}")
+    end
+  end
+end
+
 validate_container_workflow('backend-docker.yml', 'backend-v')
 validate_container_workflow('client-docker.yml', 'client-v')
 validate_mobile_workflow
@@ -282,6 +297,12 @@ validate_mobile_profiles
 validate_release_workflow
 validate_git_cliff
 validate_event_matrix
+validate_documentation_filters('backend-docker.yml', 'locker-backend')
+validate_documentation_filters('mqtt-contract-ci.yml', 'locker-backend')
+validate_documentation_filters('client-docker.yml', 'locker-client')
+validate_documentation_filters('locker-client-ci.yml', 'locker-client')
+validate_documentation_filters('mobile-app-build.yml', 'mobile-app')
+validate_documentation_filters('mobile-app-ci.yml', 'mobile-app')
 
 package = JSON.parse(File.read(File.join(ROOT, 'locker-client', 'package.json')))
 assert(package.fetch('version') == '1.0.0', 'locker client release version must be 1.0.0')

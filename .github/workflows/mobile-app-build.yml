@@ -4,6 +4,8 @@ on:
   pull_request:
     paths:
       - 'mobile-app/**'
+      - '!mobile-app/**/*.md'
+      - '!mobile-app/.cursor/**'
       - '.github/git-cliff/mobile.toml'
       - '.github/workflows/component-release.yml'
       - '.github/workflows/mobile-app-build.yml'
@@ -15,6 +17,8 @@ on:
       - 'mobile-v*'
     paths:
       - 'mobile-app/**'
+      - '!mobile-app/**/*.md'
+      - '!mobile-app/.cursor/**'
       - '.github/git-cliff/mobile.toml'
       - '.github/workflows/component-release.yml'
       - '.github/workflows/mobile-app-build.yml'

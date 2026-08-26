@@ -8,26 +8,54 @@ sidebar:
 ## Cloud-Backend deployen
 
 Das Backend läuft als Docker-Compose-Stack auf einem zentralen Server (VPS
-oder Cloud-Instanz):
+oder Cloud-Instanz). Ein eigenständiges Deployment ergänzt den gepflegten
+Traefik-Edge:
 
 ```bash
 cd locker-backend
-docker compose -f docker-compose.prod.yml up -d
+docker compose \
+  -f docker-compose.prod.yml \
+  -f docker-compose.prod.traefik.yml \
+  up -d
 ```
 
-### Image-Version pinnen (empfohlen)
+Zuvor `APP_DOMAIN`, `REVERB_DOMAIN`, `MQTT_DOMAIN` und `ACME_EMAIL` setzen.
+Öffentlich erreichbar sind HTTPS auf Port 443 und MQTTS auf Port 8883.
+Mosquitto-Port 1883 bleibt unverschlüsselt im Docker-Netz und wird in
+Produktion nicht veröffentlicht.
 
-Standardmäßig wird der `latest`-Tag verwendet. Für Produktion das Image auf
-einen unveränderlichen Tag pinnen — per Commit-SHA oder Release-Tag in
-`locker-backend/.env`:
+Für Coolify v4 das Git-basierte **Docker Compose** Build Pack verwenden und
+**Docker Compose Location** auf
+`/locker-backend/docker-compose.prod.coolify.yml` setzen. Die Entry-Datei lädt
+den Basis-Stack per Compose `extends`; Coolifys ähnlich benanntes Custom
+Compose Override konfiguriert die Coolify-Infrastruktur und ist kein
+Anwendungs-Overlay. Der verwaltete Traefik-Proxy muss einen TCP-Entrypoint
+`mqtts` auf Port 8883 veröffentlichen; der Adapter routet
+`HostSNI(MQTT_DOMAIN)` darüber zu Mosquitto-Port 1883. Eine normale
+HTTPS-Domain-Route oder direkte Portfreigabe sichert MQTT nicht ab.
+
+Die vollständigen Anleitungen für Standalone und Coolify einschließlich
+Firewall, DNS, Zertifikaten und Smoke Tests stehen im
+[Installationsleitfaden](https://github.com/Open-Locker/Open-Locker/blob/main/docs/Installation.md).
+
+### Image-Version pinnen
+
+Für Beta- und Produktions-Deployments das Image in `locker-backend/.env` auf
+einen unveränderlichen Release-Tag pinnen; `latest` nicht deployen:
 
 ```bash
-BACKEND_IMAGE_TAG=<github_sha>
+BACKEND_IMAGE_TAG=backend-v1.0.0-beta.1
 ```
 
 ```bash
-docker compose -f docker-compose.prod.yml pull
-docker compose -f docker-compose.prod.yml up -d --force-recreate
+docker compose \
+  -f docker-compose.prod.yml \
+  -f docker-compose.prod.traefik.yml \
+  pull
+docker compose \
+  -f docker-compose.prod.yml \
+  -f docker-compose.prod.traefik.yml \
+  up -d --force-recreate
 ```
 
 Die laufende Version ist über `GET /api/identify` als `version` abfragbar.
@@ -45,6 +73,11 @@ Ohne `just`: `mosquitto.conf` aus dem Beispiel kopieren und in den
 Webhook-URIs `mosq_secret=<MOSQ_HTTP_PASS>` eintragen, dann den
 Mosquitto-Container neu starten.
 
+Locker Clients verwenden `mqtts://<mqtt-domain>:8883` und prüfen öffentliches
+Zertifikat und Hostnamen. Vor der Abnahme einen authentifizierten MQTT-Roundtrip
+über Port 8883 testen und bestätigen, dass Port 1883 von außerhalb des
+Docker-Hosts nicht erreichbar ist.
+
 Auf allen Backend-Instanzen muss derselbe gültige Laravel-`APP_KEY` gesetzt
 sein. Das Backend leitet daraus einen domain-separierten HMAC-Subkey für
 Provisionierungs-Tokens ab; ein zusätzliches Provisionierungsgeheimnis ist
@@ -55,10 +88,13 @@ MQTT-Zugangsdaten weiter.
 
 ### Admin-Benutzer anlegen
 
+Vor dem ersten Deployment `ADMIN_EMAIL` setzen oder ausführen:
+
 ```bash
-docker compose exec app php artisan filament:user
+docker compose exec app php artisan first-admin:create admin@example.com
 ```
 
+Der Mailversand muss funktionieren, damit der Admin ein Passwort setzen kann.
 Das Admin-Panel ist unter `https://<deine-domain>/admin` erreichbar.
 
 ## Monitoring
@@ -69,25 +105,27 @@ Das Admin-Panel ist unter `https://<deine-domain>/admin` erreichbar.
   `mqtt-listener`-Containers. Ein `autoheal`-Sidecar startet unhealthy
   Container automatisch neu. Hinweis: `autoheal` nutzt die Docker-Restart-API —
   Restarts erscheinen in den `autoheal`-Logs, nicht im `RestartCount`.
-- **Status-Polling**: `php artisan locker:poll-status` überwacht die
-  Schließfach-Status kontinuierlich (separater Container)
+- **Offline-Erkennung**: Der Scheduler führt
+  `php artisan locker:detect-offline` jede Minute aus
 
 ## Locker Client am Standort
 
 Der Locker Client läuft als Docker-Container auf einem Raspberry Pi
 (3/4/5 oder Zero 2 W, Raspberry Pi OS Lite 64-bit):
 
-- Image: `ghcr.io/open-locker/locker-client:latest`
+- Image: einen unveränderlichen Release pinnen, zum Beispiel
+  `ghcr.io/open-locker/locker-client:client-v1.0.0-beta.1`
 - Benötigt `config/locker-config.yml` und eine `.env` mit
   `PROVISIONING_TOKEN`
-- Verbindet sich per MQTT mit dem Backend und steuert die Schlösser per
-  Modbus (TCP oder RTU)
+- Verbindet sich per MQTT mit dem Backend und steuert Waveshare-Relais-Boards
+  über serialisiertes Modbus RTU
 
 Die Provisionierung im Admin-Panel ausstellen oder neu starten, das Token aus
-dem einmaligen Dialog direkt in die `.env` des Clients kopieren, bei einem
-Client-Austausch veralteten lokalen Provisionierungszustand löschen und den
-Client neu starten. Das Token kann nicht erneut angezeigt werden; bei Verlust
-muss ein neues ausgestellt werden.
+dem einmaligen Dialog direkt in die `.env` des Clients kopieren und den Client
+neu starten. Das Token kann nicht erneut angezeigt werden; bei Verlust muss ein
+neues ausgestellt werden. Persistierte Identität, Zugangsdaten,
+Runtime-Konfiguration oder Deduplizierungszustand nicht als routinemäßige
+Wiederherstellungsmaßnahme löschen.
 
 Empfohlene Hardware: siehe
 [Stückliste](https://github.com/Open-Locker/Open-Locker/blob/main/docs/Bill-of-Materials.de.md).

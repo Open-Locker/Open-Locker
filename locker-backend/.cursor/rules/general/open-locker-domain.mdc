@@ -3,243 +3,41 @@ alwaysApply: true
 ---
 # Open-Locker Domain Guidelines
 
-This project implements a digital locker sharing system for lending physical items. Follow these domain-specific conventions.
+The current product grants users direct or group-based access to locker
+compartments and coordinates asynchronous compartment opening.
 
-## Domain Model Overview
+## Core domain
 
-### Core Entities
+- `LockerBank` represents a provisioned locker installation and its connection,
+  heartbeat, and applied-configuration state.
+- `Compartment` belongs to a locker bank and maps a compartment number to a
+  unique `slave_id` and `address` pair within that bank.
+- `CompartmentAccess` and projected `UserGroupCompartmentAccess` determine
+  whether a user may open a compartment.
+- `CompartmentOpenRequest` tracks asynchronous opening authorization, command,
+  acknowledgement, detection, and failure state.
+- `Group`, `UserRole`, and terms records are also event-sourced domain state.
 
-#### User
-- **Purpose**: System users who can borrow items and access admin functions
-- **Key Attributes**: `name`, `email`, `is_admin`
-- **Relationships**: Has many `ItemLoan` records
-- **Authentication**: Laravel Sanctum tokens
+## Event-sourced changes
 
-#### Item
-- **Purpose**: Physical objects that can be borrowed
-- **Key Attributes**: `name`, `description`, `image_path`, `compartment_id`
-- **Relationships**: Belongs to one `Compartment`, has many `ItemLoan` records
-- **Business Rule**: Must be assigned to exactly one compartment
+- Use aggregates to record domain events when an aggregate/event path exists.
+- Let projectors update read models and reactors perform side effects.
+- Do not directly mutate projected state to bypass those flows.
+- Keep message IDs and transaction IDs distinct as defined by the accepted
+  MQTT ADRs.
 
-#### Compartment
-- **Purpose**: Physical storage compartments controlled via locker-client over MQTT
-- **Key Attributes**: `locker_bank_id`, `number`, `slave_id`, `address`
-- **Relationships**: Has one `Item`
-- **Hardware Mapping**: Directly corresponds to a physical compartment in a locker bank
+## Component boundaries
 
-#### ItemLoan
-- **Purpose**: Tracks borrowing and returning of items
-- **Key Attributes**: `item_id`, `user_id`, `borrowed_at`, `returned_at`, `notes`
-- **Business Rules**: 
-  - One active loan per item (returned_at IS NULL)
-  - Borrowed timestamp required
-  - User can have multiple active loans
+- Controllers validate, authorize, invoke services, and return resources.
+- Services and aggregates own domain workflows.
+- The backend publishes typed MQTT commands and handles MQTT responses.
+- Only `locker-client` communicates with Modbus RTU hardware.
 
-## Business Rules
+## Authorization and tests
 
-### Item Borrowing
-1. **Pre-conditions**: Item must be available (no active loan)
-2. **Process**: Create ItemLoan record + Open locker
-3. **Post-conditions**: Item marked as borrowed, locker opened
-
-```php
-// Controller should use database transactions
-DB::transaction(function () use ($lockerService, $item, $request) {
-    ItemLoan::create([
-        'item_id' => $item->id,
-        'user_id' => $request->user()->id,
-        'borrowed_at' => now(),
-    ]);
-    
-    $lockerService->openCompartment($item->compartment);
-});
-```
-
-### Item Returning  
-1. **Pre-conditions**: User must have active loan for the item
-2. **Process**: Update ItemLoan returned_at + Open locker
-3. **Post-conditions**: Item marked as available, locker opened
-
-### Locker Status Management
-- **Automatic**: Background polling updates status every 0.5 seconds
-- **Manual**: Admin can trigger locker opening via API
-- **Status Enum**: `Open`, `Closed`, `Unreachable`, `Unknown`
-
-## API Response Patterns
-
-### Success Responses
-```php
-// Item operations
-return response()->json([
-    'status' => true,
-    'message' => __('Item borrowed successfully'),
-]);
-
-// Data responses use JsonResource collections
-return ItemResource::collection(Item::all());
-```
-
-### Error Responses
-```php
-// Business logic errors
-return response()->json([
-    'status' => false,
-    'message' => __('Item is already borrowed'),
-]);
-```
-
-## Database Conventions
-
-### Table Structure
-- **Primary keys**: Auto-incrementing integers (`id`)
-- **Timestamps**: Laravel timestamps (`created_at`, `updated_at`)
-- **Foreign keys**: Follow `{table}_id` convention
-- **Enum fields**: Use string enums with clear values
-
-### Migration Patterns
-```php
-// Use enum values from PHP enum classes
-$table->enum('status', array_map(
-    fn (LockerStatus $status) => $status->value, 
-    LockerStatus::cases()
-))->default(LockerStatus::Unknown->value);
-```
-
-### Model Relationships
-```php
-// Always define inverse relationships
-// Item model
-public function compartment(): BelongsTo
-{
-    return $this->belongsTo(Compartment::class);
-}
-
-// Compartment model
-public function item(): HasOne
-{
-    return $this->hasOne(Item::class);
-}
-```
-
-## Service Layer Patterns
-
-### LockerService Responsibilities
-- MQTT command publishing for compartment operations
-- Status updates from locker-client responses
-- Error handling and logging
-
-### Controller Responsibilities  
-- Request validation (Form Requests)
-- Authorization (Policies/Middleware)
-- Service orchestration
-- Response formatting (JsonResource)
-
-### Avoid in Controllers
-- Direct hardware communication
-- Complex business logic
-- Database queries (delegate to services/repositories)
-
-## Error Handling
-
-### Hardware Errors
-```php
-try {
-    $lockerService->openCompartment($compartment);
-} catch (\Throwable $e) {
-    Log::error('Hardware command failed: '.$e->getMessage());
-    return response()->json([
-        'status' => false,
-        'message' => __('Locker operation failed'),
-    ], 500);
-}
-```
-
-### Business Logic Errors
-- Use descriptive error messages
-- Return appropriate HTTP status codes
-- Log significant errors for debugging
-
-## Testing Conventions
-
-### Feature Tests
-- Test complete user workflows (borrow/return flow)
-- Include authentication in all protected endpoint tests
-- Test both success and failure scenarios
-
-### Example Test Structure
-```php
-public function test_user_can_borrow_available_item(): void
-{
-    $user = User::factory()->create();
-    $item = Item::factory()->create();
-    
-    $response = $this->actingAs($user)->postJson(
-        route('items.borrow', $item->id)
-    );
-    
-    $response->assertStatus(200)
-        ->assertJson(['status' => true]);
-    
-    $this->assertDatabaseHas('item_loans', [
-        'item_id' => $item->id,
-        'user_id' => $user->id,
-        'returned_at' => null,
-    ]);
-}
-```
-
-## File Upload Handling
-
-### Item Images
-- **Storage**: Public disk (`storage/app/public`)
-- **URL Generation**: Use `Storage::url()` in JsonResource
-- **Validation**: Image files only, reasonable size limits
-- **Filament**: FileUpload component with public visibility
-
-```php
-// In ItemResource
-'image_url' => $this->resource->image_path ? 
-    config('app.url') . Storage::url($this->resource->image_path) : null,
-```
-
-## Admin Panel (Filament) Guidelines
-
-### Resource Configuration
-- Keep forms simple and focused
-- Use relationship selects for foreign keys
-- Include search functionality on relevant columns
-- Show current borrower information where applicable
-
-### Security
-- Filament and backend workflows use Laravel Gate permissions
-- Check capabilities with `Permission` enum values and `$user->can(...)`
-- Use `isAdmin()` only for role-identity decisions such as last-admin guards
-
-## Internationalization
-
-### Message Keys
-- Use descriptive translation keys
-- Group by feature: `items.borrowed_successfully`
-- Provide English fallbacks for all messages
-
-### Current Implementation
-- Messages use `__()` helper function
-- Fallback to English built into Laravel
-- Future: Add translation files for multiple languages
-
-## Development Workflow
-
-### Adding New Features
-1. Create/update migrations for data changes
-2. Update models with relationships and casts
-3. Implement service layer logic
-4. Create/update controllers with proper validation
-5. Add JsonResource classes for API responses
-6. Write feature tests
-7. Update API documentation (automatically via Scramble)
-
-### Hardware Integration
-1. Define compartment metadata in the database
-2. Publish commands via MQTT and handle responses in handlers
-3. Handle errors gracefully with structured logging
-4. Keep AsyncAPI/JSON schema contracts aligned with locker-client
+- Use `Permission` values with gates/policies for capabilities.
+- Reserve role checks such as `isAdmin()` for role-identity rules, including
+  last-admin protection.
+- Cover access grants, expiry/revocation, opening authorization, asynchronous
+  command outcomes, and projector/reactor effects with feature tests.
+- Mock MQTT-facing boundaries; backend tests must not require hardware.

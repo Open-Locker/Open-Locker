@@ -32,7 +32,7 @@ In `locker-backend/.env` mindestens konfigurieren:
 
 - `APP_URL` — URL des Backends
 - `DB_PASSWORD` — Datenbank-Passwort
-- `MOSQ_HTTP_USER` / `MOSQ_HTTP_PASS` — Zugangsdaten für die Kommunikation zwischen MQTT-Broker und Backend
+- `MOSQ_HTTP_PASS` — gemeinsames Geheimnis für die Authentifizierung zwischen MQTT-Broker und Backend
 
 MQTT-Broker-Konfiguration erzeugen und Stack starten:
 
@@ -41,17 +41,19 @@ just setup-mqtt          # erzeugt mosquitto.conf aus dem Template
 
 cd locker-backend
 docker compose up -d     # Postgres, Mosquitto, Redis, App
-php artisan migrate --seed
+docker compose exec app php artisan migrate --seed
 ```
 
-Ersten Admin-Benutzer anlegen:
+Vor dem ersten Start `ADMIN_EMAIL` setzen oder den ersten Admin explizit
+anlegen:
 
 ```bash
-docker compose exec app php artisan filament:user
+docker compose exec app php artisan first-admin:create admin@example.com
 ```
 
-Das Admin-Panel ist dann unter `<APP_URL>/admin` erreichbar. Der primäre
-Dev-Loop läuft über Composer:
+Der Admin setzt sein Passwort über „Passwort vergessen“, daher muss der
+Mailversand funktionieren. Das Admin-Panel ist dann unter `<APP_URL>/admin`
+erreichbar. Der primäre Dev-Loop läuft über Composer:
 
 ```bash
 composer dev             # Server + Queue + Logs + Vite parallel
@@ -63,12 +65,22 @@ composer quality         # Format-Check + statische Analyse + Tests
 
 ```bash
 cd mobile-app
+cp .env.example .env
 pnpm install
-pnpm start               # Expo Dev Client
 ```
 
-Der API-Client wird aus der OpenAPI-Spezifikation des laufenden Backends
-generiert. Nach Änderungen am API-Vertrag:
+In `.env` `EXPO_PUBLIC_API_BASE_URL` auf das laufende Backend einschließlich
+`/api` setzen. Realtime verwendet `EXPO_PUBLIC_REVERB_KEY`,
+`EXPO_PUBLIC_REVERB_PORT` und `EXPO_PUBLIC_REVERB_SCHEME`;
+`EXPO_PUBLIC_REVERB_HOST` ist optional, wenn API und Reverb denselben Host
+verwenden.
+
+`pnpm start` erwartet einen installierten **Expo Development Client**; mit
+`pnpm android` oder `pnpm ios` wird er gebaut. Für den eingeschränkteren
+Workflow mit **Expo Go** dient `pnpm start:go`.
+
+Der API-Client wird aus der live generierten OpenAPI-Spezifikation des laufenden
+Backends unter `/docs/api.json` erzeugt. Nach Änderungen am API-Vertrag:
 
 ```bash
 pnpm generate:api        # Backend muss laufen

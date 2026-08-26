@@ -46,7 +46,7 @@ source of truth per ADR-0015. The real device already speaks this contract insid
 
 Two properties of the current system shape the decision:
 
-- **`locker-client` v2 is hexagonal** (ADR-0027). Hardware is already isolated
+- **`locker-client` v2 is hexagonal** (ADR-0024). Hardware is already isolated
   behind `LockerBusPort`, which is precisely the seam a fake device needs. A
   simulator therefore requires no new abstraction to keep its concerns out of the
   production path — only a second implementation of an existing port.
@@ -175,7 +175,7 @@ provisioning token), their compartments, and each compartment's initial
 `door_state`. YAML keeps multi-bank scenarios repeatable and reviewable. **CLI
 flags override runtime basics** (`--scenario`, `--broker`).
 
-Production is runtime-only for the compartment mapping (ADR-0028): it arrives by
+Production is runtime-only for the compartment mapping (ADR-0026): it arrives by
 `apply_config` and lands in the overlay. The scenario **seeds** that mapping so a
 simulated device is useful the moment it boots, while an `apply_config` command
 still overrides it at runtime exactly as on real hardware, because the overlay is

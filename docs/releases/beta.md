@@ -1,7 +1,7 @@
 # Beta Release — Feature and Change List
 
-**Status:** release candidate scope documented (Beta tags not yet cut)
-**Date:** 2026-08-23
+**Status:** source tags cut; artifact publication and field acceptance incomplete
+**Date:** 2026-08-25
 **Issue:** #209
 
 ## Beta goal
@@ -18,7 +18,7 @@ secondary; field hardening and release mechanics are what make the exercise trus
 
 ## Highlights (TL;DR)
 
-- Planned first tagged release of the monorepo under component-specific tags.
+- First component-specific Beta source tags created from the same `main` commit.
 - Core loop: sign in → list accessible compartments → open → live door state + content notes.
 - Event-sourced compartment domain with auditable content notes (Item domain removed).
 - Capability-based roles (incl. manager), group access, terms gate, EN/DE in app and admin.
@@ -29,13 +29,13 @@ secondary; field hardening and release mechanics are what make the exercise trus
 - Filament v5 ops-oriented admin: users, groups, compartments, open requests, audit log.
 - Event-sourced writes are atomic; MQTT identities and locker-client recovery are
   hardened.
-- The remaining Beta 1 gates are the release workflows (#50) and approval of this
-  list (#209).
+- Release mechanics (#50) and this scope review (#209) are closed. Deployment
+  and field acceptance remain Beta 2 work.
 
 ## Scope
 
-This Beta is intended to be the first coordinated component-tagged release. This
-document therefore has two parts:
+This Beta is the first coordinated component-tagged release. This document has
+two parts:
 
 1. **Feature list** — what the system does at Beta, by component. This is the
    "what do we have" answer.
@@ -43,15 +43,15 @@ document therefore has two parts:
    Commit history (path-filtered per component) plus the issues and pull requests.
 
 Per the monorepo release strategy (`#50`; ADR-0043), the durable form of this
-will be generated per component into the GitHub Release attached to each tag
+should be generated per component into the GitHub Release attached to each tag
 (`backend-vX.Y.Z`, `client-vX.Y.Z`, `mobile-vX.Y.Z`). This file is the one-off
 Beta list; it is not a committed rolling `CHANGELOG.md`.
 
 **Verification basis:** a feature counts as done only when its implementation
-is merged into `dev` and has passed the relevant checks. As of 2026-08-23, the
-implementation pull requests referenced below are merged and GitHub reports no
-open pull requests. Before release, the approved candidate is synchronized from
-`dev` to `main`, checked there, and tagged.
+is merged into `dev` and has passed the relevant checks. The three Beta tags
+point to `main` commit `0365b8a5ff17e4e68f54293a4b939ba80e5843a4`.
+Tag creation alone does not prove that every artifact was published or accepted
+by its distribution channel; the outcome is recorded in section 3.
 
 The baseline is the end of *Milestone 3 – MVP*. Everything below the "Earlier (MVP and
 before)" headings predates that and is listed only for completeness of the feature set.
@@ -94,7 +94,8 @@ in the feature list and change log; collected here so they are hard to miss.
 - General audit log over the event store, browsable in the admin panel (`#109`).
 - Crash-safe command-response dedup (`#188`).
 - Compartment open requests recorded and queryable: an admin list, a per-locker-bank
-  relation manager, and an open-status endpoint the app polls by command id.
+  relation manager, and an open-status endpoint clients can poll by command id
+  (the current mobile app does not use it).
 - Group archiving instead of hard deletion, with archived-group behaviour hardened
   (`#105`, `#106`, `#149`).
 
@@ -393,43 +394,40 @@ Modbus simulator, and the first locker-client implementation.
 
 ---
 
-## 3. Beta readiness — finish, consolidate, tighten
+## 3. Beta cut outcome and remaining validation
 
-The [Beta release checklist](../release-checklist.md) is the source of truth for
-execution and evidence. GitHub currently shows exactly two open Beta 1 issues:
+The [Beta release checklist](../release-checklist.md) remains the source of truth
+for rollout and evidence.
 
-- **#50 — release mechanics:** implement and verify the ADR-0043 tag namespaces,
-  artifact publishing, component-scoped release notes, and protection against
-  non-`main` or manual runs publishing a misleading `latest`.
-- **#209 — feature and change list:** review and accept this document, then
-  close the tracking issue.
+### Source tags
 
-The versioned images from this release are prerequisites for the real deployment
-checks. CI restructuring (#99), the stale-command policy (#134), the Raspberry
-Pi/Modbus soak (#169), PostgreSQL-specific CI coverage (#225), and external MQTTS
-acceptance (#233) are all tracked in Beta 2. They do not block creating the first
-Beta artifacts.
+The following tags were created on
+`0365b8a5ff17e4e68f54293a4b939ba80e5843a4`, which was the `main` tip:
 
-### Required Beta 1 release order
+- `backend-v1.0.0-beta.1`
+- `client-v1.0.0-beta.1`
+- `mobile-v1.0.0-beta.1`
 
-1. Complete all component checks on `dev`, synchronize the approved candidate to
-   `main`, and rerun protected checks.
-2. Create the required `backend-v*` and `client-v*` tags on the intended `main`
-   commit and verify immutable artifacts and release notes. Defer `mobile-v*`
-   until Beta 2 issue #242 validates signing and a physical iOS device.
-3. Record the immutable tags, image digests, compatibility notes, and the mandatory
-   client-first credential rollout order from PR `#227`. Do not deploy `latest`.
+### Distribution outcome
 
-Beta 2 then deploys those immutable backend/client artifacts for external MQTTS
-acceptance (#233), the Raspberry Pi/Modbus soak (#169), and the remaining
-controlled pilot checks. It also completes #242 before creating the first
-`mobile-v*` tag. Those field results determine whether the pilot continues; they
-are not prerequisites for cutting the Beta 1 backend and client tags.
+- Backend and locker-client tag workflows completed successfully.
+- The mobile quality gate, Android build, iOS build, and TestFlight submission
+  completed successfully. Android store submission failed, so the mobile tag
+  did not produce a complete cross-platform release.
+- No GitHub Releases were published for these tags. The tags therefore identify
+  the source baseline, but do not by themselves satisfy the release strategy's
+  artifact and release-note requirements.
 
-The core feature set is intended to support authenticate → list accessible
-compartments → open → live door-state update. The artifact cut depends on the
-two Beta 1 gates above; the later pilot decision depends on operational
-evidence, not feature inventory alone.
+### Remaining Beta 2 work
+
+- #242 — validate signing and the mobile build on physical devices, and complete
+  Android distribution.
+- #233 — verify MQTTS in the deployed environment.
+- #169 — complete the Raspberry Pi and Modbus soak test.
+- #134 — decide how stale `open_compartment` commands are rejected.
+
+There is still no production deployment. The controlled pilot decision depends
+on the field evidence above, not on source tags alone.
 
 ---
 
