@@ -4,6 +4,8 @@ on:
   pull_request:
     paths:
       - 'locker-client/**'
+      - '!locker-client/**/*.md'
+      - '!locker-client/.cursor/**'
       - '.github/git-cliff/client.toml'
       - '.github/workflows/client-docker.yml'
       - '.github/workflows/component-release.yml'
@@ -15,6 +17,8 @@ on:
       - 'client-v*'
     paths:
       - 'locker-client/**'
+      - '!locker-client/**/*.md'
+      - '!locker-client/.cursor/**'
       - '.github/git-cliff/client.toml'
       - '.github/workflows/client-docker.yml'
       - '.github/workflows/component-release.yml'

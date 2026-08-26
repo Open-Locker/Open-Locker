@@ -94,7 +94,8 @@ in the feature list and change log; collected here so they are hard to miss.
 - General audit log over the event store, browsable in the admin panel (`#109`).
 - Crash-safe command-response dedup (`#188`).
 - Compartment open requests recorded and queryable: an admin list, a per-locker-bank
-  relation manager, and an open-status endpoint the app polls by command id.
+  relation manager, and an open-status endpoint clients can poll by command id
+  (the current mobile app does not use it).
 - Group archiving instead of hard deletion, with archived-group behaviour hardened
   (`#105`, `#106`, `#149`).
 
