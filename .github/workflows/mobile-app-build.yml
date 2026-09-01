@@ -175,6 +175,12 @@ jobs:
         if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/mobile-v')
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+          # Submitting evaluates app.config.ts again, and the variant decides the
+          # application id. Without this it falls back to development and looks up
+          # credentials for de.merona.openlocker.dev — an id the store build never
+          # produced. The build itself is unaffected: it runs the store profile,
+          # which inherits this from production.
+          APP_VARIANT: production
         run: |
           pnpm dlx "eas-cli@${EAS_CLI_VERSION}" submit \
             --non-interactive \
