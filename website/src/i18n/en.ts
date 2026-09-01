@@ -51,7 +51,7 @@ export const en: Dictionary = {
 			compartment7Content: 'VR headset',
 			open: 'Open',
 			opening: 'Opening…',
-			opened: 'Open',
+			opened: 'Opened',
 			close: 'Close locker',
 			readyStatus: 'Choose a compartment.',
 			openingStatus: 'Opening',
