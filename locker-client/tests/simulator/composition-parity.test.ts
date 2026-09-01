@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import { test } from 'node:test';
+import { DEFAULT_SIMULATOR_MQTT_BROKER_URL } from '../../src/bootstrap/createSimulatorApp';
 
 /**
  * The simulator is only a faithful stand-in while it dispatches the same
@@ -57,4 +58,8 @@ test('both composition roots register the same command handlers', () => {
     production,
     'a handler registered in one composition root but not the other means the simulator no longer mirrors the client',
   );
+});
+
+test('simulator defaults to the local plaintext broker', () => {
+  assert.equal(DEFAULT_SIMULATOR_MQTT_BROKER_URL, 'mqtt://localhost:1883');
 });

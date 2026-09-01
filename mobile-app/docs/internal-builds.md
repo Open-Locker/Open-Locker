@@ -1,21 +1,41 @@
-# Mobile App — Internal Test Builds & CI (Maintainer Guide)
+# Mobile App — Build and Release CI (Maintainer Guide)
 
-> **Scope:** repeatable INTERNAL testing pipeline. Public App Store / Play Store
-> release is explicitly OUT OF SCOPE (issue #19). Decision record: ADR-0033.
+This guide covers the branch and tag channels implemented by
+[ADR-0055](../../docs/adr/0055-tag-only-mobile-store-distribution.md). Signing
+credentials remain on EAS; GitHub Actions receives only `EXPO_TOKEN`.
 
 ## Overview
 
-On every push to `main` that touches `mobile-app/**`, GitHub Actions produces a
-new **internal test build** for Android and iOS using `eas build --local` on
-GitHub runners. Signing credentials live on EAS and are fetched at build time via
-`EXPO_TOKEN` — **never in the repo**.
+GitHub Actions uses `eas build --local` on GitHub-hosted runners:
 
 ```
-push to main ──▶ GitHub Actions (.github/workflows/mobile-app-build.yml)
-                   ├─ ubuntu-latest : eas build --local --platform android
-                   └─ macos-latest  : eas build --local --platform ios
-                         └─ signing creds fetched from EAS via EXPO_TOKEN
+PR / dev / main / manual ──▶ Android preview + iOS Simulator artifacts
+mobile-v*                  ──▶ main-tip gate + quality
+                           ──▶ signed store builds + submissions + GitHub Release
 ```
+
+Store processing is asynchronous. The tag workflow creates the GitHub Release
+after both `eas submit` commands accept the artifacts; availability in
+TestFlight and Google Play must still be confirmed separately.
+
+For a tag such as `mobile-v1.0.0-beta.1`, CI maps versions as follows:
+
+- App Store / Play marketing version: `1.0.0`
+- Expo runtime version: `1.0.0-beta.1`
+- `extra.releaseTag`: `mobile-v1.0.0-beta.1`
+- `extra.releaseVersion`: `1.0.0-beta.1`
+
+EAS `autoIncrement` supplies the platform build number/version code. This keeps
+store-visible versions numeric while preserving the full prerelease identity in
+runtime and diagnostic metadata.
+
+The complete mobile store workflow uses one global `mobile-store` concurrency
+group with `cancel-in-progress: false`. A running tag release therefore finishes
+before a later tag run can start, so neither platform can be canceled halfway
+through a release. Branch and manual simulator/preview builds use ref-specific
+concurrency groups and do not queue behind store releases. GitHub retains only
+one pending run per concurrency group: if a newer tag replaces a pending tag
+run, rerun the original tag-triggered workflow from the Actions UI.
 
 ## Project facts
 
@@ -27,7 +47,10 @@ push to main ──▶ GitHub Actions (.github/workflows/mobile-app-build.yml)
 | Bundle ID (iOS + Android) | `de.merona.openlocker` (set via `APP_ID_BASE`)                                            |
 | Apple Team                | `UKC9C5ZQPC` (merona, Company/Organization)                                               |
 | Google Play account       | merona                                                                                    |
-| Build profile             | `production` (so the same artifact can be promoted later)                                 |
+| Android branch profile    | `preview` (PR, `dev`, `main`, and manual; no store submission)                            |
+| iOS branch profile        | `ios-simulator` (PR, `dev`, `main`, and manual; no Apple signing)                         |
+| Store build profile       | `store` (validated `mobile-v*` tags only)                                                 |
+| Store submit profile      | `production` (TestFlight and Android internal track)                                      |
 
 > ⚠️ `app.config.ts` **throws** for the `production` variant unless `APP_ID_BASE`
 > (or `APP_ID_BASE_IOS`/`APP_ID_BASE_ANDROID`) is set. CI sets it inline.
@@ -87,13 +110,11 @@ This writes (all **gitignored**, never commit): `credentials.json`,
 
 ## Distribution to testers
 
-- **Android:** the `production` profile sets `android.buildType: "apk"`, so the
-  build is an installable `.apk` uploaded as a GitHub Actions artifact. Testers
-  download it from the workflow run and sideload it.
-- **iOS:** the workflow runs `eas submit` to push the `.ipa` to **TestFlight**
-  (App Store Connect beta — internal testing, not a public release). Testers
-  accept a TestFlight invite. (Ad-hoc install would need device UDIDs registered
-  — not set up.)
+- **Pull requests, `dev`, `main`, and manual runs:** Android uses `preview`; iOS
+  uses the unsigned `ios-simulator` profile. Neither platform is submitted.
+- **`mobile-v*`:** the signed store path runs only after the tag commit is proven
+  to be the current `main` tip and mobile quality checks pass. Accepted
+  submissions are followed by a component-scoped GitHub Release.
 
 ## Installing a build (for testers)
 
@@ -127,28 +148,36 @@ x86 emulator, build locally with `pnpm android` instead.
    adb install ./apk/openlocker-android.apk
    ```
 
-### iOS (real iPhone only, via TestFlight)
+### iOS Simulator (branch and manual builds)
 
-Apple does not allow sideloading an `.ipa`; iOS testers install through
-TestFlight. The iOS job runs `eas submit`, which uploads the build to TestFlight.
+The iOS job uploads `openlocker-ios-simulator.tar.gz`. EAS Local Build creates
+this archive from its `.app` application directory. Extract it and install the
+contained app on a booted Simulator:
 
-1. In **App Store Connect** → the app → **TestFlight**, add the tester as an
-   **internal tester** (their Apple ID email).
-2. The tester installs the **TestFlight** app from the App Store on their iPhone.
-3. They accept the invite (email / redeem code) → the build appears in TestFlight
-   → tap **Install**.
+```bash
+tar -xzf openlocker-ios-simulator.tar.gz
+xcrun simctl install booted OpenLocker.app
+```
 
-> The iOS Simulator cannot run this `.ipa` (it is a device build). iOS testing
-> requires a real iPhone via TestFlight.
+The exact `.app` name is the directory found in the archive. Simulator success
+does not validate Apple signing, TestFlight, or physical-device behavior.
+
+### iOS physical devices (tagged release only)
+
+Only a validated `mobile-v*` tag builds the signed `.ipa` and submits it to
+TestFlight. Provisioning and physical-device validation are deferred to Beta 2
+in issue #242; do not create a mobile release tag until that issue is complete.
 
 ## Manual rebuild
 
-From the GitHub Actions tab use **Run workflow** (`workflow_dispatch`), or locally:
+**Run workflow** (`workflow_dispatch`) is deliberately an Android preview and
+iOS Simulator build, regardless of the selected ref. It never submits to a
+store or creates a versioned release. Build locally with:
 
 ```bash
 cd mobile-app
-APP_ID_BASE=de.merona.openlocker eas build --local --profile production --platform android
-APP_ID_BASE=de.merona.openlocker eas build --local --profile production --platform ios
+APP_ID_BASE=de.merona.openlocker eas build --local --profile preview --platform android
+APP_ID_BASE=de.merona.openlocker eas build --local --profile ios-simulator --platform ios
 ```
 
 (Local builds need Java/Android SDK for Android and Xcode for iOS.)
@@ -169,12 +198,13 @@ and the TestFlight submit completes.
 
 ## Open items (track before declaring done)
 
-- [x] Android artifact: `.apk` for sideload internal (`android.buildType: "apk"` in `eas.json`).
+- [x] Android internal artifact: `.apk` for sideload builds.
+- [x] Android store artifact: `.aab` submitted to the configured internal track.
 - [x] iOS: TestFlight upload step added (`eas submit` in the workflow).
 - [ ] Add `EXPO_TOKEN` secret to the GitHub repo.
-- [ ] Validate via `workflow_dispatch`, then a real push to `main`.
+- [ ] Validate branch/manual Android preview and iOS Simulator artifacts.
 - [x] iOS `eas submit` needs the App Store Connect app id in CI — set
       `submit.production.ios.ascAppId: "6743854342"` in `eas.json` (public, not secret).
 - [x] Android: CI-produced APK installed on a device (issue #19 acceptance, Android side).
-- [ ] iOS: Account Holder signs the App Store Connect agreement, then TestFlight submit succeeds.
-- [ ] iOS: teammate installs via TestFlight (issue #19 acceptance, iOS side).
+- [ ] Beta 2 / #242: renew signing, validate the `mobile-v*` TestFlight submit,
+      and install the result on a physical iOS device.

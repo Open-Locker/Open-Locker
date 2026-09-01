@@ -31,6 +31,10 @@ class ProvisioningReplyPublisher
             'data' => [
                 'mqtt_user' => $mqttUser,
                 'mqtt_password' => $mqttPassword,
+                // The username authenticates and nothing more. Every locker topic
+                // is built from this uuid, which is why it travels as its own field
+                // rather than being read back off the username.
+                'locker_uuid' => $event->lockerBankUuid,
             ],
         ]);
     }

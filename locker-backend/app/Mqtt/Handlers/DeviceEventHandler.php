@@ -6,13 +6,16 @@ namespace App\Mqtt\Handlers;
 
 use App\Mqtt\InboundMqttProtocolGuard;
 use App\StorableEvents\DeviceEventReceived;
+use App\Support\EventSourcing\StoredEventDispatcher;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 
 class DeviceEventHandler extends AbstractInboundMqttHandler
 {
-    public function __construct(InboundMqttProtocolGuard $guard)
-    {
+    public function __construct(
+        InboundMqttProtocolGuard $guard,
+        private readonly StoredEventDispatcher $storedEventDispatcher,
+    ) {
         parent::__construct($guard);
     }
 
@@ -60,7 +63,7 @@ class DeviceEventHandler extends AbstractInboundMqttHandler
             'event_id' => $eventId,
         ]);
 
-        event(new DeviceEventReceived(
+        $this->storedEventDispatcher->dispatch(new DeviceEventReceived(
             lockerBankUuid: $lockerBankUuid,
             event: $eventName,
             eventId: $eventId,

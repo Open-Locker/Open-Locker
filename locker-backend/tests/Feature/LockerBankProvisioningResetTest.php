@@ -235,7 +235,7 @@ class LockerBankProvisioningResetTest extends TestCase
         $this->assertNull($lockerBank->provisioning_generation);
     }
 
-    public function test_restart_resets_state_and_deletes_operational_mqtt_user(): void
+    public function test_restart_resets_state_and_revokes_operational_mqtt_identity(): void
     {
         $lockerBank = $this->provisionedBank();
         app(MqttUserService::class)->createUser(
@@ -254,13 +254,21 @@ class LockerBankProvisioningResetTest extends TestCase
         $this->assertNull($lockerBank->last_config_sent_hash);
         $this->assertNull($lockerBank->last_config_ack_at);
         $this->assertNull($lockerBank->last_config_ack_hash);
-        $this->assertDatabaseMissing('mqtt_users', ['username' => (string) $lockerBank->id]);
+        // The identity is retired, not deleted: keeping the row is what stops its
+        // username ever being issued again.
+        $this->assertDatabaseHas('mqtt_users', [
+            'username' => (string) $lockerBank->id,
+            'enabled' => false,
+        ]);
+        $this->assertNotNull(
+            \App\Models\MqttUser::query()->where('username', (string) $lockerBank->id)->value('revoked_at')
+        );
         $this->assertSame(1, EloquentStoredEvent::query()
             ->where('event_class', LockerProvisioningReset::class)
             ->count());
     }
 
-    public function test_restart_rolls_back_events_projection_and_mqtt_user_deletion_failure(): void
+    public function test_restart_rolls_back_events_projection_and_mqtt_identity_revocation_failure(): void
     {
         $lockerBank = $this->provisionedBank();
         MqttUser::factory()->create([
@@ -272,12 +280,14 @@ class LockerBankProvisioningResetTest extends TestCase
         $storedEventCount = EloquentStoredEvent::query()->count();
 
         $this->mock(MqttUserService::class, function ($mock): void {
-            $mock->shouldReceive('deleteUser')
+            $mock->shouldReceive('revokeForLockerBank')
                 ->once()
-                ->andReturnUsing(function (string $username): never {
-                    MqttUser::query()->where('username', $username)->delete();
+                ->andReturnUsing(function (string $lockerBankId): never {
+                    MqttUser::query()
+                        ->where('locker_bank_id', $lockerBankId)
+                        ->update(['enabled' => false, 'revoked_at' => now()]);
 
-                    throw new \RuntimeException('delete failed');
+                    throw new \RuntimeException('revoke failed');
                 });
         });
 
@@ -285,14 +295,19 @@ class LockerBankProvisioningResetTest extends TestCase
             app(LockerProvisioningService::class)->restart($lockerBank, $admin);
             $this->fail('Expected restart failure.');
         } catch (\RuntimeException $exception) {
-            $this->assertSame('delete failed', $exception->getMessage());
+            $this->assertSame('revoke failed', $exception->getMessage());
         }
 
         $lockerBank->refresh();
         $this->assertSame($original['provisioned_at'], $lockerBank->getRawOriginal('provisioned_at'));
         $this->assertSame($original['provisioning_generation'], $lockerBank->provisioning_generation);
         $this->assertNull($lockerBank->provisioning_token_hmac);
-        $this->assertDatabaseHas('mqtt_users', ['username' => (string) $lockerBank->id]);
+        // The rollback must also undo the revocation, or a failed restart would
+        // leave the bank with no usable identity.
+        $this->assertDatabaseHas('mqtt_users', [
+            'username' => (string) $lockerBank->id,
+            'enabled' => true,
+        ]);
         $this->assertSame($storedEventCount, EloquentStoredEvent::query()->count());
     }
 

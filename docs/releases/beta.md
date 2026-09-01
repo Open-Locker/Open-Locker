@@ -1,10 +1,15 @@
 # Beta Release — Feature and Change List
 
-**Status:** draft (Beta milestone not yet cut)
-**Date:** 2026-08-13
+**Status:** source tags cut; artifact publication and field acceptance incomplete
+**Date:** 2026-08-25
 **Issue:** #209
 
 ## Beta goal
+
+Open Locker has no production deployment. This Beta is a **controlled
+pre-production pilot**, not a production launch or an unrestricted public
+rollout. Execution is governed by the
+[Beta release checklist](../release-checklist.md).
 
 The goal of this Beta is to exercise the **core loop** end-to-end — authenticate, see
 accessible compartments, open one, and watch door state update live — and to establish a
@@ -13,34 +18,40 @@ secondary; field hardening and release mechanics are what make the exercise trus
 
 ## Highlights (TL;DR)
 
-- First tagged release of the monorepo (no prior tags or GitHub Releases).
+- First component-specific Beta source tags created from the same `main` commit.
 - Core loop: sign in → list accessible compartments → open → live door state + content notes.
 - Event-sourced compartment domain with auditable content notes (Item domain removed).
 - Capability-based roles (incl. manager), group access, terms gate, EN/DE in app and admin.
 - Canonical MQTT contract; locker-client v2 on Pi with Modbus, recovery, and fleet simulator.
+- Deployment-neutral production MQTTS with private broker networking and verified
+  client TLS.
 - Mobile app on Expo with RTK Query codegen and Reverb realtime.
 - Filament v5 ops-oriented admin: users, groups, compartments, open requests, audit log.
-- Beta cut assumes open PRs listed below are merged first (stacked chain + related work).
+- Event-sourced writes are atomic; MQTT identities and locker-client recovery are
+  hardened.
+- Release mechanics (#50) and this scope review (#209) are closed. Deployment
+  and field acceptance remain Beta 2 work.
 
 ## Scope
 
-Nothing has ever been tagged or released — the repository has zero tags and zero GitHub
-Releases — so the Beta is the **first release**. This document therefore has two parts:
+This Beta is the first coordinated component-tagged release. This document has
+two parts:
 
 1. **Feature list** — what the system does at Beta, by component. This is the
    "what do we have" answer.
 2. **Change log** — what landed, grouped by component and derived from the Conventional
    Commit history (path-filtered per component) plus the issues and pull requests.
 
-Per the monorepo release strategy (`#50`; ADR-0043) the durable
-form of this is generated per component into the GitHub Release attached to each tag
-(`backend-vX.Y.Z`, `client-vX.Y.Z`, `mobile-vX.Y.Z`). This file is the one-off Beta list;
-it is not a committed rolling `CHANGELOG.md`.
+Per the monorepo release strategy (`#50`; ADR-0043), the durable form of this
+should be generated per component into the GitHub Release attached to each tag
+(`backend-vX.Y.Z`, `client-vX.Y.Z`, `mobile-vX.Y.Z`). This file is the one-off
+Beta list; it is not a committed rolling `CHANGELOG.md`.
 
-**Verification basis:** a feature counts as done if its code is merged into `dev` **or**
-sits in an open pull request intended for the Beta cut. Work that exists only as an issue
-is out of scope. Open PRs remain in the feature list below; cutting Beta assumes those
-PRs (notably the stacked chain in §3) have merged.
+**Verification basis:** a feature counts as done only when its implementation
+is merged into `dev` and has passed the relevant checks. The three Beta tags
+point to `main` commit `0365b8a5ff17e4e68f54293a4b939ba80e5843a4`.
+Tag creation alone does not prove that every artifact was published or accepted
+by its distribution channel; the outcome is recorded in section 3.
 
 The baseline is the end of *Milestone 3 – MVP*. Everything below the "Earlier (MVP and
 before)" headings predates that and is listed only for completeness of the feature set.
@@ -76,12 +87,15 @@ in the feature list and change log; collected here so they are hard to miss.
 
 **Domain and data**
 - Event-sourced compartment domain (aggregates, storable events, projectors, reactors).
+- Atomic event-sourced write paths, so stored events and synchronous projections commit
+  or roll back together (`#139`, PR `#231`).
 - Compartment content notes — user-set, auditable, event-sourced (`#49`).
 - Item domain dropped in favour of the content-note model.
 - General audit log over the event store, browsable in the admin panel (`#109`).
 - Crash-safe command-response dedup (`#188`).
 - Compartment open requests recorded and queryable: an admin list, a per-locker-bank
-  relation manager, and an open-status endpoint the app polls by command id.
+  relation manager, and an open-status endpoint clients can poll by command id
+  (the current mobile app does not use it).
 - Group archiving instead of hard deletion, with archived-group behaviour hardened
   (`#105`, `#106`, `#149`).
 
@@ -92,8 +106,7 @@ in the feature list and change log; collected here so they are hard to miss.
 - User management in the Filament admin panel (`#18`).
 - Role-permission management screens in the admin panel.
 - Default role bindings seeded only on fresh installs.
-- First admin bootstrapped from configuration (`#141`; first-admin bootstrap ADR pending
-  renumber).
+- First admin bootstrapped from configuration (`#141`, ADR-0044).
 - Last-admin role changes made concurrency-safe (`#187`).
 
 **Auth**
@@ -107,15 +120,16 @@ in the feature list and change log; collected here so they are hard to miss.
 
 **Admin panel (Filament v5)**
 - Single panel with session-based locale switching, EN/DE throughout, incl. auth pages
-  and door-state labels, with the nav locale switcher fixed (`#154`, `#155`, ADR-0035).
+  and door-state labels, with the nav locale switcher fixed (`#154`, `#155`, ADR-0034).
 - Operations-oriented navigation: setup vs operations split, Users and Groups under an
   Access-management section, dashboard dropped in favour of the Compartments list
   (`#48`, `#126`).
 - Operational compartment view with door state, direct-user counts and content notes
   (`#96`, `#153`).
 - Admins can edit and clear compartment content notes (`#136`).
-- Compartment list made easier to navigate, with status badges repaired and the two
-  compartment views aligned (`#167`, `#190`).
+- Compartment list made easier to navigate, with status badges repaired, the two
+  compartment views aligned, and same-named locker banks kept in distinct groups
+  (`#167`, `#190`, PR `#234`).
 - Revoked and expired users hidden from the group member list (`#148`).
 - Refreshed add-users-to-group UI, including bulk adding (`#146`, `#147`).
 - Shared grant-access form across the User and Group relation managers; existing members
@@ -133,7 +147,7 @@ in the feature list and change log; collected here so they are hard to miss.
 **Integration**
 - Canonical MQTT contract: message taxonomy and wire contract, AsyncAPI spec and shared
   JSON Schemas, publishers and inbound handlers aligned, contract tests in both backend
-  and client, contract validation in CI (`#72`–`#79`, ADR-0008).
+  and client, contract validation in CI (`#72`–`#79`, ADR-0015, ADR-0018).
 - `message_id` for technical dedup and `transaction_id` for command correlation, with a
   complete dedup policy (`#39`, `#41`, ADR-0002).
 - Retained compartment state snapshots; command responses aligned to the contract.
@@ -142,6 +156,14 @@ in the feature list and change log; collected here so they are hard to miss.
 - `identify` endpoint so the app can confirm which backend instance it is talking to
   before login (`#12`).
 - Mosquitto authenticates against the API via `mosquitto-go-auth` (`/api/mosq/*`).
+- Per-provisioning MQTT credential identities preserve locker identity separately,
+  support revocation, and keep legacy credentials valid during the rollout
+  (`#161`, PR `#227`, ADR-0050).
+- Deployment-neutral production MQTT transport terminates trusted TLS at
+  Traefik on public port 8883 while Mosquitto remains private on port 1883;
+  production clients require `mqtts://` with certificate and hostname
+  verification
+  (`#163`, PR `#232`, ADR-0053).
 - Request-scoped API localization via `Accept-Language` (ADR-0027).
 - Live OpenAPI spec via Scramble at `/docs/api.json`; `api.json` no longer tracked
   (`#84`, ADR-0019).
@@ -162,14 +184,15 @@ in the feature list and change log; collected here so they are hard to miss.
 - Auto-logout on `401` with a session-expired message (`#60`).
 - EN/DE localization with a persisted in-app language switcher; centralized theme and UI
   defaults, dark-mode-aware logo and splash scaling (`#93`, `#98`).
-- Internal test builds from CI: EAS build + TestFlight submission from `main`
-  (`#19`, ADR-0033).
+- Branch CI builds Android preview and unsigned iOS Simulator artifacts; signed
+  TestFlight distribution is reserved for `mobile-v*` after Beta 2 issue #242
+  (`#19`, ADR-0032, ADR-0055).
 - Legacy auth context and hand-written API layer removed (`#85`).
 - react-doctor evaluated for code health, expo-doctor kept in the quality gate (`#64`).
 
 ### Locker client — Raspberry Pi / Node + Docker
 
-- **v2 hexagonal rewrite** replacing v1 (`#175`, ADR-0027 locker-client v2).
+- **v2 hexagonal rewrite** replacing v1 (`#175`, ADR-0024).
 - MQTT provisioning with persisted, zod-validated credentials and client-ID persistence.
 - Command handling: `open_compartment`, `apply_config`, response ACKs, transaction-bound
   dedup, recoverable command responses (`#38`, `#40`, `#42`, `#171`).
@@ -179,17 +202,21 @@ in the feature list and change log; collected here so they are hard to miss.
 - Door-sensor polling batched at 500 ms, publishing change-only snapshots
   (`#166`, ADR-0038).
 - Runtime configuration applied from the server, with overlay validation.
+- Runtime configuration uses live slave IDs and rejects incomplete mappings (`#174`).
 - Heartbeat service for connection monitoring, plus an MQTT last-will message so the
   backend sees an ungraceful disconnect.
+- Safe shutdown and async lifecycle handling (`#170`, ADR-0049).
 - Inbound protocol guard and a dedup store in front of command handling.
-- Modbus reconnect coordinator that restores the bus after a dropped connection.
+- Modbus reconnect coordinator that marks a prolonged outage unreachable and keeps
+  retrying until the bus recovers (`#172`, PR `#228`, ADR-0051).
 - Hardened local persistence and credential handling (`#168`).
 - Improved protocol errors and observability (`#173`), with verbose runtime logging
   (`#113`).
 - Contract-aligned locker fleet simulator: in-memory bus, credential and overlay stores,
   scenario files and a traffic log, so the whole stack runs without hardware
   (`#82`, `#23`, ADR-0031, `docs/simulator.md`).
-- Watchtower-based update flow; ships as `ghcr.io/open-locker/locker-client:latest`.
+- Watchtower-based update flow; the Beta pins a verified immutable client image tag
+  rather than `latest`.
 
 ### Hardware
 
@@ -201,12 +228,13 @@ in the feature list and change log; collected here so they are hard to miss.
 ### Website and documentation
 
 - Landing page moved into the monorepo, deployed to GitHub Pages at open-locker.org
-  (`#53`, ADR-0038).
-- English version of the site, URL-path-based localization (`#90`, ADR-0040).
+  (`#53`, ADR-0036).
+- English version of the site, URL-path-based localization
+  (`#90`, ADR-0037, ADR-0039).
 - Starlight documentation section with aligned branding; BOM migrated in as a Hardware
   page (`#92`); copy and layout fine-tuning (`#179`).
 - Architecture docs, MQTT architecture and integration plan, AsyncAPI specs,
-  observability notes, installation and simulator guides, 43 ADRs.
+  observability notes, installation and simulator guides, and ADRs.
 
 ### CI / infrastructure
 
@@ -214,6 +242,7 @@ in the feature list and change log; collected here so they are hard to miss.
 - Docker images for backend and client published to GHCR.
 - Quality gates: Pint, PHPStan (level 8), Jest, `node --test`, expo-doctor (`#199`).
 - Dependency-audit gates, with security advisories patched as they surfaced.
+- GitHub Actions updated to Node 24-compatible action releases (`#67`).
 - Build-time work: isolated Docker caches, parallel Pint, superseded-run cancellation,
   single-platform client PR builds, Android internal build caching (`#204`; ADR-0047).
 - Per-component release strategy decided: independent tag namespaces, standard
@@ -252,13 +281,15 @@ Grouped by component; `feat` / `fix` / `perf` from the Conventional Commit histo
 - User name + email tooltip on the user-menu avatar
 - Edit and clear compartment content notes from Filament (`#136`)
 - Reset the provisioning token from the admin panel (`#110`)
-- Bootstrap the first admin from configuration (`#141`; first-admin bootstrap ADR pending
-  renumber)
+- Bootstrap the first admin from configuration (`#141`, ADR-0044)
 - Compartment list navigation (`#167`)
+- Issue per-provisioning MQTT credential identities (`#161`, PR `#227`; ADR-0050)
 - End-to-end OpenTelemetry tracing of the open flow (`#65`, PR `#189`; ADR-0042)
 - Separate command acknowledgement from door-open detection (`#94`; ADR-0040)
 
 **Fixes**
+- Make event-sourced writes and synchronous projections atomic (`#139`, PR `#231`)
+- Keep same-named locker banks in distinct compartment-list groups (PR `#234`)
 - Repair status badges and align the two compartment views (`#190`)
 - Hide revoked and expired users from the group member list (`#148`)
 - Make last-admin role changes concurrency-safe (`#187`)
@@ -283,7 +314,7 @@ Grouped by component; `feat` / `fix` / `perf` from the Conventional Commit histo
 ### Mobile app
 
 **Features**
-- Internal test build CI from `main`, EAS + TestFlight (`#19`)
+- Android preview and unsigned iOS Simulator CI from `main` (`#19`, ADR-0055)
 - Realtime compartment door state via Reverb (`#45`)
 - Auto-logout on `401` with a session-expired message
 - Content notes and the event-sourced compartment model
@@ -294,7 +325,8 @@ Grouped by component; `feat` / `fix` / `perf` from the Conventional Commit histo
 
 **Fixes**
 - Align the Expo patch version; align `expo-localization` with the SDK
-- Set `ascAppId` and `APP_VARIANT` for non-interactive iOS TestFlight submits (`#19`)
+- Set `ascAppId` and `APP_VARIANT` for tag-only non-interactive iOS TestFlight
+  submits (`#19`)
 - Correct logo and splash-screen scaling, with dark-mode support (`#93`)
 - Prevent an empty-compartments flash on load
 - Guard the reset-password response message
@@ -313,8 +345,12 @@ Grouped by component; `feat` / `fix` / `perf` from the Conventional Commit histo
 - Watchtower-based update flow
 - Log volume in `docker-compose`
 - Contract-aligned fleet simulator with scenario files and traffic log (`#82`, ADR-0031)
+- Require verified MQTTS for production broker URLs (`#163`, PR `#232`)
 
 **Fixes**
+- Recover the Modbus bus after prolonged disconnects (`#172`, PR `#228`)
+- Make shutdown and the async lifecycle safe (`#170`)
+- Complete runtime configuration handling with live slave IDs (`#174`)
 - Improve protocol errors and observability (`#173`)
 - Harden local persistence, persisted-state handling and credentials (`#168`)
 - Harden MQTT response recovery (`#171`)
@@ -338,7 +374,9 @@ Grouped by component; `feat` / `fix` / `perf` from the Conventional Commit histo
 
 ### CI / tooling
 
+- Add deployment-neutral public MQTTS through Traefik (`#163`, PR `#232`; ADR-0053)
 - Separate component quality workflows; cover all backend changes (`#99`, partly)
+- Update workflows to Node 24-compatible action releases (`#67`)
 - Gate client releases on quality checks
 - Cancel superseded pull-request runs
 - Isolate Docker build caches; build one platform for client PRs
@@ -356,107 +394,48 @@ Modbus simulator, and the first locker-client implementation.
 
 ---
 
-## 3. Beta readiness — finish, consolidate, tighten
+## 3. Beta cut outcome and remaining validation
 
-Ordered by what would stop the release, not by effort.
+The [Beta release checklist](../release-checklist.md) remains the source of truth
+for rollout and evidence.
 
-### Would block shipping
+### Source tags
 
-**Land the stacked PR chain (#183 → #210).** Fourteen of the features listed above sit
-in one bottom-up stack, plus #120 separately. Nothing in it is released until the whole
-chain merges, and every day it stays open the rebase cost grows. This is the single
-biggest risk to the Beta date.
+The following tags were created on
+`0365b8a5ff17e4e68f54293a4b939ba80e5843a4`, which was the `main` tip:
 
-**Resolve or replace PR #107 (`dev` → `main`).** It is open since 2026-06-11, marked
-`CONFLICTING`, and carries +145,808/−9,447. Meanwhile `main` last moved on 2026-07-20
-and is 245 commits behind `dev`. Beta ships from `main`, so this is a hard gate. A fresh
-merge PR is likely cheaper than salvaging this one.
+- `backend-v1.0.0-beta.1`
+- `client-v1.0.0-beta.1`
+- `mobile-v1.0.0-beta.1`
 
-**Roll out the monorepo release strategy (`#50`; ADR-0043) before cutting anything.**
-There are still zero tags and zero Releases, so today there is no way to say "this Pi
-runs Beta" or to roll back. The ADR's own rollout list also flags that
-`workflow_dispatch` on `docker-ghcr.yml` publishes `latest` from whatever branch it runs
-on — a dispatch from `dev` would overwrite production. Fix that before the first tag,
-not after.
+### Distribution outcome
 
-**MQTT TLS (#163).** `mosquitto.conf.template` defines only `listener 1883` with
-`auth_opt_http_with_tls false`. Broker credentials and open commands cross the network in
-clear. This is the one security item worth hard-blocking on: a Beta runs on someone
-else's network.
+- Backend and locker-client tag workflows completed successfully.
+- The mobile quality gate, Android build, iOS build, and TestFlight submission
+  completed successfully. Android store submission failed, so the mobile tag
+  did not produce a complete cross-platform release.
+- No GitHub Releases were published for these tags. The tags therefore identify
+  the source baseline, but do not by themselves satisfy the release strategy's
+  artifact and release-note requirements.
 
-**Soak-test the v2 client on a Pi (#169).** v1 was replaced wholesale. The rewrite is
-well covered by tests, but nothing here shows it running for days against real Modbus
-hardware. Beta is exactly where an undetected slow leak or a wedged bus shows up.
+### Remaining Beta 2 work
 
-**Make client shutdown and async lifecycle safe (#170).** An unclean stop in the middle
-of a Modbus write is how a relay gets left energised. Cheap to fix, unpleasant to
-discover in the field.
+- #242 — validate signing and the mobile build on physical devices, and complete
+  Android distribution.
+- #233 — verify MQTTS in the deployed environment.
+- #169 — complete the Raspberry Pi and Modbus soak test.
+- #134 — decide how stale `open_compartment` commands are rejected.
 
-### Consolidate
-
-**Fix the duplicate ADR numbers.** 0018, 0023, 0024, 0025, 0028, 0029 and 0030 are each
-used by two different ADRs. Commit messages and PR bodies reference ADRs by number, so
-those references are currently ambiguous. Renumbering is trivial now and gets harder
-with every new ADR.
-
-**Promote the ADRs that describe shipped behaviour.** The ADRs for separate ACK
-(`#94`), OpenTelemetry (`#65`), first-admin bootstrap (`#141`), and Android build
-caching (`#204`) are still `Proposed`, though their code is merged. The release
-strategy the cut itself depends on is now Accepted (ADR-0043). A Proposed ADR
-describing what the system already does trains people to ignore the status field.
-
-**Close the issues whose work already shipped** — #109 (audit log), #52 (healthcheck),
-#122 (group memberships), plus the stack's issues as it merges. The milestone should
-read true on release day, and right now it undercounts what is done.
-
-**Refactor the CI workflows (#99).** It is the last structural CI item. Doing it after
-the stack lands means touching six workflows once instead of twice.
-
-### Remove
-
-**`TODO.md`.** A German checklist from the pre-MQTT architecture rebuild, with every box
-already ticked. It is superseded by the ADRs and the issue tracker, and a stale roadmap
-in the repo root is the first thing a new contributor reads.
-
-**The stale-docs warning in `CLAUDE.md`.** It still calls out a Flutter app and Dart
-client that the README no longer describes. The root `docker-compose.yml` mention is
-partly still fair — the README tree still lists one — so trim the Flutter/Dart half of
-the warning rather than deleting the whole note.
-
-### Decide before calling it Beta
-
-**What "Beta" means for distribution.** `eas.json` submits Android to the `internal`
-track and builds an APK, and iOS goes to TestFlight internally (#19). That is a team
-build, not a beta programme. If external testers are the point, this needs a closed or
-open testing track and an AAB — worth settling before the tag, since store review is the
-slowest link.
-
-**Stale `open_compartment` commands (#134).** Still an open discussion. A command
-replayed after a long delay opens a physical door with nobody expecting it. Beta is the
-right moment to decide, because it is the first time real doors are involved.
-
-**Where OpenTelemetry traces go.** PR #189 instruments the open flow end to end, but no
-collector or backend is deployed or documented. Instrumentation with nowhere to send
-data is cost without benefit — and the open flow is precisely what you want traced when
-a Beta site reports "the door didn't open".
-
-**Runtime config completeness (#174).** Left open, and it determines how much a locker
-can be reconfigured without a redeploy — which is what you want during a Beta, when
-settings change often and physical access is inconvenient.
-
-### Not missing, worth stating
-
-No gaps found in the core loop: authenticate, see accessible compartments, open one,
-watch its door state update live, with the whole path audited and event-sourced. The
-admin side covers users, groups, roles, access grants, compartments, open requests,
-terms and an audit log, in EN and DE. For a Beta, the feature set is there — the risk is
-concentrated in release mechanics and field hardening, not in missing product.
+There is still no production deployment. The controlled pilot decision depends
+on the field evidence above, not on source tags alone.
 
 ---
 
 ## References
 
 - Monorepo release strategy — `#50` (ADR-0043)
+- [Beta release checklist](../release-checklist.md)
+- [Beta feature and change list — issue #209](https://github.com/Open-Locker/Open-Locker/issues/209)
 - ADR-0032 — mobile internal test builds
 - ADR-0036 — website in the monorepo
 - Milestones: *Milestone 1 – Hardware MVP*, *Milestone 2 – Internal MVP*,

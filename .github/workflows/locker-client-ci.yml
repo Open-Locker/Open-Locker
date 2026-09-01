@@ -6,6 +6,8 @@ on:
     paths:
       - 'docs/asyncapi/**'
       - 'locker-client/**'
+      - '!locker-client/**/*.md'
+      - '!locker-client/.cursor/**'
       - '.github/workflows/locker-client-ci.yml'
   push:
     branches:
@@ -14,6 +16,8 @@ on:
     paths:
       - 'docs/asyncapi/**'
       - 'locker-client/**'
+      - '!locker-client/**/*.md'
+      - '!locker-client/.cursor/**'
       - '.github/workflows/locker-client-ci.yml'
 
 concurrency:
@@ -32,10 +36,10 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Setup pnpm
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@v6
         with:
           version: 9
 

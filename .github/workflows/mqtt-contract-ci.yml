@@ -1,10 +1,13 @@
 name: Backend Quality
 
 on:
+  workflow_call:
   pull_request:
     paths:
       - 'docs/asyncapi/**'
       - 'locker-backend/**'
+      - '!locker-backend/**/*.md'
+      - '!locker-backend/.cursor/**'
       - '.github/workflows/mqtt-contract-ci.yml'
   push:
     branches:
@@ -13,6 +16,8 @@ on:
     paths:
       - 'docs/asyncapi/**'
       - 'locker-backend/**'
+      - '!locker-backend/**/*.md'
+      - '!locker-backend/.cursor/**'
       - '.github/workflows/mqtt-contract-ci.yml'
 
 concurrency:
@@ -37,7 +42,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Setup PHP
         uses: shivammathur/setup-php@v2

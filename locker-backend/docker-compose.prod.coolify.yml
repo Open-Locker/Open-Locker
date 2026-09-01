@@ -1,0 +1,76 @@
+services:
+  app:
+    extends:
+      file: docker-compose.prod.yml
+      service: app
+
+  queue-worker:
+    extends:
+      file: docker-compose.prod.yml
+      service: queue-worker
+
+  event-worker:
+    extends:
+      file: docker-compose.prod.yml
+      service: event-worker
+
+  mqtt-listener:
+    extends:
+      file: docker-compose.prod.yml
+      service: mqtt-listener
+
+  autoheal:
+    extends:
+      file: docker-compose.prod.yml
+      service: autoheal
+
+  scheduler:
+    extends:
+      file: docker-compose.prod.yml
+      service: scheduler
+
+  reverb:
+    extends:
+      file: docker-compose.prod.yml
+      service: reverb
+
+  mqtt:
+    extends:
+      file: docker-compose.prod.yml
+      service: mqtt
+    networks:
+      - default
+      - coolify
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=coolify"
+      - "traefik.tcp.routers.${COOLIFY_MQTT_ROUTER_NAME:-open-locker-mqtt}.rule=HostSNI(`${MQTT_DOMAIN:?Set MQTT_DOMAIN}`)"
+      - "traefik.tcp.routers.${COOLIFY_MQTT_ROUTER_NAME:-open-locker-mqtt}.entrypoints=mqtts"
+      - "traefik.tcp.routers.${COOLIFY_MQTT_ROUTER_NAME:-open-locker-mqtt}.tls=true"
+      - "traefik.tcp.routers.${COOLIFY_MQTT_ROUTER_NAME:-open-locker-mqtt}.tls.certresolver=letsencrypt"
+      - "traefik.tcp.routers.${COOLIFY_MQTT_ROUTER_NAME:-open-locker-mqtt}.service=${COOLIFY_MQTT_ROUTER_NAME:-open-locker-mqtt}"
+      - "traefik.tcp.services.${COOLIFY_MQTT_ROUTER_NAME:-open-locker-mqtt}.loadbalancer.server.port=1883"
+
+  redis:
+    extends:
+      file: docker-compose.prod.yml
+      service: redis
+
+  db:
+    extends:
+      file: docker-compose.prod.yml
+      service: db
+
+networks:
+  coolify:
+    external: true
+
+volumes:
+  locker-redis:
+    driver: local
+  locker-pgsql:
+    driver: local
+  locker-storage:
+    driver: local
+  locker-mqtt-data:
+    driver: local

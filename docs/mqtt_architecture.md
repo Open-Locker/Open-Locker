@@ -1,6 +1,7 @@
 # MQTT-basierte Architektur
 
-Dies ist eine Visualisierung der neuen, auf MQTT basierenden Systemarchitektur.
+Dies ist eine Visualisierung der aktuellen, auf MQTT basierenden
+Systemarchitektur. Die Mobile App verwendet selbst kein MQTT.
 
 ```mermaid
 graph LR
@@ -16,7 +17,7 @@ graph LR
     subgraph "Cloud-Infrastruktur (open-locker.de)"
         LaravelBackend["Laravel Backend<br/>API & Admin Panel"]
         Mosquitto["Mosquitto<br/>MQTT Broker"]
-        Database["Datenbank<br/>(PostgreSQL/MySQL)"]
+        Database["Datenbank<br/>(PostgreSQL)"]
     end
 
     subgraph "IoT-Ebene (Schließfach-Standort)"
@@ -40,7 +41,7 @@ graph LR
     LockerClient -- "MQTT Status" --> Mosquitto
     Mosquitto -- "Status empfangen" --> LaravelBackend
     LaravelBackend -- "Status speichern" --> Database
-    LaravelBackend -- "Echtzeit-Update (Push/SSE)" --> MobileApp
+    LaravelBackend -- "Reverb WebSocket (private channels)" --> MobileApp
 ```
 
 ## Health des MQTT-Listeners

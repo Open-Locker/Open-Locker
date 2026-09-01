@@ -1,4 +1,4 @@
-# ADR-0050: Manage locker-board hardware profiles in the backend
+# ADR-0058: Manage locker-board hardware profiles in the backend
 
 ## Status
 

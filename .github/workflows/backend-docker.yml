@@ -1,0 +1,215 @@
+name: Backend Docker Build
+
+on:
+  pull_request:
+    paths:
+      - 'locker-backend/**'
+      - '!locker-backend/**/*.md'
+      - '!locker-backend/.cursor/**'
+      - '.github/git-cliff/backend.toml'
+      - '.github/workflows/backend-docker.yml'
+      - '.github/workflows/component-release.yml'
+  push:
+    branches:
+      - main
+      - dev
+    tags:
+      - 'backend-v*'
+    paths:
+      - 'locker-backend/**'
+      - '!locker-backend/**/*.md'
+      - '!locker-backend/.cursor/**'
+      - '.github/git-cliff/backend.toml'
+      - '.github/workflows/backend-docker.yml'
+      - '.github/workflows/component-release.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: backend-docker-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  release-gate:
+    name: Verify release tag is on main
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/backend-v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout repository history
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - name: Verify tag commit belongs to main
+        run: |
+          if [[ ! "${GITHUB_REF_NAME}" =~ ^backend-v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]]; then
+            echo "::error::Release tag ${GITHUB_REF_NAME} is not a backend SemVer tag."
+            exit 1
+          fi
+          git fetch --no-tags origin main
+          if [[ "${GITHUB_SHA}" != "$(git rev-parse origin/main)" ]]; then
+            echo "::error::Release tag ${GITHUB_REF_NAME} must point to the current main tip."
+            exit 1
+          fi
+
+  release-quality:
+    name: Backend release quality gate
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/backend-v')
+    needs: release-gate
+    uses: ./.github/workflows/mqtt-contract-ci.yml
+    permissions:
+      contents: read
+
+  build:
+    name: Verify backend image
+    if: ${{ !(github.event_name == 'push' && startsWith(github.ref, 'refs/tags/backend-v')) }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          tools: composer
+
+      - name: Composer audit
+        working-directory: locker-backend
+        run: composer audit --locked
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          version: 10
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: locker-backend/pnpm-lock.yaml
+
+      - name: PNPM audit
+        working-directory: locker-backend
+        run: pnpm audit --audit-level=high
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Docker image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./locker-backend
+          file: ./locker-backend/docker/8.4/Dockerfile
+          push: false
+          platforms: linux/amd64
+          cache-from: type=gha,scope=locker-backend
+          cache-to: type=gha,mode=max,scope=locker-backend
+
+  release-build:
+    name: Verify tagged backend image
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/backend-v')
+    needs: release-quality
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Docker image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./locker-backend
+          file: ./locker-backend/docker/8.4/Dockerfile
+          push: false
+          platforms: linux/amd64
+          cache-from: type=gha,scope=locker-backend
+          cache-to: type=gha,mode=max,scope=locker-backend
+
+  publish:
+    name: Publish backend image
+    if: >-
+      always() &&
+      (needs.build.result == 'success' || needs.build.result == 'skipped') &&
+      (needs.release-build.result == 'success' || needs.release-build.result == 'skipped') &&
+      (needs.release-gate.result == 'success' || needs.release-gate.result == 'skipped') &&
+      (needs.release-quality.result == 'success' || needs.release-quality.result == 'skipped') &&
+      github.event_name == 'push' &&
+      (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/backend-v'))
+    needs:
+      - release-gate
+      - release-quality
+      - build
+      - release-build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ github.token }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Extract image metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/open-locker/locker-backend
+          tags: |
+            type=sha,format=long,prefix=sha-
+            type=raw,value=${{ github.ref_name }},enable=${{ startsWith(github.ref, 'refs/tags/backend-v') }}
+            type=raw,value=latest,enable=${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+
+      - name: Verify current main tip before publishing latest
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: |
+          git fetch --no-tags origin main
+          if [[ "${GITHUB_SHA}" != "$(git rev-parse origin/main)" ]]; then
+            echo "::error::Refusing to publish latest from a stale main commit."
+            exit 1
+          fi
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./locker-backend
+          file: ./locker-backend/docker/8.4/Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          platforms: linux/amd64
+          cache-from: type=gha,scope=locker-backend
+          cache-to: type=gha,mode=max,scope=locker-backend
+
+  release:
+    name: Create backend release
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/backend-v')
+    needs:
+      - release-quality
+      - publish
+    permissions:
+      contents: write
+    uses: ./.github/workflows/component-release.yml
+    with:
+      component: Backend
+      tag-prefix: backend-v
+      cliff-config: .github/git-cliff/backend.toml
+      artifact-note: >-
+        Published `ghcr.io/open-locker/locker-backend:${{ github.ref_name }}` and
+        immutable `sha-${{ github.sha }}` after the backend quality and image gates passed.

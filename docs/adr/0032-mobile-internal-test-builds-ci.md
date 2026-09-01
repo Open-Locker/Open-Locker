@@ -120,7 +120,10 @@ Constraints / drivers:
 ## Supersedes / Superseded By
 
 - Supersedes: none
-- Superseded by: none
+- Superseded in part by:
+  [ADR-0055](0055-tag-only-mobile-store-distribution.md) replaces signed
+  `main` builds with unsigned iOS Simulator validation and reserves signed
+  store distribution for `mobile-v*` tags.
 - Extended by: [ADR-0043](0043-monorepo-release-strategy.md) — its decision 7 adds
   `dev` internal builds and `mobile-v*` tagged releases to the distribution
   channels this ADR limits to `main`.

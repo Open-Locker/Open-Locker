@@ -61,6 +61,9 @@ export const provisioningSuccessResponseSchema = z.object({
   data: z.object({
     mqtt_user: nonEmptyString,
     mqtt_password: nonEmptyString,
+    // Optional so a client stays usable against a backend rolled back to before
+    // per-provisioning identities, where the username still was the locker uuid.
+    locker_uuid: nonEmptyString.optional(),
   }),
 });
 

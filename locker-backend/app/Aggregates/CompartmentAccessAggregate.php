@@ -8,9 +8,8 @@ use App\StorableEvents\CompartmentAccessGranted;
 use App\StorableEvents\CompartmentAccessRevoked;
 use Carbon\CarbonInterface;
 use Ramsey\Uuid\Uuid;
-use Spatie\EventSourcing\AggregateRoots\AggregateRoot;
 
-class CompartmentAccessAggregate extends AggregateRoot
+class CompartmentAccessAggregate extends TransactionalAggregateRoot
 {
     public static function aggregateUuidFor(int $userId, string $compartmentUuid): string
     {

@@ -3,7 +3,8 @@
   "status": "success",
   "timestamp": "2026-04-14T19:35:01Z",
   "data": {
-    "mqtt_user": "11111111-1111-1111-1111-111111111111",
-    "mqtt_password": "super-secret-password"
+    "mqtt_user": "hzv2uqMeZ0iMThq2ZCqM5uefe9OqoWtb",
+    "mqtt_password": "super-secret-password",
+    "locker_uuid": "11111111-1111-1111-1111-111111111111"
   }
 }

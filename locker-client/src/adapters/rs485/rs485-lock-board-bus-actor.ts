@@ -20,7 +20,7 @@ export class Rs485LockBoardBusActor implements LockerBusPort {
   constructor(
     private readonly driver: Rs485LockBoardDriverPort,
     private readonly configuredSlaveIds: () => number[],
-    reconnectOptions?: { maxAttempts?: number; delayMs?: number },
+    reconnectOptions?: { maxAttempts?: number; delayMs?: number; cooldownMs?: number },
     private readonly tracing: TracingPort = noopTracing,
     private readonly log: LoggerPort = noopLogger,
   ) {
@@ -28,6 +28,7 @@ export class Rs485LockBoardBusActor implements LockerBusPort {
       {
         maxAttempts: reconnectOptions?.maxAttempts ?? 5,
         delayMs: reconnectOptions?.delayMs ?? 5000,
+        cooldownMs: reconnectOptions?.cooldownMs,
       },
       log,
     );

@@ -12,6 +12,7 @@ use App\StorableEvents\CompartmentOpeningRequested;
 use App\StorableEvents\CompartmentOpenNotDetected;
 use App\StorableEvents\CompartmentUncommandedOpenDetected;
 use App\StorableEvents\DeviceEventReceived;
+use App\Support\EventSourcing\StoredEventDispatcher;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Support\Facades\Log;
 use Spatie\EventSourcing\EventHandlers\Reactors\Reactor;
@@ -33,6 +34,8 @@ use Spatie\EventSourcing\StoredEvents\Models\EloquentStoredEvent;
  */
 class DoorDetectionReactor extends Reactor implements ShouldQueue
 {
+    public function __construct(private readonly StoredEventDispatcher $storedEventDispatcher) {}
+
     public string $queue = 'events';
 
     public const OPEN_DETECTED = 'compartment_open_detected';
@@ -70,7 +73,7 @@ class DoorDetectionReactor extends Reactor implements ShouldQueue
                 return;
             }
 
-            event(new CompartmentDoorAlreadyOpen(
+            $this->storedEventDispatcher->dispatch(new CompartmentDoorAlreadyOpen(
                 lockerBankUuid: $event->lockerBankUuid,
                 compartmentUuid: $request['compartmentUuid'],
                 compartmentNumber: $request['compartmentNumber'],
@@ -87,7 +90,7 @@ class DoorDetectionReactor extends Reactor implements ShouldQueue
 
         $detectionMs = $event->data['detection_ms'] ?? null;
 
-        event(new CompartmentDoorOpenDetected(
+        $this->storedEventDispatcher->dispatch(new CompartmentDoorOpenDetected(
             lockerBankUuid: $event->lockerBankUuid,
             compartmentUuid: $request['compartmentUuid'],
             compartmentNumber: $request['compartmentNumber'],
@@ -115,7 +118,7 @@ class DoorDetectionReactor extends Reactor implements ShouldQueue
 
         $errorCode = $event->data['error_code'] ?? null;
 
-        event(new CompartmentOpenNotDetected(
+        $this->storedEventDispatcher->dispatch(new CompartmentOpenNotDetected(
             lockerBankUuid: $event->lockerBankUuid,
             compartmentUuid: $request['compartmentUuid'],
             compartmentNumber: $request['compartmentNumber'],
@@ -165,7 +168,7 @@ class DoorDetectionReactor extends Reactor implements ShouldQueue
 
         $sinceFire = $event->data['milliseconds_since_last_relay_fire'] ?? null;
 
-        event(new CompartmentUncommandedOpenDetected(
+        $this->storedEventDispatcher->dispatch(new CompartmentUncommandedOpenDetected(
             lockerBankUuid: $event->lockerBankUuid,
             compartmentUuid: (string) $compartment->id,
             compartmentNumber: $compartmentNumber,

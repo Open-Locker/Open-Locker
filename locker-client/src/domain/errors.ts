@@ -48,11 +48,48 @@ export class HardwareTransportError extends LockerError {
 }
 
 /**
+ * Serial faults the operating system reports by code. A removed adapter, a device
+ * node that no longer exists, a handle the kernel has invalidated: all of them
+ * mean the port went away and dialling again is the right response.
+ *
+ * Codes rather than wording, because a message is written for a human and a
+ * dependency may reword it without warning, while a code is part of the interface.
+ */
+const RECOVERABLE_SERIAL_CODES = new Set(['ENOENT', 'ENXIO', 'EIO', 'EBADF', 'ECONNREFUSED']);
+
+/**
+ * Reads `code` from the error and from a nested `cause`: serialport wraps in some
+ * paths, and a code we cannot reach classifies as unknown — which, with no
+ * catch-all, means no reconnect for the most recoverable failure there is.
+ */
+function serialErrorCode(error: unknown): string | null {
+  let current: unknown = error;
+
+  for (let depth = 0; depth < 5 && current !== null && typeof current === 'object'; depth++) {
+    const code = (current as { code?: unknown }).code;
+    if (typeof code === 'string' && code !== '') {
+      return code;
+    }
+
+    current = (current as { cause?: unknown }).cause ?? null;
+  }
+
+  return null;
+}
+
+function hasRecoverableSerialCode(error: unknown): boolean {
+  const code = serialErrorCode(error);
+
+  return code !== null && RECOVERABLE_SERIAL_CODES.has(code);
+}
+
+/**
  * Transport failures raised by `modbus-serial` itself.
  *
- * The library throws plain `Error`s, so its message text is the only signal
- * available. Matching it is fragile, which is why it is confined to this one
- * function: everything we raise ourselves carries an explicit code instead.
+ * A fault carrying a serial error code is one; for the rest the library throws
+ * plain `Error`s, so message text is the only signal available. Matching text is
+ * fragile, which is why it is confined to this one function: everything we raise
+ * ourselves carries an explicit code instead.
  *
  * The patterns name specific transport failures deliberately. A bare `modbus`
  * match caught nearly every hardware-adjacent message in this codebase,
@@ -65,6 +102,13 @@ export class HardwareTransportError extends LockerError {
 function isModbusLibraryError(error: unknown): boolean {
   if (!(error instanceof Error)) {
     return false;
+  }
+
+  // A transport fault the device recovers from is still a transport fault: without
+  // this the backend would be told UNKNOWN_ERROR while the client reconnects
+  // correctly, which reads as a bug in us rather than a cable someone pulled.
+  if (hasRecoverableSerialCode(error)) {
+    return true;
   }
 
   const message = error.message.toLowerCase();
@@ -82,10 +126,16 @@ export function isReconnectableModbusError(error: unknown): boolean {
     return error.reconnectable;
   }
 
-  return (
-    error instanceof Error &&
-    (error.message.includes('Port Not Open') || error.message.includes('ECONNREFUSED'))
-  );
+  if (hasRecoverableSerialCode(error)) {
+    return true;
+  }
+
+  // The one message match left. `Port Not Open` is the library's own wording for a
+  // port it knows is closed, and it carries no code to match on. `EACCES` is
+  // deliberately not recoverable: a device the container user may not open — a
+  // missing `dialout` group — fails that way every time, and cycling against a
+  // fault only a human can fix is the loop this classification exists to avoid.
+  return error instanceof Error && error.message.includes('Port Not Open');
 }
 
 /**

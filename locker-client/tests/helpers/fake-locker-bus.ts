@@ -32,7 +32,14 @@ export class FakeLockerBus implements LockerBusPort {
     this.connected = false;
   }
 
+  /** Set to mimic a bus whose reconnect cycle was spent. */
+  unreachable = false;
+
   getConnectionState() {
+    if (this.unreachable) {
+      return 'unreachable' as const;
+    }
+
     return this.connected ? ('connected' as const) : ('disconnected' as const);
   }
 

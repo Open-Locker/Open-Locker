@@ -12,6 +12,8 @@ FROM node:22-slim
 
 WORKDIR /app
 
+ENV NODE_ENV=production
+
 RUN apt-get update \
     && apt-get install -y --no-install-recommends util-linux \
     && rm -rf /var/lib/apt/lists/* \

@@ -183,3 +183,20 @@ test('a fractional heartbeat is rejected, matching the inbound schema', () => {
     /heartbeatInterval must be a whole number/,
   );
 });
+
+test('a reconnect cooldown outside its bounds fails at load', () => {
+  // Too short turns recovery into a retry loop against dead hardware; too long
+  // delays recovery after a brief blip. Both are caught here rather than in the
+  // field.
+  writeConfig(['modbus:', '  port: /dev/ttyTEST', '  reconnectCooldownSeconds: 1']);
+  assert.throws(
+    () => new YamlConfigRepository(new MemoryOverlayStore(), configFile).load(),
+    /reconnectCooldownSeconds must be between/,
+  );
+
+  writeConfig(['modbus:', '  port: /dev/ttyTEST', '  reconnectCooldownSeconds: 7200']);
+  assert.throws(
+    () => new YamlConfigRepository(new MemoryOverlayStore(), configFile).load(),
+    /reconnectCooldownSeconds must be between/,
+  );
+});

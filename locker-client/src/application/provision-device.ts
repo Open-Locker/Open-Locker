@@ -2,7 +2,7 @@ import { randomBytes, randomUUID } from 'crypto';
 import fs from 'fs';
 import { provisioningRequestSchema } from '../domain/mqtt-schemas';
 import { MqttSchemaValidationError, parseProvisioningResponse } from '../domain/mqtt-parsing';
-import type { CredentialStorePort } from '../ports/config.port';
+import type { CredentialStorePort, DeviceCredentials } from '../ports/config.port';
 import type { MessageTransportPort } from '../ports/mqtt.port';
 import { logger } from '../infrastructure/logging';
 import {
@@ -11,7 +11,7 @@ import {
   readPrivateFileSync,
 } from '../infrastructure/file-persistence';
 
-export const DEFAULT_MQTT_BROKER_URL = 'mqtt://open-locker.cloud';
+export const DEFAULT_MQTT_BROKER_URL = 'mqtts://open-locker.cloud:8883';
 
 export function getOrCreateClientId(clientIdFilePath: string): string {
   const configuredClientId = process.env.MQTT_CLIENT_ID?.trim();
@@ -90,7 +90,7 @@ function waitForProvisioningReply(
   replyTopic: string,
   registerTopic: string,
   clientId: string,
-): Promise<{ username: string; password: string }> {
+): Promise<DeviceCredentials> {
   return new Promise((resolve, reject) => {
     const timeout = setTimeout(() => {
       reject(new Error('Provisioning timed out'));
@@ -110,6 +110,7 @@ function waitForProvisioningReply(
           resolve({
             username: response.data.mqtt_user,
             password: response.data.mqtt_password,
+            lockerUuid: response.data.locker_uuid ?? response.data.mqtt_user,
           });
           return;
         }

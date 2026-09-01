@@ -23,13 +23,13 @@ import {
 import { ApplyConfigUseCase } from '../application/apply-config';
 import { MqttDoorEventPublisher } from '../adapters/mqtt/door-event-publisher';
 import { RelayFireLog } from '../domain/door-detection';
-import { OpenCompartmentUseCase, runStartupInitialization } from '../application/open-compartment';
+import { OpenCompartmentUseCase, runStartupFailsafe } from '../application/open-compartment';
 import {
   COMPARTMENT_POLL_INTERVAL_MS,
   HeartbeatUseCase,
   PollCompartmentStateUseCase,
 } from '../application/state-publishing';
-import { DEFAULT_MQTT_BROKER_URL, provisionDevice } from '../application/provision-device';
+import { provisionDevice } from '../application/provision-device';
 import type { DoorState } from '../domain/compartment';
 import { createTracing } from '../adapters/tracing/create-tracing';
 import { logger, setLogTraceContextProvider, shipLogsTo } from '../infrastructure/logging';
@@ -71,6 +71,7 @@ export interface SimulatorContext {
 
 /** The contract's door states; anything else is rejected by the backend. */
 const DOOR_STATES: DoorState[] = ['open', 'closed', 'unknown'];
+export const DEFAULT_SIMULATOR_MQTT_BROKER_URL = 'mqtt://localhost:1883';
 
 export type PublishFn = (
   topic: string,
@@ -283,7 +284,7 @@ export function wireSimulatedDevice(options: WireSimulatedDeviceOptions): WiredS
 
   const start = async () => {
     await bus.connect();
-    await runStartupInitialization(bus);
+    await runStartupFailsafe(bus);
     heartbeat.start();
 
     // Publish the seeded door states immediately so the backend read model is
@@ -338,7 +339,9 @@ export async function createSimulatorApp(
   options: CreateSimulatorOptions,
 ): Promise<SimulatorContext> {
   const brokerUrl =
-    options.brokerUrl?.trim() || options.scenario.broker_url?.trim() || DEFAULT_MQTT_BROKER_URL;
+    options.brokerUrl?.trim() ||
+    options.scenario.broker_url?.trim() ||
+    DEFAULT_SIMULATOR_MQTT_BROKER_URL;
   const credentialCache = options.credentialCache ?? new EphemeralCredentialCache();
   const logTraffic = options.logTraffic ?? true;
 
@@ -400,7 +403,13 @@ async function startSimulatedDevice(
   const cached = credentialCache.get(bank.provisioning_token);
 
   if (cached) {
-    credentialStore.saveCredentials(cached);
+    // A cache written before per-provisioning identities has no lockerUuid; back
+    // then the username was the locker uuid, so that is the right fallback.
+    credentialStore.saveCredentials({
+      username: cached.username,
+      password: cached.password,
+      lockerUuid: cached.lockerUuid ?? cached.username,
+    });
     logger.info('reusing cached simulator credentials', {
       bank: bank.name,
       cache: credentialCache.location,
@@ -424,8 +433,9 @@ async function startSimulatedDevice(
     credentialCache.set(bank.provisioning_token, credentials);
   }
 
-  // MQTT username is the locker bank UUID; all locker topics use this namespace.
-  const lockerUuid = credentials.username.trim();
+  // The username authenticates to the broker and carries no topic meaning; the
+  // locker namespace comes from the uuid the provisioning reply supplied.
+  const lockerUuid = credentials.lockerUuid.trim();
   if (!lockerUuid) {
     throw new Error(`Provisioned credentials for bank "${bank.name}" have an empty locker UUID`);
   }

@@ -17,9 +17,21 @@ export interface RuntimeOverlayStorePort {
   clear(): void;
 }
 
+/**
+ * Broker credentials plus the locker this device is authorised for. The username
+ * authenticates and nothing more: every locker topic is built from `lockerUuid`.
+ * They were the same value before per-provisioning identities, which is why files
+ * written by an older client carry only the username.
+ */
+export interface DeviceCredentials {
+  username: string;
+  password: string;
+  lockerUuid: string;
+}
+
 export interface CredentialStorePort {
-  getCredentials(): { username: string; password: string } | null;
-  saveCredentials(credentials: { username: string; password: string }): void;
+  getCredentials(): DeviceCredentials | null;
+  saveCredentials(credentials: DeviceCredentials): void;
   isProvisioned(): boolean;
 }
 

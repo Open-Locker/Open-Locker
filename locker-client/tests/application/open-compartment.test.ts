@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import {
   OpenCompartmentUseCase,
-  runStartupInitialization,
+  runStartupFailsafe,
 } from '../../src/application/open-compartment';
 import { RelayFireLog } from '../../src/domain/door-detection';
 import { FakeLockerBus } from '../helpers/fake-locker-bus';
@@ -69,14 +69,37 @@ test('OpenCompartmentUseCase uses hardware flash only', async () => {
 
 test('startup initialization invokes the adapter capability per board', async () => {
   const bus = new FakeLockerBus([1, 2]);
-  await runStartupInitialization(bus);
+  await runStartupFailsafe(bus);
   assert.deepEqual(bus.turnAllOffCalls, [1, 2]);
 });
 
 test('startup initialization skips boards when no runtime mapping exists', async () => {
   const bus = new FakeLockerBus([]);
-  await runStartupInitialization(bus);
+  await runStartupFailsafe(bus);
   assert.deepEqual(bus.turnAllOffCalls, []);
+});
+
+test('an unreachable bus does not fail startup', async () => {
+  // Exiting here would restart the process until the adapter came back, churning
+  // the MQTT session and flapping the bank each time round. Reconnect keeps
+  // trying instead, and the bus reports itself unreachable meanwhile.
+  const bus = new FakeLockerBus([1, 2]);
+  bus.unreachable = true;
+
+  await assert.doesNotReject(runStartupFailsafe(bus));
+
+  assert.deepEqual(bus.turnAllOffCalls, [], 'no point sweeping a bus we cannot reach');
+});
+
+test('a reachable bus whose boards all stay silent still fails startup', async () => {
+  // The other half of the distinction: the bus is fine, so silence means wiring or
+  // configuration — something only a human can fix, and startup should say so.
+  const bus = new FakeLockerBus([1, 2]);
+  bus.initializeBoard = async (): Promise<void> => {
+    throw new Error('board did not answer');
+  };
+
+  await assert.rejects(runStartupFailsafe(bus), /all boards unreachable/);
 });
 
 test('OpenCompartmentUseCase throws when runtime mapping is missing', async () => {

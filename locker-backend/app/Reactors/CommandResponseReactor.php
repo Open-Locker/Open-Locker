@@ -10,6 +10,7 @@ use App\StorableEvents\CompartmentOpeningFailed;
 use App\StorableEvents\CompartmentOpeningRequested;
 use App\StorableEvents\LockerConfigAckFailed;
 use App\StorableEvents\LockerConfigAcknowledged;
+use App\Support\EventSourcing\StoredEventDispatcher;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Support\Facades\Log;
 use Spatie\EventSourcing\EventHandlers\Reactors\Reactor;
@@ -23,6 +24,8 @@ use Spatie\EventSourcing\StoredEvents\Models\EloquentStoredEvent;
  */
 class CommandResponseReactor extends Reactor implements ShouldQueue
 {
+    public function __construct(private readonly StoredEventDispatcher $storedEventDispatcher) {}
+
     public string $queue = 'events';
 
     /**
@@ -51,7 +54,7 @@ class CommandResponseReactor extends Reactor implements ShouldQueue
                 return;
             }
 
-            event(new LockerConfigAcknowledged(
+            $this->storedEventDispatcher->dispatch(new LockerConfigAcknowledged(
                 lockerBankUuid: $event->lockerBankUuid,
                 transactionId: $event->transactionId,
                 appliedConfigHash: $appliedHash,
@@ -66,7 +69,7 @@ class CommandResponseReactor extends Reactor implements ShouldQueue
                 return;
             }
 
-            event(new LockerConfigAckFailed(
+            $this->storedEventDispatcher->dispatch(new LockerConfigAckFailed(
                 lockerBankUuid: $event->lockerBankUuid,
                 transactionId: $event->transactionId,
                 errorCode: $event->errorCode,
@@ -115,7 +118,7 @@ class CommandResponseReactor extends Reactor implements ShouldQueue
                     return;
                 }
 
-                event(new CompartmentOpenAcknowledged(
+                $this->storedEventDispatcher->dispatch(new CompartmentOpenAcknowledged(
                     lockerBankUuid: $event->lockerBankUuid,
                     compartmentUuid: $compartmentUuid,
                     compartmentNumber: $compartmentNumber,
@@ -130,7 +133,7 @@ class CommandResponseReactor extends Reactor implements ShouldQueue
                 return;
             }
 
-            event(new CompartmentOpeningFailed(
+            $this->storedEventDispatcher->dispatch(new CompartmentOpeningFailed(
                 lockerBankUuid: $event->lockerBankUuid,
                 compartmentUuid: $compartmentUuid,
                 compartmentNumber: $compartmentNumber,

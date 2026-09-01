@@ -142,6 +142,11 @@ class OutboundMqttPublisherTest extends TestCase
         $this->assertSame('success', $payload['status'] ?? null);
         $this->assertSame('mqtt-user', $payload['data']['mqtt_user'] ?? null);
         $this->assertSame('mqtt-password', $payload['data']['mqtt_password'] ?? null);
+        // The locker uuid must come from the event, not from the username or the
+        // reply topic: the client builds every topic from this value, so wiring it
+        // to the wrong source would send a device to another bank's namespace.
+        $this->assertSame($event->lockerBankUuid, $payload['data']['locker_uuid'] ?? null);
+        $this->assertNotSame($payload['data']['mqtt_user'], $payload['data']['locker_uuid']);
     }
 
     public function test_provisioning_reply_publisher_builds_failure_payload(): void

@@ -6,7 +6,7 @@ physical locker hardware:
 `MQTT ↔ application use cases ↔ serialized Modbus RTU ↔ Waveshare relay boards`
 
 The current implementation is the hexagonal TypeScript rewrite accepted in
-[ADR-0027](../docs/adr/0024-locker-client-v2-hexagonal-rewrite.md).
+[ADR-0024](../docs/adr/0024-locker-client-v2-hexagonal-rewrite.md).
 
 ## Hardware warning
 
@@ -22,7 +22,8 @@ chmod 700 data
 cp locker-config.yml.example config/locker-config.yml
 
 # Issue a one-time token in the backend admin, immediately set
-# PROVISIONING_TOKEN in .env, and adjust the serial port.
+# PROVISIONING_TOKEN and MQTT_BROKER_URL=mqtts://<mqtt-host>:8883
+# in .env, and adjust the serial port.
 docker compose up -d
 docker compose logs -f locker-client
 ```
@@ -38,6 +39,12 @@ provisioned clients keep using their MQTT credentials and need no change.
 The Compose stack runs the client from
 `ghcr.io/open-locker/locker-client:${LOCKER_CLIENT_IMAGE_TAG:-latest}` and uses
 Watchtower for labeled automatic updates.
+
+Production MQTT is available only through MQTTS on port 8883. For `mqtts://`
+connections the client always verifies the broker certificate chain and
+hostname against the Raspberry Pi operating-system CA store. It does not offer
+an option to disable verification. Plaintext `mqtt://localhost:1883` is reserved
+for explicit local development and simulator use.
 
 Required mounts:
 
@@ -102,7 +109,7 @@ persists the result in `/data/.runtime-config-overlay.json`. Until that first
 apply completes, MQTT can run without opening a serial adapter,
 `open_compartment` commands fail, and compartment snapshots stay empty.
 
-See [ADR-0028](../docs/adr/0026-locker-client-v2-runtime-only-compartment-mapping.md).
+See [ADR-0026](../docs/adr/0026-locker-client-v2-runtime-only-compartment-mapping.md).
 Persistence and corruption behavior is defined in
 [ADR-0046](../docs/adr/0046-locker-client-local-persistence-hardening.md).
 

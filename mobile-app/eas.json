@@ -19,6 +19,12 @@
         "APP_VARIANT": "preview"
       }
     },
+    "ios-simulator": {
+      "extends": "preview",
+      "ios": {
+        "simulator": true
+      }
+    },
     "production": {
       "channel": "production",
       "autoIncrement": true,
@@ -28,6 +34,13 @@
       },
       "env": {
         "APP_VARIANT": "production"
+      }
+    },
+    "store": {
+      "extends": "production",
+      "android": {
+        "buildType": "app-bundle",
+        "gradleCommand": ":app:bundleRelease --build-cache -PreactNativeArchitectures=armeabi-v7a,arm64-v8a -x :app:lintVitalRelease"
       }
     }
   },

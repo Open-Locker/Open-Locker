@@ -7,7 +7,15 @@ export enum BusPriority {
   MAINTENANCE = 1,
 }
 
-export type ConnectionState = 'disconnected' | 'connecting' | 'connected';
+/**
+ * `unreachable` means a reconnect cycle was spent without success: we tried, we
+ * failed, and we have stopped trying *for now*. It is distinct from `connecting`,
+ * which claims an attempt is in flight — a dead bus used to report that forever.
+ *
+ * Nothing on the wire changes: `modbus_connected` is derived from
+ * `state === 'connected'` and was already false in both cases.
+ */
+export type ConnectionState = 'disconnected' | 'connecting' | 'connected' | 'unreachable';
 export type UnlockFeedback = 'pulse_sent' | 'opened' | 'failed';
 
 export interface LockerBusPort {

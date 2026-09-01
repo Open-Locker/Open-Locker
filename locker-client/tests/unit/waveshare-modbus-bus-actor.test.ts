@@ -402,3 +402,100 @@ test('configured slave ids are read live, so a runtime config change is visible'
     'a board added after construction must be visible to the bus',
   );
 });
+
+/** A driver whose port can be taken away and given back, like an adapter being unplugged. */
+class UnpluggableDriver extends FakeWaveshareModbusDriver {
+  present = true;
+  connectAttempts = 0;
+
+  /** The device node disappears, so the handle stops being usable too. */
+  unplug(): void {
+    this.present = false;
+    void super.disconnect();
+  }
+
+  async connect(): Promise<void> {
+    this.connectAttempts++;
+    if (!this.present) {
+      const error = new Error('no such file or directory');
+      Object.assign(error, { code: 'ENOENT' });
+      throw error;
+    }
+
+    await super.connect();
+  }
+
+  async readDiscreteInputs(slaveId: number, address: number, length: number): Promise<boolean[]> {
+    if (!this.present) {
+      const error = new Error('input/output error');
+      Object.assign(error, { code: 'EIO' });
+      throw error;
+    }
+
+    return super.readDiscreteInputs(slaveId, address, length);
+  }
+}
+
+test('a bus that dies between commands reports unreachable from the poll path', async () => {
+  // The compartment poll reaches the bus through readDoorSensors, not
+  // ensureConnected. Wiring only the command path would leave a bus that dies
+  // between commands never reporting unreachable at all.
+  const driver = new UnpluggableDriver();
+  const bus = new WaveshareModbusBusActor(
+    driver,
+    { maxAttempts: 2, delayMs: 1, cooldownMs: 20 },
+    [1],
+  );
+  await bus.connect();
+  assert.equal(bus.getConnectionState(), 'connected');
+
+  driver.unplug();
+  // Polling is best-effort and reports unknown rather than throwing, which is
+  // exactly why the state has to carry the verdict instead.
+  assert.deepEqual(await bus.readDoorSensors(1, 0, 1), ['unknown']);
+
+  assert.equal(bus.getConnectionState(), 'unreachable');
+});
+
+test('a bus that comes back is used again without a restart', async () => {
+  const driver = new UnpluggableDriver();
+  const bus = new WaveshareModbusBusActor(
+    driver,
+    { maxAttempts: 2, delayMs: 1, cooldownMs: 20 },
+    [1],
+  );
+  await bus.connect();
+
+  driver.unplug();
+  assert.equal(await bus.ensureConnected(), false);
+  assert.equal(bus.getConnectionState(), 'unreachable');
+
+  driver.present = true;
+  await new Promise((resolve) => setTimeout(resolve, 25));
+
+  assert.equal(await bus.ensureConnected(), true, 'a new cycle starts after the cooldown');
+  assert.equal(bus.getConnectionState(), 'connected', 'and the state leaves unreachable');
+});
+
+test('a missing adapter at startup leaves the bus unreachable instead of failing', async () => {
+  // Startup must finish: the fault surfaces as an unreachable bus, not as a boot
+  // that never completes or a process that exits into a restart loop.
+  const driver = new UnpluggableDriver();
+  driver.present = false;
+  const bus = new WaveshareModbusBusActor(driver, { maxAttempts: 2, delayMs: 1 }, [1]);
+
+  await assert.doesNotReject(bus.connect());
+
+  assert.equal(bus.getConnectionState(), 'unreachable');
+  assert.equal(driver.connectAttempts, 2, 'startup gets one full cycle, not one attempt');
+});
+
+test('a config reload against a closed port retries rather than failing once', async () => {
+  const driver = new UnpluggableDriver();
+  driver.present = false;
+  const bus = new WaveshareModbusBusActor(driver, { maxAttempts: 3, delayMs: 1 }, [1]);
+
+  await assert.doesNotReject(bus.reloadRuntimeConfig());
+
+  assert.equal(driver.connectAttempts, 3, 'the reload path uses the coordinator too');
+});
