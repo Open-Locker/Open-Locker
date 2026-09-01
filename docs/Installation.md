@@ -172,9 +172,10 @@ Use Coolify v4's documented Git-based Docker Compose application instead:
 2. In **Project → Environment → Add Resource**, select the repository and choose
    the **Docker Compose** build pack. In the resource's **General** settings set
    **Docker Compose Location** to
-   `/locker-backend/docker-compose.prod.coolify.yml`. This single entry file
-   uses Compose `extends` to load every service from `docker-compose.prod.yml`;
-   no UI override is required.
+   `/locker-backend/docker-compose.prod.coolify.yml`. This file is a
+   self-contained copy of the production stack plus Coolify MQTT labels;
+   Coolify does not resolve Compose `extends` or `include`. No UI override
+   is required.
 3. Add the values from `.env.prod.example` under the resource's
    **Environment Variables**. Use real secrets and domains, pin
    `BACKEND_IMAGE_TAG`, and set a deployment-unique

@@ -24,9 +24,10 @@ plaintext only inside the Docker network and is not published in production.
 
 For Coolify v4, use the Git-based **Docker Compose** build pack and set
 **Docker Compose Location** to
-`/locker-backend/docker-compose.prod.coolify.yml`. The entry file loads the base
-stack with Compose `extends`; Coolify's similarly named custom Compose override
-configures Coolify's own infrastructure and is not an application overlay. The
+`/locker-backend/docker-compose.prod.coolify.yml`. That file inlines the
+production stack because Coolify does not resolve Compose `extends` or
+`include`. Coolify's similarly named custom Compose override configures
+Coolify's own infrastructure and is not an application overlay. The
 managed Traefik proxy must publish a TCP `mqtts` entrypoint on 8883; the adapter
 routes `HostSNI(MQTT_DOMAIN)` through that entrypoint to Mosquitto port 1883. A
 normal HTTPS domain route or direct port mapping does not secure MQTT. Follow
