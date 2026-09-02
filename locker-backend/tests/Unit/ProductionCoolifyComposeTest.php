@@ -25,33 +25,45 @@ class ProductionCoolifyComposeTest extends TestCase
         $prod = $this->parseCompose('docker-compose.prod.yml');
         $coolify = $this->parseCompose('docker-compose.prod.coolify.yml');
 
-        $prodServices = array_keys($prod['services'] ?? []);
-        $coolifyServices = array_keys($coolify['services'] ?? []);
+        $prodServices = $prod['services'] ?? [];
+        $coolifyServices = $coolify['services'] ?? [];
+        $this->assertIsArray($prodServices);
+        $this->assertIsArray($coolifyServices);
+        $this->assertSame(array_keys($prodServices), array_keys($coolifyServices));
+        $this->assertSame($prod['volumes'] ?? null, $coolify['volumes'] ?? null);
 
-        $this->assertSame($prodServices, $coolifyServices);
-
-        foreach ($coolify['services'] as $name => $service) {
+        foreach ($coolifyServices as $name => $service) {
             $this->assertIsArray($service);
             $this->assertArrayNotHasKey('extends', $service, $name.' must not use Compose extends');
+            $this->assertArrayNotHasKey('include', $service, $name.' must not use Compose include');
         }
 
-        foreach (['app', 'queue-worker', 'event-worker', 'mqtt-listener', 'scheduler', 'reverb'] as $name) {
+        foreach ($prodServices as $name => $service) {
+            if ($name === 'mqtt') {
+                continue;
+            }
+
             $this->assertSame(
-                $prod['services'][$name]['image'] ?? null,
-                $coolify['services'][$name]['image'] ?? null,
-                $name.' image must match the production compose',
+                $service,
+                $coolifyServices[$name],
+                $name.' must match the production compose except for Coolify MQTT wiring',
             );
         }
 
-        $this->assertSame(
-            $prod['services']['mqtt']['image'] ?? null,
-            $coolify['services']['mqtt']['image'] ?? null,
-        );
+        $prodMqtt = $prodServices['mqtt'];
+        $coolifyMqtt = $coolifyServices['mqtt'];
+        $this->assertIsArray($prodMqtt);
+        $this->assertIsArray($coolifyMqtt);
 
-        $mqtt = $coolify['services']['mqtt'];
-        $this->assertContains('coolify', $mqtt['networks'] ?? []);
-        $this->assertContains('default', $mqtt['networks'] ?? []);
-        $this->assertContains('traefik.enable=true', $mqtt['labels'] ?? []);
+        $sharedMqtt = $prodMqtt;
+        unset($sharedMqtt['networks'], $sharedMqtt['labels']);
+        $coolifySharedMqtt = $coolifyMqtt;
+        unset($coolifySharedMqtt['networks'], $coolifySharedMqtt['labels']);
+        $this->assertSame($sharedMqtt, $coolifySharedMqtt);
+
+        $this->assertContains('coolify', $coolifyMqtt['networks'] ?? []);
+        $this->assertContains('default', $coolifyMqtt['networks'] ?? []);
+        $this->assertContains('traefik.enable=true', $coolifyMqtt['labels'] ?? []);
         $this->assertTrue($coolify['networks']['coolify']['external'] ?? false);
     }
 }
