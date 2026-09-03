@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services;
 
 use App\Aggregates\LockerBankAggregate;
+use App\Enums\LockerAdapterType;
 use App\Models\Compartment;
 use App\Models\LockerBank;
 use Illuminate\Support\Facades\Log;
@@ -43,9 +44,6 @@ class LockerService
      */
     public function applyConfig(LockerBank $lockerBank): void
     {
-        $payload = $lockerBank->buildApplyConfigPayload();
-        $configHash = $payload['config_hash'];
-
         $missing = $lockerBank->compartments()
             ->where(function ($query): void {
                 $query->whereNull('slave_id')
@@ -57,14 +55,56 @@ class LockerService
             throw new \RuntimeException('Config is incomplete: every compartment needs slave_id and address.');
         }
 
+        $channelCount = (int) $lockerBank->channel_count;
+        if (! in_array($channelCount, LockerBank::SUPPORTED_CHANNEL_COUNTS, true)) {
+            throw new \RuntimeException('Config is invalid: channel_count must be one of 8, 12, 18, 24, 36, or 50.');
+        }
+
+        if ($lockerBank->adapter_type === LockerAdapterType::WaveshareModbus && $channelCount !== 8) {
+            throw new \RuntimeException('Config is invalid: the supported Waveshare board has exactly 8 channels.');
+        }
+
+        $outOfRange = $lockerBank->compartments()
+            ->where('address', '>=', $channelCount)
+            ->count();
+
+        if ($outOfRange > 0) {
+            throw new \RuntimeException("Config is invalid: every compartment address must be less than channel_count ({$channelCount}).");
+        }
+
+        if (
+            $lockerBank->adapter_type === LockerAdapterType::Rs485LockBoard
+            && $lockerBank->compartments()
+                ->where(function ($query): void {
+                    $query->where('slave_id', '<', 1)
+                        ->orWhere('slave_id', '>', 31);
+                })
+                ->exists()
+        ) {
+            throw new \RuntimeException('Config is invalid: RS485 locker board slave_id must be between 1 and 31.');
+        }
+
+        $payload = $lockerBank->buildApplyConfigPayload();
+        $configHash = $payload['config_hash'];
+
         Log::info('LockerService::applyConfig requested', [
             'lockerBankUuid' => (string) $lockerBank->id,
             'configHash' => $configHash,
+            'adapterType' => $payload['adapter_type'],
+            'channelCount' => $payload['channel_count'],
+            'feedbackType' => $payload['feedback_type'],
             'compartmentCount' => count($payload['compartments']),
         ]);
 
         LockerBankAggregate::retrieve((string) $lockerBank->id)
-            ->requestApplyConfig($configHash, (int) $lockerBank->heartbeat_interval_seconds, $payload['compartments'])
+            ->requestApplyConfig(
+                $configHash,
+                (int) $lockerBank->heartbeat_interval_seconds,
+                $payload['adapter_type'],
+                $payload['channel_count'],
+                $payload['feedback_type'],
+                $payload['compartments'],
+            )
             ->persist();
 
         $lockerBank->update([

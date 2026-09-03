@@ -138,8 +138,10 @@ Notes:
 - if the configured duration is not aligned to `100ms`, the client rounds up
 - all configured boards on the bus share `modbus.port`
 - MQTT bootstrap values now come from `.env`
-- heartbeat interval and compartment mapping are now applied via backend
-  `apply_config` and stored separately from the base YAML
+- adapter type (`waveshare_modbus`), channel count, feedback type, heartbeat
+  interval, and compartment mapping are applied via backend `apply_config` and
+  stored separately from the base YAML
+- the serial adapter is not opened until that runtime profile exists
 
 ## Command Flow
 

@@ -57,6 +57,24 @@ test('ReconnectCoordinator deduplicates concurrent reconnect calls', async () =>
   assert.equal(attempts, 1);
 });
 
+test('ReconnectCoordinator resolves a pending retry when cancelled', async () => {
+  const coordinator = new ReconnectCoordinator({ delayMs: 60_000 });
+  let notifyAttempt!: () => void;
+  const attempted = new Promise<void>((resolve) => {
+    notifyAttempt = resolve;
+  });
+
+  const reconnect = coordinator.run(async () => {
+    notifyAttempt();
+    throw new Error('connect failed');
+  });
+  await attempted;
+  await delay(0);
+
+  coordinator.cancelScheduled();
+  await reconnect;
+});
+
 function delay(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }

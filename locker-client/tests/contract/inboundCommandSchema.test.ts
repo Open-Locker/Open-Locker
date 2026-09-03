@@ -69,6 +69,37 @@ test('parseKnownMQTTCommand returns null when transaction_id is missing', () => 
   );
 });
 
+test('apply_config requires a supported runtime hardware profile', () => {
+  const command = {
+    action: 'apply_config',
+    message_id: 'msg-profile',
+    transaction_id: 'txn-profile',
+    timestamp: '2026-04-11T10:00:00Z',
+    data: {
+      adapter_type: 'rs485_lock_board',
+      channel_count: 50,
+      feedback_type: 'door_opening',
+      config_hash: 'a'.repeat(64),
+      heartbeat_interval_seconds: 30,
+      compartments: [{ compartment_number: 1, slaveId: 31, address: 49 }],
+    },
+  };
+
+  assert.equal(applyConfigCommandSchema.safeParse(command).success, true);
+  assert.equal(
+    applyConfigCommandSchema.safeParse({
+      ...command,
+      data: { ...command.data, channel_count: 10 },
+    }).success,
+    false,
+  );
+  const { adapter_type: _adapterType, ...withoutAdapter } = command.data;
+  assert.equal(
+    applyConfigCommandSchema.safeParse({ ...command, data: withoutAdapter }).success,
+    false,
+  );
+});
+
 test('every AsyncAPI command example validates against knownMQTTCommandSchema', () => {
   const examplesDirectory = path.resolve(process.cwd(), '..', 'docs', 'asyncapi', 'examples');
   const commandExamples = fs

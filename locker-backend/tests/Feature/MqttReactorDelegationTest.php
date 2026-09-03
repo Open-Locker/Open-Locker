@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Tests\Feature;
 
 use App\Models\LockerBank;
@@ -46,6 +48,9 @@ class MqttReactorDelegationTest extends TestCase
             commandId: '22222222-2222-2222-2222-222222222222',
             configHash: 'abc123',
             heartbeatIntervalSeconds: 15,
+            adapterType: 'waveshare_modbus',
+            channelCount: 8,
+            feedbackType: 'door_closing',
             compartments: [
                 ['compartment_number' => 1, 'slaveId' => 1, 'address' => 0],
             ],

@@ -31,6 +31,9 @@ function mergeRuntimeConfig(
   if (overlay?.compartments !== undefined) {
     effective.compartments = overlay.compartments;
   }
+  if (overlay?.hardwareProfile !== undefined) {
+    effective.hardwareProfile = overlay.hardwareProfile;
+  }
 
   return effective;
 }

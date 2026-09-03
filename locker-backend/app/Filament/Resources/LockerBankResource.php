@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Filament\Resources;
 
+use App\Enums\LockerAdapterType;
+use App\Enums\LockerFeedbackType;
 use App\Enums\Permission;
 use App\Filament\Concerns\InteractsWithOneTimeProvisioningToken;
 use App\Filament\Resources\LockerBankResource\Pages;
@@ -15,10 +17,13 @@ use Filament\Actions\Action;
 use Filament\Actions\EditAction;
 use Filament\Facades\Filament;
 use Filament\Forms\Components\Placeholder;
+use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
+use Filament\Schemas\Components\Utilities\Get;
+use Filament\Schemas\Components\Utilities\Set;
 use Filament\Schemas\Schema;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
@@ -71,6 +76,45 @@ class LockerBankResource extends Resource
                     ->label(__('Location description'))
                     ->maxLength(65535)
                     ->columnSpanFull(),
+                Select::make('adapter_type')
+                    ->label(__('Hardware adapter'))
+                    ->options([
+                        LockerAdapterType::WaveshareModbus->value => LockerAdapterType::WaveshareModbus->label(),
+                        LockerAdapterType::Rs485LockBoard->value => LockerAdapterType::Rs485LockBoard->label(),
+                    ])
+                    ->default(LockerAdapterType::WaveshareModbus->value)
+                    ->required()
+                    ->live()
+                    ->afterStateUpdated(function (Set $set, ?string $state): void {
+                        if ($state === LockerAdapterType::WaveshareModbus->value) {
+                            $set('channel_count', 8);
+                        }
+                    })
+                    ->helperText(__('Selects the board protocol and relay pulse implementation used by the locker client.')),
+                Select::make('channel_count')
+                    ->label(__('Channels per board'))
+                    ->options(fn (Get $get): array => $get('adapter_type') === LockerAdapterType::WaveshareModbus->value
+                        ? [8 => '8']
+                        : [
+                            8 => '8',
+                            12 => '12',
+                            18 => '18',
+                            24 => '24',
+                            36 => '36',
+                            50 => '50',
+                        ])
+                    ->default(8)
+                    ->required()
+                    ->helperText(__('Every compartment address must be lower than this channel count.')),
+                Select::make('feedback_type')
+                    ->label(__('Lock feedback polarity'))
+                    ->options([
+                        LockerFeedbackType::DoorClosing->value => LockerFeedbackType::DoorClosing->label(),
+                        LockerFeedbackType::DoorOpening->value => LockerFeedbackType::DoorOpening->label(),
+                    ])
+                    ->default(LockerFeedbackType::DoorClosing->value)
+                    ->required()
+                    ->helperText(__('Defines whether an active feedback input represents a closing or opening door.')),
                 TextInput::make('heartbeat_interval_seconds')
                     ->label(__('Heartbeat interval (seconds)'))
                     ->numeric()

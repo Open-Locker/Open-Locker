@@ -1,5 +1,6 @@
 import type { CompartmentTarget, DoorState } from '../../src/domain/compartment';
 import type { LockerBusPort } from '../../src/ports/locker-bus.port';
+import type { UnlockFeedback } from '../../src/ports/locker-bus.port';
 
 export class FakeLockerBus implements LockerBusPort {
   readonly flashCalls: Array<{
@@ -17,6 +18,7 @@ export class FakeLockerBus implements LockerBusPort {
   private doorStates = new Map<number, DoorState[]>();
   private connected = true;
   private slaveIds: number[];
+  unlockFeedback: UnlockFeedback = 'pulse_sent';
 
   constructor(slaveIds: number[] = [1]) {
     this.slaveIds = slaveIds;
@@ -41,13 +43,18 @@ export class FakeLockerBus implements LockerBusPort {
     return this.connected ? ('connected' as const) : ('disconnected' as const);
   }
 
+  runExclusive<T>(operation: (bus: LockerBusPort) => Promise<T>): Promise<T> {
+    return operation(this);
+  }
+
   async ensureConnected(): Promise<boolean> {
     return this.connected;
   }
 
-  async flashRelay(target: CompartmentTarget, durationMs: number): Promise<void> {
+  async flashRelay(target: CompartmentTarget, durationMs: number): Promise<UnlockFeedback> {
     this.flashCalls.push({ target, durationMs });
     this.relayStates.set(this.key(target), true);
+    return this.unlockFeedback;
   }
 
   recordWriteCoil(slaveId: number, address: number, value: boolean): void {
@@ -69,7 +76,7 @@ export class FakeLockerBus implements LockerBusPort {
     return states.slice(startAddress, startAddress + length);
   }
 
-  async turnAllRelaysOff(slaveId: number): Promise<void> {
+  async initializeBoard(slaveId: number): Promise<void> {
     this.turnAllOffCalls.push(slaveId);
   }
 

@@ -4,8 +4,11 @@
   "action": "apply_config",
   "timestamp": "2026-04-14T19:31:00Z",
   "data": {
-    "config_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "config_hash": "12d9df0453da04ed41b9dd21c603715cb4370cfb21958aadc5f73fc195848003",
     "heartbeat_interval_seconds": 15,
+    "adapter_type": "rs485_lock_board",
+    "channel_count": 12,
+    "feedback_type": "door_closing",
     "compartments": [
       {
         "compartment_number": 1,
