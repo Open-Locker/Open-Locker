@@ -1,43 +1,209 @@
+# Self-contained Coolify adapter. Coolify parses one Compose file and does not
+# resolve `extends` or `include`, so this file inlines the production stack
+# instead of inheriting docker-compose.prod.yml. Keep service definitions
+# aligned with that base file; only MQTT networking/labels differ.
+x-laravel-env-prod: &laravel_env_prod
+  PUID: "1000"
+  PGID: "1000"
+  WWWUSER: "1000"
+  APP_ENV: production
+  QUEUE_CONNECTION: redis
+  BROADCAST_CONNECTION: reverb
+  DB_HOST: db
+  REDIS_HOST: redis
+  MQTT_BROKER_HOST: mqtt
+  REVERB_APP_ID: "${REVERB_APP_ID}"
+  REVERB_APP_KEY: "${REVERB_APP_KEY}"
+  REVERB_APP_SECRET: "${REVERB_APP_SECRET}"
+  # Internal Reverb endpoint for Laravel app/worker containers.
+  REVERB_HOST: reverb
+  REVERB_PORT: 8080
+  REVERB_SCHEME: http
+  REVERB_SERVER_HOST: 0.0.0.0
+  REVERB_SERVER_PORT: 8080
+  # Browser-facing Echo settings.
+  VITE_REVERB_APP_KEY: "${REVERB_APP_KEY}"
+  VITE_REVERB_HOST: "${VITE_REVERB_HOST}"
+  VITE_REVERB_PORT: "${VITE_REVERB_PORT}"
+  VITE_REVERB_SCHEME: https
+  # Keep Laravel app version aligned with the deployed image tag
+  APP_VERSION: "${BACKEND_IMAGE_TAG:-latest}"
+
+x-laravel-service-prod: &laravel_service_prod
+  image: ghcr.io/open-locker/locker-backend:${BACKEND_IMAGE_TAG:-latest}
+  # Compose's project .env is only used for interpolation. Laravel processes
+  # need the same file explicitly loaded into every app/worker container.
+  env_file:
+    - path: ./.env
+      required: true
+  volumes:
+    # Mount storage for persistent file uploads
+    - "locker-storage:/var/www/html/storage/app/public"
+    # Persist logs if needed
+    # - "locker-logs:/var/www/html/storage/logs"
+
+x-app-depends-on-prod: &app_depends_on_prod
+  db:
+    condition: service_healthy
+  redis:
+    condition: service_healthy
+
+x-worker-depends-on-prod: &worker_depends_on_prod
+  app:
+    condition: service_healthy
+  db:
+    condition: service_healthy
+  redis:
+    condition: service_healthy
+  mqtt:
+    condition: service_started
+
 services:
   app:
-    extends:
-      file: docker-compose.prod.yml
-      service: app
+    <<: *laravel_service_prod
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    # ports:
+    # Expose the app port via reverse proxy
+    # - "${APP_PORT:-80}:8080"
+    environment:
+      <<: *laravel_env_prod
+      AUTORUN_ENABLED: "true"
+      AUTORUN_LARAVEL_MIGRATION_ISOLATION: "true"
+      LARAVEL_SAIL: 0
+      APP_DEBUG: false
+      # Ensure unique MQTT client ids per container to avoid session kicks
+      MQTT_PUBLISHER_CLIENT_ID: "laravel_backend_publisher_app"
+      PHP_OPCACHE_ENABLE: 1
+    depends_on:
+      <<: *app_depends_on_prod
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/up"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
   queue-worker:
-    extends:
-      file: docker-compose.prod.yml
-      service: queue-worker
+    <<: *laravel_service_prod
+    restart: unless-stopped
+    stop_signal: SIGTERM
+    environment:
+      <<: *laravel_env_prod
+      AUTORUN_ENABLED: "false"
+      MQTT_PUBLISHER_CLIENT_ID: "laravel_backend_publisher_queue_worker"
+    command: "php artisan queue:work --queue=default --tries=3 --timeout=90"
+    depends_on:
+      <<: *worker_depends_on_prod
+    healthcheck:
+      test: ["CMD", "healthcheck-queue"]
+      start_period: 10s
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
   event-worker:
-    extends:
-      file: docker-compose.prod.yml
-      service: event-worker
+    <<: *laravel_service_prod
+    restart: unless-stopped
+    stop_signal: SIGTERM
+    environment:
+      <<: *laravel_env_prod
+      AUTORUN_ENABLED: "false"
+      MQTT_PUBLISHER_CLIENT_ID: "laravel_backend_publisher_event_worker"
+    # Single worker on purpose. DoorDetectionReactor and CommandResponseReactor
+    # both guard against duplicate derived events with a read-then-write, which
+    # is not atomic — a second consumer would let a redelivered event be
+    # recorded twice, and duplicated events are permanent history. Do not scale
+    # this service without making those guards safe first.
+    command: "php artisan queue:work --queue=events --tries=3 --timeout=90"
+    depends_on:
+      <<: *worker_depends_on_prod
+    healthcheck:
+      test: ["CMD-SHELL", "php artisan queue:monitor events || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
   mqtt-listener:
-    extends:
-      file: docker-compose.prod.yml
-      service: mqtt-listener
+    <<: *laravel_service_prod
+    restart: unless-stopped
+    stop_signal: SIGTERM
+    environment:
+      <<: *laravel_env_prod
+      AUTORUN_ENABLED: "false"
+      # mqtt-listener uses both listener + publisher connections
+      MQTT_LISTENER_CLIENT_ID: "laravel_backend_listener_mqtt_listener"
+      MQTT_PUBLISHER_CLIENT_ID: "laravel_backend_publisher_mqtt_listener"
+    command: "php artisan mqtt:listen"
+    depends_on:
+      <<: *worker_depends_on_prod
+    labels:
+      autoheal: "true"
+    healthcheck:
+      test: ["CMD", "php", "artisan", "mqtt:health"]
+      start_period: 15s
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
+  # Restarts any container marked unhealthy + labelled `autoheal: "true"`.
+  # Plain Compose does not act on healthcheck status on its own (ADR-0028).
   autoheal:
-    extends:
-      file: docker-compose.prod.yml
-      service: autoheal
+    image: willfarrell/autoheal:latest
+    restart: unless-stopped
+    environment:
+      AUTOHEAL_CONTAINER_LABEL: autoheal
+      AUTOHEAL_INTERVAL: "10"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
 
   scheduler:
-    extends:
-      file: docker-compose.prod.yml
-      service: scheduler
+    <<: *laravel_service_prod
+    restart: unless-stopped
+    stop_signal: SIGTERM
+    environment:
+      <<: *laravel_env_prod
+      AUTORUN_ENABLED: "false"
+    command: "php artisan schedule:work"
+    depends_on:
+      <<: *worker_depends_on_prod
+    healthcheck:
+      test: ["CMD", "healthcheck-schedule"]
+      start_period: 10s
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
   reverb:
-    extends:
-      file: docker-compose.prod.yml
-      service: reverb
+    <<: *laravel_service_prod
+    restart: unless-stopped
+    stop_signal: SIGTERM
+    environment:
+      <<: *laravel_env_prod
+      AUTORUN_ENABLED: "false"
+    command: "php artisan reverb:start --host=0.0.0.0 --port=8080"
+    depends_on:
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "healthcheck-reverb"]
+      start_period: 10s
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
   mqtt:
-    extends:
-      file: docker-compose.prod.yml
-      service: mqtt
+    image: iegomez/mosquitto-go-auth:2.1.0-mosquitto_2.0.15
+    restart: unless-stopped
+    expose:
+      - "1883"
+    volumes:
+      - "./mosquitto/mosquitto.conf:/etc/mosquitto/mosquitto.conf:ro"
+      - "locker-mqtt-data:/mosquitto/data"
+    environment:
+      TZ: UTC
+    depends_on:
+      app:
+        condition: service_healthy
     networks:
       - default
       - coolify
@@ -52,14 +218,37 @@ services:
       - "traefik.tcp.services.${COOLIFY_MQTT_ROUTER_NAME:-open-locker-mqtt}.loadbalancer.server.port=1883"
 
   redis:
-    extends:
-      file: docker-compose.prod.yml
-      service: redis
+    image: "redis:alpine"
+    volumes:
+      - "locker-redis:/data"
+    healthcheck:
+      test:
+        - CMD
+        - redis-cli
+        - ping
+      retries: 3
+      timeout: 5s
 
   db:
-    extends:
-      file: docker-compose.prod.yml
-      service: db
+    image: "postgres:17"
+    environment:
+      PGPASSWORD: "${DB_PASSWORD}"
+      POSTGRES_DB: "${DB_DATABASE}"
+      POSTGRES_USER: "${DB_USERNAME}"
+      POSTGRES_PASSWORD: "${DB_PASSWORD}"
+    volumes:
+      - "locker-pgsql:/var/lib/postgresql/data"
+    healthcheck:
+      test:
+        - CMD
+        - pg_isready
+        - "-q"
+        - "-d"
+        - "${DB_DATABASE}"
+        - "-U"
+        - "${DB_USERNAME}"
+      retries: 3
+      timeout: 5s
 
 networks:
   coolify:
