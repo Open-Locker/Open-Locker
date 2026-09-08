@@ -182,8 +182,10 @@ Use Coolify v4's documented Git-based Docker Compose application instead:
    `COOLIFY_MQTT_ROUTER_NAME` when multiple Open Locker stacks share a proxy.
    The adapter attaches Mosquitto to Coolify's external `coolify` network and
    defines the TCP router; it does not publish a broker port itself.
-4. Open **Servers → your server → Proxy → Configuration**. Preserve the existing
-   proxy configuration and add host port 8883 plus the static MQTT entrypoint:
+4. **Required.** Coolify's Traefik ships only HTTP/HTTPS. MQTTS will not work
+   until the managed proxy also listens on 8883. Open **Servers → your server
+   → Proxy → Configuration**. Keep the existing HTTP/HTTPS settings and
+   **merge** these entries into the current `ports` and `command` lists:
 
    ```yaml
    ports:
@@ -193,14 +195,16 @@ Use Coolify v4's documented Git-based Docker Compose application instead:
      - "--entrypoints.mqtts.address=:8883"
    ```
 
-   Merge these entries into the existing `ports` and `command` lists rather
-   than replacing Coolify's HTTP/HTTPS settings.
+   Do not replace the whole proxy file with only these lines. After saving,
+   **restart the Coolify proxy**. A resource deploy alone does not create this
+   entrypoint. Coolify may reset custom proxy edits; if MQTTS disappears after
+   a Coolify upgrade, re-apply this step and restart the proxy again.
 5. Confirm that the proxy's ACME resolver is named `letsencrypt`, as referenced
    by the override. If the server uses a differently named resolver, update the
    `tls.certresolver` label to that existing name.
-6. Restart the Coolify proxy, deploy the Open Locker resource, and allow
-   inbound TCP 8883 in the provider firewall/security group. Do not add a
-   `1883:1883` mapping in Coolify's port UI.
+6. Deploy the Open Locker resource and allow inbound TCP 8883 in the provider
+   firewall/security group. Do not add a `1883:1883` mapping in Coolify's port
+   UI.
 
 The MQTT hostname must match the `HostSNI` rule and certificate SAN exactly.
 Coolify's normal HTTP domain route alone does not create a raw TCP MQTT route.

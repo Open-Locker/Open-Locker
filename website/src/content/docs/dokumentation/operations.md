@@ -28,12 +28,24 @@ For Coolify v4, use the Git-based **Docker Compose** build pack and set
 production stack because Coolify does not resolve Compose `extends` or
 `include`. Coolify's similarly named custom Compose override configures
 Coolify's own infrastructure and is not an application overlay. The
-managed Traefik proxy must publish a TCP `mqtts` entrypoint on 8883; the adapter
-routes `HostSNI(MQTT_DOMAIN)` through that entrypoint to Mosquitto port 1883. A
-normal HTTPS domain route or direct port mapping does not secure MQTT. Follow
-the installation guide for the exact procedure and required external
-verification; live Coolify routing and certificate issuance are not proven by
-repository validation.
+managed Traefik proxy **must** publish a TCP `mqtts` entrypoint on 8883.
+Coolify does not create that entrypoint from the app Compose file. In
+**Servers → your server → Proxy → Configuration**, merge these into the
+existing `ports` and `command` lists (do not replace the HTTP/HTTPS settings),
+then **restart the proxy**:
+
+```yaml
+ports:
+  - "8883:8883"
+
+command:
+  - "--entrypoints.mqtts.address=:8883"
+```
+
+The adapter then routes `HostSNI(MQTT_DOMAIN)` through that entrypoint to
+Mosquitto port 1883. A normal HTTPS domain route or a `1883:1883` mapping does
+not secure MQTT. If Coolify resets the proxy config, re-apply this step.
+Follow the installation guide for DNS, firewall, and the MQTTS smoke test.
 
 The complete standalone and Coolify procedures, including firewall, DNS,
 certificate, and smoke-test steps, are maintained in the repository

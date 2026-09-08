@@ -133,6 +133,8 @@ in a controlled deployment and does not block creating those artifacts.
 
 ### MQTTS acceptance (#233)
 
+- [ ] Coolify only: proxy publishes `8883` and `--entrypoints.mqtts.address=:8883`,
+      then the Coolify proxy was restarted.
 - [ ] Deploy the versioned backend and client images with the accepted TLS
       configuration.
 - [ ] Verify trusted DNS/SNI and certificate handling on port 8883.
