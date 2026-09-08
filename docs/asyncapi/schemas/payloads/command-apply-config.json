@@ -21,16 +21,45 @@
           "required": [
             "config_hash",
             "heartbeat_interval_seconds",
+            "adapter_type",
+            "channel_count",
+            "feedback_type",
             "compartments"
           ],
           "properties": {
             "config_hash": {
               "type": "string",
-              "pattern": "^[A-Fa-f0-9]{64}$"
+              "pattern": "^[A-Fa-f0-9]{64}$",
+              "description": "SHA-256 of the compact canonical JSON object containing exactly adapter_type, channel_count, feedback_type, and compartments in that key order; compartments are sorted by compartment_number."
             },
             "heartbeat_interval_seconds": {
               "type": "integer",
               "minimum": 1
+            },
+            "adapter_type": {
+              "type": "string",
+              "enum": [
+                "waveshare_modbus",
+                "rs485_lock_board"
+              ]
+            },
+            "channel_count": {
+              "type": "integer",
+              "enum": [
+                8,
+                12,
+                18,
+                24,
+                36,
+                50
+              ]
+            },
+            "feedback_type": {
+              "type": "string",
+              "enum": [
+                "door_closing",
+                "door_opening"
+              ]
             },
             "compartments": {
               "type": "array",
@@ -52,13 +81,35 @@
                   },
                   "address": {
                     "type": "integer",
-                    "minimum": 0
+                    "minimum": 0,
+                    "description": "Zero-based channel address; must be less than data.channel_count."
                   }
                 },
                 "additionalProperties": false
               }
             }
           },
+          "allOf": [
+            {
+              "if": {
+                "properties": {
+                  "adapter_type": {
+                    "const": "waveshare_modbus"
+                  }
+                },
+                "required": [
+                  "adapter_type"
+                ]
+              },
+              "then": {
+                "properties": {
+                  "channel_count": {
+                    "const": 8
+                  }
+                }
+              }
+            }
+          ],
           "additionalProperties": true
         }
       }

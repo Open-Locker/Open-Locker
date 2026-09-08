@@ -60,4 +60,4 @@ Die maßgeblichen Implementierungseinstiege sind:
 - `docs/adr/0016-retained-compartment-snapshot-and-door-state-persistence.md`
 - `docs/adr/0017-split-mqtt-state-topics-by-lifecycle.md`
 - `docs/adr/0040-separate-command-acknowledgement-from-door-open-detection.md`
-
+- `docs/adr/0058-backend-managed-rs485-locker-board-profile.md`

@@ -37,6 +37,16 @@ export class ModbusTransportError extends LockerError {
   }
 }
 
+export class HardwareTransportError extends LockerError {
+  constructor(
+    message: string,
+    public readonly reconnectable = false,
+  ) {
+    super(MqttErrorCode.HARDWARE_ERROR, message);
+    this.name = 'HardwareTransportError';
+  }
+}
+
 /**
  * Serial faults the operating system reports by code. A removed adapter, a device
  * node that no longer exists, a handle the kernel has invalidated: all of them

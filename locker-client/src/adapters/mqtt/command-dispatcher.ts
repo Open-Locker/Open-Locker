@@ -1,3 +1,4 @@
+import PQueue from 'p-queue';
 import type { z } from 'zod';
 import { InboundProtocolGuard } from './inbound-protocol-guard';
 import type {
@@ -44,6 +45,7 @@ interface ValidatedCommand extends ResolvedCommand {
 
 export class CommandDispatcher {
   private readonly handlers = new Map<string, InboundCommandHandler<unknown>>();
+  private readonly commandQueue = new PQueue({ concurrency: 1 });
   private flushInFlight: Promise<void> | null = null;
   private flushRequested = false;
   private closing = false;
@@ -70,12 +72,21 @@ export class CommandDispatcher {
     this.closing = true;
   }
 
-  async dispatch(topic: string, rawMessage: string): Promise<void> {
+  dispatch(topic: string, rawMessage: string): Promise<void> {
     // Read once, at arrival. Parsing is async, so checking later would refuse a
     // command that reached us before shutdown began — the very work the drain
     // is meant to let finish.
     const arrivedWhileClosing = this.closing;
+    return this.commandQueue.add(() => this.dispatchOne(topic, rawMessage, arrivedWhileClosing), {
+      priority: 0,
+    }) as Promise<void>;
+  }
 
+  private async dispatchOne(
+    topic: string,
+    rawMessage: string,
+    arrivedWhileClosing: boolean,
+  ): Promise<void> {
     const resolved = await this.parseAndResolveHandler(topic, rawMessage);
     if (!resolved) {
       return;

@@ -1,7 +1,11 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Database\Factories;
 
+use App\Enums\LockerAdapterType;
+use App\Enums\LockerFeedbackType;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
@@ -19,6 +23,9 @@ class LockerBankFactory extends Factory
         return [
             'name' => $this->faker->company().' Branch',
             'location_description' => $this->faker->address(),
+            'adapter_type' => LockerAdapterType::WaveshareModbus,
+            'channel_count' => 8,
+            'feedback_type' => LockerFeedbackType::DoorClosing,
         ];
     }
 }

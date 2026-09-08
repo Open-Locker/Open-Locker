@@ -1,7 +1,12 @@
 import PQueue from 'p-queue';
 import type { CompartmentTarget, DoorState } from '../../domain/compartment';
 import { isReconnectableModbusError } from '../../domain/errors';
-import { BusPriority, ConnectionState, LockerBusPort } from '../../ports/locker-bus.port';
+import {
+  BusPriority,
+  ConnectionState,
+  LockerBusPort,
+  type UnlockFeedback,
+} from '../../ports/locker-bus.port';
 import { noopLogger, type LoggerPort } from '../../ports/logging.port';
 import { noopTracing, type SpanAttributes, type TracingPort } from '../../ports/tracing.port';
 import {
@@ -68,13 +73,17 @@ export class WaveshareModbusBusActor implements LockerBusPort {
 
   async disconnect(): Promise<void> {
     this.reconnect.cancelScheduled();
-    this.queue.clear();
+    await this.queue.onIdle();
     await this.driver.disconnect();
     this.connectionState = 'disconnected';
   }
 
   getConnectionState(): ConnectionState {
     return this.connectionState;
+  }
+
+  runExclusive<T>(operation: (bus: LockerBusPort) => Promise<T>): Promise<T> {
+    return operation(this);
   }
 
   getConfiguredSlaveIds(): number[] {
@@ -103,8 +112,8 @@ export class WaveshareModbusBusActor implements LockerBusPort {
     }, BusPriority.MAINTENANCE);
   }
 
-  async flashRelay(target: CompartmentTarget, durationMs: number): Promise<void> {
-    return this.traced(
+  async flashRelay(target: CompartmentTarget, durationMs: number): Promise<UnlockFeedback> {
+    await this.traced(
       'flash_relay',
       {
         [MODBUS_SLAVE_ID]: target.slaveId,
@@ -119,6 +128,7 @@ export class WaveshareModbusBusActor implements LockerBusPort {
           BusPriority.COMMAND,
         ),
     );
+    return 'pulse_sent';
   }
 
   async readRelayState(target: CompartmentTarget): Promise<boolean> {
@@ -175,7 +185,7 @@ export class WaveshareModbusBusActor implements LockerBusPort {
     }
   }
 
-  async turnAllRelaysOff(slaveId: number): Promise<void> {
+  async initializeBoard(slaveId: number): Promise<void> {
     return this.traced('turn_all_relays_off', { [MODBUS_SLAVE_ID]: slaveId }, () =>
       this.run(() => this.driver.turnAllRelaysOff(slaveId), BusPriority.MAINTENANCE),
     );
