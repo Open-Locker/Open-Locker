@@ -26,10 +26,11 @@ Produktion nicht veröffentlicht.
 
 Für Coolify v4 das Git-basierte **Docker Compose** Build Pack verwenden und
 **Docker Compose Location** auf
-`/locker-backend/docker-compose.prod.coolify.yml` setzen. Die Entry-Datei lädt
-den Basis-Stack per Compose `extends`; Coolifys ähnlich benanntes Custom
-Compose Override konfiguriert die Coolify-Infrastruktur und ist kein
-Anwendungs-Overlay. Der verwaltete Traefik-Proxy muss einen TCP-Entrypoint
+`/locker-backend/docker-compose.prod.coolify.yml` setzen. Die Datei enthält
+den Produktions-Stack inline, weil Coolify Compose `extends` und `include`
+nicht auflöst. Coolifys ähnlich benanntes Custom Compose Override
+konfiguriert die Coolify-Infrastruktur und ist kein Anwendungs-Overlay.
+Der verwaltete Traefik-Proxy muss einen TCP-Entrypoint
 `mqtts` auf Port 8883 veröffentlichen; der Adapter routet
 `HostSNI(MQTT_DOMAIN)` darüber zu Mosquitto-Port 1883. Eine normale
 HTTPS-Domain-Route oder direkte Portfreigabe sichert MQTT nicht ab.
