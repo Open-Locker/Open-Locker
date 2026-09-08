@@ -1,0 +1,45 @@
+version = 1
+agents = ["claude", "cursor", "codex"]
+
+[[skills]]
+name = "dotagents"
+source = "getsentry/dotagents"
+
+[[subagents]]
+name = "backend-reviewer"
+source = "path:./.agents/agents/backend-reviewer.md"
+targets = ["claude", "cursor", "codex"]
+
+[[subagents]]
+name = "mobile-contract-reviewer"
+source = "path:./.agents/agents/mobile-contract-reviewer.md"
+targets = ["claude", "cursor", "codex"]
+
+[[subagents]]
+name = "iot-reviewer"
+source = "path:./.agents/agents/iot-reviewer.md"
+targets = ["claude", "cursor", "codex"]
+
+[[skills]]
+name = "api-contract-sync"
+source = "path:.agents/skills/api-contract-sync"
+
+[[skills]]
+name = "backend-laravel"
+source = "path:.agents/skills/backend-laravel"
+
+[[skills]]
+name = "github-issue-workflow"
+source = "path:.agents/skills/github-issue-workflow"
+
+[[skills]]
+name = "iot-hardware"
+source = "path:.agents/skills/iot-hardware"
+
+[[skills]]
+name = "mobile-app"
+source = "path:.agents/skills/mobile-app"
+
+[[skills]]
+name = "open-locker-domain"
+source = "path:.agents/skills/open-locker-domain"
