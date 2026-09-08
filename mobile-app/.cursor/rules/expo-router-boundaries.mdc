@@ -1,0 +1,27 @@
+---
+description: Expo Router boundaries and route wrapper pattern
+globs: mobile-app/app/**/*.tsx
+alwaysApply: false
+---
+
+# Expo Router Boundaries
+
+- Keep `app/` for routes and `_layout` files only.
+- Do not place reusable UI, hooks, or services in `app/`.
+- Put reusable code in `src/` (for example `src/features`, `src/components`, `src/lib`).
+- For complex screens, keep route files thin and render screen modules from `src/screens` or `src/features/*/screens`.
+
+## Route wrapper pattern
+
+```tsx
+import { HomeScreen } from "@/src/screens/home";
+
+export default function IndexRoute() {
+  return <HomeScreen />;
+}
+```
+
+## Notes
+
+- Keep route-level concerns in routes (params, redirects, guards).
+- Keep business logic and UI composition in feature or screen modules.

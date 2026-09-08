@@ -1,0 +1,15 @@
+---
+description: Project-specific PHP quality checks
+alwaysApply: true
+---
+
+# Coding Style Deltas (Beyond Boost)
+
+Boost already enforces broad coding practices. This rule keeps only
+project-specific quality requirements.
+
+- Use `declare(strict_types=1);` in PHP files unless the file follows an
+  established legacy pattern that omits it.
+- Run static checks after meaningful backend changes:
+  - `sail artisan pint`
+  - `sail artisan stan`

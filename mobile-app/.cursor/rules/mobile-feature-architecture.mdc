@@ -1,0 +1,39 @@
+---
+description: Hybrid feature-first structure for Expo apps
+globs: mobile-app/src/**/*.{ts,tsx}
+alwaysApply: false
+---
+
+# Mobile Feature Architecture
+
+- Use a hybrid structure: file-based routing in `app/`, domain logic in `src/features/*`.
+- Organize by feature first, then by technical concern inside each feature.
+- Keep shared primitives in `src/ui`, `src/components`, `src/hooks`, `src/lib`, and `src/types`.
+
+## Recommended shape
+
+```text
+src/
+  ui/
+    button/
+    input/
+    card/
+    feedback/
+    layout/
+  features/
+    auth/
+      api/
+      hooks/
+      ui/
+      model/
+      index.ts
+```
+
+## Rules of thumb
+
+- Before creating a new UI component, check for an existing reusable component in `src/ui`, `src/components`, and the current feature first.
+- Reuse and extend existing components when possible; avoid copy-paste variants that only differ by small style changes.
+- Prefer feature-local files over global folders when code is not reused.
+- Promote code to shared folders only after real reuse appears.
+- If multiple features need the same UI or behavior, move it to shared folders instead of duplicating it.
+- Keep feature public API explicit with a small `index.ts`.

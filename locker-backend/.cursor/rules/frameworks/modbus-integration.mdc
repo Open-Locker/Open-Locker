@@ -1,0 +1,53 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+# Hardware Integration Guidelines
+
+The backend does **not** communicate with Modbus hardware directly. Physical
+locker control runs in **locker-client** (Raspberry Pi), which talks to
+hardware via Modbus and reports status back to the backend over **MQTT**.
+
+## Architecture Overview
+
+### Communication Stack
+```
+Laravel Backend
+    ↓ MQTT commands / responses
+locker-client (Raspberry Pi)
+    ↓ Modbus TCP/RTU
+Physical Locker Hardware
+```
+
+## Backend Responsibilities
+
+- Publish compartment commands (e.g. `open_compartment`, `apply_config`) via MQTT
+- Handle command responses and provisioning messages from locker-client
+- Persist compartment metadata (addresses, locker bank assignment) in the database
+- Expose REST API for mobile app and admin workflows
+
+## locker-client Responsibilities
+
+- Subscribe to MQTT command topics for assigned locker banks
+- Execute Modbus operations against local hardware
+- Publish structured success/error responses on MQTT
+- Handle provisioning and credential rotation
+
+## Error Handling
+
+- Validate MQTT payloads before processing
+- Log command failures with locker bank UUID and transaction ID
+- Treat unreachable or errored hardware responses as operational failures in the API layer
+
+## Development & Testing
+
+- **Backend tests**: Mock MQTT publishers/subscribers; no Modbus mocks needed
+- **Hardware tests**: Run against locker-client integration or Modbus simulator on the Pi
+- **Contract tests**: Keep AsyncAPI/JSON schema fixtures aligned between backend and client
+
+## Troubleshooting
+
+1. **Commands not reaching hardware**: Verify MQTT broker connectivity and locker-client subscription
+2. **Stale compartment status**: Check locker-client logs and Modbus connectivity on the Pi
+3. **Provisioning failures**: Inspect provisioning request/reply topics and credentials
