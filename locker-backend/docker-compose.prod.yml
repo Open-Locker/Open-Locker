@@ -20,7 +20,7 @@ x-laravel-env-prod: &laravel_env_prod
   # Browser-facing Echo settings.
   VITE_REVERB_APP_KEY: "${REVERB_APP_KEY}"
   VITE_REVERB_HOST: "${VITE_REVERB_HOST}"
-  VITE_REVERB_PORT: "${VITE_REVERB_PORT}"
+  VITE_REVERB_PORT: "${VITE_REVERB_PORT:-443}"
   VITE_REVERB_SCHEME: https
   # Keep Laravel app version aligned with the deployed image tag
   APP_VERSION: "${BACKEND_IMAGE_TAG:-latest}"
