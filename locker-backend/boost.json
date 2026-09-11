@@ -2,7 +2,7 @@
     "agents": [
         "cursor"
     ],
-    "guidelines": true,
+    "guidelines": false,
     "herd_mcp": false,
     "mcp": true,
     "nightwatch_mcp": false,
