@@ -25,4 +25,4 @@ without generating instruction files.
 When upgrading Boost, review its configuration and generated guidance before
 importing useful changes into these references. An explicit `boost:install
 --guidelines` can re-enable generation; keep the root skill layout when
-reconfiguring the integration. See the [layout research](../../../../docs/research/agent-instruction-layout.md).
+reconfiguring the integration.

@@ -56,15 +56,6 @@ The system consists of:
 
 ## Getting Started
 
-### Agent setup
-
-Edit `AGENTS.md` for shared instructions and `.agents/skills/` for reusable workflows.
-The root `CLAUDE.md` links to `AGENTS.md`. Component guidance lives in skills
-and their supporting references. `.claude/skills` and `.cursor/skills` link
-to `../.agents/skills`, so each workflow has one source. See
-[agent setup](docs/agent-setup.md) for Windows checkout instructions and the
-imported skill's provenance.
-
 ### Prerequisites
 
 - Docker & Docker Compose

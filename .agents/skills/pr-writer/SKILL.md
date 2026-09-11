@@ -110,6 +110,4 @@ Before delivery, check title/scope alignment, evidence for every result, require
 template fields, readable Markdown, verified links, and removal of placeholders
 or sensitive data. The description should be understandable without this chat.
 
-For examples of section sizing, read [examples](references/examples.md). For the
-source comparisons behind these choices, see the
-[research note](../../../docs/research/pull-request-writing.md).
+For examples of section sizing, read [examples](references/examples.md).
