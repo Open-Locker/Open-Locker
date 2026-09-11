@@ -26,6 +26,32 @@ otherwise. Use consistent sections with detail proportional to the change.
    Distinguish a confirmed absent PR from authentication/network failures. If
    evidence is unavailable, state the limitation instead of inventing details.
 
+## Issue context
+
+Use issue context when it exists. First extract issue numbers or URLs from the
+user's request, branch name, commits, existing PR text, and repository guidance.
+When the user mentioned an issue, inspect that issue with `gh issue view` and
+use its problem statement, expected outcome, constraints, and acceptance details
+to frame the PR. Do not rely on the issue number alone.
+
+When no issue was supplied, search the repository's issue list using specific
+terms from the change, for example:
+
+```bash
+gh issue list --repo OWNER/REPO --state all --search "<distinctive problem terms>" --limit 50
+```
+
+Inspect plausible matches and use a reference only when the issue clearly covers
+the change. If no issue matches, omit an issue reference. Never invent a number or
+claim that the PR closes an issue it only partially addresses.
+
+The description must connect the issue to the implementation: explain why the
+issue mattered, what behavior the PR changes to address it, and what remains
+outside this PR. Use `Fixes #N` only when the implementation completes the issue;
+use `Refs #N` for partial or related work. Keep issue context in Summary or a
+short Motivation section so reviewers can understand the change without opening
+another page.
+
 Scope is established when each material claim can be traced to the diff, supplied
 context, or an observed check. Old PR prose and commit messages are leads, not
 substitutes for inspecting the change.
