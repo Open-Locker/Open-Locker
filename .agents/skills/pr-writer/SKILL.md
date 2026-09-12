@@ -5,9 +5,10 @@ description: Draft, create, or refresh pull request titles and structured descri
 
 # Pull request writer
 
-Produce a reviewer-ready title and description that explain the problem, resulting
-behavior, and evidence. Write in English unless the user or repository requires
-otherwise. Use consistent sections with detail proportional to the change.
+Produce a reviewer-ready title and description that explain the problem, the
+implementation, resulting behavior, and evidence. Write in English unless the
+user or repository requires otherwise. Use consistent sections with detail
+proportional to the change.
 
 ## Establish the scope
 
@@ -55,6 +56,49 @@ another page.
 Scope is established when each material claim can be traced to the diff, supplied
 context, or an observed check. Old PR prose and commit messages are leads, not
 substitutes for inspecting the change.
+
+## Explain the code clearly
+
+The description must let a reviewer understand the change without reconstructing
+the control flow from the diff. For every non-trivial change, explain:
+
+- What event or input triggers the behavior.
+- What happened before, including the failure mode or user-visible limitation.
+- What the new control flow does, in order, and where it stops or falls back.
+- Why the implementation uses this boundary or design, including compatibility
+  constraints and meaningful trade-offs.
+- What operators, users, callers, or future maintainers observe afterward.
+
+Use concrete examples when they make state transitions easier to follow. For
+connection lifecycle changes, define the full sequence: initial connection,
+success, failure, timeout, retry/reconnect, shutdown, and cleanup. Do not write
+vague phrases such as "preserves reconnect behavior" without saying what
+reconnect means in this code - for example, whether a later connection loss causes
+the client to retry, on what schedule, and which state is retained or reset.
+
+Describe behavior before naming files or functions. Mention implementation symbols
+only after the plain-language explanation, so the reader understands their role.
+
+## Glossary
+
+Add a `## Glossary` section when the PR uses technical terms, project-specific
+names, acronyms, or lifecycle phrases that a general contributor may not know.
+Include only terms that need explanation. Define each term in one short sentence
+using the meaning it has in this change, not a generic textbook definition.
+
+Example:
+
+```markdown
+## Glossary
+
+| Term | Meaning in this PR |
+| --- | --- |
+| Reconnect | Retrying the MQTT connection after a connection that was already established is lost. |
+| Startup timeout | The maximum time allowed for the simulator's first MQTT connection before startup fails. |
+```
+
+Prefer the plain-language definition at first use as well; the glossary is a
+reference, not a substitute for explaining the body.
 
 ## Title
 
