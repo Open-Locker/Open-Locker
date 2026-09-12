@@ -26,3 +26,6 @@ Load the references relevant to the change:
 
 Load `api-contract-sync` for API or generated-client changes and
 `open-locker-domain` for architecture or event-sourcing changes.
+
+Load `blade-ui-structure` when editing Blade or Alpine.js views so substantial
+markup and UI logic stay split into focused components.

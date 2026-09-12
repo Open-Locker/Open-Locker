@@ -9,6 +9,7 @@ skill under `.agents/skills/` (mirrored by agent-specific symlinks):
 
 - `open-locker-domain` for architecture, event sourcing, MQTT, Modbus, and ADRs.
 - `backend-laravel` for Laravel, Filament, PHP, and backend verification.
+- `blade-ui-structure` for Blade/Alpine view structure and component boundaries.
 - `mobile-app` for Expo, routes, i18n, Redux, and mobile checks.
 - `api-contract-sync` for OpenAPI and generated mobile-client changes.
 - `iot-hardware` for locker-client, MQTT, Modbus, and AsyncAPI changes.
