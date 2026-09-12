@@ -1,7 +1,9 @@
 #!/bin/bash
 
-# Run checks only when mobile-app files are staged
-if git diff --cached --name-only | grep -q '^mobile-app/'; then
+# Run checks only when mobile application source/config files are staged.
+# Documentation and agent metadata do not affect the Expo build.
+MOBILE_APP_FILES=$(git diff --cached --name-only | grep '^mobile-app/' | grep -vE '^mobile-app/(CLAUDE\.md|AGENTS\.md|\.githooks/|\.cursor/)' || true)
+if [ -n "$MOBILE_APP_FILES" ]; then
   echo "Running mobile-app typecheck..."
   pnpm run typecheck
   if [ $? -ne 0 ]; then
