@@ -9,9 +9,9 @@ Make sure the following tools are installed on your system:
 
 - **Docker & Docker Compose**
 - **Git**
-- **Just** (Task runner, optional aber empfohlen):
+- **Just 1.56 oder neuer** (Task Runner, optional aber empfohlen):
   - macOS (Homebrew): `brew install just`
-  - Linux: siehe [Just-Repository](https://github.com/casey/just)
+  - Windows/Linux: siehe [offizielle Installationsanleitung](https://just.systems/man/en/installation.html)
 
 ## 2. Repository klonen
 
@@ -127,7 +127,7 @@ just setup-mqtt
 
 Das Skript:
 
-- liest `MOSQ_HTTP_USER`/`MOSQ_HTTP_PASS` aus `locker-backend/.env`,
+- liest `MOSQ_HTTP_PASS` aus der Umgebung oder `locker-backend/.env`,
 - erstellt aus dem Template `locker-backend/mosquitto/mosquitto.conf.template`
   die Datei `locker-backend/mosquitto/mosquitto.conf`,
 - setzt dort den `auth_opt_http_extra_headers`-Eintrag,
