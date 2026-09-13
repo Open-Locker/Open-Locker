@@ -12,6 +12,7 @@ use Filament\Http\Middleware\DispatchServingFilamentEvent;
 use Filament\Navigation\NavigationGroup;
 use Filament\Panel;
 use Filament\PanelProvider;
+use Filament\Support\Assets\Js;
 use Filament\Support\Enums\Width;
 use Filament\View\PanelsRenderHook;
 use Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse;
@@ -55,6 +56,9 @@ class AdminPanelProvider extends PanelProvider
             ->brandLogo(fn (): HtmlString => new HtmlString(view('filament.brand')->render()))
             ->brandLogoHeight('3rem')
             ->favicon(asset('storage/assets/logo.svg', App::isProduction()))
+            ->assets([
+                Js::make('provisioning-token-copy', resource_path('js/filament/provisioning-token-copy.js')),
+            ])
             ->maxContentWidth(Width::Full)
             ->navigationGroups([
                 NavigationGroup::make(fn () => __('Operations')),

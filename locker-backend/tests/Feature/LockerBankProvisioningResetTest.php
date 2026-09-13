@@ -18,6 +18,7 @@ use App\StorableEvents\LockerWasProvisioned;
 use App\Support\Audit\AuditEventPresenter;
 use Carbon\CarbonImmutable;
 use Filament\Actions\Action;
+use Filament\Support\Facades\FilamentAsset;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Log\Events\MessageLogged;
@@ -393,7 +394,36 @@ class LockerBankProvisioningResetTest extends TestCase
 
         $modalContent = $component->instance()->getMountedAction()?->getModalContent();
         $this->assertNotNull($modalContent);
-        $this->assertStringContainsString($token, $modalContent->render());
+        $renderedModalContent = $modalContent->render();
+        $this->assertStringContainsString($token, $renderedModalContent);
+        $this->assertStringContainsString('x-data="window.provisioningTokenCopy(', $renderedModalContent);
+        $this->assertStringContainsString('x-on:click="copyToken()"', $renderedModalContent);
+        $this->assertStringContainsString('x-show="!copied"', $renderedModalContent);
+        $this->assertStringContainsString('x-show="copied"', $renderedModalContent);
+        $this->assertStringContainsString('x-on:mouseenter="resetCopyState()"', $renderedModalContent);
+        $this->assertStringNotContainsString('@js($token)', $renderedModalContent);
+        $this->assertStringContainsString(__('Could not copy provisioning token'), $renderedModalContent);
+        $this->assertStringContainsString(
+            __('Your browser blocked clipboard access. Select the token, then press Ctrl+C (or Cmd+C on macOS) to copy it manually.'),
+            $renderedModalContent,
+        );
+
+        $clipboardComponent = file_get_contents(resource_path('js/filament/provisioning-token-copy.js'));
+        $this->assertIsString($clipboardComponent);
+        $this->assertStringContainsString('window.provisioningTokenCopy = (token, messages)', $clipboardComponent);
+        $this->assertStringContainsString('navigator.clipboard.writeText(this.token)', $clipboardComponent);
+        $this->assertStringContainsString('resetCopyState()', $clipboardComponent);
+        $this->assertStringNotContainsString('copiedTimeout', $clipboardComponent);
+        $this->assertStringContainsString('new FilamentNotification()', $clipboardComponent);
+        $this->assertStringNotContainsString('copyProvisioningTokenFallback', $clipboardComponent);
+        $this->assertStringNotContainsString('Alpine.data', $clipboardComponent);
+        $this->assertCount(
+            1,
+            array_filter(
+                FilamentAsset::getScripts(['app']),
+                fn (\Filament\Support\Assets\Js $script): bool => $script->getId() === 'provisioning-token-copy',
+            ),
+        );
         $this->assertStringNotContainsString(
             $token,
             json_encode($component->instance()->mountedActions, JSON_THROW_ON_ERROR),
