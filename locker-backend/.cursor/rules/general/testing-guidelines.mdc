@@ -9,16 +9,19 @@ focused on Open-Locker specifics.
 
 ## Domain-Critical Scenarios
 
-- Prioritize end-to-end coverage for borrow/return item workflows.
-- Test both business outcome and persistence state, especially active loan
-  constraints (`returned_at` is `null` for open loans).
+- Prioritize feature coverage for compartment access, opening, provisioning,
+  command responses, and event-sourced projections.
+- Assert both the API/domain outcome and the relevant projected persistence
+  state or published side effect.
 - Include authorization checks for user vs. admin-only endpoints.
 
-## Hardware Boundary
+## Integration Boundaries
 
-- Mock hardware-facing services (for example `LockerService`) in feature tests.
-- Verify API behavior and side effects without requiring live Modbus hardware.
+- Mock MQTT publishers and other external boundaries where appropriate.
+- Backend tests must not require `locker-client` or live Modbus hardware.
 
 ## Practical Scope
 
 - Default to feature tests; only add unit tests for isolated pure logic.
+- Run focused tests with `composer test:filter Name`; use `composer test` for
+  the complete PHPUnit suite.

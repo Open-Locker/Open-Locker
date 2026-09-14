@@ -15,6 +15,14 @@ import {
 
 const DOOR_STATE_EVENT = '.compartment.door_state.updated';
 const CONTENT_NOTE_EVENT = '.compartment.content_note.updated';
+/** Must match `TermsAcceptanceRequired::broadcastAs()`. The leading dot stops Echo
+ *  prefixing its namespace. */
+export const TERMS_ACCEPTANCE_EVENT = '.terms.acceptance-required';
+
+/** Must match the channel authorised in the backend's routes/channels.php. */
+export function accountChannelName(userId: number | string): string {
+  return `users.${userId}.account`;
+}
 
 /**
  * Subscribes the signed-in user to their private compartment-status channel and
@@ -44,6 +52,9 @@ export function useCompartmentStatusRealtime(): void {
 
     const echo = createEcho(token);
     const channelName = `users.${userId}.compartment-status`;
+    // Account-level state rides the same socket. A second Echo instance would mean
+    // a second websocket per session for one rare event.
+    const accountChannel = accountChannelName(userId);
 
     const handleDoorState = (payload: CompartmentDoorStateUpdatedPayload) => {
       dispatch(
@@ -62,14 +73,26 @@ export function useCompartmentStatusRealtime(): void {
     };
 
     // Independent of the socket: a plain REST refetch to reconcile missed events.
+    // Runs when the socket drops and when the app returns to the foreground.
+    // `Auth` is included because the user's terms acceptance goes stale the same
+    // way compartment state does, and restarting the app was the only thing that
+    // refreshed it.
     const refetchFallback = () => {
-      dispatch(openLockerApi.util.invalidateTags(['Compartment']));
+      dispatch(openLockerApi.util.invalidateTags(['Compartment', 'Auth']));
+    };
+
+    // The payload carries only a version; the profile is re-read rather than
+    // patched, so there is one answer to "must I accept" and it comes from the API.
+    const handleTermsAcceptanceRequired = () => {
+      dispatch(openLockerApi.util.invalidateTags(['Auth']));
     };
 
     echo
       .private(channelName)
       .listen(DOOR_STATE_EVENT, handleDoorState)
       .listen(CONTENT_NOTE_EVENT, handleContentNote);
+
+    echo.private(accountChannel).listen(TERMS_ACCEPTANCE_EVENT, handleTermsAcceptanceRequired);
 
     const connection = (echo.connector as { pusher: { connection: PusherConnection } }).pusher
       .connection;
@@ -87,6 +110,7 @@ export function useCompartmentStatusRealtime(): void {
       connection.unbind('unavailable', refetchFallback);
       connection.unbind('disconnected', refetchFallback);
       echo.leave(channelName);
+      echo.leave(accountChannel);
       echo.disconnect();
     };
   }, [token, userId, dispatch]);

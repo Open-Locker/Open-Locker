@@ -121,6 +121,6 @@ connection resets the previous-transaction timestamp.
 
 - `docs/adr/0007-aggregate-state-polling-across-all-configured-modbus-boards.md`
 - `docs/adr/0024-locker-client-v2-hexagonal-rewrite.md`
-- `locker-client-v2/src/adapters/modbus/modbus-rtu.driver.ts`
+- `locker-client/src/adapters/modbus/waveshare-modbus-rtu.driver.ts`
 - Modbus over Serial Line Specification and Implementation Guide V1.01:
   `https://modbus.org/docs/Modbus_over_serial_line_V1_01.pdf`

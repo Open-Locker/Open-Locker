@@ -6,6 +6,8 @@ on:
     paths:
       - 'docs/asyncapi/**'
       - 'locker-backend/**'
+      - '!locker-backend/**/*.md'
+      - '!locker-backend/.cursor/**'
       - '.github/workflows/mqtt-contract-ci.yml'
   push:
     branches:
@@ -14,6 +16,8 @@ on:
     paths:
       - 'docs/asyncapi/**'
       - 'locker-backend/**'
+      - '!locker-backend/**/*.md'
+      - '!locker-backend/.cursor/**'
       - '.github/workflows/mqtt-contract-ci.yml'
 
 concurrency:

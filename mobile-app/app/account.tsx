@@ -14,7 +14,8 @@ import {
   usePutPasswordMutation,
   usePutProfileMutation,
 } from '@/src/store/generatedApi';
-import { useAppDispatch, useAppSelector } from '@/src/store/hooks';
+import { useAppDispatch } from '@/src/store/hooks';
+import { useUserName } from '@/src/auth/useUserName';
 import { OPEN_LOCKER_DESIGN_TOKENS } from '@/src/theme/tokens';
 import { AppButton, AppTextInput, LanguageToggle } from '@/src/ui';
 
@@ -35,7 +36,7 @@ function getErrorMessage(
 export default function AccountScreen() {
   const { t } = useTranslation();
   const dispatch = useAppDispatch();
-  const userName = useAppSelector((state) => state.auth.userName);
+  const userName = useUserName();
   const theme = useTheme();
   const { data: user, refetch } = useGetUserQuery();
   const [updateProfile, updateProfileState] = usePutProfileMutation();

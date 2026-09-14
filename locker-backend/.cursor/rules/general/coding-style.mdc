@@ -11,5 +11,7 @@ project-specific quality requirements.
 - Use `declare(strict_types=1);` in PHP files unless the file follows an
   established legacy pattern that omits it.
 - Run static checks after meaningful backend changes:
-  - `sail artisan pint`
-  - `sail artisan stan`
+  - `composer format-check`
+  - `composer analyse`
+- Use `composer format` to apply Pint fixes and `composer quality` for the full
+  format, PHPStan, and PHPUnit check.

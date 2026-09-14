@@ -13,12 +13,8 @@ actively-developed components are:
 
 Supporting: `hardware/` (KiCad designs), `docs/` (architecture + ADRs).
 
-> ⚠️ **`README.md` and the Cursor rules are partially stale.** They describe a
-> Flutter app (`mobile-app-legacy-flutter/`), a generated Dart client
-> (`packages/locker_api/`), and a root `docker-compose.yml` — **none of these
-> exist in the repo**. The live mobile client is the React Native app with a
-> generated **TypeScript** client. Filament is **v5** (not 3.x). Trust the code
-> over those docs.
+Trust package manifests, routes, and current source over historical
+documentation when they disagree.
 
 ## Architecture Big Picture
 
@@ -37,10 +33,10 @@ Do **not** mutate read-model state directly when an aggregate/event path exists 
 **Modbus lives only in `locker-client/`, not the backend.** Hardware comms were moved out of Laravel (the old `php-modbus-ffi` dependency and `ModbusServiceProvider` were removed). The backend never speaks Modbus: `app/Services/LockerService.php` records an event, a Reactor publishes MQTT, and the `locker-client` (`src/adapters/modbus/`, using the `modbus-serial` package) issues the actual Modbus command. Modbus operations are serialized/lock-guarded and tolerate unreachable boards on the client side (ADR-0006/0007).
 
 **The codegen pipeline is a real cross-component contract:**
-1. The backend exposes the OpenAPI spec **live** via Scramble at `/docs/api.json` (generated from the controllers per request — there is no committed `api.json`).
-2. Mobile app regenerates its client → `pnpm generate:api` in `mobile-app/` (RTK Query codegen, configured in `openapi-codegen.config.js`, which fetches the spec from the running backend at `EXPO_PUBLIC_API_BASE_URL`).
+1. The backend exposes the OpenAPI spec **live** via Scramble at `/docs/api.json`; no exported specification is committed.
+2. The mobile app regenerates its client with `pnpm run generate:api` in `mobile-app/`. `openapi-codegen.config.js` fetches the live specification from `EXPO_PUBLIC_API_BASE_URL`.
 
-Changing an API response shape means regenerating the client **with the backend running**, or the mobile app's types drift. (See ADR for why we dropped the committed `api.json` in favor of the live URL.)
+Changing an API response shape means regenerating the client **with the backend running**, or the mobile app's types drift.
 
 ## Commands
 
@@ -49,15 +45,14 @@ Changing an API response shape means regenerating the client **with the backend 
 ### Backend (`locker-backend/`, Composer scripts)
 ```bash
 composer dev              # Run server + queue + logs + vite concurrently (primary dev loop)
-composer test             # All tests (php artisan test)
-composer test:filter Name # Single test/filter — e.g. composer test:filter ItemControllerTest
+composer test             # All PHPUnit tests
+composer test:filter Name # Single test/filter — e.g. composer test:filter CompartmentControllerTest
 composer test:parallel    # Parallel test run
 composer test:coverage    # Tests with coverage
-composer format           # Pint (PSR-12 autofix); format-check for CI
-composer analyse          # PHPStan (level 6, 1G memory limit)
+composer format           # Pint autofix; use composer format-check for CI
+composer analyse          # PHPStan level 8 with a 1G memory limit
 composer quality          # format-check + analyse + test (run before pushing)
-composer export:api       # Dump OpenAPI spec to api.json (untracked; the spec is also served live at /docs/api.json)
-php artisan locker:poll-status   # Background locker status poller
+composer export:api       # Optional local Scramble export; mobile codegen uses the live URL
 ```
 Dev runs on **PostgreSQL** (the `db` service in the Docker stack); `php artisan migrate --seed` for schema + test data. Sail (`./vendor/bin/sail`) wraps the Docker-based runs.
 
@@ -78,7 +73,9 @@ pnpm build   # tsc
 pnpm test    # builds, then runs node --test on dist
 pnpm check   # typecheck + format check + lint
 ```
-Runs in production as a Docker image (`ghcr.io/open-locker/locker-client:latest`); needs `config/locker-config.yml` and `.env` (`PROVISIONING_TOKEN`).
+Runs as a Docker image from `ghcr.io/open-locker/locker-client`; pin an
+immutable `client-v*` tag for beta or production. It needs
+`config/locker-config.yml` and `.env` (`PROVISIONING_TOKEN`).
 
 ### Repo-level (`Justfile`)
 ```bash
@@ -102,8 +99,8 @@ ADR format: numeric kebab-case (`docs/adr/NNNN-title.md`), one decision per ADR,
 - `declare(strict_types=1);` in all PHP files; PSR-12; full class imports (no inline FQCNs).
 - Thin controllers → delegate to `app/Services/`. Form Requests for validation, JSON Resources for responses, Policies for authz.
 - API-only (no public views except the Filament admin panel).
-- Prefer Feature tests for workflows; mock hardware (Modbus) in tests.
-- Document endpoints for Scramble so `export:api` stays accurate.
+- Prefer feature tests for workflows; mock the MQTT boundary instead of Modbus hardware.
+- Keep routes, resources, and controller types discoverable by Scramble.
 
 ## Shared Agent Rules (single source of truth)
 
@@ -111,10 +108,6 @@ The team's rules live in `.cursor/rules/` and are shared with Cursor. They are
 **imported** below so Claude Code reads the *same* files — edit the `.mdc`, never a
 copy. When the team adds a brand-new rule file, add one matching `@import` line here
 (or in the component `CLAUDE.md`). Existing-file edits sync automatically.
-
-> ⚠️ Some imported rules are partially stale (see "Repository Reality Check" above:
-> Filament is v5 not 3.x, no root `docker-compose.yml`, no Flutter app). Trust the
-> code and this file's corrections over the imported rule text where they conflict.
 
 Repo-wide rules:
 @.cursor/rules/general/monorepo-architecture.mdc
