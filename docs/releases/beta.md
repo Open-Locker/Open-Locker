@@ -53,6 +53,11 @@ point to `main` commit `0365b8a5ff17e4e68f54293a4b939ba80e5843a4`.
 Tag creation alone does not prove that every artifact was published or accepted
 by its distribution channel; the outcome is recorded in section 3.
 
+> This document records the Beta as it was cut, when `dev` was the integration
+> branch. The repository has since moved to trunk-based development on `main`
+> (ADR-0058); the `dev` references in this file are historical and are not how
+> work is integrated today.
+
 The baseline is the end of *Milestone 3 – MVP*. Everything below the "Earlier (MVP and
 before)" headings predates that and is listed only for completeness of the feature set.
 

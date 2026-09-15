@@ -46,9 +46,11 @@ release. External MQTTS acceptance (#233) and the Raspberry Pi/Modbus soak
 (#169), together with the stale-command policy (#134), are therefore Beta 2
 work and do not block the first Beta artifacts.
 
-## 2. Candidate and branch preparation
+## 2. Candidate preparation
 
-- [ ] Confirm all intended changes are integrated and reviewed on `dev`.
+- [ ] Confirm all intended changes are merged to `main` and have passed their
+      pull request checks. `main` is the only long-lived branch; there is no
+      integration branch to promote from.
 - [ ] Confirm no open Beta change is represented as shipped merely because it
       exists in a pull request.
 - [ ] Run the complete component checks on the exact candidate commit:
@@ -60,9 +62,8 @@ work and do not block the first Beta artifacts.
       backend when the OpenAPI contract changed.
 - [ ] Review API, MQTT, schema, and migration compatibility in the release
       notes, including minimum supported component versions.
-- [ ] Merge `dev` into `main` through the normal reviewed synchronization path.
-- [ ] Verify `main` contains the exact candidate and rerun required protected
-      branch checks. Merging to `main` is not itself a release.
+- [ ] Verify `main` contains the exact candidate commit and that its required
+      checks passed. Merging to `main` is not itself a release.
 
 ## 3. Version and artifact preparation
 
