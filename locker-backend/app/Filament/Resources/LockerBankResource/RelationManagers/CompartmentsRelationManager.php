@@ -4,17 +4,15 @@ declare(strict_types=1);
 
 namespace App\Filament\Resources\LockerBankResource\RelationManagers;
 
-use App\Enums\Permission;
 use App\Filament\Support\CompartmentDoorStateColumn;
+use App\Filament\Support\EditContentNoteAction;
 use App\Filament\Support\OpenCompartmentAction;
 use App\Models\Compartment;
 use App\Models\LockerBank;
 use App\Models\User;
-use App\Services\CompartmentService;
 use App\Services\LockerService;
 use App\StorableEvents\CompartmentContentNoteUpdated;
 use Filament\Actions\Action;
-use Filament\Facades\Filament;
 use Filament\Forms;
 use Filament\Infolists\Components\RepeatableEntry;
 use Filament\Infolists\Components\TextEntry;
@@ -25,7 +23,6 @@ use Filament\Support\Enums\FontWeight;
 use Filament\Support\Enums\Width;
 use Filament\Tables;
 use Filament\Tables\Table;
-use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Log;
@@ -219,59 +216,7 @@ class CompartmentsRelationManager extends RelationManager
             ->actions([
                 \Filament\Actions\EditAction::make(),
                 OpenCompartmentAction::make(),
-                Action::make('editContentNote')
-                    ->label(__('Edit note'))
-                    ->icon('heroicon-m-pencil-square')
-                    ->modalHeading(fn (Compartment $record): string => __('Edit note — compartment #:number', ['number' => $record->number]))
-                    ->modalWidth(Width::Medium)
-                    ->modalSubmitActionLabel(__('Save note'))
-                    // The same permission CompartmentService enforces, so the
-                    // button is never offered to someone who would be refused.
-                    ->visible(fn (): bool => Filament::auth()->user()?->can(Permission::CompartmentAccessManage->value) ?? false)
-                    ->fillForm(fn (Compartment $record): array => ['note' => $record->content_note])
-                    ->form([
-                        Forms\Components\Textarea::make('note')
-                            ->label(__('Note'))
-                            ->rows(3)
-                            // Matches the column width and the API rule.
-                            ->maxLength(80)
-                            ->helperText(__('Leave empty to clear the note.')),
-                    ])
-                    ->action(function (Compartment $record, array $data): void {
-                        $user = Filament::auth()->user();
-                        if (! $user instanceof User) {
-                            Notification::make()
-                                ->title(__('Unable to save note'))
-                                ->body(__('Your session has expired. Please log in again.'))
-                                ->danger()
-                                ->send();
-
-                            return;
-                        }
-
-                        // Blank clears the note, same as the mobile endpoint.
-                        $note = trim((string) ($data['note'] ?? ''));
-
-                        try {
-                            app(CompartmentService::class)->updateContentNote(
-                                actor: $user,
-                                compartment: $record,
-                                note: $note === '' ? null : $note,
-                            );
-                        } catch (AuthorizationException) {
-                            Notification::make()
-                                ->title(__('Not allowed to edit this note'))
-                                ->danger()
-                                ->send();
-
-                            return;
-                        }
-
-                        Notification::make()
-                            ->title($note === '' ? __('Note cleared') : __('Note updated'))
-                            ->success()
-                            ->send();
-                    }),
+                EditContentNoteAction::make(),
                 \Filament\Actions\DeleteAction::make(),
             ])
             ->bulkActions([
