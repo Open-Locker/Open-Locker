@@ -44,6 +44,7 @@ type CompartmentEntry = LockerBank['compartments'][number];
 type LockerBankFilter = {
   id: string;
   title: string;
+  status: LockerVisualStatus;
   compartments: CompartmentEntry[];
 };
 type VisibleCompartmentEntry = {
@@ -52,6 +53,17 @@ type VisibleCompartmentEntry = {
 };
 
 const CONTENT_NOTE_MAX_LENGTH = 80;
+
+/**
+ * Narrows the backend's `connection_status` once, at the boundary. The column
+ * holds 'online', 'offline' or 'unknown'; anything else is treated as unknown
+ * rather than assumed to be a failure.
+ */
+function toLockerBankStatus(connectionStatus: string | undefined): LockerVisualStatus {
+  return connectionStatus === 'online' || connectionStatus === 'offline'
+    ? connectionStatus
+    : 'unknown';
+}
 
 function mapLockerBanks(
   response: GetCompartmentsAccessibleApiResponse | undefined,
@@ -62,6 +74,7 @@ function mapLockerBanks(
     .map((bank) => ({
       id: bank.id,
       title: bank.name?.trim() || t('compartments.lockerBankDefault', { id: bank.id }),
+      status: toLockerBankStatus(bank.connection_status),
       compartments: Array.isArray(bank.compartments) ? bank.compartments : [],
     }))
     .sort((a, b) => a.title.localeCompare(b.title));
@@ -104,19 +117,11 @@ function getCompartmentStatusFromApi(
   return null;
 }
 
-function getFakeLockerStatus(lockerBankId: string): LockerVisualStatus {
-  let checksum = 0;
-  for (const character of lockerBankId) {
-    checksum += character.charCodeAt(0);
-  }
-  return checksum % 3 === 0 ? 'offline' : 'online';
-}
-
 export default function CompartmentsScreen() {
   const { t } = useTranslation();
   const token = useAppSelector((state) => state.auth.token);
   const userName = useUserName();
-  const { refetch: refetchUser } = useGetUserQuery();
+  const { refetch: refetchUser } = useGetUserQuery({});
   const [isPullRefreshing, setIsPullRefreshing] = React.useState(false);
   const theme = useTheme();
   const insets = useSafeAreaInsets();
@@ -129,7 +134,7 @@ export default function CompartmentsScreen() {
     error,
     isLoading,
     refetch: refetchCompartments,
-  } = useGetCompartmentsAccessibleQuery(token ? undefined : skipToken);
+  } = useGetCompartmentsAccessibleQuery(token ? {} : skipToken);
   const [selectedCompartment, setSelectedCompartment] = React.useState<CompartmentEntry | null>(
     null,
   );
@@ -354,7 +359,7 @@ export default function CompartmentsScreen() {
               contentContainerStyle={styles.filterRail}
             >
               {lockerBanks.map((section) => {
-                const lockerStatus = getFakeLockerStatus(section.id);
+                const lockerStatus = section.status;
                 const isSelected = effectiveLockerBankId === section.id;
                 const lockerStatusPalette = getLockerStatusPalette(theme, lockerStatus, isSelected);
 

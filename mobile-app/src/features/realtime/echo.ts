@@ -22,7 +22,20 @@ export type CompartmentNoteUpdatedPayload = {
   compartment_id: string;
   content_note: string | null;
   content_note_updated_at: string | null;
-  content_note_updated_by_user_id: string | null;
+  // The backend broadcasts the actor's id as an int (CompartmentNoteUpdated),
+  // and the REST payload types it the same way.
+  content_note_updated_by_user_id: number;
+};
+
+/** The three states the backend's `connection_status` column can hold. */
+export type LockerBankConnectionStatus = 'online' | 'offline' | 'unknown';
+
+/** Payload of `.locker_bank.connection.updated` (LockerBankConnectionUpdated). */
+export type LockerBankConnectionUpdatedPayload = {
+  locker_bank_id: string;
+  connection_status: LockerBankConnectionStatus;
+  connection_status_changed_at: string | null;
+  last_heartbeat_at: string | null;
 };
 
 /**
