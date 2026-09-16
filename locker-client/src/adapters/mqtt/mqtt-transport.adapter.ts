@@ -127,66 +127,89 @@ export class MqttTransportAdapter implements MessageTransportPort {
     this.reconnectExhausted = false;
     this.connectionState = 'connecting';
 
+    const clientOptions = withVerifiedMqttTls(brokerUrl, {
+      keepalive: this.transport.keepalive,
+      clean: this.transport.clean,
+      reconnectPeriod: this.transport.reconnectPeriod,
+      connectTimeout: this.transport.connectTimeout,
+      ...options,
+    });
+
+    const client = mqtt.connect(brokerUrl, clientOptions);
+    this.client = client;
+    if (this.messageHandler) {
+      client.on('message', this.messageHandler);
+    }
+
+    this.registerConnectionLifecycle(client);
+    return this.waitForInitialConnection(client, brokerUrl);
+  }
+
+  private waitForInitialConnection(client: MqttClient, brokerUrl: string): Promise<void> {
     return new Promise((resolve, reject) => {
-      const clientOptions = withVerifiedMqttTls(brokerUrl, {
-        keepalive: this.transport.keepalive,
-        clean: this.transport.clean,
-        reconnectPeriod: this.transport.reconnectPeriod,
-        connectTimeout: this.transport.connectTimeout,
-        ...options,
-      });
+      let settled = false;
+      let connectTimeout: NodeJS.Timeout;
+      const settle = (error?: Error): void => {
+        if (settled) {
+          return;
+        }
 
-      this.client = mqtt.connect(brokerUrl, clientOptions);
-      let initialConnectSettled = false;
+        settled = true;
+        clearTimeout(connectTimeout);
+        if (error) {
+          this.connectionState = 'disconnected';
+          logger.error('MQTT connection failed during startup', {
+            brokerUrl,
+            error: error.message,
+          });
+          client.end(true);
+          reject(error);
+          return;
+        }
 
-      if (this.messageHandler) {
-        this.client.on('message', this.messageHandler);
-      }
-
-      this.client.on('connect', () => {
-        this.reconnectAttempts = 0;
         this.connectionState = 'connected';
-        initialConnectSettled = true;
         resolve();
         this.notifyConnected();
+      };
+
+      // mqtt can keep retrying without emitting an error, leaving startup
+      // pending forever. Reject explicitly so the composition root can panic.
+      connectTimeout = setTimeout(() => {
+        settle(new Error(`MQTT connection timed out after ${this.transport.connectTimeout}ms`));
+      }, this.transport.connectTimeout);
+
+      client.on('connect', () => {
+        this.reconnectAttempts = 0;
+        settle();
       });
 
-      this.client.on('error', (error) => {
-        if (!initialConnectSettled) {
-          this.connectionState = 'disconnected';
-          reject(error);
-        }
+      client.on('error', (error) => {
+        settle(error);
       });
+    });
+  }
 
-      this.client.on('reconnect', () => {
-        this.connectionState = 'reconnecting';
-        this.reconnectAttempts++;
-        const max = this.transport.maxReconnectAttempts;
-        if (max > 0 && this.reconnectAttempts >= max) {
-          this.reconnectExhausted = true;
-          this.client?.end(true);
-        }
-      });
+  private registerConnectionLifecycle(client: MqttClient): void {
+    client.on('reconnect', () => {
+      this.connectionState = 'reconnecting';
+      this.reconnectAttempts++;
+      const max = this.transport.maxReconnectAttempts;
+      if (max > 0 && this.reconnectAttempts >= max) {
+        this.reconnectExhausted = true;
+        client.end(true);
+      }
+    });
 
-      this.client.on('close', () => {
-        if (this.intentionalShutdown) {
-          this.connectionState = 'disconnected';
-          return;
-        }
-        if (this.reconnectExhausted) {
-          this.connectionState = 'disconnected';
-          return;
-        }
-        if (this.transport.reconnectPeriod === 0) {
-          this.connectionState = 'disconnected';
-          return;
-        }
-        this.connectionState = 'reconnecting';
-      });
+    client.on('close', () => {
+      if (this.intentionalShutdown || this.reconnectExhausted) {
+        this.connectionState = 'disconnected';
+        return;
+      }
+      this.connectionState = this.transport.reconnectPeriod === 0 ? 'disconnected' : 'reconnecting';
+    });
 
-      this.client.on('offline', () => {
-        this.connectionState = 'reconnecting';
-      });
+    client.on('offline', () => {
+      this.connectionState = 'reconnecting';
     });
   }
 
