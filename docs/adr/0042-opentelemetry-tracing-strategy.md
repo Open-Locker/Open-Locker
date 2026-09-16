@@ -48,7 +48,7 @@ that second layer only. It does not add, replace, or duplicate any domain event.
   unavailable, regardless of what the Node client supports.
 - Any change to the external message contract requires AsyncAPI and JSON Schema
   updates plus contract tests (ADR-0015, ADR-0019).
-- The locker client is hexagonal (ADR-0027). Domain and application layers must
+- The locker client is hexagonal (ADR-0024). Domain and application layers must
   not depend on an observability vendor.
 - Projectors run synchronously, reactors run queued (ADR-0033), so a trace must
   survive a process boundary to stay whole.
@@ -321,7 +321,7 @@ mixed-version fleets working during rollout: all envelopes already declare
 `message_id` and `transaction_id`, so an added property changes no existing
 behaviour.
 
-**Why a port on the client.** ADR-0027 made the client hexagonal precisely so
+**Why a port on the client.** ADR-0024 made the client hexagonal precisely so
 that infrastructure choices stay at the edges. A tracing vendor imported into
 `OpenCompartmentUseCase` would undo that. A port with a no-op default also keeps
 the simulator and the test suite free of telemetry setup.
@@ -512,7 +512,7 @@ today. If `keepsuit` proves inadequate or unmaintained, Alternative A replaces Â
   - ADR-0002 (message-id and transaction-id separation)
   - ADR-0015 (MQTT contract via AsyncAPI and JSON Schemas)
   - ADR-0019 (contract validation through component test suites)
-  - ADR-0027 (locker-client v2 hexagonal rewrite)
+  - ADR-0024 (locker-client v2 hexagonal rewrite)
   - ADR-0030 (admin audit log)
   - ADR-0033 (synchronous projectors, queued reactors)
   - ADR-0038 (batched door polling and change-only snapshots)

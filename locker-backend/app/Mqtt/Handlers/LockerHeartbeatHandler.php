@@ -78,7 +78,11 @@ class LockerHeartbeatHandler extends AbstractInboundMqttHandler
         }
 
         $ts = $timestamp ? Carbon::parse($timestamp) : now();
-        $wasOffline = $lockerBank->connection_status === 'offline';
+        // Anything that is not already online becomes online on a heartbeat. A
+        // freshly provisioned bank starts at 'unknown', and checking only for
+        // 'offline' left it there forever: it had never timed out, so nothing
+        // ever recorded that it was up.
+        $wasNotOnline = $lockerBank->connection_status !== 'online';
 
         $attributes = ['last_heartbeat_at' => $ts];
 
@@ -96,7 +100,7 @@ class LockerHeartbeatHandler extends AbstractInboundMqttHandler
             'timestamp' => $timestamp,
         ]);
 
-        if ($wasOffline) {
+        if ($wasNotOnline) {
             $this->storedEventDispatcher->dispatch(new LockerConnectionRestored(
                 lockerBankUuid: $lockerBankUuid,
                 restoredAtIso8601: $ts->toIso8601String(),

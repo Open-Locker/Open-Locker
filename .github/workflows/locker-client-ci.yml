@@ -6,14 +6,17 @@ on:
     paths:
       - 'docs/asyncapi/**'
       - 'locker-client/**'
+      - '!locker-client/**/*.md'
+      - '!locker-client/.cursor/**'
       - '.github/workflows/locker-client-ci.yml'
   push:
     branches:
       - main
-      - dev
     paths:
       - 'docs/asyncapi/**'
       - 'locker-client/**'
+      - '!locker-client/**/*.md'
+      - '!locker-client/.cursor/**'
       - '.github/workflows/locker-client-ci.yml'
 
 concurrency:

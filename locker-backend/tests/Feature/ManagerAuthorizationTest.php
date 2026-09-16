@@ -110,6 +110,10 @@ class ManagerAuthorizationTest extends TestCase
         $admin->makeAdmin();
         $compartment = Compartment::factory()->create();
 
+        // The picker no longer offers admins to an actor without roles.manage
+        // (#254), so a submitted admin id fails the select's own validation
+        // rather than reaching the service. The service still refuses it — see
+        // test_manager_cannot_grant_access_to_an_admin_user.
         \Livewire\Livewire::actingAs($manager)
             ->test(UserAccessesRelationManager::class, [
                 'ownerRecord' => $compartment,
@@ -120,7 +124,7 @@ class ManagerAuthorizationTest extends TestCase
                 'expires_at' => null,
                 'notes' => null,
             ])
-            ->assertForbidden();
+            ->assertHasTableActionErrors();
 
         $this->assertDatabaseMissing('compartment_accesses', [
             'user_id' => $admin->id,

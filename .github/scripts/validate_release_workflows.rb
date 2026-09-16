@@ -79,9 +79,8 @@ def container_policy(component:, event:, ref:, current_main_tip: true)
   prefix = component == :backend ? 'backend-v' : 'client-v'
   tag = ref.start_with?("refs/tags/#{prefix}")
   main = ref == 'refs/heads/main'
-  dev = ref == 'refs/heads/dev'
   push = event == :push
-  publish = push && ((main && current_main_tip) || (component == :client && dev) || (tag && current_main_tip))
+  publish = push && ((main && current_main_tip) || (tag && current_main_tip))
 
   {
     triggered: true,
@@ -117,7 +116,6 @@ end
 def validate_event_matrix
   cases = [
     [:pull_request, 'refs/pull/10/merge', true, false, false, false],
-    [:push, 'refs/heads/dev', true, false, false, false],
     [:push, 'refs/heads/main', true, true, true, false],
     [:push, 'refs/heads/main', false, false, false, false],
     [:push, 'refs/tags/backend-v1.0.0-beta.1', true, true, false, true],
@@ -132,8 +130,8 @@ def validate_event_matrix
     assert(result[:release] == backend_release, "backend release matrix failed for #{event} #{ref}")
   end
 
-  client_dev = container_policy(component: :client, event: :push, ref: 'refs/heads/dev')
-  assert(client_dev == { triggered: true, publish: true, latest: false, release: false }, 'client dev matrix failed')
+  client_main = container_policy(component: :client, event: :push, ref: 'refs/heads/main')
+  assert(client_main == { triggered: true, publish: true, latest: true, release: false }, 'client main matrix failed')
   client_tag = container_policy(
     component: :client,
     event: :push,
@@ -149,7 +147,6 @@ def validate_event_matrix
 
   mobile_cases = [
     [:pull_request, 'refs/pull/10/merge', true, true, :preview, :ios_simulator, false, false],
-    [:push, 'refs/heads/dev', true, true, :preview, :ios_simulator, false, false],
     [:push, 'refs/heads/main', true, true, :preview, :ios_simulator, false, false],
     [:push, 'refs/heads/main', false, true, :preview, :ios_simulator, false, false],
     [:push, 'refs/tags/mobile-v1.0.0-beta.1', true, true, :store, :store, true, true],
@@ -184,7 +181,7 @@ def validate_mobile_workflow
   concurrency = document.fetch('concurrency')
 
   assert(triggers.key?('pull_request'), 'mobile workflow must run for pull requests')
-  assert(triggers.fetch('push').fetch('branches') == %w[main dev], 'mobile workflow has wrong branch triggers')
+  assert(triggers.fetch('push').fetch('branches') == %w[main], 'mobile workflow has wrong branch triggers')
   assert(triggers.fetch('push').fetch('tags') == ['mobile-v*'], 'mobile workflow has wrong tag trigger')
   assert(triggers.key?('workflow_dispatch'), 'mobile workflow must support manual preview builds')
   expected_group = "${{ github.event_name == 'push' && startsWith(github.ref, 'refs/tags/mobile-v') && 'mobile-store' || format('mobile-preview-{0}', github.ref) }}"
@@ -275,6 +272,21 @@ def validate_git_cliff
   end
 end
 
+def validate_documentation_filters(filename, component)
+  triggers = workflow(filename).fetch('on')
+  expected_exclusions = [
+    "!#{component}/**/*.md",
+    "!#{component}/.cursor/**",
+  ]
+
+  %w[pull_request push].each do |event|
+    paths = triggers.fetch(event).fetch('paths')
+    expected_exclusions.each do |exclusion|
+      assert(paths.include?(exclusion), "#{filename}: #{event} must exclude #{exclusion}")
+    end
+  end
+end
+
 validate_container_workflow('backend-docker.yml', 'backend-v')
 validate_container_workflow('client-docker.yml', 'client-v')
 validate_mobile_workflow
@@ -282,6 +294,12 @@ validate_mobile_profiles
 validate_release_workflow
 validate_git_cliff
 validate_event_matrix
+validate_documentation_filters('backend-docker.yml', 'locker-backend')
+validate_documentation_filters('mqtt-contract-ci.yml', 'locker-backend')
+validate_documentation_filters('client-docker.yml', 'locker-client')
+validate_documentation_filters('locker-client-ci.yml', 'locker-client')
+validate_documentation_filters('mobile-app-build.yml', 'mobile-app')
+validate_documentation_filters('mobile-app-ci.yml', 'mobile-app')
 
 package = JSON.parse(File.read(File.join(ROOT, 'locker-client', 'package.json')))
 assert(package.fetch('version') == '1.0.0', 'locker client release version must be 1.0.0')

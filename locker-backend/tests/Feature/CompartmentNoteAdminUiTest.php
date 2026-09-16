@@ -6,6 +6,8 @@ namespace Tests\Feature;
 
 use App\Aggregates\UserRoleAggregate;
 use App\Enums\Role;
+use App\Filament\Resources\CompartmentResource\Pages\ListCompartments;
+use App\Filament\Resources\CompartmentResource\Pages\ViewCompartment;
 use App\Filament\Resources\LockerBankResource\Pages\EditLockerBank;
 use App\Filament\Resources\LockerBankResource\RelationManagers\CompartmentsRelationManager;
 use App\Models\Compartment;
@@ -27,6 +29,17 @@ class CompartmentNoteAdminUiTest extends TestCase
         $admin->makeAdmin();
 
         return $admin;
+    }
+
+    private function manager(): User
+    {
+        $manager = User::factory()->create();
+        UserRoleAggregate::retrieve(UserRoleAggregate::aggregateUuidFor($manager->id))
+            ->grantRole($manager->id, Role::Manager->value, null, now())
+            ->persist();
+        $manager->flushPermissionCache();
+
+        return $manager;
     }
 
     public function test_compartments_relation_manager_shows_content_note_column(): void
@@ -140,11 +153,7 @@ class CompartmentNoteAdminUiTest extends TestCase
 
     public function test_a_manager_may_edit_notes_because_the_service_allows_it(): void
     {
-        $manager = User::factory()->create();
-        UserRoleAggregate::retrieve(UserRoleAggregate::aggregateUuidFor($manager->id))
-            ->grantRole($manager->id, Role::Manager->value, null, now())
-            ->persist();
-        $manager->flushPermissionCache();
+        $manager = $this->manager();
 
         $lockerBank = LockerBank::factory()->create();
         $compartment = Compartment::factory()->for($lockerBank)->create();
@@ -158,6 +167,68 @@ class CompartmentNoteAdminUiTest extends TestCase
             ->assertHasNoTableActionErrors();
 
         $this->assertSame('Checked by manager', $compartment->refresh()->content_note);
+    }
+
+    /**
+     * The compartment list is the only compartment surface a manager can reach:
+     * the locker bank resource needs lockerbank.configure, which managers do not
+     * have. Without the action here a manager had to grant themselves access and
+     * use the mobile app to leave a note.
+     */
+    public function test_a_manager_can_edit_a_note_from_the_compartment_list(): void
+    {
+        $manager = $this->manager();
+        $compartment = Compartment::factory()->create(['content_note' => null]);
+
+        Livewire::actingAs($manager)
+            ->test(ListCompartments::class)
+            ->callTableAction('editContentNote', $compartment->getKey(), ['note' => 'Left by the manager'])
+            ->assertHasNoTableActionErrors();
+
+        $compartment->refresh();
+        $this->assertSame('Left by the manager', $compartment->content_note);
+        $this->assertSame($manager->id, $compartment->content_note_updated_by_user_id);
+
+        $this->assertDatabaseHas('stored_events', [
+            'aggregate_uuid' => $compartment->id,
+            'event_class' => CompartmentContentNoteUpdated::class,
+        ]);
+    }
+
+    public function test_a_manager_can_edit_a_note_from_the_compartment_view_page(): void
+    {
+        $manager = $this->manager();
+        $compartment = Compartment::factory()->create(['content_note' => null]);
+
+        Livewire::actingAs($manager)
+            ->test(ViewCompartment::class, ['record' => $compartment->getKey()])
+            ->callAction('editContentNote', ['note' => 'Noted from the detail page'])
+            ->assertHasNoActionErrors();
+
+        $this->assertSame('Noted from the detail page', $compartment->refresh()->content_note);
+    }
+
+    public function test_the_compartment_list_action_is_prefilled_with_the_current_note(): void
+    {
+        $compartment = Compartment::factory()->create(['content_note' => 'Existing note']);
+
+        Livewire::actingAs($this->manager())
+            ->test(ListCompartments::class)
+            ->mountTableAction('editContentNote', $compartment->getKey())
+            ->assertTableActionDataSet(['note' => 'Existing note']);
+    }
+
+    public function test_a_plain_user_is_not_offered_the_edit_action_on_the_compartment_list(): void
+    {
+        $compartment = Compartment::factory()->create();
+
+        // A plain user cannot reach the resource at all, so the guard that matters
+        // is the same permission check the service enforces.
+        Livewire::actingAs(User::factory()->create())
+            ->test(ListCompartments::class)
+            ->assertForbidden();
+
+        $this->assertNull($compartment->refresh()->content_note);
     }
 
     public function test_a_note_beyond_the_column_length_is_refused_before_it_becomes_history(): void

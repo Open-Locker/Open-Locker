@@ -23,6 +23,61 @@ class LockerHeartbeatHandlerTest extends TestCase
         Cache::flush();
     }
 
+    public function test_a_never_seen_bank_goes_online_on_its_first_heartbeat(): void
+    {
+        $handler = app(LockerHeartbeatHandler::class);
+
+        // The column defaults to 'unknown', and a healthy bank may never have
+        // timed out. Treating only 'offline' as "was down" left such a bank at
+        // 'unknown' forever, however reliably it reported.
+        $lockerBank = LockerBankFactory::new()->create([
+            'connection_status' => 'unknown',
+            'last_heartbeat_at' => null,
+            'connection_status_changed_at' => null,
+        ]);
+
+        $handler->handleMessage(
+            "locker/{$lockerBank->id}/state/heartbeat",
+            (string) json_encode([
+                'message_id' => '33333333-3333-3333-3333-333333333333',
+                'timestamp' => now()->toIso8601String(),
+                'uptime_seconds' => 5,
+            ]),
+        );
+
+        $this->assertSame('online', $lockerBank->refresh()->connection_status);
+
+        // The dispatcher records these without an aggregate uuid, so the bank is
+        // identified by the payload, as the sibling test does.
+        $restored = EloquentStoredEvent::query()
+            ->where('event_class', LockerConnectionRestored::class)
+            ->latest('id')
+            ->first();
+
+        $this->assertNotNull($restored);
+        $this->assertSame((string) $lockerBank->id, $restored->event_properties['lockerBankUuid'] ?? null);
+    }
+
+    public function test_an_already_online_bank_does_not_record_a_second_restore(): void
+    {
+        $handler = app(LockerHeartbeatHandler::class);
+        $lockerBank = LockerBankFactory::new()->create(['connection_status' => 'online']);
+
+        $handler->handleMessage(
+            "locker/{$lockerBank->id}/state/heartbeat",
+            (string) json_encode([
+                'message_id' => '44444444-4444-4444-4444-444444444444',
+                'timestamp' => now()->toIso8601String(),
+                'uptime_seconds' => 90,
+            ]),
+        );
+
+        // Every heartbeat would otherwise append an event and rebroadcast.
+        $this->assertSame(0, EloquentStoredEvent::query()
+            ->where('event_class', LockerConnectionRestored::class)
+            ->count());
+    }
+
     public function test_valid_payload_on_state_heartbeat_topic_updates_locker_bank(): void
     {
         $handler = app(LockerHeartbeatHandler::class);

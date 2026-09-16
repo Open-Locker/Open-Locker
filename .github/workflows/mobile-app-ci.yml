@@ -5,13 +5,16 @@ on:
   pull_request:
     paths:
       - 'mobile-app/**'
+      - '!mobile-app/**/*.md'
+      - '!mobile-app/.cursor/**'
       - '.github/workflows/mobile-app-ci.yml'
   push:
     branches:
       - main
-      - dev
     paths:
       - 'mobile-app/**'
+      - '!mobile-app/**/*.md'
+      - '!mobile-app/.cursor/**'
       - '.github/workflows/mobile-app-ci.yml'
 
 concurrency:

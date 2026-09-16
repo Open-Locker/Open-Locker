@@ -126,7 +126,11 @@ class MembersRelationManager extends RelationManager
             ->all();
 
         return AccessPickerOptions::users(
-            User::query()->whereNotIn('id', $activeMemberIds)
+            User::query()
+                // Group membership confers compartment access, so it carries the
+                // same restriction as a direct grant (#254).
+                ->manageableBy(Filament::auth()->user())
+                ->whereNotIn('id', $activeMemberIds)
         );
     }
 

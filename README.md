@@ -8,151 +8,69 @@
 
 [![Discord](https://img.shields.io/discord/1330191581273260113?style=flat-square&logo=discord&label=Discord&labelColor=%23FFF)](https://discord.gg/rZ74RYKN3H)
 
-## The Project
+Open-Locker is an open source software and hardware platform for public lockers
+used to store and share resources. The project includes the cloud services,
+mobile experience, on-site controller, public website, and hardware blueprints
+needed to run a deployment.
 
-This is an open source project to build both the software and the hardware
-blueprints/build guide (incl. a kit) for public lockers to store and/or share
-items, sponsored by
-[Smart City Hameln-Pyrmont](https://mitwirkportal.de/informieren).
+The project began with lockers operated by the county of Hameln-Pyrmont for
+lending equipment such as laptops and VR headsets. It is sponsored by
+[Smart City Hameln-Pyrmont](https://mitwirkportal.de/informieren) and developed
+by a community learning together while building useful public infrastructure.
 
-### What we want to achieve
+## How the system works
 
-Within Hameln-Pyrmont, there is a set of lockers that the county uses to lend
-objects like laptops or VR headset to interested citizens. This project is
-supposed to improve the user experience and offer the county a way to
-individualize the software to better suit their needs.
+The React Native mobile app uses the Laravel API to discover accessible
+compartments, update their content notes, and request that a compartment open.
+The backend authorizes and records those operations through event-sourced domain
+workflows. It sends hardware commands over MQTT to a Raspberry Pi running
+`locker-client`; only that client communicates with the relay boards over
+serialized Modbus RTU. Laravel Reverb carries compartment updates; the current
+mobile app applies live door-state and content-note changes.
 
-The group came together with the goal to improve their knowledge while building
-something that will be of immediate use to the people around them.
+See [the architecture overview](docs/Architecture.md) for system boundaries,
+[the app communication guide](docs/app_communication.md) for REST and realtime
+behavior, and [the AsyncAPI contract](docs/asyncapi/mqtt.yaml) for MQTT topics
+and payloads.
 
-### How you can help
+## Repository structure
 
-You can join our weekly meeting **every Tuesday at 19:30 CET/18:30 UTC** in our
-[Discord](https://discord.gg/rZ74RYKN3H), either to listen in or to participate,
-or you can interact with us via github, sending us pull requests, issues or
-general feedback.
-
-If you're still unsure where to start, you can always reach out to us in our
-discord's text channels.
-
-## Architecture
-
-This is a **monorepo** containing multiple components:
-
-- **Backend** (`locker-backend/`): Laravel 11 API with Filament admin panel
-- **Mobile App** (`mobile-app/`): React Native (Expo) app for end users
-- **Hardware** (`hardware/`): KiCad designs and build kit references
-- **Documentation** (`docs/`): Project architecture and guides
-
-### System Overview
-
-The system consists of:
-
-- **IoT Hardware**: Raspberry Pi (locker-client) with Modbus to physical lockers
-- **MQTT Broker**: Mosquitto with HTTP Authentication (via Laravel backend)
-- **API Backend**: Laravel application managing items, users, and hardware
-- **Mobile App**: React Native app for borrowing and returning items
-- **Admin Panel**: Filament-based web interface for system management
-
-## Getting Started
-
-### Prerequisites
-
-- Docker & Docker Compose
-- [Just](https://github.com/casey/just) (Task Runner) - *Optional, but recommended*
-
-### Installation
-
-For detailed installation and setup instructions, including Cloud Backend and Locker Client setup, please see:
-
- **[`docs/Installation.md`](docs/Installation.md)**
-
-## Component Documentation
-
-### Backend (Laravel API)
-
-Comprehensive documentation available in
-[`locker-backend/README.md`](locker-backend/README.md):
-
-- Development guidelines and coding standards
-- API endpoints and OpenAPI documentation
-- Hardware integration (MQTT + locker-client) guidelines
-- Testing strategies and best practices
-- Deployment and production setup
-
-### Mobile App (React Native)
-
-Source available in [`mobile-app/`](mobile-app/):
-
-- React Native/Expo app structure
-- State management and navigation
-- API integration patterns
-- Platform-specific builds (iOS/Android)
-
-### Locker Simulator (no hardware needed)
-
-Emulate one or many locker banks locally to develop and test the backend, admin
-panel, API and mobile app without physical lockers — see
-[`docs/simulator.md`](docs/simulator.md).
-
-### Project Architecture
-
-Detailed system architecture documentation in
-[`docs/Architecture.md`](docs/Architecture.md):
-
-- Component interaction diagrams
-- Data flow and system boundaries
-- Technology stack overview
-- Hardware integration architecture
-
-## Technology Stack
-
-- **Backend**: Laravel 11, Filament 3.x, Sanctum, SQLite
-- **Frontend**: React Native (Expo), TypeScript
-- **MQTT**: Mosquitto + mosquitto-go-auth (HTTP Backend)
-- **Hardware**: Modbus on locker-client; MQTT between backend and Pi
-- **Documentation**: Scramble OpenAPI, Mermaid diagrams
-- **Development**: Docker, Laravel Sail, Cursor Rules, Just
-
-### Project Structure
-
-```
+```text
 Open-Locker/
-├── locker-backend/     # Laravel API & Admin Panel
-├── mobile-app/         # React Native Mobile App
-├── hardware/           # Hardware designs (KiCad) and related files
-├── docs/               # Project documentation
-├── docker-compose.yml  # Development environment
-└── Justfile            # Task runner configuration
+├── locker-backend/  # Laravel 12 API, Filament 5 admin, MQTT, and Reverb
+├── locker-client/   # Raspberry Pi MQTT-to-Modbus RTU bridge and simulator
+├── mobile-app/      # React Native and Expo client
+├── website/         # Astro public website and published documentation
+├── hardware/        # KiCad designs and build references
+├── docs/            # Architecture, contracts, ADRs, and operating guides
+└── Justfile         # Repository task runner
 ```
+
+The backend runs on PostgreSQL and exposes a live Scramble-generated OpenAPI
+document at `/docs/api.json`. The mobile app generates its RTK Query client from
+that live contract.
+
+## Getting started
+
+Use [the installation guide](docs/Installation.md) for backend and Raspberry Pi
+setup. Component-specific details live in:
+
+- [Backend documentation](locker-backend/README.md)
+- [Locker client documentation](locker-client/README.md)
+- [Website documentation](website/README.md)
+- [Hardware-free simulator guide](docs/simulator.md)
 
 ## Community
 
-- **Discord**: [Join our Discord server](https://discord.gg/rZ74RYKN3H)
-- **Issues**: Report bugs and request features via GitHub Issues
-- **Contributing**: See component-specific documentation for guidelines
+Join our weekly meeting every Tuesday at **19:30 CET / 18:30 UTC** on
+[Discord](https://discord.gg/rZ74RYKN3H), or participate through GitHub issues,
+pull requests, and feedback. New contributors are welcome to listen in, ask
+questions, or choose a component that interests them.
 
-## Sponsorship
-
-We welcome organizations interested in sponsoring this open source project.
-Open-Locker aims to provide digital infrastructure for community resource
-sharing and smart city initiatives. If your organization would like to support
-this project or explore collaboration opportunities, please reach out to us via
-[Discord](https://discord.gg/rZ74RYKN3H) or create an issue on GitHub.
-
-Current sponsors help us:
-
-- Develop and maintain the open source codebase
-- Support community engagement and documentation
-- Advance smart city digital infrastructure solutions
-- Enable broader adoption of locker-sharing systems
+We also welcome organizations interested in sponsoring or adopting open digital
+infrastructure for community resource sharing. Contact the project through
+Discord or open a GitHub issue.
 
 ## License
 
-This project is open source under the MIT License. See [LICENSE](LICENSE) for
-details.
-
-## Acknowledgments
-
-Sponsored by [Smart City Hameln-Pyrmont](https://mitwirkportal.de/informieren)
-as part of their digital innovation initiative.
+Open-Locker is available under the [MIT License](LICENSE).

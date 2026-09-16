@@ -49,7 +49,7 @@ class GroupAccessService
 
     public function addUser(Group $group, User $user, ?CarbonInterface $expiresAt = null, ?User $actor = null): void
     {
-        $actor = $this->ensureCanManageAccess($actor);
+        $actor = $this->ensureCanManageAccess($actor, $user);
         $this->ensureGroupIsActive($group);
 
         GroupAggregate::retrieve((string) $group->id)
@@ -65,6 +65,8 @@ class GroupAccessService
 
     public function removeUser(Group $group, User $user, ?User $actor = null): void
     {
+        // Not guarded against admin targets: removal reduces access, so it is
+        // not the escalation addUser prevents.
         $actor = $this->ensureCanManageAccess($actor);
 
         GroupAggregate::retrieve((string) $group->id)
@@ -146,13 +148,29 @@ class GroupAccessService
     /**
      * @throws AuthorizationException
      */
-    private function ensureCanManageAccess(?User $actor): User
+    /**
+     * @param  User|null  $target  The user being added or removed, when the
+     *                             operation concerns a specific member.
+     *
+     * @throws AuthorizationException
+     */
+    private function ensureCanManageAccess(?User $actor, ?User $target = null): User
     {
         $resolvedActor = $this->resolveActor($actor);
         throw_unless(
             $resolvedActor?->can(Permission::GroupsManage->value),
             AuthorizationException::class,
             'Only admins can manage groups and group access.'
+        );
+
+        // ADR-0022: a manager may view admin accounts but not grant them
+        // compartment access. A group holding compartment access makes its
+        // members' access equal to a direct grant, so membership is the same
+        // decision and carries the same restriction.
+        throw_unless(
+            ! $target?->isAdmin() || $resolvedActor->can(Permission::RolesManage->value),
+            AuthorizationException::class,
+            'You are not allowed to change group membership for admin users.'
         );
 
         return $resolvedActor;

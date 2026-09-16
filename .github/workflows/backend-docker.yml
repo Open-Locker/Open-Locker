@@ -4,17 +4,20 @@ on:
   pull_request:
     paths:
       - 'locker-backend/**'
+      - '!locker-backend/**/*.md'
+      - '!locker-backend/.cursor/**'
       - '.github/git-cliff/backend.toml'
       - '.github/workflows/backend-docker.yml'
       - '.github/workflows/component-release.yml'
   push:
     branches:
       - main
-      - dev
     tags:
       - 'backend-v*'
     paths:
       - 'locker-backend/**'
+      - '!locker-backend/**/*.md'
+      - '!locker-backend/.cursor/**'
       - '.github/git-cliff/backend.toml'
       - '.github/workflows/backend-docker.yml'
       - '.github/workflows/component-release.yml'

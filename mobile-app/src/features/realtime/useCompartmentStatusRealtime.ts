@@ -5,16 +5,33 @@ import { AppState } from 'react-native';
 import { openLockerApi, useGetUserQuery } from '@/src/store/generatedApi';
 import { useAppDispatch, useAppSelector } from '@/src/store/hooks';
 
+import { applyBankConnection } from './applyBankConnection';
 import { applyContentNote } from './applyContentNote';
 import { applyDoorState } from './applyDoorState';
 import {
   createEcho,
   type CompartmentDoorStateUpdatedPayload,
   type CompartmentNoteUpdatedPayload,
+  type LockerBankConnectionUpdatedPayload,
 } from './echo';
 
 const DOOR_STATE_EVENT = '.compartment.door_state.updated';
 const CONTENT_NOTE_EVENT = '.compartment.content_note.updated';
+/** Must match `LockerBankConnectionUpdated::broadcastAs()`. */
+export const BANK_CONNECTION_EVENT = '.locker_bank.connection.updated';
+/** Must match `TermsAcceptanceRequired::broadcastAs()`. The leading dot stops Echo
+ *  prefixing its namespace. */
+export const TERMS_ACCEPTANCE_EVENT = '.terms.acceptance-required';
+
+/** Must match the channel authorised in the backend's routes/channels.php. */
+export function accountChannelName(userId: number | string): string {
+  return `users.${userId}.account`;
+}
+
+/** Must match the channel authorised in the backend's routes/channels.php. */
+export function lockerBankChannelName(userId: number | string): string {
+  return `users.${userId}.locker-banks`;
+}
 
 /**
  * Subscribes the signed-in user to their private compartment-status channel and
@@ -24,6 +41,10 @@ const CONTENT_NOTE_EVENT = '.compartment.content_note.updated';
  *   `door_state` in place (no refetch).
  * - On `.compartment.content_note.updated`, patches the matching compartment's
  *   `content_note` fields in place (no refetch).
+ * - On `.locker_bank.connection.updated` (its own channel), patches the bank's
+ *   `connection_status` in place, so a bank going offline recolours without a
+ *   refetch. Coming back is immediate; going offline waits for the backend's
+ *   heartbeat-timeout sweep, a floor no amount of broadcasting removes.
  * - Falls back to a REST refetch when realtime is untrustworthy: the socket
  *   reports unavailable/disconnected, or the app returns to the foreground
  *   (events sent while backgrounded are not replayed).
@@ -33,7 +54,7 @@ const CONTENT_NOTE_EVENT = '.compartment.content_note.updated';
  */
 export function useCompartmentStatusRealtime(): void {
   const token = useAppSelector((state) => state.auth.token);
-  const { data: user } = useGetUserQuery(token ? undefined : skipToken);
+  const { data: user } = useGetUserQuery(token ? {} : skipToken);
   const userId = user?.id;
   const dispatch = useAppDispatch();
 
@@ -44,32 +65,59 @@ export function useCompartmentStatusRealtime(): void {
 
     const echo = createEcho(token);
     const channelName = `users.${userId}.compartment-status`;
+    // Account-level state rides the same socket. A second Echo instance would mean
+    // a second websocket per session for one rare event.
+    const accountChannel = accountChannelName(userId);
+    // A bank is not a compartment, so its connectivity has its own channel
+    // (ADR-0056's rule). Same Echo instance, so no second websocket.
+    const lockerBankChannel = lockerBankChannelName(userId);
 
     const handleDoorState = (payload: CompartmentDoorStateUpdatedPayload) => {
       dispatch(
-        openLockerApi.util.updateQueryData('getCompartmentsAccessible', undefined, (draft) => {
+        openLockerApi.util.updateQueryData('getCompartmentsAccessible', {}, (draft) => {
           applyDoorState(draft, payload);
+        }),
+      );
+    };
+
+    const handleBankConnection = (payload: LockerBankConnectionUpdatedPayload) => {
+      dispatch(
+        openLockerApi.util.updateQueryData('getCompartmentsAccessible', {}, (draft) => {
+          applyBankConnection(draft, payload);
         }),
       );
     };
 
     const handleContentNote = (payload: CompartmentNoteUpdatedPayload) => {
       dispatch(
-        openLockerApi.util.updateQueryData('getCompartmentsAccessible', undefined, (draft) => {
+        openLockerApi.util.updateQueryData('getCompartmentsAccessible', {}, (draft) => {
           applyContentNote(draft, payload);
         }),
       );
     };
 
     // Independent of the socket: a plain REST refetch to reconcile missed events.
+    // Runs when the socket drops and when the app returns to the foreground.
+    // `Auth` is included because the user's terms acceptance goes stale the same
+    // way compartment state does, and restarting the app was the only thing that
+    // refreshed it.
     const refetchFallback = () => {
-      dispatch(openLockerApi.util.invalidateTags(['Compartment']));
+      dispatch(openLockerApi.util.invalidateTags(['Compartment', 'Auth']));
+    };
+
+    // The payload carries only a version; the profile is re-read rather than
+    // patched, so there is one answer to "must I accept" and it comes from the API.
+    const handleTermsAcceptanceRequired = () => {
+      dispatch(openLockerApi.util.invalidateTags(['Auth']));
     };
 
     echo
       .private(channelName)
       .listen(DOOR_STATE_EVENT, handleDoorState)
       .listen(CONTENT_NOTE_EVENT, handleContentNote);
+
+    echo.private(accountChannel).listen(TERMS_ACCEPTANCE_EVENT, handleTermsAcceptanceRequired);
+    echo.private(lockerBankChannel).listen(BANK_CONNECTION_EVENT, handleBankConnection);
 
     const connection = (echo.connector as { pusher: { connection: PusherConnection } }).pusher
       .connection;
@@ -87,6 +135,8 @@ export function useCompartmentStatusRealtime(): void {
       connection.unbind('unavailable', refetchFallback);
       connection.unbind('disconnected', refetchFallback);
       echo.leave(channelName);
+      echo.leave(accountChannel);
+      echo.leave(lockerBankChannel);
       echo.disconnect();
     };
   }, [token, userId, dispatch]);

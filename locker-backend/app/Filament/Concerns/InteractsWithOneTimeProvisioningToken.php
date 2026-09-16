@@ -30,14 +30,14 @@ trait InteractsWithOneTimeProvisioningToken
         return LockerBankResource::showProvisioningTokenAction();
     }
 
-    public function unmountAction(bool $canCancelParentActions = true): void
+    public function unmountAction(bool|string|null $cancelParentActions = null): void
     {
         $isProvisioningTokenAction = data_get(
             collect($this->mountedActions)->last(),
             'name',
         ) === 'showProvisioningToken';
 
-        parent::unmountAction($canCancelParentActions);
+        parent::unmountAction($cancelParentActions);
 
         if ($isProvisioningTokenAction) {
             $this->oneTimeProvisioningToken = null;

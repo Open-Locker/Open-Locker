@@ -16,7 +16,7 @@ hardware via Modbus and reports status back to the backend over **MQTT**.
 Laravel Backend
     ↓ MQTT commands / responses
 locker-client (Raspberry Pi)
-    ↓ Modbus TCP/RTU
+    ↓ serialized Modbus RTU
 Physical Locker Hardware
 ```
 
@@ -30,7 +30,7 @@ Physical Locker Hardware
 ## locker-client Responsibilities
 
 - Subscribe to MQTT command topics for assigned locker banks
-- Execute Modbus operations against local hardware
+- Execute serialized Modbus RTU operations against local hardware
 - Publish structured success/error responses on MQTT
 - Handle provisioning and credential rotation
 
@@ -43,7 +43,8 @@ Physical Locker Hardware
 ## Development & Testing
 
 - **Backend tests**: Mock MQTT publishers/subscribers; no Modbus mocks needed
-- **Hardware tests**: Run against locker-client integration or Modbus simulator on the Pi
+- **Hardware tests**: Run in `locker-client` against its simulator or connected
+  serial hardware
 - **Contract tests**: Keep AsyncAPI/JSON schema fixtures aligned between backend and client
 
 ## Troubleshooting

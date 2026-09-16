@@ -10,7 +10,12 @@ import {
 } from '@/src/theme/tokens';
 
 export type CompartmentVisualStatus = 'open' | 'closed' | 'unknown';
-export type LockerVisualStatus = 'online' | 'offline';
+/**
+ * `unknown` is a bank that has never reported, which the backend distinguishes
+ * from one that has gone offline. Showing it as offline would assert a failure
+ * that has not been observed.
+ */
+export type LockerVisualStatus = 'online' | 'offline' | 'unknown';
 
 type StatusPalette = {
   color: string;
@@ -69,6 +74,14 @@ export function getLockerStatusPalette(
       color: theme.colors.error,
       borderColor: theme.colors.error,
       backgroundColor: theme.colors.errorContainer,
+    };
+  }
+
+  if (status === 'unknown') {
+    return {
+      color: theme.colors.onSurfaceVariant,
+      borderColor: theme.colors.outline,
+      backgroundColor: theme.colors.surfaceVariant,
     };
   }
 

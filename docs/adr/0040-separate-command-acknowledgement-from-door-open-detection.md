@@ -354,7 +354,7 @@ acknowledgement as the terminal state, without a client rollback.
   - ADR-0016 (retained compartment snapshot and door-state persistence)
   - ADR-0019 (contract validation through component test suites)
   - ADR-0022 (role-based access control)
-  - ADR-0027 (locker-client v2 hexagonal rewrite)
+  - ADR-0024 (locker-client v2 hexagonal rewrite)
   - ADR-0030 (admin audit log)
   - ADR-0031 (contract-aligned locker fleet simulator)
   - ADR-0033 (synchronous projectors, queued reactors)

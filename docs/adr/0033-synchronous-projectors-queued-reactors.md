@@ -1,6 +1,10 @@
 # ADR-0033: Synchronous projectors, queued reactors
 
 > **Renumbered from ADR-0028** — ADR numbers were deduplicated and put in date order from 0018 up; see #214.
+>
+> **Extended by [ADR-0054](0054-atomic-event-projection-and-after-commit-reactors.md)**,
+> which adds the current transactional write and after-commit guarantees. The
+> counts and risks below describe the system when this decision was accepted.
 
 ## Status
 
@@ -128,3 +132,4 @@ The relevant mechanics, verified in the Spatie source
   `Projectionist`, `AggregateRoot::persist()` / `persistInTransaction()`
 - PR #119 / #46 — Groups UI (where the issue was found)
 - PR #130 — Content Notes (API/mobile content-note read-your-writes path)
+- ADR-0054 — transactional event/projection boundary and after-commit reactors

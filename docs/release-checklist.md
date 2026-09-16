@@ -4,9 +4,11 @@ Open Locker has **no production deployment yet**. This beta is a controlled
 pre-production pilot with named testers and selected Raspberry Pis. It is not
 approval for an unrestricted production rollout.
 
-The operational rollout is tracked in
-[issue #209](https://github.com/Open-Locker/Open-Locker/issues/209); component
-tags follow [ADR-0043](adr/0043-monorepo-release-strategy.md).
+The Beta scope review in
+[issue #209](https://github.com/Open-Locker/Open-Locker/issues/209) is closed;
+component tags follow [ADR-0043](adr/0043-monorepo-release-strategy.md).
+The first source tags exist, but unchecked artifact, deployment, and field
+acceptance items below remain open.
 
 ## Release record
 
@@ -16,9 +18,11 @@ tags follow [ADR-0043](adr/0043-monorepo-release-strategy.md).
 - [ ] Mobile operator:
 - [ ] Pilot site and tester group:
 - [ ] Planned start, decision time, and monitoring window:
-- [ ] First candidate tags: `backend-v1.0.0-beta.1`,
+- [x] First candidate tags: `backend-v1.0.0-beta.1`,
       `client-v1.0.0-beta.1`, `mobile-v1.0.0-beta.1`
-- [ ] Immutable candidate/baseline commits and image digests:
+- [x] Candidate commit:
+      `0365b8a5ff17e4e68f54293a4b939ba80e5843a4`
+- [ ] Immutable image digests:
 - [ ] Database backup identifier and timestamp:
 
 ## 1. Hard gates
@@ -26,24 +30,27 @@ tags follow [ADR-0043](adr/0043-monorepo-release-strategy.md).
 Do not create a component's release tag until its applicable hard gates are
 closed and verified.
 
-- [ ] #50 — per-component release workflows and notes are operational with
+- [x] #50 — per-component release workflows and notes are operational with
       `backend-v*`, `client-v*`, and `mobile-v*`.
-- [ ] #209 — the beta scope and release-readiness issue is closed or has explicit
+- [x] #209 — the beta scope and release-readiness issue is closed or has explicit
       release-owner acceptance with no unresolved blocker.
-- [ ] #67 — complete the Beta task and record its outcome. It is required Beta
+- [x] #67 — complete the Beta task and record its outcome. It is required Beta
       work even though it is tracked separately from the hard-gate list above.
 - [ ] #242 — before any `mobile-v*` tag, provision iOS signing and validate the
       signed Beta 2 build on a physical device. This does not block backend or
-      locker-client tags.
+      locker-client tags. A mobile source tag already exists, but physical-device
+      and Android distribution acceptance are still incomplete.
 
 The real deployment checks require the versioned images produced by this
 release. External MQTTS acceptance (#233) and the Raspberry Pi/Modbus soak
 (#169), together with the stale-command policy (#134), are therefore Beta 2
 work and do not block the first Beta artifacts.
 
-## 2. Candidate and branch preparation
+## 2. Candidate preparation
 
-- [ ] Confirm all intended changes are integrated and reviewed on `dev`.
+- [ ] Confirm all intended changes are merged to `main` and have passed their
+      pull request checks. `main` is the only long-lived branch; there is no
+      integration branch to promote from.
 - [ ] Confirm no open Beta change is represented as shipped merely because it
       exists in a pull request.
 - [ ] Run the complete component checks on the exact candidate commit:
@@ -55,19 +62,18 @@ work and do not block the first Beta artifacts.
       backend when the OpenAPI contract changed.
 - [ ] Review API, MQTT, schema, and migration compatibility in the release
       notes, including minimum supported component versions.
-- [ ] Merge `dev` into `main` through the normal reviewed synchronization path.
-- [ ] Verify `main` contains the exact candidate and rerun required protected
-      branch checks. Merging to `main` is not itself a release.
+- [ ] Verify `main` contains the exact candidate commit and that its required
+      checks passed. Merging to `main` is not itself a release.
 
 ## 3. Version and artifact preparation
 
-- [ ] Choose independent SemVer prerelease tags only for changed components, for
+- [x] Choose independent SemVer prerelease tags only for changed components, for
       example `backend-v1.0.0-beta.1`, `client-v1.0.0-beta.1`, and
       `mobile-v1.0.0-beta.1`.
-- [ ] Confirm each tag will point to the intended commit on `main`.
-- [ ] Confirm the candidate commit is also the current `main` tip; every
+- [x] Confirm each tag points to the intended commit on `main`.
+- [x] Confirm the candidate commit is also the current `main` tip; every
       component release workflow rejects tags on older `main` commits.
-- [ ] Confirm non-`main` and manual workflow runs cannot overwrite `latest` or
+- [x] Confirm non-`main` and manual workflow runs cannot overwrite `latest` or
       mint a SemVer release.
 - [ ] Before a `mobile-v*` tag, confirm the repository `EXPO_TOKEN` secret is
       available and EAS holds valid Android, iOS, and App Store Connect
@@ -75,7 +81,7 @@ work and do not block the first Beta artifacts.
       Simulator builds.
 - [ ] Confirm Actions can write GHCR packages and GitHub Releases through the
       workflow-scoped `GITHUB_TOKEN` permissions.
-- [ ] Create each required component tag using the approved release process.
+- [x] Create each required component tag using the approved release process.
 - [ ] Verify each generated release contains component-scoped notes, contract
       changes, migration instructions, and known risks.
 - [ ] Backend image exists under the immutable version tag and reports that
@@ -128,6 +134,8 @@ in a controlled deployment and does not block creating those artifacts.
 
 ### MQTTS acceptance (#233)
 
+- [ ] Coolify only: proxy publishes `8883` and `--entrypoints.mqtts.address=:8883`,
+      then the Coolify proxy was restarted.
 - [ ] Deploy the versioned backend and client images with the accepted TLS
       configuration.
 - [ ] Verify trusted DNS/SNI and certificate handling on port 8883.

@@ -10,6 +10,7 @@ use App\Filament\Resources\CompartmentResource\Pages;
 use App\Filament\Resources\CompartmentResource\RelationManagers\GroupAccessesRelationManager;
 use App\Filament\Resources\CompartmentResource\RelationManagers\UserAccessesRelationManager;
 use App\Filament\Support\CompartmentDoorStateColumn;
+use App\Filament\Support\EditContentNoteAction;
 use App\Filament\Support\LockerBankGroupHeading;
 use App\Filament\Support\OpenCompartmentAction;
 use App\Models\Compartment;
@@ -174,6 +175,7 @@ class CompartmentResource extends Resource
                     ->icon('heroicon-m-key')
                     ->url(fn (Compartment $record): string => static::getUrl('view', ['record' => $record])),
                 OpenCompartmentAction::make(),
+                EditContentNoteAction::make(),
             ]);
     }
 

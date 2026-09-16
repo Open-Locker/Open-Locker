@@ -224,6 +224,29 @@ class User extends Authenticatable implements FilamentUser, HasName, MustVerifyE
         $this->flushPermissionCache();
     }
 
+    /**
+     * Restrict a user query to those the actor is allowed to administer.
+     *
+     * ADR-0022: a manager may list and view admin accounts but may not mutate
+     * them, which includes granting them compartment access directly or through
+     * a group. Pickers use this so the panel stops offering what the services
+     * would refuse.
+     *
+     * @param  Builder<User>  $query
+     * @return Builder<User>
+     */
+    public function scopeManageableBy(Builder $query, ?self $actor): Builder
+    {
+        if ($actor?->can(Permission::RolesManage->value)) {
+            return $query;
+        }
+
+        return $query->whereNotIn(
+            'id',
+            UserRole::query()->where('role', Role::Admin->value)->select('user_id')
+        );
+    }
+
     public static function adminRoleCount(): int
     {
         return UserRole::query()
