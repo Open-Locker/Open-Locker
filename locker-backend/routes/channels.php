@@ -16,3 +16,10 @@ Broadcast::channel('users.{id}.compartment-status', function ($user, $id) {
 Broadcast::channel('users.{id}.account', function ($user, $id) {
     return (int) $user->id === (int) $id;
 });
+
+// Connectivity of the locker banks a user can reach. Kept apart from
+// compartment-status for the same reason as account: the channel is named after
+// what it carries, and a bank is not a compartment.
+Broadcast::channel('users.{id}.locker-banks', function ($user, $id) {
+    return (int) $user->id === (int) $id;
+});

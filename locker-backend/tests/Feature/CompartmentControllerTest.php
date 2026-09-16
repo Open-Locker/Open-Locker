@@ -18,6 +18,37 @@ class CompartmentControllerTest extends TestCase
         $response->assertStatus(401);
     }
 
+    public function test_the_list_reports_each_banks_connection_status(): void
+    {
+        $user = User::factory()->create();
+        $user->makeAdmin();
+
+        $compartment = Compartment::factory()->create();
+        $compartment->lockerBank->forceFill([
+            'connection_status' => 'offline',
+            'connection_status_changed_at' => now(),
+        ])->save();
+
+        $this->actingAs($user)->getJson('/api/compartments')
+            ->assertStatus(200)
+            ->assertJsonPath('locker_banks.0.connection_status', 'offline');
+    }
+
+    public function test_a_bank_that_never_reported_is_unknown_rather_than_offline(): void
+    {
+        $user = User::factory()->create();
+        $user->makeAdmin();
+
+        // A fresh bank has never reported: the column defaults to 'unknown', which
+        // is not the same as having gone offline, and the app colours the two
+        // differently.
+        Compartment::factory()->create();
+
+        $this->actingAs($user)->getJson('/api/compartments')
+            ->assertStatus(200)
+            ->assertJsonPath('locker_banks.0.connection_status', 'unknown');
+    }
+
     public function test_compartments_endpoint_returns_compartments_with_contents(): void
     {
         // Sees every compartment because they are an admin, which this test used to
@@ -45,6 +76,7 @@ class CompartmentControllerTest extends TestCase
                 'id',
                 'name',
                 'location_description',
+                'connection_status',
                 'compartments' => [[
                     'id',
                     'number',
