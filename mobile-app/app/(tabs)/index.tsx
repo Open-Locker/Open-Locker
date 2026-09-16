@@ -15,7 +15,6 @@ import {
   BottomSheetView,
 } from '@gorhom/bottom-sheet';
 import { CircleHelp, CircleUserRound, Lock, LockOpen, WifiOff } from 'lucide-react-native';
-import type { FetchBaseQueryError } from '@reduxjs/toolkit/query';
 import { skipToken } from '@reduxjs/toolkit/query';
 import { router } from 'expo-router';
 import { useTranslation } from 'react-i18next';
@@ -38,6 +37,7 @@ import {
   type LockerVisualStatus,
 } from '@/src/theme/statusPalette';
 import { CompartmentCard } from '@/src/ui/card/CompartmentCard';
+import { getApiErrorMessage } from '@/src/store/apiErrorMessage';
 
 type LockerBank = GetCompartmentsAccessibleApiResponse['locker_banks'][number];
 type CompartmentEntry = LockerBank['compartments'][number];
@@ -65,18 +65,6 @@ function mapLockerBanks(
       compartments: Array.isArray(bank.compartments) ? bank.compartments : [],
     }))
     .sort((a, b) => a.title.localeCompare(b.title));
-}
-
-function getErrorMessage(
-  error: unknown,
-  t: (key: string, options?: Record<string, unknown>) => string,
-): string {
-  const apiError = error as FetchBaseQueryError | undefined;
-  if (apiError && typeof apiError === 'object' && 'status' in apiError) {
-    return t('common.requestFailedWithStatus', { status: String(apiError.status) });
-  }
-  if (error instanceof Error) return error.message;
-  return t('common.somethingWentWrong');
 }
 
 function getCompartmentStatusFromApi(
@@ -195,7 +183,7 @@ export default function CompartmentsScreen() {
         setModalInfo(t('compartments.noteSaved'));
         void refetchCompartments();
       } catch (e) {
-        setModalError(getErrorMessage(e, t));
+        setModalError(getApiErrorMessage(e, t));
       }
     })();
   }, [noteDraft, selectedCompartment, updateContentNote, refetchCompartments, t]);
@@ -252,10 +240,9 @@ export default function CompartmentsScreen() {
       })),
     )
     .sort((a, b) => a.compartment.number - b.compartment.number);
-  const errorMessage =
-    error && 'status' in error
-      ? t('compartments.loadFailed', { status: String(error.status) })
-      : null;
+  const errorMessage = error
+    ? getApiErrorMessage(error, t, { fallbackKey: 'compartments.loadFailed' })
+    : null;
   const selectedCompartmentStatus = selectedCompartmentLive
     ? getCompartmentStatusFromApi(selectedCompartmentLive)
     : null;
@@ -585,7 +572,7 @@ export default function CompartmentsScreen() {
                   setModalInfo(t('compartments.openRequestSent'));
                   closeCompartmentSheet();
                 } catch (e) {
-                  setModalError(getErrorMessage(e, t));
+                  setModalError(getApiErrorMessage(e, t));
                 }
               })();
             }}

@@ -1,6 +1,5 @@
 import React from 'react';
 import { KeyboardAvoidingView, Platform, StyleSheet } from 'react-native';
-import type { FetchBaseQueryError } from '@reduxjs/toolkit/query';
 import { useTranslation } from 'react-i18next';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Button, HelperText, Text, TextInput, useTheme } from 'react-native-paper';
@@ -13,20 +12,7 @@ import {
 } from '@/src/api/baseUrl';
 import { baseApi } from '@/src/store/baseApi';
 import { useAppDispatch } from '@/src/store/hooks';
-
-function getErrorMessage(
-  error: unknown,
-  t: (key: string, options?: Record<string, unknown>) => string,
-): string {
-  const apiError = error as FetchBaseQueryError | undefined;
-  if (apiError && typeof apiError === 'object' && 'status' in apiError) {
-    return t('common.requestFailedWithStatus', { status: String(apiError.status) });
-  }
-  if (error instanceof Error) {
-    return error.message;
-  }
-  return t('common.somethingWentWrong');
-}
+import { getApiErrorMessage } from '@/src/store/apiErrorMessage';
 
 export default function ChangeServerScreen() {
   const { t } = useTranslation();
@@ -65,7 +51,7 @@ export default function ChangeServerScreen() {
       dispatch(baseApi.util.resetApiState());
       setBackendMessage(t('server.backendUpdated'));
     } catch (error) {
-      setBackendError(getErrorMessage(error, t));
+      setBackendError(getApiErrorMessage(error, t));
     } finally {
       setIsSaving(false);
     }

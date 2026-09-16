@@ -1,6 +1,5 @@
 import React from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
-import type { FetchBaseQueryError } from '@reduxjs/toolkit/query';
 import { useTranslation } from 'react-i18next';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { HelperText, Text, useTheme } from 'react-native-paper';
@@ -18,20 +17,7 @@ import { useAppDispatch } from '@/src/store/hooks';
 import { useUserName } from '@/src/auth/useUserName';
 import { OPEN_LOCKER_DESIGN_TOKENS } from '@/src/theme/tokens';
 import { AppButton, AppTextInput, LanguageToggle } from '@/src/ui';
-
-function getErrorMessage(
-  error: unknown,
-  t: (key: string, options?: Record<string, unknown>) => string,
-): string {
-  const apiError = error as FetchBaseQueryError | undefined;
-  if (apiError && typeof apiError === 'object' && 'status' in apiError) {
-    return t('common.requestFailedWithStatus', { status: String(apiError.status) });
-  }
-  if (error instanceof Error) {
-    return error.message;
-  }
-  return t('common.somethingWentWrong');
-}
+import { getApiErrorMessage } from '@/src/store/apiErrorMessage';
 
 export default function AccountScreen() {
   const { t } = useTranslation();
@@ -100,7 +86,7 @@ export default function AccountScreen() {
         emailChanged ? t('account.profileUpdatedVerifyEmail') : t('account.profileUpdated'),
       );
     } catch (error) {
-      setProfileMessage(getErrorMessage(error, t));
+      setProfileMessage(getApiErrorMessage(error, t));
     }
   }, [email, firstName, lastName, refetch, t, updateProfile, user?.email]);
 
@@ -119,7 +105,7 @@ export default function AccountScreen() {
       setNewPasswordConfirmation('');
       setPasswordMessage(t('account.passwordUpdated'));
     } catch (error) {
-      setPasswordMessage(getErrorMessage(error, t));
+      setPasswordMessage(getApiErrorMessage(error, t));
     }
   }, [changePassword, currentPassword, newPassword, newPasswordConfirmation, t]);
 
