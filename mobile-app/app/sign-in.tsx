@@ -32,7 +32,7 @@ export default function SignInScreen() {
     data: identifyData,
     isLoading: isLoadingIdentify,
     isError: isIdentifyError,
-  } = useIdentifyQuery();
+  } = useIdentifyQuery({});
   const theme = useTheme();
 
   const sessionExpired = useAppSelector((state) => state.auth.sessionExpired);
@@ -74,7 +74,7 @@ export default function SignInScreen() {
       await persistAuth(res.token, userName);
       dispatch(setCredentials({ token: res.token, userName }));
 
-      const userRequest = dispatch(openLockerApi.endpoints.getUser.initiate());
+      const userRequest = dispatch(openLockerApi.endpoints.getUser.initiate({}));
       const user = await userRequest.unwrap();
       userRequest.unsubscribe();
       if (!user.terms_current_accepted) {

@@ -43,7 +43,7 @@ export default function TabLayout() {
   const theme = useTheme();
   const headerShown = useClientOnlyValue(false, true);
   const insets = useSafeAreaInsets();
-  const { data: user, isLoading: isLoadingUser } = useGetUserQuery();
+  const { data: user, isLoading: isLoadingUser } = useGetUserQuery({});
   const [sendVerificationEmail, sendVerificationEmailState] =
     usePostEmailVerificationNotificationMutation();
   const needsTermsAcceptance = !!user && !user.terms_current_accepted;
@@ -124,7 +124,7 @@ export default function TabLayout() {
             onAction={() => {
               void (async () => {
                 try {
-                  const response = await sendVerificationEmail().unwrap();
+                  const response = await sendVerificationEmail({}).unwrap();
                   setVerificationMessage(
                     response && typeof response === 'object' && 'message' in response
                       ? String(response.message)

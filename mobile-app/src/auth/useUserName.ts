@@ -16,7 +16,7 @@ import { formatUserName } from '@/src/utils/userName';
  */
 export function useUserName(): string | null {
   const persistedName = useAppSelector((state) => state.auth.userName);
-  const { data: user } = useGetUserQuery();
+  const { data: user } = useGetUserQuery({});
 
   if (user) {
     return formatUserName(user.first_name, user.last_name) || null;
