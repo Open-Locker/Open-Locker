@@ -10,6 +10,7 @@ function seedCache(): GetCompartmentsAccessibleApiResponse {
         id: 'bank-1',
         name: 'Bank 1',
         location_description: null,
+        connection_status: 'online',
         compartments: [
           {
             id: 'c-1',
@@ -27,7 +28,7 @@ function seedCache(): GetCompartmentsAccessibleApiResponse {
             door_state_changed_at: null,
             content_note: 'old note',
             content_note_updated_at: '2026-06-01T00:00:00+00:00',
-            content_note_updated_by_user_id: '7',
+            content_note_updated_by_user_id: 7,
           },
         ],
       },
@@ -35,6 +36,7 @@ function seedCache(): GetCompartmentsAccessibleApiResponse {
         id: 'bank-2',
         name: 'Bank 2',
         location_description: null,
+        connection_status: 'online',
         compartments: [
           {
             id: 'c-3',
@@ -59,14 +61,14 @@ describe('applyContentNote', () => {
       compartment_id: 'c-2',
       content_note: 'new note',
       content_note_updated_at: '2026-06-24T10:00:00+00:00',
-      content_note_updated_by_user_id: '9',
+      content_note_updated_by_user_id: 9,
     });
 
     expect(draft.locker_banks[0].compartments[1]).toMatchObject({
       id: 'c-2',
       content_note: 'new note',
       content_note_updated_at: '2026-06-24T10:00:00+00:00',
-      content_note_updated_by_user_id: '9',
+      content_note_updated_by_user_id: 9,
     });
   });
 
@@ -77,7 +79,7 @@ describe('applyContentNote', () => {
       compartment_id: 'c-2',
       content_note: null,
       content_note_updated_at: '2026-06-24T10:00:00+00:00',
-      content_note_updated_by_user_id: '9',
+      content_note_updated_by_user_id: 9,
     });
 
     expect(draft.locker_banks[0].compartments[1].content_note).toBeNull();
@@ -90,7 +92,7 @@ describe('applyContentNote', () => {
       compartment_id: 'c-3',
       content_note: 'cross-bank',
       content_note_updated_at: null,
-      content_note_updated_by_user_id: null,
+      content_note_updated_by_user_id: 7,
     });
 
     expect(draft.locker_banks[1].compartments[0].content_note).toBe('cross-bank');
@@ -104,7 +106,7 @@ describe('applyContentNote', () => {
       compartment_id: 'missing',
       content_note: 'nope',
       content_note_updated_at: null,
-      content_note_updated_by_user_id: null,
+      content_note_updated_by_user_id: 7,
     });
 
     expect(JSON.stringify(draft)).toBe(before);

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use App\Events\TermsAcceptanceRequired;
 use App\Models\Compartment;
 use App\Models\TermsDocument;
 use App\Models\TermsDocumentVersion;
@@ -13,6 +14,7 @@ use App\Notifications\Terms\TermsVersionPublishedNotification;
 use App\Services\TermsService;
 use App\StorableEvents\UserAcceptedTermsVersion;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Notification;
 use LogicException;
 use Spatie\EventSourcing\StoredEvents\Models\EloquentStoredEvent;
@@ -261,5 +263,50 @@ class TermsControllerTest extends TestCase
             ->count();
 
         $this->assertSame(1, $draftCount);
+    }
+
+    public function test_publishing_a_version_broadcasts_that_acceptance_is_required(): void
+    {
+        // Without this the app keeps serving a cached profile that says the user is
+        // fine, so the prompt to accept never appears and every write fails with a
+        // 403 it cannot explain.
+        Notification::fake();
+        Event::fake([TermsAcceptanceRequired::class]);
+
+        $admin = User::factory()->create();
+        $user = User::factory()->create();
+
+        app(TermsService::class)->publishNewVersion('AGB', '<p>Version 1</p>', $admin);
+
+        Event::assertDispatched(
+            TermsAcceptanceRequired::class,
+            function (TermsAcceptanceRequired $event) use ($admin, $user): bool {
+                $this->assertContains($admin->id, $event->recipientUserIds);
+                $this->assertContains($user->id, $event->recipientUserIds);
+                $this->assertSame(1, $event->version);
+
+                return true;
+            }
+        );
+    }
+
+    public function test_the_broadcast_reaches_each_recipient_on_their_own_account_channel(): void
+    {
+        $first = User::factory()->create();
+        $second = User::factory()->create();
+
+        $event = new TermsAcceptanceRequired([$first->id, $second->id], 3);
+
+        $channels = array_map(
+            fn ($channel) => (string) $channel,
+            $event->broadcastOn()
+        );
+
+        $this->assertSame(
+            ["private-users.{$first->id}.account", "private-users.{$second->id}.account"],
+            $channels
+        );
+        // A signal, not a copy of the terms: the app re-reads its own profile.
+        $this->assertSame(['version' => 3], $event->broadcastWith());
     }
 }

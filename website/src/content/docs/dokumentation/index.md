@@ -22,8 +22,8 @@ headsets.
 | Component | Description |
 | --- | --- |
 | **Backend** | Laravel API with Filament admin panel — the source of truth for data, permissions, and commands |
-| **Mobile app** | React Native app (Expo) for end users: open compartments, borrow and return items |
-| **Locker client** | TypeScript service on a Raspberry Pi at the cabinet: receives commands via MQTT and drives the locks via Modbus |
+| **Mobile app** | React Native app (Expo) for end users: view locker banks and open authorized compartments |
+| **Locker client** | TypeScript service on a Raspberry Pi at the cabinet: receives commands via MQTT and drives Waveshare relay boards via Modbus RTU |
 | **Hardware** | Blueprints and bill of materials for the electronics (relay boards, locks, wiring) |
 
 How the parts play together is described in the

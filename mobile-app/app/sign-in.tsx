@@ -6,7 +6,6 @@ import {
   View,
   useWindowDimensions,
 } from 'react-native';
-import type { FetchBaseQueryError } from '@reduxjs/toolkit/query';
 import Constants from 'expo-constants';
 import { router, useFocusEffect } from 'expo-router';
 import { useTranslation } from 'react-i18next';
@@ -22,21 +21,7 @@ import { useAppDispatch, useAppSelector } from '@/src/store/hooks';
 import { OPEN_LOCKER_DESIGN_TOKENS } from '@/src/theme/tokens';
 import { AppButton, AppTextInput, LanguageToggle } from '@/src/ui';
 import { formatUserName } from '@/src/utils/userName';
-
-function getErrorMessage(
-  error: unknown,
-  t: (key: string, options?: Record<string, unknown>) => string,
-): string {
-  const apiError = error as FetchBaseQueryError | undefined;
-  if (apiError && typeof apiError === 'object' && 'status' in apiError) {
-    if (apiError.status === 422) {
-      return t('auth.invalidEmailOrPassword');
-    }
-    return t('common.requestFailedWithStatus', { status: String(apiError.status) });
-  }
-  if (error instanceof Error) return error.message;
-  return t('common.somethingWentWrong');
-}
+import { getApiErrorMessage } from '@/src/store/apiErrorMessage';
 
 export default function SignInScreen() {
   const { t } = useTranslation();
@@ -47,7 +32,7 @@ export default function SignInScreen() {
     data: identifyData,
     isLoading: isLoadingIdentify,
     isError: isIdentifyError,
-  } = useIdentifyQuery();
+  } = useIdentifyQuery({});
   const theme = useTheme();
 
   const sessionExpired = useAppSelector((state) => state.auth.sessionExpired);
@@ -89,14 +74,14 @@ export default function SignInScreen() {
       await persistAuth(res.token, userName);
       dispatch(setCredentials({ token: res.token, userName }));
 
-      const userRequest = dispatch(openLockerApi.endpoints.getUser.initiate());
+      const userRequest = dispatch(openLockerApi.endpoints.getUser.initiate({}));
       const user = await userRequest.unwrap();
       userRequest.unsubscribe();
       if (!user.terms_current_accepted) {
         router.replace('/terms' as never);
       }
     } catch (e) {
-      setError(getErrorMessage(e, t));
+      setError(getApiErrorMessage(e, t, { overrides: { 422: 'auth.invalidEmailOrPassword' } }));
     } finally {
       setIsSubmitting(false);
     }

@@ -15,7 +15,6 @@ import {
   BottomSheetView,
 } from '@gorhom/bottom-sheet';
 import { CircleHelp, CircleUserRound, Lock, LockOpen, WifiOff } from 'lucide-react-native';
-import type { FetchBaseQueryError } from '@reduxjs/toolkit/query';
 import { skipToken } from '@reduxjs/toolkit/query';
 import { router } from 'expo-router';
 import { useTranslation } from 'react-i18next';
@@ -25,10 +24,12 @@ import { ActivityIndicator, Button, Chip, HelperText, Text, useTheme } from 'rea
 import {
   type GetCompartmentsAccessibleApiResponse,
   useGetCompartmentsAccessibleQuery,
+  useGetUserQuery,
   usePostCompartmentsByCompartmentOpenMutation,
   usePutCompartmentsByCompartmentContentNoteMutation,
 } from '@/src/store/generatedApi';
 import { useAppSelector } from '@/src/store/hooks';
+import { useUserName } from '@/src/auth/useUserName';
 import {
   getCompartmentStatusPalette,
   getLockerStatusPalette,
@@ -36,12 +37,14 @@ import {
   type LockerVisualStatus,
 } from '@/src/theme/statusPalette';
 import { CompartmentCard } from '@/src/ui/card/CompartmentCard';
+import { getApiErrorMessage } from '@/src/store/apiErrorMessage';
 
 type LockerBank = GetCompartmentsAccessibleApiResponse['locker_banks'][number];
 type CompartmentEntry = LockerBank['compartments'][number];
 type LockerBankFilter = {
   id: string;
   title: string;
+  status: LockerVisualStatus;
   compartments: CompartmentEntry[];
 };
 type VisibleCompartmentEntry = {
@@ -50,6 +53,17 @@ type VisibleCompartmentEntry = {
 };
 
 const CONTENT_NOTE_MAX_LENGTH = 80;
+
+/**
+ * Narrows the backend's `connection_status` once, at the boundary. The column
+ * holds 'online', 'offline' or 'unknown'; anything else is treated as unknown
+ * rather than assumed to be a failure.
+ */
+function toLockerBankStatus(connectionStatus: string | undefined): LockerVisualStatus {
+  return connectionStatus === 'online' || connectionStatus === 'offline'
+    ? connectionStatus
+    : 'unknown';
+}
 
 function mapLockerBanks(
   response: GetCompartmentsAccessibleApiResponse | undefined,
@@ -60,21 +74,10 @@ function mapLockerBanks(
     .map((bank) => ({
       id: bank.id,
       title: bank.name?.trim() || t('compartments.lockerBankDefault', { id: bank.id }),
+      status: toLockerBankStatus(bank.connection_status),
       compartments: Array.isArray(bank.compartments) ? bank.compartments : [],
     }))
     .sort((a, b) => a.title.localeCompare(b.title));
-}
-
-function getErrorMessage(
-  error: unknown,
-  t: (key: string, options?: Record<string, unknown>) => string,
-): string {
-  const apiError = error as FetchBaseQueryError | undefined;
-  if (apiError && typeof apiError === 'object' && 'status' in apiError) {
-    return t('common.requestFailedWithStatus', { status: String(apiError.status) });
-  }
-  if (error instanceof Error) return error.message;
-  return t('common.somethingWentWrong');
 }
 
 function getCompartmentStatusFromApi(
@@ -114,18 +117,12 @@ function getCompartmentStatusFromApi(
   return null;
 }
 
-function getFakeLockerStatus(lockerBankId: string): LockerVisualStatus {
-  let checksum = 0;
-  for (const character of lockerBankId) {
-    checksum += character.charCodeAt(0);
-  }
-  return checksum % 3 === 0 ? 'offline' : 'online';
-}
-
 export default function CompartmentsScreen() {
   const { t } = useTranslation();
   const token = useAppSelector((state) => state.auth.token);
-  const userName = useAppSelector((state) => state.auth.userName);
+  const userName = useUserName();
+  const { refetch: refetchUser } = useGetUserQuery({});
+  const [isPullRefreshing, setIsPullRefreshing] = React.useState(false);
   const theme = useTheme();
   const insets = useSafeAreaInsets();
   const scrollY = React.useRef(new Animated.Value(0)).current;
@@ -136,9 +133,8 @@ export default function CompartmentsScreen() {
     data,
     error,
     isLoading,
-    isFetching,
     refetch: refetchCompartments,
-  } = useGetCompartmentsAccessibleQuery(token ? undefined : skipToken);
+  } = useGetCompartmentsAccessibleQuery(token ? {} : skipToken);
   const [selectedCompartment, setSelectedCompartment] = React.useState<CompartmentEntry | null>(
     null,
   );
@@ -192,7 +188,7 @@ export default function CompartmentsScreen() {
         setModalInfo(t('compartments.noteSaved'));
         void refetchCompartments();
       } catch (e) {
-        setModalError(getErrorMessage(e, t));
+        setModalError(getApiErrorMessage(e, t));
       }
     })();
   }, [noteDraft, selectedCompartment, updateContentNote, refetchCompartments, t]);
@@ -249,10 +245,9 @@ export default function CompartmentsScreen() {
       })),
     )
     .sort((a, b) => a.compartment.number - b.compartment.number);
-  const errorMessage =
-    error && 'status' in error
-      ? t('compartments.loadFailed', { status: String(error.status) })
-      : null;
+  const errorMessage = error
+    ? getApiErrorMessage(error, t, { fallbackKey: 'compartments.loadFailed' })
+    : null;
   const selectedCompartmentStatus = selectedCompartmentLive
     ? getCompartmentStatusFromApi(selectedCompartmentLive)
     : null;
@@ -340,9 +335,18 @@ export default function CompartmentsScreen() {
         scrollEventThrottle={16}
         refreshControl={
           <RefreshControl
-            refreshing={isFetching && !isLoading}
+            refreshing={isPullRefreshing}
             onRefresh={() => {
-              void refetchCompartments();
+              // Tied to the gesture rather than to either query's fetching flag:
+              // a realtime event or a 403 also refetches these, and a spinner
+              // nobody pulled looks like a bug.
+              setIsPullRefreshing(true);
+              // Pulling down is the gesture people reach for when something looks
+              // wrong, and stale terms acceptance is one of the things that can be
+              // wrong — the tab layout reads it to decide whether to prompt.
+              void Promise.all([refetchCompartments(), refetchUser()]).finally(() =>
+                setIsPullRefreshing(false),
+              );
             }}
           />
         }
@@ -355,7 +359,7 @@ export default function CompartmentsScreen() {
               contentContainerStyle={styles.filterRail}
             >
               {lockerBanks.map((section) => {
-                const lockerStatus = getFakeLockerStatus(section.id);
+                const lockerStatus = section.status;
                 const isSelected = effectiveLockerBankId === section.id;
                 const lockerStatusPalette = getLockerStatusPalette(theme, lockerStatus, isSelected);
 
@@ -573,7 +577,7 @@ export default function CompartmentsScreen() {
                   setModalInfo(t('compartments.openRequestSent'));
                   closeCompartmentSheet();
                 } catch (e) {
-                  setModalError(getErrorMessage(e, t));
+                  setModalError(getApiErrorMessage(e, t));
                 }
               })();
             }}

@@ -45,6 +45,7 @@ return [
         App\Reactors\CompartmentOpenStatusBroadcastReactor::class,
         App\Reactors\CompartmentDoorStateBroadcastReactor::class,
         App\Reactors\CompartmentContentNoteBroadcastReactor::class,
+        App\Reactors\LockerBankConnectionBroadcastReactor::class,
         App\Reactors\TermsNotificationReactor::class,
     ],
 

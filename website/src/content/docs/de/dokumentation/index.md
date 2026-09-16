@@ -22,8 +22,8 @@ Laptops, Werkzeug oder VR-Headsets.
 | Komponente | Beschreibung |
 | --- | --- |
 | **Backend** | Laravel-API mit Filament-Admin-Panel — Quelle der Wahrheit für Daten, Berechtigungen und Kommandos |
-| **Mobile App** | React-Native-App (Expo) für Endnutzer:innen: Fächer öffnen, Gegenstände ausleihen und zurückgeben |
-| **Locker Client** | TypeScript-Dienst auf einem Raspberry Pi am Schrank: empfängt Kommandos per MQTT und steuert die Schlösser per Modbus |
+| **Mobile App** | React-Native-App (Expo) für Endnutzer:innen: Schließfachanlagen ansehen und berechtigte Fächer öffnen |
+| **Locker Client** | TypeScript-Dienst auf einem Raspberry Pi am Schrank: empfängt Kommandos per MQTT und steuert Waveshare-Relais-Boards per Modbus RTU |
 | **Hardware** | Baupläne und Stückliste für die Elektronik (Relais-Boards, Schlösser, Verkabelung) |
 
 Wie die Teile zusammenspielen, beschreibt die [Architektur](/dokumentation/architecture/).

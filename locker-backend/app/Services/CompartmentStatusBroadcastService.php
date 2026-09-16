@@ -8,6 +8,7 @@ use App\Enums\Permission;
 use App\Enums\Role;
 use App\Models\Compartment;
 use App\Models\CompartmentAccess;
+use App\Models\LockerBank;
 use App\Models\UserGroupCompartmentAccess;
 use App\Models\UserRole;
 
@@ -21,14 +22,43 @@ class CompartmentStatusBroadcastService
      */
     public function recipientUserIdsForCompartment(Compartment $compartment): array
     {
+        return $this->recipientUserIdsForCompartmentIds([$compartment->id]);
+    }
+
+    /**
+     * Users who should receive realtime status for any compartment in this bank.
+     *
+     * A bank's connection state is relevant to exactly the people who can act on
+     * something inside it, so the audience is the union of the per-compartment
+     * audiences rather than a separate rule.
+     *
+     * @return list<int>
+     */
+    public function recipientUserIdsForLockerBank(LockerBank $lockerBank): array
+    {
+        return $this->recipientUserIdsForCompartmentIds(
+            array_values($lockerBank->compartments()->pluck('id')->all())
+        );
+    }
+
+    /**
+     * @param  list<mixed>  $compartmentIds
+     * @return list<int>
+     */
+    private function recipientUserIdsForCompartmentIds(array $compartmentIds): array
+    {
+        if ($compartmentIds === []) {
+            return [];
+        }
+
         $accessUserIds = CompartmentAccess::query()
-            ->where('compartment_id', $compartment->id)
+            ->whereIn('compartment_id', $compartmentIds)
             ->active()
             ->pluck('user_id')
             ->all();
 
         $groupAccessUserIds = UserGroupCompartmentAccess::query()
-            ->where('compartment_id', $compartment->id)
+            ->whereIn('compartment_id', $compartmentIds)
             ->active()
             ->pluck('user_id')
             ->all();

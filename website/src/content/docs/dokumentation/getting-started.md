@@ -32,7 +32,7 @@ Configure at least the following in `locker-backend/.env`:
 
 - `APP_URL` — the backend's URL
 - `DB_PASSWORD` — database password
-- `MOSQ_HTTP_USER` / `MOSQ_HTTP_PASS` — credentials for MQTT broker ↔ backend communication
+- `MOSQ_HTTP_PASS` — shared secret for MQTT broker ↔ backend authentication
 
 Generate the MQTT broker configuration and start the stack:
 
@@ -41,17 +41,19 @@ just setup-mqtt          # generates mosquitto.conf from the template
 
 cd locker-backend
 docker compose up -d     # Postgres, Mosquitto, Redis, app
-php artisan migrate --seed
+docker compose exec app php artisan migrate --seed
 ```
 
-Create the first admin user:
+Set `ADMIN_EMAIL` before the first start, or create the first administrator
+explicitly:
 
 ```bash
-docker compose exec app php artisan filament:user
+docker compose exec app php artisan first-admin:create admin@example.com
 ```
 
-The admin panel is then available at `<APP_URL>/admin`. The primary dev loop
-runs via Composer:
+The administrator sets their password through "forgot password", so mail
+delivery must work. The admin panel is then available at `<APP_URL>/admin`.
+The primary dev loop runs via Composer:
 
 ```bash
 composer dev             # server + queue + logs + Vite concurrently
@@ -63,12 +65,21 @@ composer quality         # format check + static analysis + tests
 
 ```bash
 cd mobile-app
+cp .env.example .env
 pnpm install
-pnpm start               # Expo dev client
 ```
 
-The API client is generated from the running backend's OpenAPI specification.
-After changing the API contract:
+Set `EXPO_PUBLIC_API_BASE_URL` in `.env` to the running backend, including
+`/api`. Realtime uses `EXPO_PUBLIC_REVERB_KEY`,
+`EXPO_PUBLIC_REVERB_PORT`, and `EXPO_PUBLIC_REVERB_SCHEME`;
+`EXPO_PUBLIC_REVERB_HOST` is optional when the API and Reverb hosts match.
+
+`pnpm start` targets an installed **Expo development client**; build one with
+`pnpm android` or `pnpm ios`. Use `pnpm start:go` for the more limited
+**Expo Go** workflow.
+
+The API client is generated from the running backend's live OpenAPI
+specification at `/docs/api.json`. After changing the API contract:
 
 ```bash
 pnpm generate:api        # backend must be running

@@ -29,6 +29,12 @@ class AccessibleCompartmentsResource extends JsonResource
                     'name' => $lockerBank->name,
                     'location_description' => $lockerBank->location_description,
                     'last_compartment_state_change_at' => $lockerBank->last_compartment_state_change_at?->toIso8601String(),
+                    // What the app colours each bank by, sent with the list so the
+                    // first paint is right; the realtime event keeps it current.
+                    // Never null: the column defaults to 'unknown'. Heartbeat
+                    // timestamps stay on the dedicated status endpoint, which is
+                    // the only caller that needs them.
+                    'connection_status' => (string) $lockerBank->connection_status,
                     'compartments' => $lockerBank->compartments->map(
                         static fn (Compartment $compartment): array => [
                             'id' => (string) $compartment->id,
