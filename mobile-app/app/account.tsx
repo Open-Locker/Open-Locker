@@ -24,7 +24,7 @@ export default function AccountScreen() {
   const dispatch = useAppDispatch();
   const userName = useUserName();
   const theme = useTheme();
-  const { data: user, refetch } = useGetUserQuery();
+  const { data: user, refetch } = useGetUserQuery({});
   const [updateProfile, updateProfileState] = usePutProfileMutation();
   const [changePassword, changePasswordState] = usePutPasswordMutation();
   const [logoutCurrentSession] = usePostLogoutMutation();
@@ -54,7 +54,7 @@ export default function AccountScreen() {
 
   const onLogout = React.useCallback(async () => {
     try {
-      await logoutCurrentSession().unwrap();
+      await logoutCurrentSession({}).unwrap();
     } catch {
       // ignore network/logout race and clear local session anyway
     } finally {

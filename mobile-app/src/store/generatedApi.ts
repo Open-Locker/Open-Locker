@@ -1,6 +1,5 @@
 import { baseApi as api } from "./baseApi";
 export const addTagTypes = [
-  "Admin",
   "AppInfo",
   "Auth",
   "Compartment",
@@ -14,41 +13,13 @@ const injectedRtkApi = api
   })
   .injectEndpoints({
     endpoints: (build) => ({
-      getAdminUsers: build.query<GetAdminUsersApiResponse, GetAdminUsersApiArg>(
-        {
-          query: () => ({ url: `/admin/users` }),
-          providesTags: ["Admin"],
-        },
-      ),
-      postAdminUsersByUserMakeAdmin: build.mutation<
-        PostAdminUsersByUserMakeAdminApiResponse,
-        PostAdminUsersByUserMakeAdminApiArg
-      >({
-        query: (queryArg) => ({
-          url: `/admin/users/${queryArg.user}/make-admin`,
-          method: "POST",
-        }),
-        invalidatesTags: ["Admin"],
-      }),
-      postAdminUsersByUserRemoveAdmin: build.mutation<
-        PostAdminUsersByUserRemoveAdminApiResponse,
-        PostAdminUsersByUserRemoveAdminApiArg
-      >({
-        query: (queryArg) => ({
-          url: `/admin/users/${queryArg.user}/remove-admin`,
-          method: "POST",
-        }),
-        invalidatesTags: ["Admin"],
-      }),
-      getAdminStatistics: build.query<
-        GetAdminStatisticsApiResponse,
-        GetAdminStatisticsApiArg
-      >({
-        query: () => ({ url: `/admin/statistics` }),
-        providesTags: ["Admin"],
-      }),
       identify: build.query<IdentifyApiResponse, IdentifyApiArg>({
-        query: () => ({ url: `/identify` }),
+        query: (queryArg) => ({
+          url: `/identify`,
+          headers: {
+            "Accept-Language": queryArg["Accept-Language"],
+          },
+        }),
         providesTags: ["AppInfo"],
       }),
       postLogin: build.mutation<PostLoginApiResponse, PostLoginApiArg>({
@@ -56,6 +27,9 @@ const injectedRtkApi = api
           url: `/login`,
           method: "POST",
           body: queryArg.loginRequest,
+          headers: {
+            "Accept-Language": queryArg["Accept-Language"],
+          },
         }),
         invalidatesTags: ["Auth"],
       }),
@@ -67,6 +41,9 @@ const injectedRtkApi = api
           url: `/password/email`,
           method: "POST",
           body: queryArg.sendPasswordResetRequest,
+          headers: {
+            "Accept-Language": queryArg["Accept-Language"],
+          },
         }),
         invalidatesTags: ["Auth"],
       }),
@@ -78,15 +55,29 @@ const injectedRtkApi = api
           url: `/reset-password`,
           method: "POST",
           body: queryArg.resetPasswordRequest,
+          headers: {
+            "Accept-Language": queryArg["Accept-Language"],
+          },
         }),
         invalidatesTags: ["Auth"],
       }),
       postLogout: build.mutation<PostLogoutApiResponse, PostLogoutApiArg>({
-        query: () => ({ url: `/logout`, method: "POST" }),
+        query: (queryArg) => ({
+          url: `/logout`,
+          method: "POST",
+          headers: {
+            "Accept-Language": queryArg["Accept-Language"],
+          },
+        }),
         invalidatesTags: ["Auth"],
       }),
       getUser: build.query<GetUserApiResponse, GetUserApiArg>({
-        query: () => ({ url: `/user` }),
+        query: (queryArg) => ({
+          url: `/user`,
+          headers: {
+            "Accept-Language": queryArg["Accept-Language"],
+          },
+        }),
         providesTags: ["Auth"],
       }),
       putProfile: build.mutation<PutProfileApiResponse, PutProfileApiArg>({
@@ -94,6 +85,9 @@ const injectedRtkApi = api
           url: `/profile`,
           method: "PUT",
           body: queryArg.updateProfileRequest,
+          headers: {
+            "Accept-Language": queryArg["Accept-Language"],
+          },
         }),
         invalidatesTags: ["Auth"],
       }),
@@ -102,6 +96,9 @@ const injectedRtkApi = api
           url: `/password`,
           method: "PUT",
           body: queryArg.changePasswordRequest,
+          headers: {
+            "Accept-Language": queryArg["Accept-Language"],
+          },
         }),
         invalidatesTags: ["Auth"],
       }),
@@ -111,6 +108,9 @@ const injectedRtkApi = api
       >({
         query: (queryArg) => ({
           url: `/verify-email/${queryArg.id}/${queryArg.hash}`,
+          headers: {
+            "Accept-Language": queryArg["Accept-Language"],
+          },
         }),
         providesTags: ["Auth"],
       }),
@@ -118,20 +118,12 @@ const injectedRtkApi = api
         PostEmailVerificationNotificationApiResponse,
         PostEmailVerificationNotificationApiArg
       >({
-        query: () => ({
+        query: (queryArg) => ({
           url: `/email/verification-notification`,
           method: "POST",
-        }),
-        invalidatesTags: ["Auth"],
-      }),
-      postAdminUsersRegister: build.mutation<
-        PostAdminUsersRegisterApiResponse,
-        PostAdminUsersRegisterApiArg
-      >({
-        query: (queryArg) => ({
-          url: `/admin/users/register`,
-          method: "POST",
-          body: queryArg.body,
+          headers: {
+            "Accept-Language": queryArg["Accept-Language"],
+          },
         }),
         invalidatesTags: ["Auth"],
       }),
@@ -139,14 +131,24 @@ const injectedRtkApi = api
         GetCompartmentsApiResponse,
         GetCompartmentsApiArg
       >({
-        query: () => ({ url: `/compartments` }),
+        query: (queryArg) => ({
+          url: `/compartments`,
+          headers: {
+            "Accept-Language": queryArg["Accept-Language"],
+          },
+        }),
         providesTags: ["Compartment"],
       }),
       getCompartmentsAccessible: build.query<
         GetCompartmentsAccessibleApiResponse,
         GetCompartmentsAccessibleApiArg
       >({
-        query: () => ({ url: `/compartments/accessible` }),
+        query: (queryArg) => ({
+          url: `/compartments/accessible`,
+          headers: {
+            "Accept-Language": queryArg["Accept-Language"],
+          },
+        }),
         providesTags: ["Compartment"],
       }),
       postCompartmentsByCompartmentOpen: build.mutation<
@@ -156,6 +158,9 @@ const injectedRtkApi = api
         query: (queryArg) => ({
           url: `/compartments/${queryArg.compartment}/open`,
           method: "POST",
+          headers: {
+            "Accept-Language": queryArg["Accept-Language"],
+          },
         }),
         invalidatesTags: ["Compartment"],
       }),
@@ -167,6 +172,9 @@ const injectedRtkApi = api
           url: `/compartments/${queryArg.compartment}/content-note`,
           method: "PUT",
           body: queryArg.updateCompartmentContentNoteRequest,
+          headers: {
+            "Accept-Language": queryArg["Accept-Language"],
+          },
         }),
         invalidatesTags: ["Compartment"],
       }),
@@ -176,6 +184,9 @@ const injectedRtkApi = api
       >({
         query: (queryArg) => ({
           url: `/compartments/open-requests/${queryArg.commandId}`,
+          headers: {
+            "Accept-Language": queryArg["Accept-Language"],
+          },
         }),
         providesTags: ["Compartment"],
       }),
@@ -185,6 +196,9 @@ const injectedRtkApi = api
       >({
         query: (queryArg) => ({
           url: `/locker-banks/${queryArg.lockerBank}/status`,
+          headers: {
+            "Accept-Language": queryArg["Accept-Language"],
+          },
         }),
         providesTags: ["LockerBankStatus"],
       }),
@@ -194,6 +208,9 @@ const injectedRtkApi = api
             url: `/mosq/auth`,
             method: "POST",
             body: queryArg.authRequest,
+            headers: {
+              "Accept-Language": queryArg["Accept-Language"],
+            },
           }),
           invalidatesTags: ["MosquittoAuth"],
         },
@@ -203,6 +220,9 @@ const injectedRtkApi = api
           url: `/mosq/acl`,
           method: "POST",
           body: queryArg.aclRequest,
+          headers: {
+            "Accept-Language": queryArg["Accept-Language"],
+          },
         }),
         invalidatesTags: ["MosquittoAuth"],
       }),
@@ -210,49 +230,31 @@ const injectedRtkApi = api
         GetTermsCurrentApiResponse,
         GetTermsCurrentApiArg
       >({
-        query: () => ({ url: `/terms/current` }),
+        query: (queryArg) => ({
+          url: `/terms/current`,
+          headers: {
+            "Accept-Language": queryArg["Accept-Language"],
+          },
+        }),
         providesTags: ["Terms"],
       }),
       postTermsAccept: build.mutation<
         PostTermsAcceptApiResponse,
         PostTermsAcceptApiArg
       >({
-        query: () => ({ url: `/terms/accept`, method: "POST" }),
+        query: (queryArg) => ({
+          url: `/terms/accept`,
+          method: "POST",
+          headers: {
+            "Accept-Language": queryArg["Accept-Language"],
+          },
+        }),
         invalidatesTags: ["Terms"],
       }),
     }),
     overrideExisting: false,
   });
 export { injectedRtkApi as openLockerApi };
-export type GetAdminUsersApiResponse = /** status 200 Array of `User` */ User[];
-export type GetAdminUsersApiArg = void;
-export type PostAdminUsersByUserMakeAdminApiResponse = /** status 200  */ {
-  message: null | any[] | string;
-  user: User;
-};
-export type PostAdminUsersByUserMakeAdminApiArg = {
-  /** The user ID */
-  user: number;
-};
-export type PostAdminUsersByUserRemoveAdminApiResponse = /** status 200  */ {
-  message: null | any[] | string;
-  user: User;
-};
-export type PostAdminUsersByUserRemoveAdminApiArg = {
-  /** The user ID */
-  user: number;
-};
-export type GetAdminStatisticsApiResponse = /** status 200  */ {
-  statistics: {
-    /** Total number of users */
-    total_users: number;
-    /** Total number of access grants */
-    total_compartment_accesses: number;
-    /** Number of currently active grants */
-    active_compartment_accesses: number;
-  };
-};
-export type GetAdminStatisticsApiArg = void;
 export type IdentifyApiResponse = /** status 200  */ {
   name: "Open-Locker";
   type: "backend";
@@ -262,90 +264,115 @@ export type IdentifyApiResponse = /** status 200  */ {
   environment: string;
   timestamp: string;
 };
-export type IdentifyApiArg = void;
+export type IdentifyApiArg = {
+  /** Preferred language for server-rendered strings (API messages, web pages, and request-triggered emails). Falls back to the application default when omitted or unsupported. */
+  "Accept-Language"?: "en" | "de";
+};
 export type PostLoginApiResponse =
-  /** status 200 `TokenResponseResource` */ TokenResponse;
+  /** status 200 `TokenResponse` */ TokenResponse;
 export type PostLoginApiArg = {
+  /** Preferred language for server-rendered strings (API messages, web pages, and request-triggered emails). Falls back to the application default when omitted or unsupported. */
+  "Accept-Language"?: "en" | "de";
   loginRequest: LoginRequest;
 };
 export type PostPasswordEmailApiResponse = /** status 200  */ {
-  message: null | any[] | string;
+  message: "Link zum Zur\u00FCcksetzen des Passworts gesendet";
 };
 export type PostPasswordEmailApiArg = {
+  /** Preferred language for server-rendered strings (API messages, web pages, and request-triggered emails). Falls back to the application default when omitted or unsupported. */
+  "Accept-Language"?: "en" | "de";
   sendPasswordResetRequest: SendPasswordResetRequest;
 };
 export type PostResetPasswordApiResponse = /** status 200  */ {
   message: string;
 };
 export type PostResetPasswordApiArg = {
+  /** Preferred language for server-rendered strings (API messages, web pages, and request-triggered emails). Falls back to the application default when omitted or unsupported. */
+  "Accept-Language"?: "en" | "de";
   resetPasswordRequest: ResetPasswordRequest;
 };
 export type PostLogoutApiResponse = /** status 200  */ {
-  message: null | any[] | string;
+  message: "Erfolgreich abgemeldet";
 };
-export type PostLogoutApiArg = void;
-export type GetUserApiResponse = /** status 200 `UserResource` */ User;
-export type GetUserApiArg = void;
+export type PostLogoutApiArg = {
+  /** Preferred language for server-rendered strings (API messages, web pages, and request-triggered emails). Falls back to the application default when omitted or unsupported. */
+  "Accept-Language"?: "en" | "de";
+};
+export type GetUserApiResponse = /** status 200 `User` */ User;
+export type GetUserApiArg = {
+  /** Preferred language for server-rendered strings (API messages, web pages, and request-triggered emails). Falls back to the application default when omitted or unsupported. */
+  "Accept-Language"?: "en" | "de";
+};
 export type PutProfileApiResponse = /** status 200 `User` */ User;
 export type PutProfileApiArg = {
+  /** Preferred language for server-rendered strings (API messages, web pages, and request-triggered emails). Falls back to the application default when omitted or unsupported. */
+  "Accept-Language"?: "en" | "de";
   updateProfileRequest: UpdateProfileRequest;
 };
 export type PutPasswordApiResponse = /** status 200  */ {
-  message: null | any[] | string;
+  message: "Passwort erfolgreich aktualisiert";
 };
 export type PutPasswordApiArg = {
+  /** Preferred language for server-rendered strings (API messages, web pages, and request-triggered emails). Falls back to the application default when omitted or unsupported. */
+  "Accept-Language"?: "en" | "de";
   changePasswordRequest: ChangePasswordRequest;
 };
 export type GetVerifyEmailByIdAndHashApiResponse = /** status 200 `ApiError` */
   | {
-      message: null | any[] | string;
+      message: "E-Mail best\u00E4tigt";
     }
   | ApiError;
 export type GetVerifyEmailByIdAndHashApiArg = {
   id: string;
   hash: string;
+  /** Preferred language for server-rendered strings (API messages, web pages, and request-triggered emails). Falls back to the application default when omitted or unsupported. */
+  "Accept-Language"?: "en" | "de";
 };
 export type PostEmailVerificationNotificationApiResponse =
   /** status 200 `ApiError` */
     | {
-        message: null | any[] | string;
+        message: "Link zur E-Mail-Best\u00E4tigung gesendet";
       }
     | ApiError;
-export type PostEmailVerificationNotificationApiArg = void;
-export type PostAdminUsersRegisterApiResponse =
-  /** status 200 `TokenResponse` */ TokenResponse;
-export type PostAdminUsersRegisterApiArg = {
-  body: {
-    first_name: string;
-    last_name: string;
-    email: string;
-    password: string;
-    password_confirmation: string;
-  };
+export type PostEmailVerificationNotificationApiArg = {
+  /** Preferred language for server-rendered strings (API messages, web pages, and request-triggered emails). Falls back to the application default when omitted or unsupported. */
+  "Accept-Language"?: "en" | "de";
 };
 export type GetCompartmentsApiResponse =
-  /** status 200 `AccessibleCompartmentsResource` */ AccessibleCompartments;
-export type GetCompartmentsApiArg = void;
+  /** status 200 `AccessibleCompartments` */ AccessibleCompartments;
+export type GetCompartmentsApiArg = {
+  /** Preferred language for server-rendered strings (API messages, web pages, and request-triggered emails). Falls back to the application default when omitted or unsupported. */
+  "Accept-Language"?: "en" | "de";
+};
 export type GetCompartmentsAccessibleApiResponse =
   /** status 200 `AccessibleCompartments` */ AccessibleCompartments;
-export type GetCompartmentsAccessibleApiArg = void;
+export type GetCompartmentsAccessibleApiArg = {
+  /** Preferred language for server-rendered strings (API messages, web pages, and request-triggered emails). Falls back to the application default when omitted or unsupported. */
+  "Accept-Language"?: "en" | "de";
+};
 export type PostCompartmentsByCompartmentOpenApiResponse =
   /** status 200  */ 202;
 export type PostCompartmentsByCompartmentOpenApiArg = {
   /** The compartment ID */
   compartment: string;
+  /** Preferred language for server-rendered strings (API messages, web pages, and request-triggered emails). Falls back to the application default when omitted or unsupported. */
+  "Accept-Language"?: "en" | "de";
 };
 export type PutCompartmentsByCompartmentContentNoteApiResponse =
-  /** status 200 `CompartmentContentNoteResource` */ CompartmentContentNote;
+  /** status 200 `CompartmentContentNote` */ CompartmentContentNote;
 export type PutCompartmentsByCompartmentContentNoteApiArg = {
   /** The compartment ID */
   compartment: string;
+  /** Preferred language for server-rendered strings (API messages, web pages, and request-triggered emails). Falls back to the application default when omitted or unsupported. */
+  "Accept-Language"?: "en" | "de";
   updateCompartmentContentNoteRequest: UpdateCompartmentContentNoteRequest;
 };
 export type GetCompartmentsOpenRequestsByCommandIdApiResponse =
-  /** status 200 `CompartmentOpenStatusResource` */ CompartmentOpenStatus;
+  /** status 200 `CompartmentOpenStatus` */ CompartmentOpenStatus;
 export type GetCompartmentsOpenRequestsByCommandIdApiArg = {
   commandId: string;
+  /** Preferred language for server-rendered strings (API messages, web pages, and request-triggered emails). Falls back to the application default when omitted or unsupported. */
+  "Accept-Language"?: "en" | "de";
 };
 export type GetLockerBanksByLockerBankStatusApiResponse = /** status 200  */ {
   id: string;
@@ -358,43 +385,38 @@ export type GetLockerBanksByLockerBankStatusApiResponse = /** status 200  */ {
 export type GetLockerBanksByLockerBankStatusApiArg = {
   /** The locker bank ID */
   lockerBank: string;
+  /** Preferred language for server-rendered strings (API messages, web pages, and request-triggered emails). Falls back to the application default when omitted or unsupported. */
+  "Accept-Language"?: "en" | "de";
 };
 export type PostMosqAuthApiResponse = /** status 200  */ {
   allow: boolean;
   ok: boolean;
 };
 export type PostMosqAuthApiArg = {
+  /** Preferred language for server-rendered strings (API messages, web pages, and request-triggered emails). Falls back to the application default when omitted or unsupported. */
+  "Accept-Language"?: "en" | "de";
   authRequest: AuthRequest;
 };
 export type PostMosqAclApiResponse = /** status 200  */ string;
 export type PostMosqAclApiArg = {
+  /** Preferred language for server-rendered strings (API messages, web pages, and request-triggered emails). Falls back to the application default when omitted or unsupported. */
+  "Accept-Language"?: "en" | "de";
   aclRequest: AclRequest;
 };
 export type GetTermsCurrentApiResponse =
-  /** status 200 `TermsCurrentResource` */ CurrentTerms;
-export type GetTermsCurrentApiArg = void;
+  /** status 200 `CurrentTerms` */ CurrentTerms;
+export type GetTermsCurrentApiArg = {
+  /** Preferred language for server-rendered strings (API messages, web pages, and request-triggered emails). Falls back to the application default when omitted or unsupported. */
+  "Accept-Language"?: "en" | "de";
+};
 export type PostTermsAcceptApiResponse = /** status 200  */ {
-  message: null | any[] | string;
+  message: "Nutzungsbedingungen erfolgreich akzeptiert";
   accepted_version: number;
   accepted_at: string;
 };
-export type PostTermsAcceptApiArg = void;
-export type User = {
-  id: number;
-  first_name: string;
-  last_name?: string | null;
-  email: string;
-  email_verified_at?: string | null;
-  is_admin: boolean;
-  terms_last_accepted_version?: number | null;
-  terms_current_version?: number | null;
-  terms_current_accepted: boolean;
-  created_at?: string | null;
-  updated_at?: string | null;
-};
-export type ApiError = {
-  status: boolean;
-  message: string;
+export type PostTermsAcceptApiArg = {
+  /** Preferred language for server-rendered strings (API messages, web pages, and request-triggered emails). Falls back to the application default when omitted or unsupported. */
+  "Accept-Language"?: "en" | "de";
 };
 export type TokenResponse = {
   token: string;
@@ -415,6 +437,19 @@ export type ResetPasswordRequest = {
   password: string;
   password_confirmation: string;
 };
+export type User = {
+  id: number;
+  first_name: string;
+  last_name?: string | null;
+  email: string;
+  email_verified_at?: string | null;
+  is_admin: boolean;
+  terms_last_accepted_version?: number | null;
+  terms_current_version?: number | null;
+  terms_current_accepted: boolean;
+  created_at?: string | null;
+  updated_at?: string | null;
+};
 export type UpdateProfileRequest = {
   first_name: string;
   last_name: string;
@@ -425,6 +460,10 @@ export type ChangePasswordRequest = {
   password: string;
   password_confirmation: string;
 };
+export type ApiError = {
+  status: boolean;
+  message: string;
+};
 export type AccessibleCompartments = {
   status: boolean;
   locker_banks: {
@@ -432,14 +471,20 @@ export type AccessibleCompartments = {
     name: string;
     location_description: string | null;
     last_compartment_state_change_at?: string | null;
+    /** What the app colours each bank by, sent with the list so the
+        first paint is right; the realtime event keeps it current.
+        Never null: the column defaults to 'unknown'. Heartbeat
+        timestamps stay on the dedicated status endpoint, which is
+        the only caller that needs them. */
+    connection_status: string;
     compartments: {
       id: string;
       number: number;
-      door_state: string | "unknown";
+      door_state: string;
       door_state_changed_at?: string | null;
       content_note?: string | null;
       content_note_updated_at?: string | null;
-      content_note_updated_by_user_id?: string | null;
+      content_note_updated_by_user_id?: number | null;
     }[];
   }[];
 };
@@ -456,6 +501,8 @@ export type UpdateCompartmentContentNoteRequest = {
 export type CompartmentOpenStatus = {
   status: boolean;
   command_id: string;
+  /** `opened` now means the door was observed open, not that the unlock
+    pulse was sent — that is `acknowledged`. */
   state: string;
   compartment_id?: string | null;
   authorization_type?: string | null;
@@ -466,7 +513,9 @@ export type CompartmentOpenStatus = {
   accepted_at?: string | null;
   denied_at?: string | null;
   sent_at?: string | null;
+  acknowledged_at?: string | null;
   opened_at?: string | null;
+  open_detection_ms?: number | null;
   failed_at?: string | null;
 };
 export type AuthRequest = {
@@ -488,10 +537,6 @@ export type CurrentTerms = {
   current_accepted: string;
 };
 export const {
-  useGetAdminUsersQuery,
-  usePostAdminUsersByUserMakeAdminMutation,
-  usePostAdminUsersByUserRemoveAdminMutation,
-  useGetAdminStatisticsQuery,
   useIdentifyQuery,
   usePostLoginMutation,
   usePostPasswordEmailMutation,
@@ -502,7 +547,6 @@ export const {
   usePutPasswordMutation,
   useGetVerifyEmailByIdAndHashQuery,
   usePostEmailVerificationNotificationMutation,
-  usePostAdminUsersRegisterMutation,
   useGetCompartmentsQuery,
   useGetCompartmentsAccessibleQuery,
   usePostCompartmentsByCompartmentOpenMutation,
