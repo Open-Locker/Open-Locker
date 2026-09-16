@@ -9,5 +9,13 @@
     "packages": [
         "filament/filament"
     ],
-    "sail": true
+    "sail": true,
+    "skills": [
+        "livewire-development",
+        "mcp-development",
+        "pest-testing",
+        "tailwindcss-development",
+        "volt-development",
+        "wayfinder-development"
+    ]
 }
