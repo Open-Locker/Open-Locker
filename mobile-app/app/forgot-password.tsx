@@ -1,6 +1,5 @@
 import React from 'react';
 import { KeyboardAvoidingView, Platform, StyleSheet, View } from 'react-native';
-import type { FetchBaseQueryError } from '@reduxjs/toolkit/query';
 import { router } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -9,23 +8,7 @@ import { HelperText, Text, useTheme } from 'react-native-paper';
 import { usePostPasswordEmailMutation } from '@/src/store/generatedApi';
 import { OPEN_LOCKER_DESIGN_TOKENS } from '@/src/theme/tokens';
 import { AppButton, AppTextInput, LanguageToggle } from '@/src/ui';
-
-function getErrorMessage(
-  error: unknown,
-  t: (key: string, options?: Record<string, unknown>) => string,
-): string {
-  const apiError = error as FetchBaseQueryError | undefined;
-  if (apiError && typeof apiError === 'object' && 'status' in apiError) {
-    if (apiError.status === 422) {
-      return t('passwordReset.enterValidEmail');
-    }
-    return t('common.requestFailedWithStatus', { status: String(apiError.status) });
-  }
-  if (error instanceof Error) {
-    return error.message;
-  }
-  return t('common.somethingWentWrong');
-}
+import { getApiErrorMessage } from '@/src/store/apiErrorMessage';
 
 export default function ForgotPasswordScreen() {
   const { t } = useTranslation();
@@ -50,7 +33,7 @@ export default function ForgotPasswordScreen() {
         typeof res.message === 'string' ? res.message : t('passwordReset.resetLinkSent'),
       );
     } catch (e) {
-      setError(getErrorMessage(e, t));
+      setError(getApiErrorMessage(e, t, { overrides: { 422: 'passwordReset.enterValidEmail' } }));
     } finally {
       setIsSubmitting(false);
     }
