@@ -24,6 +24,12 @@ class UserResource extends Resource
 {
     protected static ?string $model = User::class;
 
+    /**
+     * A user is a global identity with memberships, not a row an organization owns.
+     * Which users are visible is decided by membership, not by Filament's scope.
+     */
+    protected static bool $isScopedToTenant = false;
+
     protected static \BackedEnum|string|null $navigationIcon = 'heroicon-o-rectangle-stack';
 
     protected static ?int $navigationSort = 10;

@@ -75,6 +75,10 @@ class OrganizationApiTest extends TestCase
     {
         $user = User::factory()->create(['email_verified_at' => now()]);
 
+        // The factory places new users in the default organization; these tests
+        // are about which organizations a user belongs to, so they state it.
+        $user->organizations()->detach();
+
         foreach ($organizations as $organization) {
             $user->organizations()->attach($organization->id, ['joined_at' => now()]);
         }

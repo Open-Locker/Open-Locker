@@ -12,10 +12,13 @@ use App\Support\Organizations\OrganizationContext;
 use Database\Factories\UserFactory;
 use Filament\Models\Contracts\FilamentUser;
 use Filament\Models\Contracts\HasName;
+use Filament\Models\Contracts\HasTenants;
 use Filament\Panel;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
@@ -27,7 +30,7 @@ use Laravel\Sanctum\HasApiTokens;
 /**
  * @property \Carbon\CarbonImmutable|null $email_verified_at
  */
-class User extends Authenticatable implements FilamentUser, HasName, MustVerifyEmail
+class User extends Authenticatable implements FilamentUser, HasName, HasTenants, MustVerifyEmail
 {
     /** @use HasFactory<UserFactory> */
     use HasApiTokens, HasFactory, HasPermissions, Notifiable;
@@ -65,6 +68,35 @@ class User extends Authenticatable implements FilamentUser, HasName, MustVerifyE
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
         ];
+    }
+
+    /**
+     * Organizations this user may act in, for Filament's tenant switcher.
+     *
+     * A platform admin belongs to none by design, so membership would answer
+     * with an empty switcher and lock them out of the panel entirely. They get
+     * every organization instead — and entering one they are not a member of is
+     * recorded.
+     *
+     * @return Collection<int, Organization>
+     */
+    public function getTenants(Panel $panel): Collection
+    {
+        if ($this->isPlatformAdmin()) {
+            return Organization::query()->orderBy('name')->get();
+        }
+
+        return $this->organizations()->orderBy('name')->get();
+    }
+
+    public function canAccessTenant(Model $tenant): bool
+    {
+        if (! $tenant instanceof Organization) {
+            return false;
+        }
+
+        return $this->isPlatformAdmin()
+            || $this->organizations()->whereKey($tenant->getKey())->exists();
     }
 
     /**

@@ -28,6 +28,12 @@ class AuditLogResource extends Resource
 {
     protected static ?string $model = AuditEvent::class;
 
+    /**
+     * A read-only view over the event store, which is shared: rows are filtered by
+     * the organization they refer to rather than owned by one.
+     */
+    protected static bool $isScopedToTenant = false;
+
     protected static \BackedEnum|string|null $navigationIcon = 'heroicon-o-clipboard-document-list';
 
     protected static ?int $navigationSort = 90;

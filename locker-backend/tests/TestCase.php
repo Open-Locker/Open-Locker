@@ -4,8 +4,10 @@ namespace Tests;
 
 use App\Models\Organization;
 use App\Support\Organizations\OrganizationContext;
+use Filament\Facades\Filament;
 use Illuminate\Foundation\Testing\TestCase as BaseTestCase;
 use Illuminate\Routing\Middleware\ThrottleRequests;
+use Illuminate\Support\Facades\URL;
 
 abstract class TestCase extends BaseTestCase
 {
@@ -64,5 +66,15 @@ abstract class TestCase extends BaseTestCase
         );
 
         app(OrganizationContext::class)->set($organization);
+
+        // Panel routes carry the tenant now, so a Livewire test that never
+        // mentions organizations still needs one resolved — the same way a real
+        // session always has one after the switcher.
+        Filament::setTenant($organization, isQuiet: true);
+
+        // Panel URLs are generated with the tenant in the path, which Filament
+        // normally supplies from the resolved route. Tests generate those URLs
+        // outside a panel request, so the default has to be set here too.
+        URL::defaults(['tenant' => $organization->slug]);
     }
 }

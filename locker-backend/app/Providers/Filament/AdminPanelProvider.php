@@ -4,7 +4,9 @@ namespace App\Providers\Filament;
 
 use App\Filament\Pages\Auth\EditProfile;
 use App\Filament\Resources\CompartmentResource\Pages\ListCompartments;
+use App\Http\Middleware\ApplyFilamentTenantToOrganizationContext;
 use App\Http\Middleware\SetPanelLocale;
+use App\Models\Organization;
 use Filament\Http\Middleware\Authenticate;
 use Filament\Http\Middleware\AuthenticateSession;
 use Filament\Http\Middleware\DisableBladeIconComponents;
@@ -32,6 +34,10 @@ class AdminPanelProvider extends PanelProvider
         $panel->default()->id('admin')->path('admin');
 
         return $panel
+            // Filament owns the panel's switcher; ApplyFilamentTenantToOrganizationContext
+            // hands the chosen tenant to the one organization context the rest
+            // of the application reads, so there are not two notions of it.
+            ->tenant(Organization::class, slugAttribute: 'slug')
             ->login()
             ->emailVerification()
             ->passwordReset()
@@ -114,6 +120,9 @@ class AdminPanelProvider extends PanelProvider
             ])
             ->authMiddleware([
                 Authenticate::class,
-            ]);
+            ])
+            ->tenantMiddleware([
+                ApplyFilamentTenantToOrganizationContext::class,
+            ], isPersistent: true);
     }
 }

@@ -23,6 +23,12 @@ class TermsDocumentVersionResource extends Resource
 {
     protected static ?string $model = TermsDocumentVersion::class;
 
+    /**
+     * Versions belong to their document, and the document is what carries the
+     * organization.
+     */
+    protected static bool $isScopedToTenant = false;
+
     protected static \BackedEnum|string|null $navigationIcon = 'heroicon-o-document-text';
 
     protected static ?int $navigationSort = 10;
