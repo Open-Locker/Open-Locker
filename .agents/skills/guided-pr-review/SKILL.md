@@ -2,7 +2,7 @@
 name: guided-pr-review
 description: Reviews pull requests with upfront, severity-ranked findings and guides a human reviewer through context, code, and manual test cases. Use for PR reviews, merge assessments, or reviewer test preparation.
 metadata:
-  version: "0.1.0"
+  version: "0.1.1"
 ---
 
 # Guided PR Review
@@ -14,7 +14,10 @@ and help a human reviewer form and record their own assessment.
 
 - Treat the review as read-only unless the user explicitly requests changes.
 - Never publish comments, reviews, approvals, or change requests without explicit
-  user approval.
+  user approval. In interactive chat, ask before publishing.
+- When a Cursor Automation trigger or the user explicitly requests a published
+  GitHub review, treat that request as approval and publish after the analysis.
+  Keep the approval gate for interactive sessions.
 - Load repository guidance before reviewing. Inspect relevant `AGENTS.md`,
   `CLAUDE.md`, local rules, architecture documentation, and ADRs when present.
 - Verify claims from the PR description against the code and available checks.
@@ -208,7 +211,9 @@ Conclude with:
 - recommendation: approve, request changes, or discuss
 - follow-up work that is explicitly non-blocking
 
-Draft the final GitHub review separately and ask for approval before publishing.
+Draft the final GitHub review separately. In interactive chat, ask for approval
+before publishing. If the trigger or user already requested publication, publish
+after reconciling the conclusion.
 
 ## Output structure
 
