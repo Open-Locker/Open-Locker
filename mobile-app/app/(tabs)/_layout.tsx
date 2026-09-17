@@ -3,6 +3,7 @@ import { router, Stack } from 'expo-router';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { ChevronRight } from 'lucide-react-native';
 import { useTranslation } from 'react-i18next';
+import { useAppSelector } from '@/src/store/hooks';
 import { ActivityIndicator, Button, Surface, Text, useTheme } from 'react-native-paper';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -47,11 +48,23 @@ export default function TabLayout() {
   const [sendVerificationEmail, sendVerificationEmailState] =
     usePostEmailVerificationNotificationMutation();
   const needsTermsAcceptance = !!user && !user.terms_current_accepted;
+  const organizationSelectionRequired = useAppSelector(
+    (state) => state.organization.selectionRequired,
+  );
   const needsVerification = !!user && !user.email_verified_at;
   const [verificationMessage, setVerificationMessage] = React.useState<string | null>(null);
   const accountInitial = (
     formatUserName(user?.first_name, user?.last_name).charAt(0) || 'A'
   ).toUpperCase();
+
+  // The server refused a request because this user belongs to several
+  // organizations and the app did not say which. It never guesses on their
+  // behalf, so the switcher opens and the choice is made explicitly.
+  React.useEffect(() => {
+    if (organizationSelectionRequired) {
+      router.push('/select-organization');
+    }
+  }, [organizationSelectionRequired]);
 
   if (isLoadingUser) {
     return (

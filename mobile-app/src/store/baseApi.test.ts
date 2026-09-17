@@ -3,6 +3,7 @@ import { configureStore } from '@reduxjs/toolkit';
 import { authReducer, setCredentials } from '@/src/store/authSlice';
 import { clearPersistedAuth } from '@/src/store/authStorage';
 import { baseApi } from '@/src/store/baseApi';
+import { organizationReducer } from '@/src/store/organizationSlice';
 
 jest.mock('@/src/store/authStorage', () => ({
   clearPersistedAuth: jest.fn(() => Promise.resolve()),
@@ -20,6 +21,9 @@ function createTestStore() {
   return configureStore({
     reducer: {
       auth: authReducer,
+      // The base query reads the active organization the same way it reads the
+      // token, so the slice has to exist for prepareHeaders to run at all.
+      organization: organizationReducer,
       [baseApi.reducerPath]: baseApi.reducer,
     },
     middleware: (getDefaultMiddleware) => getDefaultMiddleware().concat(baseApi.middleware),

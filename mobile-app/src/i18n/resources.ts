@@ -89,6 +89,12 @@ export const resources = {
         passwordUpdated: 'Password updated.',
         logout: 'Logout',
       },
+      organization: {
+        selectTitle: 'Choose organization',
+        selectIntro:
+          'You belong to more than one organization. Choose the one you want to work in.',
+        loadFailed: 'Failed to load your organizations.',
+      },
       terms: {
         mustAccept: 'You must accept {{documentName}} before using the app.',
         currentDocument: 'current document',
@@ -220,6 +226,12 @@ export const resources = {
         updatePassword: 'Passwort aktualisieren',
         passwordUpdated: 'Passwort aktualisiert.',
         logout: 'Abmelden',
+      },
+      organization: {
+        selectTitle: 'Organisation wählen',
+        selectIntro:
+          'Sie gehören zu mehreren Organisationen. Wählen Sie die, in der Sie arbeiten möchten.',
+        loadFailed: 'Ihre Organisationen konnten nicht geladen werden.',
       },
       terms: {
         mustAccept: 'Du musst {{documentName}} akzeptieren, bevor du die App nutzt.',

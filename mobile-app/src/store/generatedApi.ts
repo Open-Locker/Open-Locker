@@ -5,6 +5,7 @@ export const addTagTypes = [
   "Compartment",
   "LockerBankStatus",
   "MosquittoAuth",
+  "Organization",
   "Terms",
 ] as const;
 const injectedRtkApi = api
@@ -226,6 +227,18 @@ const injectedRtkApi = api
         }),
         invalidatesTags: ["MosquittoAuth"],
       }),
+      getOrganizations: build.query<
+        GetOrganizationsApiResponse,
+        GetOrganizationsApiArg
+      >({
+        query: (queryArg) => ({
+          url: `/organizations`,
+          headers: {
+            "Accept-Language": queryArg["Accept-Language"],
+          },
+        }),
+        providesTags: ["Organization"],
+      }),
       getTermsCurrent: build.query<
         GetTermsCurrentApiResponse,
         GetTermsCurrentApiArg
@@ -403,6 +416,15 @@ export type PostMosqAclApiArg = {
   "Accept-Language"?: "en" | "de";
   aclRequest: AclRequest;
 };
+export type GetOrganizationsApiResponse = /** status 200  */ {
+  id: string;
+  name: string;
+  slug: string;
+}[];
+export type GetOrganizationsApiArg = {
+  /** Preferred language for server-rendered strings (API messages, web pages, and request-triggered emails). Falls back to the application default when omitted or unsupported. */
+  "Accept-Language"?: "en" | "de";
+};
 export type GetTermsCurrentApiResponse =
   /** status 200 `CurrentTerms` */ CurrentTerms;
 export type GetTermsCurrentApiArg = {
@@ -555,6 +577,7 @@ export const {
   useGetLockerBanksByLockerBankStatusQuery,
   usePostMosqAuthMutation,
   usePostMosqAclMutation,
+  useGetOrganizationsQuery,
   useGetTermsCurrentQuery,
   usePostTermsAcceptMutation,
 } = injectedRtkApi;
