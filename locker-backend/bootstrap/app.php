@@ -2,6 +2,7 @@
 
 use App\Http\Middleware\EnsureVerifiedEmailApi;
 use App\Http\Middleware\RequireAcceptedTerms;
+use App\Http\Middleware\ResolveOrganization;
 use App\Http\Middleware\SetLocale;
 use Illuminate\Auth\AuthenticationException;
 use Illuminate\Foundation\Application;
@@ -36,6 +37,7 @@ return Application::configure(basePath: dirname(__DIR__))
             return route('filament.admin.auth.login');
         });
         $middleware->alias([
+            'organization' => ResolveOrganization::class,
             'verified.api' => EnsureVerifiedEmailApi::class,
             'terms.accepted' => RequireAcceptedTerms::class,
         ]);

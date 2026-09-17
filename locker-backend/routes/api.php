@@ -5,6 +5,7 @@ use App\Http\Controllers\AuthController;
 use App\Http\Controllers\CompartmentController;
 use App\Http\Controllers\LockerBankStatusController;
 use App\Http\Controllers\Mqtt\MosquittoAuthController;
+use App\Http\Controllers\OrganizationController;
 use App\Http\Controllers\TermsController;
 use App\Http\Middleware\VerifyMosqHttpAuth;
 use Illuminate\Support\Facades\Route;
@@ -21,14 +22,19 @@ Route::controller(AuthController::class)->group(function () {
 
 });
 
-Route::middleware('auth:sanctum')->group(function () {
+Route::middleware(['auth:sanctum', 'organization'])->group(function () {
+    // What the app's switcher displays. Outside the terms gate on purpose: a
+    // user must be able to see which organizations they belong to before they
+    // can accept any one organization's terms.
+    Route::get('organizations', [OrganizationController::class, 'index'])->name('organizations.index');
+
     Route::controller(TermsController::class)->prefix('/terms')->group(function () {
         Route::get('current', 'current')->name('terms.current');
         Route::post('accept', 'accept')->name('terms.accept');
     });
 });
 
-Route::middleware(['auth:sanctum', 'terms.accepted'])->group(function () {
+Route::middleware(['auth:sanctum', 'organization', 'terms.accepted'])->group(function () {
 
     Route::get('locker-banks/{lockerBank}/status', LockerBankStatusController::class)
         ->name('locker-banks.status');
