@@ -14,12 +14,65 @@ use LogicException;
 
 class TermsService
 {
+    /**
+     * There is exactly one terms document and it changes rarely, but the gates
+     * ask for it repeatedly: the middleware needs the active version and then
+     * the acceptance predicate, and a refused open asks a third time to build
+     * the response. Holding it for the life of the instance keeps that at one
+     * lookup. A separate flag is needed because "no document yet" is a real
+     * answer that must not be re-queried on every call.
+     */
+    private ?TermsDocument $currentDocument = null;
+
+    private bool $currentDocumentLoaded = false;
+
     public function getCurrentDocument(): ?TermsDocument
     {
-        return TermsDocument::query()
+        if ($this->currentDocumentLoaded) {
+            return $this->currentDocument;
+        }
+
+        $this->currentDocument = TermsDocument::query()
             ->with('activeVersion')
             ->oldest('id')
             ->first();
+        $this->currentDocumentLoaded = true;
+
+        return $this->currentDocument;
+    }
+
+    /**
+     * The version of the terms that is in force right now, or null while none
+     * has been published.
+     */
+    public function activeVersion(): ?TermsDocumentVersion
+    {
+        return $this->getCurrentDocument()?->activeVersion;
+    }
+
+    /**
+     * Whether the user has accepted the version that is in force right now.
+     *
+     * The match is on the version's id, not its number. The two differ when a
+     * version is rolled back: a user who accepted v2 has not accepted v1, even
+     * though their acceptance is the more recent one and v1 is the lower
+     * number. Nothing published means nothing to accept, so that answers true.
+     *
+     * Every gate on terms acceptance reads this one predicate, so a route that
+     * checks it inline cannot quietly disagree with the middleware.
+     */
+    public function hasAcceptedActiveVersion(User $user): bool
+    {
+        $activeVersion = $this->activeVersion();
+
+        if (! $activeVersion) {
+            return true;
+        }
+
+        return $user->termsAcceptances()
+            ->where('terms_document_id', $activeVersion->terms_document_id)
+            ->where('terms_document_version_id', $activeVersion->id)
+            ->exists();
     }
 
     /**
@@ -34,7 +87,7 @@ class TermsService
 
     public function createDraftVersion(string $documentName, string $content, ?User $actor = null): TermsDocumentVersion
     {
-        return DB::transaction(function () use ($documentName, $content, $actor): TermsDocumentVersion {
+        $draft = DB::transaction(function () use ($documentName, $content, $actor): TermsDocumentVersion {
             $document = TermsDocument::query()
                 ->lockForUpdate()
                 ->oldest('id')
@@ -92,6 +145,11 @@ class TermsService
                 'created_by_user_id' => $actor?->id,
             ]);
         });
+
+        // The document may have just been created, or renamed.
+        $this->forgetCurrentDocument();
+
+        return $draft;
     }
 
     public function publishDraftVersion(TermsDocumentVersion $draft, ?User $actor = null): TermsDocumentVersion
@@ -125,6 +183,9 @@ class TermsService
                 activatedAt: now(),
             )
             ->persist();
+
+        // A different version is in force now.
+        $this->forgetCurrentDocument();
 
         return $draft->refresh();
     }
@@ -164,6 +225,17 @@ class TermsService
         $version->update(['content' => $content]);
 
         return $version->refresh();
+    }
+
+    /**
+     * Drop the held document after anything that changes which version is in
+     * force, so a caller that publishes and then reads within one request is
+     * not answered from before its own write.
+     */
+    private function forgetCurrentDocument(): void
+    {
+        $this->currentDocument = null;
+        $this->currentDocumentLoaded = false;
     }
 
     private function aggregate(int $documentId): TermsDocumentAggregate

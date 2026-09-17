@@ -50,7 +50,12 @@ final class OpenCompartmentAction
 
                     // A denial is announced over the realtime channel, so no
                     // notification is raised here — two would arrive otherwise.
-                    app(CompartmentAccessService::class)->requestOpen($user, $record);
+                    // The panel offers no way to accept terms — that happens in
+                    // the mobile app — so gating on them here would take the
+                    // Open button away from the admin who just published a
+                    // version, with nothing they could do about it.
+                    app(CompartmentAccessService::class)
+                        ->requestOpen($user, $record, requireAcceptedTerms: false);
                 } catch (Throwable $e) {
                     // The message can carry internal detail, so it goes to the
                     // log and the operator sees a generic failure.

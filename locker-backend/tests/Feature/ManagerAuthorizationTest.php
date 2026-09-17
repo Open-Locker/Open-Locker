@@ -144,7 +144,7 @@ class ManagerAuthorizationTest extends TestCase
             $mock->shouldReceive('openCompartment');
         });
 
-        $decision = app(CompartmentAccessService::class)->requestOpen($manager, $compartment);
+        $decision = app(CompartmentAccessService::class)->requestOpen($manager, $compartment, requireAcceptedTerms: false);
 
         $this->assertTrue($decision['authorized']);
 

@@ -130,8 +130,13 @@ class CompartmentAccessControllerTest extends TestCase
             ->assertJsonPath('status', false)
             ->assertJsonPath('message', __('Please verify your email address before opening compartments'));
 
-        $this->assertDatabaseMissing('stored_events', [
+        // The attempt is recorded before it is turned away, so an admin reading
+        // the audit log can see that the user tried and why it did not work.
+        $this->assertDatabaseHas('stored_events', [
             'event_class' => CompartmentOpenRequested::class,
+        ]);
+        $this->assertDatabaseHas('stored_events', [
+            'event_class' => CompartmentOpenDenied::class,
         ]);
         $this->assertDatabaseMissing('stored_events', [
             'event_class' => CompartmentOpenAuthorized::class,
@@ -425,7 +430,7 @@ class CompartmentAccessControllerTest extends TestCase
         $user->forceFill(['email_verified_at' => null])->save();
         $compartment = Compartment::factory()->create();
 
-        $decision = app(CompartmentAccessService::class)->requestOpen($user, $compartment);
+        $decision = app(CompartmentAccessService::class)->requestOpen($user, $compartment, requireAcceptedTerms: false);
 
         $this->assertFalse($decision['authorized']);
         $this->assertNotEmpty($decision['command_id']);
