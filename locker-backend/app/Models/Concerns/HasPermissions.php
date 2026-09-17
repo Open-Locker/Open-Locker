@@ -7,6 +7,7 @@ namespace App\Models\Concerns;
 use App\Enums\Permission;
 use App\Enums\Role;
 use App\Models\UserRole;
+use App\Support\Organizations\OrganizationContext;
 
 /**
  * Resolves a user's effective roles and permissions from the event-sourced
@@ -23,18 +24,56 @@ trait HasPermissions
     /** @var list<string>|null */
     private ?array $cachedRoleNames = null;
 
-    /** @return list<string> */
+    /**
+     * Roles held *in the organization currently being acted in*.
+     *
+     * This is one of the two seams that make the whole capability layer
+     * organization-aware: every `isAdmin()` and `can(...)` in the codebase
+     * resolves through here, so none of them need to know about organizations
+     * themselves. A manager for one operator is an ordinary user everywhere
+     * else, and that falls out of this query rather than out of 42 edits.
+     *
+     * platform_admin is excluded here on purpose. It belongs to no organization
+     * and is answered by Gate::before, so it can never be mistaken for an
+     * organization role by a query that forgot to filter.
+     *
+     * @return list<string>
+     */
     public function roleNames(): array
     {
-        return $this->cachedRoleNames ??= array_values(array_map(
+        if ($this->cachedRoleNames !== null) {
+            return $this->cachedRoleNames;
+        }
+
+        $organizationId = app(OrganizationContext::class)->currentId();
+
+        // No organization in context means no organization roles. Acting
+        // without saying where grants nothing, rather than everything.
+        if ($organizationId === null) {
+            return $this->cachedRoleNames = [];
+        }
+
+        return $this->cachedRoleNames = array_values(array_map(
             static fn (mixed $role): string => (string) $role,
-            $this->relationLoaded('userRoles')
-                ? $this->userRoles->pluck('role')->all()
-                : UserRole::query()
-                    ->where('user_id', $this->getKey())
-                    ->pluck('role')
-                    ->all()
+            UserRole::query()
+                ->where('user_id', $this->getKey())
+                ->where('organization_id', $organizationId)
+                ->pluck('role')
+                ->all()
         ));
+    }
+
+    /**
+     * Administers the installation rather than any one organization: the only
+     * role whose organization is null, and the only one not resolved above.
+     */
+    public function isPlatformAdmin(): bool
+    {
+        return UserRole::query()
+            ->where('user_id', $this->getKey())
+            ->whereNull('organization_id')
+            ->where('role', Role::PlatformAdmin->value)
+            ->exists();
     }
 
     public function hasRole(string $role): bool

@@ -8,6 +8,7 @@ use App\Enums\Role;
 use App\Models\Concerns\HasPermissions;
 use App\Notifications\Auth\WebResetPasswordNotification;
 use App\Notifications\Auth\WebVerifyEmailNotification;
+use App\Support\Organizations\OrganizationContext;
 use Database\Factories\UserFactory;
 use Filament\Models\Contracts\FilamentUser;
 use Filament\Models\Contracts\HasName;
@@ -64,6 +65,20 @@ class User extends Authenticatable implements FilamentUser, HasName, MustVerifyE
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
         ];
+    }
+
+    /**
+     * Organizations this user belongs to.
+     *
+     * Membership is recorded separately from any role held inside it: an
+     * ordinary end user holds no role row but is still a member, and revoking a
+     * role does not remove someone from the organization.
+     *
+     * @return BelongsToMany<Organization, $this>
+     */
+    public function organizations(): BelongsToMany
+    {
+        return $this->belongsToMany(Organization::class)->withPivot('joined_at')->withTimestamps();
     }
 
     /**
@@ -206,7 +221,7 @@ class User extends Authenticatable implements FilamentUser, HasName, MustVerifyE
     public function makeAdmin(?int $actorUserId = null): void
     {
         UserRoleAggregate::retrieve(UserRoleAggregate::aggregateUuidFor($this->id))
-            ->grantRole($this->id, Role::Admin->value, $actorUserId, now())
+            ->grantRole($this->id, Role::Admin->value, $actorUserId, now(), app(OrganizationContext::class)->currentId())
             ->persist();
 
         $this->flushPermissionCache();
@@ -218,7 +233,7 @@ class User extends Authenticatable implements FilamentUser, HasName, MustVerifyE
     public function removeAdmin(?int $actorUserId = null): void
     {
         UserRoleAggregate::retrieve(UserRoleAggregate::aggregateUuidFor($this->id))
-            ->revokeRole($this->id, Role::Admin->value, $actorUserId, now())
+            ->revokeRole($this->id, Role::Admin->value, $actorUserId, now(), app(OrganizationContext::class)->currentId())
             ->persist();
 
         $this->flushPermissionCache();

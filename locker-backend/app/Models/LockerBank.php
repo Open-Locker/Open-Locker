@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToOrganization;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -26,6 +27,8 @@ use Illuminate\Database\Eloquent\Relations\HasManyThrough;
  */
 class LockerBank extends Model
 {
+    use BelongsToOrganization;
+
     /** @use HasFactory<\Database\Factories\LockerBankFactory> */
     use HasFactory;
 

@@ -9,6 +9,7 @@ use App\Enums\Permission;
 use App\Enums\Role;
 use App\Exceptions\LastAdminException;
 use App\Models\User;
+use App\Support\Organizations\OrganizationContext;
 use Illuminate\Auth\Access\AuthorizationException;
 
 class UserAdministrationService
@@ -52,13 +53,13 @@ class UserAdministrationService
 
             foreach (array_diff($selected, $current) as $roleName) {
                 UserRoleAggregate::retrieve(UserRoleAggregate::aggregateUuidFor($target->id))
-                    ->grantRole($target->id, $roleName, $actor->id, now())
+                    ->grantRole($target->id, $roleName, $actor->id, now(), app(OrganizationContext::class)->currentId())
                     ->persist();
             }
 
             foreach (array_diff($current, $selected) as $roleName) {
                 UserRoleAggregate::retrieve(UserRoleAggregate::aggregateUuidFor($target->id))
-                    ->revokeRole($target->id, $roleName, $actor->id, now())
+                    ->revokeRole($target->id, $roleName, $actor->id, now(), app(OrganizationContext::class)->currentId())
                     ->persist();
             }
         });
