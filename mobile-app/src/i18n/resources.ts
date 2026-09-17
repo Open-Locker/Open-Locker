@@ -90,6 +90,7 @@ export const resources = {
         logout: 'Logout',
       },
       organization: {
+        switch: 'Switch organization',
         selectTitle: 'Choose organization',
         selectIntro:
           'You belong to more than one organization. Choose the one you want to work in.',
@@ -228,6 +229,7 @@ export const resources = {
         logout: 'Abmelden',
       },
       organization: {
+        switch: 'Organisation wechseln',
         selectTitle: 'Organisation wählen',
         selectIntro:
           'Sie gehören zu mehreren Organisationen. Wählen Sie die, in der Sie arbeiten möchten.',
