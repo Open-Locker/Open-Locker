@@ -368,9 +368,28 @@ class User extends Authenticatable implements FilamentUser, HasName, HasTenants,
         return true;
     }
 
+    /**
+     * Whether this person may reach the panel at all — not which organization
+     * they then act in, which is the tenant's job.
+     *
+     * Filament asks this during authentication, before the tenant middleware
+     * has run, so there is no organization in context yet and an
+     * organization-scoped check would refuse everyone. The question is answered
+     * across every organization they belong to instead: holding panel access
+     * anywhere is what gets you through the door, and the tenant decides what
+     * you can do once inside.
+     */
     public function canAccessPanel(Panel $panel): bool
     {
-        return $this->can(Permission::PanelAccess->value);
+        if ($this->isPlatformAdmin()) {
+            return true;
+        }
+
+        return UserRole::query()
+            ->where('user_id', $this->getKey())
+            ->whereIn('role', Role::valuesWithPermission(Permission::PanelAccess))
+            ->whereNotNull('organization_id')
+            ->exists();
     }
 
     protected static function booted()

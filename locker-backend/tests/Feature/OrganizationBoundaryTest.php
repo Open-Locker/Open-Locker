@@ -17,6 +17,7 @@ use App\Models\TermsDocument;
 use App\Models\User;
 use App\Models\UserRole;
 use App\Support\EventSourcing\OrganizationStamp;
+use App\Support\Organizations\DefaultOrganization;
 use App\Support\Organizations\OrganizationContext;
 use Filament\Facades\Filament;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -191,6 +192,79 @@ class OrganizationBoundaryTest extends TestCase
         $user->organizations()->attach($organization->id, ['joined_at' => now()]);
 
         return $user;
+    }
+
+    public function test_an_organization_admin_can_reach_the_panel_on_a_real_request(): void
+    {
+        $organization = Organization::query()->where('slug', DefaultOrganization::SLUG)->firstOrFail();
+        $admin = User::factory()->create(['email_verified_at' => now()]);
+        UserRole::create([
+            'user_id' => $admin->id,
+            'organization_id' => $organization->id,
+            'role' => Role::Admin->value,
+            'granted_at' => now(),
+        ]);
+
+        // Undo this suite's convenience: a real request arrives with neither an
+        // organization nor a tenant, and Filament asks whether the panel may be
+        // entered during authentication — before the tenant middleware runs.
+        // Pre-seeding both is what hid this.
+        app(OrganizationContext::class)->set(null);
+        Filament::setTenant(null, isQuiet: true);
+
+        $response = $this->actingAs($admin)->get('/admin/'.$organization->slug);
+
+        // The panel has no dashboard: its root redirects to the first
+        // navigation item. A redirect rather than a 403 is what proves the
+        // admin got through the door.
+        $response->assertRedirect();
+        $this->assertStringNotContainsString(
+            'login',
+            (string) $response->headers->get('Location'),
+        );
+    }
+
+    public function test_the_same_role_can_be_held_in_two_organizations(): void
+    {
+        $alpha = Organization::create(['name' => 'Alpha', 'slug' => 'alpha']);
+        $beta = Organization::create(['name' => 'Beta', 'slug' => 'beta']);
+        $user = User::factory()->create();
+
+        // The case the whole membership model exists for: a manager for one
+        // operator, something else entirely for another.
+        foreach ([$alpha, $beta] as $organization) {
+            UserRole::create([
+                'user_id' => $user->id,
+                'organization_id' => $organization->id,
+                'role' => Role::Manager->value,
+                'granted_at' => now(),
+            ]);
+        }
+
+        $this->assertTrue($this->within($alpha, fn (): bool => $user->hasRole(Role::Manager->value)));
+
+        $user->flushPermissionCache();
+        $this->assertTrue($this->within($beta, fn (): bool => $user->hasRole(Role::Manager->value)));
+    }
+
+    public function test_roles_are_not_cached_across_organizations(): void
+    {
+        $alpha = Organization::create(['name' => 'Alpha', 'slug' => 'alpha']);
+        $beta = Organization::create(['name' => 'Beta', 'slug' => 'beta']);
+        $user = User::factory()->create();
+
+        UserRole::create([
+            'user_id' => $user->id,
+            'organization_id' => $alpha->id,
+            'role' => Role::Manager->value,
+            'granted_at' => now(),
+        ]);
+
+        // Reusing one instance across organizations is what a command walking
+        // all of them does; a cache that is not keyed by organization answers
+        // the second with the first one's roles.
+        $this->assertTrue($this->within($alpha, fn (): bool => $user->hasRole(Role::Manager->value)));
+        $this->assertFalse($this->within($beta, fn (): bool => $user->hasRole(Role::Manager->value)));
     }
 
     private function within(Organization $organization, callable $callback): mixed

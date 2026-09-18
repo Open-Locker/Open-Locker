@@ -59,6 +59,7 @@ class TermsNotificationReactor extends Reactor implements ShouldQueue
                 event(new TermsAcceptanceRequired(
                     recipientUserIds: array_values($users->pluck('id')->map(fn ($id) => (int) $id)->all()),
                     version: $event->version,
+                    organizationId: OrganizationStamp::from($event),
                 ));
             });
     }

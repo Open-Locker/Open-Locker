@@ -7,6 +7,7 @@ namespace App\Http\Middleware;
 use App\Models\Organization;
 use App\Models\User;
 use App\Support\Organizations\OrganizationContext;
+use App\Support\Organizations\PlatformAdminEntryRecorder;
 use Closure;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -41,6 +42,12 @@ class ResolveOrganization
             }
 
             app(OrganizationContext::class)->set($organization);
+
+            // Entering is what makes an operator's data visible, so it is
+            // recorded here as well as in the panel. A platform admin reaching
+            // an organization over the API is the same act as reaching it
+            // through the switcher.
+            app(PlatformAdminEntryRecorder::class)->recordIfEntering($user, $organization);
 
             return $next($request);
         }

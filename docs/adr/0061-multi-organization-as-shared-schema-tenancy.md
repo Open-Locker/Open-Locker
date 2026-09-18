@@ -297,6 +297,13 @@ costs almost nothing now and buys the option.
 - **Broadcast authorization is the likeliest gap**, because it is the one path that
   does not go through the REST scoping. Mitigation: verify organization ownership
   in the channel authorization callbacks, and test it.
+- **The database half of the isolation is not exercised by the test suite.** Dev
+  and production run PostgreSQL, but the suite runs SQLite in memory, which
+  cannot `ALTER TABLE ... ADD CONSTRAINT`. The composite foreign keys and the
+  check constraint are therefore driver-guarded and absent under test, so
+  everything CI proves is the application half. Mitigation today is verifying
+  each constraint by hand against PostgreSQL; the real fix is running the suite
+  on PostgreSQL, which is its own decision because it slows every test run.
 - **The default-organization backfill is effectively irreversible** once a second
   organization exists. Mitigation: perform it as an explicit, reviewed migration
   with a verified backup, not as a side effect of deploying.

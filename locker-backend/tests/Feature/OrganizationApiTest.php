@@ -65,6 +65,20 @@ class OrganizationApiTest extends TestCase
             ->assertJsonCount(2);
     }
 
+    public function test_the_switcher_can_load_its_list_in_the_state_that_opens_it(): void
+    {
+        $user = $this->memberOf([$this->organization('alpha'), $this->organization('beta')]);
+        Sanctum::actingAs($user);
+
+        // No header, several memberships: exactly the state the app is in when
+        // a refusal sends it to the switcher. If this endpoint needed an
+        // organization resolved first, the only screen that can end the refusal
+        // would be the one screen the refusal blocks.
+        $this->getJson('/api/organizations')
+            ->assertOk()
+            ->assertJsonCount(2);
+    }
+
     private function organization(string $slug): Organization
     {
         return Organization::create(['name' => ucfirst($slug).' Operator', 'slug' => $slug]);

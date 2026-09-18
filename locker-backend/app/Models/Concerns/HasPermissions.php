@@ -21,8 +21,16 @@ use App\Support\Organizations\OrganizationContext;
  */
 trait HasPermissions
 {
-    /** @var list<string>|null */
-    private ?array $cachedRoleNames = null;
+    /**
+     * Keyed by organization: the same user holds different roles in each, and a
+     * single cache would answer the second organization with the first one's
+     * roles — which is exactly what a command walking every organization does.
+     *
+     * @var array<string, list<string>>
+     */
+    private array $cachedRoleNames = [];
+
+    private ?bool $cachedIsPlatformAdmin = null;
 
     /**
      * Roles held *in the organization currently being acted in*.
@@ -41,19 +49,19 @@ trait HasPermissions
      */
     public function roleNames(): array
     {
-        if ($this->cachedRoleNames !== null) {
-            return $this->cachedRoleNames;
-        }
-
         $organizationId = app(OrganizationContext::class)->currentId();
 
         // No organization in context means no organization roles. Acting
         // without saying where grants nothing, rather than everything.
         if ($organizationId === null) {
-            return $this->cachedRoleNames = [];
+            return [];
         }
 
-        return $this->cachedRoleNames = array_values(array_map(
+        if (array_key_exists($organizationId, $this->cachedRoleNames)) {
+            return $this->cachedRoleNames[$organizationId];
+        }
+
+        return $this->cachedRoleNames[$organizationId] = array_values(array_map(
             static fn (mixed $role): string => (string) $role,
             UserRole::query()
                 ->where('user_id', $this->getKey())
@@ -69,7 +77,10 @@ trait HasPermissions
      */
     public function isPlatformAdmin(): bool
     {
-        return UserRole::query()
+        // Asked on every Gate::before, so it is answered once per instance.
+        // Unlike organization roles this cannot vary with context: the role
+        // belongs to no organization.
+        return $this->cachedIsPlatformAdmin ??= UserRole::query()
             ->where('user_id', $this->getKey())
             ->whereNull('organization_id')
             ->where('role', Role::PlatformAdmin->value)
@@ -146,6 +157,7 @@ trait HasPermissions
 
     public function flushPermissionCache(): void
     {
-        $this->cachedRoleNames = null;
+        $this->cachedRoleNames = [];
+        $this->cachedIsPlatformAdmin = null;
     }
 }

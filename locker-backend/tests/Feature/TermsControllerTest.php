@@ -307,6 +307,12 @@ class TermsControllerTest extends TestCase
             $channels
         );
         // A signal, not a copy of the terms: the app re-reads its own profile.
-        $this->assertSame(['version' => 3], $event->broadcastWith());
+        // The organization rides along because the channel is keyed by user, so
+        // someone in two of them receives both and cannot otherwise tell which
+        // operator's terms a prompt is about.
+        $this->assertSame(
+            ['version' => 3, 'organization_id' => null],
+            $event->broadcastWith(),
+        );
     }
 }

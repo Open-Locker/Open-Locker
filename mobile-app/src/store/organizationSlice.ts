@@ -1,5 +1,10 @@
 import { createSlice, type PayloadAction } from '@reduxjs/toolkit';
 
+import {
+  clearPersistedOrganization,
+  persistActiveOrganization,
+} from '@/src/store/organizationStorage';
+
 type OrganizationState = {
   /**
    * Which organization the app is acting in. Sent with every request; the
@@ -26,9 +31,13 @@ const organizationSlice = createSlice({
   name: 'organization',
   initialState,
   reducers: {
+    restoreActiveOrganization(state, action: PayloadAction<string | null>) {
+      state.activeOrganizationId = action.payload;
+    },
     setActiveOrganization(state, action: PayloadAction<string>) {
       state.activeOrganizationId = action.payload;
       state.selectionRequired = false;
+      void persistActiveOrganization(action.payload);
     },
     requireOrganizationSelection(state) {
       state.selectionRequired = true;
@@ -36,11 +45,16 @@ const organizationSlice = createSlice({
     clearActiveOrganization(state) {
       state.activeOrganizationId = null;
       state.selectionRequired = false;
+      void clearPersistedOrganization();
     },
   },
 });
 
-export const { setActiveOrganization, requireOrganizationSelection, clearActiveOrganization } =
-  organizationSlice.actions;
+export const {
+  restoreActiveOrganization,
+  setActiveOrganization,
+  requireOrganizationSelection,
+  clearActiveOrganization,
+} = organizationSlice.actions;
 
 export const organizationReducer = organizationSlice.reducer;

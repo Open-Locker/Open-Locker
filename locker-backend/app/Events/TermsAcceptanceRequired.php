@@ -28,6 +28,13 @@ class TermsAcceptanceRequired implements ShouldBroadcastNow
     public function __construct(
         public readonly array $recipientUserIds,
         public readonly int $version,
+        /**
+         * Which operator's terms these are. The channel is keyed by user, so a
+         * person in two organizations receives both on one channel and cannot
+         * otherwise tell them apart — they would be prompted to accept terms
+         * belonging to the organization they are not currently in.
+         */
+        public readonly ?string $organizationId = null,
     ) {}
 
     /**
@@ -47,10 +54,13 @@ class TermsAcceptanceRequired implements ShouldBroadcastNow
     }
 
     /**
-     * @return array<string, int>
+     * @return array<string, int|string|null>
      */
     public function broadcastWith(): array
     {
-        return ['version' => $this->version];
+        return [
+            'version' => $this->version,
+            'organization_id' => $this->organizationId,
+        ];
     }
 }
