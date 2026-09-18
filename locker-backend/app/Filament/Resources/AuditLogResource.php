@@ -9,6 +9,9 @@ use App\Filament\Resources\AuditLogResource\Pages;
 use App\Models\AuditEvent;
 use App\Models\User;
 use App\Support\Audit\AuditEventPresenter;
+use App\Support\EventSourcing\OrganizationStamp;
+use App\Support\Organizations\DefaultOrganization;
+use App\Support\Organizations\OrganizationContext;
 use Filament\Forms;
 use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
@@ -171,8 +174,43 @@ class AuditLogResource extends Resource
     {
         // Scope to the curated, admin-meaningful events; the
         // whitelist lives in the presenter as the single source of truth.
-        return parent::getEloquentQuery()
+        $query = parent::getEloquentQuery()
             ->whereIn('event_class', app(AuditEventPresenter::class)->auditableEventClasses());
+
+        return self::confineToCurrentOrganization($query);
+    }
+
+    /**
+     * The event store is shared, so this resource cannot be tenant-scoped the
+     * way an owned table is — the rows are filtered by the organization each
+     * event records, which is stamped into its metadata when it happens.
+     *
+     * Events predating organizations carry no stamp and belong to the default
+     * organization, so they are included there and nowhere else.
+     *
+     * A platform admin sees the organization they have entered, like everyone
+     * else: entering is what makes the data visible, and entering is recorded.
+     *
+     * @param  Builder<\Illuminate\Database\Eloquent\Model>  $query
+     * @return Builder<\Illuminate\Database\Eloquent\Model>
+     */
+    private static function confineToCurrentOrganization(Builder $query): Builder
+    {
+        $organizationId = app(OrganizationContext::class)->currentId();
+
+        if ($organizationId === null) {
+            // Fail closed, as everywhere else: no organization in context shows
+            // no history rather than all of it.
+            return $query->whereRaw('1 = 0');
+        }
+
+        return $query->where(function (Builder $scoped) use ($organizationId): void {
+            $scoped->where('meta_data->'.OrganizationStamp::KEY, $organizationId);
+
+            if ($organizationId === DefaultOrganization::id()) {
+                $scoped->orWhereNull('meta_data->'.OrganizationStamp::KEY);
+            }
+        });
     }
 
     public static function canCreate(): bool
