@@ -4,7 +4,10 @@ declare(strict_types=1);
 
 namespace App\Console\Commands;
 
+use App\Models\Organization;
 use App\Models\User;
+use App\Support\Organizations\DefaultOrganization;
+use App\Support\Organizations\OrganizationContext;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
@@ -64,6 +67,24 @@ class CreateFirstAdmin extends Command
         if ($user->email_verified_at === null) {
             $user->forceFill(['email_verified_at' => now()])->save();
         }
+
+        // There is no session and no tenant on a fresh instance, so nothing
+        // would place this account anywhere — and everything downstream is
+        // scoped fail-closed. Without a membership the first administrator signs
+        // in and reaches nothing, which is a locked-out installation rather than
+        // an empty one.
+        $organization = Organization::query()->firstOrCreate(
+            ['slug' => DefaultOrganization::SLUG],
+            ['name' => 'Default Organization'],
+        );
+
+        DefaultOrganization::forget();
+
+        $user->organizations()->syncWithoutDetaching([
+            $organization->id => ['joined_at' => now()],
+        ]);
+
+        app(OrganizationContext::class)->set($organization);
 
         $user->makeAdmin();
 
