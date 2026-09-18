@@ -143,6 +143,9 @@ class UserAccessesRelationManager extends RelationManager
             User::query()
                 // The service refuses an admin target for anyone without
                 // roles.manage, so do not offer one (#254).
+                // Only people who belong here: offering another operator's
+                // staff would hand them access through the picker.
+                ->inCurrentOrganization()
                 ->manageableBy(Filament::auth()->user())
                 ->whereDoesntHave(
                     'activeCompartmentAccesses',

@@ -272,6 +272,32 @@ class User extends Authenticatable implements FilamentUser, HasName, HasTenants,
     }
 
     /**
+     * Restrict a user query to members of the organization being acted in.
+     *
+     * A user is a global identity, so the row itself is not owned by an
+     * organization and cannot be tenant-scoped the way a locker bank is. Every
+     * place that offers people to pick from has to say so explicitly — a picker
+     * that does not is how one operator's staff end up in another's group, and
+     * group membership confers compartment access.
+     *
+     * @param  Builder<User>  $query
+     * @return Builder<User>
+     */
+    public function scopeInCurrentOrganization(Builder $query): Builder
+    {
+        $organizationId = app(OrganizationContext::class)->currentId();
+
+        if ($organizationId === null) {
+            return $query->whereRaw('1 = 0');
+        }
+
+        return $query->whereHas(
+            'organizations',
+            fn (Builder $organizations) => $organizations->whereKey($organizationId),
+        );
+    }
+
+    /**
      * Restrict a user query to those the actor is allowed to administer.
      *
      * ADR-0022: a manager may list and view admin accounts but may not mutate

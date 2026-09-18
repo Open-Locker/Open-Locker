@@ -163,6 +163,36 @@ class OrganizationBoundaryTest extends TestCase
         $this->assertTrue(Filament::getCurrentOrDefaultPanel()->hasTenantMenu());
     }
 
+    public function test_user_pickers_never_offer_another_organizations_people(): void
+    {
+        $alpha = Organization::create(['name' => 'Alpha', 'slug' => 'alpha']);
+        $beta = Organization::create(['name' => 'Beta', 'slug' => 'beta']);
+
+        $ours = $this->memberOfOnly($alpha);
+        $theirs = $this->memberOfOnly($beta);
+
+        // A user row is a global identity, so nothing scopes it automatically.
+        // Every picker has to say so — offering another operator's staff is how
+        // they end up in a group here, and group membership confers compartment
+        // access.
+        $offered = $this->within($alpha, fn (): array => User::query()
+            ->inCurrentOrganization()
+            ->pluck('id')
+            ->all());
+
+        $this->assertContains($ours->id, $offered);
+        $this->assertNotContains($theirs->id, $offered);
+    }
+
+    private function memberOfOnly(Organization $organization): User
+    {
+        $user = User::factory()->create();
+        $user->organizations()->detach();
+        $user->organizations()->attach($organization->id, ['joined_at' => now()]);
+
+        return $user;
+    }
+
     private function within(Organization $organization, callable $callback): mixed
     {
         return app(OrganizationContext::class)->runWithin($organization, $callback);

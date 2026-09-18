@@ -10,6 +10,7 @@ use App\Filament\Resources\UserResource\RelationManagers\GroupMembershipsRelatio
 use App\Filament\Resources\UserResource\RelationManagers\OrganizationsRelationManager;
 use App\Models\User;
 use App\Services\UserAdministrationService;
+use App\Support\Organizations\OrganizationContext;
 use Filament\Forms;
 use Filament\Infolists\Components\TextEntry;
 use Filament\Notifications\Notification;
@@ -17,6 +18,7 @@ use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
 use Filament\Tables;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Auth;
@@ -238,6 +240,25 @@ class UserResource extends Resource
                         }),
                 ]),
             ]);
+    }
+
+    /**
+     * A user is a global identity, so this resource cannot be tenant-scoped the
+     * way an owned table is — but an administrator of one operator must not be
+     * shown another's people. Membership in the organization being acted in is
+     * what decides, including for a platform admin, who sees the organization
+     * they have entered like everyone else.
+     *
+     * @return Builder<\Illuminate\Database\Eloquent\Model>
+     */
+    public static function getEloquentQuery(): Builder
+    {
+        return parent::getEloquentQuery()->whereHas(
+            'organizations',
+            fn (Builder $organizations) => $organizations->whereKey(
+                app(OrganizationContext::class)->currentId(),
+            ),
+        );
     }
 
     public static function getRelations(): array
