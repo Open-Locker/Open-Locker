@@ -7,6 +7,7 @@ use App\Enums\Role;
 use App\Filament\Resources\UserResource\Pages;
 use App\Filament\Resources\UserResource\RelationManagers\CompartmentAccessesRelationManager;
 use App\Filament\Resources\UserResource\RelationManagers\GroupMembershipsRelationManager;
+use App\Filament\Resources\UserResource\RelationManagers\OrganizationsRelationManager;
 use App\Models\User;
 use App\Services\UserAdministrationService;
 use Filament\Forms;
@@ -244,6 +245,7 @@ class UserResource extends Resource
         return [
             CompartmentAccessesRelationManager::class,
             GroupMembershipsRelationManager::class,
+            OrganizationsRelationManager::class,
         ];
     }
 

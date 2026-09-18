@@ -7,6 +7,7 @@ use App\Filament\Resources\CompartmentResource\Pages\ListCompartments;
 use App\Http\Middleware\ApplyFilamentTenantToOrganizationContext;
 use App\Http\Middleware\SetPanelLocale;
 use App\Models\Organization;
+use App\Models\User;
 use Filament\Http\Middleware\Authenticate;
 use Filament\Http\Middleware\AuthenticateSession;
 use Filament\Http\Middleware\DisableBladeIconComponents;
@@ -38,6 +39,19 @@ class AdminPanelProvider extends PanelProvider
             // hands the chosen tenant to the one organization context the rest
             // of the application reads, so there are not two notions of it.
             ->tenant(Organization::class, slugAttribute: 'slug')
+            // Nobody is shown the concept until it means something to them: on a
+            // single-organization installation, and for anyone who belongs to
+            // exactly one, there is nothing to switch between and the menu only
+            // raises a question the product does not otherwise ask.
+            ->tenantMenu(function (Panel $panel): bool {
+                if (! config('organizations.multi_organization')) {
+                    return false;
+                }
+
+                $user = auth()->user();
+
+                return $user instanceof User && count($user->getTenants($panel)) > 1;
+            })
             ->login()
             ->emailVerification()
             ->passwordReset()

@@ -9,6 +9,8 @@ use App\Console\Commands\DetectOfflineLockers;
 use App\Enums\Role;
 use App\Filament\Resources\AuditLogResource;
 use App\Filament\Resources\OrganizationResource;
+use App\Filament\Resources\UserResource\Pages\EditUser;
+use App\Filament\Resources\UserResource\RelationManagers\OrganizationsRelationManager;
 use App\Models\LockerBank;
 use App\Models\Organization;
 use App\Models\TermsDocument;
@@ -16,6 +18,7 @@ use App\Models\User;
 use App\Models\UserRole;
 use App\Support\EventSourcing\OrganizationStamp;
 use App\Support\Organizations\OrganizationContext;
+use Filament\Facades\Filament;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -127,6 +130,37 @@ class OrganizationBoundaryTest extends TestCase
         foreach ($alphaEvents as $metaData) {
             $this->assertSame($alpha->id, $metaData[OrganizationStamp::KEY] ?? null);
         }
+    }
+
+    public function test_membership_management_is_hidden_on_a_single_organization_installation(): void
+    {
+        config()->set('organizations.multi_organization', false);
+        $this->assertFalse(OrganizationsRelationManager::canViewForRecord(
+            User::factory()->create(),
+            EditUser::class,
+        ));
+
+        config()->set('organizations.multi_organization', true);
+        $this->assertTrue(OrganizationsRelationManager::canViewForRecord(
+            User::factory()->create(),
+            EditUser::class,
+        ));
+    }
+
+    public function test_a_member_of_one_organization_is_never_shown_the_switcher(): void
+    {
+        config()->set('organizations.multi_organization', true);
+
+        $single = User::factory()->create();
+        $this->actingAs($single);
+        $this->assertFalse(Filament::getCurrentOrDefaultPanel()->hasTenantMenu());
+
+        $second = Organization::create(['name' => 'Beta', 'slug' => 'beta']);
+        $single->organizations()->attach($second->id, ['joined_at' => now()]);
+
+        // The concept appears only once it means something: two operators to
+        // move between.
+        $this->assertTrue(Filament::getCurrentOrDefaultPanel()->hasTenantMenu());
     }
 
     private function within(Organization $organization, callable $callback): mixed
