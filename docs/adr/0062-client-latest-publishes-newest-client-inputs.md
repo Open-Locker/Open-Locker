@@ -131,6 +131,9 @@ required to publish.
   locker-client `latest` only. `latest` means the newest client-relevant `main`
   state, not the exact repository tip. Tag-driven releases and backend `latest`
   are unchanged.
+- Complemented by:
+  [ADR-0063](0063-backend-latest-publishes-newest-backend-inputs.md), which
+  applies the same component-input freshness rule to backend `latest`.
 - Superseded by: none.
 
 ## References

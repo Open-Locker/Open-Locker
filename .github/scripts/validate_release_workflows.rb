@@ -22,16 +22,26 @@ def step(job, name)
   job.fetch('steps').find { |candidate| candidate['name'] == name }
 end
 
-CLIENT_DOCKER_INPUT_PATHSPECS = [
-  'locker-client',
-  ':(exclude,glob)locker-client/**/*.md',
-  ':(exclude)locker-client/.cursor',
-  '.github/git-cliff/client.toml',
-  '.github/workflows/client-docker.yml',
-  '.github/workflows/component-release.yml',
-].freeze
+DOCKER_INPUT_PATHSPECS = {
+  backend: [
+    'locker-backend',
+    ':(exclude,glob)locker-backend/**/*.md',
+    ':(exclude)locker-backend/.cursor',
+    '.github/git-cliff/backend.toml',
+    '.github/workflows/backend-docker.yml',
+    '.github/workflows/component-release.yml',
+  ],
+  client: [
+    'locker-client',
+    ':(exclude,glob)locker-client/**/*.md',
+    ':(exclude)locker-client/.cursor',
+    '.github/git-cliff/client.toml',
+    '.github/workflows/client-docker.yml',
+    '.github/workflows/component-release.yml',
+  ],
+}.freeze
 
-def validate_container_workflow(filename, prefix, freshness: :exact_main_tip)
+def validate_container_workflow(filename, prefix, component:)
   document = workflow(filename)
   triggers = document.fetch('on')
   jobs = document.fetch('jobs')
@@ -59,13 +69,8 @@ def validate_container_workflow(filename, prefix, freshness: :exact_main_tip)
   )
 
   publish_index = publish_steps.index { |candidate| candidate['name'] == 'Build and push Docker image' }
-  freshness_check_index = case freshness
-  when :exact_main_tip
-    publish_steps.index { |candidate| candidate['name'] == 'Verify current main tip before publishing latest' }
-  when :component_inputs
-    publish_steps.index { |candidate| candidate['name'] == 'Verify client inputs still match main before publishing' }
-  else
-    raise "unknown container freshness policy #{freshness}"
+  freshness_check_index = publish_steps.index do |candidate|
+    candidate['name'] == "Verify #{component} inputs still match main before publishing"
   end
   assert(freshness_check_index == publish_index - 1, "#{filename}: freshness check must immediately precede publish")
   freshness_script = publish_steps[freshness_check_index].fetch('run')
@@ -73,20 +78,13 @@ def validate_container_workflow(filename, prefix, freshness: :exact_main_tip)
     freshness_script.include?('GITHUB_SHA') && freshness_script.include?('origin/main'),
     "#{filename}: freshness check is incomplete",
   )
-  if freshness == :exact_main_tip
-    assert(
-      freshness_script.include?('git rev-parse origin/main'),
-      "#{filename}: main tip check is incomplete",
-    )
-  else
-    assert(
-      freshness_script.include?('git diff --quiet') &&
-        !freshness_script.include?('git rev-parse origin/main'),
-      "#{filename}: client latest must compare component inputs, not the exact main SHA",
-    )
-    CLIENT_DOCKER_INPUT_PATHSPECS.each do |pathspec|
-      assert(freshness_script.include?(pathspec), "#{filename}: freshness check missing #{pathspec}")
-    end
+  assert(
+    freshness_script.include?('git diff --quiet') &&
+      !freshness_script.include?('git rev-parse origin/main'),
+    "#{filename}: latest must compare component inputs, not the exact main SHA",
+  )
+  DOCKER_INPUT_PATHSPECS.fetch(component.to_sym).each do |pathspec|
+    assert(freshness_script.include?(pathspec), "#{filename}: freshness check missing #{pathspec}")
   end
 
   metadata = step(publish, 'Extract image metadata').fetch('with').fetch('tags')
@@ -106,16 +104,16 @@ def validate_container_workflow(filename, prefix, freshness: :exact_main_tip)
 
 end
 
-def validate_client_concurrency
-  concurrency = workflow('client-docker.yml').fetch('concurrency')
+def validate_container_concurrency(component)
+  concurrency = workflow("#{component}-docker.yml").fetch('concurrency')
   assert(
-    concurrency.fetch('group') == 'client-docker-${{ github.ref }}',
-    'client workflow must serialize each ref, including main',
+    concurrency.fetch('group') == "#{component}-docker-${{ github.ref }}",
+    "#{component} workflow must serialize each ref, including main",
   )
   assert(
     concurrency.fetch('cancel-in-progress') ==
       "${{ github.event_name == 'pull_request' || (github.event_name == 'push' && github.ref == 'refs/heads/main') }}",
-    'client main pushes must cancel older main publishes; tag releases must not cancel',
+    "#{component} main pushes must cancel older main publishes; tag releases must not cancel",
   )
 end
 
@@ -124,8 +122,7 @@ def container_policy(component:, event:, ref:, current_main_tip: true, component
   tag = ref.start_with?("refs/tags/#{prefix}")
   main = ref == 'refs/heads/main'
   push = event == :push
-  main_fresh = component == :client ? component_inputs_current : current_main_tip
-  publish = push && ((main && main_fresh) || (tag && current_main_tip))
+  publish = push && ((main && component_inputs_current) || (tag && current_main_tip))
 
   {
     triggered: true,
@@ -135,9 +132,9 @@ def container_policy(component:, event:, ref:, current_main_tip: true, component
   }
 end
 
-def client_concurrency(event:, ref:)
+def container_concurrency(component:, event:, ref:)
   {
-    group: "client-docker-#{ref}",
+    group: "#{component}-docker-#{ref}",
     cancel_in_progress: event == :pull_request || (event == :push && ref == 'refs/heads/main'),
   }
 end
@@ -166,21 +163,52 @@ def mobile_concurrency(event:, ref:)
 end
 
 def validate_event_matrix
-  cases = [
-    [:pull_request, 'refs/pull/10/merge', true, false, false, false],
-    [:push, 'refs/heads/main', true, true, true, false],
-    [:push, 'refs/heads/main', false, false, false, false],
-    [:push, 'refs/tags/backend-v1.0.0-beta.1', true, true, false, true],
-    [:push, 'refs/tags/backend-v1.0.0-beta.1', false, false, false, false],
-    [:workflow_dispatch, 'refs/tags/backend-v1.0.0-beta.1', true, false, false, false],
-  ]
-
-  cases.each do |event, ref, tip, backend_publish, backend_latest, backend_release|
-    result = container_policy(component: :backend, event: event, ref: ref, current_main_tip: tip)
-    assert(result[:publish] == backend_publish, "backend matrix failed for #{event} #{ref}")
-    assert(result[:latest] == backend_latest, "backend latest matrix failed for #{event} #{ref}")
-    assert(result[:release] == backend_release, "backend release matrix failed for #{event} #{ref}")
-  end
+  backend_main = container_policy(component: :backend, event: :push, ref: 'refs/heads/main')
+  assert(backend_main == { triggered: true, publish: true, latest: true, release: false }, 'backend main matrix failed')
+  backend_unrelated_tip_move = container_policy(
+    component: :backend,
+    event: :push,
+    ref: 'refs/heads/main',
+    current_main_tip: false,
+    component_inputs_current: true,
+  )
+  assert(
+    backend_unrelated_tip_move == { triggered: true, publish: true, latest: true, release: false },
+    'unrelated later main commits must not block backend latest',
+  )
+  backend_superseded_inputs = container_policy(
+    component: :backend,
+    event: :push,
+    ref: 'refs/heads/main',
+    current_main_tip: false,
+    component_inputs_current: false,
+  )
+  assert(
+    backend_superseded_inputs == { triggered: true, publish: false, latest: false, release: false },
+    'newer backend-relevant main content must block stale latest',
+  )
+  backend_tag = container_policy(
+    component: :backend,
+    event: :push,
+    ref: 'refs/tags/backend-v1.0.0-beta.1',
+  )
+  assert(backend_tag == { triggered: true, publish: true, latest: false, release: true }, 'backend tag matrix failed')
+  backend_stale_tag = container_policy(
+    component: :backend,
+    event: :push,
+    ref: 'refs/tags/backend-v1.0.0-beta.1',
+    current_main_tip: false,
+  )
+  assert(
+    backend_stale_tag == { triggered: true, publish: false, latest: false, release: false },
+    'backend tag releases must still require the current main tip',
+  )
+  backend_manual = container_policy(
+    component: :backend,
+    event: :workflow_dispatch,
+    ref: 'refs/heads/main',
+  )
+  assert(backend_manual == { triggered: true, publish: false, latest: false, release: false }, 'backend manual matrix failed')
 
   client_main = container_policy(component: :client, event: :push, ref: 'refs/heads/main')
   assert(client_main == { triggered: true, publish: true, latest: true, release: false }, 'client main matrix failed')
@@ -257,19 +285,29 @@ def validate_event_matrix
   assert(running_tag[:cancel_in_progress] == false, 'a running tag release must not be canceled')
   assert(arriving_tag[:cancel_in_progress] == false, 'a later tag must not cancel a running tag release')
 
-  older_client_main = client_concurrency(event: :push, ref: 'refs/heads/main')
-  newer_client_main = client_concurrency(event: :push, ref: 'refs/heads/main')
-  client_tag_run = client_concurrency(event: :push, ref: 'refs/tags/client-v1.0.0-beta.1')
-  client_later_tag = client_concurrency(event: :push, ref: 'refs/tags/client-v1.0.1-beta.1')
-  client_dispatch = client_concurrency(event: :workflow_dispatch, ref: 'refs/heads/main')
-  assert(older_client_main[:group] == newer_client_main[:group], 'client main publishes must share one group')
-  assert(newer_client_main[:cancel_in_progress] == true, 'a newer client-relevant main push must cancel older publication')
-  assert(older_client_main[:group] != client_tag_run[:group], 'client tag releases must not share main concurrency')
-  assert(client_tag_run[:group] != client_later_tag[:group], 'distinct client tags must not cancel each other')
-  assert(client_tag_run[:cancel_in_progress] == false, 'a client tag release must not cancel in progress')
-  assert(client_later_tag[:cancel_in_progress] == false, 'a later client tag must not cancel a running tag release')
-  assert(client_dispatch[:group] == older_client_main[:group], 'manual client runs on main share the main ref group')
-  assert(client_dispatch[:cancel_in_progress] == false, 'manual client dispatch must not cancel an in-progress main publish')
+  %i[backend client].each do |component|
+    older_main = container_concurrency(component: component, event: :push, ref: 'refs/heads/main')
+    newer_main = container_concurrency(component: component, event: :push, ref: 'refs/heads/main')
+    tag_run = container_concurrency(
+      component: component,
+      event: :push,
+      ref: "refs/tags/#{component}-v1.0.0-beta.1",
+    )
+    later_tag = container_concurrency(
+      component: component,
+      event: :push,
+      ref: "refs/tags/#{component}-v1.0.1-beta.1",
+    )
+    dispatch = container_concurrency(component: component, event: :workflow_dispatch, ref: 'refs/heads/main')
+    assert(older_main[:group] == newer_main[:group], "#{component} main publishes must share one group")
+    assert(newer_main[:cancel_in_progress] == true, "a newer #{component}-relevant main push must cancel older publication")
+    assert(older_main[:group] != tag_run[:group], "#{component} tag releases must not share main concurrency")
+    assert(tag_run[:group] != later_tag[:group], "distinct #{component} tags must not cancel each other")
+    assert(tag_run[:cancel_in_progress] == false, "a #{component} tag release must not cancel in progress")
+    assert(later_tag[:cancel_in_progress] == false, "a later #{component} tag must not cancel a running tag release")
+    assert(dispatch[:group] == older_main[:group], "manual #{component} runs on main share the main ref group")
+    assert(dispatch[:cancel_in_progress] == false, "manual #{component} dispatch must not cancel an in-progress main publish")
+  end
 end
 
 def validate_mobile_workflow
@@ -385,9 +423,10 @@ def validate_documentation_filters(filename, component)
   end
 end
 
-validate_container_workflow('backend-docker.yml', 'backend-v')
-validate_container_workflow('client-docker.yml', 'client-v', freshness: :component_inputs)
-validate_client_concurrency
+validate_container_workflow('backend-docker.yml', 'backend-v', component: 'backend')
+validate_container_workflow('client-docker.yml', 'client-v', component: 'client')
+validate_container_concurrency('backend')
+validate_container_concurrency('client')
 validate_mobile_workflow
 validate_mobile_profiles
 validate_release_workflow

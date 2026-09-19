@@ -307,6 +307,9 @@ paused.
   [ADR-0062](0062-client-latest-publishes-newest-client-inputs.md) narrows
   decision 7's locker-client `latest` meaning from exact `main` tip to the
   newest client-relevant `main` state.
+  [ADR-0063](0063-backend-latest-publishes-newest-backend-inputs.md) narrows
+  decision 7's backend `latest` meaning from exact `main` tip to the newest
+  backend-relevant `main` state.
 - Related: mobile internal test-build decisions and website deployment stay
   outside or adjacent to this model; website remains continuous deploy from
   `main`.

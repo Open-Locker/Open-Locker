@@ -238,6 +238,9 @@ trunk-based development, but it is not required by it.
 - Narrowed by: [ADR-0062](0062-client-latest-publishes-newest-client-inputs.md)
   for locker-client `latest` only. That image tracks the newest client-relevant
   `main` state, not the exact repository tip.
+- Narrowed by: [ADR-0063](0063-backend-latest-publishes-newest-backend-inputs.md)
+  for backend `latest` only. That image tracks the newest backend-relevant
+  `main` state, not the exact repository tip.
 - Superseded by: none.
 
 ## References
