@@ -383,10 +383,13 @@ pnpm test:ci
 ```
 
 Set `EXPO_PUBLIC_API_BASE_URL` in `.env` to the running backend, including the
-`/api` path. Realtime uses `EXPO_PUBLIC_REVERB_KEY`,
-`EXPO_PUBLIC_REVERB_PORT`, and `EXPO_PUBLIC_REVERB_SCHEME`; set
-`EXPO_PUBLIC_REVERB_HOST` only when it differs from the API host. Keep those
-values aligned with the backend's public Reverb configuration.
+`/api` path. Reverb WebSocket scheme and port default from that URL (`http` →
+`:48080`, `https` → `wss` on `:443`) unless you set `EXPO_PUBLIC_REVERB_SCHEME`
+or `EXPO_PUBLIC_REVERB_PORT`. The socket host defaults to the API hostname; for
+production on `open-locker.cloud` set `EXPO_PUBLIC_REVERB_HOST=ws.open-locker.cloud`
+(Reverb is a separate Coolify service). Set `EXPO_PUBLIC_REVERB_KEY` to match
+backend `REVERB_APP_KEY` (use an EAS secret for store builds; do not commit it).
+Channel auth still uses the API host at `/broadcasting/auth`.
 
 `pnpm start` targets an installed Expo development client. Build and launch one
 with `pnpm android` or `pnpm ios`. Use `pnpm start:go` only for the more limited
