@@ -67,6 +67,19 @@ class FakeWaveshareModbusDriver implements WaveshareModbusDriver {
   }
 }
 
+test('readDoorSensors honors door_closing and door_opening feedback polarity', async () => {
+  const driver = new FakeWaveshareModbusDriver();
+  driver.readDiscreteInputs = async () => [true, false];
+
+  const closingBus = new WaveshareModbusBusActor(driver, { maxAttempts: 0 }, [1], 'door_closing');
+  await closingBus.connect();
+  assert.deepEqual(await closingBus.readDoorSensors(1, 0, 2), ['closed', 'open']);
+
+  const openingBus = new WaveshareModbusBusActor(driver, { maxAttempts: 0 }, [1], 'door_opening');
+  await openingBus.connect();
+  assert.deepEqual(await openingBus.readDoorSensors(1, 0, 2), ['open', 'closed']);
+});
+
 test('BusActor serializes concurrent operations', async () => {
   const driver = new FakeWaveshareModbusDriver();
   const bus = new WaveshareModbusBusActor(driver, { maxAttempts: 0 }, [1]);
@@ -75,11 +88,11 @@ test('BusActor serializes concurrent operations', async () => {
   const target = { compartmentNumber: 1, slaveId: 1, relayAddress: 0 };
 
   const first = bus.flashRelay(target, 200);
-  const second = bus.readRelayState(target);
+  const second = bus.readDoorSensors(1, 0, 1);
   await Promise.all([first, second]);
 
   const flashIndex = driver.operations.indexOf('flash:1:0:200');
-  const readIndex = driver.operations.indexOf('readCoils');
+  const readIndex = driver.operations.indexOf('readDiscreteInputs');
   assert.ok(flashIndex >= 0);
   assert.ok(readIndex > flashIndex);
 });
@@ -223,7 +236,9 @@ class FailingConnectDriver implements WaveshareModbusDriver {
 
   async connect(): Promise<void> {
     this.connectAttempts++;
-    throw new Error('connect failed');
+    const error = new Error('connect failed');
+    Object.assign(error, { code: 'ENOENT' });
+    throw error;
   }
 
   async disconnect(): Promise<void> {}
@@ -354,7 +369,14 @@ test('a board timeout is logged, not only substituted with unknown', async () =>
     throw new Error('Timed out');
   };
   const { logger, entries } = createRecordingLogger();
-  const bus = new WaveshareModbusBusActor(driver, { maxAttempts: 0 }, [1], undefined, logger);
+  const bus = new WaveshareModbusBusActor(
+    driver,
+    { maxAttempts: 0 },
+    [1],
+    'door_closing',
+    undefined,
+    logger,
+  );
   await bus.connect();
 
   await bus.readDoorSensors(7, 4, 2);
@@ -372,6 +394,7 @@ test('an unreachable bus is logged when ensureConnected gives up', async () => {
     driver,
     { maxAttempts: 2, delayMs: 1 },
     [1],
+    'door_closing',
     undefined,
     logger,
   );
