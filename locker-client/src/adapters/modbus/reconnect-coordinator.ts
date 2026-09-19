@@ -19,7 +19,10 @@ export const DEFAULT_MODBUS_RECONNECT_COOLDOWN_MS = 60_000;
 export class ReconnectCoordinator {
   private inFlight: Promise<void> | null = null;
   private attempts = 0;
-  private timers: ReturnType<typeof setTimeout>[] = [];
+  private timers: Array<{
+    timer: ReturnType<typeof setTimeout>;
+    resolve: () => void;
+  }> = [];
   private cycleSpentAt: number | null = null;
   private readonly maxAttempts: number;
   private readonly delayMs: number;
@@ -46,12 +49,15 @@ export class ReconnectCoordinator {
     return this.attempts;
   }
 
-  async run(reconnectFn: () => Promise<void>): Promise<void> {
+  async run(
+    reconnectFn: () => Promise<void>,
+    options: { isReconnectable?: (error: unknown) => boolean } = {},
+  ): Promise<void> {
     if (this.inFlight) {
       return this.inFlight;
     }
 
-    this.inFlight = this.runInternal(reconnectFn).finally(() => {
+    this.inFlight = this.runInternal(reconnectFn, options).finally(() => {
       this.inFlight = null;
     });
 
@@ -64,13 +70,17 @@ export class ReconnectCoordinator {
   }
 
   cancelScheduled(): void {
-    for (const timer of this.timers) {
-      clearTimeout(timer);
+    for (const scheduled of this.timers) {
+      clearTimeout(scheduled.timer);
+      scheduled.resolve();
     }
     this.timers = [];
   }
 
-  private async runInternal(reconnectFn: () => Promise<void>): Promise<void> {
+  private async runInternal(
+    reconnectFn: () => Promise<void>,
+    options: { isReconnectable?: (error: unknown) => boolean },
+  ): Promise<void> {
     if (this.maxAttempts > 0 && this.attempts >= this.maxAttempts) {
       // A budget that cannot be replenished is a latch: the bus would stay
       // unusable long after the outage that spent it had ended. The cooldown is
@@ -94,6 +104,10 @@ export class ReconnectCoordinator {
       this.attempts = 0;
       this.cycleSpentAt = null;
     } catch (error) {
+      if (options.isReconnectable !== undefined && !options.isReconnectable(error)) {
+        throw error;
+      }
+
       if (this.maxAttempts === 0 || this.attempts < this.maxAttempts) {
         this.log.warn('Modbus reconnect attempt failed, retrying', {
           attempt: this.attempts,
@@ -101,7 +115,7 @@ export class ReconnectCoordinator {
           retryInMs: this.delayMs,
           error: error instanceof Error ? error.message : String(error),
         });
-        return this.scheduleRetry(reconnectFn);
+        return this.scheduleRetry(reconnectFn, options);
       }
 
       // Logged once here, where the cycle ends, rather than on every refusal that
@@ -118,12 +132,16 @@ export class ReconnectCoordinator {
     }
   }
 
-  private scheduleRetry(reconnectFn: () => Promise<void>): Promise<void> {
+  private scheduleRetry(
+    reconnectFn: () => Promise<void>,
+    options: { isReconnectable?: (error: unknown) => boolean },
+  ): Promise<void> {
     return new Promise((resolve, reject) => {
       const timer = setTimeout(() => {
-        this.runInternal(reconnectFn).then(resolve).catch(reject);
+        this.timers = this.timers.filter((scheduled) => scheduled.timer !== timer);
+        this.runInternal(reconnectFn, options).then(resolve).catch(reject);
       }, this.delayMs);
-      this.timers.push(timer);
+      this.timers.push({ timer, resolve });
     });
   }
 }

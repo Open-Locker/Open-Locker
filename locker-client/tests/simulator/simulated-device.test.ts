@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { test } from 'node:test';
 import { wireSimulatedDevice } from '../../src/bootstrap/createSimulatorApp';
-import { computeAppliedConfigHash } from '../../src/domain/config-normalization';
+import { canonicalConfigHash } from '../helpers/canonical-config-hash';
 import type { SimulatorBankScenario } from '../../src/adapters/simulator/scenario';
 import { parseScenario } from '../../src/adapters/simulator/scenario';
 import type { OutboundPublishOptions } from '../../src/ports/mqtt.port';
@@ -208,9 +208,11 @@ test('apply_config remaps compartments and answers with the applied hash', async
       timestamp: new Date().toISOString(),
       transaction_id: transactionId,
       data: {
+        adapter_type: 'waveshare_modbus',
+        feedback_type: 'door_closing',
         compartments,
         heartbeat_interval_seconds: 30,
-        config_hash: computeAppliedConfigHash(compartments),
+        config_hash: canonicalConfigHash(compartments),
       },
     }),
   );

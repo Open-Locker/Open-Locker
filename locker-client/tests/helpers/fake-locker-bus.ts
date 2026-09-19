@@ -13,7 +13,6 @@ export class FakeLockerBus implements LockerBusPort {
   }> = [];
   readonly turnAllOffCalls: number[] = [];
   readonly doorBatchReads: Array<{ slaveId: number; startAddress: number; length: number }> = [];
-  private relayStates = new Map<string, boolean>();
   private doorStates = new Map<number, DoorState[]>();
   private connected = true;
   private slaveIds: number[];
@@ -41,21 +40,20 @@ export class FakeLockerBus implements LockerBusPort {
     return this.connected ? ('connected' as const) : ('disconnected' as const);
   }
 
+  runExclusive<T>(operation: (bus: LockerBusPort) => Promise<T>): Promise<T> {
+    return operation(this);
+  }
+
   async ensureConnected(): Promise<boolean> {
     return this.connected;
   }
 
   async flashRelay(target: CompartmentTarget, durationMs: number): Promise<void> {
     this.flashCalls.push({ target, durationMs });
-    this.relayStates.set(this.key(target), true);
   }
 
   recordWriteCoil(slaveId: number, address: number, value: boolean): void {
     this.writeCoilCalls.push({ slaveId, address, value });
-  }
-
-  async readRelayState(target: CompartmentTarget): Promise<boolean> {
-    return this.relayStates.get(this.key(target)) ?? false;
   }
 
   async readDoorSensors(
@@ -69,7 +67,7 @@ export class FakeLockerBus implements LockerBusPort {
     return states.slice(startAddress, startAddress + length);
   }
 
-  async turnAllRelaysOff(slaveId: number): Promise<void> {
+  async initializeBoard(slaveId: number): Promise<void> {
     this.turnAllOffCalls.push(slaveId);
   }
 
@@ -79,10 +77,6 @@ export class FakeLockerBus implements LockerBusPort {
 
   reloadRuntimeConfig = async (): Promise<void> => undefined;
 
-  setRelayState(target: CompartmentTarget, on: boolean): void {
-    this.relayStates.set(this.key(target), on);
-  }
-
   setDoorBatchStates(slaveId: number, states: DoorState[]): void {
     this.doorStates.set(slaveId, [...states]);
   }
@@ -91,9 +85,5 @@ export class FakeLockerBus implements LockerBusPort {
     const states = this.doorStates.get(target.slaveId) ?? Array.from({ length: 8 }, () => 'closed');
     states[target.relayAddress] = state;
     this.doorStates.set(target.slaveId, states);
-  }
-
-  private key(target: CompartmentTarget): string {
-    return `${target.slaveId}:${target.relayAddress}`;
   }
 }
