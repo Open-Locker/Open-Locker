@@ -57,8 +57,9 @@ run, rerun the original tag-triggered workflow from the Actions UI.
 
 ### Reverb (realtime) env for EAS builds
 
-Production and store profiles in `eas.json` set
+Preview, production, and store profiles in `eas.json` set
 `EXPO_PUBLIC_REVERB_HOST=ws.open-locker.cloud` (Reverb is not on the API host).
+`ios-simulator` inherits this from `preview`.
 Scheme and port default from `EXPO_PUBLIC_API_BASE_URL` at build time (`https` →
 `wss` on `:443`). Set **`EXPO_PUBLIC_REVERB_KEY`** as an EAS project secret so
 it matches backend `REVERB_APP_KEY`; do not commit production keys. See
