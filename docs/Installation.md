@@ -180,8 +180,10 @@ Use Coolify v4's documented Git-based Docker Compose application instead:
    **Environment Variables**. Use real secrets and domains, and pin
    `BACKEND_IMAGE_TAG`. Coolify does not interpolate `${VAR}` in Compose
    labels, so the MQTT TCP router name is fixed as `open-locker-mqtt` and
-   the rule is HostSNI(*). The adapter attaches Mosquitto to Coolify's
-   external `coolify` network; it does not publish a broker port itself.
+   the rule is HostSNI(*). A second Open Locker stack on the same Coolify
+   proxy must change those literal label names in the Compose file. The
+   adapter attaches Mosquitto to Coolify's external `coolify` network; it
+   does not publish a broker port itself.
 4. **Required.** Coolify's Traefik ships only HTTP/HTTPS. MQTTS will not work
    until the managed proxy also listens on 8883. Open **Servers → your server
    → Proxy → Configuration**. Keep the existing HTTP/HTTPS settings and
