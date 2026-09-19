@@ -235,6 +235,9 @@ trunk-based development, but it is not required by it.
   force.
 - Related: [ADR-0055](0055-tag-only-mobile-store-distribution.md) already
   removed the mobile branch mapping from ADR-0043 decision 7.
+- Narrowed by: [ADR-0062](0062-client-latest-publishes-newest-client-inputs.md)
+  for locker-client `latest` only. That image tracks the newest client-relevant
+  `main` state, not the exact repository tip.
 - Superseded by: none.
 
 ## References

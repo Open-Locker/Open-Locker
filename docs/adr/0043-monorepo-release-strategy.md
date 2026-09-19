@@ -304,6 +304,9 @@ paused.
 - Superseded in part by:
   [ADR-0055](0055-tag-only-mobile-store-distribution.md) replaces decision 7's
   mobile `main` store mapping with tag-only store distribution.
+  [ADR-0062](0062-client-latest-publishes-newest-client-inputs.md) narrows
+  decision 7's locker-client `latest` meaning from exact `main` tip to the
+  newest client-relevant `main` state.
 - Related: mobile internal test-build decisions and website deployment stay
   outside or adjacent to this model; website remains continuous deploy from
   `main`.

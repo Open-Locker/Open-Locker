@@ -22,7 +22,16 @@ def step(job, name)
   job.fetch('steps').find { |candidate| candidate['name'] == name }
 end
 
-def validate_container_workflow(filename, prefix)
+CLIENT_DOCKER_INPUT_PATHSPECS = [
+  'locker-client',
+  ':(exclude,glob)locker-client/**/*.md',
+  ':(exclude)locker-client/.cursor',
+  '.github/git-cliff/client.toml',
+  '.github/workflows/client-docker.yml',
+  '.github/workflows/component-release.yml',
+].freeze
+
+def validate_container_workflow(filename, prefix, freshness: :exact_main_tip)
   document = workflow(filename)
   triggers = document.fetch('on')
   jobs = document.fetch('jobs')
@@ -49,14 +58,36 @@ def validate_container_workflow(filename, prefix)
     "#{filename}: publish must be push-only",
   )
 
-  tip_check_index = publish_steps.index { |candidate| candidate['name'] == 'Verify current main tip before publishing latest' }
   publish_index = publish_steps.index { |candidate| candidate['name'] == 'Build and push Docker image' }
-  assert(tip_check_index == publish_index - 1, "#{filename}: main tip check must immediately precede publish")
+  freshness_check_index = case freshness
+  when :exact_main_tip
+    publish_steps.index { |candidate| candidate['name'] == 'Verify current main tip before publishing latest' }
+  when :component_inputs
+    publish_steps.index { |candidate| candidate['name'] == 'Verify client inputs still match main before publishing' }
+  else
+    raise "unknown container freshness policy #{freshness}"
+  end
+  assert(freshness_check_index == publish_index - 1, "#{filename}: freshness check must immediately precede publish")
+  freshness_script = publish_steps[freshness_check_index].fetch('run')
   assert(
-    publish_steps[tip_check_index].fetch('run').include?('GITHUB_SHA') &&
-      publish_steps[tip_check_index].fetch('run').include?('origin/main'),
-    "#{filename}: main tip check is incomplete",
+    freshness_script.include?('GITHUB_SHA') && freshness_script.include?('origin/main'),
+    "#{filename}: freshness check is incomplete",
   )
+  if freshness == :exact_main_tip
+    assert(
+      freshness_script.include?('git rev-parse origin/main'),
+      "#{filename}: main tip check is incomplete",
+    )
+  else
+    assert(
+      freshness_script.include?('git diff --quiet') &&
+        !freshness_script.include?('git rev-parse origin/main'),
+      "#{filename}: client latest must compare component inputs, not the exact main SHA",
+    )
+    CLIENT_DOCKER_INPUT_PATHSPECS.each do |pathspec|
+      assert(freshness_script.include?(pathspec), "#{filename}: freshness check missing #{pathspec}")
+    end
+  end
 
   metadata = step(publish, 'Extract image metadata').fetch('with').fetch('tags')
   assert(
@@ -75,18 +106,39 @@ def validate_container_workflow(filename, prefix)
 
 end
 
-def container_policy(component:, event:, ref:, current_main_tip: true)
+def validate_client_concurrency
+  concurrency = workflow('client-docker.yml').fetch('concurrency')
+  assert(
+    concurrency.fetch('group') == 'client-docker-${{ github.ref }}',
+    'client workflow must serialize each ref, including main',
+  )
+  assert(
+    concurrency.fetch('cancel-in-progress') ==
+      "${{ github.event_name == 'pull_request' || (github.event_name == 'push' && github.ref == 'refs/heads/main') }}",
+    'client main pushes must cancel older main publishes; tag releases must not cancel',
+  )
+end
+
+def container_policy(component:, event:, ref:, current_main_tip: true, component_inputs_current: true)
   prefix = component == :backend ? 'backend-v' : 'client-v'
   tag = ref.start_with?("refs/tags/#{prefix}")
   main = ref == 'refs/heads/main'
   push = event == :push
-  publish = push && ((main && current_main_tip) || (tag && current_main_tip))
+  main_fresh = component == :client ? component_inputs_current : current_main_tip
+  publish = push && ((main && main_fresh) || (tag && current_main_tip))
 
   {
     triggered: true,
     publish: publish,
     latest: publish && main,
     release: push && tag && current_main_tip,
+  }
+end
+
+def client_concurrency(event:, ref:)
+  {
+    group: "client-docker-#{ref}",
+    cancel_in_progress: event == :pull_request || (event == :push && ref == 'refs/heads/main'),
   }
 end
 
@@ -132,12 +184,44 @@ def validate_event_matrix
 
   client_main = container_policy(component: :client, event: :push, ref: 'refs/heads/main')
   assert(client_main == { triggered: true, publish: true, latest: true, release: false }, 'client main matrix failed')
+  client_unrelated_tip_move = container_policy(
+    component: :client,
+    event: :push,
+    ref: 'refs/heads/main',
+    current_main_tip: false,
+    component_inputs_current: true,
+  )
+  assert(
+    client_unrelated_tip_move == { triggered: true, publish: true, latest: true, release: false },
+    'unrelated later main commits must not block client latest',
+  )
+  client_superseded_inputs = container_policy(
+    component: :client,
+    event: :push,
+    ref: 'refs/heads/main',
+    current_main_tip: false,
+    component_inputs_current: false,
+  )
+  assert(
+    client_superseded_inputs == { triggered: true, publish: false, latest: false, release: false },
+    'newer client-relevant main content must block stale latest',
+  )
   client_tag = container_policy(
     component: :client,
     event: :push,
     ref: 'refs/tags/client-v1.0.0-beta.1',
   )
   assert(client_tag == { triggered: true, publish: true, latest: false, release: true }, 'client tag matrix failed')
+  client_stale_tag = container_policy(
+    component: :client,
+    event: :push,
+    ref: 'refs/tags/client-v1.0.0-beta.1',
+    current_main_tip: false,
+  )
+  assert(
+    client_stale_tag == { triggered: true, publish: false, latest: false, release: false },
+    'client tag releases must still require the current main tip',
+  )
   client_manual = container_policy(
     component: :client,
     event: :workflow_dispatch,
@@ -172,6 +256,20 @@ def validate_event_matrix
   assert(running_tag[:group] != arriving_main[:group], 'main preview runs must not use store concurrency')
   assert(running_tag[:cancel_in_progress] == false, 'a running tag release must not be canceled')
   assert(arriving_tag[:cancel_in_progress] == false, 'a later tag must not cancel a running tag release')
+
+  older_client_main = client_concurrency(event: :push, ref: 'refs/heads/main')
+  newer_client_main = client_concurrency(event: :push, ref: 'refs/heads/main')
+  client_tag_run = client_concurrency(event: :push, ref: 'refs/tags/client-v1.0.0-beta.1')
+  client_later_tag = client_concurrency(event: :push, ref: 'refs/tags/client-v1.0.1-beta.1')
+  client_dispatch = client_concurrency(event: :workflow_dispatch, ref: 'refs/heads/main')
+  assert(older_client_main[:group] == newer_client_main[:group], 'client main publishes must share one group')
+  assert(newer_client_main[:cancel_in_progress] == true, 'a newer client-relevant main push must cancel older publication')
+  assert(older_client_main[:group] != client_tag_run[:group], 'client tag releases must not share main concurrency')
+  assert(client_tag_run[:group] != client_later_tag[:group], 'distinct client tags must not cancel each other')
+  assert(client_tag_run[:cancel_in_progress] == false, 'a client tag release must not cancel in progress')
+  assert(client_later_tag[:cancel_in_progress] == false, 'a later client tag must not cancel a running tag release')
+  assert(client_dispatch[:group] == older_client_main[:group], 'manual client runs on main share the main ref group')
+  assert(client_dispatch[:cancel_in_progress] == false, 'manual client dispatch must not cancel an in-progress main publish')
 end
 
 def validate_mobile_workflow
@@ -288,7 +386,8 @@ def validate_documentation_filters(filename, component)
 end
 
 validate_container_workflow('backend-docker.yml', 'backend-v')
-validate_container_workflow('client-docker.yml', 'client-v')
+validate_container_workflow('client-docker.yml', 'client-v', freshness: :component_inputs)
+validate_client_concurrency
 validate_mobile_workflow
 validate_mobile_profiles
 validate_release_workflow
