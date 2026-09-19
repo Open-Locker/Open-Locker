@@ -5,7 +5,6 @@ import { computeAppliedConfigHash } from '../../src/domain/config-normalization'
 test('matches the backend hardware-profile config hash golden vector', () => {
   const hash = computeAppliedConfigHash({
     adapter_type: 'rs485_lock_board',
-    channel_count: 12,
     feedback_type: 'door_opening',
     compartments: [
       { compartment_number: 2, slaveId: 2, address: 11 },
@@ -13,5 +12,5 @@ test('matches the backend hardware-profile config hash golden vector', () => {
     ],
   });
 
-  assert.equal(hash, '041f1edf0ee6921b6727d250a966da978beb0af11c6b6817dfd11a083a0e0c68');
+  assert.equal(hash, 'deac8a5b4aea15d097074e3c092d2632c3baa3d0adb0e91c96a13f745dd30b9e');
 });

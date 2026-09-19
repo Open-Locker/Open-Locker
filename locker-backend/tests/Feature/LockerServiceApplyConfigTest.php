@@ -28,7 +28,6 @@ class LockerServiceApplyConfigTest extends TestCase
         ])->refresh();
 
         $this->assertSame(LockerAdapterType::WaveshareModbus, $lockerBank->adapter_type);
-        $this->assertSame(8, $lockerBank->channel_count);
         $this->assertSame(LockerFeedbackType::DoorClosing, $lockerBank->feedback_type);
     }
 
@@ -62,8 +61,8 @@ class LockerServiceApplyConfigTest extends TestCase
 
         $this->assertNotNull($stored);
         $this->assertSame('waveshare_modbus', $stored->event_properties['adapterType'] ?? null);
-        $this->assertSame(8, $stored->event_properties['channelCount'] ?? null);
         $this->assertSame('door_closing', $stored->event_properties['feedbackType'] ?? null);
+        $this->assertArrayNotHasKey('channelCount', $stored->event_properties);
         $this->assertNotNull($completeBank->refresh()->last_config_sent_at);
     }
 
@@ -87,7 +86,6 @@ class LockerServiceApplyConfigTest extends TestCase
     {
         $lockerBank = LockerBankFactory::new()->create([
             'adapter_type' => LockerAdapterType::Rs485LockBoard,
-            'channel_count' => 12,
             'feedback_type' => LockerFeedbackType::DoorOpening,
             'heartbeat_interval_seconds' => 15,
         ]);
@@ -106,11 +104,11 @@ class LockerServiceApplyConfigTest extends TestCase
 
         $payload = $lockerBank->buildApplyConfigPayload();
 
-        $this->assertSame('041f1edf0ee6921b6727d250a966da978beb0af11c6b6817dfd11a083a0e0c68', $payload['config_hash']);
+        $this->assertSame('deac8a5b4aea15d097074e3c092d2632c3baa3d0adb0e91c96a13f745dd30b9e', $payload['config_hash']);
         $this->assertSame('rs485_lock_board', $payload['adapter_type']);
-        $this->assertSame(12, $payload['channel_count']);
         $this->assertSame('door_opening', $payload['feedback_type']);
         $this->assertSame([1, 2], array_column($payload['compartments'], 'compartment_number'));
+        $this->assertArrayNotHasKey('channel_count', $payload);
 
         $lockerBank->update(['heartbeat_interval_seconds' => 30]);
 
@@ -127,14 +125,14 @@ class LockerServiceApplyConfigTest extends TestCase
         $this->assertNotSame($originalHash, $lockerBank->fresh()->currentConfigHash());
     }
 
-    public function test_apply_config_accepts_highest_address_within_channel_count(): void
+    public function test_apply_config_accepts_highest_wire_encodable_address(): void
     {
-        $lockerBank = LockerBankFactory::new()->create(['channel_count' => 8]);
+        $lockerBank = LockerBankFactory::new()->create();
         CompartmentFactory::new()->create([
             'locker_bank_id' => $lockerBank->id,
             'number' => 1,
             'slave_id' => 1,
-            'address' => 7,
+            'address' => LockerBank::MAX_WIRE_CHANNEL_ADDRESS,
         ]);
 
         $this->mock(ApplyConfigCommandPublisher::class, function ($mock): void {
@@ -146,41 +144,18 @@ class LockerServiceApplyConfigTest extends TestCase
         $this->assertNotNull($lockerBank->refresh()->last_config_sent_at);
     }
 
-    public function test_apply_config_rejects_address_equal_to_channel_count(): void
+    public function test_apply_config_rejects_address_above_wire_encodable_range(): void
     {
-        $lockerBank = LockerBankFactory::new()->create(['channel_count' => 8]);
+        $lockerBank = LockerBankFactory::new()->create();
         CompartmentFactory::new()->create([
             'locker_bank_id' => $lockerBank->id,
             'number' => 1,
             'slave_id' => 1,
-            'address' => 8,
+            'address' => 255,
         ]);
 
         $this->expectException(\RuntimeException::class);
-        $this->expectExceptionMessage('Config is invalid: every compartment address must be less than channel_count (8).');
-
-        app(LockerService::class)->applyConfig($lockerBank);
-    }
-
-    public function test_apply_config_rejects_unsupported_channel_count(): void
-    {
-        $lockerBank = LockerBankFactory::new()->create(['channel_count' => 10]);
-
-        $this->expectException(\RuntimeException::class);
-        $this->expectExceptionMessage('Config is invalid: channel_count must be one of 8, 12, 18, 24, 36, or 50.');
-
-        app(LockerService::class)->applyConfig($lockerBank);
-    }
-
-    public function test_apply_config_rejects_non_eight_channel_waveshare_profile(): void
-    {
-        $lockerBank = LockerBankFactory::new()->create([
-            'adapter_type' => LockerAdapterType::WaveshareModbus,
-            'channel_count' => 12,
-        ]);
-
-        $this->expectException(\RuntimeException::class);
-        $this->expectExceptionMessage('Config is invalid: the supported Waveshare board has exactly 8 channels.');
+        $this->expectExceptionMessage('Config is invalid: every compartment address must be between 0 and 254 (wire-encodable channel).');
 
         app(LockerService::class)->applyConfig($lockerBank);
     }

@@ -17,7 +17,6 @@ use Illuminate\Database\Eloquent\Relations\HasManyThrough;
  * @property-read string $name
  * @property-read string $location_description
  * @property LockerAdapterType $adapter_type
- * @property-read int $channel_count
  * @property LockerFeedbackType $feedback_type
  * @property string|null $provisioning_token_hmac
  * @property string|null $provisioning_generation
@@ -33,7 +32,8 @@ use Illuminate\Database\Eloquent\Relations\HasManyThrough;
  */
 class LockerBank extends Model
 {
-    public const SUPPORTED_CHANNEL_COUNTS = [8, 12, 18, 24, 36, 50];
+    /** Highest zero-based channel address encodable on the RS485 wire (maps to byte 0xFF). */
+    public const MAX_WIRE_CHANNEL_ADDRESS = 254;
 
     /** @use HasFactory<\Database\Factories\LockerBankFactory> */
     use HasFactory;
@@ -44,7 +44,6 @@ class LockerBank extends Model
         'name',
         'location_description',
         'adapter_type',
-        'channel_count',
         'feedback_type',
         'provisioning_token_hmac',
         'provisioning_generation',
@@ -65,7 +64,6 @@ class LockerBank extends Model
 
     protected $casts = [
         'adapter_type' => LockerAdapterType::class,
-        'channel_count' => 'integer',
         'feedback_type' => LockerFeedbackType::class,
         'provisioned_at' => 'datetime',
         'last_heartbeat_at' => 'datetime',
@@ -103,7 +101,7 @@ class LockerBank extends Model
     /**
      * Build the config payload that will be sent to the client.
      *
-     * @return array{config_hash:string, heartbeat_interval_seconds:int, adapter_type:string, channel_count:int, feedback_type:string, compartments:array<int, array{compartment_number:int, slaveId:int, address:int}>}
+     * @return array{config_hash:string, heartbeat_interval_seconds:int, adapter_type:string, feedback_type:string, compartments:array<int, array{compartment_number:int, slaveId:int, address:int}>}
      */
     public function buildApplyConfigPayload(): array
     {
@@ -121,7 +119,6 @@ class LockerBank extends Model
 
         $canonicalConfig = [
             'adapter_type' => $this->adapter_type->value,
-            'channel_count' => (int) $this->channel_count,
             'feedback_type' => $this->feedback_type->value,
             'compartments' => $compartments,
         ];

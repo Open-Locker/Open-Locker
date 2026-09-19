@@ -5,7 +5,11 @@
  * command response reports the first; the outcomes below report the second.
  */
 
-/** Outcome of watching the door after an unlock pulse. */
+/**
+ * Outcome of watching the door after an unlock pulse.
+ * `already_open` remains for MQTT/AsyncAPI compatibility; the client no longer
+ * publishes it after actuation.
+ */
 export type OpenDetectionOutcome = 'opened' | 'already_open' | 'door_jammed';
 
 /** How often the door sensor is sampled while waiting for the door to move. */

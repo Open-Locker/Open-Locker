@@ -16,12 +16,9 @@ return new class extends Migration
             $table->string('adapter_type')
                 ->default(LockerAdapterType::WaveshareModbus->value)
                 ->after('location_description');
-            $table->unsignedSmallInteger('channel_count')
-                ->default(8)
-                ->after('adapter_type');
             $table->string('feedback_type')
                 ->default(LockerFeedbackType::DoorClosing->value)
-                ->after('channel_count');
+                ->after('adapter_type');
         });
     }
 
@@ -30,7 +27,6 @@ return new class extends Migration
         Schema::table('locker_banks', function (Blueprint $table) {
             $table->dropColumn([
                 'adapter_type',
-                'channel_count',
                 'feedback_type',
             ]);
         });

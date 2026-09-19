@@ -3,6 +3,9 @@ import { test } from 'node:test';
 import { ApplyConfigUseCase } from '../../src/application/apply-config';
 import type { ApplyConfigCommand } from '../../src/domain/mqtt-schemas';
 import { computeAppliedConfigHash } from '../../src/domain/config-normalization';
+import { RuntimeConfiguredLockerBus } from '../../src/adapters/runtime/runtime-configured-locker-bus';
+import type { EffectiveLockerConfig } from '../../src/domain/config';
+import type { ConfigRepositoryPort } from '../../src/ports/config.port';
 import { FakeLockerBus } from '../helpers/fake-locker-bus';
 import { MemoryOverlayStore } from '../helpers/memory-overlay-store';
 import { createTestConfigRepository } from '../helpers/test-config-repository';
@@ -26,7 +29,6 @@ test('apply config rejects mismatched config_hash', async () => {
     timestamp: '2026-06-16T12:00:00.000Z',
     data: {
       adapter_type: 'waveshare_modbus',
-      channel_count: 8,
       feedback_type: 'door_closing',
       config_hash: 'a'.repeat(64),
       heartbeat_interval_seconds: 30,
@@ -46,7 +48,6 @@ test('apply config hashes and persists the complete runtime hardware profile', a
   ];
   const profile = {
     adapter_type: 'rs485_lock_board' as const,
-    channel_count: 12 as const,
     feedback_type: 'door_opening' as const,
     compartments,
   };
@@ -73,7 +74,6 @@ test('apply config hashes and persists the complete runtime hardware profile', a
   assert.equal(result.appliedConfigHash, computeAppliedConfigHash(profile));
   assert.deepEqual(overlayStore.load()?.hardwareProfile, {
     adapterType: 'rs485_lock_board',
-    channelCount: 12,
     feedbackType: 'door_opening',
   });
   assert.deepEqual(
@@ -82,11 +82,10 @@ test('apply config hashes and persists the complete runtime hardware profile', a
   );
 });
 
-test('apply config rejects unsupported Waveshare channel counts', async () => {
-  const compartments = [{ compartment_number: 1, slaveId: 1, address: 0 }];
+test('apply config rejects addresses outside the wire encodable range', async () => {
+  const compartments = [{ compartment_number: 1, slaveId: 1, address: 255 }];
   const profile = {
-    adapter_type: 'waveshare_modbus' as const,
-    channel_count: 12 as const,
+    adapter_type: 'rs485_lock_board' as const,
     feedback_type: 'door_closing' as const,
     compartments,
   };
@@ -102,8 +101,8 @@ test('apply config rejects unsupported Waveshare channel counts', async () => {
     () =>
       useCase.execute({
         action: 'apply_config',
-        message_id: 'msg-waveshare-channels',
-        transaction_id: 'tx-waveshare-channels',
+        message_id: 'msg-address',
+        transaction_id: 'tx-address',
         timestamp: '2026-08-23T12:00:00.000Z',
         data: {
           ...profile,
@@ -111,7 +110,7 @@ test('apply config rejects unsupported Waveshare channel counts', async () => {
           heartbeat_interval_seconds: 30,
         },
       }),
-    /exactly 8 channels/,
+    /between 0 and 254/,
   );
 });
 
@@ -130,7 +129,7 @@ test('apply config restores previous overlay when runtime reload fails', async (
   bus.reloadRuntimeConfig = async () => {
     modbusReloadAttempts++;
     if (modbusReloadAttempts === 1) {
-      throw new Error('modbus reconnect failed');
+      throw new Error('adapter construction failed');
     }
   };
 
@@ -163,17 +162,140 @@ test('apply config restores previous overlay when runtime reload fails', async (
     timestamp: '2026-04-11T12:00:00Z',
     data: {
       adapter_type: 'waveshare_modbus',
-      channel_count: 8,
       feedback_type: 'door_closing',
-      config_hash: computeAppliedConfigHash(newCompartments),
+      config_hash: computeAppliedConfigHash({
+        adapter_type: 'waveshare_modbus',
+        feedback_type: 'door_closing',
+        compartments: newCompartments,
+      }),
       heartbeat_interval_seconds: 45,
       compartments: newCompartments,
     },
   };
 
-  await assert.rejects(() => useCase.execute(command), /modbus reconnect failed/);
+  await assert.rejects(() => useCase.execute(command), /adapter construction failed/);
 
   assert.equal(modbusReloadAttempts, 2);
   assert.deepEqual(overlayStore.load(), previousOverlay);
   assert.ok(reloadCount >= 2);
+});
+
+test('apply config succeeds while the runtime bus is unreachable', async () => {
+  const overlayStore = new MemoryOverlayStore();
+  let effective: EffectiveLockerConfig = { modbus: { port: '/dev/null' } };
+  const base = createTestConfigRepository();
+  const configPort: ConfigRepositoryPort = {
+    ...base,
+    load: () => effective,
+    reload: () => {
+      const overlay = overlayStore.load();
+      if (overlay) {
+        effective = {
+          modbus: { port: '/dev/null' },
+          mqtt: overlay.mqtt ? { heartbeatInterval: overlay.mqtt.heartbeatInterval } : undefined,
+          hardwareProfile: overlay.hardwareProfile,
+          compartments: overlay.compartments,
+        };
+      }
+      return effective;
+    },
+    getConfiguredSlaveIds: () => [
+      ...new Set(effective.compartments?.map((entry) => entry.slaveId) ?? []),
+    ],
+  };
+  const adapter = new FakeLockerBus([1]);
+  adapter.unreachable = true;
+  adapter.initializeBoard = async () => {
+    throw new Error('board did not answer');
+  };
+  const bus = new RuntimeConfiguredLockerBus(configPort, () => adapter);
+  await bus.connect();
+  const compartments = [{ compartment_number: 1, slaveId: 1, address: 0 }];
+  const profile = {
+    adapter_type: 'waveshare_modbus' as const,
+    feedback_type: 'door_closing' as const,
+    compartments,
+  };
+  const useCase = new ApplyConfigUseCase({
+    overlayStore,
+    config: configPort,
+    bus,
+    restartHeartbeat: () => undefined,
+    restartPolling: () => undefined,
+  });
+
+  const result = await useCase.execute({
+    action: 'apply_config',
+    message_id: 'msg-unreachable',
+    transaction_id: 'tx-unreachable',
+    timestamp: '2026-04-11T12:00:00Z',
+    data: {
+      ...profile,
+      config_hash: computeAppliedConfigHash(profile),
+      heartbeat_interval_seconds: 30,
+    },
+  });
+
+  assert.equal(result.appliedConfigHash, computeAppliedConfigHash(profile));
+  assert.deepEqual(overlayStore.load()?.hardwareProfile?.adapterType, 'waveshare_modbus');
+  assert.equal(bus.getConnectionState(), 'unreachable');
+});
+
+test('apply config rethrows the original error when rollback fails', async () => {
+  const previousOverlay = {
+    compartments: [{ compartment_number: 1, slaveId: 1, address: 0 }],
+    appliedConfigHash: 'b'.repeat(64),
+  };
+  const overlayStore = new MemoryOverlayStore();
+  overlayStore.save(previousOverlay);
+
+  const bus = new FakeLockerBus([1]);
+  let reloadAttempts = 0;
+  bus.reloadRuntimeConfig = async () => {
+    reloadAttempts++;
+    if (reloadAttempts === 1) {
+      throw new Error('runtime reload failed');
+    }
+    throw new Error('rollback reload failed');
+  };
+
+  const logEntries: Array<{ message: string; meta?: Record<string, unknown> }> = [];
+  const useCase = new ApplyConfigUseCase({
+    overlayStore,
+    config: createTestConfigRepository(),
+    bus,
+    restartHeartbeat: () => undefined,
+    restartPolling: () => undefined,
+    log: {
+      warn: () => undefined,
+      error: (message, meta) => logEntries.push({ message, meta }),
+    },
+  });
+
+  const profile = {
+    adapter_type: 'waveshare_modbus' as const,
+    feedback_type: 'door_closing' as const,
+    compartments: [{ compartment_number: 2, slaveId: 2, address: 1 }],
+  };
+
+  await assert.rejects(
+    () =>
+      useCase.execute({
+        action: 'apply_config',
+        message_id: 'msg-rollback-fail',
+        transaction_id: 'tx-rollback-fail',
+        timestamp: '2026-04-11T12:00:00Z',
+        data: {
+          ...profile,
+          config_hash: computeAppliedConfigHash(profile),
+          heartbeat_interval_seconds: 30,
+        },
+      }),
+    /runtime reload failed/,
+  );
+
+  assert.ok(
+    logEntries.some((entry) => entry.message.includes('rollback failed')),
+    'rollback failure should be logged',
+  );
 });

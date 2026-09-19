@@ -1,12 +1,9 @@
 import PQueue from 'p-queue';
 import type { CompartmentTarget, DoorState } from '../../domain/compartment';
+import type { FeedbackType } from '../../domain/config';
+import { doorStateFromFeedbackSignal } from '../../domain/door-feedback-mapping';
 import { isReconnectableModbusError } from '../../domain/errors';
-import {
-  BusPriority,
-  ConnectionState,
-  LockerBusPort,
-  type UnlockFeedback,
-} from '../../ports/locker-bus.port';
+import { BusPriority, ConnectionState, LockerBusPort } from '../../ports/locker-bus.port';
 import { noopLogger, type LoggerPort } from '../../ports/logging.port';
 import { noopTracing, type SpanAttributes, type TracingPort } from '../../ports/tracing.port';
 import {
@@ -17,7 +14,7 @@ import {
   MODBUS_OPERATION,
   MODBUS_SLAVE_ID,
 } from '../../domain/trace-attributes';
-import { ReconnectCoordinator } from './reconnect-coordinator';
+import { SerialBusConnection } from '../serial/serial-bus-connection';
 
 /** Matches v1 `modbusService.maxReconnectAttempts`. */
 export const DEFAULT_MODBUS_MAX_RECONNECT_ATTEMPTS = 5;
@@ -34,8 +31,7 @@ export interface WaveshareModbusDriver {
 
 export class WaveshareModbusBusActor implements LockerBusPort {
   private queue = new PQueue({ concurrency: 1 });
-  private connectionState: ConnectionState = 'disconnected';
-  private readonly reconnect: ReconnectCoordinator;
+  private readonly connection: SerialBusConnection;
 
   constructor(
     private readonly driver: WaveshareModbusDriver,
@@ -46,16 +42,20 @@ export class WaveshareModbusBusActor implements LockerBusPort {
      * at construction would still describe the fleet as it was at boot.
      */
     private readonly configuredSlaveIds: number[] | (() => number[]) = [1],
+    private readonly feedbackType: FeedbackType = 'door_closing',
     private readonly tracing: TracingPort = noopTracing,
     private readonly log: LoggerPort = noopLogger,
   ) {
-    this.reconnect = new ReconnectCoordinator(
+    this.connection = new SerialBusConnection(
+      driver,
       {
         maxAttempts: reconnectOptions?.maxAttempts ?? DEFAULT_MODBUS_MAX_RECONNECT_ATTEMPTS,
         delayMs: reconnectOptions?.delayMs ?? 5000,
         cooldownMs: reconnectOptions?.cooldownMs,
       },
+      isReconnectableModbusError,
       log,
+      'Modbus',
     );
   }
 
@@ -67,19 +67,18 @@ export class WaveshareModbusBusActor implements LockerBusPort {
    */
   async connect(): Promise<void> {
     return this.run(async () => {
-      await this.dial();
+      await this.connection.dial();
     }, BusPriority.MAINTENANCE);
   }
 
   async disconnect(): Promise<void> {
-    this.reconnect.cancelScheduled();
+    this.connection.cancelScheduledReconnect();
     await this.queue.onIdle();
-    await this.driver.disconnect();
-    this.connectionState = 'disconnected';
+    await this.connection.disconnect();
   }
 
   getConnectionState(): ConnectionState {
-    return this.connectionState;
+    return this.connection.getConnectionState();
   }
 
   runExclusive<T>(operation: (bus: LockerBusPort) => Promise<T>): Promise<T> {
@@ -98,28 +97,25 @@ export class WaveshareModbusBusActor implements LockerBusPort {
         return true;
       }
 
-      return this.dial();
+      return this.connection.dial();
     }, BusPriority.MAINTENANCE);
   }
 
   async reloadRuntimeConfig(): Promise<void> {
     return this.run(async () => {
       if (!this.driver.isOpen()) {
-        // A reload arriving while the adapter is briefly away should not be the
-        // one path that still gets a single attempt.
-        await this.dial();
+        await this.connection.dial();
       }
     }, BusPriority.MAINTENANCE);
   }
 
-  async flashRelay(target: CompartmentTarget, durationMs: number): Promise<UnlockFeedback> {
+  async flashRelay(target: CompartmentTarget, durationMs: number): Promise<void> {
     await this.traced(
       'flash_relay',
       {
         [MODBUS_SLAVE_ID]: target.slaveId,
         [MODBUS_ADDRESS]: target.relayAddress,
         [MODBUS_DURATION_MS]: durationMs,
-        // Ties the electrical write back to the compartment a user asked for.
         [COMPARTMENT_NUMBER]: target.compartmentNumber,
       },
       () =>
@@ -128,20 +124,6 @@ export class WaveshareModbusBusActor implements LockerBusPort {
           BusPriority.COMMAND,
         ),
     );
-    return 'pulse_sent';
-  }
-
-  async readRelayState(target: CompartmentTarget): Promise<boolean> {
-    const values = await this.traced(
-      'read_coils',
-      { [MODBUS_SLAVE_ID]: target.slaveId, [MODBUS_ADDRESS]: target.relayAddress },
-      () =>
-        this.run(
-          () => this.driver.readCoils(target.slaveId, target.relayAddress, 1),
-          BusPriority.POLL,
-        ),
-    );
-    return values[0] ?? false;
   }
 
   async readDoorSensors(
@@ -166,19 +148,16 @@ export class WaveshareModbusBusActor implements LockerBusPort {
 
       return Array.from({ length }, (_, offset) => {
         const value = values[offset];
-        return typeof value === 'boolean' ? (value ? 'closed' : 'open') : 'unknown';
+        return typeof value === 'boolean'
+          ? doorStateFromFeedbackSignal(this.feedbackType, value)
+          : 'unknown';
       });
     } catch (error) {
-      // An unreachable board reports unknown doors rather than failing. The span
-      // records the timeout, but traces are sampled and may be off entirely, so
-      // the reason a whole board went unknown is logged here too. This is the
-      // layer that owns hardware reporting: callers above only ever see the
-      // substituted 'unknown' values.
       this.log.warn('Modbus door sensor read failed, reporting doors as unknown', {
         slaveId,
         startAddress,
         length,
-        connectionState: this.connectionState,
+        connectionState: this.connection.getConnectionState(),
         error: error instanceof Error ? error.message : String(error),
       });
       return Array.from({ length }, () => 'unknown');
@@ -195,59 +174,12 @@ export class WaveshareModbusBusActor implements LockerBusPort {
     return this.queue;
   }
 
-  /**
-   * Every dial goes through here, so a spent cycle is recorded in one place.
-   * Returns whether the bus ended up open; callers that only care about that see
-   * `false` rather than an exception.
-   */
-  private async dial(): Promise<boolean> {
-    try {
-      await this.reconnect.run(() => this.connectInternal());
-      return this.driver.isOpen();
-    } catch (error) {
-      this.markUnreachable(error);
-      return false;
-    }
-  }
-
-  /**
-   * A spent cycle is a statement, not a silence: without it the bus keeps
-   * reporting `connecting` — which claims an attempt is in flight — for as long as
-   * the adapter stays away.
-   */
-  private markUnreachable(error: unknown): void {
-    if (!this.reconnect.isCycleSpent()) {
-      return;
-    }
-
-    this.connectionState = 'unreachable';
-    this.log.error('Modbus bus unreachable after reconnect attempts', {
-      attempts: this.reconnect.getAttempts(),
-      connectionState: this.connectionState,
-      error: error instanceof Error ? error.message : String(error),
-    });
-  }
-
-  private async connectInternal(): Promise<void> {
-    this.connectionState = 'connecting';
-    await this.driver.connect();
-    this.connectionState = 'connected';
-    this.reconnect.resetAttempts();
-  }
-
   private run<T>(operation: () => Promise<T>, priority: BusPriority): Promise<T> {
-    return this.queue.add(async () => this.runWithReconnectRetry(operation), {
+    return this.queue.add(() => this.connection.runWithReconnectRetry(operation), {
       priority,
     }) as Promise<T>;
   }
 
-  /**
-   * Wraps a bus operation in a span.
-   *
-   * The span starts before the operation is queued, so the time a write spends
-   * waiting behind other traffic is inside it. On this bus that wait is often
-   * the reason a door felt slow, and hiding it would make the trace misleading.
-   */
   private traced<T>(
     operation: string,
     attributes: SpanAttributes,
@@ -258,29 +190,5 @@ export class WaveshareModbusBusActor implements LockerBusPort {
       { kind: 'internal', attributes: { ...attributes, [MODBUS_OPERATION]: operation } },
       () => fn(),
     );
-  }
-
-  private async runWithReconnectRetry<T>(operation: () => Promise<T>): Promise<T> {
-    try {
-      return await operation();
-    } catch (error) {
-      if (!isReconnectableModbusError(error)) {
-        throw error;
-      }
-
-      await this.driver.disconnect();
-      this.connectionState = 'disconnected';
-
-      // Reached by the compartment poll as well as by commands, so this is the
-      // path that notices a bus dying between commands at all.
-      try {
-        await this.reconnect.run(() => this.connectInternal());
-      } catch (reconnectError) {
-        this.markUnreachable(reconnectError);
-        throw reconnectError;
-      }
-
-      return operation();
-    }
   }
 }

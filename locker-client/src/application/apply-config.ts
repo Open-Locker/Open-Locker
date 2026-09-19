@@ -1,9 +1,11 @@
 import type { CompartmentConfig } from '../domain/compartment';
+import { isWireEncodableChannelAddress } from '../domain/config';
 import { computeAppliedConfigHash, normalizeCompartments } from '../domain/config-normalization';
 import { LockerError, MqttErrorCode } from '../domain/errors';
 import type { ApplyConfigCommand } from '../domain/mqtt-schemas';
 import type { ConfigRepositoryPort, RuntimeOverlayStorePort } from '../ports/config.port';
 import type { LockerBusPort } from '../ports/locker-bus.port';
+import { noopLogger, type LoggerPort } from '../ports/logging.port';
 
 export interface ApplyConfigResult {
   appliedConfigHash: string;
@@ -16,10 +18,15 @@ export interface ApplyConfigDependencies {
   bus: LockerBusPort;
   restartHeartbeat: () => void;
   restartPolling: () => void;
+  log?: LoggerPort;
 }
 
 export class ApplyConfigUseCase {
-  constructor(private readonly deps: ApplyConfigDependencies) {}
+  private readonly log: LoggerPort;
+
+  constructor(private readonly deps: ApplyConfigDependencies) {
+    this.log = deps.log ?? noopLogger;
+  }
 
   async execute(command: ApplyConfigCommand): Promise<ApplyConfigResult> {
     const previous = this.deps.overlayStore.load();
@@ -37,17 +44,24 @@ export class ApplyConfigUseCase {
         message: 'Config applied.',
       };
     } catch (error) {
-      await this.rollback(previous);
+      try {
+        await this.rollback(previous);
+      } catch (rollbackError) {
+        this.log.error('apply_config rollback failed after an apply error', {
+          rollbackError:
+            rollbackError instanceof Error ? rollbackError.message : String(rollbackError),
+          originalError: error instanceof Error ? error.message : String(error),
+        });
+      }
       throw error;
     }
   }
 
   private buildOverlay(command: ApplyConfigCommand) {
     const normalized = normalizeCompartments(command.data.compartments);
-    this.validateCompartments(normalized, command.data.channel_count, command.data.adapter_type);
+    this.validateCompartments(normalized, command.data.adapter_type);
     const hash = computeAppliedConfigHash({
       adapter_type: command.data.adapter_type,
-      channel_count: command.data.channel_count,
       feedback_type: command.data.feedback_type,
       compartments: normalized,
     });
@@ -63,7 +77,6 @@ export class ApplyConfigUseCase {
       mqtt: { heartbeatInterval: command.data.heartbeat_interval_seconds },
       hardwareProfile: {
         adapterType: command.data.adapter_type,
-        channelCount: command.data.channel_count,
         feedbackType: command.data.feedback_type,
       },
       compartments: normalized,
@@ -74,24 +87,16 @@ export class ApplyConfigUseCase {
 
   private validateCompartments(
     compartments: CompartmentConfig[],
-    channelCount: number,
     adapterType: ApplyConfigCommand['data']['adapter_type'],
   ): void {
-    if (adapterType === 'waveshare_modbus' && channelCount !== 8) {
-      throw new LockerError(
-        MqttErrorCode.INVALID_CONFIG,
-        'the supported Waveshare board has exactly 8 channels',
-      );
-    }
-
     const seenNumbers = new Set<number>();
     const seenTargets = new Set<string>();
 
     for (const c of compartments) {
-      if (c.address >= channelCount) {
+      if (!isWireEncodableChannelAddress(c.address)) {
         throw new LockerError(
           MqttErrorCode.INVALID_CONFIG,
-          `compartment addresses must be between 0 and ${channelCount - 1}`,
+          'compartment addresses must be between 0 and 254',
         );
       }
       if (adapterType === 'rs485_lock_board' && c.slaveId > 31) {

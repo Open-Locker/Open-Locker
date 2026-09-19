@@ -53,15 +53,12 @@ test('constructs and reconnects the matching adapter when profile changes', asyn
   });
   await bus.connect();
 
-  config.set({ adapterType: 'waveshare_modbus', channelCount: 8, feedbackType: 'door_closing' }, 2);
+  config.set({ adapterType: 'waveshare_modbus', feedbackType: 'door_closing' }, 2);
   await bus.reloadRuntimeConfig();
   assert.equal(built[0]?.profile.adapterType, 'waveshare_modbus');
   assert.deepEqual(built[0]?.bus.turnAllOffCalls, [2]);
 
-  config.set(
-    { adapterType: 'rs485_lock_board', channelCount: 12, feedbackType: 'door_opening' },
-    3,
-  );
+  config.set({ adapterType: 'rs485_lock_board', feedbackType: 'door_opening' }, 3);
   await bus.reloadRuntimeConfig();
   assert.equal(built[0]?.bus.getConnectionState(), 'disconnected');
   assert.equal(built[1]?.profile.adapterType, 'rs485_lock_board');
@@ -77,7 +74,7 @@ test('keeps a multi-step exclusive operation on one adapter before switching', a
     return adapter;
   });
   await bus.connect();
-  config.set({ adapterType: 'waveshare_modbus', channelCount: 8, feedbackType: 'door_closing' });
+  config.set({ adapterType: 'waveshare_modbus', feedbackType: 'door_closing' });
   await bus.reloadRuntimeConfig();
 
   let notifyOperationStarted!: () => void;
@@ -98,7 +95,6 @@ test('keeps a multi-step exclusive operation on one adapter before switching', a
 
   config.set({
     adapterType: 'rs485_lock_board',
-    channelCount: 8,
     feedbackType: 'door_closing',
   });
   const reload = bus.reloadRuntimeConfig();
@@ -110,4 +106,56 @@ test('keeps a multi-step exclusive operation on one adapter before switching', a
   await reload;
   assert.equal(built[0]?.getConnectionState(), 'disconnected');
   assert.equal(built.length, 2);
+});
+
+test('reloadRuntimeConfig succeeds when hardware is unreachable and boards stay silent', async () => {
+  const config = mutableConfig();
+  config.set({ adapterType: 'waveshare_modbus', feedbackType: 'door_closing' });
+  const adapter = new FakeLockerBus([1]);
+  adapter.unreachable = true;
+  adapter.initializeBoard = async () => {
+    throw new Error('board did not answer');
+  };
+  const bus = new RuntimeConfiguredLockerBus(config.port, () => adapter);
+  await bus.connect();
+
+  await assert.doesNotReject(bus.reloadRuntimeConfig());
+  assert.equal(bus.getConnectionState(), 'unreachable');
+  assert.deepEqual(adapter.turnAllOffCalls, []);
+});
+
+test('reloadRuntimeConfig fails when the bus is connected but every board stays silent', async () => {
+  const config = mutableConfig();
+  config.set({ adapterType: 'waveshare_modbus', feedbackType: 'door_closing' });
+  const adapter = new FakeLockerBus([1]);
+  const bus = new RuntimeConfiguredLockerBus(config.port, () => adapter);
+  await bus.connect();
+  await bus.reloadRuntimeConfig();
+
+  adapter.initializeBoard = async () => {
+    throw new Error('board did not answer');
+  };
+  await assert.rejects(bus.reloadRuntimeConfig(), /every configured board/);
+});
+
+test('reloadRuntimeConfig initializes boards after hardware becomes reachable again', async () => {
+  const config = mutableConfig();
+  config.set({ adapterType: 'waveshare_modbus', feedbackType: 'door_closing' });
+  const adapter = new FakeLockerBus([1]);
+  adapter.unreachable = true;
+  adapter.initializeBoard = async () => {
+    throw new Error('board did not answer');
+  };
+  const bus = new RuntimeConfiguredLockerBus(config.port, () => adapter);
+  await bus.connect();
+  await bus.reloadRuntimeConfig();
+
+  adapter.unreachable = false;
+  adapter.initializeBoard = async (slaveId: number) => {
+    adapter.turnAllOffCalls.push(slaveId);
+  };
+  await bus.reloadRuntimeConfig();
+
+  assert.equal(bus.getConnectionState(), 'connected');
+  assert.deepEqual(adapter.turnAllOffCalls, [1]);
 });

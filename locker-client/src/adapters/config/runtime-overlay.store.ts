@@ -1,12 +1,7 @@
 import fs from 'fs';
 import type { CompartmentConfig } from '../../domain/compartment';
-import type {
-  AdapterType,
-  ChannelCount,
-  FeedbackType,
-  RuntimeConfigOverlay,
-} from '../../domain/config';
-import { SUPPORTED_CHANNEL_COUNTS } from '../../domain/config';
+import type { AdapterType, FeedbackType, RuntimeConfigOverlay } from '../../domain/config';
+import { isWireEncodableChannelAddress } from '../../domain/config';
 import { normalizeCompartments } from '../../domain/config-normalization';
 import { RUNTIME_CONFIG_OVERLAY_FILE } from '../../infrastructure/paths';
 import {
@@ -65,6 +60,9 @@ export function sanitizeRuntimeConfigOverlay(value: unknown): RuntimeConfigOverl
         ) {
           throw new Error('invalid compartment entry in overlay');
         }
+        if (!isWireEncodableChannelAddress(entry.address)) {
+          throw new Error('compartment address exceeds wire encodable range');
+        }
         return entry;
       }),
     );
@@ -76,37 +74,18 @@ export function sanitizeRuntimeConfigOverlay(value: unknown): RuntimeConfigOverl
       profile === null ||
       typeof profile !== 'object' ||
       Array.isArray(profile) ||
-      Object.keys(profile).some(
-        (key) => !['adapterType', 'channelCount', 'feedbackType'].includes(key),
-      ) ||
+      Object.keys(profile).some((key) => !['adapterType', 'feedbackType'].includes(key)) ||
       !['waveshare_modbus', 'rs485_lock_board'].includes(String(profile.adapterType)) ||
-      !SUPPORTED_CHANNEL_COUNTS.includes(
-        Number(profile.channelCount) as (typeof SUPPORTED_CHANNEL_COUNTS)[number],
-      ) ||
       !['door_closing', 'door_opening'].includes(String(profile.feedbackType))
     ) {
       throw new Error('invalid hardware profile in overlay');
     }
     sanitized.hardwareProfile = {
       adapterType: profile.adapterType as AdapterType,
-      channelCount: Number(profile.channelCount) as ChannelCount,
       feedbackType: profile.feedbackType as FeedbackType,
     };
-    if (
-      sanitized.hardwareProfile.adapterType === 'waveshare_modbus' &&
-      sanitized.hardwareProfile.channelCount !== 8
-    ) {
-      throw new Error('the supported Waveshare hardware profile must have 8 channels');
-    }
   }
 
-  if (
-    sanitized.compartments &&
-    sanitized.hardwareProfile &&
-    sanitized.compartments.some((entry) => entry.address >= sanitized.hardwareProfile!.channelCount)
-  ) {
-    throw new Error('compartment address exceeds hardware channel count');
-  }
   if (
     sanitized.hardwareProfile?.adapterType === 'rs485_lock_board' &&
     sanitized.compartments?.some((entry) => entry.slaveId > 31)

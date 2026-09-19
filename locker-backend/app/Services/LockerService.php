@@ -55,21 +55,16 @@ class LockerService
             throw new \RuntimeException('Config is incomplete: every compartment needs slave_id and address.');
         }
 
-        $channelCount = (int) $lockerBank->channel_count;
-        if (! in_array($channelCount, LockerBank::SUPPORTED_CHANNEL_COUNTS, true)) {
-            throw new \RuntimeException('Config is invalid: channel_count must be one of 8, 12, 18, 24, 36, or 50.');
-        }
-
-        if ($lockerBank->adapter_type === LockerAdapterType::WaveshareModbus && $channelCount !== 8) {
-            throw new \RuntimeException('Config is invalid: the supported Waveshare board has exactly 8 channels.');
-        }
-
+        $maxAddress = LockerBank::MAX_WIRE_CHANNEL_ADDRESS;
         $outOfRange = $lockerBank->compartments()
-            ->where('address', '>=', $channelCount)
+            ->where(function ($query) use ($maxAddress): void {
+                $query->where('address', '<', 0)
+                    ->orWhere('address', '>', $maxAddress);
+            })
             ->count();
 
         if ($outOfRange > 0) {
-            throw new \RuntimeException("Config is invalid: every compartment address must be less than channel_count ({$channelCount}).");
+            throw new \RuntimeException("Config is invalid: every compartment address must be between 0 and {$maxAddress} (wire-encodable channel).");
         }
 
         if (
@@ -91,7 +86,6 @@ class LockerService
             'lockerBankUuid' => (string) $lockerBank->id,
             'configHash' => $configHash,
             'adapterType' => $payload['adapter_type'],
-            'channelCount' => $payload['channel_count'],
             'feedbackType' => $payload['feedback_type'],
             'compartmentCount' => count($payload['compartments']),
         ]);
@@ -101,7 +95,6 @@ class LockerService
                 $configHash,
                 (int) $lockerBank->heartbeat_interval_seconds,
                 $payload['adapter_type'],
-                $payload['channel_count'],
                 $payload['feedback_type'],
                 $payload['compartments'],
             )

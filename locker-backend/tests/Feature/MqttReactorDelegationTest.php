@@ -49,7 +49,6 @@ class MqttReactorDelegationTest extends TestCase
             configHash: 'abc123',
             heartbeatIntervalSeconds: 15,
             adapterType: 'waveshare_modbus',
-            channelCount: 8,
             feedbackType: 'door_closing',
             compartments: [
                 ['compartment_number' => 1, 'slaveId' => 1, 'address' => 0],

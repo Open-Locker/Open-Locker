@@ -1,9 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import {
-  OpenCompartmentUseCase,
-  runStartupInitialization,
-} from '../../src/application/open-compartment';
+import { OpenCompartmentUseCase, runStartupFailsafe } from '../../src/application/open-compartment';
 import { RelayFireLog } from '../../src/domain/door-detection';
 import { FakeLockerBus } from '../helpers/fake-locker-bus';
 import { FakeDoorEventPublisher } from '../helpers/fake-door-event-publisher';
@@ -15,10 +12,7 @@ import type { ConfigRepositoryPort } from '../../src/ports/config.port';
 const ONE_COMPARTMENT = [{ compartment_number: 1, slaveId: 1, address: 0 }];
 const TARGET = { compartmentNumber: 1, slaveId: 1, relayAddress: 0 };
 
-/**
- * Relay monitoring shares the scheduler queue with detection, so tests run
- * queued work until an outcome appears rather than assuming a queue position.
- */
+/** Door detection shares the scheduler queue, so tests drain it until an outcome appears. */
 async function tickUntilOutcome(
   scheduler: ManualScheduler,
   doorEvents: FakeDoorEventPublisher,
@@ -69,13 +63,13 @@ test('OpenCompartmentUseCase uses hardware flash only', async () => {
 
 test('startup initialization invokes the adapter capability per board', async () => {
   const bus = new FakeLockerBus([1, 2]);
-  await runStartupInitialization(bus);
+  await runStartupFailsafe(bus);
   assert.deepEqual(bus.turnAllOffCalls, [1, 2]);
 });
 
 test('startup initialization skips boards when no runtime mapping exists', async () => {
   const bus = new FakeLockerBus([]);
-  await runStartupInitialization(bus);
+  await runStartupFailsafe(bus);
   assert.deepEqual(bus.turnAllOffCalls, []);
 });
 
@@ -95,11 +89,11 @@ test('a reachable bus whose boards all stay silent still fails startup', async (
   // The other half of the distinction: the bus is fine, so silence means wiring or
   // configuration — something only a human can fix, and startup should say so.
   const bus = new FakeLockerBus([1, 2]);
-  bus.turnAllRelaysOff = async (): Promise<void> => {
+  bus.initializeBoard = async (): Promise<void> => {
     throw new Error('board did not answer');
   };
 
-  await assert.rejects(runStartupFailsafe(bus), /all Modbus boards unreachable/);
+  await assert.rejects(runStartupFailsafe(bus), /all boards unreachable/);
 });
 
 test('OpenCompartmentUseCase throws when runtime mapping is missing', async () => {
@@ -194,63 +188,16 @@ test('stops door detection when apply_config remaps the compartment', async () =
   assert.equal(relayFireLog.isDetecting(1), false);
 });
 
-test('reports already_open without waiting when the door was open before the pulse', async () => {
+test('actuates before door monitoring even when the door was already open', async () => {
   const bus = new FakeLockerBus([1]);
   bus.setDoorState(TARGET, 'open');
-  const { doorEvents, relayFireLog, useCase } = build({ bus });
+  const { doorEvents, scheduler, useCase } = build({ bus });
 
   await useCase.execute(1, 'txn-already');
+  assert.equal(bus.flashCalls.length, 1);
 
-  assert.deepEqual(doorEvents.lastDetection(), {
-    compartmentNumber: 1,
-    transactionId: 'txn-already',
-    outcome: 'already_open',
-    detectionMs: null,
-  });
-  assert.equal(bus.flashCalls.length, 1, 'the relay still fires');
-  assert.equal(relayFireLog.isDetecting(1), false, 'no detection window is opened');
-});
-
-test('reports opened immediately when a closed door returns proprietary opened feedback', async () => {
-  const bus = new FakeLockerBus([1]);
-  bus.unlockFeedback = 'opened';
-  const { doorEvents, relayFireLog, useCase } = build({ bus });
-
-  await useCase.execute(1, 'txn-board-opened');
-
-  assert.deepEqual(doorEvents.lastDetection(), {
-    compartmentNumber: 1,
-    transactionId: 'txn-board-opened',
-    outcome: 'opened',
-    detectionMs: 0,
-  });
-  assert.equal(relayFireLog.isDetecting(1), false);
-});
-
-test('reports door_jammed immediately on proprietary failed feedback', async () => {
-  const bus = new FakeLockerBus([1]);
-  bus.unlockFeedback = 'failed';
-  const { doorEvents, relayFireLog, useCase } = build({ bus });
-
-  await useCase.execute(1, 'txn-board-failed');
-
-  assert.deepEqual(doorEvents.lastDetection(), {
-    compartmentNumber: 1,
-    transactionId: 'txn-board-failed',
-    outcome: 'door_jammed',
-    detectionMs: null,
-  });
-  assert.equal(relayFireLog.isDetecting(1), false);
-});
-
-test('already_open takes precedence over proprietary unlock feedback', async () => {
-  const bus = new FakeLockerBus([1]);
-  bus.setDoorState(TARGET, 'open');
-  bus.unlockFeedback = 'failed';
-  const { doorEvents, useCase } = build({ bus });
-
-  await useCase.execute(1, 'txn-board-already');
-  assert.equal(doorEvents.lastDetection()?.outcome, 'already_open');
+  await tickUntilOutcome(scheduler as ManualScheduler, doorEvents);
+  assert.equal(doorEvents.lastDetection()?.outcome, 'opened');
 });
 
 test('records the relay fire so a later door opening can be attributed', async () => {

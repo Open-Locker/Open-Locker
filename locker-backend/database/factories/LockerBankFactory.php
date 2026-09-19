@@ -24,7 +24,6 @@ class LockerBankFactory extends Factory
             'name' => $this->faker->company().' Branch',
             'location_description' => $this->faker->address(),
             'adapter_type' => LockerAdapterType::WaveshareModbus,
-            'channel_count' => 8,
             'feedback_type' => LockerFeedbackType::DoorClosing,
         ];
     }

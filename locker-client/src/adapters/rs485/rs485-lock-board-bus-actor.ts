@@ -1,51 +1,48 @@
 import PQueue from 'p-queue';
 import type { CompartmentTarget, DoorState } from '../../domain/compartment';
-import { HardwareTransportError } from '../../domain/errors';
-import {
-  BusPriority,
-  type ConnectionState,
-  type LockerBusPort,
-  type UnlockFeedback,
-} from '../../ports/locker-bus.port';
+import { isReconnectableHardwareError } from '../../domain/errors';
+import { BusPriority, type ConnectionState, type LockerBusPort } from '../../ports/locker-bus.port';
 import { noopLogger, type LoggerPort } from '../../ports/logging.port';
 import { noopTracing, type TracingPort } from '../../ports/tracing.port';
-import { ReconnectCoordinator } from '../modbus/reconnect-coordinator';
+import { SerialBusConnection } from '../serial/serial-bus-connection';
 import type { Rs485LockBoardDriverPort } from './rs485-lock-board.driver';
 
 export class Rs485LockBoardBusActor implements LockerBusPort {
   private readonly queue = new PQueue({ concurrency: 1 });
-  private readonly reconnect: ReconnectCoordinator;
-  private connectionState: ConnectionState = 'disconnected';
+  private readonly connection: SerialBusConnection;
 
   constructor(
     private readonly driver: Rs485LockBoardDriverPort,
     private readonly configuredSlaveIds: () => number[],
-    reconnectOptions?: { maxAttempts?: number; delayMs?: number },
+    reconnectOptions?: { maxAttempts?: number; delayMs?: number; cooldownMs?: number },
     private readonly tracing: TracingPort = noopTracing,
     private readonly log: LoggerPort = noopLogger,
   ) {
-    this.reconnect = new ReconnectCoordinator(
+    this.connection = new SerialBusConnection(
+      driver,
       {
         maxAttempts: reconnectOptions?.maxAttempts ?? 5,
         delayMs: reconnectOptions?.delayMs ?? 5000,
+        cooldownMs: reconnectOptions?.cooldownMs,
       },
+      isReconnectableHardwareError,
       log,
+      'RS485 lock board',
     );
   }
 
   connect(): Promise<void> {
-    return this.run(() => this.connectInternal(), BusPriority.MAINTENANCE);
+    return this.run(() => this.connection.dial().then(() => undefined), BusPriority.MAINTENANCE);
   }
 
   async disconnect(): Promise<void> {
-    this.reconnect.cancelScheduled();
+    this.connection.cancelScheduledReconnect();
     await this.queue.onIdle();
-    await this.driver.disconnect();
-    this.connectionState = 'disconnected';
+    await this.connection.disconnect();
   }
 
   getConnectionState(): ConnectionState {
-    return this.connectionState;
+    return this.connection.getConnectionState();
   }
 
   runExclusive<T>(operation: (bus: LockerBusPort) => Promise<T>): Promise<T> {
@@ -53,29 +50,23 @@ export class Rs485LockBoardBusActor implements LockerBusPort {
   }
 
   async ensureConnected(): Promise<boolean> {
-    return this.run(async () => {
+    return this.run(() => {
       if (this.driver.isOpen()) {
-        return true;
+        return Promise.resolve(true);
       }
-      try {
-        await this.reconnect.run(() => this.connectInternal());
-        return this.driver.isOpen();
-      } catch (error) {
-        this.log.error('RS485 lock board bus unreachable after reconnect attempts', {
-          error: error instanceof Error ? error.message : String(error),
-        });
-        return false;
-      }
+      return this.connection.dial();
     }, BusPriority.MAINTENANCE);
   }
 
   async reloadRuntimeConfig(): Promise<void> {
-    if (!(await this.ensureConnected())) {
-      throw new HardwareTransportError('RS485 lock board bus is unavailable', true);
-    }
+    await this.run(async () => {
+      if (!this.driver.isOpen()) {
+        await this.connection.dial();
+      }
+    }, BusPriority.MAINTENANCE);
   }
 
-  flashRelay(target: CompartmentTarget, _durationMs: number): Promise<UnlockFeedback> {
+  flashRelay(target: CompartmentTarget, _durationMs: number): Promise<void> {
     return this.tracing.inSpan(
       'rs485 unlock',
       {
@@ -94,10 +85,6 @@ export class Rs485LockBoardBusActor implements LockerBusPort {
     );
   }
 
-  async readRelayState(_target: CompartmentTarget): Promise<boolean> {
-    return false;
-  }
-
   async readDoorSensors(
     slaveId: number,
     startAddress: number,
@@ -105,7 +92,10 @@ export class Rs485LockBoardBusActor implements LockerBusPort {
   ): Promise<DoorState[]> {
     try {
       const states = await this.run(() => this.driver.queryAll(slaveId), BusPriority.SNAPSHOT);
-      return states.slice(startAddress, startAddress + length);
+      return Array.from({ length }, (_, offset) => {
+        const index = startAddress + offset;
+        return states[index] ?? 'unknown';
+      });
     } catch (error) {
       this.log.warn('RS485 lock board status query failed, reporting doors as unknown', {
         slaveId,
@@ -125,35 +115,9 @@ export class Rs485LockBoardBusActor implements LockerBusPort {
     return [...this.configuredSlaveIds()];
   }
 
-  private async connectInternal(): Promise<void> {
-    this.connectionState = 'connecting';
-    try {
-      await this.driver.connect();
-      this.connectionState = 'connected';
-      this.reconnect.resetAttempts();
-    } catch (error) {
-      this.connectionState = 'disconnected';
-      throw error;
-    }
-  }
-
   private run<T>(operation: () => Promise<T>, priority: BusPriority): Promise<T> {
-    return this.queue.add(async () => this.runWithReconnectRetry(operation), {
+    return this.queue.add(() => this.connection.runWithReconnectRetry(operation), {
       priority,
     }) as Promise<T>;
-  }
-
-  private async runWithReconnectRetry<T>(operation: () => Promise<T>): Promise<T> {
-    try {
-      return await operation();
-    } catch (error) {
-      if (!(error instanceof HardwareTransportError) || !error.reconnectable) {
-        throw error;
-      }
-      await this.driver.disconnect();
-      this.connectionState = 'disconnected';
-      await this.reconnect.run(() => this.connectInternal());
-      return operation();
-    }
   }
 }

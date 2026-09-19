@@ -15,7 +15,7 @@ import { FakeDoorEventPublisher } from '../helpers/fake-door-event-publisher';
 import { ApplyConfigUseCase } from '../../src/application/apply-config';
 import { PollCompartmentStateUseCase } from '../../src/application/state-publishing';
 import { RunAfterCompleteScheduler } from '../../src/infrastructure/scheduler';
-import { computeAppliedConfigHash } from '../../src/domain/config-normalization';
+import { canonicalConfigHash } from '../helpers/canonical-config-hash';
 import { FakeLockerBus } from '../helpers/fake-locker-bus';
 import { FakeMqttTransport } from '../helpers/fake-mqtt-transport';
 import { MemoryOverlayStore } from '../helpers/memory-overlay-store';
@@ -150,7 +150,6 @@ test('dispatcher serializes hardware and configuration commands', async () => {
       notifyFirstFlash();
       await firstFlashGate;
     }
-    return 'pulse_sent';
   };
   const { dispatcher, openCompartment } = createDispatcherHarness(bus);
 
@@ -443,7 +442,7 @@ test('apply_config replays a completed response without re-running', async () =>
     published.push(payload);
   }, 'locker/test/response');
   const compartments = [{ compartment_number: 1, slaveId: 1, address: 0 }];
-  const configHash = computeAppliedConfigHash(compartments);
+  const configHash = canonicalConfigHash(compartments);
   const overlayStore = new MemoryOverlayStore();
   const applyConfig = new ApplyConfigUseCase({
     overlayStore,
@@ -470,7 +469,6 @@ test('apply_config replays a completed response without re-running', async () =>
       timestamp: '2026-04-11T10:00:00Z',
       data: {
         adapter_type: 'waveshare_modbus',
-        channel_count: 8,
         feedback_type: 'door_closing',
         config_hash: configHash,
         heartbeat_interval_seconds: 30,
@@ -690,7 +688,7 @@ test('apply_config response recovers without applying config twice', async () =>
     published.push(payload);
   }, 'locker/test/response');
   const compartments = [{ compartment_number: 1, slaveId: 1, address: 0 }];
-  const configHash = computeAppliedConfigHash(compartments);
+  const configHash = canonicalConfigHash(compartments);
   const applyConfig = new ApplyConfigUseCase({
     overlayStore: new MemoryOverlayStore(),
     config: createTestConfigRepository({ compartments }),
@@ -713,7 +711,6 @@ test('apply_config response recovers without applying config twice', async () =>
     timestamp: '2026-04-11T10:00:00Z',
     data: {
       adapter_type: 'waveshare_modbus',
-      channel_count: 8,
       feedback_type: 'door_closing',
       config_hash: configHash,
       heartbeat_interval_seconds: 30,

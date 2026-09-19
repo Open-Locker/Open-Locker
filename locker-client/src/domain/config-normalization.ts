@@ -1,6 +1,6 @@
 import { createHash } from 'crypto';
 import type { CompartmentConfig } from './compartment';
-import type { AdapterType, ChannelCount, FeedbackType } from './config';
+import type { AdapterType, FeedbackType } from './config';
 
 export function normalizeCompartments(compartments: CompartmentConfig[]): CompartmentConfig[] {
   return [...compartments]
@@ -14,7 +14,6 @@ export function normalizeCompartments(compartments: CompartmentConfig[]): Compar
 
 export interface CanonicalRuntimeConfig {
   adapter_type: AdapterType;
-  channel_count: ChannelCount;
   feedback_type: FeedbackType;
   compartments: CompartmentConfig[];
 }
@@ -22,24 +21,13 @@ export interface CanonicalRuntimeConfig {
 export function canonicalizeRuntimeConfig(config: CanonicalRuntimeConfig): CanonicalRuntimeConfig {
   return {
     adapter_type: config.adapter_type,
-    channel_count: config.channel_count,
     feedback_type: config.feedback_type,
     compartments: normalizeCompartments(config.compartments),
   };
 }
 
-export function computeAppliedConfigHash(
-  config: CanonicalRuntimeConfig | CompartmentConfig[],
-): string {
-  const canonical = Array.isArray(config)
-    ? {
-        adapter_type: 'waveshare_modbus' as const,
-        channel_count: 8 as const,
-        feedback_type: 'door_closing' as const,
-        compartments: config,
-      }
-    : config;
+export function computeAppliedConfigHash(config: CanonicalRuntimeConfig): string {
   return createHash('sha256')
-    .update(JSON.stringify(canonicalizeRuntimeConfig(canonical)))
+    .update(JSON.stringify(canonicalizeRuntimeConfig(config)))
     .digest('hex');
 }

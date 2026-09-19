@@ -128,7 +128,6 @@ class LockerBankAggregate extends TransactionalAggregateRoot
         string $configHash,
         int $heartbeatIntervalSeconds,
         string $adapterType,
-        int $channelCount,
         string $feedbackType,
         array $compartments,
     ): self {
@@ -141,7 +140,6 @@ class LockerBankAggregate extends TransactionalAggregateRoot
             'configHash' => $configHash,
             'heartbeatIntervalSeconds' => $heartbeatIntervalSeconds,
             'adapterType' => $adapterType,
-            'channelCount' => $channelCount,
             'feedbackType' => $feedbackType,
             'compartmentCount' => count($compartments),
         ]);
@@ -151,10 +149,9 @@ class LockerBankAggregate extends TransactionalAggregateRoot
             commandId: $commandId,
             configHash: $configHash,
             heartbeatIntervalSeconds: $heartbeatIntervalSeconds,
-            adapterType: $adapterType,
-            channelCount: $channelCount,
-            feedbackType: $feedbackType,
             compartments: $compartments,
+            adapterType: $adapterType,
+            feedbackType: $feedbackType,
         ));
 
         return $this;

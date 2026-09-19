@@ -121,9 +121,25 @@ function isModbusLibraryError(error: unknown): boolean {
   );
 }
 
+export function isReconnectableHardwareError(error: unknown): boolean {
+  if (error instanceof HardwareTransportError) {
+    return error.reconnectable;
+  }
+
+  if (serialErrorCode(error) === 'EACCES') {
+    return false;
+  }
+
+  return hasRecoverableSerialCode(error);
+}
+
 export function isReconnectableModbusError(error: unknown): boolean {
   if (error instanceof ModbusTransportError) {
     return error.reconnectable;
+  }
+
+  if (serialErrorCode(error) === 'EACCES') {
+    return false;
   }
 
   if (hasRecoverableSerialCode(error)) {

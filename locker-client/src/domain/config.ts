@@ -28,14 +28,11 @@ export interface ModbusConfig {
   reconnectCooldownSeconds?: number;
 }
 
-export const SUPPORTED_CHANNEL_COUNTS = [8, 12, 18, 24, 36, 50] as const;
-export type ChannelCount = (typeof SUPPORTED_CHANNEL_COUNTS)[number];
 export type AdapterType = 'waveshare_modbus' | 'rs485_lock_board';
 export type FeedbackType = 'door_closing' | 'door_opening';
 
 export interface HardwareProfile {
   adapterType: AdapterType;
-  channelCount: ChannelCount;
   feedbackType: FeedbackType;
 }
 
@@ -73,4 +70,9 @@ export function deriveConfiguredSlaveIds(compartments: CompartmentConfig[] | und
     ids.add(compartment.slaveId);
   }
   return [...ids];
+}
+
+/** Zero-based channel address encodable as a non-zero one-byte wire channel (1..255). */
+export function isWireEncodableChannelAddress(address: number): boolean {
+  return Number.isInteger(address) && address >= 0 && address <= 254;
 }

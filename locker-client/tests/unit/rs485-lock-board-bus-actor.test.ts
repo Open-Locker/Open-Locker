@@ -19,30 +19,28 @@ class ControlledDriver implements Rs485LockBoardDriverPort {
   isOpen(): boolean {
     return this.open;
   }
-  async unlock(_board: number, channel: number): Promise<'opened'> {
+  async unlock(_board: number, channel: number): Promise<void> {
     this.active++;
     this.maximumActive = Math.max(this.maximumActive, this.active);
     this.unlockCalls.push(channel);
     await new Promise((resolve) => setTimeout(resolve, 5));
     this.active--;
-    return 'opened';
   }
   async queryAll(): Promise<Array<'open' | 'closed'>> {
     return ['closed', 'open', 'closed', 'open'];
   }
 }
 
-test('RS485 actor serializes transactions and returns board feedback', async () => {
+test('RS485 actor serializes transactions', async () => {
   const driver = new ControlledDriver();
   const bus = new Rs485LockBoardBusActor(driver, () => [1], { delayMs: 0 });
   await bus.connect();
 
-  const results = await Promise.all([
+  await Promise.all([
     bus.flashRelay({ compartmentNumber: 1, slaveId: 1, relayAddress: 0 }, 200),
     bus.flashRelay({ compartmentNumber: 2, slaveId: 1, relayAddress: 1 }, 200),
   ]);
 
-  assert.deepEqual(results, ['opened', 'opened']);
   assert.equal(driver.maximumActive, 1);
   assert.deepEqual(driver.unlockCalls, [0, 1]);
 });
@@ -53,10 +51,30 @@ test('RS485 actor queries a board once and slices requested channels', async () 
   await bus.connect();
 
   assert.deepEqual(await bus.readDoorSensors(1, 1, 2), ['open', 'closed']);
-  assert.equal(
-    await bus.readRelayState({ compartmentNumber: 1, slaveId: 1, relayAddress: 0 }),
-    false,
-  );
+  assert.deepEqual(await bus.readDoorSensors(1, 9, 1), ['unknown']);
+});
+
+test('RS485 actor closes and reopens after a malformed unlock frame', async () => {
+  const driver = new ControlledDriver();
+  let disconnects = 0;
+  const originalDisconnect = driver.disconnect.bind(driver);
+  driver.disconnect = async () => {
+    disconnects++;
+    return originalDisconnect();
+  };
+  let attempts = 0;
+  driver.unlock = async () => {
+    attempts++;
+    if (attempts === 1) {
+      throw new HardwareTransportError('invalid response BCC', true);
+    }
+  };
+  const bus = new Rs485LockBoardBusActor(driver, () => [1], { delayMs: 0 });
+  await bus.connect();
+
+  await bus.flashRelay({ compartmentNumber: 1, slaveId: 1, relayAddress: 0 }, 200);
+  assert.equal(attempts, 2);
+  assert.equal(disconnects, 1);
 });
 
 test('RS485 actor reconnects and retries one transport failure', async () => {
@@ -67,15 +85,11 @@ test('RS485 actor reconnects and retries one transport failure', async () => {
     if (attempts === 1) {
       throw new HardwareTransportError('port closed', true);
     }
-    return 'opened';
   };
   const bus = new Rs485LockBoardBusActor(driver, () => [1], { delayMs: 0 });
   await bus.connect();
 
-  assert.equal(
-    await bus.flashRelay({ compartmentNumber: 1, slaveId: 1, relayAddress: 0 }, 200),
-    'opened',
-  );
+  await bus.flashRelay({ compartmentNumber: 1, slaveId: 1, relayAddress: 0 }, 200);
   assert.equal(attempts, 2);
   assert.equal(bus.getConnectionState(), 'connected');
 });

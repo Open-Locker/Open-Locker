@@ -74,7 +74,6 @@ class OutboundMqttPublisherTest extends TestCase
             configHash: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
             heartbeatIntervalSeconds: 15,
             adapterType: 'rs485_lock_board',
-            channelCount: 12,
             feedbackType: 'door_opening',
             compartments: [
                 ['compartment_number' => 1, 'slaveId' => 1, 'address' => 0],
@@ -103,8 +102,8 @@ class OutboundMqttPublisherTest extends TestCase
         );
         $this->assertSame(15, $payload['data']['heartbeat_interval_seconds'] ?? null);
         $this->assertSame('rs485_lock_board', $payload['data']['adapter_type'] ?? null);
-        $this->assertSame(12, $payload['data']['channel_count'] ?? null);
         $this->assertSame('door_opening', $payload['data']['feedback_type'] ?? null);
+        $this->assertArrayNotHasKey('channel_count', $payload['data'] ?? []);
         $this->assertCount(1, $payload['data']['compartments'] ?? []);
     }
 

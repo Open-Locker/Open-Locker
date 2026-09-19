@@ -1,8 +1,8 @@
 # Locker Client v2 Configuration — mount at /config/locker-config.yml
 #
-# Adapter type, board variant, feedback wiring, compartment mapping, and heartbeat
-# interval are server-managed via MQTT apply_config and persisted under DATA_DIR.
-# No hardware adapter or channel count is selected locally.
+# Adapter type, feedback wiring, compartment mapping, and heartbeat interval are
+# server-managed via MQTT apply_config and persisted under DATA_DIR. No hardware
+# adapter is selected locally.
 
 modbus:
   port: /dev/ttyACM0
