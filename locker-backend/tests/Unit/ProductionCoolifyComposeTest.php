@@ -63,7 +63,15 @@ class ProductionCoolifyComposeTest extends TestCase
 
         $this->assertContains('coolify', $coolifyMqtt['networks'] ?? []);
         $this->assertContains('default', $coolifyMqtt['networks'] ?? []);
-        $this->assertContains('traefik.enable=true', $coolifyMqtt['labels'] ?? []);
+        $labels = $coolifyMqtt['labels'] ?? [];
+        $this->assertIsArray($labels);
+        $this->assertContains('traefik.enable=true', $labels);
+        $this->assertContains('traefik.tcp.routers.open-locker-mqtt.rule=HostSNI(`*`)', $labels);
+        $this->assertContains('traefik.tcp.routers.open-locker-mqtt.entrypoints=mqtts', $labels);
+        foreach ($labels as $label) {
+            $this->assertIsString($label);
+            $this->assertStringNotContainsString('${', $label);
+        }
         $this->assertTrue($coolify['networks']['coolify']['external'] ?? false);
     }
 }
