@@ -177,11 +177,11 @@ Use Coolify v4's documented Git-based Docker Compose application instead:
    Coolify does not resolve Compose `extends` or `include`. No UI override
    is required.
 3. Add the values from `.env.prod.example` under the resource's
-   **Environment Variables**. Use real secrets and domains, pin
-   `BACKEND_IMAGE_TAG`, and set a deployment-unique
-   `COOLIFY_MQTT_ROUTER_NAME` when multiple Open Locker stacks share a proxy.
-   The adapter attaches Mosquitto to Coolify's external `coolify` network and
-   defines the TCP router; it does not publish a broker port itself.
+   **Environment Variables**. Use real secrets and domains, and pin
+   `BACKEND_IMAGE_TAG`. Coolify does not interpolate `${VAR}` in Compose
+   labels, so the MQTT TCP router name is fixed as `open-locker-mqtt` and
+   the rule is HostSNI(*). The adapter attaches Mosquitto to Coolify's
+   external `coolify` network; it does not publish a broker port itself.
 4. **Required.** Coolify's Traefik ships only HTTP/HTTPS. MQTTS will not work
    until the managed proxy also listens on 8883. Open **Servers → your server
    → Proxy → Configuration**. Keep the existing HTTP/HTTPS settings and
@@ -206,7 +206,9 @@ Use Coolify v4's documented Git-based Docker Compose application instead:
    firewall/security group. Do not add a `1883:1883` mapping in Coolify's port
    UI.
 
-The MQTT hostname must match the `HostSNI` rule and certificate SAN exactly.
+The certificate SAN must still match the hostname clients use. Coolify's
+TCP router matches any SNI on the `mqtts` entrypoint because Coolify leaves
+`${MQTT_DOMAIN}` unexpanded in labels.
 Coolify's normal HTTP domain route alone does not create a raw TCP MQTT route.
 Traefik is configured to obtain and renew the certificate; Mosquitto does not
 receive or mount the private key. The repository can validate the rendered
