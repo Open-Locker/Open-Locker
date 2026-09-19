@@ -2,7 +2,7 @@ import React from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { HelperText, Text, useTheme } from 'react-native-paper';
+import { HelperText, Surface, Text, useTheme } from 'react-native-paper';
 
 import { baseApi } from '@/src/store/baseApi';
 import { clearPersistedAuth } from '@/src/store/authStorage';
@@ -23,6 +23,7 @@ export default function AccountScreen() {
   const { t } = useTranslation();
   const dispatch = useAppDispatch();
   const userName = useUserName();
+  const accountInitial = (userName?.trim().charAt(0) || 'A').toUpperCase();
   const theme = useTheme();
   const { data: user, refetch } = useGetUserQuery({});
   const [updateProfile, updateProfileState] = usePutProfileMutation();
@@ -115,15 +116,19 @@ export default function AccountScreen() {
       edges={['bottom']}
     >
       <ScrollView contentContainerStyle={styles.container}>
-        <Text variant="headlineSmall" style={styles.pageTitle}>
-          {t('navigation.account')}
-        </Text>
-        <Text variant="bodyMedium" style={styles.pageSubtitle}>
-          {t('account.signedInAs')}
-        </Text>
-        <Text variant="titleMedium" style={styles.name}>
-          {userName ?? t('common.unknownUser')}
-        </Text>
+        <Surface
+          elevation={2}
+          style={[styles.profileHero, { backgroundColor: theme.colors.surfaceVariant }]}
+        >
+          <View style={[styles.heroAvatar, { backgroundColor: theme.colors.primaryContainer }]}>
+            <Text style={[styles.heroAvatarInitial, { color: theme.colors.onPrimaryContainer }]}>
+              {accountInitial}
+            </Text>
+          </View>
+          <Text variant="headlineSmall" style={styles.heroName}>
+            {userName ?? t('common.unknownUser')}
+          </Text>
+        </Surface>
 
         <View
           style={[
@@ -202,7 +207,7 @@ export default function AccountScreen() {
             secureTextEntry
           />
           <AppButton
-            mode="outlined"
+            mode="contained"
             onPress={() => void onChangePassword()}
             loading={changePasswordState.isLoading}
           >
@@ -213,7 +218,13 @@ export default function AccountScreen() {
           </HelperText>
         </View>
 
-        <AppButton mode="contained" onPress={() => void onLogout()} style={styles.logoutButton}>
+        <AppButton
+          mode="contained"
+          buttonColor={theme.colors.errorContainer}
+          textColor={theme.colors.error}
+          onPress={() => void onLogout()}
+          style={styles.logoutButton}
+        >
           {t('account.logout')}
         </AppButton>
       </ScrollView>
@@ -228,11 +239,30 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-start',
     gap: OPEN_LOCKER_DESIGN_TOKENS.spacing.sm,
   },
-  pageTitle: { fontFamily: 'Inter_700Bold' },
-  pageSubtitle: { opacity: 0.72 },
-  name: {
+  profileHero: {
+    minHeight: 112,
+    borderRadius: OPEN_LOCKER_DESIGN_TOKENS.radius.lg,
+    paddingHorizontal: OPEN_LOCKER_DESIGN_TOKENS.spacing.lg,
+    paddingVertical: OPEN_LOCKER_DESIGN_TOKENS.spacing.md,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: OPEN_LOCKER_DESIGN_TOKENS.spacing.md,
     marginBottom: OPEN_LOCKER_DESIGN_TOKENS.spacing.sm,
+  },
+  heroAvatar: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  heroAvatarInitial: {
     fontFamily: 'Inter_600SemiBold',
+    fontSize: 24,
+  },
+  heroName: {
+    flex: 1,
+    fontFamily: 'Inter_700Bold',
   },
   sectionCard: {
     borderWidth: 1,
