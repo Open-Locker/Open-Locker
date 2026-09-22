@@ -48,6 +48,63 @@ test('malformed runtime overlay fails closed and is not replaced', (t) => {
   assert.equal(fs.readFileSync(file, 'utf8'), corruptContents);
 });
 
+test('runtime overlay persists and sanitizes the hardware profile', (t) => {
+  const file = createOverlayFile(t);
+  const store = new FileRuntimeOverlayStore(file);
+  const saved = store.save({
+    hardwareProfile: {
+      adapterType: 'rs485_lock_board',
+      feedbackType: 'door_opening',
+    },
+    compartments: [{ compartment_number: 1, slaveId: 31, address: 49 }],
+    appliedConfigHash: 'a'.repeat(64),
+  });
+
+  assert.deepEqual(store.load(), saved);
+});
+
+test('runtime overlay rejects hardware profiles with removed channelCount field', (t) => {
+  const file = createOverlayFile(t);
+  fs.writeFileSync(
+    file,
+    JSON.stringify({
+      hardwareProfile: {
+        adapterType: 'rs485_lock_board',
+        channelCount: 50,
+        feedbackType: 'door_opening',
+      },
+    }),
+  );
+
+  assert.throws(() => new FileRuntimeOverlayStore(file).load(), PersistentStateCorruptedError);
+});
+
+test('runtime overlay rejects invalid adapter types', (t) => {
+  const file = createOverlayFile(t);
+  fs.writeFileSync(
+    file,
+    JSON.stringify({
+      hardwareProfile: {
+        adapterType: 'unknown_board',
+        feedbackType: 'door_closing',
+      },
+    }),
+  );
+  assert.throws(() => new FileRuntimeOverlayStore(file).load(), PersistentStateCorruptedError);
+});
+
+test('runtime overlay rejects addresses outside the wire encodable range', (t) => {
+  const file = createOverlayFile(t);
+  fs.writeFileSync(
+    file,
+    JSON.stringify({
+      compartments: [{ compartment_number: 1, slaveId: 1, address: 255 }],
+    }),
+  );
+
+  assert.throws(() => new FileRuntimeOverlayStore(file).load(), PersistentStateCorruptedError);
+});
+
 function createOverlayFile(t: TestContext): string {
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'open-locker-overlay-'));
   t.after(() => fs.rmSync(directory, { recursive: true, force: true }));

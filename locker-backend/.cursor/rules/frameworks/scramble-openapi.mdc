@@ -4,130 +4,27 @@ alwaysApply: false
 ---
 # Scramble OpenAPI Documentation Guidelines
 
-This project uses **Scramble** (https://scramble.dedoc.co/) to automatically generate OpenAPI 3.1.0 documentation from Laravel code.
+Scramble derives the OpenAPI document from the live Laravel application.
 
-## Configuration
+## Source and consumers
 
-### Scramble Setup
-- **Config file**: `config/scramble.php`
-- **Export path**: `api.json` (root directory)
-- **Documentation UI**: Available at `/docs/api` (Stoplight Elements)
-- **API base path**: `/api`
+- The documentation UI is available at `/docs/api`.
+- The live JSON document is available at `/docs/api.json`.
+- No exported `api.json` is committed or used as the mobile source.
+- `mobile-app/openapi-codegen.config.js` builds the schema URL from
+  `EXPO_PUBLIC_API_BASE_URL`.
 
-### Security Configuration
-```php
-// In AppServiceProvider.php
-Scramble::afterOpenApiGenerated(function (OpenApi $openApi) {
-    $openApi->secure(SecurityScheme::http('bearer', 'JWT'));
-});
-```
+## API changes
 
-## Documentation Standards
+- Keep route definitions, controller signatures, validation, resources, and
+  return types discoverable by Scramble.
+- Use targeted PHPDoc or Scramble attributes only when inference is
+  insufficient; follow existing nearby patterns.
+- Verify significant contract changes against the live document.
+- With the backend running, regenerate the mobile client from `mobile-app/`
+  using `pnpm run generate:api`. This also runs TypeScript checking.
+- Use `pnpm run quality:api` when the full generated-client quality check is
+  required.
 
-### API Resource Documentation
-- **Always use `#[SchemaName('ResourceName')]`** on JsonResource classes
-- Use descriptive summary and description in controller docblocks
-- Add `@response` annotations for complex return types
-
-Example:
-```php
-#[SchemaName('Item')]
-class ItemResource extends JsonResource
-{
-    /**
-     * Transform the resource into an array.
-     * @return array<string, mixed>
-     */
-    public function toArray(Request $request): array
-    {
-        // ... implementation
-    }
-}
-```
-
-### Controller Method Documentation
-```php
-/**
- * Get all Items.
- *
- * @response AnonymousResourceCollection<ItemResource>
- */
-public function index(Request $request): AnonymousResourceCollection
-{
-    return ItemResource::collection(Item::all());
-}
-```
-
-### Custom Transformers
-- **NullableFieldsTransformer**: Applied globally to handle nullable fields correctly
-- Located in: `app/Scramble/Transformers/NullableFieldsTransformer.php`
-
-## Generating Documentation
-
-### Export API Specification
-```bash
-# Generate api.json
-composer export:api
-# or
-php artisan scramble:export
-```
-
-### Generate Mobile Client Code
-
-After exporting the OpenAPI spec, regenerate the React Native RTK Query client:
-
-```bash
-# 1) Export OpenAPI spec from backend
-cd locker-backend && composer export:api
-
-# 2) Regenerate RTK Query API in mobile app
-cd ../mobile-app && pnpm run generate:api
-```
-
-This flow:
-1. Exports the OpenAPI specification to `locker-backend/api.json`
-2. Generates TypeScript RTK Query hooks in `mobile-app/src/store/generatedApi.ts`
-3. Runs TypeScript check to fail fast on type breaks (`generate:api` includes `typecheck`)
-
-For full post-generation quality checks in the mobile app, run `pnpm run quality:api`.
-
-## API Design Guidelines
-
-### Response Structure
-- **Always use JsonResource classes** for API responses
-- **No wrapping**: `JsonResource::withoutWrapping()` is configured
-- **Consistent naming**: Use clear, descriptive field names
-
-### Error Handling
-- Standard Laravel exception responses are automatically documented
-- Authentication errors return 401
-- Validation errors return 422 with detailed field information
-- Authorization errors return 403
-
-### Route Organization
-- Group related routes logically
-- Use route model binding for resource routes
-- Apply middleware consistently (auth:sanctum, terms.accepted, verified.api)
-
-## Custom Schema Names
-Use these standardized schema names:
-- `Item` - For item resources
-- `User` - For user resources  
-- `Locker` - For locker resources
-- `ItemLoan` - For loan resources
-- `TokenResponse` - For authentication responses
-
-## Testing Documentation
-- Check generated documentation at `/docs/api`
-- Verify "Try It" functionality works correctly
-- Ensure all endpoints have proper descriptions and examples
-- Test authentication flows in the UI
-
-## Updating Documentation
-Documentation is automatically regenerated when:
-- Route definitions change
-- Controller method signatures change
-- JsonResource classes are modified
-- New endpoints are added
-
-Always run `composer export:api` after significant API changes to update the specification file.
+`composer export:api` remains available for an optional local export, but an
+export is not part of the mobile generation flow and must not be committed.

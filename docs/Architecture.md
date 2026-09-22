@@ -1,230 +1,116 @@
 # Open-Locker System Architecture
 
-## Overview
+## System boundaries
 
-Das Open-Locker System ist ein IoT-basiertes Schließfachsystem, das aus mehreren
-Komponenten besteht:
-
-- **Backend**: Laravel 11 API mit Filament Admin-Panel
-- **Frontend**: React Native Mobile App für Endnutzer (rewrite / target app)
-- **Hardware**: Raspberry Pi mit Modbus-Kommunikation zu physischen
-  Schließfächern
-- **Documentation**: Automatische OpenAPI-Dokumentation mit Scramble
-
-## Architecture Diagram
+Open-Locker separates internet-facing application concerns from on-site
+hardware access:
 
 ```mermaid
-graph TB
-    subgraph "Mobile App Layer"
-        MobileApp["Mobile App<br/>(React Native)"]
-    end
-    
-    subgraph "API Layer"
-        LaravelAPI["Laravel 11 API<br/>(locker-backend)"]
-        AuthAPI["Authentication<br/>(Sanctum)"]
-        ItemAPI["Item Management"]
-        LockerAPI["Locker Control"]
-        AdminAPI["Admin Functions"]
-    end
-    
-    subgraph "Admin Interface"
-        FilamentPanel["Filament Admin Panel<br/>(Web UI)"]
-    end
-    
-    subgraph "Documentation"
-        ScrambleDocs["Scramble OpenAPI<br/>(Auto-generated)"]
-        StoplightUI["Stoplight Elements UI<br/>(/docs/api)"]
-    end
-    
-    subgraph "Services Layer"
-        LockerService["LockerService<br/>(Business Logic)"]
-        AuthService["AuthController"]
-        ItemService["ItemController"]
-    end
-    
-    subgraph "Data Layer"
-        Models["Eloquent Models<br/>(User, Item, Locker, ItemLoan)"]
-        PostgresDB["PostgreSQL Database<br/>(Docker)"]
-    end
-    
-    subgraph "Hardware Communication"
-        MqttBridge["MQTT Bridge<br/>(Mosquitto + Locker Client)"]
-    end
-    
-    subgraph "IoT Hardware"
-        RaspberryPi["Raspberry Pi / IoT Device"]
-        ModbusUnits["Modbus Units<br/>(Multiple Lockers)"]
-        PhysicalLockers["Physical Lockers<br/>(Hardware)"]
-    end
-    
-    subgraph "Background Processes"
-        PollingCommand["Locker Status Polling<br/>(artisan locker:poll-status)"]
-        QueueWorker["Queue Worker<br/>(Future: Notifications)"]
-    end
-    
-    subgraph "Container Environment"
-        Docker["Docker Containers<br/>(Laravel Sail)"]
-        Supervisor["Supervisor<br/>(Process Management)"]
-    end
-    
-    %% API Communication
-    MobileApp -->|HTTP API Calls| LaravelAPI
-    FilamentPanel -->|Web Interface| LaravelAPI
-    LaravelAPI --> AuthAPI
-    LaravelAPI --> ItemAPI
-    LaravelAPI --> LockerAPI
-    
-    %% Service Layer
-    AuthAPI --> AuthService
-    ItemAPI --> ItemService
-    LockerAPI --> LockerService
-    
-    %% Data Access
-    AuthService --> Models
-    ItemService --> Models
-    LockerService --> Models
-    Models --> PostgresDB
-    
-    %% Hardware Communication (via MQTT + Locker Client)
-    LockerService --> MqttBridge
-    MqttBridge --> RaspberryPi
-    RaspberryPi --> ModbusUnits
-    ModbusUnits --> PhysicalLockers
-    
-    %% Background Services
-    PollingCommand --> LockerService
-    LockerService -->|Status Updates| Models
-    
-    %% Documentation
-    LaravelAPI -->|Auto-generates| ScrambleDocs
-    ScrambleDocs --> StoplightUI
-    
-    %% Container Management
-    Docker --> LaravelAPI
-    Docker --> PollingCommand
-    Supervisor --> PollingCommand
-    
-    %% Styling
-    classDef primary fill:#e1f5fe
-    classDef secondary fill:#f3e5f5
-    classDef hardware fill:#fff3e0
-    classDef background fill:#e8f5e8
-    
-    class MobileApp,LaravelAPI primary
-    class FilamentPanel,ScrambleDocs secondary
-    class RaspberryPi,ModbusUnits,PhysicalLockers hardware
-    class PollingCommand,QueueWorker background
+flowchart LR
+    Mobile["Mobile app<br/>React Native + Expo"]
+    Admin["Admin panel<br/>Filament 5"]
+    API["Backend<br/>Laravel 12"]
+    Reverb["Realtime<br/>Laravel Reverb"]
+    DB[("PostgreSQL<br/>events + read models")]
+    Broker["MQTT broker<br/>Mosquitto"]
+    Client["Locker client<br/>Node.js on Raspberry Pi"]
+    Modbus["Serialized Modbus RTU"]
+    Hardware["Relay boards<br/>and compartments"]
+
+    Mobile -->|REST + Sanctum| API
+    Admin --> API
+    API --> DB
+    API -->|commands and configuration| Broker
+    Broker -->|responses, events, and state| API
+    Broker <--> Client
+    API --> Reverb
+    Reverb -->|private channel updates| Mobile
+    Client --> Modbus --> Hardware
 ```
 
-## Component Details
+The backend has no Modbus dependency and does not connect to relay boards. Its
+hardware boundary is MQTT. `locker-client` owns serial communication, command
+deduplication, local runtime configuration, and hardware state reporting.
 
-### Core Components
+## Components
 
-#### Laravel Backend (locker-backend/)
+- **`locker-backend/`** — Laravel 12 REST API, Sanctum authentication,
+  Filament 5 administration, event-sourced domain workflows, MQTT integration,
+  Reverb broadcasting, and PostgreSQL persistence.
+- **`mobile-app/`** — React Native and Expo client. Its RTK Query API bindings
+  are generated from the backend's live OpenAPI document.
+- **`locker-client/`** — TypeScript service deployed on a Raspberry Pi. It
+  provisions over MQTT and translates validated commands into serialized
+  Modbus RTU operations. It also provides a hardware-free fleet simulator.
+- **Mosquitto** — MQTT broker with HTTP authentication and authorization
+  delegated to backend endpoints.
+- **`website/`** — Astro site for the public project presence and published
+  documentation.
+- **`hardware/`** — KiCad designs and physical build references.
 
-- **Framework**: Laravel 11 with PHP 8.4+
-- **Authentication**: Laravel Sanctum für API-Token-basierte Authentifizierung
-- **Database**: PostgreSQL (Docker) als Standard, SQLite für Tests/Kleininstallationen
-- **Admin Panel**: Filament 3.x für administrative Aufgaben
+Deployment and setup belong in [the installation guide](Installation.md).
+Operational details for the on-site bridge belong in the
+[locker-client documentation](../locker-client/README.md).
 
-#### Mobile App
+## Backend domain and persistence
 
-- **Platform**: React Native (cross-platform)
-- **Features (v1 focus)**: authentication, show accessible compartments, open/close + realtime feedback
+The current user-facing domain is based on locker banks and compartments, not
+loans:
 
-#### Hardware Integration
+- A **locker bank** represents one provisioned on-site controller.
+- A **compartment** has a physical mapping, observed door state, and a
+  user-editable content note.
+- **Direct compartment access** and **group compartment access** determine who
+  may see and open compartments.
+- **Groups** collect users and reusable access assignments.
+- **Open requests** track authorization, command delivery, acknowledgement, and
+  physical door outcomes.
 
-- **Modbus Communication**: Über einen dedizierten Locker Client, der per Modbus mit der Hardware spricht
-- **Protocols**: Sowohl Modbus TCP als auch RTU unterstützt
-- **Hardware**: Raspberry Pi als IoT Gateway zu physischen Schließfächern
+State-changing workflows use `spatie/laravel-event-sourcing`. Aggregates record
+domain events; projectors update PostgreSQL read models; reactors perform side
+effects such as publishing MQTT commands or broadcasting client updates. Code
+that changes domain state should use the aggregate/event path instead of
+directly mutating a read model.
 
-### Data Models
+## Communication paths
 
-#### Core Entities
+### App to backend
 
-- **User**: Benutzer mit Admin-Rollen
-- **Item**: Ausleihbare Gegenstände mit Bildern
-- **Locker**: Physische Schließfächer mit Modbus-Adressen
-- **ItemLoan**: Ausleihvorgänge mit Zeitstempel
+REST handles authentication, accessible-compartment queries, content-note
+updates, and open requests. The current mobile app applies Reverb door-state
+and content-note updates to its cache, then refetches accessible compartments
+after a disconnect or foreground transition. The backend also provides
+open-progress events and a polling endpoint, but the current app does not
+consume them.
 
-#### Key Relationships
+The detailed client flow and channel contract live in
+[the app communication guide](app_communication.md). Scramble generates the
+OpenAPI document live from the backend at `/docs/api.json`; no exported
+`api.json` is committed as the canonical contract.
 
-- Item ↔ Locker (1:1)
-- User ↔ ItemLoan (1:N)
-- Item ↔ ItemLoan (1:N)
+### Backend to locker client
 
-### API Structure
+The backend publishes typed commands and configuration over MQTT. The locker
+client publishes command responses, spontaneous device events, heartbeats,
+connection state, and retained compartment snapshots. Mosquitto asks the
+backend to authenticate clients and evaluate topic ACLs.
 
-#### Public Endpoints
+The canonical topics, message schemas, and operation directions live in
+[the AsyncAPI MQTT contract](asyncapi/mqtt.yaml). Do not duplicate that contract
+in general architecture documentation.
 
-- `GET /api/identify` - Service-Identifikation
-- `POST /api/login` - Benutzeranmeldung
+### Locker client to hardware
 
-#### Authenticated Endpoints
+The locker client is the only component that speaks Modbus. It serializes
+Modbus RTU access to Waveshare relay boards and uses hardware-timed relay pulses
+for safe compartment opening. Hardware observations return through MQTT rather
+than through backend-side polling.
 
-- `GET /api/items` - Alle verfügbaren Items
-- `POST /api/items/{item}/borrow` - Item ausleihen
-- `POST /api/items/{item}/return` - Item zurückgeben
-- `GET /api/items/loan-history` - Persönliche Ausleihhistorie
+## Sources of truth
 
-### Background Services
-
-#### Locker Status Polling
-
-- **Command**: `artisan locker:poll-status`
-- **Function**: Kontinuierliche Überwachung aller Schließfach-Status
-- **Deployment**: Läuft als separater Docker-Container
-- **Frequency**: 0.5 Sekunden Polling-Intervall
-
-#### Queue System
-
-- **Setup**: Laravel Queue für asynchrone Verarbeitung
-- **Future**: E-Mail-Benachrichtigungen, Erinnerungen
-
-### Development & Deployment
-
-#### Development Environment
-
-- **Laravel Sail**: Docker-basierte Entwicklungsumgebung
-- **Services**: PHP 8.4, SQLite, Mailpit, Node.js
-- **Commands**: `sail artisan`, `sail composer`, `sail npm`
-
-#### Production Deployment
-
-- **Container**: Multi-stage Docker-Build
-- **Base**: ServerSideUp PHP-Images
-- **Features**: FFI-Support, Modbus-Library, Supervisor
-
-## Security Considerations
-
-### API Security
-
-- **Authentication**: Sanctum Token-based
-- **Authorization**: Policy-basierte Zugriffskontrolle
-- **Admin Protection**: Filament and backend workflows use Laravel Gate permissions and event-sourced roles
-
-### Hardware Security
-
-- **Network**: Modbus-Kommunikation über isoliertes Netzwerk
-- **Access Control**: Locked-down Raspberry Pi mit minimalen Services
-- **Monitoring**: Status-Polling für Anomalieerkennung
-
-## Monitoring & Maintenance
-
-### Health Checks
-
-- **Laravel**: Built-in Health-Check-Endpoint (`/up`)
-- **Hardware**: Modbus-Connection-Status über LockerService
-- **Database**: Connection-Monitoring über Eloquent
-
-### Logging
-
-- **Application**: Laravel Log-Channels (single, daily, slack)
-- **Hardware**: Modbus-Communication-Logs
-- **Deployment**: Docker-Container-Logs
-
-### Metrics
-
-- **API**: Request/Response-Tracking
-- **Hardware**: Locker-Status-Changes
-- **Users**: Loan-Statistics über Admin-Panel
+- [Backend component documentation](../locker-backend/README.md)
+- [Locker client component documentation](../locker-client/README.md)
+- [Installation and deployment](Installation.md)
+- [REST and realtime app communication](app_communication.md)
+- [MQTT AsyncAPI contract](asyncapi/mqtt.yaml)
+- [Architecture decision records](adr/)

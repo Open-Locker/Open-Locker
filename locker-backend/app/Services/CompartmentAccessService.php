@@ -20,6 +20,8 @@ use Illuminate\Support\Str;
 
 class CompartmentAccessService
 {
+    public function __construct(private readonly TermsService $termsService) {}
+
     public function grantAccess(
         User $user,
         Compartment $compartment,
@@ -142,9 +144,18 @@ class CompartmentAccessService
      * Record an open request and authorization decision via event sourcing.
      * Admins and managers are always authorized.
      *
-     * @return array{authorized: bool, command_id: string}
+     * `$requireAcceptedTerms` has no default: every caller has to say which
+     * rule it wants, so a new one cannot skip the gate by saying nothing. Only
+     * the API asks for it. Terms are accepted through the mobile app; the admin
+     * panel has never applied the rule and offers no way to accept, so
+     * enforcing it there would leave an admin who has just activated a new
+     * version unable to open anything, with no remedy inside the panel. Email
+     * verification carries no such trap and stays unconditional, as it always
+     * has been.
+     *
+     * @return array{authorized: bool, command_id: string, reason: string|null}
      */
-    public function requestOpen(User $user, Compartment $compartment): array
+    public function requestOpen(User $user, Compartment $compartment, bool $requireAcceptedTerms): array
     {
         $commandId = (string) Str::uuid();
         $aggregate = CompartmentOpenAggregate::retrieve($commandId)
@@ -153,6 +164,28 @@ class CompartmentAccessService
                 actorUserId: $user->id,
                 compartmentUuid: (string) $compartment->id
             );
+
+        // Outstanding terms and an unverified address were refused by middleware
+        // before this method ran, so the attempt left no trace anywhere: not in
+        // the audit log, not in the user's open history. Both are decided here
+        // instead, which records the refusal as an event; the caller turns the
+        // reason back into the same response the middleware used to send.
+        // The order matches the old middleware order, so a user who trips both
+        // still sees the terms refusal first.
+        if ($requireAcceptedTerms && ! $this->termsService->hasAcceptedActiveVersion($user)) {
+            $aggregate->deny(
+                commandId: $commandId,
+                actorUserId: $user->id,
+                compartmentUuid: (string) $compartment->id,
+                reason: 'terms_not_accepted'
+            )->persist();
+
+            return [
+                'authorized' => false,
+                'command_id' => $commandId,
+                'reason' => 'terms_not_accepted',
+            ];
+        }
 
         if (! $user->hasVerifiedEmail()) {
             $aggregate->deny(
@@ -165,6 +198,7 @@ class CompartmentAccessService
             return [
                 'authorized' => false,
                 'command_id' => $commandId,
+                'reason' => 'unverified_email',
             ];
         }
 
@@ -179,6 +213,7 @@ class CompartmentAccessService
             return [
                 'authorized' => true,
                 'command_id' => $commandId,
+                'reason' => null,
             ];
         }
 
@@ -195,6 +230,7 @@ class CompartmentAccessService
             return [
                 'authorized' => true,
                 'command_id' => $commandId,
+                'reason' => null,
             ];
         }
 
@@ -210,6 +246,7 @@ class CompartmentAccessService
             return [
                 'authorized' => true,
                 'command_id' => $commandId,
+                'reason' => null,
             ];
         }
 
@@ -224,6 +261,7 @@ class CompartmentAccessService
             return [
                 'authorized' => true,
                 'command_id' => $commandId,
+                'reason' => null,
             ];
         }
 
@@ -237,6 +275,7 @@ class CompartmentAccessService
         return [
             'authorized' => false,
             'command_id' => $commandId,
+            'reason' => 'missing_active_access',
         ];
     }
 

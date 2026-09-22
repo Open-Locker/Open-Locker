@@ -1,5 +1,4 @@
 import React from 'react';
-import type { FetchBaseQueryError } from '@reduxjs/toolkit/query';
 import { Stack, useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
@@ -20,18 +19,7 @@ import {
 import { useAppDispatch } from '@/src/store/hooks';
 import { OPEN_LOCKER_DESIGN_TOKENS } from '@/src/theme/tokens';
 import { AppButton } from '@/src/ui';
-
-function getErrorMessage(
-  error: unknown,
-  t: (key: string, options?: Record<string, unknown>) => string,
-): string {
-  const apiError = error as FetchBaseQueryError | undefined;
-  if (apiError && typeof apiError === 'object' && 'status' in apiError) {
-    return t('common.requestFailedWithStatus', { status: String(apiError.status) });
-  }
-  if (error instanceof Error) return error.message;
-  return t('common.somethingWentWrong');
-}
+import { getApiErrorMessage } from '@/src/store/apiErrorMessage';
 
 function isCurrentAccepted(value: unknown): boolean {
   if (typeof value === 'boolean') return value;
@@ -58,12 +46,12 @@ export default function TermsScreen() {
   const dispatch = useAppDispatch();
   const [acceptTerms, acceptTermsState] = usePostTermsAcceptMutation();
   const [logoutCurrentSession] = usePostLogoutMutation();
-  const { data: user, isLoading: isLoadingUser } = useGetUserQuery();
+  const { data: user, isLoading: isLoadingUser } = useGetUserQuery({});
   const {
     data: currentTerms,
     isLoading: isLoadingTerms,
     error: termsError,
-  } = useGetTermsCurrentQuery();
+  } = useGetTermsCurrentQuery({});
   const [submitError, setSubmitError] = React.useState<string | null>(null);
 
   const navigateToTabs = React.useCallback(() => {
@@ -96,17 +84,17 @@ export default function TermsScreen() {
   const onAccept = React.useCallback(async () => {
     setSubmitError(null);
     try {
-      await acceptTerms().unwrap();
+      await acceptTerms({}).unwrap();
       dispatch(openLockerApi.util.invalidateTags(['Auth', 'Terms']));
       navigateToTabs();
     } catch (error) {
-      setSubmitError(getErrorMessage(error, t));
+      setSubmitError(getApiErrorMessage(error, t));
     }
   }, [acceptTerms, dispatch, navigateToTabs, t]);
 
   const onLogout = React.useCallback(async () => {
     try {
-      await logoutCurrentSession().unwrap();
+      await logoutCurrentSession({}).unwrap();
     } catch {
       // ignore and clear local auth regardless
     } finally {

@@ -90,11 +90,10 @@ Mitigations:
 ## Supersedes / Superseded By
 
 - Supersedes: legacy-fallback portion of [ADR-0010](0010-direct-slaveid-modbus-addressing.md) for **locker-client-v2 only** (v1 unchanged)
-- Related: [ADR-0009](0009-locker-client-runtime-config-overlay.md), [ADR-0027](0024-locker-client-v2-hexagonal-rewrite.md)
+- Related: [ADR-0009](0009-locker-client-runtime-config-overlay.md), [ADR-0024](0024-locker-client-v2-hexagonal-rewrite.md)
 
 ## References
 
 - Related docs:
-  - `locker-client-v2/README.md`
-  - `locker-client-v2/locker-config.yml.example`
-  - `docs/plans/locker-client-v2-rewrite.md`
+  - `locker-client/README.md`
+  - `locker-client/locker-config.yml.example`

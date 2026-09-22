@@ -38,9 +38,11 @@ The runtime flow is:
 
 ## Release and security status
 
-There is currently **no production deployment**. The first beta is a controlled
-pre-production pilot governed by the
-[beta release checklist](release-checklist.md).
+There is currently **no production deployment**. The first beta source tags
+have been cut, but artifact publication and field acceptance are not complete.
+The controlled pre-production pilot is governed by the
+[beta release checklist](release-checklist.md); the verified cut outcome is
+recorded in the [Beta release notes](releases/beta.md).
 
 Component source tags are independent:
 
@@ -170,17 +172,22 @@ Use Coolify v4's documented Git-based Docker Compose application instead:
 2. In **Project → Environment → Add Resource**, select the repository and choose
    the **Docker Compose** build pack. In the resource's **General** settings set
    **Docker Compose Location** to
-   `/locker-backend/docker-compose.prod.coolify.yml`. This single entry file
-   uses Compose `extends` to load every service from `docker-compose.prod.yml`;
-   no UI override is required.
+   `/locker-backend/docker-compose.prod.coolify.yml`. This file is a
+   self-contained copy of the production stack plus Coolify MQTT labels;
+   Coolify does not resolve Compose `extends` or `include`. No UI override
+   is required.
 3. Add the values from `.env.prod.example` under the resource's
-   **Environment Variables**. Use real secrets and domains, pin
-   `BACKEND_IMAGE_TAG`, and set a deployment-unique
-   `COOLIFY_MQTT_ROUTER_NAME` when multiple Open Locker stacks share a proxy.
-   The adapter attaches Mosquitto to Coolify's external `coolify` network and
-   defines the TCP router; it does not publish a broker port itself.
-4. Open **Servers → your server → Proxy → Configuration**. Preserve the existing
-   proxy configuration and add host port 8883 plus the static MQTT entrypoint:
+   **Environment Variables**. Use real secrets and domains, and pin
+   `BACKEND_IMAGE_TAG`. Coolify does not interpolate `${VAR}` in Compose
+   labels, so the MQTT TCP router name is fixed as `open-locker-mqtt` and
+   the rule is HostSNI(*). A second Open Locker stack on the same Coolify
+   proxy must change those literal label names in the Compose file. The
+   adapter attaches Mosquitto to Coolify's external `coolify` network; it
+   does not publish a broker port itself.
+4. **Required.** Coolify's Traefik ships only HTTP/HTTPS. MQTTS will not work
+   until the managed proxy also listens on 8883. Open **Servers → your server
+   → Proxy → Configuration**. Keep the existing HTTP/HTTPS settings and
+   **merge** these entries into the current `ports` and `command` lists:
 
    ```yaml
    ports:
@@ -190,16 +197,20 @@ Use Coolify v4's documented Git-based Docker Compose application instead:
      - "--entrypoints.mqtts.address=:8883"
    ```
 
-   Merge these entries into the existing `ports` and `command` lists rather
-   than replacing Coolify's HTTP/HTTPS settings.
+   Do not replace the whole proxy file with only these lines. After saving,
+   **restart the Coolify proxy**. A resource deploy alone does not create this
+   entrypoint. Coolify may reset custom proxy edits; if MQTTS disappears after
+   a Coolify upgrade, re-apply this step and restart the proxy again.
 5. Confirm that the proxy's ACME resolver is named `letsencrypt`, as referenced
    by the override. If the server uses a differently named resolver, update the
    `tls.certresolver` label to that existing name.
-6. Restart the Coolify proxy, deploy the Open Locker resource, and allow
-   inbound TCP 8883 in the provider firewall/security group. Do not add a
-   `1883:1883` mapping in Coolify's port UI.
+6. Deploy the Open Locker resource and allow inbound TCP 8883 in the provider
+   firewall/security group. Do not add a `1883:1883` mapping in Coolify's port
+   UI.
 
-The MQTT hostname must match the `HostSNI` rule and certificate SAN exactly.
+The certificate SAN must still match the hostname clients use. Coolify's
+TCP router matches any SNI on the `mqtts` entrypoint because Coolify leaves
+`${MQTT_DOMAIN}` unexpanded in labels.
 Coolify's normal HTTP domain route alone does not create a raw TCP MQTT route.
 Traefik is configured to obtain and renew the certificate; Mosquitto does not
 receive or mount the private key. The repository can validate the rendered
@@ -365,13 +376,27 @@ Install and check the Expo application with pnpm:
 
 ```bash
 cd mobile-app
+cp .env.example .env
 pnpm install
 pnpm check
 pnpm test:ci
-pnpm start
 ```
 
-The generated RTK Query client comes from the live backend OpenAPI document:
+Set `EXPO_PUBLIC_API_BASE_URL` in `.env` to the running backend, including the
+`/api` path. Reverb WebSocket scheme and port default from that URL (`http` →
+`:48080`, `https` → `wss` on `:443`) unless you set `EXPO_PUBLIC_REVERB_SCHEME`
+or `EXPO_PUBLIC_REVERB_PORT`. The socket host defaults to the API hostname; for
+production on `open-locker.cloud` set `EXPO_PUBLIC_REVERB_HOST=ws.open-locker.cloud`
+(Reverb is a separate Coolify service). Set `EXPO_PUBLIC_REVERB_KEY` to match
+backend `REVERB_APP_KEY` (use an EAS secret for store builds; do not commit it).
+Channel auth still uses the API host at `/broadcasting/auth`.
+
+`pnpm start` targets an installed Expo development client. Build and launch one
+with `pnpm android` or `pnpm ios`. Use `pnpm start:go` only for the more limited
+Expo Go workflow.
+
+The generated RTK Query client comes from the running backend's live Scramble
+OpenAPI document at `/docs/api.json`:
 
 ```bash
 pnpm generate:api

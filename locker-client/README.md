@@ -6,7 +6,7 @@ physical locker hardware:
 `MQTT ↔ application use cases ↔ serialized Modbus RTU ↔ Waveshare relay boards`
 
 The current implementation is the hexagonal TypeScript rewrite accepted in
-[ADR-0027](../docs/adr/0024-locker-client-v2-hexagonal-rewrite.md).
+[ADR-0024](../docs/adr/0024-locker-client-v2-hexagonal-rewrite.md).
 
 ## Hardware warning
 
@@ -102,12 +102,14 @@ pnpm dev
 Requires `/config/locker-config.yml` and `/data` volumes (or env `CONFIG_DIR` /
 `DATA_DIR`).
 
-Compartment mapping and heartbeat interval are **not** part of the base YAML.
+Hardware adapter (`waveshare_modbus` or `rs485_lock_board`), feedback wiring,
+compartment mapping, and heartbeat interval are **not** part of the base YAML.
 The backend pushes them via MQTT `apply_config`; the client persists the result
-in `/data/.runtime-config-overlay.json`. Until that first apply completes,
-`open_compartment` commands fail and compartment snapshots stay empty.
+in `/data/.runtime-config-overlay.json`. Until that first apply completes, MQTT
+can run without opening a serial adapter,
+`open_compartment` commands fail, and compartment snapshots stay empty.
 
-See [ADR-0028](../docs/adr/0026-locker-client-v2-runtime-only-compartment-mapping.md).
+See [ADR-0026](../docs/adr/0026-locker-client-v2-runtime-only-compartment-mapping.md).
 Persistence and corruption behavior is defined in
 [ADR-0046](../docs/adr/0046-locker-client-local-persistence-hardening.md).
 

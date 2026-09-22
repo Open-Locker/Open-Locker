@@ -4,17 +4,20 @@ on:
   pull_request:
     paths:
       - 'locker-backend/**'
+      - '!locker-backend/**/*.md'
+      - '!locker-backend/.cursor/**'
       - '.github/git-cliff/backend.toml'
       - '.github/workflows/backend-docker.yml'
       - '.github/workflows/component-release.yml'
   push:
     branches:
       - main
-      - dev
     tags:
       - 'backend-v*'
     paths:
       - 'locker-backend/**'
+      - '!locker-backend/**/*.md'
+      - '!locker-backend/.cursor/**'
       - '.github/git-cliff/backend.toml'
       - '.github/workflows/backend-docker.yml'
       - '.github/workflows/component-release.yml'
@@ -22,7 +25,7 @@ on:
 
 concurrency:
   group: backend-docker-${{ github.ref }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' || (github.event_name == 'push' && github.ref == 'refs/heads/main') }}
 
 jobs:
   release-gate:
@@ -172,12 +175,19 @@ jobs:
             type=raw,value=${{ github.ref_name }},enable=${{ startsWith(github.ref, 'refs/tags/backend-v') }}
             type=raw,value=latest,enable=${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
 
-      - name: Verify current main tip before publishing latest
+      - name: Verify backend inputs still match main before publishing
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         run: |
           git fetch --no-tags origin main
-          if [[ "${GITHUB_SHA}" != "$(git rev-parse origin/main)" ]]; then
-            echo "::error::Refusing to publish latest from a stale main commit."
+          if ! git diff --quiet "${GITHUB_SHA}" origin/main -- \
+            locker-backend \
+            ':(exclude,glob)locker-backend/**/*.md' \
+            ':(exclude)locker-backend/.cursor' \
+            .github/git-cliff/backend.toml \
+            .github/workflows/backend-docker.yml \
+            .github/workflows/component-release.yml
+          then
+            echo "::error::Refusing to publish latest; newer backend-relevant changes exist on main."
             exit 1
           fi
 

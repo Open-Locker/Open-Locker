@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Filament\Resources\LockerBankResource\RelationManagers;
 
+use App\Enums\LockerAdapterType;
 use App\Enums\Permission;
 use App\Filament\Support\CompartmentDoorStateColumn;
 use App\Filament\Support\OpenCompartmentAction;
@@ -40,6 +41,16 @@ class CompartmentsRelationManager extends RelationManager
         return __('Compartments');
     }
 
+    private function lockerBank(): LockerBank
+    {
+        $lockerBank = $this->getOwnerRecord();
+        if (! $lockerBank instanceof LockerBank) {
+            throw new \LogicException('Compartments must belong to a locker bank.');
+        }
+
+        return $lockerBank;
+    }
+
     public function form(Schema $form): Schema
     {
         return $form
@@ -58,8 +69,10 @@ class CompartmentsRelationManager extends RelationManager
                     ->required()
                     ->step(1)
                     ->minValue(1)
-                    ->maxValue(255)
-                    ->helperText(__('Modbus slave ID of the IO board (1-255).')),
+                    ->maxValue(fn (): int => $this->lockerBank()->adapter_type === LockerAdapterType::Rs485LockBoard ? 31 : 255)
+                    ->helperText(fn (): string => $this->lockerBank()->adapter_type === LockerAdapterType::Rs485LockBoard
+                        ? __('RS485 board address set by the DIP switches (1-31).')
+                        : __('Modbus slave ID of the IO board (1-255).')),
 
                 Forms\Components\TextInput::make('address')
                     ->label(__('Address'))
@@ -67,7 +80,8 @@ class CompartmentsRelationManager extends RelationManager
                     ->required()
                     ->step(1)
                     ->minValue(0)
-                    ->helperText(__('0-based relay address on the given slave. Used for both coil and input.')),
+                    ->maxValue(LockerBank::MAX_WIRE_CHANNEL_ADDRESS)
+                    ->helperText(__('0-based channel address on the given slave (0–254 wire-encodable range). Used for both coil and input.')),
             ]);
     }
 
@@ -116,13 +130,25 @@ class CompartmentsRelationManager extends RelationManager
 
                 Tables\Columns\TextInputColumn::make('slave_id')
                     ->label(__('Slave ID'))
-                    ->rules(['nullable', 'integer', 'min:1', 'max:255'])
-                    ->tooltip(__('Modbus slave ID (1-255).')),
+                    ->rules(fn (): array => [
+                        'nullable',
+                        'integer',
+                        'min:1',
+                        'max:'.($this->lockerBank()->adapter_type === LockerAdapterType::Rs485LockBoard ? 31 : 255),
+                    ])
+                    ->tooltip(fn (): string => $this->lockerBank()->adapter_type === LockerAdapterType::Rs485LockBoard
+                        ? __('RS485 board address set by the DIP switches (1-31).')
+                        : __('Modbus slave ID (1-255).')),
 
                 Tables\Columns\TextInputColumn::make('address')
                     ->label(__('Address'))
-                    ->rules(['nullable', 'integer', 'min:0'])
-                    ->tooltip(__('0-based relay address. Used for both coil and input.')),
+                    ->rules(fn (): array => [
+                        'nullable',
+                        'integer',
+                        'min:0',
+                        'max:'.LockerBank::MAX_WIRE_CHANNEL_ADDRESS,
+                    ])
+                    ->tooltip(__('0-based channel address (0–254 wire-encodable range). Used for both coil and input.')),
 
                 CompartmentDoorStateColumn::column(),
 

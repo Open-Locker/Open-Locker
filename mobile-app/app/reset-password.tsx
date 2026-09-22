@@ -1,6 +1,5 @@
 import React from 'react';
 import { KeyboardAvoidingView, Platform, StyleSheet, View } from 'react-native';
-import type { FetchBaseQueryError } from '@reduxjs/toolkit/query';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -9,29 +8,13 @@ import { HelperText, Text, useTheme } from 'react-native-paper';
 import { usePostResetPasswordMutation } from '@/src/store/generatedApi';
 import { OPEN_LOCKER_DESIGN_TOKENS } from '@/src/theme/tokens';
 import { AppButton, AppTextInput } from '@/src/ui';
+import { getApiErrorMessage } from '@/src/store/apiErrorMessage';
 
 function toParamValue(value: string | string[] | undefined): string {
   if (Array.isArray(value)) {
     return value[0] ?? '';
   }
   return value ?? '';
-}
-
-function getErrorMessage(
-  error: unknown,
-  t: (key: string, options?: Record<string, unknown>) => string,
-): string {
-  const apiError = error as FetchBaseQueryError | undefined;
-  if (apiError && typeof apiError === 'object' && 'status' in apiError) {
-    if (apiError.status === 422) {
-      return t('passwordReset.invalidToken');
-    }
-    return t('common.requestFailedWithStatus', { status: String(apiError.status) });
-  }
-  if (error instanceof Error) {
-    return error.message;
-  }
-  return t('common.somethingWentWrong');
 }
 
 export default function ResetPasswordScreen() {
@@ -70,7 +53,7 @@ export default function ResetPasswordScreen() {
       }).unwrap();
       setSuccessMessage(res.message || t('passwordReset.passwordResetDone'));
     } catch (e) {
-      setError(getErrorMessage(e, t));
+      setError(getApiErrorMessage(e, t, { overrides: { 422: 'passwordReset.invalidToken' } }));
     } finally {
       setIsSubmitting(false);
     }

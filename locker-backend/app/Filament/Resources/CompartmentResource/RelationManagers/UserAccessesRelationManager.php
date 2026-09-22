@@ -140,10 +140,14 @@ class UserAccessesRelationManager extends RelationManager
         $compartment = $this->getOwnerRecord();
 
         return AccessPickerOptions::users(
-            User::query()->whereDoesntHave(
-                'activeCompartmentAccesses',
-                fn (Builder $query): Builder => $query->where('compartment_id', $compartment->id)
-            )
+            User::query()
+                // The service refuses an admin target for anyone without
+                // roles.manage, so do not offer one (#254).
+                ->manageableBy(Filament::auth()->user())
+                ->whereDoesntHave(
+                    'activeCompartmentAccesses',
+                    fn (Builder $query): Builder => $query->where('compartment_id', $compartment->id)
+                )
         );
     }
 

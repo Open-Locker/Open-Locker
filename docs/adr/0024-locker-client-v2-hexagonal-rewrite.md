@@ -39,7 +39,7 @@ Hard requirements:
    `timestamp` via `OutboundEnvelope`.
 6. **Libraries:** `mqtt`, `modbus-serial`, `serialport`, `zod`, `ajv`, `p-queue`,
    `uuid`, `js-yaml`, `winston`, `node:test`. No DI container.
-7. Implementation plan lives in `docs/plans/locker-client-v2-rewrite.md`.
+7. The rewrite is developed in parallel and cut over to `locker-client/`.
 
 ## Alternatives Considered
 
@@ -101,6 +101,6 @@ Hard requirements:
 
 ## References
 
-- Implementation plan: `docs/plans/locker-client-v2-rewrite.md`
+- Current implementation and operations: `locker-client/README.md`
 - ADR-0004, ADR-0006, ADR-0007, ADR-0009, ADR-0013, ADR-0014, ADR-0016
 - `locker-client/docs/WAVESHARE_INTEGRATION.md`

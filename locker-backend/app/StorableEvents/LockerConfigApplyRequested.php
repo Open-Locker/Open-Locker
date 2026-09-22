@@ -17,5 +17,7 @@ class LockerConfigApplyRequested extends ShouldBeStored
         public readonly string $configHash,
         public readonly int $heartbeatIntervalSeconds,
         public readonly array $compartments,
+        public readonly string $adapterType = 'waveshare_modbus',
+        public readonly string $feedbackType = 'door_closing',
     ) {}
 }

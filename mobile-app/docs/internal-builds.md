@@ -47,13 +47,23 @@ run, rerun the original tag-triggered workflow from the Actions UI.
 | Bundle ID (iOS + Android) | `de.merona.openlocker` (set via `APP_ID_BASE`)                                            |
 | Apple Team                | `UKC9C5ZQPC` (merona, Company/Organization)                                               |
 | Google Play account       | merona                                                                                    |
-| Android branch profile    | `preview` (PR, `dev`, `main`, and manual; no store submission)                            |
-| iOS branch profile        | `ios-simulator` (PR, `dev`, `main`, and manual; no Apple signing)                         |
+| Android branch profile    | `preview` (PR, `main`, and manual; no store submission)                                   |
+| iOS branch profile        | `ios-simulator` (PR, `main`, and manual; no Apple signing)                                |
 | Store build profile       | `store` (validated `mobile-v*` tags only)                                                 |
 | Store submit profile      | `production` (TestFlight and Android internal track)                                      |
 
 > ⚠️ `app.config.ts` **throws** for the `production` variant unless `APP_ID_BASE`
 > (or `APP_ID_BASE_IOS`/`APP_ID_BASE_ANDROID`) is set. CI sets it inline.
+
+### Reverb (realtime) env for EAS builds
+
+Preview, production, and store profiles in `eas.json` set
+`EXPO_PUBLIC_REVERB_HOST=ws.open-locker.cloud` (Reverb is not on the API host).
+`ios-simulator` inherits this from `preview`.
+Scheme and port default from `EXPO_PUBLIC_API_BASE_URL` at build time (`https` →
+`wss` on `:443`). Set **`EXPO_PUBLIC_REVERB_KEY`** as an EAS project secret so
+it matches backend `REVERB_APP_KEY`; do not commit production keys. See
+`.env.example` for local overrides.
 
 ## Credentials — where they live & who owns them
 
@@ -110,7 +120,7 @@ This writes (all **gitignored**, never commit): `credentials.json`,
 
 ## Distribution to testers
 
-- **Pull requests, `dev`, `main`, and manual runs:** Android uses `preview`; iOS
+- **Pull requests, `main`, and manual runs:** Android uses `preview`; iOS
   uses the unsigned `ios-simulator` profile. Neither platform is submitted.
 - **`mobile-v*`:** the signed store path runs only after the tag commit is proven
   to be the current `main` tip and mobile quality checks pass. Accepted
