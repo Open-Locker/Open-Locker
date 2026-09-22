@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { createApplyConfigHandler } from '../../src/adapters/mqtt/handlers/apply-config.handler';
 import { ApplyConfigUseCase } from '../../src/application/apply-config';
-import { computeAppliedConfigHash } from '../../src/domain/config-normalization';
+import { canonicalConfigHash } from '../helpers/canonical-config-hash';
 import { FakeLockerBus } from '../helpers/fake-locker-bus';
 import { MemoryOverlayStore } from '../helpers/memory-overlay-store';
 import { createTestConfigRepository } from '../helpers/test-config-repository';
@@ -29,7 +29,7 @@ function createApplyConfigHarness() {
 
 test('apply_config handler returns success with applied_config_hash', async () => {
   const { handler, overlayStore } = createApplyConfigHarness();
-  const configHash = computeAppliedConfigHash(compartments);
+  const configHash = canonicalConfigHash(compartments);
 
   const response = await handler.handle(
     { lockerUuid: 'test' },
@@ -39,6 +39,8 @@ test('apply_config handler returns success with applied_config_hash', async () =
       transaction_id: 'tx-1',
       timestamp: '2026-06-16T12:00:00.000Z',
       data: {
+        adapter_type: 'waveshare_modbus',
+        feedback_type: 'door_closing',
         config_hash: configHash,
         heartbeat_interval_seconds: 30,
         compartments,
@@ -79,7 +81,9 @@ test('apply_config handler propagates runtime apply failures', async () => {
           transaction_id: 'tx-2',
           timestamp: '2026-06-16T12:00:00.000Z',
           data: {
-            config_hash: computeAppliedConfigHash(compartments),
+            adapter_type: 'waveshare_modbus',
+            feedback_type: 'door_closing',
+            config_hash: canonicalConfigHash(compartments),
             heartbeat_interval_seconds: 30,
             compartments,
           },

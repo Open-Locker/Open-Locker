@@ -4,15 +4,18 @@ declare(strict_types=1);
 
 namespace App\Filament\Resources\LockerBankResource\RelationManagers;
 
+use App\Enums\LockerAdapterType;
+use App\Enums\Permission;
 use App\Filament\Support\CompartmentDoorStateColumn;
-use App\Filament\Support\EditContentNoteAction;
 use App\Filament\Support\OpenCompartmentAction;
 use App\Models\Compartment;
 use App\Models\LockerBank;
 use App\Models\User;
+use App\Services\CompartmentService;
 use App\Services\LockerService;
 use App\StorableEvents\CompartmentContentNoteUpdated;
 use Filament\Actions\Action;
+use Filament\Facades\Filament;
 use Filament\Forms;
 use Filament\Infolists\Components\RepeatableEntry;
 use Filament\Infolists\Components\TextEntry;
@@ -23,6 +26,7 @@ use Filament\Support\Enums\FontWeight;
 use Filament\Support\Enums\Width;
 use Filament\Tables;
 use Filament\Tables\Table;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Log;
@@ -35,6 +39,16 @@ class CompartmentsRelationManager extends RelationManager
     public static function getTitle(\Illuminate\Database\Eloquent\Model $ownerRecord, string $pageClass): string
     {
         return __('Compartments');
+    }
+
+    private function lockerBank(): LockerBank
+    {
+        $lockerBank = $this->getOwnerRecord();
+        if (! $lockerBank instanceof LockerBank) {
+            throw new \LogicException('Compartments must belong to a locker bank.');
+        }
+
+        return $lockerBank;
     }
 
     public function form(Schema $form): Schema
@@ -55,8 +69,10 @@ class CompartmentsRelationManager extends RelationManager
                     ->required()
                     ->step(1)
                     ->minValue(1)
-                    ->maxValue(255)
-                    ->helperText(__('Modbus slave ID of the IO board (1-255).')),
+                    ->maxValue(fn (): int => $this->lockerBank()->adapter_type === LockerAdapterType::Rs485LockBoard ? 31 : 255)
+                    ->helperText(fn (): string => $this->lockerBank()->adapter_type === LockerAdapterType::Rs485LockBoard
+                        ? __('RS485 board address set by the DIP switches (1-31).')
+                        : __('Modbus slave ID of the IO board (1-255).')),
 
                 Forms\Components\TextInput::make('address')
                     ->label(__('Address'))
@@ -64,7 +80,8 @@ class CompartmentsRelationManager extends RelationManager
                     ->required()
                     ->step(1)
                     ->minValue(0)
-                    ->helperText(__('0-based relay address on the given slave. Used for both coil and input.')),
+                    ->maxValue(LockerBank::MAX_WIRE_CHANNEL_ADDRESS)
+                    ->helperText(__('0-based channel address on the given slave (0–254 wire-encodable range). Used for both coil and input.')),
             ]);
     }
 
@@ -113,13 +130,25 @@ class CompartmentsRelationManager extends RelationManager
 
                 Tables\Columns\TextInputColumn::make('slave_id')
                     ->label(__('Slave ID'))
-                    ->rules(['nullable', 'integer', 'min:1', 'max:255'])
-                    ->tooltip(__('Modbus slave ID (1-255).')),
+                    ->rules(fn (): array => [
+                        'nullable',
+                        'integer',
+                        'min:1',
+                        'max:'.($this->lockerBank()->adapter_type === LockerAdapterType::Rs485LockBoard ? 31 : 255),
+                    ])
+                    ->tooltip(fn (): string => $this->lockerBank()->adapter_type === LockerAdapterType::Rs485LockBoard
+                        ? __('RS485 board address set by the DIP switches (1-31).')
+                        : __('Modbus slave ID (1-255).')),
 
                 Tables\Columns\TextInputColumn::make('address')
                     ->label(__('Address'))
-                    ->rules(['nullable', 'integer', 'min:0'])
-                    ->tooltip(__('0-based relay address. Used for both coil and input.')),
+                    ->rules(fn (): array => [
+                        'nullable',
+                        'integer',
+                        'min:0',
+                        'max:'.LockerBank::MAX_WIRE_CHANNEL_ADDRESS,
+                    ])
+                    ->tooltip(__('0-based channel address (0–254 wire-encodable range). Used for both coil and input.')),
 
                 CompartmentDoorStateColumn::column(),
 
@@ -216,7 +245,59 @@ class CompartmentsRelationManager extends RelationManager
             ->actions([
                 \Filament\Actions\EditAction::make(),
                 OpenCompartmentAction::make(),
-                EditContentNoteAction::make(),
+                Action::make('editContentNote')
+                    ->label(__('Edit note'))
+                    ->icon('heroicon-m-pencil-square')
+                    ->modalHeading(fn (Compartment $record): string => __('Edit note — compartment #:number', ['number' => $record->number]))
+                    ->modalWidth(Width::Medium)
+                    ->modalSubmitActionLabel(__('Save note'))
+                    // The same permission CompartmentService enforces, so the
+                    // button is never offered to someone who would be refused.
+                    ->visible(fn (): bool => Filament::auth()->user()?->can(Permission::CompartmentAccessManage->value) ?? false)
+                    ->fillForm(fn (Compartment $record): array => ['note' => $record->content_note])
+                    ->form([
+                        Forms\Components\Textarea::make('note')
+                            ->label(__('Note'))
+                            ->rows(3)
+                            // Matches the column width and the API rule.
+                            ->maxLength(80)
+                            ->helperText(__('Leave empty to clear the note.')),
+                    ])
+                    ->action(function (Compartment $record, array $data): void {
+                        $user = Filament::auth()->user();
+                        if (! $user instanceof User) {
+                            Notification::make()
+                                ->title(__('Unable to save note'))
+                                ->body(__('Your session has expired. Please log in again.'))
+                                ->danger()
+                                ->send();
+
+                            return;
+                        }
+
+                        // Blank clears the note, same as the mobile endpoint.
+                        $note = trim((string) ($data['note'] ?? ''));
+
+                        try {
+                            app(CompartmentService::class)->updateContentNote(
+                                actor: $user,
+                                compartment: $record,
+                                note: $note === '' ? null : $note,
+                            );
+                        } catch (AuthorizationException) {
+                            Notification::make()
+                                ->title(__('Not allowed to edit this note'))
+                                ->danger()
+                                ->send();
+
+                            return;
+                        }
+
+                        Notification::make()
+                            ->title($note === '' ? __('Note cleared') : __('Note updated'))
+                            ->success()
+                            ->send();
+                    }),
                 \Filament\Actions\DeleteAction::make(),
             ])
             ->bulkActions([

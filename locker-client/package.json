@@ -33,6 +33,7 @@
     "modbus-serial": "^8.0.23-no-serial-port",
     "mqtt": "^5.13.1",
     "p-queue": "^8.1.0",
+    "serialport": "^13.0.0",
     "winston": "^3.17.0",
     "winston-transport": "^4.9.0",
     "zod": "^4.3.6"

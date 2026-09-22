@@ -15,7 +15,7 @@ import { FakeDoorEventPublisher } from '../helpers/fake-door-event-publisher';
 import { ApplyConfigUseCase } from '../../src/application/apply-config';
 import { PollCompartmentStateUseCase } from '../../src/application/state-publishing';
 import { RunAfterCompleteScheduler } from '../../src/infrastructure/scheduler';
-import { computeAppliedConfigHash } from '../../src/domain/config-normalization';
+import { canonicalConfigHash } from '../helpers/canonical-config-hash';
 import { FakeLockerBus } from '../helpers/fake-locker-bus';
 import { FakeMqttTransport } from '../helpers/fake-mqtt-transport';
 import { MemoryOverlayStore } from '../helpers/memory-overlay-store';
@@ -104,6 +104,16 @@ function commandResponses(published: string[]) {
     .filter((message) => message.result === 'success' || message.result === 'error');
 }
 
+function serializedOpenCommand(suffix: string): string {
+  return JSON.stringify({
+    action: 'open_compartment',
+    transaction_id: `txn-serial-${suffix}`,
+    message_id: `msg-serial-${suffix}`,
+    timestamp: '2026-08-23T12:00:00Z',
+    data: { compartment_number: 1 },
+  });
+}
+
 test('dispatcher executes valid open_compartment once', async () => {
   const { bus, dispatcher, openCompartment, published } = createDispatcherHarness();
 
@@ -121,6 +131,38 @@ test('dispatcher executes valid open_compartment once', async () => {
   openCompartment.stopAllMonitoring();
   assert.equal(bus.flashCalls.length, 1);
   assert.equal(commandResponses(published)[0]?.result, 'success');
+});
+
+test('dispatcher serializes hardware and configuration commands', async () => {
+  const bus = new FakeLockerBus([1]);
+  let flashCount = 0;
+  let notifyFirstFlash!: () => void;
+  const firstFlashStarted = new Promise<void>((resolve) => {
+    notifyFirstFlash = resolve;
+  });
+  let releaseFirstFlash!: () => void;
+  const firstFlashGate = new Promise<void>((resolve) => {
+    releaseFirstFlash = resolve;
+  });
+  bus.flashRelay = async () => {
+    flashCount++;
+    if (flashCount === 1) {
+      notifyFirstFlash();
+      await firstFlashGate;
+    }
+  };
+  const { dispatcher, openCompartment } = createDispatcherHarness(bus);
+
+  const first = dispatcher.dispatch('locker/test/command', serializedOpenCommand('first'));
+  await firstFlashStarted;
+  const second = dispatcher.dispatch('locker/test/command', serializedOpenCommand('second'));
+  await Promise.resolve();
+  assert.equal(flashCount, 1);
+
+  releaseFirstFlash();
+  await Promise.all([first, second]);
+  openCompartment.stopAllMonitoring();
+  assert.equal(flashCount, 2);
 });
 
 test('dispatcher ignores duplicate message_id before side effects', async () => {
@@ -400,7 +442,7 @@ test('apply_config replays a completed response without re-running', async () =>
     published.push(payload);
   }, 'locker/test/response');
   const compartments = [{ compartment_number: 1, slaveId: 1, address: 0 }];
-  const configHash = computeAppliedConfigHash(compartments);
+  const configHash = canonicalConfigHash(compartments);
   const overlayStore = new MemoryOverlayStore();
   const applyConfig = new ApplyConfigUseCase({
     overlayStore,
@@ -426,6 +468,8 @@ test('apply_config replays a completed response without re-running', async () =>
       message_id: 'msg-apply-dup',
       timestamp: '2026-04-11T10:00:00Z',
       data: {
+        adapter_type: 'waveshare_modbus',
+        feedback_type: 'door_closing',
         config_hash: configHash,
         heartbeat_interval_seconds: 30,
         compartments,
@@ -644,7 +688,7 @@ test('apply_config response recovers without applying config twice', async () =>
     published.push(payload);
   }, 'locker/test/response');
   const compartments = [{ compartment_number: 1, slaveId: 1, address: 0 }];
-  const configHash = computeAppliedConfigHash(compartments);
+  const configHash = canonicalConfigHash(compartments);
   const applyConfig = new ApplyConfigUseCase({
     overlayStore: new MemoryOverlayStore(),
     config: createTestConfigRepository({ compartments }),
@@ -666,6 +710,8 @@ test('apply_config response recovers without applying config twice', async () =>
     message_id: 'msg-apply-pending',
     timestamp: '2026-04-11T10:00:00Z',
     data: {
+      adapter_type: 'waveshare_modbus',
+      feedback_type: 'door_closing',
       config_hash: configHash,
       heartbeat_interval_seconds: 30,
       compartments,
@@ -974,8 +1020,8 @@ test('two concurrent deliveries of one transaction open the door once', async ()
     dedup,
   );
 
-  // Same transaction, different message ids: only the transaction guard applies,
-  // and both arrive before either has finished.
+  // Same transaction, different message ids: the command queue executes the
+  // physical operation once, then the second delivery replays its answer.
   const deliver = (messageId: string) =>
     dispatcher.dispatch(
       'locker/test/command',
@@ -993,12 +1039,11 @@ test('two concurrent deliveries of one transaction open the door once', async ()
     deliver('66666666-6666-6666-6666-666666666666'),
   ]);
 
+  openCompartment.stopAllMonitoring();
   assert.equal(bus.flashCalls.length, 1, 'the relay must fire once for one request');
 
   const responses = published
     .map((payload) => JSON.parse(payload) as { result?: string })
     .filter((message) => message.result === 'success');
-  assert.equal(responses.length, 1, 'and exactly one success is published');
-
-  openCompartment.stopAllMonitoring();
+  assert.equal(responses.length, 2, 'both deliveries receive the successful result');
 });

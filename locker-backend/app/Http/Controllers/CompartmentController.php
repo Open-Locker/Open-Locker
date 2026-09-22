@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Http\Middleware\EnsureVerifiedEmailApi;
+use App\Http\Middleware\RequireAcceptedTerms;
 use App\Http\Requests\UpdateCompartmentContentNoteRequest;
 use App\Http\Resources\AccessibleCompartmentsResource;
 use App\Http\Resources\ApiErrorResource;
@@ -14,6 +16,7 @@ use App\Models\Compartment;
 use App\Models\CompartmentOpenRequest;
 use App\Services\CompartmentAccessService;
 use App\Services\CompartmentService;
+use App\Services\TermsService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -55,21 +58,31 @@ class CompartmentController extends Controller
      *   "state": "denied",
      *   "message": "You do not have access to this compartment"
      * }
+     * @response 403 {
+     *   "message": "You must accept the latest terms before continuing.",
+     *   "code": "terms_not_accepted",
+     *   "terms_current_version": 2
+     * }
+     * @response 403 {
+     *   "status": false,
+     *   "message": "Please verify your email address before opening compartments"
+     * }
      */
     public function open(
         Request $request,
         Compartment $compartment,
         CompartmentAccessService $compartmentAccessService,
+        TermsService $termsService,
     ): JsonResponse {
-        $decision = $compartmentAccessService->requestOpen($this->authenticatedUser($request), $compartment);
+        $user = $this->authenticatedUser($request);
+
+        // The API is the one caller that gates on terms acceptance: it is the
+        // surface the mobile app talks to, and the only one that can offer the
+        // user a way to accept.
+        $decision = $compartmentAccessService->requestOpen($user, $compartment, requireAcceptedTerms: true);
 
         if (! $decision['authorized']) {
-            return (new CompartmentOpenDecisionResource([
-                'status' => false,
-                'command_id' => $decision['command_id'],
-                'state' => 'denied',
-                'message' => __('You do not have access to this compartment'),
-            ]))->response()->setStatusCode(403);
+            return $this->deniedOpenResponse($decision, $termsService);
         }
 
         return (new CompartmentOpenDecisionResource([
@@ -78,6 +91,32 @@ class CompartmentController extends Controller
             'state' => 'pending',
             'message' => __('Compartment open request accepted'),
         ]))->response()->setStatusCode(202);
+    }
+
+    /**
+     * Answer a refused open with the body that matches the reason it was refused for.
+     *
+     * Outstanding terms and an unverified address are checked inside the open
+     * path rather than by middleware, so that the attempt is recorded as an
+     * auditable event before it is turned away. The bodies are produced by the
+     * middleware classes that still guard every other route, so a client sees
+     * the same refusal whichever gate it hits — the mobile app drives its
+     * re-acceptance flow off the terms body's `code` field.
+     *
+     * @param  array{authorized: bool, command_id: string, reason: string|null}  $decision
+     */
+    private function deniedOpenResponse(array $decision, TermsService $termsService): JsonResponse
+    {
+        return match ($decision['reason']) {
+            'terms_not_accepted' => RequireAcceptedTerms::notAcceptedResponse($termsService->activeVersion()?->version),
+            'unverified_email' => EnsureVerifiedEmailApi::unverifiedResponse(),
+            default => (new CompartmentOpenDecisionResource([
+                'status' => false,
+                'command_id' => $decision['command_id'],
+                'state' => 'denied',
+                'message' => __('You do not have access to this compartment'),
+            ]))->response()->setStatusCode(403),
+        };
     }
 
     /**

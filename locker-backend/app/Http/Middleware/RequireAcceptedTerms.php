@@ -4,9 +4,10 @@ declare(strict_types=1);
 
 namespace App\Http\Middleware;
 
-use App\Models\TermsDocument;
 use App\Models\User;
+use App\Services\TermsService;
 use Closure;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
 
@@ -21,6 +22,8 @@ class RequireAcceptedTerms
         'verification.verify',
         'verification.send',
     ];
+
+    public function __construct(private readonly TermsService $termsService) {}
 
     public function handle(Request $request, Closure $next): Response
     {
@@ -39,27 +42,32 @@ class RequireAcceptedTerms
             return response()->json(['message' => __('Unauthenticated')], 401);
         }
 
-        $document = TermsDocument::query()->with('activeVersion')->oldest('id')->first();
-        $activeVersion = $document?->activeVersion;
+        $activeVersion = $this->termsService->activeVersion();
 
         // If no active terms exist yet, do not block domain access.
-        if (! $document || ! $activeVersion) {
+        if (! $activeVersion) {
             return $next($request);
         }
 
-        $acceptedCurrentVersion = $user->termsAcceptances()
-            ->where('terms_document_id', $document->id)
-            ->where('terms_document_version_id', $activeVersion->id)
-            ->exists();
-
-        if ($acceptedCurrentVersion) {
+        if ($this->termsService->hasAcceptedActiveVersion($user)) {
             return $next($request);
         }
 
+        return self::notAcceptedResponse($activeVersion->version);
+    }
+
+    /**
+     * The refusal the mobile app reads to trigger re-acceptance: it keys off
+     * `code`, so the body must not drift. The compartment-open route builds it
+     * from here too, because that route records the refusal as an auditable
+     * event first and therefore answers after this middleware would have.
+     */
+    public static function notAcceptedResponse(int|string|null $currentVersion): JsonResponse
+    {
         return response()->json([
             'message' => __('You must accept the latest terms before continuing.'),
             'code' => 'terms_not_accepted',
-            'terms_current_version' => $activeVersion->version,
+            'terms_current_version' => $currentVersion,
         ], 403);
     }
 }

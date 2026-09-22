@@ -1,7 +1,11 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Models;
 
+use App\Enums\LockerAdapterType;
+use App\Enums\LockerFeedbackType;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -12,6 +16,8 @@ use Illuminate\Database\Eloquent\Relations\HasManyThrough;
  * @property-read string $id
  * @property-read string $name
  * @property-read string $location_description
+ * @property LockerAdapterType $adapter_type
+ * @property LockerFeedbackType $feedback_type
  * @property string|null $provisioning_token_hmac
  * @property string|null $provisioning_generation
  * @property-read \Carbon\CarbonImmutable|null $provisioned_at
@@ -26,6 +32,9 @@ use Illuminate\Database\Eloquent\Relations\HasManyThrough;
  */
 class LockerBank extends Model
 {
+    /** Highest zero-based channel address encodable on the RS485 wire (maps to byte 0xFF). */
+    public const MAX_WIRE_CHANNEL_ADDRESS = 254;
+
     /** @use HasFactory<\Database\Factories\LockerBankFactory> */
     use HasFactory;
 
@@ -34,6 +43,8 @@ class LockerBank extends Model
     protected $fillable = [
         'name',
         'location_description',
+        'adapter_type',
+        'feedback_type',
         'provisioning_token_hmac',
         'provisioning_generation',
         'provisioned_at',
@@ -52,6 +63,8 @@ class LockerBank extends Model
     ];
 
     protected $casts = [
+        'adapter_type' => LockerAdapterType::class,
+        'feedback_type' => LockerFeedbackType::class,
         'provisioned_at' => 'datetime',
         'last_heartbeat_at' => 'datetime',
         'connection_status_changed_at' => 'datetime',
@@ -88,7 +101,7 @@ class LockerBank extends Model
     /**
      * Build the config payload that will be sent to the client.
      *
-     * @return array{config_hash:string, heartbeat_interval_seconds:int, compartments:array<int, array{compartment_number:int, slaveId:int, address:int}>}
+     * @return array{config_hash:string, heartbeat_interval_seconds:int, adapter_type:string, feedback_type:string, compartments:array<int, array{compartment_number:int, slaveId:int, address:int}>}
      */
     public function buildApplyConfigPayload(): array
     {
@@ -104,13 +117,18 @@ class LockerBank extends Model
             })
             ->all();
 
-        $json = json_encode($compartments, JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR);
+        $canonicalConfig = [
+            'adapter_type' => $this->adapter_type->value,
+            'feedback_type' => $this->feedback_type->value,
+            'compartments' => $compartments,
+        ];
+        $json = json_encode($canonicalConfig, JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR);
         $hash = hash('sha256', $json);
 
         return [
             'config_hash' => $hash,
             'heartbeat_interval_seconds' => (int) $this->heartbeat_interval_seconds,
-            'compartments' => $compartments,
+            ...$canonicalConfig,
         ];
     }
 

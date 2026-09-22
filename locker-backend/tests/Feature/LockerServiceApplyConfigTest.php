@@ -1,7 +1,12 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Tests\Feature;
 
+use App\Enums\LockerAdapterType;
+use App\Enums\LockerFeedbackType;
+use App\Models\LockerBank;
 use App\Mqtt\Publishers\ApplyConfigCommandPublisher;
 use App\Services\LockerService;
 use App\StorableEvents\LockerConfigApplyRequested;
@@ -14,6 +19,17 @@ use Tests\TestCase;
 class LockerServiceApplyConfigTest extends TestCase
 {
     use RefreshDatabase;
+
+    public function test_existing_compatible_hardware_profile_defaults_are_applied(): void
+    {
+        $lockerBank = LockerBank::query()->create([
+            'name' => 'Default profile bank',
+            'location_description' => null,
+        ])->refresh();
+
+        $this->assertSame(LockerAdapterType::WaveshareModbus, $lockerBank->adapter_type);
+        $this->assertSame(LockerFeedbackType::DoorClosing, $lockerBank->feedback_type);
+    }
 
     public function test_apply_config_succeeds_when_only_other_locker_banks_have_incomplete_compartments(): void
     {
@@ -44,6 +60,9 @@ class LockerServiceApplyConfigTest extends TestCase
             ->first();
 
         $this->assertNotNull($stored);
+        $this->assertSame('waveshare_modbus', $stored->event_properties['adapterType'] ?? null);
+        $this->assertSame('door_closing', $stored->event_properties['feedbackType'] ?? null);
+        $this->assertArrayNotHasKey('channelCount', $stored->event_properties);
         $this->assertNotNull($completeBank->refresh()->last_config_sent_at);
     }
 
@@ -59,6 +78,102 @@ class LockerServiceApplyConfigTest extends TestCase
 
         $this->expectException(\RuntimeException::class);
         $this->expectExceptionMessage('Config is incomplete: every compartment needs slave_id and address.');
+
+        app(LockerService::class)->applyConfig($lockerBank);
+    }
+
+    public function test_config_hash_uses_canonical_hardware_profile_and_sorted_compartments_but_excludes_heartbeat(): void
+    {
+        $lockerBank = LockerBankFactory::new()->create([
+            'adapter_type' => LockerAdapterType::Rs485LockBoard,
+            'feedback_type' => LockerFeedbackType::DoorOpening,
+            'heartbeat_interval_seconds' => 15,
+        ]);
+        CompartmentFactory::new()->create([
+            'locker_bank_id' => $lockerBank->id,
+            'number' => 2,
+            'slave_id' => 2,
+            'address' => 11,
+        ]);
+        CompartmentFactory::new()->create([
+            'locker_bank_id' => $lockerBank->id,
+            'number' => 1,
+            'slave_id' => 2,
+            'address' => 0,
+        ]);
+
+        $payload = $lockerBank->buildApplyConfigPayload();
+
+        $this->assertSame('deac8a5b4aea15d097074e3c092d2632c3baa3d0adb0e91c96a13f745dd30b9e', $payload['config_hash']);
+        $this->assertSame('rs485_lock_board', $payload['adapter_type']);
+        $this->assertSame('door_opening', $payload['feedback_type']);
+        $this->assertSame([1, 2], array_column($payload['compartments'], 'compartment_number'));
+        $this->assertArrayNotHasKey('channel_count', $payload);
+
+        $lockerBank->update(['heartbeat_interval_seconds' => 30]);
+
+        $this->assertSame($payload['config_hash'], $lockerBank->fresh()->currentConfigHash());
+    }
+
+    public function test_config_hash_changes_when_hardware_profile_changes(): void
+    {
+        $lockerBank = LockerBankFactory::new()->create();
+
+        $originalHash = $lockerBank->currentConfigHash();
+        $lockerBank->update(['feedback_type' => LockerFeedbackType::DoorOpening]);
+
+        $this->assertNotSame($originalHash, $lockerBank->fresh()->currentConfigHash());
+    }
+
+    public function test_apply_config_accepts_highest_wire_encodable_address(): void
+    {
+        $lockerBank = LockerBankFactory::new()->create();
+        CompartmentFactory::new()->create([
+            'locker_bank_id' => $lockerBank->id,
+            'number' => 1,
+            'slave_id' => 1,
+            'address' => LockerBank::MAX_WIRE_CHANNEL_ADDRESS,
+        ]);
+
+        $this->mock(ApplyConfigCommandPublisher::class, function ($mock): void {
+            $mock->shouldReceive('publish')->once();
+        });
+
+        app(LockerService::class)->applyConfig($lockerBank);
+
+        $this->assertNotNull($lockerBank->refresh()->last_config_sent_at);
+    }
+
+    public function test_apply_config_rejects_address_above_wire_encodable_range(): void
+    {
+        $lockerBank = LockerBankFactory::new()->create();
+        CompartmentFactory::new()->create([
+            'locker_bank_id' => $lockerBank->id,
+            'number' => 1,
+            'slave_id' => 1,
+            'address' => 255,
+        ]);
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('Config is invalid: every compartment address must be between 0 and 254 (wire-encodable channel).');
+
+        app(LockerService::class)->applyConfig($lockerBank);
+    }
+
+    public function test_apply_config_rejects_rs485_board_address_outside_dip_range(): void
+    {
+        $lockerBank = LockerBankFactory::new()->create([
+            'adapter_type' => LockerAdapterType::Rs485LockBoard,
+        ]);
+        CompartmentFactory::new()->create([
+            'locker_bank_id' => $lockerBank->id,
+            'number' => 1,
+            'slave_id' => 32,
+            'address' => 0,
+        ]);
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('Config is invalid: RS485 locker board slave_id must be between 1 and 31.');
 
         app(LockerService::class)->applyConfig($lockerBank);
     }

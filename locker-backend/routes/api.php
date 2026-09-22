@@ -52,7 +52,13 @@ Route::middleware(['auth:sanctum', 'terms.accepted'])->group(function () {
 
     Route::controller(CompartmentController::class)->prefix('/compartments')->group(function () {
         Route::get('accessible', 'accessible')->name('compartments.accessible');
-        Route::post('{compartment}/open', 'open')->middleware('verified.api')->name('compartments.open');
+        // Opening is the one route that decides terms acceptance and email
+        // verification itself: both refusals have to be recorded as auditable
+        // open attempts, and middleware answers before the controller runs.
+        // Excluded here only — every other route in this group keeps the gate.
+        Route::post('{compartment}/open', 'open')
+            ->withoutMiddleware('terms.accepted')
+            ->name('compartments.open');
         Route::put('{compartment}/content-note', 'updateContentNote')->middleware('verified.api')->name('compartments.content-note.update');
         Route::get('open-requests/{commandId}', 'openStatus')->name('compartments.open-status');
     });

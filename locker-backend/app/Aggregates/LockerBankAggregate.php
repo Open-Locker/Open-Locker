@@ -124,8 +124,13 @@ class LockerBankAggregate extends TransactionalAggregateRoot
      *
      * @param  array<int, array<string, int>>  $compartments
      */
-    public function requestApplyConfig(string $configHash, int $heartbeatIntervalSeconds, array $compartments): self
-    {
+    public function requestApplyConfig(
+        string $configHash,
+        int $heartbeatIntervalSeconds,
+        string $adapterType,
+        string $feedbackType,
+        array $compartments,
+    ): self {
         $lockerBankUuid = (string) $this->uuid();
         $commandId = (string) Str::uuid();
 
@@ -134,6 +139,8 @@ class LockerBankAggregate extends TransactionalAggregateRoot
             'commandId' => $commandId,
             'configHash' => $configHash,
             'heartbeatIntervalSeconds' => $heartbeatIntervalSeconds,
+            'adapterType' => $adapterType,
+            'feedbackType' => $feedbackType,
             'compartmentCount' => count($compartments),
         ]);
 
@@ -143,6 +150,8 @@ class LockerBankAggregate extends TransactionalAggregateRoot
             configHash: $configHash,
             heartbeatIntervalSeconds: $heartbeatIntervalSeconds,
             compartments: $compartments,
+            adapterType: $adapterType,
+            feedbackType: $feedbackType,
         ));
 
         return $this;

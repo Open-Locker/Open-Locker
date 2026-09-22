@@ -101,6 +101,15 @@ Mitigations:
 - treat invalid overlay files as errors in logs and fall back safely where
   possible
 
+## Supersedes / Superseded By
+
+- Supersedes: none
+- Superseded by: none
+- Partially superseded by: [ADR-0061](0061-backend-managed-rs485-locker-board-profile.md) —
+  server-managed `hardwareProfile` (`adapter_type`, `feedback_type`) extends and
+  narrows the runtime overlay field list in Decision; ADR-0061 is forward
+  authority for the complete server-managed overlay fields.
+
 ## References
 
 - Related issues:
@@ -109,3 +118,4 @@ Mitigations:
   - `docs/mqtt_integration_plan.md`
   - `docs/adr/0002-mqtt-message-id-and-transaction-id-separation.md`
   - `docs/adr/0008-typed-outbound-mqtt-publisher-services.md`
+  - `docs/adr/0061-backend-managed-rs485-locker-board-profile.md`

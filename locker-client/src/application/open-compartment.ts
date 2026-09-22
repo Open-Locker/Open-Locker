@@ -1,6 +1,6 @@
 import type { CompartmentTarget, DoorState } from '../domain/compartment';
 import { DOOR_DETECTION_POLL_INTERVAL_MS, RelayFireLog } from '../domain/door-detection';
-import { LockerError, ModbusTransportError, MqttErrorCode } from '../domain/errors';
+import { HardwareTransportError, LockerError, MqttErrorCode } from '../domain/errors';
 import type { ConfigRepositoryPort } from '../ports/config.port';
 import type { DoorEventPublisherPort } from '../ports/door-events.port';
 import type { LockerBusPort } from '../ports/locker-bus.port';
@@ -14,7 +14,6 @@ export interface OpenCompartmentDeps {
   doorEvents: DoorEventPublisherPort;
   relayFireLog: RelayFireLog;
   log?: LoggerPort;
-  monitoringIntervalMs?: number;
   now?: () => number;
 }
 
@@ -28,8 +27,6 @@ export interface OpenCompartmentDeps {
  * reported separately.
  */
 export class OpenCompartmentUseCase {
-  private readonly monitoringKeys = new Set<number>();
-
   private readonly bus: LockerBusPort;
 
   private readonly config: ConfigRepositoryPort;
@@ -42,8 +39,6 @@ export class OpenCompartmentUseCase {
 
   private readonly log: LoggerPort;
 
-  private readonly monitoringIntervalMs: number;
-
   private readonly now: () => number;
 
   constructor(deps: OpenCompartmentDeps) {
@@ -53,47 +48,33 @@ export class OpenCompartmentUseCase {
     this.doorEvents = deps.doorEvents;
     this.relayFireLog = deps.relayFireLog;
     this.log = deps.log ?? noopLogger;
-    this.monitoringIntervalMs = deps.monitoringIntervalMs ?? 500;
     this.now = deps.now ?? (() => Date.now());
   }
 
   async execute(compartmentNumber: number, transactionId: string): Promise<void> {
-    const connected = await this.bus.ensureConnected();
-    if (!connected) {
-      throw new LockerError(
-        MqttErrorCode.MODBUS_ERROR,
-        'Cannot open compartment: Modbus connection unavailable',
-      );
-    }
+    const { target, targetConfigKey } = await this.bus.runExclusive(async (exclusiveBus) => {
+      const resolvedTarget = this.resolveTarget(compartmentNumber);
+      const connected = await exclusiveBus.ensureConnected();
+      if (!connected) {
+        throw new LockerError(
+          MqttErrorCode.HARDWARE_ERROR,
+          'Cannot open compartment: hardware bus unavailable',
+        );
+      }
 
-    const target = this.resolveTarget(compartmentNumber);
-    const durationMs = this.config.getFlashDurationMs();
-
-    // Read before firing: a door that is already open would otherwise be
-    // indistinguishable from one the pulse opened.
-    const doorStateBefore = await this.readDoorState(target);
-
-    await this.bus.flashRelay(target, durationMs);
+      const durationMs = this.config.getFlashDurationMs();
+      await exclusiveBus.flashRelay(resolvedTarget, durationMs);
+      return {
+        target: resolvedTarget,
+        targetConfigKey: this.targetConfigKey(resolvedTarget),
+      };
+    });
     this.relayFireLog.recordFire(compartmentNumber, this.now());
-    this.startRelayMonitoring(target);
-
-    if (doorStateBefore === 'open') {
-      await this.reportOutcome({
-        compartmentNumber,
-        transactionId,
-        outcome: 'already_open',
-        detectionMs: null,
-      });
-
-      return;
-    }
-
-    this.startDoorDetection(target, transactionId);
+    this.startDoorDetection(target, transactionId, targetConfigKey);
   }
 
   stopAllMonitoring(): void {
     this.scheduler.cancelAll();
-    this.monitoringKeys.clear();
     this.relayFireLog.clear();
   }
 
@@ -105,7 +86,11 @@ export class OpenCompartmentUseCase {
     return Math.max(1, this.config.getHeartbeatIntervalSeconds()) * 1000;
   }
 
-  private startDoorDetection(target: CompartmentTarget, transactionId: string): void {
+  private startDoorDetection(
+    target: CompartmentTarget,
+    transactionId: string,
+    targetConfigKey: string,
+  ): void {
     const compartmentNumber = target.compartmentNumber;
     const timeoutMs = this.detectionTimeoutMs();
     const startedAt = this.now();
@@ -113,6 +98,14 @@ export class OpenCompartmentUseCase {
     this.relayFireLog.beginDetection(compartmentNumber);
 
     const tick = async (): Promise<void> => {
+      if (this.targetConfigKey(target) !== targetConfigKey) {
+        this.relayFireLog.endDetection(compartmentNumber);
+        this.log.warn('Door detection stopped because the compartment mapping changed', {
+          compartmentNumber,
+        });
+        return;
+      }
+
       const doorState = await this.readDoorState(target);
       const elapsedMs = this.now() - startedAt;
 
@@ -149,7 +142,7 @@ export class OpenCompartmentUseCase {
   private async reportOutcome(event: {
     compartmentNumber: number;
     transactionId: string;
-    outcome: 'opened' | 'already_open' | 'door_jammed';
+    outcome: 'opened' | 'door_jammed';
     detectionMs: number | null;
   }): Promise<void> {
     try {
@@ -164,9 +157,12 @@ export class OpenCompartmentUseCase {
   }
 
   /** Single-compartment door read; `unknown` on any bus failure. */
-  private async readDoorState(target: CompartmentTarget): Promise<DoorState> {
+  private async readDoorState(
+    target: CompartmentTarget,
+    bus: LockerBusPort = this.bus,
+  ): Promise<DoorState> {
     try {
-      const states = await this.bus.readDoorSensors(target.slaveId, target.relayAddress, 1);
+      const states = await bus.readDoorSensors(target.slaveId, target.relayAddress, 1);
 
       return states[0] ?? 'unknown';
     } catch {
@@ -201,29 +197,16 @@ export class OpenCompartmentUseCase {
     };
   }
 
-  private startRelayMonitoring(target: CompartmentTarget): void {
-    if (this.monitoringKeys.has(target.compartmentNumber)) {
-      return;
-    }
-
-    this.monitoringKeys.add(target.compartmentNumber);
-
-    const tick = async (): Promise<void> => {
-      try {
-        const relayOn = await this.bus.readRelayState(target);
-        if (!relayOn) {
-          this.monitoringKeys.delete(target.compartmentNumber);
-          return;
-        }
-      } catch {
-        this.monitoringKeys.delete(target.compartmentNumber);
-        return;
-      }
-
-      this.scheduler.scheduleAfter(this.monitoringIntervalMs, tick);
-    };
-
-    void tick();
+  private targetConfigKey(target: CompartmentTarget): string {
+    const effective = this.config.load();
+    const mapping =
+      effective.compartments?.find(
+        (entry) => entry.compartment_number === target.compartmentNumber,
+      ) ?? null;
+    return JSON.stringify({
+      hardwareProfile: effective.hardwareProfile ?? null,
+      mapping,
+    });
   }
 }
 
@@ -233,12 +216,6 @@ export async function runStartupFailsafe(
 ): Promise<void> {
   const slaveIds = bus.getConfiguredSlaveIds();
 
-  // Two failures look alike from here and are not alike at all. A reachable bus
-  // whose boards all stay silent is a wiring or configuration fault: a human has
-  // to fix it, and startup should say so loudly by refusing to come up. A bus that
-  // is itself unreachable is recoverable — reconnect keeps trying, and exiting
-  // would only restart the process until the adapter came back, churning the MQTT
-  // session and flapping the bank each time round.
   if (bus.getConnectionState() === 'unreachable') {
     log.error('Startup failsafe skipped: Modbus bus unreachable, relays left as found', {
       configuredBoards: slaveIds.length,
@@ -251,7 +228,7 @@ export async function runStartupFailsafe(
 
   for (const slaveId of slaveIds) {
     try {
-      await bus.turnAllRelaysOff(slaveId);
+      await bus.initializeBoard(slaveId);
       successCount++;
     } catch {
       // One unreachable board must not stop the others from being cleared.
@@ -259,6 +236,6 @@ export async function runStartupFailsafe(
   }
 
   if (successCount === 0 && slaveIds.length > 0) {
-    throw new ModbusTransportError('Startup failsafe: all Modbus boards unreachable');
+    throw new HardwareTransportError('Startup hardware initialization: all boards unreachable');
   }
 }

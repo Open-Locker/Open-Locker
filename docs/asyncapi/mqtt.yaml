@@ -46,9 +46,11 @@ channels:
       published here (ADR-0040): `compartment_open_detected`,
       `compartment_open_failed`, and `compartment_uncommanded_open`. These report
       the *physical* door, separately from the command response, which only
-      acknowledges that the unlock pulse was sent. Current door state remains the
-      retained snapshot on `locker/{locker_uuid}/state/compartments`. Future
-      candidates include `qr_scanned` and `tamper_detected`.
+      acknowledges that the unlock pulse was sent. The current locker client
+      emits `opened` or `door_jammed` only; `already_open` remains valid in the
+      schema for historical and backend-compatible events. Current door state
+      remains the retained snapshot on `locker/{locker_uuid}/state/compartments`.
+      Future candidates include `qr_scanned` and `tamper_detected`.
     parameters:
       locker_uuid:
         $ref: '#/components/parameters/locker_uuid'

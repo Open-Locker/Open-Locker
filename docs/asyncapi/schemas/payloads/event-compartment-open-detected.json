@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "./event-compartment-open-detected.json",
   "title": "Compartment door observed open after an unlock pulse",
-  "description": "Published on locker/{locker_uuid}/event once the client has observed the physical door state following an open_compartment pulse (ADR-0040). The command response only acknowledges that the pulse was sent; this message reports whether the door actually opened. `outcome: opened` means the door was closed before the pulse and opened within the detection window, with `detection_ms` measuring pulse to observation. `outcome: already_open` means the door was already open before the pulse, so no window was opened and no `detection_ms` is reported.",
+  "description": "Published on locker/{locker_uuid}/event once the client has observed the physical door state following an open_compartment pulse (ADR-0040). The command response only acknowledges that the pulse was sent; this message reports whether the door actually opened. Current locker-client releases emit `outcome: opened` when the door is observed open within the detection window, with `detection_ms` measuring pulse to observation. `outcome: already_open` remains in the contract for backward compatibility and historical or backend-supported vocabulary; the current locker client does not emit new already_open events.",
   "allOf": [
     {
       "$ref": "../messages/event.json"
@@ -37,12 +37,13 @@
               "enum": [
                 "opened",
                 "already_open"
-              ]
+              ],
+              "description": "Current locker client emits opened only. already_open is retained for historical events and backend compatibility."
             },
             "detection_ms": {
               "type": "integer",
               "minimum": 0,
-              "description": "Milliseconds from the unlock pulse to the door being observed open. Absent for already_open."
+              "description": "Milliseconds from the unlock pulse to the door being observed open. Omitted for historical already_open events."
             }
           },
           "additionalProperties": false

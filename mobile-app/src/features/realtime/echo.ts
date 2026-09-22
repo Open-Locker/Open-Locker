@@ -3,6 +3,7 @@ import * as PusherNS from 'pusher-js';
 import type { ChannelAuthorizationData } from 'pusher-js/types/src/core/auth/options';
 
 import { getApiBaseUrl } from '@/src/api/baseUrl';
+import { reverbConfig } from '@/src/features/realtime/reverbConfig';
 
 // pusher-js's React Native build exports the client as a NAMED `Pusher` export
 // (`module.exports.Pusher = ...`), while the web/node builds use the default
@@ -37,41 +38,6 @@ export type LockerBankConnectionUpdatedPayload = {
   connection_status_changed_at: string | null;
   last_heartbeat_at: string | null;
 };
-
-/**
- * Host the API base URL resolves to (e.g. `localhost` on iOS, `10.0.2.2` on the
- * Android emulator, or a remote host). Reverb runs on the same machine as the
- * API in every environment, so defaulting the socket host to this keeps it
- * platform-correct without a separate per-platform Reverb config.
- */
-function apiHost(): string {
-  try {
-    return new URL(getApiBaseUrl()).hostname;
-  } catch {
-    return 'localhost';
-  }
-}
-
-/**
- * Reverb speaks the Pusher protocol, so the app connects with pusher-js
- * pointed at the Reverb host/port. The host defaults to the API host (so the
- * Android emulator's `10.0.2.2` is handled automatically); the port defaults to
- * the local dev stack (Reverb published on :48080). Production overrides via
- * EXPO_PUBLIC_REVERB_*.
- */
-function reverbConfig() {
-  const scheme = process.env.EXPO_PUBLIC_REVERB_SCHEME ?? 'http';
-  const forceTLS = scheme === 'https';
-  const port = Number(process.env.EXPO_PUBLIC_REVERB_PORT ?? '48080');
-
-  return {
-    key: process.env.EXPO_PUBLIC_REVERB_KEY ?? 'open-locker-key',
-    wsHost: process.env.EXPO_PUBLIC_REVERB_HOST ?? apiHost(),
-    wsPort: port,
-    wssPort: port,
-    forceTLS,
-  };
-}
 
 /**
  * The broadcasting auth endpoint lives at the app root (not under `/api`),
