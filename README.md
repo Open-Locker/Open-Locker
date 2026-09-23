@@ -71,6 +71,8 @@ We also welcome organizations interested in sponsoring or adopting open digital
 infrastructure for community resource sharing. Contact the project through
 Discord or open a GitHub issue.
 
+Please check out the [Code of Conduct](CODE_OF_CONDUCT.md) to see how to properly interact with our community.
+
 ## License
 
 Open-Locker is available under the [AGPL v3](LICENSE.md).
