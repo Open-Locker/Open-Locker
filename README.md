@@ -73,4 +73,4 @@ Discord or open a GitHub issue.
 
 ## License
 
-Open-Locker is available under the [GPL v3](LICENSE).
+Open-Locker is available under the [AGPL v3](LICENSE.md).
