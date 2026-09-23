@@ -15,6 +15,16 @@ class EditLockerBank extends EditRecord
 
     protected static string $resource = LockerBankResource::class;
 
+    public static function getNavigationLabel(): string
+    {
+        return __('Settings');
+    }
+
+    public function getTitle(): string
+    {
+        return __('Settings');
+    }
+
     protected function getHeaderActions(): array
     {
         return [

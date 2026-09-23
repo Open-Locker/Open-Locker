@@ -13,6 +13,7 @@ use App\Filament\Resources\LockerBankResource\RelationManagers;
 use App\Models\LockerBank;
 use App\Models\User;
 use App\Services\LockerProvisioningService;
+use App\Services\LockerService;
 use Filament\Actions\Action;
 use Filament\Actions\EditAction;
 use Filament\Facades\Filament;
@@ -21,7 +22,10 @@ use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Notifications\Notification;
+use Filament\Pages\Enums\SubNavigationPosition;
+use Filament\Resources\Pages\Page;
 use Filament\Resources\Resource;
+use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
@@ -34,6 +38,8 @@ class LockerBankResource extends Resource
     protected static \BackedEnum|string|null $navigationIcon = 'heroicon-o-squares-2x2';
 
     protected static ?int $navigationSort = 10;
+
+    protected static ?SubNavigationPosition $subNavigationPosition = SubNavigationPosition::Top;
 
     public static function getNavigationGroup(): ?string
     {
@@ -63,70 +69,115 @@ class LockerBankResource extends Resource
 
     public static function form(Schema $form): Schema
     {
+        return self::lockerSettingsForm($form);
+    }
+
+    public static function lockerSettingsForm(Schema $form): Schema
+    {
         return $form
             ->schema([
-
-                TextInput::make('name')
-                    ->label(__('Name'))
-                    ->required()
-                    ->maxLength(255),
-                Textarea::make('location_description')
-                    ->label(__('Location description'))
-                    ->maxLength(65535)
-                    ->columnSpanFull(),
-                Select::make('adapter_type')
-                    ->label(__('Hardware adapter'))
-                    ->options([
-                        LockerAdapterType::WaveshareModbus->value => LockerAdapterType::WaveshareModbus->label(),
-                        LockerAdapterType::Rs485LockBoard->value => LockerAdapterType::Rs485LockBoard->label(),
-                    ])
-                    ->default(LockerAdapterType::WaveshareModbus->value)
-                    ->required()
-                    ->helperText(__('Selects the board protocol and relay pulse implementation used by the locker client.')),
-                Select::make('feedback_type')
-                    ->label(__('Lock feedback polarity'))
-                    ->options([
-                        LockerFeedbackType::DoorClosing->value => LockerFeedbackType::DoorClosing->label(),
-                        LockerFeedbackType::DoorOpening->value => LockerFeedbackType::DoorOpening->label(),
-                    ])
-                    ->default(LockerFeedbackType::DoorClosing->value)
-                    ->required()
-                    ->helperText(__('Defines whether an active feedback input represents a closing or opening door.')),
-                TextInput::make('heartbeat_interval_seconds')
-                    ->label(__('Heartbeat interval (seconds)'))
-                    ->numeric()
-                    ->minValue(1)
-                    ->default(10)
-                    ->helperText(__('Sent to the client via apply_config.')),
-                TextInput::make('heartbeat_timeout_seconds')
-                    ->label(__('Heartbeat timeout (seconds)'))
-                    ->numeric()
-                    ->minValue(1)
-                    ->default(30)
-                    ->helperText(__('Backend marks the locker offline when no heartbeat is received within this timeout.')),
-                Placeholder::make('provisioning_status')
-                    ->label(__('Provisioning token status'))
-                    ->content(fn (?LockerBank $record): string => self::provisioningStatus($record)),
-                Placeholder::make('provisioned_at')
-                    ->label(__('Provisioned at'))
-                    ->content(fn (?LockerBank $record): string => $record?->provisioned_at?->toDateTimeString() ?? '—'),
-                Placeholder::make('config_status')
-                    ->label(__('Config status'))
-                    ->content(function (?LockerBank $record): string {
-                        if (! $record) {
-                            return '—';
-                        }
-
-                        if ($record->isConfigDirty()) {
-                            return __('Dirty (not confirmed by client yet)');
-                        }
-
-                        return __('Clean (confirmed by client)');
-                    }),
-                Placeholder::make('last_config_ack_at')
-                    ->label(__('Last config confirmation'))
-                    ->content(fn (?LockerBank $record): string => $record?->last_config_ack_at?->toDateTimeString() ?? '—'),
+                Section::make(__('Settings'))
+                    ->description(__('These settings stay in the backend.'))
+                    ->schema([
+                        TextInput::make('name')
+                            ->label(__('Name'))
+                            ->required()
+                            ->maxLength(255),
+                        Textarea::make('location_description')
+                            ->label(__('Location description'))
+                            ->maxLength(65535)
+                            ->columnSpanFull(),
+                        TextInput::make('heartbeat_timeout_seconds')
+                            ->label(__('Heartbeat timeout (seconds)'))
+                            ->numeric()
+                            ->minValue(1)
+                            ->default(30)
+                            ->helperText(__('Backend marks the locker offline when no heartbeat is received within this timeout.')),
+                        Placeholder::make('provisioning_status')
+                            ->label(__('Provisioning token status'))
+                            ->content(fn (?LockerBank $record): string => self::provisioningStatus($record)),
+                        Placeholder::make('provisioned_at')
+                            ->label(__('Provisioned at'))
+                            ->content(fn (?LockerBank $record): string => $record?->provisioned_at?->toDateTimeString() ?? '—'),
+                    ]),
             ]);
+    }
+
+    public static function clientConfigForm(Schema $form): Schema
+    {
+        return $form
+            ->schema([
+                Section::make(__('Client config'))
+                    ->description(__('Heartbeat interval, hardware profile, and compartment mapping only take effect after you send them to the client.'))
+                    ->icon('heroicon-o-paper-airplane')
+                    ->schema([
+                        Placeholder::make('send_notice')
+                            ->hiddenLabel()
+                            ->content(function (?LockerBank $record): string {
+                                if (! $record) {
+                                    return '—';
+                                }
+
+                                if ($record->provisioned_at === null) {
+                                    return __('This locker is not provisioned yet, so the config cannot be sent.');
+                                }
+
+                                if ($record->isConfigDirty()) {
+                                    return __('These settings have not been sent to the client yet.');
+                                }
+
+                                return __('The client has confirmed this configuration.');
+                            }),
+                        Select::make('adapter_type')
+                            ->label(__('Hardware adapter'))
+                            ->options([
+                                LockerAdapterType::WaveshareModbus->value => LockerAdapterType::WaveshareModbus->label(),
+                                LockerAdapterType::Rs485LockBoard->value => LockerAdapterType::Rs485LockBoard->label(),
+                            ])
+                            ->default(LockerAdapterType::WaveshareModbus->value)
+                            ->required()
+                            ->helperText(__('Selects the board protocol and relay pulse implementation used by the locker client.')),
+                        Select::make('feedback_type')
+                            ->label(__('Lock feedback polarity'))
+                            ->options([
+                                LockerFeedbackType::DoorClosing->value => LockerFeedbackType::DoorClosing->label(),
+                                LockerFeedbackType::DoorOpening->value => LockerFeedbackType::DoorOpening->label(),
+                            ])
+                            ->default(LockerFeedbackType::DoorClosing->value)
+                            ->required()
+                            ->helperText(__('Defines whether an active feedback input represents a closing or opening door.')),
+                        TextInput::make('heartbeat_interval_seconds')
+                            ->label(__('Heartbeat interval (seconds)'))
+                            ->numeric()
+                            ->minValue(1)
+                            ->default(10)
+                            ->helperText(__('Sent to the client via apply_config.')),
+                        Placeholder::make('config_status')
+                            ->label(__('Config status'))
+                            ->content(function (?LockerBank $record): string {
+                                if (! $record) {
+                                    return '—';
+                                }
+
+                                if ($record->isConfigDirty()) {
+                                    return __('Dirty (not confirmed by client yet)');
+                                }
+
+                                return __('Clean (confirmed by client)');
+                            }),
+                        Placeholder::make('last_config_ack_at')
+                            ->label(__('Last config confirmation'))
+                            ->content(fn (?LockerBank $record): string => $record?->last_config_ack_at?->toDateTimeString() ?? '—'),
+                    ]),
+            ]);
+    }
+
+    public static function getRecordSubNavigation(Page $page): array
+    {
+        return $page->generateNavigationItems([
+            Pages\EditLockerBank::class,
+            Pages\EditLockerBankClientConfig::class,
+        ]);
     }
 
     /**
@@ -177,6 +228,40 @@ class LockerBankResource extends Resource
 
                     Notification::make()
                         ->title(__('Failed to issue provisioning token'))
+                        ->body(__('Please try again. Details are in the server log.'))
+                        ->danger()
+                        ->send();
+                }
+            });
+    }
+
+    public static function sendConfigToClientAction(): Action
+    {
+        return Action::make('sendConfigToClient')
+            ->label(__('Send config to client'))
+            ->icon('heroicon-m-paper-airplane')
+            ->color(fn (LockerBank $record): string => $record->isConfigDirty() ? 'warning' : 'gray')
+            ->requiresConfirmation()
+            ->modalHeading(__('Send config to client'))
+            ->modalDescription(__('Heartbeat interval, hardware profile, and compartment mapping only take effect after you send them to the client.'))
+            ->disabled(fn (LockerBank $record): bool => $record->provisioned_at === null)
+            ->action(function (LockerBank $record): void {
+                try {
+                    app(LockerService::class)->applyConfig($record);
+
+                    Notification::make()
+                        ->title(__('Configuration sent'))
+                        ->body(__('The locker bank will apply the new configuration.'))
+                        ->success()
+                        ->send();
+                } catch (\Throwable $e) {
+                    Log::error('Failed to queue apply_config from Filament.', [
+                        'locker_bank_id' => $record->id,
+                        'error' => $e->getMessage(),
+                    ]);
+
+                    Notification::make()
+                        ->title(__('Failed to send configuration'))
                         ->body(__('Please try again. Details are in the server log.'))
                         ->danger()
                         ->send();
@@ -260,6 +345,7 @@ class LockerBankResource extends Resource
                     ->badge()
                     ->state(fn (LockerBank $record): string => $record->isConfigDirty() ? __('Dirty') : __('Clean'))
                     ->color(fn (string $state): string => $state === __('Dirty') ? 'warning' : 'success')
+                    ->url(fn (LockerBank $record): string => static::getUrl('client-config', ['record' => $record]))
                     ->tooltip(fn (LockerBank $record): string => $record->last_config_ack_at
                         ? __('Last ack: :date', ['date' => $record->last_config_ack_at->toDateTimeString()])
                         : __('No config ack received yet')),
@@ -315,6 +401,7 @@ class LockerBankResource extends Resource
     {
         return [
             RelationManagers\CompartmentsRelationManager::class,
+            RelationManagers\CompartmentMappingRelationManager::class,
             RelationManagers\OpenRequestsRelationManager::class,
         ];
     }
@@ -325,6 +412,7 @@ class LockerBankResource extends Resource
             'index' => Pages\ListLockerBanks::route('/'),
             'create' => Pages\CreateLockerBank::route('/create'),
             'edit' => Pages\EditLockerBank::route('/{record}/edit'),
+            'client-config' => Pages\EditLockerBankClientConfig::route('/{record}/client-config'),
         ];
     }
 }

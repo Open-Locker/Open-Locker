@@ -5,19 +5,26 @@ declare(strict_types=1);
 namespace App\Filament\Resources\LockerBankResource\RelationManagers;
 
 use App\Enums\CompartmentOpenRequestStatus;
+use App\Filament\Resources\LockerBankResource\Pages\EditLockerBank;
 use App\Models\CompartmentOpenRequest;
 use Filament\Resources\RelationManagers\RelationManager;
 use Filament\Schemas\Schema;
 use Filament\Tables;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Model;
 
 class OpenRequestsRelationManager extends RelationManager
 {
     protected static string $relationship = 'openRequests';
 
-    public static function getTitle(\Illuminate\Database\Eloquent\Model $ownerRecord, string $pageClass): string
+    public static function getTitle(Model $ownerRecord, string $pageClass): string
     {
         return __('Open command history');
+    }
+
+    public static function canViewForRecord(Model $ownerRecord, string $pageClass): bool
+    {
+        return $pageClass === EditLockerBank::class;
     }
 
     public function form(Schema $form): Schema
