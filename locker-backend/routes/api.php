@@ -5,6 +5,7 @@ use App\Http\Controllers\AuthController;
 use App\Http\Controllers\CompartmentController;
 use App\Http\Controllers\LockerBankStatusController;
 use App\Http\Controllers\Mqtt\MosquittoAuthController;
+use App\Http\Controllers\OrganizationController;
 use App\Http\Controllers\TermsController;
 use App\Http\Middleware\VerifyMosqHttpAuth;
 use Illuminate\Support\Facades\Route;
@@ -21,14 +22,25 @@ Route::controller(AuthController::class)->group(function () {
 
 });
 
+// What the app's switcher displays.
+//
+// Deliberately outside the organization middleware as well as the terms gate.
+// The switcher is reached precisely when the user belongs to several and has
+// chosen none — the state that middleware refuses — so resolving an
+// organization first would mean the only screen that can end the refusal is
+// the one screen the refusal blocks.
 Route::middleware('auth:sanctum')->group(function () {
+    Route::get('organizations', [OrganizationController::class, 'index'])->name('organizations.index');
+});
+
+Route::middleware(['auth:sanctum', 'organization'])->group(function () {
     Route::controller(TermsController::class)->prefix('/terms')->group(function () {
         Route::get('current', 'current')->name('terms.current');
         Route::post('accept', 'accept')->name('terms.accept');
     });
 });
 
-Route::middleware(['auth:sanctum', 'terms.accepted'])->group(function () {
+Route::middleware(['auth:sanctum', 'organization', 'terms.accepted'])->group(function () {
 
     Route::get('locker-banks/{lockerBank}/status', LockerBankStatusController::class)
         ->name('locker-banks.status');

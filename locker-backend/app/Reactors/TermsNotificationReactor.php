@@ -10,7 +10,9 @@ use App\Models\User;
 use App\Notifications\Terms\TermsVersionPublishedNotification;
 use App\StorableEvents\TermsVersionActivated;
 use App\StorableEvents\TermsVersionPublished;
+use App\Support\EventSourcing\OrganizationStamp;
 use Illuminate\Contracts\Queue\ShouldQueue;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Notification;
 use Spatie\EventSourcing\EventHandlers\Reactors\Reactor;
 
@@ -20,11 +22,15 @@ class TermsNotificationReactor extends Reactor implements ShouldQueue
 
     public function onTermsVersionPublished(TermsVersionPublished $event): void
     {
-        $document = TermsDocument::query()->find($event->documentId);
+        // Queued, so there is no request to read an organization from: it comes
+        // from the event, which carries where it happened.
+        $organizationId = OrganizationStamp::from($event);
+
+        $document = TermsDocument::withoutGlobalScope('organization')->find($event->documentId);
         $documentName = $document !== null ? $document->name : 'Terms';
 
-        User::query()
-            ->select(['id', 'email'])
+        $this->membersOf($organizationId)
+            ->select(['users.id', 'users.email'])
             ->chunkById(250, function ($users) use ($documentName, $event): void {
                 Notification::send(
                     $users,
@@ -45,8 +51,8 @@ class TermsNotificationReactor extends Reactor implements ShouldQueue
      */
     public function onTermsVersionActivated(TermsVersionActivated $event): void
     {
-        User::query()
-            ->select(['id'])
+        $this->membersOf(OrganizationStamp::from($event))
+            ->select(['users.id'])
             ->chunkById(250, function ($users) use ($event): void {
                 // One broadcast per chunk rather than per user: the event maps its
                 // recipients to a channel each, so a chunk is a single dispatch.
@@ -55,5 +61,20 @@ class TermsNotificationReactor extends Reactor implements ShouldQueue
                     version: $event->version,
                 ));
             });
+    }
+
+    /**
+     * Terms belong to one operator, so only that operator's people are told
+     * about them. Notifying everyone would announce one organization's legal
+     * changes to another's users.
+     *
+     * @return \Illuminate\Database\Eloquent\Builder<User>
+     */
+    private function membersOf(?string $organizationId): Builder
+    {
+        return User::query()->whereHas(
+            'organizations',
+            fn (Builder $query) => $query->whereKey($organizationId),
+        );
     }
 }

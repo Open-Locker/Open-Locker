@@ -3,6 +3,7 @@ import { configureStore } from '@reduxjs/toolkit';
 import { authReducer, setCredentials } from '@/src/store/authSlice';
 import { clearPersistedAuth } from '@/src/store/authStorage';
 import { baseApi } from '@/src/store/baseApi';
+import { organizationReducer, setActiveOrganization } from '@/src/store/organizationSlice';
 
 jest.mock('@/src/store/authStorage', () => ({
   clearPersistedAuth: jest.fn(() => Promise.resolve()),
@@ -20,6 +21,9 @@ function createTestStore() {
   return configureStore({
     reducer: {
       auth: authReducer,
+      // The base query reads the active organization the same way it reads the
+      // token, so the slice has to exist for prepareHeaders to run at all.
+      organization: organizationReducer,
       [baseApi.reducerPath]: baseApi.reducer,
     },
     middleware: (getDefaultMiddleware) => getDefaultMiddleware().concat(baseApi.middleware),
@@ -29,6 +33,24 @@ function createTestStore() {
     // settle within each test instead.
     enhancers: (getDefaultEnhancers) => getDefaultEnhancers({ autoBatch: { type: 'tick' } }),
   });
+}
+
+function mockFetchWithBody(status: number, body: unknown): jest.Mock {
+  const mock = jest.fn(
+    () =>
+      new Promise<Response>((resolve) => {
+        setTimeout(() => {
+          resolve(
+            new Response(JSON.stringify(body), {
+              status,
+              headers: { 'Content-Type': 'application/json' },
+            }),
+          );
+        }, 0);
+      }),
+  );
+  globalThis.fetch = mock as unknown as typeof fetch;
+  return mock;
 }
 
 function mockFetchWithStatus(status: number): jest.Mock {
@@ -110,5 +132,58 @@ describe('baseQuery 401 session-expiry handling', () => {
     expect(clearPersistedAuth).not.toHaveBeenCalled();
     expect(store.getState().auth.token).toBe('valid-token');
     expect(store.getState().auth.sessionExpired).toBe(false);
+  });
+});
+
+describe('baseQuery organization handling', () => {
+  let store: ReturnType<typeof createTestStore>;
+
+  async function dispatchProbe(probeId: string) {
+    const request = store.dispatch(
+      testApi.endpoints.sessionProbe.initiate(probeId, { forceRefetch: true }),
+    );
+    await request;
+    request.unsubscribe();
+  }
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    store = createTestStore();
+  });
+
+  afterEach(() => {
+    store.dispatch(baseApi.util.resetApiState());
+  });
+
+  it('sends no organization header when none is chosen', async () => {
+    // The ordinary case. Every build already in the field sends no header, and
+    // the server resolves a single membership itself.
+    const fetchMock = mockFetchWithStatus(200);
+
+    await dispatchProbe('no-organization');
+
+    const [request] = fetchMock.mock.calls[0] as [Request];
+    expect(request.headers.get('x-organization')).toBeNull();
+  });
+
+  it('sends the chosen organization on every request', async () => {
+    const fetchMock = mockFetchWithStatus(200);
+    store.dispatch(setActiveOrganization('org-42'));
+
+    await dispatchProbe('with-organization');
+
+    const [request] = fetchMock.mock.calls[0] as [Request];
+    expect(request.headers.get('x-organization')).toBe('org-42');
+  });
+
+  it('drops a stored organization the user may not act in', async () => {
+    // Choosing again cannot fix a stored value, so it is cleared rather than
+    // re-offered against the same bad id.
+    store.dispatch(setActiveOrganization('org-gone'));
+    mockFetchWithBody(403, { code: 'organization_forbidden' });
+
+    await dispatchProbe('forbidden');
+
+    expect(store.getState().organization.activeOrganizationId).toBeNull();
   });
 });

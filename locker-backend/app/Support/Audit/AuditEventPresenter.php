@@ -58,6 +58,9 @@ class AuditEventPresenter
         'LockerConfigAcknowledged' => 'devices',
         'LockerConfigAckFailed' => 'devices',
 
+        // Platform administration (visible to the operator being entered)
+        'PlatformAdminEnteredOrganization' => 'admin',
+
         // Admin (users, groups, roles, permissions)
         'GroupCreated' => 'admin',
         'GroupArchived' => 'admin',
@@ -216,6 +219,9 @@ class AuditEventPresenter
                 'compartment' => $this->compartment($p['compartmentUuid'] ?? null),
                 'actor' => $this->user($p['actorUserId'] ?? null),
                 'type' => $p['authorizationType'] ?? '-',
+            ]),
+            'PlatformAdminEnteredOrganization' => __('Platform administrator :actor entered this organization', [
+                'actor' => $this->user($p['actorUserId'] ?? null),
             ]),
             'CompartmentOpenDenied' => __('Opening of compartment :compartment denied for :actor (:reason)', [
                 'compartment' => $this->compartment($p['compartmentUuid'] ?? null),

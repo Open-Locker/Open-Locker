@@ -5,7 +5,10 @@ namespace Database\Seeders;
 use App\Models\Compartment;
 use App\Models\CompartmentAccess;
 use App\Models\LockerBank;
+use App\Models\Organization;
 use App\Models\User;
+use App\Support\Organizations\DefaultOrganization;
+use App\Support\Organizations\OrganizationContext;
 use Illuminate\Database\Seeder;
 
 class DatabaseSeeder extends Seeder
@@ -15,6 +18,18 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
+        // Seeding happens inside an organization like everything else. A
+        // console command has no session to read one from, and locker banks are
+        // scoped fail-closed, so without this the documented
+        // `migrate --seed` setup fails on a not-null organization.
+        $organization = Organization::query()->firstOrCreate(
+            ['slug' => DefaultOrganization::SLUG],
+            ['name' => 'Default Organization'],
+        );
+
+        DefaultOrganization::forget();
+        app(OrganizationContext::class)->set($organization);
+
         // User::factory(10)->create();
 
         $admin = User::factory()->create([

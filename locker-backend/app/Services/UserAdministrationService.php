@@ -9,6 +9,7 @@ use App\Enums\Permission;
 use App\Enums\Role;
 use App\Exceptions\LastAdminException;
 use App\Models\User;
+use App\Support\Organizations\OrganizationContext;
 use Illuminate\Auth\Access\AuthorizationException;
 
 class UserAdministrationService
@@ -40,6 +41,7 @@ class UserAdministrationService
     public function changeRole(User $actor, User $target, Role $role): bool
     {
         $this->ensureCanManageRoles($actor);
+        $this->ensureCanGrantPlatformAdmin($actor, $role);
 
         $selected = $role === Role::User ? [] : [$role->value];
 
@@ -52,13 +54,13 @@ class UserAdministrationService
 
             foreach (array_diff($selected, $current) as $roleName) {
                 UserRoleAggregate::retrieve(UserRoleAggregate::aggregateUuidFor($target->id))
-                    ->grantRole($target->id, $roleName, $actor->id, now())
+                    ->grantRole($target->id, $roleName, $actor->id, now(), app(OrganizationContext::class)->currentId())
                     ->persist();
             }
 
             foreach (array_diff($current, $selected) as $roleName) {
                 UserRoleAggregate::retrieve(UserRoleAggregate::aggregateUuidFor($target->id))
-                    ->revokeRole($target->id, $roleName, $actor->id, now())
+                    ->revokeRole($target->id, $roleName, $actor->id, now(), app(OrganizationContext::class)->currentId())
                     ->persist();
             }
         });
@@ -141,8 +143,26 @@ class UserAdministrationService
     }
 
     /**
+     * platform_admin administers the installation, not an organization, so
+     * granting it is not part of managing your own users. Without this an
+     * organization admin — who holds roles.manage by definition — could mint
+     * someone with full read and write inside every other operator, and the
+     * entry recording from ADR-0061 would only show it after the fact.
+     *
+     * Enforced in the service rather than only in the form: the panel is not the
+     * only caller.
+     *
      * @throws AuthorizationException
      */
+    private function ensureCanGrantPlatformAdmin(User $actor, Role $role): void
+    {
+        throw_unless(
+            $role !== Role::PlatformAdmin || $actor->isPlatformAdmin(),
+            AuthorizationException::class,
+            'Only a platform administrator may grant platform administration.'
+        );
+    }
+
     public function ensureCanManageRoles(User $actor): void
     {
         throw_unless(

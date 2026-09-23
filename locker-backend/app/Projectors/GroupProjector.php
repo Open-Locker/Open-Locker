@@ -39,6 +39,12 @@ class GroupProjector extends Projector
         DB::table('group_user')->updateOrInsert(
             ['group_id' => $event->groupUuid, 'user_id' => $event->userId],
             [
+                // Taken from the group rather than from context: a projector
+                // rebuilding history has no request to read, and the row must
+                // agree with its group or the composite key refuses it.
+                'organization_id' => DB::table('groups')
+                    ->where('id', $event->groupUuid)
+                    ->value('organization_id'),
                 'added_at' => Date::parse($event->addedAt),
                 'added_by_user_id' => $event->actorUserId,
                 'expires_at' => $expiresAt,

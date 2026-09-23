@@ -127,7 +127,13 @@ class MqttReactor extends Reactor implements ShouldQueue
 
     private function lockCurrentGeneration(LockerWasProvisioned $event): bool
     {
-        $lockerBank = LockerBank::query()
+        // Unscoped: reactors run queued, with no request behind them, so
+        // nothing has established an organization. The uuid comes from the
+        // event this handler is processing rather than from a user, and a bank
+        // uuid is globally unique — so there is nothing here for a scope to
+        // protect. Scoped, every provisioning reply is silently dropped as a
+        // stale event.
+        $lockerBank = LockerBank::withoutGlobalScope('organization')
             ->whereKey($event->lockerBankUuid)
             ->lockForUpdate()
             ->first();

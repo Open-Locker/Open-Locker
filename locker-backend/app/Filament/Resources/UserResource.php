@@ -7,8 +7,10 @@ use App\Enums\Role;
 use App\Filament\Resources\UserResource\Pages;
 use App\Filament\Resources\UserResource\RelationManagers\CompartmentAccessesRelationManager;
 use App\Filament\Resources\UserResource\RelationManagers\GroupMembershipsRelationManager;
+use App\Filament\Resources\UserResource\RelationManagers\OrganizationsRelationManager;
 use App\Models\User;
 use App\Services\UserAdministrationService;
+use App\Support\Organizations\OrganizationContext;
 use Filament\Forms;
 use Filament\Infolists\Components\TextEntry;
 use Filament\Notifications\Notification;
@@ -16,6 +18,7 @@ use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
 use Filament\Tables;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Auth;
@@ -23,6 +26,12 @@ use Illuminate\Support\Facades\Auth;
 class UserResource extends Resource
 {
     protected static ?string $model = User::class;
+
+    /**
+     * A user is a global identity with memberships, not a row an organization owns.
+     * Which users are visible is decided by membership, not by Filament's scope.
+     */
+    protected static bool $isScopedToTenant = false;
 
     protected static \BackedEnum|string|null $navigationIcon = 'heroicon-o-rectangle-stack';
 
@@ -94,6 +103,15 @@ class UserResource extends Resource
                     ->label(__('Email'))
                     ->email()
                     ->required()
+                    // Checked against every user, not just this organization's:
+                    // email is globally unique, so without this the collision
+                    // surfaced as a database error. The person may well exist in
+                    // another operator, where this admin cannot see them — hence
+                    // a message that says what to do rather than just "taken".
+                    ->unique(table: User::class, column: 'email', ignoreRecord: true)
+                    ->validationMessages([
+                        'unique' => __('An account with this email already exists. If they belong to another organization, a platform administrator can add them to this one.'),
+                    ])
                     ->disabled(fn (?User $record): bool => $record instanceof User && ! self::canEdit($record)),
                 TextEntry::make('roles')
                     ->label(__('Roles'))
@@ -192,7 +210,7 @@ class UserResource extends Resource
                                 return;
                             }
 
-                            $adminCount = User::adminRoleCount();
+                            $adminCount = User::adminRoleCount(app(OrganizationContext::class)->currentId());
                             $deletedAdmins = $records->filter(fn (Model $record): bool => $record instanceof User && $record->isAdmin())->count();
 
                             if ($adminCount - $deletedAdmins < 1) {
@@ -233,11 +251,31 @@ class UserResource extends Resource
             ]);
     }
 
+    /**
+     * A user is a global identity, so this resource cannot be tenant-scoped the
+     * way an owned table is — but an administrator of one operator must not be
+     * shown another's people. Membership in the organization being acted in is
+     * what decides, including for a platform admin, who sees the organization
+     * they have entered like everyone else.
+     *
+     * @return Builder<\Illuminate\Database\Eloquent\Model>
+     */
+    public static function getEloquentQuery(): Builder
+    {
+        return parent::getEloquentQuery()->whereHas(
+            'organizations',
+            fn (Builder $organizations) => $organizations->whereKey(
+                app(OrganizationContext::class)->currentId(),
+            ),
+        );
+    }
+
     public static function getRelations(): array
     {
         return [
             CompartmentAccessesRelationManager::class,
             GroupMembershipsRelationManager::class,
+            OrganizationsRelationManager::class,
         ];
     }
 

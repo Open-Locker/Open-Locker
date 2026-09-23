@@ -143,7 +143,9 @@ class DoorDetectionReactor extends Reactor implements ShouldQueue
             return;
         }
 
-        $lockerBank = LockerBank::query()->find($event->lockerBankUuid);
+        // Queued, so no organization is in context; the uuid comes from the
+        // event rather than from a request.
+        $lockerBank = LockerBank::withoutGlobalScope('organization')->find($event->lockerBankUuid);
         if (! $lockerBank) {
             Log::warning('Uncommanded open event for unknown locker bank.', [
                 'lockerBankUuid' => $event->lockerBankUuid,
@@ -152,7 +154,10 @@ class DoorDetectionReactor extends Reactor implements ShouldQueue
             return;
         }
 
-        $compartment = Compartment::query()
+        // Same reasoning: reached through a bank already resolved from the
+        // event, so the organization is settled by the bank rather than by a
+        // scope that has nothing to read.
+        $compartment = Compartment::withoutGlobalScope('organization')
             ->where('locker_bank_id', $lockerBank->id)
             ->where('number', $compartmentNumber)
             ->first();

@@ -7,6 +7,7 @@ use App\Enums\Role;
 use App\Filament\Resources\UserResource;
 use App\Models\User;
 use App\Services\UserAdministrationService;
+use App\Support\Organizations\OrganizationContext;
 use Filament\Actions;
 use Filament\Forms\Components\Radio;
 use Filament\Notifications\Notification;
@@ -143,7 +144,7 @@ class EditUser extends EditRecord
                 ->before(function (Actions\DeleteAction $action, User $record) {
                     app(UserAdministrationService::class)->ensureCanManageUser(self::currentUser(), $record);
 
-                    if ($record->isAdmin() && ! User::hasOtherAdmin($record->id)) {
+                    if ($record->isAdmin() && ! User::hasOtherAdmin($record->id, app(OrganizationContext::class)->currentId())) {
                         Notification::make()
                             ->title(__('Cannot delete user'))
                             ->body(__('The last admin cannot be deleted.'))
@@ -194,7 +195,15 @@ class EditUser extends EditRecord
     {
         $options = [];
 
+        $actor = Auth::user();
+        $actorIsPlatformAdmin = $actor instanceof User && $actor->isPlatformAdmin();
+
         foreach (Role::cases() as $role) {
+            // Offering a role the service would refuse only invites the attempt.
+            if ($role === Role::PlatformAdmin && ! $actorIsPlatformAdmin) {
+                continue;
+            }
+
             $options[$role->value] = $role->label();
         }
 

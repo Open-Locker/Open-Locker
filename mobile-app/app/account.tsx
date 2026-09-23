@@ -1,18 +1,21 @@
 import React from 'react';
+import { router } from 'expo-router';
 import { ScrollView, StyleSheet, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { HelperText, Text, useTheme } from 'react-native-paper';
 
 import { baseApi } from '@/src/store/baseApi';
-import { clearPersistedAuth } from '@/src/store/authStorage';
-import { clearCredentials } from '@/src/store/authSlice';
 import {
+  useGetOrganizationsQuery,
   useGetUserQuery,
   usePostLogoutMutation,
   usePutPasswordMutation,
   usePutProfileMutation,
 } from '@/src/store/generatedApi';
+import { clearPersistedAuth } from '@/src/store/authStorage';
+import { clearCredentials } from '@/src/store/authSlice';
+import { clearActiveOrganization } from '@/src/store/organizationSlice';
 import { useAppDispatch } from '@/src/store/hooks';
 import { useUserName } from '@/src/auth/useUserName';
 import { OPEN_LOCKER_DESIGN_TOKENS } from '@/src/theme/tokens';
@@ -20,6 +23,11 @@ import { AppButton, AppTextInput, LanguageToggle } from '@/src/ui';
 import { getApiErrorMessage } from '@/src/store/apiErrorMessage';
 
 export default function AccountScreen() {
+  // Offered only to someone who actually belongs to more than one operator;
+  // everyone else never learns the concept exists.
+  const { data: organizations } = useGetOrganizationsQuery({});
+  const belongsToSeveralOrganizations = ((organizations ?? []) as unknown[]).length > 1;
+
   const { t } = useTranslation();
   const dispatch = useAppDispatch();
   const userName = useUserName();
@@ -50,6 +58,10 @@ export default function AccountScreen() {
     await clearPersistedAuth();
     dispatch(baseApi.util.resetApiState());
     dispatch(clearCredentials());
+    // The chosen organization belongs to the session that chose it. Left
+    // behind, the next person to sign in on this device starts acting in a
+    // stranger's choice instead of being asked.
+    dispatch(clearActiveOrganization());
   }, [dispatch]);
 
   const onLogout = React.useCallback(async () => {
@@ -212,6 +224,16 @@ export default function AccountScreen() {
             {passwordMessage}
           </HelperText>
         </View>
+
+        {belongsToSeveralOrganizations ? (
+          <AppButton
+            mode="outlined"
+            onPress={() => router.push('/select-organization')}
+            style={styles.logoutButton}
+          >
+            {t('organization.switch')}
+          </AppButton>
+        ) : null}
 
         <AppButton mode="contained" onPress={() => void onLogout()} style={styles.logoutButton}>
           {t('account.logout')}

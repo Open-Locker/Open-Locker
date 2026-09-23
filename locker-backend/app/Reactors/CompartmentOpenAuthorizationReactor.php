@@ -17,7 +17,9 @@ class CompartmentOpenAuthorizationReactor extends Reactor implements ShouldQueue
 
     public function onCompartmentOpenAuthorized(CompartmentOpenAuthorized $event): void
     {
-        $compartment = Compartment::query()->find($event->compartmentUuid);
+        // Queued, so no organization is in context; the uuid comes from the
+        // event rather than from a request.
+        $compartment = Compartment::withoutGlobalScope('organization')->find($event->compartmentUuid);
         if (! $compartment) {
             Log::warning('Authorized open request references unknown compartment', [
                 'commandId' => $event->commandId,

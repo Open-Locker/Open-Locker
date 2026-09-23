@@ -8,6 +8,7 @@ use App\Enums\Role;
 use App\Exceptions\LastAdminException;
 use App\Models\User;
 use App\Models\UserRole;
+use App\Support\Organizations\OrganizationContext;
 use Illuminate\Support\Facades\DB;
 use Throwable;
 
@@ -50,7 +51,9 @@ class LastAdminGuard
 
             $result = $mutation();
 
-            if (User::adminRoleCount() < 1) {
+            // The invariant is per operator: an organization must not be left
+            // without an administrator, whatever other organizations still have.
+            if (User::adminRoleCount(app(OrganizationContext::class)->currentId()) < 1) {
                 throw new LastAdminException;
             }
 

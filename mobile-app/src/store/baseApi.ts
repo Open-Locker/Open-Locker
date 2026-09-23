@@ -3,6 +3,8 @@ import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react';
 
 import { getApiBaseUrl } from '@/src/api/baseUrl';
 import { isTermsNotAcceptedError } from './termsGate';
+import { isOrganizationForbiddenError } from './organizationGate';
+import { clearActiveOrganization } from '@/src/store/organizationSlice';
 import { getCurrentAppLanguage } from '@/src/i18n';
 import { markSessionExpired } from '@/src/store/authSlice';
 import { clearPersistedAuth } from '@/src/store/authStorage';
@@ -24,6 +26,15 @@ const rawBaseQuery = fetchBaseQuery({
     const token = state.auth.token;
     if (token) {
       headers.set('authorization', `Bearer ${token}`);
+    }
+
+    // Which organization the app is acting in. One place, like the token, so
+    // no generated endpoint has to know the concept exists. Omitted when the
+    // user has a single membership: the server resolves that itself, which is
+    // what keeps single-organization installations unaware of any of this.
+    const activeOrganizationId = state.organization.activeOrganizationId;
+    if (activeOrganizationId) {
+      headers.set('x-organization', activeOrganizationId);
     }
 
     headers.set('accept', 'application/json');
@@ -68,6 +79,10 @@ const baseQueryWithSessionExpiry: BaseQueryFn<
       try {
         await clearPersistedAuth();
         api.dispatch(markSessionExpired());
+        // The chosen organization belongs to the session that chose it, so an
+        // expiring session forgets it too — otherwise the next person to sign
+        // in on this device starts acting in a stranger's choice.
+        api.dispatch(clearActiveOrganization());
         api.dispatch(baseApi.util.resetApiState());
       } finally {
         sessionExpiryInFlight = false;
@@ -81,6 +96,13 @@ const baseQueryWithSessionExpiry: BaseQueryFn<
   // never appears and every action fails for no visible reason.
   if (result.error?.status === 403 && isTermsNotAcceptedError(result.error.data)) {
     api.dispatch(baseApi.util.invalidateTags(['Auth']));
+  }
+
+  // The stored choice names an organization the user cannot act in — revoked
+  // membership, or a stale value from another account. Choosing again cannot
+  // fix the stored value, so it is cleared before the switcher reopens.
+  if (result.error?.status === 403 && isOrganizationForbiddenError(result.error.data)) {
+    api.dispatch(clearActiveOrganization());
   }
 
   return result;
