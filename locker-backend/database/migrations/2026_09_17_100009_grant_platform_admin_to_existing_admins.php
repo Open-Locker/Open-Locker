@@ -37,17 +37,44 @@ return new class extends Migration
     }
 
     /**
-     * Revokes only what this migration granted, and through the same path.
-     * Platform administrators appointed afterwards keep their role, and their
-     * events stay consistent with the projection.
+     * Rolling this back removes the role from everyone, including anyone
+     * appointed after the migration ran.
+     *
+     * Two reasons it is not "revoke what up() granted". There is nothing to
+     * distinguish those grants from later ones — platform-admin:grant records
+     * an identical event — and revoking through the aggregate appends a
+     * revocation rather than un-recording history, so no version of this can
+     * restore the prior state anyway.
+     *
+     * Removing all of them is the safe reading: platform_admin exists only
+     * because this migration introduced it and means nothing without
+     * multi-organization support, so abandoning the feature should not leave
+     * installation-wide access behind.
      */
     public function down(): void
     {
-        foreach ($this->existingAdminIds() as $userId) {
+        foreach ($this->platformAdminIds() as $userId) {
             UserRoleAggregate::retrieve(UserRoleAggregate::aggregateUuidFor($userId))
                 ->revokeRole($userId, Role::PlatformAdmin->value, null, now(), null)
                 ->persist();
         }
+    }
+
+    /**
+     * @return list<int>
+     */
+    private function platformAdminIds(): array
+    {
+        /** @var list<int> $ids */
+        $ids = DB::table('user_roles')
+            ->where('role', Role::PlatformAdmin->value)
+            ->distinct()
+            ->pluck('user_id')
+            ->map(static fn (mixed $id): int => (int) $id)
+            ->values()
+            ->all();
+
+        return $ids;
     }
 
     /**
