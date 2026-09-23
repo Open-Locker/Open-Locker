@@ -22,11 +22,45 @@ class UserAdministrationService
             return false;
         }
 
+        if (! $this->sharesOnlyThisOrganization($actor, $target)) {
+            return false;
+        }
+
         if ($actor->can(Permission::RolesManage->value)) {
             return true;
         }
 
         return ! $target->isAdmin();
+    }
+
+    /**
+     * Whether the target belongs to no operator other than the one being
+     * administered.
+     *
+     * Managing a user here is identity-level, not membership-level: it changes
+     * their email address, sends a password reset to it, and can delete the
+     * account outright. A person who also belongs to another organization is
+     * that organization's user too, and the last-admin guard only protects the
+     * one being acted in — so an administrator of one operator could otherwise
+     * take over or destroy an account another operator depends on.
+     *
+     * A platform administrator manages the installation and is exempt.
+     */
+    private function sharesOnlyThisOrganization(User $actor, User $target): bool
+    {
+        if ($actor->isPlatformAdmin()) {
+            return true;
+        }
+
+        $currentOrganizationId = app(OrganizationContext::class)->currentId();
+
+        if ($currentOrganizationId === null) {
+            return false;
+        }
+
+        return ! $target->organizations()
+            ->whereKeyNot($currentOrganizationId)
+            ->exists();
     }
 
     /**
@@ -45,22 +79,39 @@ class UserAdministrationService
 
         $selected = $role === Role::User ? [] : [$role->value];
 
-        $changed = $this->lastAdminGuard->attempt(function () use ($actor, $target, $selected): void {
+        $organizationId = app(OrganizationContext::class)->currentId();
+
+        // roleNames() answers for the current organization and deliberately
+        // excludes platform_admin, so a diff built from it alone can never
+        // revoke that role — demoting a platform admin would silently leave
+        // their installation-wide access intact.
+        $revokePlatformAdmin = $role !== Role::PlatformAdmin
+            && $actor->isPlatformAdmin()
+            && $target->isPlatformAdmin();
+
+        $changed = $this->lastAdminGuard->attempt(function () use ($actor, $target, $selected, $organizationId, $revokePlatformAdmin): void {
             // Read the current roles inside the guarded transaction: a concurrent
             // request may have changed them since the form was rendered.
             $target->flushPermissionCache();
             $target->unsetRelation('userRoles');
             $current = $target->roleNames();
 
+            if ($revokePlatformAdmin) {
+                // Recorded with a null organization, the way it was granted.
+                UserRoleAggregate::retrieve(UserRoleAggregate::aggregateUuidFor($target->id))
+                    ->revokeRole($target->id, Role::PlatformAdmin->value, $actor->id, now(), null)
+                    ->persist();
+            }
+
             foreach (array_diff($selected, $current) as $roleName) {
                 UserRoleAggregate::retrieve(UserRoleAggregate::aggregateUuidFor($target->id))
-                    ->grantRole($target->id, $roleName, $actor->id, now(), app(OrganizationContext::class)->currentId())
+                    ->grantRole($target->id, $roleName, $actor->id, now(), $roleName === Role::PlatformAdmin->value ? null : $organizationId)
                     ->persist();
             }
 
             foreach (array_diff($current, $selected) as $roleName) {
                 UserRoleAggregate::retrieve(UserRoleAggregate::aggregateUuidFor($target->id))
-                    ->revokeRole($target->id, $roleName, $actor->id, now(), app(OrganizationContext::class)->currentId())
+                    ->revokeRole($target->id, $roleName, $actor->id, now(), $organizationId)
                     ->persist();
             }
         });

@@ -6,6 +6,7 @@ namespace App\Console\Concerns;
 
 use App\Models\Organization;
 use App\Support\Organizations\OrganizationContext;
+use Illuminate\Support\Str;
 use RuntimeException;
 
 /**
@@ -30,7 +31,10 @@ trait ActsWithinOrganization
 
         $organization = Organization::query()
             ->where('slug', $identifier)
-            ->orWhere('id', $identifier)
+            // Only compared as an id when it could be one: the column is a
+            // uuid, and anything else raises a database error rather than
+            // simply not matching.
+            ->when(Str::isUuid($identifier), fn ($query) => $query->orWhere('id', $identifier))
             ->first();
 
         if (! $organization instanceof Organization) {

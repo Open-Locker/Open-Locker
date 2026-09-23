@@ -18,6 +18,7 @@ class GroupCompartmentAccess extends Model
     use HasFactory;
 
     protected $fillable = [
+        'organization_id',
         'group_id',
         'compartment_id',
         'granted_by_user_id',

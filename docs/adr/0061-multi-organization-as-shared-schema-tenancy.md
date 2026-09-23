@@ -200,8 +200,10 @@ present and the multi-organization UI gated behind an optional mode.
     - Work that is not event-driven takes the organization as an explicit
       argument, captured at dispatch and serialized into the job payload.
     - Console commands take an explicit `--organization` option. A command given
-      none operates on nothing rather than on everything, matching the
-      fail-closed rule for a missing header in decision 14.
+      none operates on nothing rather than on everything. This is its own rule,
+      not the header's: a request comes from a person whose memberships are
+      known, so starting them in one of their own organizations is safe, while a
+      command has no such person behind it and no organization to fall back to.
     - The lookup that *decides* the organization cannot itself be scoped by it.
       Resolving a provisioning token to its bank, binding a compartment from a
       URL, or finding the record an event refers to all happen before — or

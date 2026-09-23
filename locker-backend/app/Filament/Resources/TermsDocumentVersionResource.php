@@ -16,6 +16,7 @@ use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
 use Filament\Tables;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Auth;
 use Throwable;
 
@@ -57,6 +58,18 @@ class TermsDocumentVersionResource extends Resource
     public static function getPluralModelLabel(): string
     {
         return __('legal document versions');
+    }
+
+    /**
+     * A version carries no organization of its own — its document does. Going
+     * through the relation applies the document's scope, so a manager cannot
+     * reach another operator's terms by id.
+     *
+     * @return Builder<\Illuminate\Database\Eloquent\Model>
+     */
+    public static function getEloquentQuery(): Builder
+    {
+        return parent::getEloquentQuery()->whereHas('document');
     }
 
     public static function form(Schema $form): Schema

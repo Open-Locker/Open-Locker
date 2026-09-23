@@ -49,11 +49,20 @@ class LastAdminGuard
         return DB::transaction(function () use ($mutation) {
             $this->acquireLock();
 
+            $organizationId = app(OrganizationContext::class)->currentId();
+
+            // Counted before as well as after: the rule is "this mutation must
+            // not remove the last administrator", not "an administrator must
+            // exist". A newly created organization has none yet, and without
+            // this every guarded mutation there — granting a manager, deleting
+            // a user — would roll back with a false last-admin message.
+            $before = User::adminRoleCount($organizationId);
+
             $result = $mutation();
 
             // The invariant is per operator: an organization must not be left
             // without an administrator, whatever other organizations still have.
-            if (User::adminRoleCount(app(OrganizationContext::class)->currentId()) < 1) {
+            if ($before > 0 && User::adminRoleCount($organizationId) < 1) {
                 throw new LastAdminException;
             }
 

@@ -14,6 +14,7 @@ use App\StorableEvents\LockerConfigApplyRequested;
 use App\StorableEvents\LockerProvisioningFailed;
 use App\StorableEvents\LockerProvisioningReplyFailed;
 use App\StorableEvents\LockerWasProvisioned;
+use App\Support\EventSourcing\OrganizationStamp;
 use App\Support\EventSourcing\StoredEventDispatcher;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Support\Facades\DB;
@@ -113,11 +114,16 @@ class MqttReactor extends Reactor implements ShouldQueue
                 'exception' => $e->getMessage(),
             ]);
 
-            // Record a failure event so we have a durable audit trail
-            $this->storedEventDispatcher->dispatch(new LockerProvisioningReplyFailed(
-                lockerBankUuid: $event->lockerBankUuid,
-                replyToTopic: $event->replyToTopic,
-                reason: $e->getMessage(),
+            // Record a failure event so we have a durable audit trail, in the
+            // organization that owns the bank — this reactor is queued, so
+            // without inheriting it the failure lands in the default
+            // organization's history instead of the operator's.
+            OrganizationStamp::runWithin($event, fn () => $this->storedEventDispatcher->dispatch(
+                new LockerProvisioningReplyFailed(
+                    lockerBankUuid: $event->lockerBankUuid,
+                    replyToTopic: $event->replyToTopic,
+                    reason: $e->getMessage(),
+                )
             ));
 
             // Rethrow to trigger queue retry strategy

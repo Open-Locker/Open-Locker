@@ -39,18 +39,13 @@ return Application::configure(basePath: dirname(__DIR__))
         // Route model binding happens in the `api` group, which runs before
         // route middleware — so a compartment was resolved from the URL before
         // anything had established which organization the request acts in, and
-        // the fail-closed scope matched nothing. Priority puts the organization
-        // after authentication (it needs the user) and before binding.
-        $middleware->priority([
-            \Illuminate\Cookie\Middleware\EncryptCookies::class,
-            \Illuminate\Session\Middleware\StartSession::class,
-            \Illuminate\View\Middleware\ShareErrorsFromSession::class,
-            \Illuminate\Auth\Middleware\Authenticate::class,
-            ResolveOrganization::class,
-            \Illuminate\Routing\Middleware\ThrottleRequests::class,
+        // the fail-closed scope matched nothing. Inserted into the framework's
+        // own list rather than replacing it, so entries like
+        // ThrottleRequestsWithRedis keep their ordering.
+        $middleware->prependToPriorityList(
             \Illuminate\Routing\Middleware\SubstituteBindings::class,
-            \Illuminate\Auth\Middleware\Authorize::class,
-        ]);
+            ResolveOrganization::class,
+        );
 
         $middleware->alias([
             'organization' => ResolveOrganization::class,

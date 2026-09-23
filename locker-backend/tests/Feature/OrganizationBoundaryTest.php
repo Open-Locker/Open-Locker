@@ -23,6 +23,7 @@ use App\Support\Organizations\OrganizationContext;
 use Filament\Facades\Filament;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Livewire\Livewire;
 use Tests\TestCase;
 
 /**
@@ -396,16 +397,80 @@ class OrganizationBoundaryTest extends TestCase
             $beta->id => ['joined_at' => now()],
         ]);
 
-        // The attach and detach guards were already right; this is the listing.
-        // An admin of one operator reading the other's name off a shared
-        // employee's record is still a combined view of two operators.
-        $visible = $this->within($alpha, fn (): array => $shared->organizations()
-            ->whereKey($alpha->id)
-            ->pluck('name')
-            ->all());
+        $admin = User::factory()->create();
+        UserRole::create([
+            'user_id' => $admin->id,
+            'organization_id' => $alpha->id,
+            'role' => Role::Admin->value,
+            'granted_at' => now(),
+        ]);
 
-        $this->assertSame(['Alpha Operator'], $visible);
-        $this->assertNotContains('Beta Operator', $visible);
+        // Rendered rather than queried: filtering the query inside the test
+        // would prove only that the test filters, and the relation manager's
+        // own scoping would never run.
+        $this->within($alpha, function () use ($admin, $shared): void {
+            Livewire::actingAs($admin)
+                ->test(OrganizationsRelationManager::class, [
+                    'ownerRecord' => $shared,
+                    'pageClass' => EditUser::class,
+                ])
+                ->assertSee('Alpha Operator')
+                ->assertDontSee('Beta Operator');
+        });
+    }
+
+    public function test_an_admin_cannot_act_on_a_person_who_also_belongs_elsewhere(): void
+    {
+        $alpha = Organization::create(['name' => 'Alpha', 'slug' => 'alpha']);
+        $beta = Organization::create(['name' => 'Beta', 'slug' => 'beta']);
+
+        $alphaAdmin = User::factory()->create();
+        UserRole::create([
+            'user_id' => $alphaAdmin->id,
+            'organization_id' => $alpha->id,
+            'role' => Role::Admin->value,
+            'granted_at' => now(),
+        ]);
+
+        $shared = User::factory()->create();
+        $shared->organizations()->detach();
+        $shared->organizations()->attach([
+            $alpha->id => ['joined_at' => now()],
+            $beta->id => ['joined_at' => now()],
+        ]);
+
+        // Managing a user here is identity-level: it changes their email, sends
+        // a password reset to the new address, and can delete the account. The
+        // person is Beta's user too, and Beta's own last-admin guard cannot see
+        // an action taken from Alpha.
+        $this->within($alpha, function () use ($alphaAdmin, $shared): void {
+            $this->assertFalse(
+                app(UserAdministrationService::class)->canManageUser($alphaAdmin, $shared),
+            );
+        });
+    }
+
+    public function test_an_admin_may_still_act_on_a_person_of_their_own_organization_only(): void
+    {
+        $alpha = Organization::create(['name' => 'Alpha', 'slug' => 'alpha']);
+
+        $alphaAdmin = User::factory()->create();
+        UserRole::create([
+            'user_id' => $alphaAdmin->id,
+            'organization_id' => $alpha->id,
+            'role' => Role::Admin->value,
+            'granted_at' => now(),
+        ]);
+
+        $ours = User::factory()->create();
+        $ours->organizations()->detach();
+        $ours->organizations()->attach($alpha->id, ['joined_at' => now()]);
+
+        $this->within($alpha, function () use ($alphaAdmin, $ours): void {
+            $this->assertTrue(
+                app(UserAdministrationService::class)->canManageUser($alphaAdmin, $ours),
+            );
+        });
     }
 
     private function within(Organization $organization, callable $callback): mixed

@@ -13,6 +13,7 @@ use App\StorableEvents\GroupCompartmentAccessRevoked;
 use App\StorableEvents\GroupCreated;
 use App\StorableEvents\UserAddedToGroup;
 use App\StorableEvents\UserRemovedFromGroup;
+use App\Support\EventSourcing\OrganizationStamp;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\DB;
@@ -22,9 +23,12 @@ class GroupProjector extends Projector
 {
     public function onGroupCreated(GroupCreated $event): void
     {
-        Group::query()->updateOrCreate(
+        // Taken from the event, not from context: a rebuild runs with no
+        // request, and the organization columns are binding.
+        Group::withoutGlobalScope('organization')->updateOrCreate(
             ['id' => $event->groupUuid],
             [
+                'organization_id' => OrganizationStamp::from($event),
                 'name' => $event->name,
                 'description' => $event->description,
                 'created_by_user_id' => $event->actorUserId,
@@ -74,12 +78,17 @@ class GroupProjector extends Projector
 
     public function onGroupCompartmentAccessGranted(GroupCompartmentAccessGranted $event): void
     {
-        GroupCompartmentAccess::query()->updateOrCreate(
+        GroupCompartmentAccess::withoutGlobalScope('organization')->updateOrCreate(
             [
                 'group_id' => $event->groupUuid,
                 'compartment_id' => $event->compartmentUuid,
             ],
             [
+                // From the group rather than from context, so the row agrees
+                // with its parent and the composite key accepts it.
+                'organization_id' => DB::table('groups')
+                    ->where('id', $event->groupUuid)
+                    ->value('organization_id'),
                 'granted_at' => Date::parse($event->grantedAt),
                 'granted_by_user_id' => $event->actorUserId,
                 'expires_at' => $event->expiresAt ? Date::parse($event->expiresAt) : null,
@@ -94,7 +103,7 @@ class GroupProjector extends Projector
 
     public function onGroupCompartmentAccessRevoked(GroupCompartmentAccessRevoked $event): void
     {
-        GroupCompartmentAccess::query()
+        GroupCompartmentAccess::withoutGlobalScope('organization')
             ->where('group_id', $event->groupUuid)
             ->where('compartment_id', $event->compartmentUuid)
             ->update([
@@ -107,7 +116,7 @@ class GroupProjector extends Projector
 
     public function onGroupArchived(GroupArchived $event): void
     {
-        Group::query()
+        Group::withoutGlobalScope('organization')
             ->where('id', $event->groupUuid)
             ->update([
                 'archived_at' => Date::parse($event->archivedAt),

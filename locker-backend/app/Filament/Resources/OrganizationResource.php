@@ -7,6 +7,7 @@ namespace App\Filament\Resources;
 use App\Filament\Resources\OrganizationResource\Pages;
 use App\Models\Organization;
 use App\Models\User;
+use App\Support\Organizations\DefaultOrganization;
 use Filament\Actions\EditAction;
 use Filament\Forms\Components\TextInput;
 use Filament\Resources\Resource;
@@ -97,13 +98,26 @@ class OrganizationResource extends Resource
                 ->label(__('Name'))
                 ->required()
                 ->live(onBlur: true)
-                ->afterStateUpdated(function (?string $state, callable $set): void {
+                // Only while creating. On an edit this would regenerate the
+                // slug from the new name and save it, breaking every panel URL
+                // for that organization — and for the default one it would move
+                // the slug off `default`, which is how unstamped historical
+                // events are found.
+                ->afterStateUpdated(function (?string $state, callable $set, string $operation): void {
+                    if ($operation !== 'create') {
+                        return;
+                    }
+
                     $set('slug', Str::slug((string) $state));
                 }),
             TextInput::make('slug')
                 ->label(__('Slug'))
                 ->required()
                 ->unique(ignoreRecord: true)
+                // The default organization's slug is looked up by name to
+                // resolve history that predates organizations; renaming it
+                // would orphan every unstamped event.
+                ->disabled(fn (?Organization $record): bool => $record?->slug === DefaultOrganization::SLUG)
                 // The slug is in every panel URL for this organization, so
                 // changing it breaks links people have already saved.
                 ->helperText(__('Used in panel URLs. Changing it invalidates existing links.')),

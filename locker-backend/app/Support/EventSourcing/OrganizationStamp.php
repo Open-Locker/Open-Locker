@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Support\EventSourcing;
 
+use App\Models\Organization;
 use App\Support\Organizations\DefaultOrganization;
 use App\Support\Organizations\OrganizationContext;
 use Spatie\EventSourcing\StoredEvents\ShouldBeStored;
@@ -41,6 +42,26 @@ final class OrganizationStamp
         }
 
         $event->setMetaData($metaData + [self::KEY => $organizationId]);
+    }
+
+    /**
+     * Handle an event inside the organization it was recorded in.
+     *
+     * Queued handlers have no request behind them, so anything they record
+     * would otherwise store unstamped and read back as the default
+     * organization — which means one operator's jammed door alerting another
+     * operator's managers. The causing event already knows where it happened;
+     * derived events inherit it from there rather than from ambient state.
+     */
+    public static function runWithin(ShouldBeStored $event, callable $handler): mixed
+    {
+        $organizationId = self::from($event);
+
+        $organization = $organizationId === null
+            ? null
+            : Organization::query()->find($organizationId);
+
+        return app(OrganizationContext::class)->runWithin($organization, $handler);
     }
 
     public static function from(ShouldBeStored $event): ?string

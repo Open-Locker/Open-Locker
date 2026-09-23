@@ -7,6 +7,7 @@ namespace App\Reactors;
 use App\Models\Compartment;
 use App\Services\LockerService;
 use App\StorableEvents\CompartmentOpenAuthorized;
+use App\Support\EventSourcing\OrganizationStamp;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Support\Facades\Log;
 use Spatie\EventSourcing\EventHandlers\Reactors\Reactor;
@@ -30,6 +31,11 @@ class CompartmentOpenAuthorizationReactor extends Reactor implements ShouldQueue
             return;
         }
 
-        app(LockerService::class)->openCompartment($compartment, $event->commandId);
+        // Opening records further events, which belong to the same organization
+        // as the authorization that caused them.
+        OrganizationStamp::runWithin(
+            $event,
+            fn () => app(LockerService::class)->openCompartment($compartment, $event->commandId),
+        );
     }
 }

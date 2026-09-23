@@ -233,9 +233,8 @@ export const resources = {
         switch: 'Organisation wechseln',
         selectTitle: 'Organisation wählen',
         current: 'Aktuell aktiv',
-        selectIntro:
-          'Sie gehören zu mehreren Organisationen. Wählen Sie die, in der Sie arbeiten möchten.',
-        loadFailed: 'Ihre Organisationen konnten nicht geladen werden.',
+        selectIntro: 'Wähle die Organisation, in der du arbeiten möchtest.',
+        loadFailed: 'Deine Organisationen konnten nicht geladen werden.',
       },
       terms: {
         mustAccept: 'Du musst {{documentName}} akzeptieren, bevor du die App nutzt.',

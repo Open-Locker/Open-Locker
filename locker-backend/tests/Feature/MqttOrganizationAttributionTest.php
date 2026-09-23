@@ -5,12 +5,14 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use App\Enums\Role;
+use App\Models\Compartment;
 use App\Models\LockerBank;
 use App\Models\Organization;
 use App\Models\User;
 use App\Models\UserRole;
 use App\Mqtt\Handlers\DeviceEventHandler;
 use App\Services\LockerProvisioningService;
+use App\StorableEvents\CompartmentUncommandedOpenDetected;
 use App\StorableEvents\DeviceEventReceived;
 use App\Support\EventSourcing\OrganizationStamp;
 use App\Support\Organizations\OrganizationContext;
@@ -37,6 +39,47 @@ class MqttOrganizationAttributionTest extends TestCase
         parent::setUp();
 
         Cache::flush();
+    }
+
+    public function test_an_event_derived_from_a_device_event_keeps_its_organization(): void
+    {
+        $beta = Organization::create(['name' => 'Beta Operator', 'slug' => 'beta']);
+
+        $compartment = app(OrganizationContext::class)->runWithin($beta, function (): Compartment {
+            $bank = LockerBank::create(['name' => 'Beta Bank']);
+
+            return Compartment::create([
+                'locker_bank_id' => $bank->id,
+                'number' => 1,
+                'slave_id' => 1,
+                'address' => 0,
+            ]);
+        });
+
+        app(OrganizationContext::class)->set(null);
+
+        app(DeviceEventHandler::class)->handleMessage(
+            "locker/{$compartment->locker_bank_id}/event",
+            (string) json_encode([
+                'message_id' => '55555555-5555-5555-5555-555555555555',
+                'event' => 'compartment_uncommanded_open',
+                'event_id' => '66666666-6666-6666-6666-666666666666',
+                'timestamp' => now()->toIso8601String(),
+                'data' => ['compartment_number' => 1, 'milliseconds_since_last_relay_fire' => 90000],
+            ]),
+        );
+
+        $derived = EloquentStoredEvent::query()
+            ->where('event_class', CompartmentUncommandedOpenDetected::class)
+            ->latest('id')
+            ->first();
+
+        $this->assertNotNull($derived, 'An uncommanded open should record a deviation event.');
+
+        // The deviation reactor picks its recipients from this stamp. Unstamped,
+        // it reads as the default organization — so one operator's jammed door
+        // alerts another operator's managers and never reaches its own.
+        $this->assertSame($beta->id, $derived->meta_data[OrganizationStamp::KEY] ?? null);
     }
 
     public function test_a_device_can_provision_itself_without_an_organization_in_context(): void

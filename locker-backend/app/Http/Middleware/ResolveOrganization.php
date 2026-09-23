@@ -11,6 +11,7 @@ use App\Support\Organizations\PlatformAdminEntryRecorder;
 use Closure;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Str;
 use Symfony\Component\HttpFoundation\Response;
 
 /**
@@ -69,6 +70,12 @@ class ResolveOrganization
 
     private function memberOrganization(User $user, string $organizationId): ?Organization
     {
+        // Compared against a uuid column, so anything else is refused here
+        // rather than reaching the database and raising a syntax error.
+        if (! Str::isUuid($organizationId)) {
+            return null;
+        }
+
         // A header is a statement of intent, never authority: membership is
         // what decides, and a platform admin is trusted to enter any operator.
         if ($user->isPlatformAdmin()) {

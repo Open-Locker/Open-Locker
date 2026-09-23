@@ -115,7 +115,12 @@ class AuditLogResource extends Resource
                     ->searchable(),
                 Tables\Filters\SelectFilter::make('actor')
                     ->label(__('Actor'))
+                    // Rows are confined to this organization; the filter has
+                    // to be too. A user is a global identity that nothing
+                    // scopes, so an unfiltered dropdown names another
+                    // operator's staff.
                     ->options(fn (): array => User::query()
+                        ->inCurrentOrganization()
                         ->orderBy('first_name')
                         ->get()
                         ->mapWithKeys(fn (User $user): array => [$user->id => $user->fullName()])
