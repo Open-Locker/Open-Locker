@@ -346,13 +346,20 @@ costs almost nothing now and buys the option.
    every locker bank and role row to it. Grant `platform_admin` to everyone who
    holds `admin` today, and give them an organization-scoped admin membership in
    the default organization, so nobody loses access on upgrade.
-3. Make the two authorization seams organization-aware; add the global scope and
+3. Grant `platform_admin` to everyone holding `admin` at migration time —
+   whoever administered the installation before organizations existed was
+   installation-wide by definition. Without this there is no supported way to
+   create the first one, and enabling multi-organization support leaves an
+   installation unable to add a second operator. `platform-admin:grant` is the
+   ongoing escape hatch, console-only because reaching the server is the
+   authorization.
+4. Make the two authorization seams organization-aware; add the global scope and
    the database constraints together, never separately.
-4. Add organization context to new domain events; map historical events to the
+5. Add organization context to new domain events; map historical events to the
    default organization on replay.
-5. Scope Filament resources, pickers, broadcasts, notifications and queued side
+6. Scope Filament resources, pickers, broadcasts, notifications and queued side
    effects. Keep the multi-organization UI disabled by default.
-6. Fallback: until step 4 lands, the change is reversible by dropping the columns.
+7. Fallback: until step 5 lands, the change is reversible by dropping the columns.
    Afterwards it is not, because events are immutable.
 
 ## Supersedes / Superseded By

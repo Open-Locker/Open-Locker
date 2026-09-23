@@ -150,8 +150,11 @@ class GroupProjector extends Projector
                 ->pluck('user_id')
                 ->all();
 
-            // Active compartment grants of this group.
-            $compartmentIds = GroupCompartmentAccess::query()
+            // Active compartment grants of this group. Unscoped like every
+            // other read here: a rebuild runs with no request, and a scoped
+            // query would return nothing — silently recomputing the group as
+            // granting no access at all.
+            $compartmentIds = GroupCompartmentAccess::withoutGlobalScope('organization')
                 ->where('group_id', $groupUuid)
                 ->active()
                 ->pluck('compartment_id')

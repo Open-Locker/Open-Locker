@@ -34,6 +34,22 @@ class FirstAdminBootstrapTest extends TestCase
         DefaultOrganization::forget();
     }
 
+    public function test_an_installation_can_be_given_a_platform_administrator(): void
+    {
+        $this->artisan('first-admin:create', ['email' => 'admin@example.test'])->assertSuccessful();
+        $admin = User::query()->where('email', 'admin@example.test')->firstOrFail();
+
+        // Without a way in from outside, multi-organization support is a dead
+        // end: only a platform admin may create organizations or appoint
+        // another platform admin, and the panel offers no way to become the
+        // first one. Reaching the server is the authorization.
+        $this->artisan('platform-admin:grant', ['email' => 'admin@example.test'])
+            ->assertSuccessful();
+
+        $admin->flushPermissionCache();
+        $this->assertTrue($admin->isPlatformAdmin());
+    }
+
     public function test_the_first_administrator_lands_in_the_default_organization(): void
     {
         $this->artisan('first-admin:create', ['email' => 'admin@example.test'])
