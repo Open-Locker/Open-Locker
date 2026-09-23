@@ -45,6 +45,45 @@ test('RS485 actor serializes transactions', async () => {
   assert.deepEqual(driver.unlockCalls, [0, 1]);
 });
 
+test('RS485 opening connects before unlocking in the command operation', async () => {
+  const driver = new ControlledDriver();
+  const operations: string[] = [];
+  driver.connect = async () => {
+    operations.push('connect');
+    driver.open = true;
+  };
+  driver.unlock = async () => {
+    operations.push('unlock');
+  };
+  const bus = new Rs485LockBoardBusActor(driver, () => [1], { delayMs: 0 });
+
+  await bus.flashRelay({ compartmentNumber: 1, slaveId: 1, relayAddress: 0 }, 200);
+
+  assert.deepEqual(operations, ['connect', 'unlock']);
+});
+
+test('RS485 opening fails before unlock when reconnect attempts are exhausted', async () => {
+  const driver = new ControlledDriver();
+  let connectAttempts = 0;
+  driver.connect = async () => {
+    connectAttempts++;
+    throw new HardwareTransportError('adapter unavailable', true);
+  };
+  const bus = new Rs485LockBoardBusActor(driver, () => [1], {
+    maxAttempts: 3,
+    delayMs: 0,
+  });
+
+  await assert.rejects(
+    () => bus.flashRelay({ compartmentNumber: 1, slaveId: 1, relayAddress: 0 }, 200),
+    /hardware bus unavailable/,
+  );
+
+  assert.equal(connectAttempts, 3);
+  assert.deepEqual(driver.unlockCalls, []);
+  assert.equal(bus.getConnectionState(), 'unreachable');
+});
+
 test('RS485 actor queries a board once and slices requested channels', async () => {
   const driver = new ControlledDriver();
   const bus = new Rs485LockBoardBusActor(driver, () => [1]);
