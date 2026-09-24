@@ -26,6 +26,19 @@ export const NO_RESPONSE_AFTER_MS = 45_000;
 /** REST fallback for when realtime events are missed; realtime is the fast path. */
 export const OPEN_STATUS_POLL_MS = 3_000;
 
+/** After the app gave up waiting, a late locker answer can still come in. */
+export const OPEN_STATUS_LATE_POLL_MS = 10_000;
+
+/**
+ * Polls until the backend reports an outcome, not until the app times out: a
+ * late "door opened" or "did not open" must still reach the user when realtime
+ * is down. Returns 0 to stop.
+ */
+export function openStatusPollInterval(state: string | undefined, timedOut: boolean): number {
+  if (state !== undefined && isOpenFinished(toOpenProgress(state))) return 0;
+  return timedOut ? OPEN_STATUS_LATE_POLL_MS : OPEN_STATUS_POLL_MS;
+}
+
 const PROGRESS_BY_STATE: Record<string, OpenProgress> = {
   pending: 'sending',
   requested: 'sending',

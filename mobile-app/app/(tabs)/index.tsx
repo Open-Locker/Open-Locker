@@ -153,6 +153,9 @@ export default function CompartmentsScreen() {
   const [modalError, setModalError] = React.useState<string | null>(null);
   const [modalInfo, setModalInfo] = React.useState<string | null>(null);
   const [openCommandId, setOpenCommandId] = React.useState<string | null>(null);
+  // The open call can resolve after the sheet was closed or another compartment
+  // opened; its answer must not be shown or counted for that other compartment.
+  const sheetCompartmentIdRef = React.useRef<string | null>(null);
   const openProgress = useOpenProgress(openCommandId);
   const isOpenInFlight =
     requestOpenState.isLoading || (openProgress !== null && !isOpenFinished(openProgress));
@@ -186,6 +189,7 @@ export default function CompartmentsScreen() {
     setModalError(null);
     setModalInfo(null);
     setOpenCommandId(null);
+    sheetCompartmentIdRef.current = compartment.id;
     setOpenProblems((tally) => tallyForCompartment(tally, compartment.id));
     setIsEditingNote(false);
     setNoteDraft(compartment.content_note ?? '');
@@ -454,6 +458,7 @@ export default function CompartmentsScreen() {
           setSelectedCompartment(null);
           setIsEditingNote(false);
           setOpenCommandId(null);
+          sheetCompartmentIdRef.current = null;
         }}
         backdropComponent={sheetBackdrop}
         enablePanDownToClose
@@ -606,14 +611,16 @@ export default function CompartmentsScreen() {
             mode="contained"
             onPress={() => {
               if (!selectedCompartment) return;
+              const compartmentId = selectedCompartment.id;
               void (async () => {
                 setModalError(null);
                 setModalInfo(null);
                 setOpenCommandId(null);
                 try {
                   const response: unknown = await requestOpen({
-                    compartment: selectedCompartment.id,
+                    compartment: compartmentId,
                   }).unwrap();
+                  if (sheetCompartmentIdRef.current !== compartmentId) return;
                   const commandId = readCommandId(response);
                   if (commandId) {
                     setOpenCommandId(commandId);
@@ -621,6 +628,7 @@ export default function CompartmentsScreen() {
                     setModalInfo(t('compartments.openRequestSent'));
                   }
                 } catch (e) {
+                  if (sheetCompartmentIdRef.current !== compartmentId) return;
                   setModalError(getApiErrorMessage(e, t));
                 }
               })();

@@ -3,6 +3,9 @@ import {
   isOpenFinished,
   isOpenStateAdvance,
   NO_OPEN_PROBLEMS,
+  OPEN_STATUS_LATE_POLL_MS,
+  OPEN_STATUS_POLL_MS,
+  openStatusPollInterval,
   readCommandId,
   tallyForCompartment,
   tallyOpenOutcome,
@@ -48,6 +51,20 @@ describe('tallyOpenOutcome', () => {
     const afterFirst = tallyOpenOutcome(NO_OPEN_PROBLEMS, 'cmd-1', 'jammed');
 
     expect(tallyOpenOutcome(afterFirst, 'cmd-2', 'opened').count).toBe(0);
+  });
+});
+
+describe('openStatusPollInterval', () => {
+  it('polls quickly while the locker is still working', () => {
+    expect(openStatusPollInterval('sent', false)).toBe(OPEN_STATUS_POLL_MS);
+  });
+
+  it('keeps polling slowly after the app timed out, for a late answer', () => {
+    expect(openStatusPollInterval('acknowledged', true)).toBe(OPEN_STATUS_LATE_POLL_MS);
+  });
+
+  it('stops once the backend reports an outcome', () => {
+    expect(openStatusPollInterval('door_jammed', true)).toBe(0);
   });
 });
 

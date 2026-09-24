@@ -8,10 +8,9 @@ import {
 
 import {
   currentOpenProgress,
-  isOpenFinished,
   isOpenStateAdvance,
   NO_RESPONSE_AFTER_MS,
-  OPEN_STATUS_POLL_MS,
+  openStatusPollInterval,
   type OpenProgress,
 } from './openProgress';
 
@@ -19,11 +18,9 @@ type KnownState = { commandId: string; state: string };
 
 /**
  * Follows one open request until it finishes. Realtime events patch the query
- * cache (see `applyOpenStatus`); polling covers a dropped socket and stops once
- * the request has an outcome or the locker has not answered in time.
- *
- * After the timeout only realtime can still bring a late answer; the backend
- * has no timeout of its own, so there is nothing final to keep polling for.
+ * cache (see `applyOpenStatus`); polling covers a dropped socket and runs, more
+ * slowly after the app's timeout, until the backend reports an outcome or the
+ * sheet stops following the request.
  */
 export function useOpenProgress(commandId: string | null): OpenProgress | null {
   const [timedOutCommandId, setTimedOutCommandId] = useState<string | null>(null);
@@ -52,11 +49,11 @@ export function useOpenProgress(commandId: string | null): OpenProgress | null {
   }, [commandId, reportedState]);
 
   const knownState = known?.commandId === commandId ? known.state : undefined;
-  const progress =
-    commandId === null ? null : currentOpenProgress(knownState, timedOutCommandId === commandId);
+  const timedOut = timedOutCommandId === commandId;
+  const progress = commandId === null ? null : currentOpenProgress(knownState, timedOut);
 
   useGetCompartmentsOpenRequestsByCommandIdQuery(arg, {
-    pollingInterval: progress !== null && !isOpenFinished(progress) ? OPEN_STATUS_POLL_MS : 0,
+    pollingInterval: commandId === null ? 0 : openStatusPollInterval(knownState, timedOut),
   });
 
   return progress;
