@@ -397,26 +397,21 @@ class LockerBankProvisioningResetTest extends TestCase
         $renderedModalContent = $modalContent->render();
         $this->assertStringContainsString($token, $renderedModalContent);
         $this->assertStringContainsString('x-data="window.provisioningTokenCopy(', $renderedModalContent);
-        $this->assertStringContainsString('x-on:click="copyToken()"', $renderedModalContent);
-        $this->assertStringContainsString('x-show="!copied"', $renderedModalContent);
-        $this->assertStringContainsString('x-show="copied"', $renderedModalContent);
-        $this->assertStringContainsString('x-on:mouseenter="resetCopyState()"', $renderedModalContent);
+        $this->assertStringContainsString('select-all whitespace-pre-wrap break-all', $renderedModalContent);
+        $this->assertStringContainsString('role="status" aria-live="polite"', $renderedModalContent);
+        $this->assertStringContainsString('x-bind:aria-label="copied ? copiedLabel : copyLabel"', $renderedModalContent);
         $this->assertStringNotContainsString('@js($token)', $renderedModalContent);
         $this->assertStringContainsString(__('Could not copy provisioning token'), $renderedModalContent);
         $this->assertStringContainsString(
-            __('Your browser blocked clipboard access. Select the token, then press Ctrl+C (or Cmd+C on macOS) to copy it manually.'),
+            __('Clipboard access requires HTTPS or localhost. Select the token, then press Ctrl+C (or Cmd+C on macOS) to copy it manually.'),
             $renderedModalContent,
         );
 
         $clipboardComponent = file_get_contents(resource_path('js/filament/provisioning-token-copy.js'));
         $this->assertIsString($clipboardComponent);
-        $this->assertStringContainsString('window.provisioningTokenCopy = (token, messages)', $clipboardComponent);
-        $this->assertStringContainsString('navigator.clipboard.writeText(this.token)', $clipboardComponent);
-        $this->assertStringContainsString('resetCopyState()', $clipboardComponent);
-        $this->assertStringNotContainsString('copiedTimeout', $clipboardComponent);
-        $this->assertStringContainsString('new FilamentNotification()', $clipboardComponent);
-        $this->assertStringNotContainsString('copyProvisioningTokenFallback', $clipboardComponent);
-        $this->assertStringNotContainsString('Alpine.data', $clipboardComponent);
+        $publishedClipboardComponent = file_get_contents(public_path('js/app/provisioning-token-copy.js'));
+        $this->assertIsString($publishedClipboardComponent);
+        $this->assertSame($clipboardComponent, $publishedClipboardComponent);
         $this->assertCount(
             1,
             array_filter(
@@ -529,6 +524,11 @@ class LockerBankProvisioningResetTest extends TestCase
         $this->assertSame('Verbraucht', __('Consumed'));
         $this->assertSame('Bereitstellungstoken jetzt kopieren', __('Copy the provisioning token now'));
         $this->assertSame('Token kopieren', __('Copy token'));
+        $this->assertSame('Bereitstellungstoken konnte nicht kopiert werden', __('Could not copy provisioning token'));
+        $this->assertSame(
+            'Der Zugriff auf die Zwischenablage erfordert HTTPS oder localhost. Wähle das Token aus und drücke Strg+C (oder Cmd+C auf macOS), um es manuell zu kopieren.',
+            __('Clipboard access requires HTTPS or localhost. Select the token, then press Ctrl+C (or Cmd+C on macOS) to copy it manually.'),
+        );
 
         Livewire::actingAs($admin)
             ->test(ListLockerBanks::class)
