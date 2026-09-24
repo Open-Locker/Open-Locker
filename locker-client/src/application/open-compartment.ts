@@ -54,14 +54,6 @@ export class OpenCompartmentUseCase {
   async execute(compartmentNumber: number, transactionId: string): Promise<void> {
     const { target, targetConfigKey } = await this.bus.runExclusive(async (exclusiveBus) => {
       const resolvedTarget = this.resolveTarget(compartmentNumber);
-      const connected = await exclusiveBus.ensureConnected();
-      if (!connected) {
-        throw new LockerError(
-          MqttErrorCode.HARDWARE_ERROR,
-          'Cannot open compartment: hardware bus unavailable',
-        );
-      }
-
       const durationMs = this.config.getFlashDurationMs();
       await exclusiveBus.flashRelay(resolvedTarget, durationMs);
       return {

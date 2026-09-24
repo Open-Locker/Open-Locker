@@ -61,6 +61,30 @@ test('OpenCompartmentUseCase uses hardware flash only', async () => {
   assert.equal(bus.writeCoilCalls.length, 0);
 });
 
+test('fires the relay without reading the door sensor first', async () => {
+  const { bus, useCase } = build();
+
+  await useCase.execute(1, 'txn-immediate');
+
+  assert.equal(bus.flashCalls.length, 1);
+  assert.deepEqual(bus.doorBatchReads, []);
+});
+
+test('does not record a fire or start detection when the relay pulse fails', async () => {
+  const bus = new FakeLockerBus([1]);
+  bus.flashRelay = async (): Promise<void> => {
+    throw new Error('relay write failed');
+  };
+  const { doorEvents, relayFireLog, scheduler, useCase } = build({ bus });
+
+  await assert.rejects(() => useCase.execute(1, 'txn-failed'), /relay write failed/);
+
+  assert.equal(relayFireLog.lastFireAt(1), null);
+  assert.equal(relayFireLog.isDetecting(1), false);
+  assert.deepEqual(doorEvents.detections, []);
+  assert.equal(await (scheduler as ManualScheduler).runNext(), false);
+});
+
 test('startup initialization invokes the adapter capability per board', async () => {
   const bus = new FakeLockerBus([1, 2]);
   await runStartupFailsafe(bus);

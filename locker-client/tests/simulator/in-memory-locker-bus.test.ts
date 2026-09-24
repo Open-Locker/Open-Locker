@@ -89,6 +89,18 @@ test('connection lifecycle mirrors the port contract', async () => {
   await bus.disconnect();
 });
 
+test('flash reconnects a disconnected simulator bus before pulsing', async () => {
+  const bus = createBus();
+  const target = { compartmentNumber: 1, slaveId: 1, relayAddress: 0 };
+
+  await bus.flashRelay(target, 10);
+
+  assert.equal(bus.getConnectionState(), 'connected');
+  assert.equal(await bus.readDoorSensors(1, 0, 1).then((states) => states[0]), 'open');
+
+  await bus.disconnect();
+});
+
 test('configured slave ids are reported from the scenario mapping', () => {
   const bus = createBus();
 

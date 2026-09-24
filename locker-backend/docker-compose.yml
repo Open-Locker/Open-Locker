@@ -112,7 +112,7 @@ services:
         # which is not atomic — a second consumer would let a redelivered event
         # be recorded twice, and duplicated events are permanent history. Do not
         # scale this service without making those guards safe first.
-        command: "php artisan queue:work --queue=events --tries=3 --timeout=90"
+        command: "php artisan queue:work --queue=events --sleep=1 --tries=3 --timeout=90"
         depends_on:
             <<: *worker_depends_on_dev
         healthcheck:

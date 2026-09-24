@@ -2,7 +2,7 @@ import PQueue from 'p-queue';
 import type { CompartmentTarget, DoorState } from '../../domain/compartment';
 import type { FeedbackType } from '../../domain/config';
 import { doorStateFromFeedbackSignal } from '../../domain/door-feedback-mapping';
-import { isReconnectableModbusError } from '../../domain/errors';
+import { HardwareTransportError, isReconnectableModbusError } from '../../domain/errors';
 import { BusPriority, ConnectionState, LockerBusPort } from '../../ports/locker-bus.port';
 import { noopLogger, type LoggerPort } from '../../ports/logging.port';
 import { noopTracing, type SpanAttributes, type TracingPort } from '../../ports/tracing.port';
@@ -119,10 +119,13 @@ export class WaveshareModbusBusActor implements LockerBusPort {
         [COMPARTMENT_NUMBER]: target.compartmentNumber,
       },
       () =>
-        this.run(
-          () => this.driver.flashRelayOn(target.slaveId, target.relayAddress, durationMs),
-          BusPriority.COMMAND,
-        ),
+        this.run(async () => {
+          if (!(await this.ensureConnectedInternal())) {
+            throw new HardwareTransportError('Cannot open compartment: hardware bus unavailable');
+          }
+
+          await this.driver.flashRelayOn(target.slaveId, target.relayAddress, durationMs);
+        }, BusPriority.COMMAND),
     );
   }
 
@@ -172,6 +175,14 @@ export class WaveshareModbusBusActor implements LockerBusPort {
 
   getQueue(): PQueue {
     return this.queue;
+  }
+
+  private async ensureConnectedInternal(): Promise<boolean> {
+    if (this.driver.isOpen()) {
+      return true;
+    }
+
+    return this.connection.dial();
   }
 
   private run<T>(operation: () => Promise<T>, priority: BusPriority): Promise<T> {
