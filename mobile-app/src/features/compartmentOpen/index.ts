@@ -5,6 +5,7 @@ export {
   NO_OPEN_PROBLEMS,
   openProgressTone,
   readCommandId,
+  tallyForCompartment,
   tallyOpenOutcome,
   type OpenProgress,
 } from './openProgress';

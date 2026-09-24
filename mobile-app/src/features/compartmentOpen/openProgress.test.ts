@@ -4,9 +4,26 @@ import {
   isOpenStateAdvance,
   NO_OPEN_PROBLEMS,
   readCommandId,
+  tallyForCompartment,
   tallyOpenOutcome,
   toOpenProgress,
 } from './openProgress';
+
+describe('tallyForCompartment', () => {
+  const oneFailure = tallyOpenOutcome(
+    tallyForCompartment(NO_OPEN_PROBLEMS, 'c-1'),
+    'cmd-1',
+    'jammed',
+  );
+
+  it('keeps the count when the same compartment is reopened', () => {
+    expect(tallyForCompartment(oneFailure, 'c-1').count).toBe(1);
+  });
+
+  it('starts over for a different compartment', () => {
+    expect(tallyForCompartment(oneFailure, 'c-2').count).toBe(0);
+  });
+});
 
 describe('tallyOpenOutcome', () => {
   it('counts each failed request', () => {

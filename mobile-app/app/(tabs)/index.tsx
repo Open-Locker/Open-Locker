@@ -37,6 +37,7 @@ import {
   OpenProgressNotice,
   openProgressTone,
   readCommandId,
+  tallyForCompartment,
   tallyOpenOutcome,
   useOpenProgress,
 } from '@/src/features/compartmentOpen';
@@ -185,7 +186,7 @@ export default function CompartmentsScreen() {
     setModalError(null);
     setModalInfo(null);
     setOpenCommandId(null);
-    setOpenProblems(NO_OPEN_PROBLEMS);
+    setOpenProblems((tally) => tallyForCompartment(tally, compartment.id));
     setIsEditingNote(false);
     setNoteDraft(compartment.content_note ?? '');
     setSelectedCompartment(compartment);

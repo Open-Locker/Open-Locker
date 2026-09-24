@@ -91,9 +91,29 @@ export function currentOpenProgress(state: string | undefined, timedOut: boolean
 export const GET_HELP_AFTER_PROBLEMS = 2;
 
 /** Consecutive failed open requests on one compartment. */
-export type OpenProblemTally = { count: number; lastCommandId: string | null };
+export type OpenProblemTally = {
+  compartmentId: string | null;
+  count: number;
+  lastCommandId: string | null;
+};
 
-export const NO_OPEN_PROBLEMS: OpenProblemTally = { count: 0, lastCommandId: null };
+export const NO_OPEN_PROBLEMS: OpenProblemTally = {
+  compartmentId: null,
+  count: 0,
+  lastCommandId: null,
+};
+
+/**
+ * The tally to use when a compartment's sheet opens. Closing and reopening the
+ * sheet to retry is what people do at a stuck door, so the count survives
+ * that; it starts over only for a different compartment.
+ */
+export function tallyForCompartment(
+  tally: OpenProblemTally,
+  compartmentId: string,
+): OpenProblemTally {
+  return tally.compartmentId === compartmentId ? tally : { ...NO_OPEN_PROBLEMS, compartmentId };
+}
 
 /**
  * Counts each open request at most once: a request can report one problem after
@@ -106,9 +126,9 @@ export function tallyOpenOutcome(
   progress: OpenProgress,
 ): OpenProblemTally {
   const tone = openProgressTone(progress);
-  if (tone === 'success') return { count: 0, lastCommandId: commandId };
+  if (tone === 'success') return { ...tally, count: 0, lastCommandId: commandId };
   if (tone !== 'problem' || tally.lastCommandId === commandId) return tally;
-  return { count: tally.count + 1, lastCommandId: commandId };
+  return { ...tally, count: tally.count + 1, lastCommandId: commandId };
 }
 
 /**

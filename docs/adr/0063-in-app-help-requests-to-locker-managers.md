@@ -31,12 +31,15 @@ After two failed open attempts in a row on a compartment, the app offers a
 **Get help** screen with a Call button (the bank's `support_phone`, if set) and
 a message form.
 
-"Two failed attempts in a row" is counted in the app, per compartment sheet:
+"Two failed attempts in a row" is counted in the app, per compartment:
 
 - a failure is an outcome the open request reports back: door did not open,
   failed, refused, or no answer within the app's timeout
 - each open request counts at most once
-- a successful open resets the count, and so does reopening the sheet
+- closing and reopening the sheet keeps the count, since that is how people
+  retry at a stuck door
+- a successful open resets the count, and so does opening a different
+  compartment
 - an open call the API rejects outright (network error, 4xx/5xx) is not
   counted; the sheet shows that error instead
 
