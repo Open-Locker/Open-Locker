@@ -178,6 +178,20 @@ const injectedRtkApi = api
         }),
         invalidatesTags: ["Compartment"],
       }),
+      postCompartmentsByCompartmentHelpRequests: build.mutation<
+        PostCompartmentsByCompartmentHelpRequestsApiResponse,
+        PostCompartmentsByCompartmentHelpRequestsApiArg
+      >({
+        query: (queryArg) => ({
+          url: `/compartments/${queryArg.compartment}/help-requests`,
+          method: "POST",
+          body: queryArg.requestCompartmentHelpRequest,
+          headers: {
+            "Accept-Language": queryArg["Accept-Language"],
+          },
+        }),
+        invalidatesTags: ["Compartment"],
+      }),
       getCompartmentsOpenRequestsByCommandId: build.query<
         GetCompartmentsOpenRequestsByCommandIdApiResponse,
         GetCompartmentsOpenRequestsByCommandIdApiArg
@@ -367,6 +381,15 @@ export type PutCompartmentsByCompartmentContentNoteApiArg = {
   "Accept-Language"?: "en" | "de";
   updateCompartmentContentNoteRequest: UpdateCompartmentContentNoteRequest;
 };
+export type PostCompartmentsByCompartmentHelpRequestsApiResponse =
+  /** status 202 `CompartmentHelpRequest` */ CompartmentHelpRequest;
+export type PostCompartmentsByCompartmentHelpRequestsApiArg = {
+  /** The compartment ID */
+  compartment: string;
+  /** Preferred language for server-rendered strings (API messages, web pages, and request-triggered emails). Falls back to the application default when omitted or unsupported. */
+  "Accept-Language"?: "en" | "de";
+  requestCompartmentHelpRequest: RequestCompartmentHelpRequest;
+};
 export type GetCompartmentsOpenRequestsByCommandIdApiResponse =
   /** status 200 `CompartmentOpenStatus` */ CompartmentOpenStatus;
 export type GetCompartmentsOpenRequestsByCommandIdApiArg = {
@@ -499,6 +522,13 @@ export type CompartmentContentNote = {
 export type UpdateCompartmentContentNoteRequest = {
   note?: string | null;
 };
+export type CompartmentHelpRequest = {
+  status: boolean;
+  help_request_id: string;
+};
+export type RequestCompartmentHelpRequest = {
+  message: string;
+};
 export type CompartmentOpenStatus = {
   status: boolean;
   command_id: string;
@@ -552,6 +582,7 @@ export const {
   useGetCompartmentsAccessibleQuery,
   usePostCompartmentsByCompartmentOpenMutation,
   usePutCompartmentsByCompartmentContentNoteMutation,
+  usePostCompartmentsByCompartmentHelpRequestsMutation,
   useGetCompartmentsOpenRequestsByCommandIdQuery,
   useGetLockerBanksByLockerBankStatusQuery,
   usePostMosqAuthMutation,

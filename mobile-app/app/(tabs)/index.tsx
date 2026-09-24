@@ -31,13 +31,12 @@ import {
 import { useAppSelector } from '@/src/store/hooks';
 import { useUserName } from '@/src/auth/useUserName';
 import {
+  GET_HELP_AFTER_PROBLEMS,
   isOpenFinished,
   nextProblemCount,
   OpenProgressNotice,
   openProgressTone,
-  OpenSupportContact,
   readCommandId,
-  SUPPORT_CONTACT_AFTER_PROBLEMS,
   useOpenProgress,
 } from '@/src/features/compartmentOpen';
 import {
@@ -231,13 +230,6 @@ export default function CompartmentsScreen() {
       if (match) return match;
     }
     return selectedCompartment;
-  }, [selectedCompartment, data]);
-  const selectedSupportPhone = React.useMemo(() => {
-    if (!selectedCompartment) return null;
-    const bank = data?.locker_banks.find((b) =>
-      b.compartments.some((c) => c.id === selectedCompartment.id),
-    );
-    return bank?.support_phone?.trim() || null;
   }, [selectedCompartment, data]);
   const effectiveLockerBankId = React.useMemo(() => {
     if (lockerBanks.length === 0) return '';
@@ -594,8 +586,17 @@ export default function CompartmentsScreen() {
             {modalInfo}
           </HelperText>
           {openProgress ? <OpenProgressNotice progress={openProgress} /> : null}
-          {selectedSupportPhone && openProblemCount >= SUPPORT_CONTACT_AFTER_PROBLEMS ? (
-            <OpenSupportContact phone={selectedSupportPhone} />
+          {selectedCompartment && openProblemCount >= GET_HELP_AFTER_PROBLEMS ? (
+            <Button
+              mode="outlined"
+              onPress={() => {
+                const compartmentId = selectedCompartment.id;
+                closeCompartmentSheet();
+                router.push({ pathname: '/compartment-help', params: { compartmentId } });
+              }}
+            >
+              {t('compartments.getHelp')}
+            </Button>
           ) : null}
           <Button
             mode="contained"

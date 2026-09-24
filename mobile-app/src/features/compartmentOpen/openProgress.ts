@@ -75,8 +75,8 @@ export function currentOpenProgress(state: string | undefined, timedOut: boolean
   return timedOut && !isOpenFinished(reported) ? 'noResponse' : reported;
 }
 
-/** A first failure is worth a retry; the bank's support phone is offered after the second. */
-export const SUPPORT_CONTACT_AFTER_PROBLEMS = 2;
+/** A first failure is worth a retry; Get help is offered after the second. */
+export const GET_HELP_AFTER_PROBLEMS = 2;
 
 /** Consecutive failed attempts on one compartment; a successful open resets the count. */
 export function nextProblemCount(count: number, progress: OpenProgress): number {
@@ -84,11 +84,6 @@ export function nextProblemCount(count: number, progress: OpenProgress): number 
   if (tone === 'problem') return count + 1;
   if (tone === 'success') return 0;
   return count;
-}
-
-/** Dialers reject spaces, slashes and brackets that people type into phone numbers. */
-export function toTelUrl(phone: string): string {
-  return `tel:${phone.replace(/[^\d+]/g, '')}`;
 }
 
 /**

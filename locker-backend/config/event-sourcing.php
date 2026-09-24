@@ -41,6 +41,7 @@ return [
         App\Reactors\CommandResponseReactor::class,
         App\Reactors\DoorDetectionReactor::class,
         App\Reactors\CompartmentOpenDeviationAlertReactor::class,
+        App\Reactors\CompartmentHelpRequestAlertReactor::class,
         App\Reactors\CompartmentOpenAuthorizationReactor::class,
         App\Reactors\CompartmentOpenStatusBroadcastReactor::class,
         App\Reactors\CompartmentDoorStateBroadcastReactor::class,

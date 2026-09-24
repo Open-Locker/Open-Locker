@@ -4,7 +4,6 @@ import {
   nextProblemCount,
   readCommandId,
   toOpenProgress,
-  toTelUrl,
 } from './openProgress';
 
 describe('nextProblemCount', () => {
@@ -18,12 +17,6 @@ describe('nextProblemCount', () => {
 
   it('resets once the door opens', () => {
     expect(nextProblemCount(2, 'opened')).toBe(0);
-  });
-});
-
-describe('toTelUrl', () => {
-  it('keeps only digits and a leading plus', () => {
-    expect(toTelUrl('+49 (30) 123-45 67')).toBe('tel:+49301234567');
   });
 });
 

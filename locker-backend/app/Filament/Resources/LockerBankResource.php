@@ -78,7 +78,7 @@ class LockerBankResource extends Resource
                     ->label(__('Support phone'))
                     ->tel()
                     ->maxLength(32)
-                    ->helperText(__('Shown in the app when a compartment of this bank fails to open twice in a row.')),
+                    ->helperText(__('Shown on the Get help screen in the app, offered after a compartment of this bank fails to open twice.')),
                 Select::make('adapter_type')
                     ->label(__('Hardware adapter'))
                     ->options([

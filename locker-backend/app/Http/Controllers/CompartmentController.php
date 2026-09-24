@@ -6,10 +6,12 @@ namespace App\Http\Controllers;
 
 use App\Http\Middleware\EnsureVerifiedEmailApi;
 use App\Http\Middleware\RequireAcceptedTerms;
+use App\Http\Requests\RequestCompartmentHelpRequest;
 use App\Http\Requests\UpdateCompartmentContentNoteRequest;
 use App\Http\Resources\AccessibleCompartmentsResource;
 use App\Http\Resources\ApiErrorResource;
 use App\Http\Resources\CompartmentContentNoteResource;
+use App\Http\Resources\CompartmentHelpRequestResource;
 use App\Http\Resources\CompartmentOpenDecisionResource;
 use App\Http\Resources\CompartmentOpenStatusResource;
 use App\Models\Compartment;
@@ -140,6 +142,29 @@ class CompartmentController extends Controller
         );
 
         return (new CompartmentContentNoteResource($compartment))->response();
+    }
+
+    /**
+     * Ask the locker managers for help with a compartment.
+     *
+     * Any user with active access (direct or via a group) — or an admin — may
+     * send a message. Managers get it as a panel alert and an email they can
+     * reply to. The request is event-sourced and auditable.
+     *
+     * @status 202
+     */
+    public function requestHelp(
+        RequestCompartmentHelpRequest $request,
+        Compartment $compartment,
+        CompartmentService $compartmentService,
+    ): CompartmentHelpRequestResource {
+        $helpRequestId = $compartmentService->requestHelp(
+            $this->authenticatedUser($request),
+            $compartment,
+            $request->validated('message'),
+        );
+
+        return new CompartmentHelpRequestResource(['help_request_id' => $helpRequestId]);
     }
 
     /**
