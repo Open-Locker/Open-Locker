@@ -102,6 +102,10 @@ export class InMemoryLockerBus implements LockerBusPort {
    * exactly what a real jam, blockage, or worn latch looks like from the bus.
    */
   async flashRelay(target: CompartmentTarget, durationMs: number): Promise<void> {
+    if (this.connectionState !== 'connected') {
+      await this.connect();
+    }
+
     await this.delay();
 
     const key = busTargetKey(target.slaveId, target.relayAddress);

@@ -1,6 +1,6 @@
 import PQueue from 'p-queue';
 import type { CompartmentTarget, DoorState } from '../../domain/compartment';
-import { isReconnectableHardwareError } from '../../domain/errors';
+import { HardwareTransportError, isReconnectableHardwareError } from '../../domain/errors';
 import { BusPriority, type ConnectionState, type LockerBusPort } from '../../ports/locker-bus.port';
 import { noopLogger, type LoggerPort } from '../../ports/logging.port';
 import { noopTracing, type TracingPort } from '../../ports/tracing.port';
@@ -77,11 +77,7 @@ export class Rs485LockBoardBusActor implements LockerBusPort {
           'locker.compartment.number': target.compartmentNumber,
         },
       },
-      () =>
-        this.run(
-          () => this.driver.unlock(target.slaveId, target.relayAddress),
-          BusPriority.COMMAND,
-        ),
+      () => this.run(() => this.unlockWhenConnected(target), BusPriority.COMMAND),
     );
   }
 
@@ -113,6 +109,14 @@ export class Rs485LockBoardBusActor implements LockerBusPort {
 
   getConfiguredSlaveIds(): number[] {
     return [...this.configuredSlaveIds()];
+  }
+
+  private async unlockWhenConnected(target: CompartmentTarget): Promise<void> {
+    if (!this.driver.isOpen() && !(await this.connection.dial())) {
+      throw new HardwareTransportError('Cannot open compartment: hardware bus unavailable');
+    }
+
+    await this.driver.unlock(target.slaveId, target.relayAddress);
   }
 
   private run<T>(operation: () => Promise<T>, priority: BusPriority): Promise<T> {
