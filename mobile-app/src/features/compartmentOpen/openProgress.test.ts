@@ -1,22 +1,50 @@
 import {
   currentOpenProgress,
   isOpenFinished,
-  nextProblemCount,
+  isOpenStateAdvance,
+  NO_OPEN_PROBLEMS,
   readCommandId,
+  tallyOpenOutcome,
   toOpenProgress,
 } from './openProgress';
 
-describe('nextProblemCount', () => {
-  it('counts each failed attempt', () => {
-    expect(nextProblemCount(nextProblemCount(0, 'jammed'), 'noResponse')).toBe(2);
+describe('tallyOpenOutcome', () => {
+  it('counts each failed request', () => {
+    const afterFirst = tallyOpenOutcome(NO_OPEN_PROBLEMS, 'cmd-1', 'jammed');
+
+    expect(tallyOpenOutcome(afterFirst, 'cmd-2', 'noResponse').count).toBe(2);
+  });
+
+  it('counts a request once when it reports a second problem', () => {
+    const timedOut = tallyOpenOutcome(NO_OPEN_PROBLEMS, 'cmd-1', 'noResponse');
+
+    expect(tallyOpenOutcome(timedOut, 'cmd-1', 'jammed').count).toBe(1);
   });
 
   it('keeps the count while a retry is in flight', () => {
-    expect(nextProblemCount(1, 'sending')).toBe(1);
+    const afterFirst = tallyOpenOutcome(NO_OPEN_PROBLEMS, 'cmd-1', 'jammed');
+
+    expect(tallyOpenOutcome(afterFirst, 'cmd-2', 'sending').count).toBe(1);
   });
 
   it('resets once the door opens', () => {
-    expect(nextProblemCount(2, 'opened')).toBe(0);
+    const afterFirst = tallyOpenOutcome(NO_OPEN_PROBLEMS, 'cmd-1', 'jammed');
+
+    expect(tallyOpenOutcome(afterFirst, 'cmd-2', 'opened').count).toBe(0);
+  });
+});
+
+describe('isOpenStateAdvance', () => {
+  it('accepts a later step', () => {
+    expect(isOpenStateAdvance('sent', 'acknowledged')).toBe(true);
+  });
+
+  it('rejects an earlier step, such as a slow poll after a realtime event', () => {
+    expect(isOpenStateAdvance('acknowledged', 'sent')).toBe(false);
+  });
+
+  it('never changes a finished request', () => {
+    expect(isOpenStateAdvance('door_jammed', 'acknowledged')).toBe(false);
   });
 });
 

@@ -19,7 +19,8 @@ class CompartmentHelpRequestedNotification extends Notification implements Shoul
 
     public function __construct(
         private readonly string $userName,
-        private readonly string $userEmail,
+        /** Null when the user was deleted before the alert went out. */
+        private readonly ?string $userEmail,
         private readonly string $lockerBankName,
         private readonly int $compartmentNumber,
         private readonly string $message,
@@ -35,11 +36,23 @@ class CompartmentHelpRequestedNotification extends Notification implements Shoul
 
     public function toMail(object $notifiable): MailMessage
     {
-        return (new MailMessage)
+        $mail = (new MailMessage)
             ->subject(__('Help requested for compartment :number on :bank', [
                 'number' => $this->compartmentNumber,
                 'bank' => $this->lockerBankName,
-            ]))
+            ]));
+
+        if ($this->userEmail === null || $this->userEmail === '') {
+            return $mail
+                ->line(__(':user asked for help with compartment :number on :bank:', [
+                    'user' => $this->userName,
+                    'number' => $this->compartmentNumber,
+                    'bank' => $this->lockerBankName,
+                ]))
+                ->line('"'.$this->message.'"');
+        }
+
+        return $mail
             ->replyTo($this->userEmail, $this->userName)
             ->line(__(':user (:email) asked for help with compartment :number on :bank:', [
                 'user' => $this->userName,

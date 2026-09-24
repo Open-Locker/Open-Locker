@@ -63,11 +63,23 @@ export function openProgressTone(progress: OpenProgress): OpenProgressTone {
   return TONE[progress];
 }
 
-/** Events can arrive out of order; progress only ever moves forward. */
-export function openProgressRank(progress: OpenProgress): number {
+function openProgressRank(progress: OpenProgress): number {
   if (progress === 'sending') return 0;
   if (progress === 'unlocking') return 1;
   return 2;
+}
+
+/**
+ * Whether a reported backend state may replace the one already known. Realtime
+ * events arrive out of order and a slow poll can return after a newer event,
+ * so progress only moves forward and a finished request never changes.
+ */
+export function isOpenStateAdvance(current: string, next: string): boolean {
+  const currentProgress = toOpenProgress(current);
+  return (
+    !isOpenFinished(currentProgress) &&
+    openProgressRank(toOpenProgress(next)) >= openProgressRank(currentProgress)
+  );
 }
 
 export function currentOpenProgress(state: string | undefined, timedOut: boolean): OpenProgress {
@@ -78,12 +90,25 @@ export function currentOpenProgress(state: string | undefined, timedOut: boolean
 /** A first failure is worth a retry; Get help is offered after the second. */
 export const GET_HELP_AFTER_PROBLEMS = 2;
 
-/** Consecutive failed attempts on one compartment; a successful open resets the count. */
-export function nextProblemCount(count: number, progress: OpenProgress): number {
+/** Consecutive failed open requests on one compartment. */
+export type OpenProblemTally = { count: number; lastCommandId: string | null };
+
+export const NO_OPEN_PROBLEMS: OpenProblemTally = { count: 0, lastCommandId: null };
+
+/**
+ * Counts each open request at most once: a request can report one problem after
+ * another (no response, then a late "did not open"). A successful open resets
+ * the count.
+ */
+export function tallyOpenOutcome(
+  tally: OpenProblemTally,
+  commandId: string,
+  progress: OpenProgress,
+): OpenProblemTally {
   const tone = openProgressTone(progress);
-  if (tone === 'problem') return count + 1;
-  if (tone === 'success') return 0;
-  return count;
+  if (tone === 'success') return { count: 0, lastCommandId: commandId };
+  if (tone !== 'problem' || tally.lastCommandId === commandId) return tally;
+  return { count: tally.count + 1, lastCommandId: commandId };
 }
 
 /**

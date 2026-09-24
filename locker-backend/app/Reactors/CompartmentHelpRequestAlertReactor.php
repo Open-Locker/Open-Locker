@@ -60,7 +60,7 @@ class CompartmentHelpRequestAlertReactor extends Reactor implements ShouldQueue
 
         Notification::send($recipients, new CompartmentHelpRequestedNotification(
             userName: $userName,
-            userEmail: (string) ($user->email ?? ''),
+            userEmail: $user?->email,
             lockerBankName: $lockerBankName,
             compartmentNumber: $compartmentNumber,
             message: $event->message,

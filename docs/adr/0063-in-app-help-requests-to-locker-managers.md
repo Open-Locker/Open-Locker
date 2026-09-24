@@ -31,11 +31,22 @@ After two failed open attempts in a row on a compartment, the app offers a
 **Get help** screen with a Call button (the bank's `support_phone`, if set) and
 a message form.
 
+"Two failed attempts in a row" is counted in the app, per compartment sheet:
+
+- a failure is an outcome the open request reports back: door did not open,
+  failed, refused, or no answer within the app's timeout
+- each open request counts at most once
+- a successful open resets the count, and so does reopening the sheet
+- an open call the API rejects outright (network error, 4xx/5xx) is not
+  counted; the sheet shows that error instead
+
 `POST /api/compartments/{compartment}/help-requests` with `{ message }`
 (1–1000 characters, trimmed) answers `202 { status, help_request_id }`.
 
 - Only users with active access to the compartment, or who may manage access,
   can send one; others get 403. The access rule is the content note's.
+- The sender's email must be verified (`verified.api`, as for the content
+  note), because operators reply to it.
 - The route is throttled to 5 requests per 10 minutes per user, since every
   request mails every operator.
 - The request is recorded as a `CompartmentHelpRequested` stored event through

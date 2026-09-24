@@ -1,8 +1,4 @@
-import {
-  isOpenFinished,
-  openProgressRank,
-  toOpenProgress,
-} from '@/src/features/compartmentOpen/openProgress';
+import { isOpenStateAdvance } from '@/src/features/compartmentOpen/openProgress';
 import type { CompartmentOpenStatus } from '@/src/store/generatedApi';
 
 import type { CompartmentOpenStatusUpdatedPayload } from './echo';
@@ -17,9 +13,7 @@ export function applyOpenStatus(
   draft: CompartmentOpenStatus,
   payload: CompartmentOpenStatusUpdatedPayload,
 ): void {
-  const current = toOpenProgress(draft.state);
-  if (isOpenFinished(current)) return;
-  if (openProgressRank(toOpenProgress(payload.status)) < openProgressRank(current)) return;
+  if (!isOpenStateAdvance(draft.state, payload.status)) return;
 
   draft.state = payload.status;
   draft.error_code = payload.error_code;

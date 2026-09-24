@@ -33,10 +33,11 @@ import { useUserName } from '@/src/auth/useUserName';
 import {
   GET_HELP_AFTER_PROBLEMS,
   isOpenFinished,
-  nextProblemCount,
+  NO_OPEN_PROBLEMS,
   OpenProgressNotice,
   openProgressTone,
   readCommandId,
+  tallyOpenOutcome,
   useOpenProgress,
 } from '@/src/features/compartmentOpen';
 import {
@@ -154,10 +155,12 @@ export default function CompartmentsScreen() {
   const openProgress = useOpenProgress(openCommandId);
   const isOpenInFlight =
     requestOpenState.isLoading || (openProgress !== null && !isOpenFinished(openProgress));
-  const [openProblemCount, setOpenProblemCount] = React.useState(0);
+  const [openProblems, setOpenProblems] = React.useState(NO_OPEN_PROBLEMS);
   React.useEffect(() => {
-    if (openProgress) setOpenProblemCount((count) => nextProblemCount(count, openProgress));
-  }, [openProgress]);
+    if (openCommandId && openProgress) {
+      setOpenProblems((tally) => tallyOpenOutcome(tally, openCommandId, openProgress));
+    }
+  }, [openCommandId, openProgress]);
   const [isEditingNote, setIsEditingNote] = React.useState(false);
   const [noteDraft, setNoteDraft] = React.useState('');
   const compartmentSheetRef = React.useRef<BottomSheetModal>(null);
@@ -182,7 +185,7 @@ export default function CompartmentsScreen() {
     setModalError(null);
     setModalInfo(null);
     setOpenCommandId(null);
-    setOpenProblemCount(0);
+    setOpenProblems(NO_OPEN_PROBLEMS);
     setIsEditingNote(false);
     setNoteDraft(compartment.content_note ?? '');
     setSelectedCompartment(compartment);
@@ -586,7 +589,7 @@ export default function CompartmentsScreen() {
             {modalInfo}
           </HelperText>
           {openProgress ? <OpenProgressNotice progress={openProgress} /> : null}
-          {selectedCompartment && openProblemCount >= GET_HELP_AFTER_PROBLEMS ? (
+          {selectedCompartment && openProblems.count >= GET_HELP_AFTER_PROBLEMS ? (
             <Button
               mode="outlined"
               onPress={() => {
