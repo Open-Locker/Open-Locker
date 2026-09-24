@@ -470,6 +470,7 @@ export type AccessibleCompartments = {
     id: string;
     name: string;
     location_description: string | null;
+    support_phone: string | null;
     last_compartment_state_change_at?: string | null;
     /** What the app colours each bank by, sent with the list so the
         first paint is right; the realtime event keeps it current.

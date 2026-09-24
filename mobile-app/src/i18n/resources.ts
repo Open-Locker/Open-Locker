@@ -59,6 +59,23 @@ export const resources = {
         openRequestSent: 'Open request sent.',
         openCompartment: 'Open compartment',
         openCompartmentDisabledOpen: 'Already open',
+        openCompartmentRetry: 'Try again',
+        openProgress: {
+          sending: 'Sending the open command to the locker…',
+          unlocking: 'The lock was released. Open the door now.',
+          opened: 'Door opened.',
+          alreadyOpen: 'The door was already open.',
+          jammed:
+            'The door did not open. The locker manager is notified automatically. If it is still closed, you can try again.',
+          failed: 'The locker could not open this compartment. Please try again.',
+          denied: 'The open request was refused.',
+          noResponse: 'The locker is not responding. It may be offline, so please try again later.',
+        },
+        openSupport: {
+          prompt: 'Still not opening? Call the locker manager.',
+          call: 'Call {{phone}}',
+          callHint: 'Opens your phone app to call the locker manager.',
+        },
         lockerBankDefault: 'Locker bank {{id}}',
         contentNoteLabel: 'Contents note:',
         contentNoteEmpty: 'No note yet',
@@ -190,6 +207,24 @@ export const resources = {
         openRequestSent: 'Öffnen-Anfrage gesendet.',
         openCompartment: 'Fach öffnen',
         openCompartmentDisabledOpen: 'Bereits geöffnet',
+        openCompartmentRetry: 'Erneut versuchen',
+        openProgress: {
+          sending: 'Öffnen-Befehl wird an den Schrank gesendet…',
+          unlocking: 'Das Schloss wurde entriegelt. Öffne jetzt die Tür.',
+          opened: 'Tür geöffnet.',
+          alreadyOpen: 'Die Tür war bereits offen.',
+          jammed:
+            'Die Tür hat sich nicht geöffnet. Die Schrankverwaltung wird automatisch benachrichtigt. Wenn sie noch geschlossen ist, kannst du es erneut versuchen.',
+          failed: 'Der Schrank konnte dieses Fach nicht öffnen. Bitte versuche es erneut.',
+          denied: 'Die Öffnen-Anfrage wurde abgelehnt.',
+          noResponse:
+            'Der Schrank antwortet nicht. Er ist eventuell offline, bitte versuche es später erneut.',
+        },
+        openSupport: {
+          prompt: 'Öffnet sich immer noch nicht? Ruf die Schrankverwaltung an.',
+          call: '{{phone}} anrufen',
+          callHint: 'Öffnet deine Telefon-App, um die Schrankverwaltung anzurufen.',
+        },
         lockerBankDefault: 'Schrankblock {{id}}',
         contentNoteLabel: 'Inhaltsnotiz:',
         contentNoteEmpty: 'Noch keine Notiz',

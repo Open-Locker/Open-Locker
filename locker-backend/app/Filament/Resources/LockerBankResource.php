@@ -74,6 +74,11 @@ class LockerBankResource extends Resource
                     ->label(__('Location description'))
                     ->maxLength(65535)
                     ->columnSpanFull(),
+                TextInput::make('support_phone')
+                    ->label(__('Support phone'))
+                    ->tel()
+                    ->maxLength(32)
+                    ->helperText(__('Shown in the app when a compartment of this bank fails to open twice in a row.')),
                 Select::make('adapter_type')
                     ->label(__('Hardware adapter'))
                     ->options([

@@ -31,6 +31,16 @@ import {
 import { useAppSelector } from '@/src/store/hooks';
 import { useUserName } from '@/src/auth/useUserName';
 import {
+  isOpenFinished,
+  nextProblemCount,
+  OpenProgressNotice,
+  openProgressTone,
+  OpenSupportContact,
+  readCommandId,
+  SUPPORT_CONTACT_AFTER_PROBLEMS,
+  useOpenProgress,
+} from '@/src/features/compartmentOpen';
+import {
   getCompartmentStatusPalette,
   getLockerStatusPalette,
   type CompartmentVisualStatus,
@@ -141,6 +151,14 @@ export default function CompartmentsScreen() {
   const [selectedLockerBankId, setSelectedLockerBankId] = React.useState<string>('');
   const [modalError, setModalError] = React.useState<string | null>(null);
   const [modalInfo, setModalInfo] = React.useState<string | null>(null);
+  const [openCommandId, setOpenCommandId] = React.useState<string | null>(null);
+  const openProgress = useOpenProgress(openCommandId);
+  const isOpenInFlight =
+    requestOpenState.isLoading || (openProgress !== null && !isOpenFinished(openProgress));
+  const [openProblemCount, setOpenProblemCount] = React.useState(0);
+  React.useEffect(() => {
+    if (openProgress) setOpenProblemCount((count) => nextProblemCount(count, openProgress));
+  }, [openProgress]);
   const [isEditingNote, setIsEditingNote] = React.useState(false);
   const [noteDraft, setNoteDraft] = React.useState('');
   const compartmentSheetRef = React.useRef<BottomSheetModal>(null);
@@ -164,6 +182,8 @@ export default function CompartmentsScreen() {
   const openCompartmentSheet = React.useCallback((compartment: CompartmentEntry) => {
     setModalError(null);
     setModalInfo(null);
+    setOpenCommandId(null);
+    setOpenProblemCount(0);
     setIsEditingNote(false);
     setNoteDraft(compartment.content_note ?? '');
     setSelectedCompartment(compartment);
@@ -211,6 +231,13 @@ export default function CompartmentsScreen() {
       if (match) return match;
     }
     return selectedCompartment;
+  }, [selectedCompartment, data]);
+  const selectedSupportPhone = React.useMemo(() => {
+    if (!selectedCompartment) return null;
+    const bank = data?.locker_banks.find((b) =>
+      b.compartments.some((c) => c.id === selectedCompartment.id),
+    );
+    return bank?.support_phone?.trim() || null;
   }, [selectedCompartment, data]);
   const effectiveLockerBankId = React.useMemo(() => {
     if (lockerBanks.length === 0) return '';
@@ -430,6 +457,7 @@ export default function CompartmentsScreen() {
         onDismiss={() => {
           setSelectedCompartment(null);
           setIsEditingNote(false);
+          setOpenCommandId(null);
         }}
         backdropComponent={sheetBackdrop}
         enablePanDownToClose
@@ -565,6 +593,10 @@ export default function CompartmentsScreen() {
           <HelperText type="info" visible={!!modalInfo}>
             {modalInfo}
           </HelperText>
+          {openProgress ? <OpenProgressNotice progress={openProgress} /> : null}
+          {selectedSupportPhone && openProblemCount >= SUPPORT_CONTACT_AFTER_PROBLEMS ? (
+            <OpenSupportContact phone={selectedSupportPhone} />
+          ) : null}
           <Button
             mode="contained"
             onPress={() => {
@@ -572,19 +604,26 @@ export default function CompartmentsScreen() {
               void (async () => {
                 setModalError(null);
                 setModalInfo(null);
+                setOpenCommandId(null);
                 try {
-                  await requestOpen({ compartment: selectedCompartment.id }).unwrap();
-                  setModalInfo(t('compartments.openRequestSent'));
-                  closeCompartmentSheet();
+                  const response: unknown = await requestOpen({
+                    compartment: selectedCompartment.id,
+                  }).unwrap();
+                  const commandId = readCommandId(response);
+                  if (commandId) {
+                    setOpenCommandId(commandId);
+                  } else {
+                    setModalInfo(t('compartments.openRequestSent'));
+                  }
                 } catch (e) {
                   setModalError(getApiErrorMessage(e, t));
                 }
               })();
             }}
-            loading={requestOpenState.isLoading}
+            loading={isOpenInFlight}
             disabled={
               !selectedCompartment ||
-              requestOpenState.isLoading ||
+              isOpenInFlight ||
               // A confirmed-open door cannot be opened again; `unknown`/`closed`
               // stay actionable since the real state isn't known to be open.
               selectedCompartmentStatus === 'open'
@@ -592,7 +631,9 @@ export default function CompartmentsScreen() {
           >
             {selectedCompartmentStatus === 'open'
               ? t('compartments.openCompartmentDisabledOpen')
-              : t('compartments.openCompartment')}
+              : openProgress && openProgressTone(openProgress) === 'problem'
+                ? t('compartments.openCompartmentRetry')
+                : t('compartments.openCompartment')}
           </Button>
           <Button mode="text" onPress={closeCompartmentSheet}>
             {t('common.close')}
