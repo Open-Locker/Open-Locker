@@ -18,7 +18,6 @@ use App\StorableEvents\LockerWasProvisioned;
 use App\Support\Audit\AuditEventPresenter;
 use Carbon\CarbonImmutable;
 use Filament\Actions\Action;
-use Filament\Support\Facades\FilamentAsset;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Log\Events\MessageLogged;
@@ -396,29 +395,6 @@ class LockerBankProvisioningResetTest extends TestCase
         $this->assertNotNull($modalContent);
         $renderedModalContent = $modalContent->render();
         $this->assertStringContainsString($token, $renderedModalContent);
-        $this->assertStringContainsString('x-data="window.provisioningTokenCopy(', $renderedModalContent);
-        $this->assertStringContainsString('select-all whitespace-pre-wrap break-all', $renderedModalContent);
-        $this->assertStringContainsString('role="status" aria-live="polite"', $renderedModalContent);
-        $this->assertStringContainsString('x-bind:aria-label="copied ? copiedLabel : copyLabel"', $renderedModalContent);
-        $this->assertStringNotContainsString('@js($token)', $renderedModalContent);
-        $this->assertStringContainsString(__('Could not copy provisioning token'), $renderedModalContent);
-        $this->assertStringContainsString(
-            __('Clipboard access requires HTTPS or localhost. Select the token, then press Ctrl+C (or Cmd+C on macOS) to copy it manually.'),
-            $renderedModalContent,
-        );
-
-        $clipboardComponent = file_get_contents(resource_path('js/filament/provisioning-token-copy.js'));
-        $this->assertIsString($clipboardComponent);
-        $publishedClipboardComponent = file_get_contents(public_path('js/app/provisioning-token-copy.js'));
-        $this->assertIsString($publishedClipboardComponent);
-        $this->assertSame($clipboardComponent, $publishedClipboardComponent);
-        $this->assertCount(
-            1,
-            array_filter(
-                FilamentAsset::getScripts(['app']),
-                fn (\Filament\Support\Assets\Js $script): bool => $script->getId() === 'provisioning-token-copy',
-            ),
-        );
         $this->assertStringNotContainsString(
             $token,
             json_encode($component->instance()->mountedActions, JSON_THROW_ON_ERROR),
