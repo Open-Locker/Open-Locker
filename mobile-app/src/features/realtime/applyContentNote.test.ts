@@ -10,6 +10,7 @@ function seedCache(): GetCompartmentsAccessibleApiResponse {
         id: 'bank-1',
         name: 'Bank 1',
         location_description: null,
+        support_phone: null,
         connection_status: 'online',
         compartments: [
           {
@@ -36,6 +37,7 @@ function seedCache(): GetCompartmentsAccessibleApiResponse {
         id: 'bank-2',
         name: 'Bank 2',
         location_description: null,
+        support_phone: null,
         connection_status: 'online',
         compartments: [
           {

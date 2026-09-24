@@ -57,6 +57,19 @@ class CompartmentControllerTest extends TestCase
             ->assertJsonPath('locker_banks.0.connection_status', 'unknown');
     }
 
+    public function test_the_list_carries_each_banks_support_phone(): void
+    {
+        $user = User::factory()->create();
+        $user->makeAdmin();
+
+        $compartment = Compartment::factory()->create();
+        $compartment->lockerBank->forceFill(['support_phone' => '+49 30 1234567'])->save();
+
+        $this->actingAs($user)->getJson('/api/compartments')
+            ->assertStatus(200)
+            ->assertJsonPath('locker_banks.0.support_phone', '+49 30 1234567');
+    }
+
     public function test_compartments_endpoint_returns_compartments_with_contents(): void
     {
         // Sees every compartment because they are an admin, which this test used to

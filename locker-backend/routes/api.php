@@ -60,6 +60,8 @@ Route::middleware(['auth:sanctum', 'terms.accepted'])->group(function () {
             ->withoutMiddleware('terms.accepted')
             ->name('compartments.open');
         Route::put('{compartment}/content-note', 'updateContentNote')->middleware('verified.api')->name('compartments.content-note.update');
+        // Every request mails every operator, so a user gets a handful per ten minutes.
+        Route::post('{compartment}/help-requests', 'requestHelp')->middleware(['verified.api', 'throttle:5,10'])->name('compartments.help-requests.store');
         Route::get('open-requests/{commandId}', 'openStatus')->name('compartments.open-status');
     });
 

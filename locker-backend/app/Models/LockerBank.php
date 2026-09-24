@@ -16,6 +16,7 @@ use Illuminate\Database\Eloquent\Relations\HasManyThrough;
  * @property-read string $id
  * @property-read string $name
  * @property-read string $location_description
+ * @property-read string|null $support_phone
  * @property LockerAdapterType $adapter_type
  * @property LockerFeedbackType $feedback_type
  * @property string|null $provisioning_token_hmac
@@ -43,6 +44,7 @@ class LockerBank extends Model
     protected $fillable = [
         'name',
         'location_description',
+        'support_phone',
         'adapter_type',
         'feedback_type',
         'provisioning_token_hmac',

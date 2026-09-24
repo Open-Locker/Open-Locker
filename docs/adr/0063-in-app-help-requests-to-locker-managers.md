@@ -1,0 +1,132 @@
+# ADR-0063: In-app help requests to locker managers
+
+## Status
+
+Proposed
+
+## Date
+
+2026-09-24
+
+## Context
+
+When a compartment does not open, the mobile app now shows why (door did not
+open, failed, locker not responding) and lets the user retry. A user whose
+retry also fails is standing at a closed locker with their belongings inside
+and no way forward in the app (#252).
+
+Operators already hear about jams: `CompartmentOpenDeviationAlertReactor`
+sends everyone holding `compartment.open` a live panel toast and an email. That
+alert says which compartment misbehaved, not who is waiting at it, and gives
+the user no channel to the operator.
+
+Two ways to reach an operator were requested together: calling them, and
+sending them a message. Calling needs only a number per bank
+(`locker_banks.support_phone`, added in the same change). Sending a message
+needs an API endpoint, a record of the request, and a notification.
+
+## Decision
+
+After two failed open attempts in a row on a compartment, the app offers a
+**Get help** screen with a Call button (the bank's `support_phone`, if set) and
+a message form.
+
+"Two failed attempts in a row" is counted in the app, per compartment:
+
+- a failure is an outcome the open request reports back: door did not open,
+  failed, refused, or no answer within the app's timeout
+- each open request counts at most once
+- closing and reopening the sheet keeps the count, since that is how people
+  retry at a stuck door
+- a successful open resets the count, and so does opening a different
+  compartment
+- an open call the API rejects outright (network error, 4xx/5xx) is not
+  counted; the sheet shows that error instead
+
+`POST /api/compartments/{compartment}/help-requests` with `{ message, phone? }`
+answers `202 { status, help_request_id }`. The message is 1–1000 characters,
+trimmed. The phone is optional: a number the user leaves for a call back (up to
+32 characters of digits, spaces and `+ ( ) / . -`). Apps cannot read the
+device's own number, so the user types it; the app marks the field as a phone
+number so the operating system can offer to fill it in.
+
+- Only users with active access to the compartment, or who may manage access,
+  can send one; others get 403. The access rule is the content note's.
+- The sender's email must be verified (`verified.api`, as for the content
+  note), because operators reply to it.
+- The route is throttled to 5 requests per 10 minutes per user, since every
+  request mails every operator.
+- The request is recorded as a `CompartmentHelpRequested` stored event through
+  its own `CompartmentHelpRequestAggregate`, keyed by a fresh UUID per request
+  like an open command.
+- `CompartmentHelpRequestAlertReactor` notifies the same operators as the
+  deviation alert, over the same channels: a live panel toast and an email.
+  The email's Reply-To is the requesting user, so the operator can answer
+  directly. When the user left a phone number, the email and the toast show it;
+  otherwise they are unchanged.
+- The audit log lists the event under *access*, including the message.
+
+## Rationale
+
+Recording the request as an event follows the backend's rule that domain facts
+go through aggregates, and gives operators a durable record in the audit log
+when an email is missed. Reusing the deviation alert's recipients and channels
+means operators learn about help requests where they already watch for locker
+problems, without new settings.
+
+## Alternatives Considered
+
+### Send only, store nothing
+
+- Pros: no user-written text in the permanent event store
+- Cons: no audit record; a lost email loses the request entirely
+- Why not chosen: the request is the only trace that a user was stuck
+
+### Call button only
+
+- Pros: no endpoint, no stored text
+- Cons: useless outside office hours or when no number is set
+- Why not chosen: both options were requested together
+
+### Include the user in the jam alert instead
+
+- Pros: tiny change, no new endpoint
+- Cons: only covers jams, and the user still cannot say anything
+- Why not chosen: does not give the user a channel; still worth doing separately
+
+## Consequences
+
+### Positive
+
+- a stuck user has a way forward inside the app
+- operators get who, where, and what in one message they can reply to
+- every request is auditable
+
+### Negative
+
+- the user's free-text message stays in `stored_events` permanently, alongside
+  the audit trail #272 decided to keep unchanged
+- every request mails every operator; large operator groups get noise
+
+### Risks
+
+- users may write personal data into the message, and the optional phone
+  number is personal data; neither can be erased from the event store under the
+  current #272 constraint
+- no operator holding `compartment.open` means nobody is notified (logged as a
+  warning, as for deviations)
+
+## Rollout / Migration
+
+No data migration. The mobile client is regenerated from the live spec.
+
+## Supersedes / Superseded By
+
+- None
+
+## References
+
+- #252, #272
+- ADR-0023 (mobile realtime compartment status)
+- ADR-0045 (open status broadcast context)
+- `locker-backend/app/Reactors/CompartmentOpenDeviationAlertReactor.php`

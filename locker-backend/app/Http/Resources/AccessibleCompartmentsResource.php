@@ -28,6 +28,7 @@ class AccessibleCompartmentsResource extends JsonResource
                     'id' => (string) $lockerBank->id,
                     'name' => $lockerBank->name,
                     'location_description' => $lockerBank->location_description,
+                    'support_phone' => $lockerBank->support_phone,
                     'last_compartment_state_change_at' => $lockerBank->last_compartment_state_change_at?->toIso8601String(),
                     // What the app colours each bank by, sent with the list so the
                     // first paint is right; the realtime event keeps it current.

@@ -8,15 +8,19 @@ import { useAppDispatch, useAppSelector } from '@/src/store/hooks';
 import { applyBankConnection } from './applyBankConnection';
 import { applyContentNote } from './applyContentNote';
 import { applyDoorState } from './applyDoorState';
+import { applyOpenStatus } from './applyOpenStatus';
 import {
   createEcho,
   type CompartmentDoorStateUpdatedPayload,
   type CompartmentNoteUpdatedPayload,
+  type CompartmentOpenStatusUpdatedPayload,
   type LockerBankConnectionUpdatedPayload,
 } from './echo';
 
 const DOOR_STATE_EVENT = '.compartment.door_state.updated';
 const CONTENT_NOTE_EVENT = '.compartment.content_note.updated';
+/** Must match `CompartmentOpenStatusUpdated::broadcastAs()`. */
+const OPEN_STATUS_EVENT = '.compartment.open.status.updated';
 /** Must match `LockerBankConnectionUpdated::broadcastAs()`. */
 export const BANK_CONNECTION_EVENT = '.locker_bank.connection.updated';
 /** Must match `TermsAcceptanceRequired::broadcastAs()`. The leading dot stops Echo
@@ -41,6 +45,8 @@ export function lockerBankChannelName(userId: number | string): string {
  *   `door_state` in place (no refetch).
  * - On `.compartment.content_note.updated`, patches the matching compartment's
  *   `content_note` fields in place (no refetch).
+ * - On `.compartment.open.status.updated`, advances the cached status of that
+ *   open request, if the app is following it (no refetch).
  * - On `.locker_bank.connection.updated` (its own channel), patches the bank's
  *   `connection_status` in place, so a bank going offline recolours without a
  *   refetch. Coming back is immediate; going offline waits for the backend's
@@ -49,8 +55,9 @@ export function lockerBankChannelName(userId: number | string): string {
  *   reports unavailable/disconnected, or the app returns to the foreground
  *   (events sent while backgrounded are not replayed).
  *
- * `door_state` is sourced only from the API and this event — open-command
- * feedback stays on the mutation path and is never derived here.
+ * `door_state` is sourced only from the API and the door-state event, and
+ * open-command feedback only from the open request's own status (ADR-0023) —
+ * neither is derived from the other.
  */
 export function useCompartmentStatusRealtime(): void {
   const token = useAppSelector((state) => state.auth.token);
@@ -96,6 +103,18 @@ export function useCompartmentStatusRealtime(): void {
       );
     };
 
+    const handleOpenStatus = (payload: CompartmentOpenStatusUpdatedPayload) => {
+      dispatch(
+        openLockerApi.util.updateQueryData(
+          'getCompartmentsOpenRequestsByCommandId',
+          { commandId: payload.command_id },
+          (draft) => {
+            applyOpenStatus(draft, payload);
+          },
+        ),
+      );
+    };
+
     // Independent of the socket: a plain REST refetch to reconcile missed events.
     // Runs when the socket drops and when the app returns to the foreground.
     // `Auth` is included because the user's terms acceptance goes stale the same
@@ -114,7 +133,8 @@ export function useCompartmentStatusRealtime(): void {
     echo
       .private(channelName)
       .listen(DOOR_STATE_EVENT, handleDoorState)
-      .listen(CONTENT_NOTE_EVENT, handleContentNote);
+      .listen(CONTENT_NOTE_EVENT, handleContentNote)
+      .listen(OPEN_STATUS_EVENT, handleOpenStatus);
 
     echo.private(accountChannel).listen(TERMS_ACCEPTANCE_EVENT, handleTermsAcceptanceRequired);
     echo.private(lockerBankChannel).listen(BANK_CONNECTION_EVENT, handleBankConnection);

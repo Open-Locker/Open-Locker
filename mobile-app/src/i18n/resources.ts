@@ -7,6 +7,7 @@ export const resources = {
         changeServer: 'Change Server',
         forgotPassword: 'Forgot Password',
         resetPassword: 'Reset Password',
+        compartmentHelp: 'Get help',
       },
       common: {
         account: 'Account',
@@ -59,6 +60,19 @@ export const resources = {
         openRequestSent: 'Open request sent.',
         openCompartment: 'Open compartment',
         openCompartmentDisabledOpen: 'Already open',
+        openCompartmentRetry: 'Try again',
+        getHelp: 'Get help',
+        openProgress: {
+          sending: 'Sending the open command to the locker…',
+          unlocking: 'The lock was released. Open the door now.',
+          opened: 'Door opened.',
+          alreadyOpen: 'The door was already open.',
+          jammed:
+            'The door did not open. The locker manager is notified automatically. If it is still closed, you can try again.',
+          failed: 'The locker could not open this compartment. Please try again.',
+          denied: 'The open request was refused.',
+          noResponse: 'The locker is not responding. It may be offline, so please try again later.',
+        },
         lockerBankDefault: 'Locker bank {{id}}',
         contentNoteLabel: 'Contents note:',
         contentNoteEmpty: 'No note yet',
@@ -67,6 +81,19 @@ export const resources = {
         saveNote: 'Save note',
         noteSaved: 'Note saved.',
         contentNoteCounter: '{{count}}/{{max}} characters',
+      },
+      compartmentHelp: {
+        intro: 'Compartment {{number}} on {{bank}} did not open. The locker manager can help.',
+        introUnknown: 'This compartment did not open. The locker manager can help.',
+        callTitle: 'Call the locker manager',
+        call: 'Call {{phone}}',
+        callHint: 'Opens your phone app to call the locker manager.',
+        messageTitle: 'Send a message',
+        messageDescription: 'The locker manager gets your message by email and can reply to you.',
+        messagePlaceholder: 'What happened? For example: the door is stuck and my bag is inside.',
+        phoneLabel: 'Your phone number for a call back (optional)',
+        send: 'Send message',
+        sent: 'Message sent. The locker manager will get back to you.',
       },
       account: {
         signedInAs: 'Signed in as',
@@ -138,6 +165,7 @@ export const resources = {
         changeServer: 'Server ändern',
         forgotPassword: 'Passwort vergessen',
         resetPassword: 'Passwort zurücksetzen',
+        compartmentHelp: 'Hilfe holen',
       },
       common: {
         account: 'Konto',
@@ -190,6 +218,20 @@ export const resources = {
         openRequestSent: 'Öffnen-Anfrage gesendet.',
         openCompartment: 'Fach öffnen',
         openCompartmentDisabledOpen: 'Bereits geöffnet',
+        openCompartmentRetry: 'Erneut versuchen',
+        getHelp: 'Hilfe holen',
+        openProgress: {
+          sending: 'Öffnen-Befehl wird an den Schrank gesendet…',
+          unlocking: 'Das Schloss wurde entriegelt. Öffne jetzt die Tür.',
+          opened: 'Tür geöffnet.',
+          alreadyOpen: 'Die Tür war bereits offen.',
+          jammed:
+            'Die Tür hat sich nicht geöffnet. Die Schrankverwaltung wird automatisch benachrichtigt. Wenn sie noch geschlossen ist, kannst du es erneut versuchen.',
+          failed: 'Der Schrank konnte dieses Fach nicht öffnen. Bitte versuche es erneut.',
+          denied: 'Die Öffnen-Anfrage wurde abgelehnt.',
+          noResponse:
+            'Der Schrank antwortet nicht. Er ist eventuell offline, bitte versuche es später erneut.',
+        },
         lockerBankDefault: 'Schrankblock {{id}}',
         contentNoteLabel: 'Inhaltsnotiz:',
         contentNoteEmpty: 'Noch keine Notiz',
@@ -198,6 +240,22 @@ export const resources = {
         saveNote: 'Notiz speichern',
         noteSaved: 'Notiz gespeichert.',
         contentNoteCounter: '{{count}}/{{max}} Zeichen',
+      },
+      compartmentHelp: {
+        intro:
+          'Fach {{number}} in {{bank}} hat sich nicht geöffnet. Die Schrankverwaltung kann helfen.',
+        introUnknown: 'Dieses Fach hat sich nicht geöffnet. Die Schrankverwaltung kann helfen.',
+        callTitle: 'Schrankverwaltung anrufen',
+        call: '{{phone}} anrufen',
+        callHint: 'Öffnet deine Telefon-App, um die Schrankverwaltung anzurufen.',
+        messageTitle: 'Nachricht senden',
+        messageDescription:
+          'Die Schrankverwaltung erhält deine Nachricht per E-Mail und kann dir antworten.',
+        messagePlaceholder:
+          'Was ist passiert? Zum Beispiel: Die Tür klemmt und meine Tasche ist drin.',
+        phoneLabel: 'Deine Telefonnummer für einen Rückruf (optional)',
+        send: 'Nachricht senden',
+        sent: 'Nachricht gesendet. Die Schrankverwaltung meldet sich bei dir.',
       },
       account: {
         signedInAs: 'Angemeldet als',

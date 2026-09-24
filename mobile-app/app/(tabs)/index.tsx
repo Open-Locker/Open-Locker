@@ -31,6 +31,17 @@ import {
 import { useAppSelector } from '@/src/store/hooks';
 import { useUserName } from '@/src/auth/useUserName';
 import {
+  GET_HELP_AFTER_PROBLEMS,
+  isOpenFinished,
+  NO_OPEN_PROBLEMS,
+  OpenProgressNotice,
+  openProgressTone,
+  readCommandId,
+  tallyForCompartment,
+  tallyOpenOutcome,
+  useOpenProgress,
+} from '@/src/features/compartmentOpen';
+import {
   getCompartmentStatusPalette,
   getLockerStatusPalette,
   type CompartmentVisualStatus,
@@ -141,6 +152,19 @@ export default function CompartmentsScreen() {
   const [selectedLockerBankId, setSelectedLockerBankId] = React.useState<string>('');
   const [modalError, setModalError] = React.useState<string | null>(null);
   const [modalInfo, setModalInfo] = React.useState<string | null>(null);
+  const [openCommandId, setOpenCommandId] = React.useState<string | null>(null);
+  // The open call can resolve after the sheet was closed or another compartment
+  // opened; its answer must not be shown or counted for that other compartment.
+  const sheetCompartmentIdRef = React.useRef<string | null>(null);
+  const openProgress = useOpenProgress(openCommandId);
+  const isOpenInFlight =
+    requestOpenState.isLoading || (openProgress !== null && !isOpenFinished(openProgress));
+  const [openProblems, setOpenProblems] = React.useState(NO_OPEN_PROBLEMS);
+  React.useEffect(() => {
+    if (openCommandId && openProgress) {
+      setOpenProblems((tally) => tallyOpenOutcome(tally, openCommandId, openProgress));
+    }
+  }, [openCommandId, openProgress]);
   const [isEditingNote, setIsEditingNote] = React.useState(false);
   const [noteDraft, setNoteDraft] = React.useState('');
   const compartmentSheetRef = React.useRef<BottomSheetModal>(null);
@@ -164,6 +188,9 @@ export default function CompartmentsScreen() {
   const openCompartmentSheet = React.useCallback((compartment: CompartmentEntry) => {
     setModalError(null);
     setModalInfo(null);
+    setOpenCommandId(null);
+    sheetCompartmentIdRef.current = compartment.id;
+    setOpenProblems((tally) => tallyForCompartment(tally, compartment.id));
     setIsEditingNote(false);
     setNoteDraft(compartment.content_note ?? '');
     setSelectedCompartment(compartment);
@@ -430,6 +457,8 @@ export default function CompartmentsScreen() {
         onDismiss={() => {
           setSelectedCompartment(null);
           setIsEditingNote(false);
+          setOpenCommandId(null);
+          sheetCompartmentIdRef.current = null;
         }}
         backdropComponent={sheetBackdrop}
         enablePanDownToClose
@@ -565,26 +594,49 @@ export default function CompartmentsScreen() {
           <HelperText type="info" visible={!!modalInfo}>
             {modalInfo}
           </HelperText>
+          {openProgress ? <OpenProgressNotice progress={openProgress} /> : null}
+          {selectedCompartment && openProblems.count >= GET_HELP_AFTER_PROBLEMS ? (
+            <Button
+              mode="outlined"
+              onPress={() => {
+                const compartmentId = selectedCompartment.id;
+                closeCompartmentSheet();
+                router.push({ pathname: '/compartment-help', params: { compartmentId } });
+              }}
+            >
+              {t('compartments.getHelp')}
+            </Button>
+          ) : null}
           <Button
             mode="contained"
             onPress={() => {
               if (!selectedCompartment) return;
+              const compartmentId = selectedCompartment.id;
               void (async () => {
                 setModalError(null);
                 setModalInfo(null);
+                setOpenCommandId(null);
                 try {
-                  await requestOpen({ compartment: selectedCompartment.id }).unwrap();
-                  setModalInfo(t('compartments.openRequestSent'));
-                  closeCompartmentSheet();
+                  const response: unknown = await requestOpen({
+                    compartment: compartmentId,
+                  }).unwrap();
+                  if (sheetCompartmentIdRef.current !== compartmentId) return;
+                  const commandId = readCommandId(response);
+                  if (commandId) {
+                    setOpenCommandId(commandId);
+                  } else {
+                    setModalInfo(t('compartments.openRequestSent'));
+                  }
                 } catch (e) {
+                  if (sheetCompartmentIdRef.current !== compartmentId) return;
                   setModalError(getApiErrorMessage(e, t));
                 }
               })();
             }}
-            loading={requestOpenState.isLoading}
+            loading={isOpenInFlight}
             disabled={
               !selectedCompartment ||
-              requestOpenState.isLoading ||
+              isOpenInFlight ||
               // A confirmed-open door cannot be opened again; `unknown`/`closed`
               // stay actionable since the real state isn't known to be open.
               selectedCompartmentStatus === 'open'
@@ -592,7 +644,9 @@ export default function CompartmentsScreen() {
           >
             {selectedCompartmentStatus === 'open'
               ? t('compartments.openCompartmentDisabledOpen')
-              : t('compartments.openCompartment')}
+              : openProgress && openProgressTone(openProgress) === 'problem'
+                ? t('compartments.openCompartmentRetry')
+                : t('compartments.openCompartment')}
           </Button>
           <Button mode="text" onPress={closeCompartmentSheet}>
             {t('common.close')}

@@ -47,6 +47,7 @@ class AuditEventPresenter
         'GroupCompartmentAccessGranted' => 'access',
         'GroupCompartmentAccessRevoked' => 'access',
         'CompartmentContentNoteUpdated' => 'access',
+        'CompartmentHelpRequested' => 'access',
 
         // Devices / lockers
         'LockerWasProvisioned' => 'devices',
@@ -177,6 +178,7 @@ class AuditEventPresenter
             'GroupCompartmentAccessGranted' => __('Group access granted'),
             'GroupCompartmentAccessRevoked' => __('Group access revoked'),
             'CompartmentContentNoteUpdated' => __('Content note updated'),
+            'CompartmentHelpRequested' => __('Help requested'),
             'LockerWasProvisioned' => __('Locker provisioned'),
             'LockerProvisioningFailed' => __('Provisioning failed'),
             'LockerProvisioningReset' => __('Provisioning reset'),
@@ -268,6 +270,12 @@ class AuditEventPresenter
             'CompartmentContentNoteUpdated' => __(':actor updated the content note of compartment :compartment', [
                 'actor' => $this->user($p['actorUserId'] ?? null),
                 'compartment' => $this->compartment($p['compartmentUuid'] ?? null),
+            ]),
+            // The audit log is the durable record if the email is lost, so it keeps the words.
+            'CompartmentHelpRequested' => __(':actor asked for help with compartment :compartment: ":message"', [
+                'actor' => $this->user($p['actorUserId'] ?? null),
+                'compartment' => $this->compartment($p['compartmentUuid'] ?? null),
+                'message' => $p['message'] ?? '',
             ]),
             'LockerWasProvisioned' => __('Locker bank :bank was provisioned', [
                 'bank' => $this->lockerBank($p['lockerBankUuid'] ?? null),
