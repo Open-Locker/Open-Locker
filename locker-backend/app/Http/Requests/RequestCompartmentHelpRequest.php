@@ -44,7 +44,7 @@ class RequestCompartmentHelpRequest extends FormRequest
                 'nullable',
                 'string',
                 'max:'.CompartmentService::CALLBACK_PHONE_MAX_LENGTH,
-                'regex:/^\+?[0-9 ()\/.-]+$/',
+                'regex:/^(?=.*\d)\+?[0-9 ()\/.-]+$/',
             ],
         ];
     }

@@ -117,15 +117,27 @@ class CompartmentHelpRequestTest extends TestCase
         );
     }
 
-    public function test_a_phone_that_is_not_a_number_is_rejected(): void
+    #[DataProvider('invalidPhones')]
+    public function test_a_phone_that_is_not_a_number_is_rejected(string $phone): void
     {
         $admin = $this->givenAdmin();
         $compartment = Compartment::factory()->create();
 
         $this->actingAs($admin)->postJson(
             route('compartments.help-requests.store', $compartment->id),
-            ['message' => 'Door is stuck.', 'phone' => 'call me maybe'],
+            ['message' => 'Door is stuck.', 'phone' => $phone],
         )->assertStatus(422)->assertJsonValidationErrors('phone');
+    }
+
+    /**
+     * @return array<string, array{string}>
+     */
+    public static function invalidPhones(): array
+    {
+        return [
+            'letters' => ['call me maybe'],
+            'no digits' => ['( ) --'],
+        ];
     }
 
     public function test_a_user_with_an_unverified_email_is_refused(): void
