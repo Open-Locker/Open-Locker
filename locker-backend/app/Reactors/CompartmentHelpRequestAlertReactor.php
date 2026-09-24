@@ -46,16 +46,21 @@ class CompartmentHelpRequestAlertReactor extends Reactor implements ShouldQueue
         $lockerBankName = $compartment?->lockerBank->name ?? $event->compartmentUuid;
         $userName = $user?->fullName() ?? "User #{$event->actorUserId}";
 
+        $toastBody = __(':user needs help with compartment :number on :bank: ":message"', [
+            'user' => $userName,
+            'number' => $compartmentNumber,
+            'bank' => $lockerBankName,
+            'message' => $event->message,
+        ]);
+        if ($event->callbackPhone !== null) {
+            $toastBody .= ' '.__('Phone for a call back: :phone', ['phone' => $event->callbackPhone]);
+        }
+
         FilamentNotification::make()
             ->warning()
             ->icon('heroicon-o-lifebuoy')
             ->title(__('Help requested'))
-            ->body(__(':user needs help with compartment :number on :bank: ":message"', [
-                'user' => $userName,
-                'number' => $compartmentNumber,
-                'bank' => $lockerBankName,
-                'message' => $event->message,
-            ]))
+            ->body($toastBody)
             ->broadcast($recipients);
 
         Notification::send($recipients, new CompartmentHelpRequestedNotification(
@@ -64,6 +69,7 @@ class CompartmentHelpRequestAlertReactor extends Reactor implements ShouldQueue
             lockerBankName: $lockerBankName,
             compartmentNumber: $compartmentNumber,
             message: $event->message,
+            callbackPhone: $event->callbackPhone,
         ));
     }
 

@@ -16,8 +16,9 @@ import { useAppSelector } from '@/src/store/hooks';
 import { OPEN_LOCKER_DESIGN_TOKENS } from '@/src/theme/tokens';
 import { AppButton, AppTextInput } from '@/src/ui';
 
-/** Matches `CompartmentService::HELP_MESSAGE_MAX_LENGTH` on the backend. */
+/** Match `CompartmentService::HELP_MESSAGE_MAX_LENGTH` and `CALLBACK_PHONE_MAX_LENGTH`. */
 const HELP_MESSAGE_MAX_LENGTH = 1000;
+const CALLBACK_PHONE_MAX_LENGTH = 32;
 
 export default function CompartmentHelpScreen() {
   const { t } = useTranslation();
@@ -28,6 +29,7 @@ export default function CompartmentHelpScreen() {
   const [sendHelpRequest, sendHelpRequestState] =
     usePostCompartmentsByCompartmentHelpRequestsMutation();
   const [message, setMessage] = React.useState('');
+  const [phone, setPhone] = React.useState('');
   const [error, setError] = React.useState<string | null>(null);
   const [sent, setSent] = React.useState(false);
 
@@ -42,7 +44,7 @@ export default function CompartmentHelpScreen() {
     try {
       await sendHelpRequest({
         compartment: compartmentId,
-        requestCompartmentHelpRequest: { message: message.trim() },
+        requestCompartmentHelpRequest: { message: message.trim(), phone: phone.trim() || null },
       }).unwrap();
       setSent(true);
     } catch (e) {
@@ -97,6 +99,17 @@ export default function CompartmentHelpScreen() {
             maxLength={HELP_MESSAGE_MAX_LENGTH}
             editable={!sent}
             accessibilityLabel={t('compartmentHelp.messageTitle')}
+          />
+          {/* Marked as a phone number so the OS can offer the user's own number. */}
+          <AppTextInput
+            value={phone}
+            onChangeText={setPhone}
+            label={t('compartmentHelp.phoneLabel')}
+            keyboardType="phone-pad"
+            textContentType="telephoneNumber"
+            autoComplete="tel"
+            maxLength={CALLBACK_PHONE_MAX_LENGTH}
+            editable={!sent}
           />
           <HelperText type="error" visible={!!error}>
             {error}

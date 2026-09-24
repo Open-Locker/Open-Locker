@@ -91,6 +91,7 @@ export const resources = {
         messageTitle: 'Send a message',
         messageDescription: 'The locker manager gets your message by email and can reply to you.',
         messagePlaceholder: 'What happened? For example: the door is stuck and my bag is inside.',
+        phoneLabel: 'Your phone number for a call back (optional)',
         send: 'Send message',
         sent: 'Message sent. The locker manager will get back to you.',
       },
@@ -252,6 +253,7 @@ export const resources = {
           'Die Schrankverwaltung erhält deine Nachricht per E-Mail und kann dir antworten.',
         messagePlaceholder:
           'Was ist passiert? Zum Beispiel: Die Tür klemmt und meine Tasche ist drin.',
+        phoneLabel: 'Deine Telefonnummer für einen Rückruf (optional)',
         send: 'Nachricht senden',
         sent: 'Nachricht gesendet. Die Schrankverwaltung meldet sich bei dir.',
       },

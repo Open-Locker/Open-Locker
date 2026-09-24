@@ -43,8 +43,12 @@ a message form.
 - an open call the API rejects outright (network error, 4xx/5xx) is not
   counted; the sheet shows that error instead
 
-`POST /api/compartments/{compartment}/help-requests` with `{ message }`
-(1–1000 characters, trimmed) answers `202 { status, help_request_id }`.
+`POST /api/compartments/{compartment}/help-requests` with `{ message, phone? }`
+answers `202 { status, help_request_id }`. The message is 1–1000 characters,
+trimmed. The phone is optional: a number the user leaves for a call back (up to
+32 characters of digits, spaces and `+ ( ) / . -`). Apps cannot read the
+device's own number, so the user types it; the app marks the field as a phone
+number so the operating system can offer to fill it in.
 
 - Only users with active access to the compartment, or who may manage access,
   can send one; others get 403. The access rule is the content note's.
@@ -58,7 +62,8 @@ a message form.
 - `CompartmentHelpRequestAlertReactor` notifies the same operators as the
   deviation alert, over the same channels: a live panel toast and an email.
   The email's Reply-To is the requesting user, so the operator can answer
-  directly.
+  directly. When the user left a phone number, the email and the toast show it;
+  otherwise they are unchanged.
 - The audit log lists the event under *access*, including the message.
 
 ## Rationale
@@ -105,8 +110,9 @@ problems, without new settings.
 
 ### Risks
 
-- users may write personal data into the message; it cannot be erased from the
-  event store under the current #272 constraint
+- users may write personal data into the message, and the optional phone
+  number is personal data; neither can be erased from the event store under the
+  current #272 constraint
 - no operator holding `compartment.open` means nobody is notified (logged as a
   warning, as for deviations)
 

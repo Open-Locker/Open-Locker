@@ -21,6 +21,8 @@ class CompartmentService
 
     public const HELP_MESSAGE_MAX_LENGTH = 1000;
 
+    public const CALLBACK_PHONE_MAX_LENGTH = 32;
+
     public function __construct(
         private readonly CompartmentAccessService $accessService,
     ) {}
@@ -83,19 +85,29 @@ class CompartmentService
 
     /**
      * Record that a user asked the locker managers for help with a compartment;
-     * CompartmentHelpRequestAlertReactor passes it on. Returns the request id.
+     * CompartmentHelpRequestAlertReactor passes it on. The phone is an optional
+     * number the user left for a call back. Returns the request id.
      *
      * @throws AuthorizationException
      */
-    public function requestHelp(User $actor, Compartment $compartment, string $message): string
-    {
+    public function requestHelp(
+        User $actor,
+        Compartment $compartment,
+        string $message,
+        ?string $callbackPhone = null,
+    ): string {
         $this->ensureHasAccess($actor, $compartment);
 
-        // The message becomes permanent audit history, so the cap holds for
-        // every caller, not only the API request that validates it.
+        // Both become permanent audit history, so the caps hold for every
+        // caller, not only the API request that validates them.
         if ($message === '' || mb_strlen($message) > self::HELP_MESSAGE_MAX_LENGTH) {
             throw new InvalidArgumentException(
                 sprintf('Help message must be 1 to %d characters.', self::HELP_MESSAGE_MAX_LENGTH),
+            );
+        }
+        if ($callbackPhone !== null && ($callbackPhone === '' || mb_strlen($callbackPhone) > self::CALLBACK_PHONE_MAX_LENGTH)) {
+            throw new InvalidArgumentException(
+                sprintf('Callback phone must be 1 to %d characters.', self::CALLBACK_PHONE_MAX_LENGTH),
             );
         }
 
@@ -107,6 +119,7 @@ class CompartmentService
                 compartmentUuid: (string) $compartment->id,
                 actorUserId: $actor->id,
                 message: $message,
+                callbackPhone: $callbackPhone,
                 requestedAt: now(),
             )
             ->persist();

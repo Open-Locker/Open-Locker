@@ -95,6 +95,39 @@ class CompartmentHelpRequestTest extends TestCase
         )->assertStatus(422)->assertJsonValidationErrors('message');
     }
 
+    public function test_a_call_back_phone_reaches_the_operators_email(): void
+    {
+        Notification::fake();
+        [$admin] = $this->givenOperators();
+        $compartment = Compartment::factory()->create();
+
+        $this->actingAs($admin)->postJson(
+            route('compartments.help-requests.store', $compartment->id),
+            ['message' => 'Door is stuck.', 'phone' => ' +49 30 1234567 '],
+        )->assertStatus(202);
+
+        Notification::assertSentTo(
+            $admin,
+            CompartmentHelpRequestedNotification::class,
+            fn (CompartmentHelpRequestedNotification $notification): bool => in_array(
+                'Phone for a call back: +49 30 1234567',
+                $notification->toMail($admin)->introLines,
+                true,
+            ),
+        );
+    }
+
+    public function test_a_phone_that_is_not_a_number_is_rejected(): void
+    {
+        $admin = $this->givenAdmin();
+        $compartment = Compartment::factory()->create();
+
+        $this->actingAs($admin)->postJson(
+            route('compartments.help-requests.store', $compartment->id),
+            ['message' => 'Door is stuck.', 'phone' => 'call me maybe'],
+        )->assertStatus(422)->assertJsonValidationErrors('phone');
+    }
+
     public function test_a_user_with_an_unverified_email_is_refused(): void
     {
         [$admin] = $this->givenOperators();

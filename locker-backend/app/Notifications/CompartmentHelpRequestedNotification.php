@@ -24,6 +24,7 @@ class CompartmentHelpRequestedNotification extends Notification implements Shoul
         private readonly string $lockerBankName,
         private readonly int $compartmentNumber,
         private readonly string $message,
+        private readonly ?string $callbackPhone = null,
     ) {}
 
     /**
@@ -42,25 +43,34 @@ class CompartmentHelpRequestedNotification extends Notification implements Shoul
                 'bank' => $this->lockerBankName,
             ]));
 
-        if ($this->userEmail === null || $this->userEmail === '') {
-            return $mail
-                ->line(__(':user asked for help with compartment :number on :bank:', [
+        $hasEmail = $this->userEmail !== null && $this->userEmail !== '';
+
+        if ($hasEmail) {
+            $mail->replyTo($this->userEmail, $this->userName)
+                ->line(__(':user (:email) asked for help with compartment :number on :bank:', [
                     'user' => $this->userName,
+                    'email' => $this->userEmail,
                     'number' => $this->compartmentNumber,
                     'bank' => $this->lockerBankName,
-                ]))
-                ->line('"'.$this->message.'"');
-        }
-
-        return $mail
-            ->replyTo($this->userEmail, $this->userName)
-            ->line(__(':user (:email) asked for help with compartment :number on :bank:', [
+                ]));
+        } else {
+            $mail->line(__(':user asked for help with compartment :number on :bank:', [
                 'user' => $this->userName,
-                'email' => $this->userEmail,
                 'number' => $this->compartmentNumber,
                 'bank' => $this->lockerBankName,
-            ]))
-            ->line('"'.$this->message.'"')
-            ->line(__('Reply to this email to answer them directly.'));
+            ]));
+        }
+
+        $mail->line('"'.$this->message.'"');
+
+        if ($this->callbackPhone !== null) {
+            $mail->line(__('Phone for a call back: :phone', ['phone' => $this->callbackPhone]));
+        }
+
+        if ($hasEmail) {
+            $mail->line(__('Reply to this email to answer them directly.'));
+        }
+
+        return $mail;
     }
 }

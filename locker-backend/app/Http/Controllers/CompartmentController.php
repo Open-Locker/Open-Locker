@@ -162,6 +162,7 @@ class CompartmentController extends Controller
             $this->authenticatedUser($request),
             $compartment,
             $request->validated('message'),
+            $request->validated('phone'),
         );
 
         return new CompartmentHelpRequestResource(['help_request_id' => $helpRequestId]);

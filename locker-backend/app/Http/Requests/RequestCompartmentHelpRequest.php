@@ -24,6 +24,13 @@ class RequestCompartmentHelpRequest extends FormRequest
         if (is_string($message)) {
             $this->merge(['message' => trim($message)]);
         }
+
+        // Optional: a blank phone field means the user didn't leave a number.
+        $phone = $this->input('phone');
+        if (is_string($phone)) {
+            $phone = trim($phone);
+            $this->merge(['phone' => $phone === '' ? null : $phone]);
+        }
     }
 
     /**
@@ -33,6 +40,12 @@ class RequestCompartmentHelpRequest extends FormRequest
     {
         return [
             'message' => ['required', 'string', 'max:'.CompartmentService::HELP_MESSAGE_MAX_LENGTH],
+            'phone' => [
+                'nullable',
+                'string',
+                'max:'.CompartmentService::CALLBACK_PHONE_MAX_LENGTH,
+                'regex:/^\+?[0-9 ()\/.-]+$/',
+            ],
         ];
     }
 }

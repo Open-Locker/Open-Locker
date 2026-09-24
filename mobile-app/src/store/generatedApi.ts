@@ -528,6 +528,7 @@ export type CompartmentHelpRequest = {
 };
 export type RequestCompartmentHelpRequest = {
   message: string;
+  phone?: string | null;
 };
 export type CompartmentOpenStatus = {
   status: boolean;

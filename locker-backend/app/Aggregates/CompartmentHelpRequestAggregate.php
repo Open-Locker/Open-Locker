@@ -18,6 +18,7 @@ class CompartmentHelpRequestAggregate extends TransactionalAggregateRoot
         string $compartmentUuid,
         int $actorUserId,
         string $message,
+        ?string $callbackPhone,
         CarbonInterface $requestedAt,
     ): self {
         $this->recordThat(new CompartmentHelpRequested(
@@ -26,6 +27,7 @@ class CompartmentHelpRequestAggregate extends TransactionalAggregateRoot
             actorUserId: $actorUserId,
             message: $message,
             requestedAtIso8601: $requestedAt->toIso8601String(),
+            callbackPhone: $callbackPhone,
         ));
 
         return $this;
