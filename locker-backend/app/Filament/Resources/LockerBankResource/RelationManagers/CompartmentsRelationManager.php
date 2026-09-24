@@ -4,15 +4,13 @@ declare(strict_types=1);
 
 namespace App\Filament\Resources\LockerBankResource\RelationManagers;
 
-use App\Enums\LockerAdapterType;
 use App\Enums\Permission;
+use App\Filament\Resources\LockerBankResource\Pages\EditLockerBank;
 use App\Filament\Support\CompartmentDoorStateColumn;
 use App\Filament\Support\OpenCompartmentAction;
 use App\Models\Compartment;
-use App\Models\LockerBank;
 use App\Models\User;
 use App\Services\CompartmentService;
-use App\Services\LockerService;
 use App\StorableEvents\CompartmentContentNoteUpdated;
 use Filament\Actions\Action;
 use Filament\Facades\Filament;
@@ -29,7 +27,6 @@ use Filament\Tables\Table;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Carbon;
-use Illuminate\Support\Facades\Log;
 use Spatie\EventSourcing\StoredEvents\Models\EloquentStoredEvent;
 
 class CompartmentsRelationManager extends RelationManager
@@ -41,48 +38,14 @@ class CompartmentsRelationManager extends RelationManager
         return __('Compartments');
     }
 
-    private function lockerBank(): LockerBank
+    public static function canViewForRecord(\Illuminate\Database\Eloquent\Model $ownerRecord, string $pageClass): bool
     {
-        $lockerBank = $this->getOwnerRecord();
-        if (! $lockerBank instanceof LockerBank) {
-            throw new \LogicException('Compartments must belong to a locker bank.');
-        }
-
-        return $lockerBank;
+        return $pageClass === EditLockerBank::class;
     }
 
     public function form(Schema $form): Schema
     {
-        return $form
-            ->schema([
-                Forms\Components\TextInput::make('number')
-                    ->label(__('Number'))
-                    ->numeric()
-                    ->required()
-                    ->step(1)
-                    ->minValue(1)
-                    ->helperText(__('1-based compartment number (logical ID used by MQTT commands).')),
-
-                Forms\Components\TextInput::make('slave_id')
-                    ->label(__('Slave ID'))
-                    ->numeric()
-                    ->required()
-                    ->step(1)
-                    ->minValue(1)
-                    ->maxValue(fn (): int => $this->lockerBank()->adapter_type === LockerAdapterType::Rs485LockBoard ? 31 : 255)
-                    ->helperText(fn (): string => $this->lockerBank()->adapter_type === LockerAdapterType::Rs485LockBoard
-                        ? __('RS485 board address set by the DIP switches (1-31).')
-                        : __('Modbus slave ID of the IO board (1-255).')),
-
-                Forms\Components\TextInput::make('address')
-                    ->label(__('Address'))
-                    ->numeric()
-                    ->required()
-                    ->step(1)
-                    ->minValue(0)
-                    ->maxValue(LockerBank::MAX_WIRE_CHANNEL_ADDRESS)
-                    ->helperText(__('0-based channel address on the given slave (0–254 wire-encodable range). Used for both coil and input.')),
-            ]);
+        return $form->schema([]);
     }
 
     /**
@@ -127,28 +90,6 @@ class CompartmentsRelationManager extends RelationManager
                     ->sortable()
                     ->label(__('Compartment'))
                     ->prefix('#'),
-
-                Tables\Columns\TextInputColumn::make('slave_id')
-                    ->label(__('Slave ID'))
-                    ->rules(fn (): array => [
-                        'nullable',
-                        'integer',
-                        'min:1',
-                        'max:'.($this->lockerBank()->adapter_type === LockerAdapterType::Rs485LockBoard ? 31 : 255),
-                    ])
-                    ->tooltip(fn (): string => $this->lockerBank()->adapter_type === LockerAdapterType::Rs485LockBoard
-                        ? __('RS485 board address set by the DIP switches (1-31).')
-                        : __('Modbus slave ID (1-255).')),
-
-                Tables\Columns\TextInputColumn::make('address')
-                    ->label(__('Address'))
-                    ->rules(fn (): array => [
-                        'nullable',
-                        'integer',
-                        'min:0',
-                        'max:'.LockerBank::MAX_WIRE_CHANNEL_ADDRESS,
-                    ])
-                    ->tooltip(__('0-based channel address (0–254 wire-encodable range). Used for both coil and input.')),
 
                 CompartmentDoorStateColumn::column(),
 
@@ -204,46 +145,8 @@ class CompartmentsRelationManager extends RelationManager
             ->filters([
                 //
             ])
-            ->headerActions([
-                \Filament\Actions\Action::make('sendConfigToClient')
-                    ->label(__('Send config to client'))
-                    ->icon('heroicon-m-paper-airplane')
-                    ->requiresConfirmation()
-                    ->disabled(function (): bool {
-                        /** @var LockerBank $lockerBank */
-                        $lockerBank = $this->getOwnerRecord();
-
-                        return $lockerBank->provisioned_at === null;
-                    })
-                    ->action(function (): void {
-                        /** @var LockerBank $lockerBank */
-                        $lockerBank = $this->getOwnerRecord();
-
-                        try {
-                            app(LockerService::class)->applyConfig($lockerBank);
-
-                            Notification::make()
-                                ->title(__('Configuration sent'))
-                                ->body(__('The locker bank will apply the new configuration.'))
-                                ->success()
-                                ->send();
-                        } catch (\Throwable $e) {
-                            Log::error('Failed to queue apply_config from Filament.', [
-                                'locker_bank_id' => $lockerBank->id,
-                                'error' => $e->getMessage(),
-                            ]);
-
-                            Notification::make()
-                                ->title(__('Failed to send configuration'))
-                                ->body(__('Please try again. Details are in the server log.'))
-                                ->danger()
-                                ->send();
-                        }
-                    }),
-                \Filament\Actions\CreateAction::make(),
-            ])
+            ->headerActions([])
             ->actions([
-                \Filament\Actions\EditAction::make(),
                 OpenCompartmentAction::make(),
                 Action::make('editContentNote')
                     ->label(__('Edit note'))
@@ -298,12 +201,7 @@ class CompartmentsRelationManager extends RelationManager
                             ->success()
                             ->send();
                     }),
-                \Filament\Actions\DeleteAction::make(),
             ])
-            ->bulkActions([
-                \Filament\Actions\BulkActionGroup::make([
-                    \Filament\Actions\DeleteBulkAction::make(),
-                ]),
-            ]);
+            ->bulkActions([]);
     }
 }
