@@ -1,4 +1,9 @@
-import type { BaseQueryFn, FetchArgs, FetchBaseQueryError } from '@reduxjs/toolkit/query';
+import type {
+  BaseQueryFn,
+  FetchArgs,
+  FetchBaseQueryError,
+  FetchBaseQueryMeta,
+} from '@reduxjs/toolkit/query';
 import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react';
 
 import { getApiBaseUrl } from '@/src/api/baseUrl';
@@ -32,8 +37,10 @@ const rawBaseQuery = fetchBaseQuery({
     // no generated endpoint has to know the concept exists. Omitted when the
     // user has a single membership: the server resolves that itself, which is
     // what keeps single-organization installations unaware of any of this.
+    // A request that names its own organization keeps it: the locker lists of
+    // every organization are fetched up front so switching is instant.
     const activeOrganizationId = state.organization.activeOrganizationId;
-    if (activeOrganizationId) {
+    if (activeOrganizationId && !headers.has('x-organization')) {
       headers.set('x-organization', activeOrganizationId);
     }
 
@@ -101,7 +108,14 @@ const baseQueryWithSessionExpiry: BaseQueryFn<
   // The stored choice names an organization the user cannot act in — revoked
   // membership, or a stale value from another account. Choosing again cannot
   // fix the stored value, so it is cleared before the switcher reopens.
-  if (result.error?.status === 403 && isOrganizationForbiddenError(result.error.data)) {
+  // Only when the refused request acted in the stored choice: a list fetched
+  // up front for another organization says nothing about that choice.
+  if (
+    result.error?.status === 403 &&
+    isOrganizationForbiddenError(result.error.data) &&
+    (result.meta as FetchBaseQueryMeta | undefined)?.request.headers.get('x-organization') ===
+      (api.getState() as RootState).organization.activeOrganizationId
+  ) {
     api.dispatch(clearActiveOrganization());
   }
 

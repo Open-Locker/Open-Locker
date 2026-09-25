@@ -298,6 +298,31 @@ docker compose exec app php artisan first-admin:create admin@example.com
 Mail delivery must work so the administrator can set a password. The Filament 5
 admin panel is available under `/admin` on the configured backend URL.
 
+### 7. Enable multi-organization support (optional)
+
+Only needed when one installation serves several operators. Take a verified
+database backup first: once a second organization exists, the migration that
+assigns existing data to the default organization cannot be undone.
+
+1. Set `MULTI_ORGANIZATION=true` and deploy. The migrations create the default
+   organization, move all existing data into it, and keep every existing
+   administrator as an administrator of that organization.
+2. Nobody becomes a platform administrator automatically. Grant the role to the
+   account that should create and manage organizations (the account must
+   already exist):
+
+   ```bash
+   docker compose exec app php artisan platform-admin:grant admin@example.com
+   ```
+
+3. That platform administrator can now create organizations and appoint further
+   platform administrators in the admin panel.
+
+Run the same command to regain access if every platform administrator has been
+removed. It is console-only on purpose: access to the server is the
+authorization. See
+[ADR-0065](adr/0065-multi-organization-as-shared-schema-tenancy.md).
+
 ## Locker client setup (Raspberry Pi)
 
 ### Prerequisites

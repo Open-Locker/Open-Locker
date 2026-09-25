@@ -5,6 +5,8 @@ import { AppState } from 'react-native';
 import { openLockerApi, useGetUserQuery } from '@/src/store/generatedApi';
 import { useAppDispatch, useAppSelector } from '@/src/store/hooks';
 
+import { patchAllOrganizationCompartments } from '@/src/features/organizations';
+
 import { applyBankConnection } from './applyBankConnection';
 import { applyContentNote } from './applyContentNote';
 import { applyDoorState } from './applyDoorState';
@@ -35,7 +37,7 @@ export function lockerBankChannelName(userId: number | string): string {
 
 /**
  * Subscribes the signed-in user to their private compartment-status channel and
- * keeps the `getCompartmentsAccessible` cache live:
+ * keeps every organization's cached lockers live:
  *
  * - On `.compartment.door_state.updated`, patches the matching compartment's
  *   `door_state` in place (no refetch).
@@ -74,7 +76,7 @@ export function useCompartmentStatusRealtime(): void {
 
     const handleDoorState = (payload: CompartmentDoorStateUpdatedPayload) => {
       dispatch(
-        openLockerApi.util.updateQueryData('getCompartmentsAccessible', {}, (draft) => {
+        patchAllOrganizationCompartments((draft) => {
           applyDoorState(draft, payload);
         }),
       );
@@ -82,7 +84,7 @@ export function useCompartmentStatusRealtime(): void {
 
     const handleBankConnection = (payload: LockerBankConnectionUpdatedPayload) => {
       dispatch(
-        openLockerApi.util.updateQueryData('getCompartmentsAccessible', {}, (draft) => {
+        patchAllOrganizationCompartments((draft) => {
           applyBankConnection(draft, payload);
         }),
       );
@@ -90,7 +92,7 @@ export function useCompartmentStatusRealtime(): void {
 
     const handleContentNote = (payload: CompartmentNoteUpdatedPayload) => {
       dispatch(
-        openLockerApi.util.updateQueryData('getCompartmentsAccessible', {}, (draft) => {
+        patchAllOrganizationCompartments((draft) => {
           applyContentNote(draft, payload);
         }),
       );

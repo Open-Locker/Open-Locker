@@ -11,6 +11,7 @@ use App\Filament\Resources\UserResource\RelationManagers\OrganizationsRelationMa
 use App\Models\User;
 use App\Services\UserAdministrationService;
 use App\Support\Organizations\OrganizationContext;
+use Closure;
 use Filament\Forms;
 use Filament\Infolists\Components\TextEntry;
 use Filament\Notifications\Notification;
@@ -22,6 +23,8 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Validation\Rule;
+use Illuminate\Validation\Rules\Unique;
 
 class UserResource extends Resource
 {
@@ -101,17 +104,40 @@ class UserResource extends Resource
                     ->disabled(fn (?User $record): bool => $record instanceof User && ! self::canEdit($record)),
                 Forms\Components\TextInput::make('email')
                     ->label(__('Email'))
+                    // A pasted address often carries spaces; they must not make
+                    // an existing account look like a new one.
+                    ->mutateStateForValidationUsing(fn (mixed $state): mixed => is_string($state) ? trim($state) : $state)
+                    ->dehydrateStateUsing(fn (mixed $state): mixed => is_string($state) ? trim($state) : $state)
                     ->email()
                     ->required()
-                    // Checked against every user, not just this organization's:
-                    // email is globally unique, so without this the collision
-                    // surfaced as a database error. The person may well exist in
-                    // another operator, where this admin cannot see them — hence
-                    // a message that says what to do rather than just "taken".
-                    ->unique(table: User::class, column: 'email', ignoreRecord: true)
+                    // Editing: email is globally unique, so changing it to one
+                    // another account holds must fail here rather than as a
+                    // database error.
+                    ->rules(
+                        [fn (?User $record): Unique => Rule::unique(User::class, 'email')->ignore($record)],
+                        fn (string $operation): bool => $operation === 'edit',
+                    )
                     ->validationMessages([
-                        'unique' => __('An account with this email already exists. If they belong to another organization, a platform administrator can add them to this one.'),
+                        'unique' => __('An account with this email already exists.'),
                     ])
+                    // Creating: an existing account joins this organization
+                    // instead (UserAdministrationService::addUser), so the only
+                    // refusal left is someone who is already a member.
+                    ->rules(
+                        [fn (): Closure => function (string $attribute, mixed $value, Closure $fail): void {
+                            $existing = is_string($value)
+                                ? app(UserAdministrationService::class)->findByEmail($value)
+                                : null;
+                            $organizationId = app(OrganizationContext::class)->currentId();
+
+                            if ($existing instanceof User
+                                && $organizationId !== null
+                                && $existing->organizations()->whereKey($organizationId)->exists()) {
+                                $fail(__('This person is already a member of this organization.'));
+                            }
+                        }],
+                        fn (string $operation): bool => $operation === 'create',
+                    )
                     ->disabled(fn (?User $record): bool => $record instanceof User && ! self::canEdit($record)),
                 TextEntry::make('roles')
                     ->label(__('Roles'))

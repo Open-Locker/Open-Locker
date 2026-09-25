@@ -23,13 +23,17 @@ import { ActivityIndicator, Button, Chip, HelperText, Text, useTheme } from 'rea
 
 import {
   type GetCompartmentsAccessibleApiResponse,
-  useGetCompartmentsAccessibleQuery,
   useGetUserQuery,
   usePostCompartmentsByCompartmentOpenMutation,
   usePutCompartmentsByCompartmentContentNoteMutation,
 } from '@/src/store/generatedApi';
 import { useAppSelector } from '@/src/store/hooks';
 import { useUserName } from '@/src/auth/useUserName';
+import {
+  OrganizationSwitcher,
+  useAllOrganizationCompartments,
+  useGetOrganizationCompartmentsQuery,
+} from '@/src/features/organizations';
 import {
   getCompartmentStatusPalette,
   getLockerStatusPalette,
@@ -129,12 +133,19 @@ export default function CompartmentsScreen() {
   const [requestOpen, requestOpenState] = usePostCompartmentsByCompartmentOpenMutation();
   const [updateContentNote, updateContentNoteState] =
     usePutCompartmentsByCompartmentContentNoteMutation();
+  const activeOrganizationId = useAppSelector((state) => state.organization.activeOrganizationId);
+  useAllOrganizationCompartments(!!token);
+  // `currentData`, not `data`: after a switch to an organization whose lockers
+  // are not loaded yet, `data` would still show the previous organization's.
   const {
-    data,
+    currentData: data,
     error,
-    isLoading,
+    isFetching,
     refetch: refetchCompartments,
-  } = useGetCompartmentsAccessibleQuery(token ? {} : skipToken);
+  } = useGetOrganizationCompartmentsQuery(
+    token ? { organizationId: activeOrganizationId } : skipToken,
+  );
+  const isLoading = data === undefined && isFetching;
   const [selectedCompartment, setSelectedCompartment] = React.useState<CompartmentEntry | null>(
     null,
   );
@@ -353,6 +364,7 @@ export default function CompartmentsScreen() {
         contentContainerStyle={[styles.gridContent, { paddingBottom: insets.bottom + 24 }]}
         ListHeaderComponent={
           <View style={[styles.bankFilterRow, { backgroundColor: theme.colors.background }]}>
+            <OrganizationSwitcher />
             <ScrollView
               horizontal
               showsHorizontalScrollIndicator={false}

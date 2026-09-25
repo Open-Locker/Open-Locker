@@ -4,11 +4,15 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use App\Enums\Role;
 use App\Filament\Resources\AuditLogResource;
 use App\Filament\Resources\AuditLogResource\Pages\ListAuditLog;
 use App\Models\AuditEvent;
 use App\Models\Group;
 use App\Models\User;
+use App\Models\UserRole;
+use App\StorableEvents\PlatformAdminEnteredOrganization;
+use App\StorableEvents\UserRoleGranted;
 use App\Support\Audit\AuditEventPresenter;
 use Filament\Tables\Contracts\HasTable;
 use Filament\Tables\Table;
@@ -112,6 +116,80 @@ class AuditLogResourceTest extends TestCase
             ->filterTable('actor', $admin->id)
             ->assertCanSeeTableRecords([$byAdmin])
             ->assertCanNotSeeTableRecords([$byOther]);
+    }
+
+    public function test_organization_admins_do_not_see_platform_admin_role_changes(): void
+    {
+        $admin = User::factory()->create();
+        $admin->makeAdmin();
+        $platformRoleChange = $this->recordRoleGranted($admin->id, Role::PlatformAdmin);
+        $organizationRoleChange = $this->recordRoleGranted($admin->id, Role::Manager);
+
+        $this->actingAs($admin);
+
+        Livewire::test(ListAuditLog::class)
+            ->assertCanSeeTableRecords([$organizationRoleChange])
+            ->assertCanNotSeeTableRecords([$platformRoleChange]);
+    }
+
+    public function test_organization_admins_do_not_see_a_platform_admin_entering(): void
+    {
+        $admin = User::factory()->create();
+        $admin->makeAdmin();
+        $entered = AuditEvent::create([
+            'aggregate_uuid' => (string) Str::uuid(),
+            'aggregate_version' => 1,
+            'event_version' => 1,
+            'event_class' => PlatformAdminEnteredOrganization::class,
+            'event_properties' => [
+                'actorUserId' => $admin->id,
+                'organizationId' => (string) Str::uuid(),
+                'enteredAt' => now()->toIso8601String(),
+            ],
+            'meta_data' => [],
+            'created_at' => now(),
+        ]);
+
+        $this->actingAs($admin);
+
+        Livewire::test(ListAuditLog::class)
+            ->assertCanNotSeeTableRecords([$entered]);
+    }
+
+    public function test_platform_admins_see_platform_admin_role_changes(): void
+    {
+        $platformAdmin = User::factory()->create();
+        UserRole::create([
+            'user_id' => $platformAdmin->id,
+            'organization_id' => null,
+            'role' => Role::PlatformAdmin->value,
+            'granted_at' => now(),
+        ]);
+        $platformRoleChange = $this->recordRoleGranted($platformAdmin->id, Role::PlatformAdmin);
+
+        $this->actingAs($platformAdmin);
+
+        Livewire::test(ListAuditLog::class)
+            ->assertCanSeeTableRecords([$platformRoleChange]);
+    }
+
+    private function recordRoleGranted(int $actorUserId, Role $role): AuditEvent
+    {
+        return AuditEvent::create([
+            'aggregate_uuid' => (string) Str::uuid(),
+            'aggregate_version' => 1,
+            'event_version' => 1,
+            'event_class' => UserRoleGranted::class,
+            'event_properties' => [
+                'userId' => $actorUserId,
+                'role' => $role->value,
+                'actorUserId' => $actorUserId,
+                'grantedAt' => now()->toIso8601String(),
+                'organizationId' => null,
+            ],
+            'meta_data' => [],
+            'created_at' => now(),
+        ]);
     }
 
     private function recordAuditEvent(int $actorUserId): AuditEvent

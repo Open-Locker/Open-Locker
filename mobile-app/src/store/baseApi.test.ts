@@ -14,6 +14,12 @@ const testApi = baseApi.injectEndpoints({
     sessionProbe: build.query<unknown, string>({
       query: (probeId) => `/session-probe/${probeId}`,
     }),
+    organizationProbe: build.query<unknown, string>({
+      query: (organizationId) => ({
+        url: '/organization-probe',
+        headers: { 'x-organization': organizationId },
+      }),
+    }),
   }),
 });
 
@@ -174,6 +180,34 @@ describe('baseQuery organization handling', () => {
 
     const [request] = fetchMock.mock.calls[0] as [Request];
     expect(request.headers.get('x-organization')).toBe('org-42');
+  });
+
+  async function dispatchOrganizationProbe(organizationId: string) {
+    const request = store.dispatch(
+      testApi.endpoints.organizationProbe.initiate(organizationId, { forceRefetch: true }),
+    );
+    await request;
+    request.unsubscribe();
+  }
+
+  it('keeps an organization the request names itself', async () => {
+    // Every organization's lockers are fetched up front, each for its own.
+    const fetchMock = mockFetchWithStatus(200);
+    store.dispatch(setActiveOrganization('org-42'));
+
+    await dispatchOrganizationProbe('org-7');
+
+    const [request] = fetchMock.mock.calls[0] as [Request];
+    expect(request.headers.get('x-organization')).toBe('org-7');
+  });
+
+  it('keeps the stored organization when another one is refused', async () => {
+    store.dispatch(setActiveOrganization('org-42'));
+    mockFetchWithBody(403, { code: 'organization_forbidden' });
+
+    await dispatchOrganizationProbe('org-7');
+
+    expect(store.getState().organization.activeOrganizationId).toBe('org-42');
   });
 
   it('drops a stored organization the user may not act in', async () => {

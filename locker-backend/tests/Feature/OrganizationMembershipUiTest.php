@@ -11,10 +11,15 @@ use App\Filament\Resources\UserResource\RelationManagers\OrganizationsRelationMa
 use App\Models\Organization;
 use App\Models\User;
 use App\Models\UserRole;
+use App\Notifications\Auth\WebResetPasswordNotification;
+use App\Notifications\Organizations\AddedToOrganizationNotification;
+use App\StorableEvents\UserJoinedOrganization;
 use App\Support\Organizations\DefaultOrganization;
 use Filament\Actions\Testing\TestAction;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Notification;
 use Livewire\Livewire;
+use Spatie\EventSourcing\StoredEvents\Models\EloquentStoredEvent;
 use Tests\TestCase;
 
 /**
@@ -39,6 +44,7 @@ class OrganizationMembershipUiTest extends TestCase
 
     public function test_a_platform_admin_can_attach_a_user_to_another_organization(): void
     {
+        Notification::fake();
         $default = Organization::query()->where('slug', DefaultOrganization::SLUG)->firstOrFail();
         $other = Organization::create(['name' => 'Rival Operator', 'slug' => 'rival']);
 
@@ -85,37 +91,91 @@ class OrganizationMembershipUiTest extends TestCase
                 ->where('organization_id', $default->id)
                 ->exists(),
         );
+
+        // The person was added without being asked, so they are told who did it.
+        Notification::assertSentTo($target, AddedToOrganizationNotification::class);
     }
 
-    public function test_creating_a_user_whose_email_belongs_to_another_organization_fails_cleanly(): void
+    public function test_creating_a_user_whose_email_exists_elsewhere_adds_that_account(): void
     {
+        Notification::fake();
         $other = Organization::create(['name' => 'Rival Operator', 'slug' => 'rival']);
+        $stranger = $this->givenMemberOf($other, 'shared@example.test');
+        $admin = $this->givenDefaultOrganizationAdmin();
+        $usersBefore = User::query()->count();
 
-        $stranger = User::factory()->create(['email' => 'shared@example.test']);
-        $stranger->organizations()->detach();
-        $stranger->organizations()->attach($other->id, ['joined_at' => now()]);
-
-        $admin = User::factory()->create();
-        UserRole::create([
-            'user_id' => $admin->id,
-            'organization_id' => Organization::query()->where('slug', DefaultOrganization::SLUG)->value('id'),
-            'role' => Role::Admin->value,
-            'granted_at' => now(),
-        ]);
-
-        // The admin cannot see this person — they belong to another operator —
-        // so "create" is the only route they are offered. Without a validation
-        // rule that collided with the database's unique index and surfaced as a
-        // server error.
+        // Different case and stray spaces still name the same person.
         Livewire::actingAs($admin)
             ->test(CreateUser::class)
             ->fillForm([
-                'first_name' => 'Shared',
-                'last_name' => 'Person',
-                'email' => 'shared@example.test',
+                'first_name' => 'Someone',
+                'last_name' => 'Else',
+                'email' => ' Shared@Example.test ',
+            ])
+            ->call('create')
+            ->assertHasNoFormErrors();
+
+        $this->assertSame($usersBefore, User::query()->count(), 'No second account may be created.');
+        $this->assertTrue($stranger->organizations()->whereKey($this->defaultOrganization()->id)->exists());
+        $this->assertSame(
+            ['Shared', 'Person'],
+            [$stranger->fresh()->first_name, $stranger->fresh()->last_name],
+            'Another organization may depend on the name, so it is never overwritten.',
+        );
+        Notification::assertSentTo($stranger, AddedToOrganizationNotification::class);
+        Notification::assertNotSentTo($stranger, WebResetPasswordNotification::class);
+        $this->assertTrue(
+            EloquentStoredEvent::query()
+                ->where('event_class', UserJoinedOrganization::class)
+                ->where('event_properties->userId', $stranger->id)
+                ->where('event_properties->actorUserId', $admin->id)
+                ->where('event_properties->existingAccount', true)
+                ->exists(),
+        );
+    }
+
+    public function test_creating_a_user_who_is_already_a_member_is_refused(): void
+    {
+        $this->givenMemberOf($this->defaultOrganization(), 'member@example.test');
+        $admin = $this->givenDefaultOrganizationAdmin();
+
+        Livewire::actingAs($admin)
+            ->test(CreateUser::class)
+            ->fillForm([
+                'first_name' => 'Member',
+                'last_name' => 'Again',
+                'email' => 'MEMBER@example.test',
             ])
             ->call('create')
             ->assertHasFormErrors(['email']);
+    }
+
+    public function test_creating_a_user_with_a_new_email_creates_the_account(): void
+    {
+        Notification::fake();
+        $admin = $this->givenDefaultOrganizationAdmin();
+
+        Livewire::actingAs($admin)
+            ->test(CreateUser::class)
+            ->fillForm([
+                'first_name' => 'New',
+                'last_name' => 'Person',
+                'email' => 'new@example.test',
+            ])
+            ->call('create')
+            ->assertHasNoFormErrors();
+
+        $user = User::query()->where('email', 'new@example.test')->sole();
+        $this->assertTrue($user->organizations()->whereKey($this->defaultOrganization()->id)->exists());
+        Notification::assertSentTo($user, WebResetPasswordNotification::class);
+        Notification::assertNotSentTo($user, AddedToOrganizationNotification::class);
+        $this->assertTrue(
+            EloquentStoredEvent::query()
+                ->where('event_class', UserJoinedOrganization::class)
+                ->where('event_properties->userId', $user->id)
+                ->where('event_properties->existingAccount', false)
+                ->exists(),
+        );
     }
 
     public function test_attaching_without_a_role_leaves_an_ordinary_member(): void
@@ -147,5 +207,31 @@ class OrganizationMembershipUiTest extends TestCase
         // user belongs to an operator and never touches the panel.
         $this->assertTrue($target->organizations()->whereKey($other->id)->exists());
         $this->assertSame(0, UserRole::query()->where('user_id', $target->id)->count());
+    }
+
+    private function defaultOrganization(): Organization
+    {
+        return Organization::query()->where('slug', DefaultOrganization::SLUG)->firstOrFail();
+    }
+
+    private function givenMemberOf(Organization $organization, string $email): User
+    {
+        $user = User::factory()->create(['first_name' => 'Shared', 'last_name' => 'Person', 'email' => $email]);
+        $user->organizations()->sync([$organization->id => ['joined_at' => now()]]);
+
+        return $user;
+    }
+
+    private function givenDefaultOrganizationAdmin(): User
+    {
+        $admin = User::factory()->create();
+        UserRole::create([
+            'user_id' => $admin->id,
+            'organization_id' => $this->defaultOrganization()->id,
+            'role' => Role::Admin->value,
+            'granted_at' => now(),
+        ]);
+
+        return $admin;
     }
 }

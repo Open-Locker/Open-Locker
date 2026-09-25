@@ -1,4 +1,4 @@
-# ADR-0061: Multi-organization support as shared-schema tenancy
+# ADR-0065: Multi-organization support as shared-schema tenancy
 
 ## Status
 
@@ -114,6 +114,12 @@ present and the multi-organization UI gated behind an optional mode.
     place and no generated endpoint changes. Only the new endpoint listing a
     user's organizations — what the switcher displays — requires regenerating the
     client.
+    The switcher sits on the home screen above the locker bank chips. So that
+    switching is instant, the app loads every organization's lockers up front,
+    one request per organization naming its own organization in the header,
+    which `prepareHeaders` then leaves alone. It still shows one organization
+    at a time; switching changes which cached list is shown and re-reads only
+    the profile and terms, which answer for the active organization.
 12. **Every role sees exactly one organization at a time, and switching is
     explicit.** This holds in Filament as well as on mobile, for `platform_admin`
     as much as for `user`: there is no combined view of several operators
@@ -125,10 +131,14 @@ present and the multi-organization UI gated behind an optional mode.
     boundary `VISION.md` names. Because decision 12 makes seeing an organization
     require an explicit switch, the switch is the natural audit point: a
     `platform_admin` entering an organization they are not a member of records an
-    event, surfaced in the existing audit log through the existing whitelist. The
-    operator can therefore see afterwards that the host entered their tenancy and
-    when. This is chosen deliberately over "never" and over "on request", both of
-    which cost more and neither of which support routine operational support.
+    event in the existing audit log. The record is shown only to platform
+    admins: a platform admin belongs to no organization, and organization admins
+    see only what happens inside theirs, so events about platform admins (their
+    entering, and their role being granted or revoked) are not the operator's.
+    Platform admins can therefore see afterwards which of them entered which
+    organization and when. This is chosen deliberately over "never" and over "on
+    request", both of which cost more and neither of which support routine
+    operational support.
 14. **The active organization travels in a request header, not in the token.**
     Switching must not log anyone out, so it cannot re-issue the Sanctum token.
     The client states which organization it is acting in and the server decides
@@ -173,8 +183,8 @@ present and the multi-organization UI gated behind an optional mode.
     organization management is simply a resource visible only to
     `platform_admin`. Stated plainly, because customers should not have to infer
     it: under this model a platform admin has full read *and* write inside any
-    organization, so the boundary is not permission but the audit trail that
-    decision 13 creates.
+    organization, and the audit trail that decision 13 creates is visible to
+    platform admins only. The operator is trusting the host, not checking it.
     Deleting an organization is deliberately excluded. One owns locker banks,
     compartments, grants, terms and an immutable event history, and there is no
     safe default for what becomes of those — the database already refuses to
@@ -228,6 +238,28 @@ present and the multi-organization UI gated behind an optional mode.
     Nothing on the wire carries an organization, so no simulator change is
     required — and a scenario holding banks from two different organizations
     gives an end-to-end isolation test on one broker for the cost of a YAML file.
+22. **Adding a person whose account already exists joins that account.** An
+    organization admin creates users by email. Because `users.email` is
+    globally unique, an address that already has an account, in any
+    organization, adds that account to the admin's organization instead of
+    failing. There is no invitation to accept:
+    - the email is matched ignoring case and surrounding spaces
+    - the existing account is never changed: the name typed is ignored and the
+      password stays, because another organization may depend on both
+    - the person gets an email naming the organization and who added them,
+      replying to that admin, instead of a password reset they did not ask for
+    - every addition, of a new or an existing account, records a
+      `UserJoinedOrganization` event in the organization's audit log
+    - someone who is already a member is refused with a form error
+    - terms still apply per organization (decision 18), so the person must
+      accept the new organization's terms before its lockers work for them
+
+    The admin learns only what they asked about: that the address now belongs
+    to their organization. They cannot see or edit what the account holds
+    elsewhere. The cost is consent: any organization admin can add any existing
+    account and email it. That is acceptable while operators on one
+    installation trust each other; an installation serving operators that do
+    not should replace this with invitations the person accepts.
 
 ## Rationale
 
@@ -334,25 +366,26 @@ costs almost nothing now and buys the option.
 - **The default-organization backfill is effectively irreversible** once a second
   organization exists. Mitigation: perform it as an explicit, reviewed migration
   with a verified backup, not as a side effect of deploying.
-- **`platform_admin` concentrates power.** Mitigation: decision 13 makes entry
-  into an organization an explicit, recorded act rather than an inherited
-  installation-wide read, so the power is visible to the operator after the fact.
+- **`platform_admin` concentrates power, and operators cannot see it used.**
+  Mitigation: decision 13 makes entry into an organization an explicit,
+  recorded act, reviewable by the other platform admins. An installation whose
+  operators do not trust the host should show them these records instead.
 
 ## Rollout / Migration
 
 1. Introduce `organizations` and `organization_user`; add `organization_id` to
    `user_roles` and to organization-owned tables.
 2. Backfill: create the default organization, attach every existing user, assign
-   every locker bank and role row to it. Grant `platform_admin` to everyone who
-   holds `admin` today, and give them an organization-scoped admin membership in
-   the default organization, so nobody loses access on upgrade.
-3. Grant `platform_admin` to everyone holding `admin` at migration time —
-   whoever administered the installation before organizations existed was
-   installation-wide by definition. Without this there is no supported way to
-   create the first one, and enabling multi-organization support leaves an
-   installation unable to add a second operator. `platform-admin:grant` is the
-   ongoing escape hatch, console-only because reaching the server is the
-   authorization.
+   every locker bank and role row to it. Existing admins become admins of the
+   default organization, so nobody loses access on upgrade: everything they
+   could do before happens inside that one organization.
+3. Nobody becomes `platform_admin` automatically. An installation administrator
+   is not necessarily the person who should administer every future operator,
+   and promoting every admin at once would hand installation-wide access to
+   people who never asked for it. The first platform admin is appointed with
+   `platform-admin:grant`, console-only because reaching the server is the
+   authorization; after that, platform admins can appoint others in the panel.
+   Rolling the feature back revokes `platform_admin` from everyone.
 4. Make the two authorization seams organization-aware; add the global scope and
    the database constraints together, never separately.
 5. Add organization context to new domain events; map historical events to the

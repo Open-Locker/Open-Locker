@@ -5,9 +5,13 @@ declare(strict_types=1);
 namespace App\Filament\Resources;
 
 use App\Enums\Permission;
+use App\Enums\Role;
 use App\Filament\Resources\AuditLogResource\Pages;
 use App\Models\AuditEvent;
 use App\Models\User;
+use App\StorableEvents\PlatformAdminEnteredOrganization;
+use App\StorableEvents\UserRoleGranted;
+use App\StorableEvents\UserRoleRevoked;
 use App\Support\Audit\AuditEventPresenter;
 use App\Support\EventSourcing\OrganizationStamp;
 use App\Support\Organizations\DefaultOrganization;
@@ -182,7 +186,30 @@ class AuditLogResource extends Resource
         $query = parent::getEloquentQuery()
             ->whereIn('event_class', app(AuditEventPresenter::class)->auditableEventClasses());
 
-        return self::confineToCurrentOrganization($query);
+        return self::hidePlatformAdministration(self::confineToCurrentOrganization($query));
+    }
+
+    /**
+     * Platform administrators belong to no organization, so what concerns them
+     * is shown only to them: granting or revoking the role, and their entering
+     * an organization (ADR-0065, decision 13).
+     *
+     * @param  Builder<\Illuminate\Database\Eloquent\Model>  $query
+     * @return Builder<\Illuminate\Database\Eloquent\Model>
+     */
+    private static function hidePlatformAdministration(Builder $query): Builder
+    {
+        $user = auth()->user();
+
+        if ($user instanceof User && $user->isPlatformAdmin()) {
+            return $query;
+        }
+
+        return $query
+            ->where('event_class', '!=', PlatformAdminEnteredOrganization::class)
+            ->whereNot(fn (Builder $roleChange): Builder => $roleChange
+                ->whereIn('event_class', [UserRoleGranted::class, UserRoleRevoked::class])
+                ->where('event_properties->role', Role::PlatformAdmin->value));
     }
 
     /**

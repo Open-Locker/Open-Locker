@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+use App\Aggregates\UserRoleAggregate;
+use App\Enums\Role;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
@@ -63,8 +65,31 @@ return new class extends Migration
         SQL);
     }
 
+    /**
+     * Rolling back also removes platform_admin from everyone. The role exists
+     * only because this migration introduced it and means nothing without
+     * multi-organization support, so abandoning the feature must not leave
+     * installation-wide access behind.
+     *
+     * Revoked through the aggregate rather than deleted from `user_roles`: that
+     * table is a projection, and an event-sourced grant deleted there would
+     * come back on the next replay.
+     */
     public function down(): void
     {
+        $platformAdminIds = DB::table('user_roles')
+            ->where('role', Role::PlatformAdmin->value)
+            ->distinct()
+            ->pluck('user_id');
+
+        foreach ($platformAdminIds as $userId) {
+            $userId = (int) $userId;
+
+            UserRoleAggregate::retrieve(UserRoleAggregate::aggregateUuidFor($userId))
+                ->revokeRole($userId, Role::PlatformAdmin->value, null, now(), null)
+                ->persist();
+        }
+
         if (DB::connection()->getDriverName() !== 'sqlite') {
             DB::statement('ALTER TABLE user_roles DROP CONSTRAINT IF EXISTS user_roles_platform_admin_has_no_organization');
             DB::statement('ALTER TABLE compartments DROP CONSTRAINT IF EXISTS compartments_bank_same_organization_foreign');

@@ -59,6 +59,8 @@ class ResolveOrganization
         // against: every organization here is one this person already belongs
         // to, so any of them is a legitimate place to start. Choosing a
         // different one is a switch inside the app, not a gate in front of it.
+        // The app mirrors this choice to highlight the active organization
+        // (mobile-app/src/features/organizations/effectiveOrganization.ts).
         $organization = $user->organizations()->orderBy('name')->first();
 
         if ($organization instanceof Organization) {

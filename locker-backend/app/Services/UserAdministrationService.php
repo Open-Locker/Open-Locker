@@ -4,17 +4,111 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Aggregates\OrganizationMembershipAggregate;
 use App\Aggregates\UserRoleAggregate;
 use App\Enums\Permission;
 use App\Enums\Role;
 use App\Exceptions\LastAdminException;
+use App\Models\Organization;
 use App\Models\User;
+use App\Notifications\Organizations\AddedToOrganizationNotification;
 use App\Support\Organizations\OrganizationContext;
 use Illuminate\Auth\Access\AuthorizationException;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Str;
 
 class UserAdministrationService
 {
     public function __construct(private readonly LastAdminGuard $lastAdminGuard) {}
+
+    /**
+     * Find an account by email regardless of case or surrounding spaces, so
+     * `Anna@example.com` and ` anna@example.com` are the same person.
+     */
+    public function findByEmail(string $email): ?User
+    {
+        return User::query()
+            ->whereRaw('lower(email) = ?', [mb_strtolower(trim($email))])
+            ->orderBy('id')
+            ->first();
+    }
+
+    /**
+     * Add a person to the organization being administered.
+     *
+     * An email that already has an account joins that account instead of
+     * failing: the name typed here is ignored and the password is untouched,
+     * because another organization may depend on both. The person is told by
+     * email who added them. A new email creates the account as before.
+     *
+     * Check `wasRecentlyCreated` on the result to tell the two apart.
+     *
+     * @throws AuthorizationException
+     */
+    public function addUser(User $actor, string $firstName, string $lastName, string $email): User
+    {
+        throw_unless(
+            $actor->can(Permission::UsersManage->value),
+            AuthorizationException::class,
+            'You are not allowed to manage users.',
+        );
+
+        $organization = app(OrganizationContext::class)->current();
+
+        $user = DB::transaction(function () use ($actor, $firstName, $lastName, $email, $organization): User {
+            $user = $this->findByEmail($email) ?? User::query()->create([
+                'first_name' => $firstName,
+                'last_name' => $lastName,
+                'email' => trim($email),
+                // Never shown: a new person sets their own through the reset link.
+                'password' => Hash::make(Str::random(32)),
+            ]);
+
+            // Without a membership the account could sign in and then see an
+            // empty app, since everything is scoped fail-closed.
+            if (! $organization instanceof Organization) {
+                return $user;
+            }
+
+            $user->organizations()->syncWithoutDetaching([
+                $organization->id => ['joined_at' => now()],
+            ]);
+
+            OrganizationMembershipAggregate::retrieve(
+                OrganizationMembershipAggregate::aggregateUuidFor($user->id, $organization->id)
+            )->join(
+                userId: $user->id,
+                organizationId: $organization->id,
+                actorUserId: $actor->id,
+                existingAccount: ! $user->wasRecentlyCreated,
+                joinedAt: now(),
+            )->persist();
+
+            return $user;
+        });
+
+        // After the commit, so the email never announces a membership that was
+        // rolled back.
+        if (! $user->wasRecentlyCreated && $organization instanceof Organization) {
+            $this->notifyAddedToOrganization($actor, $user, $organization);
+        }
+
+        return $user;
+    }
+
+    /**
+     * Tell an existing account it now belongs to another organization. Replying
+     * reaches whoever added them.
+     */
+    public function notifyAddedToOrganization(User $actor, User $user, Organization $organization): void
+    {
+        $user->notify(new AddedToOrganizationNotification(
+            organizationName: $organization->name,
+            actorName: $actor->fullName(),
+            actorEmail: $actor->email,
+        ));
+    }
 
     public function canManageUser(User $actor, User $target): bool
     {
@@ -198,7 +292,7 @@ class UserAdministrationService
      * granting it is not part of managing your own users. Without this an
      * organization admin — who holds roles.manage by definition — could mint
      * someone with full read and write inside every other operator, and the
-     * entry recording from ADR-0061 would only show it after the fact.
+     * entry recording from ADR-0065 would only show it after the fact.
      *
      * Enforced in the service rather than only in the form: the panel is not the
      * only caller.

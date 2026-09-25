@@ -3,7 +3,7 @@
 #   cp simulator-scenario.two-organizations.yml.example simulator-scenario.yml
 #   pnpm sim
 #
-# An end-to-end isolation check for multi-organization support (ADR-0061).
+# An end-to-end isolation check for multi-organization support (ADR-0065).
 #
 # Nothing in this file mentions an organization, and that is the point. Locker
 # UUIDs and MQTT identities stay globally unique, topics are unchanged, and the

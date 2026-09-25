@@ -90,7 +90,9 @@ export default function TermsScreen() {
     setSubmitError(null);
     try {
       await acceptTerms({}).unwrap();
-      dispatch(openLockerApi.util.invalidateTags(['Auth', 'Terms']));
+      // `Compartment` too: an organization's lockers are loaded up front and
+      // refused until its terms are accepted, so that refusal is still cached.
+      dispatch(openLockerApi.util.invalidateTags(['Auth', 'Terms', 'Compartment']));
       navigateToTabs();
     } catch (error) {
       setSubmitError(getApiErrorMessage(error, t));

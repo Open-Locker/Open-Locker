@@ -9,6 +9,7 @@ use App\Enums\Role;
 use App\Models\Organization;
 use App\Models\User;
 use App\Models\UserRole;
+use App\Services\UserAdministrationService;
 use App\Support\Organizations\OrganizationContext;
 use Filament\Actions\AttachAction;
 use Filament\Actions\DetachAction;
@@ -97,6 +98,13 @@ class OrganizationsRelationManager extends RelationManager
                     })
                     ->after(function (array $data, Organization $record): void {
                         $this->grantRoleWithin($record, $data['role'] ?? Role::User->value);
+
+                        $actor = $this->currentUser();
+                        $owner = $this->getOwnerRecord();
+
+                        if ($actor instanceof User && $owner instanceof User) {
+                            app(UserAdministrationService::class)->notifyAddedToOrganization($actor, $owner, $record);
+                        }
                     }),
             ])
             ->recordActions([
