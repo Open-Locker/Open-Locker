@@ -393,7 +393,8 @@ class LockerBankProvisioningResetTest extends TestCase
 
         $modalContent = $component->instance()->getMountedAction()?->getModalContent();
         $this->assertNotNull($modalContent);
-        $this->assertStringContainsString($token, $modalContent->render());
+        $renderedModalContent = $modalContent->render();
+        $this->assertStringContainsString($token, $renderedModalContent);
         $this->assertStringNotContainsString(
             $token,
             json_encode($component->instance()->mountedActions, JSON_THROW_ON_ERROR),
@@ -499,6 +500,11 @@ class LockerBankProvisioningResetTest extends TestCase
         $this->assertSame('Verbraucht', __('Consumed'));
         $this->assertSame('Bereitstellungstoken jetzt kopieren', __('Copy the provisioning token now'));
         $this->assertSame('Token kopieren', __('Copy token'));
+        $this->assertSame('Bereitstellungstoken konnte nicht kopiert werden', __('Could not copy provisioning token'));
+        $this->assertSame(
+            'Der Zugriff auf die Zwischenablage erfordert HTTPS oder localhost. Wähle das Token aus und drücke Strg+C (oder Cmd+C auf macOS), um es manuell zu kopieren.',
+            __('Clipboard access requires HTTPS or localhost. Select the token, then press Ctrl+C (or Cmd+C on macOS) to copy it manually.'),
+        );
 
         Livewire::actingAs($admin)
             ->test(ListLockerBanks::class)
