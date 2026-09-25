@@ -105,18 +105,21 @@ const baseQueryWithSessionExpiry: BaseQueryFn<
     api.dispatch(baseApi.util.invalidateTags(['Auth']));
   }
 
-  // The stored choice names an organization the user cannot act in — revoked
-  // membership, or a stale value from another account. Choosing again cannot
-  // fix the stored value, so it is cleared before the switcher reopens.
-  // Only when the refused request acted in the stored choice: a list fetched
-  // up front for another organization says nothing about that choice.
-  if (
-    result.error?.status === 403 &&
-    isOrganizationForbiddenError(result.error.data) &&
-    (result.meta as FetchBaseQueryMeta | undefined)?.request.headers.get('x-organization') ===
-      (api.getState() as RootState).organization.activeOrganizationId
-  ) {
-    api.dispatch(clearActiveOrganization());
+  // An organization the user may no longer act in: revoked membership, or a
+  // stale value from another account. Its lockers are cached like every
+  // organization's and its tab comes from a cached list, so both are dropped
+  // and fetched again rather than left on screen. The stored choice is cleared
+  // too when it named that organization; a list loaded up front for another
+  // one says nothing about the choice. /organizations and this refusal both
+  // answer from membership, so the refetch cannot offer it again.
+  if (result.error?.status === 403 && isOrganizationForbiddenError(result.error.data)) {
+    const refusedOrganizationId = (
+      result.meta as FetchBaseQueryMeta | undefined
+    )?.request.headers.get('x-organization');
+    if (refusedOrganizationId === (api.getState() as RootState).organization.activeOrganizationId) {
+      api.dispatch(clearActiveOrganization());
+    }
+    api.dispatch(baseApi.util.resetApiState());
   }
 
   return result;

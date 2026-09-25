@@ -98,6 +98,37 @@ class UserAdministrationService
     }
 
     /**
+     * Remove a person from an organization, and the roles they held there with
+     * the membership: left behind, re-adding them would silently restore those
+     * roles. Returns false when they are its last administrator.
+     *
+     * Runs inside that organization, which need not be the one being acted in:
+     * a platform admin removes people from any organization, and the roles and
+     * the last-admin count both answer per organization.
+     *
+     * @throws AuthorizationException
+     */
+    public function removeFromOrganization(User $actor, User $target, Organization $organization): bool
+    {
+        return app(OrganizationContext::class)->runWithin($organization, function () use ($actor, $target, $organization): bool {
+            $this->ensureCanManageRoles($actor);
+
+            return $this->lastAdminGuard->attempt(function () use ($actor, $target, $organization): void {
+                $target->flushPermissionCache();
+                $target->unsetRelation('userRoles');
+
+                foreach ($target->roleNames() as $roleName) {
+                    UserRoleAggregate::retrieve(UserRoleAggregate::aggregateUuidFor($target->id))
+                        ->revokeRole($target->id, $roleName, $actor->id, now(), $organization->id)
+                        ->persist();
+                }
+
+                $target->organizations()->detach($organization->id);
+            });
+        });
+    }
+
+    /**
      * Tell an existing account it now belongs to another organization. Replying
      * reaches whoever added them.
      */
@@ -113,6 +144,12 @@ class UserAdministrationService
     public function canManageUser(User $actor, User $target): bool
     {
         if (! $actor->can(Permission::UsersManage->value)) {
+            return false;
+        }
+
+        // Resetting a platform admin's password or deleting the account would
+        // hand an organization admin the whole installation.
+        if ($target->isPlatformAdmin() && ! $actor->isPlatformAdmin()) {
             return false;
         }
 

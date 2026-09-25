@@ -14,6 +14,7 @@ use App\Support\Organizations\OrganizationContext;
 use Filament\Actions\AttachAction;
 use Filament\Actions\DetachAction;
 use Filament\Forms\Components\Select;
+use Filament\Notifications\Notification;
 use Filament\Resources\RelationManagers\RelationManager;
 use Filament\Schemas\Schema;
 use Filament\Tables\Columns\TextColumn;
@@ -110,7 +111,30 @@ class OrganizationsRelationManager extends RelationManager
             ->recordActions([
                 DetachAction::make()
                     ->label(__('Remove'))
-                    ->visible(fn (Organization $record): bool => $this->currentUserCanManageMembership($record)),
+                    ->visible(fn (Organization $record): bool => $this->currentUserCanManageMembership($record))
+                    // Not Filament's detach: that drops only the membership and
+                    // leaves the roles held there.
+                    ->action(function (Organization $record, DetachAction $action): void {
+                        $actor = $this->currentUser();
+                        $owner = $this->getOwnerRecord();
+
+                        if (! $actor instanceof User || ! $owner instanceof User) {
+                            return;
+                        }
+
+                        if (! app(UserAdministrationService::class)->removeFromOrganization($actor, $owner, $record)) {
+                            Notification::make()
+                                ->title(__('Cannot remove'))
+                                ->body(__('The last admin cannot be removed from the organization.'))
+                                ->danger()
+                                ->send();
+                            $action->cancel();
+
+                            return;
+                        }
+
+                        $action->success();
+                    }),
             ]);
     }
 

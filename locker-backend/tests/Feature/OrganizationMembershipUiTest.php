@@ -18,6 +18,7 @@ use App\Support\Organizations\DefaultOrganization;
 use Filament\Actions\Testing\TestAction;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Notification;
+use Livewire\Features\SupportTesting\Testable;
 use Livewire\Livewire;
 use Spatie\EventSourcing\StoredEvents\Models\EloquentStoredEvent;
 use Tests\TestCase;
@@ -207,6 +208,75 @@ class OrganizationMembershipUiTest extends TestCase
         // user belongs to an operator and never touches the panel.
         $this->assertTrue($target->organizations()->whereKey($other->id)->exists());
         $this->assertSame(0, UserRole::query()->where('user_id', $target->id)->count());
+    }
+
+    public function test_removing_a_person_revokes_their_role_there_for_good(): void
+    {
+        $other = Organization::create(['name' => 'Rival Operator', 'slug' => 'rival']);
+        $platformAdmin = $this->givenPlatformAdmin();
+        $target = User::factory()->create();
+        $manager = fn () => $this->relationManagerFor($platformAdmin, $target);
+
+        $manager()->callAction(TestAction::make('attach')->table(), data: [
+            'recordId' => $other->id,
+            'role' => Role::Manager->value,
+        ]);
+        $manager()->callAction(TestAction::make('detach')->table($other));
+        // Re-adding as an ordinary member must not bring the manager role back.
+        $manager()->callAction(TestAction::make('attach')->table(), data: [
+            'recordId' => $other->id,
+            'role' => Role::User->value,
+        ]);
+
+        $this->assertTrue($target->organizations()->whereKey($other->id)->exists());
+        $this->assertFalse(
+            UserRole::query()->where('user_id', $target->id)->where('organization_id', $other->id)->exists(),
+        );
+    }
+
+    public function test_the_last_admin_cannot_be_removed(): void
+    {
+        $other = Organization::create(['name' => 'Rival Operator', 'slug' => 'rival']);
+        $platformAdmin = $this->givenPlatformAdmin();
+        $onlyAdmin = User::factory()->create();
+
+        $this->relationManagerFor($platformAdmin, $onlyAdmin)
+            ->callAction(TestAction::make('attach')->table(), data: [
+                'recordId' => $other->id,
+                'role' => Role::Admin->value,
+            ]);
+        $this->relationManagerFor($platformAdmin, $onlyAdmin)
+            ->callAction(TestAction::make('detach')->table($other));
+
+        $this->assertTrue($onlyAdmin->organizations()->whereKey($other->id)->exists());
+        $this->assertTrue(
+            UserRole::query()
+                ->where('user_id', $onlyAdmin->id)
+                ->where('organization_id', $other->id)
+                ->where('role', Role::Admin->value)
+                ->exists(),
+        );
+    }
+
+    private function givenPlatformAdmin(): User
+    {
+        $platformAdmin = User::factory()->create();
+        UserRole::create([
+            'user_id' => $platformAdmin->id,
+            'organization_id' => null,
+            'role' => Role::PlatformAdmin->value,
+            'granted_at' => now(),
+        ]);
+
+        return $platformAdmin;
+    }
+
+    private function relationManagerFor(User $actor, User $owner): Testable
+    {
+        return Livewire::actingAs($actor)->test(OrganizationsRelationManager::class, [
+            'ownerRecord' => $owner,
+            'pageClass' => EditUser::class,
+        ]);
     }
 
     private function defaultOrganization(): Organization

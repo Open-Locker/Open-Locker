@@ -8,6 +8,7 @@ use App\Enums\Role;
 use App\Models\Concerns\HasPermissions;
 use App\Notifications\Auth\WebResetPasswordNotification;
 use App\Notifications\Auth\WebVerifyEmailNotification;
+use App\Services\TermsService;
 use App\Support\Organizations\OrganizationContext;
 use Database\Factories\UserFactory;
 use Filament\Models\Contracts\FilamentUser;
@@ -231,25 +232,27 @@ class User extends Authenticatable implements FilamentUser, HasName, HasTenants,
         return $document?->activeVersion?->version;
     }
 
+    /**
+     * The latest version accepted of the active organization's terms. Every
+     * organization numbers its own versions from 1, so an acceptance of another
+     * organization's document must not count here.
+     */
     public function latestAcceptedTermsVersion(): ?int
     {
         return $this->termsAcceptances()
+            ->whereIn('terms_document_id', TermsDocument::query()->select('id'))
             ->with('acceptedVersion')
             ->latest('accepted_at')
             ->first()?->acceptedVersion?->version;
     }
 
+    /**
+     * The same predicate the terms gate enforces, so the profile the app reads
+     * can never disagree with the refusal it gets.
+     */
     public function hasAcceptedCurrentTerms(): bool
     {
-        $currentVersion = $this->currentTermsVersion();
-        if ($currentVersion === null) {
-            return true;
-        }
-
-        $acceptedVersion = $this->latestAcceptedTermsVersion();
-
-        return $acceptedVersion !== null
-            && $currentVersion === $acceptedVersion;
+        return app(TermsService::class)->hasAcceptedActiveVersion($this);
     }
 
     /**

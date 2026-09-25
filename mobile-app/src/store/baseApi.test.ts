@@ -210,6 +210,18 @@ describe('baseQuery organization handling', () => {
     expect(store.getState().organization.activeOrganizationId).toBe('org-42');
   });
 
+  it('drops cached data when an organization is refused', async () => {
+    // A revoked organization's lockers and tab are cached; they must not stay
+    // on screen after the refusal.
+    mockFetchWithBody(200, { lockers: ['still here'] });
+    await dispatchProbe('cached');
+    mockFetchWithBody(403, { code: 'organization_forbidden' });
+
+    await dispatchOrganizationProbe('org-7');
+
+    expect(testApi.endpoints.sessionProbe.select('cached')(store.getState()).data).toBeUndefined();
+  });
+
   it('drops a stored organization the user may not act in', async () => {
     // Choosing again cannot fix a stored value, so it is cleared rather than
     // re-offered against the same bad id.

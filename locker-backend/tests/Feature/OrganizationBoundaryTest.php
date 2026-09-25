@@ -473,6 +473,28 @@ class OrganizationBoundaryTest extends TestCase
         });
     }
 
+    public function test_an_organization_admin_cannot_act_on_a_platform_admin(): void
+    {
+        // A platform admin who is also a member of just this organization looks
+        // like one of its own people, but a password reset or deletion would
+        // hand the organization admin the whole installation.
+        $alpha = Organization::create(['name' => 'Alpha', 'slug' => 'alpha']);
+        $alphaAdmin = $this->adminOf($alpha);
+        $platformAdmin = $this->memberOfOnly($alpha);
+        UserRole::create([
+            'user_id' => $platformAdmin->id,
+            'organization_id' => null,
+            'role' => Role::PlatformAdmin->value,
+            'granted_at' => now(),
+        ]);
+
+        $this->within($alpha, function () use ($alphaAdmin, $platformAdmin): void {
+            $this->assertFalse(
+                app(UserAdministrationService::class)->canManageUser($alphaAdmin, $platformAdmin),
+            );
+        });
+    }
+
     private function within(Organization $organization, callable $callback): mixed
     {
         return app(OrganizationContext::class)->runWithin($organization, $callback);
