@@ -24,6 +24,8 @@ class ApplyConfigCommandPublisher
             'transactionId' => $event->commandId,
             'configHash' => $event->configHash,
             'heartbeatIntervalSeconds' => $event->heartbeatIntervalSeconds,
+            'adapterType' => $event->adapterType,
+            'feedbackType' => $event->feedbackType,
             'compartmentCount' => count($event->compartments),
         ]);
 
@@ -34,6 +36,8 @@ class ApplyConfigCommandPublisher
             'data' => [
                 'config_hash' => $event->configHash,
                 'heartbeat_interval_seconds' => $event->heartbeatIntervalSeconds,
+                'adapter_type' => $event->adapterType,
+                'feedback_type' => $event->feedbackType,
                 'compartments' => $event->compartments,
             ],
         ]);

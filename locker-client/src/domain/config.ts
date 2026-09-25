@@ -28,6 +28,14 @@ export interface ModbusConfig {
   reconnectCooldownSeconds?: number;
 }
 
+export type AdapterType = 'waveshare_modbus' | 'rs485_lock_board';
+export type FeedbackType = 'door_closing' | 'door_opening';
+
+export interface HardwareProfile {
+  adapterType: AdapterType;
+  feedbackType: FeedbackType;
+}
+
 /** Operator-managed settings loaded from locker-config.yml. */
 export interface BaseLockerConfig {
   mqtt?: MqttTransportConfig;
@@ -38,6 +46,7 @@ export interface BaseLockerConfig {
 export interface EffectiveLockerConfig {
   mqtt?: MqttRuntimeConfig;
   modbus: ModbusConfig;
+  hardwareProfile?: HardwareProfile;
   compartments?: CompartmentConfig[];
 }
 
@@ -46,6 +55,7 @@ export interface RuntimeConfigOverlay {
     heartbeatInterval?: number;
   };
   compartments?: CompartmentConfig[];
+  hardwareProfile?: HardwareProfile;
   appliedConfigHash?: string;
   updatedAt?: string;
 }
@@ -60,4 +70,9 @@ export function deriveConfiguredSlaveIds(compartments: CompartmentConfig[] | und
     ids.add(compartment.slaveId);
   }
   return [...ids];
+}
+
+/** Zero-based channel address encodable as a non-zero one-byte wire channel (1..255). */
+export function isWireEncodableChannelAddress(address: number): boolean {
+  return Number.isInteger(address) && address >= 0 && address <= 254;
 }

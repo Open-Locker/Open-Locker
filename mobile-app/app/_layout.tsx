@@ -123,6 +123,10 @@ function RootLayoutNav() {
               <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
               <Stack.Screen name="account" options={{ title: t('navigation.account') }} />
               <Stack.Screen
+                name="compartment-help"
+                options={{ title: t('navigation.compartmentHelp') }}
+              />
+              <Stack.Screen
                 name="terms"
                 options={{ title: t('navigation.terms'), presentation: 'modal' }}
               />

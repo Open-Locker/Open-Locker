@@ -78,6 +78,10 @@ export class InMemoryLockerBus implements LockerBusPort {
     return this.connectionState;
   }
 
+  runExclusive<T>(operation: (bus: LockerBusPort) => Promise<T>): Promise<T> {
+    return operation(this);
+  }
+
   async ensureConnected(): Promise<boolean> {
     if (this.connectionState !== 'connected') {
       await this.connect();
@@ -98,6 +102,10 @@ export class InMemoryLockerBus implements LockerBusPort {
    * exactly what a real jam, blockage, or worn latch looks like from the bus.
    */
   async flashRelay(target: CompartmentTarget, durationMs: number): Promise<void> {
+    if (this.connectionState !== 'connected') {
+      await this.connect();
+    }
+
     await this.delay();
 
     const key = busTargetKey(target.slaveId, target.relayAddress);
@@ -121,12 +129,6 @@ export class InMemoryLockerBus implements LockerBusPort {
     }
   }
 
-  async readRelayState(target: CompartmentTarget): Promise<boolean> {
-    await this.delay();
-
-    return this.relayStates.get(busTargetKey(target.slaveId, target.relayAddress)) ?? false;
-  }
-
   /**
    * Contiguous block read, matching the real driver: index `i` of the result is
    * the sensor at `startAddress + i`.
@@ -145,7 +147,7 @@ export class InMemoryLockerBus implements LockerBusPort {
     );
   }
 
-  async turnAllRelaysOff(slaveId: number): Promise<void> {
+  async initializeBoard(slaveId: number): Promise<void> {
     await this.delay();
 
     // Safe to iterate live: only existing keys are reassigned, none added or removed.
@@ -154,6 +156,11 @@ export class InMemoryLockerBus implements LockerBusPort {
         this.relayStates.set(key, false);
       }
     }
+  }
+
+  /** Simulator compatibility helper for scenarios that explicitly test relay clearing. */
+  async turnAllRelaysOff(slaveId: number): Promise<void> {
+    await this.initializeBoard(slaveId);
   }
 
   getConfiguredSlaveIds(): number[] {

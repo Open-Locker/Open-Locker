@@ -4,35 +4,20 @@ import type { WaveshareModbusDriver } from './waveshare-modbus-bus-actor';
 import { flashRelayOn, turnAllRelaysOff, type WaveshareModbusClient } from './waveshare-flash';
 import { noopLogger, type LoggerPort } from '../../ports/logging.port';
 import { ModbusTransportError } from '../../domain/errors';
+import { calculateInterTransactionDelayMs } from '../serial/serial-framing-timing';
+import type { SerialConnectionConfig } from '../serial/serial-connection-config';
 
-export interface ModbusConnectionConfig {
-  port: string;
-  baudRate: number;
-  dataBits: 7 | 8;
-  stopBits: 1 | 2;
-  parity: 'none' | 'even' | 'odd';
-  timeout: number;
-}
+export type ModbusConnectionConfig = SerialConnectionConfig;
 
 interface TimingDependencies {
   now(): number;
   sleep(delayMs: number): Promise<void>;
 }
 
-const MODBUS_RTU_HIGH_BAUD_DELAY_MS = 1.75;
-const TIMER_SAFETY_MARGIN_MS = 1;
-
 export function calculateModbusRtuInterFrameDelayMs(
   connection: Pick<ModbusConnectionConfig, 'baudRate' | 'dataBits' | 'stopBits' | 'parity'>,
 ): number {
-  const parityBits = connection.parity === 'none' ? 0 : 1;
-  const bitsPerCharacter = 1 + connection.dataBits + parityBits + connection.stopBits;
-  const specificationDelayMs =
-    connection.baudRate > 19_200
-      ? MODBUS_RTU_HIGH_BAUD_DELAY_MS
-      : (3.5 * bitsPerCharacter * 1000) / connection.baudRate;
-
-  return Math.ceil(specificationDelayMs + TIMER_SAFETY_MARGIN_MS);
+  return calculateInterTransactionDelayMs(connection);
 }
 
 export class WaveshareModbusRtuDriver implements WaveshareModbusDriver {

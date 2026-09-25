@@ -13,14 +13,19 @@ use App\Models\LockerBank;
 use App\Models\Organization;
 use App\Models\User;
 use App\Models\UserRole;
+use App\Notifications\CompartmentHelpRequestedNotification;
 use App\Reactors\CompartmentDoorStateBroadcastReactor;
+use App\Reactors\CompartmentHelpRequestAlertReactor;
 use App\Reactors\LockerBankConnectionBroadcastReactor;
 use App\StorableEvents\CompartmentDoorStateChanged;
+use App\StorableEvents\CompartmentHelpRequested;
 use App\StorableEvents\LockerConnectionLost;
+use App\Support\EventSourcing\OrganizationStamp;
 use App\Support\Organizations\DefaultOrganization;
 use App\Support\Organizations\OrganizationContext;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\Notification;
 use Tests\TestCase;
 
 /**
@@ -98,6 +103,32 @@ class QueuedStatusBroadcastOrganizationTest extends TestCase
             LockerBankConnectionUpdated::class,
             fn (LockerBankConnectionUpdated $event): bool => $this->reachesThisOrganizationOnly($event->recipientUserIds),
         );
+    }
+
+    public function test_help_requests_reach_this_organizations_operators_only(): void
+    {
+        Notification::fake();
+        $event = new CompartmentHelpRequested(
+            helpRequestUuid: 'help-1',
+            compartmentUuid: (string) $this->compartment->id,
+            actorUserId: $this->accessHolder->id,
+            message: 'Door is stuck.',
+            requestedAtIso8601: now()->toIso8601String(),
+        );
+        $event->setMetaData([OrganizationStamp::KEY => (string) DefaultOrganization::id()]);
+
+        app(CompartmentHelpRequestAlertReactor::class)->onCompartmentHelpRequested($event);
+
+        Notification::assertSentTo(
+            $this->operator,
+            CompartmentHelpRequestedNotification::class,
+            // Names the bank, which a scoped lookup in a queued job cannot find.
+            fn (CompartmentHelpRequestedNotification $notification): bool => str_contains(
+                (string) $notification->toMail($this->operator)->subject,
+                $this->lockerBank->name,
+            ),
+        );
+        Notification::assertNotSentTo($this->otherOrganizationsOperator, CompartmentHelpRequestedNotification::class);
     }
 
     /**

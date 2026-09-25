@@ -235,6 +235,7 @@ test('modbus operations are traced with the board they addressed', async () => {
     },
     { maxAttempts: 1, delayMs: 0 },
     [3],
+    'door_closing',
     tracing,
   );
 
@@ -274,6 +275,7 @@ test('an unreachable board still records the failure on its span', async () => {
     },
     { maxAttempts: 1, delayMs: 0 },
     [1],
+    'door_closing',
     tracing,
   );
 

@@ -18,19 +18,37 @@ export const openCompartmentCommandSchema = mqttCommandEnvelopeSchema.extend({
 
 export type OpenCompartmentCommand = z.infer<typeof openCompartmentCommandSchema>;
 
+const applyConfigCompartmentSchema = z.object({
+  compartment_number: z.number().int().positive(),
+  slaveId: z.number().int().positive(),
+  address: z.number().int().min(0).max(254),
+});
+
 export const applyConfigCommandSchema = mqttCommandEnvelopeSchema.extend({
   action: z.literal('apply_config'),
-  data: z.object({
-    config_hash: z.string().regex(/^[a-f0-9]{64}$/i),
-    heartbeat_interval_seconds: z.number().int().positive(),
-    compartments: z.array(
-      z.object({
-        compartment_number: z.number().int().positive(),
-        slaveId: z.number().int().positive(),
-        address: z.number().int().nonnegative(),
-      }),
-    ),
-  }),
+  data: z
+    .object({
+      adapter_type: z.enum(['waveshare_modbus', 'rs485_lock_board']),
+      feedback_type: z.enum(['door_closing', 'door_opening']),
+      config_hash: z.string().regex(/^[a-f0-9]{64}$/i),
+      heartbeat_interval_seconds: z.number().int().positive(),
+      compartments: z.array(applyConfigCompartmentSchema),
+    })
+    .superRefine((data, ctx) => {
+      if (data.adapter_type !== 'rs485_lock_board') {
+        return;
+      }
+
+      for (const [index, compartment] of data.compartments.entries()) {
+        if (compartment.slaveId > 31) {
+          ctx.addIssue({
+            code: 'custom',
+            message: 'RS485 lock board slaveId must be between 1 and 31',
+            path: ['compartments', index, 'slaveId'],
+          });
+        }
+      }
+    }),
 });
 
 export type ApplyConfigCommand = z.infer<typeof applyConfigCommandSchema>;
@@ -57,8 +75,6 @@ export const provisioningSuccessResponseSchema = z.object({
   data: z.object({
     mqtt_user: nonEmptyString,
     mqtt_password: nonEmptyString,
-    // Optional so a client stays usable against a backend rolled back to before
-    // per-provisioning identities, where the username still was the locker uuid.
     locker_uuid: nonEmptyString.optional(),
   }),
 });
