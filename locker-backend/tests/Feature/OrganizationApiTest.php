@@ -10,6 +10,7 @@ use App\Models\CompartmentAccess;
 use App\Models\LockerBank;
 use App\Models\Organization;
 use App\Models\User;
+use App\Mqtt\Publishers\OpenCompartmentCommandPublisher;
 use App\Support\Organizations\OrganizationContext;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\Sanctum;
@@ -91,6 +92,8 @@ class OrganizationApiTest extends TestCase
 
     public function test_a_compartment_is_resolvable_from_its_url_in_the_acting_organization(): void
     {
+        // The open command is published over MQTT; CI has no broker.
+        $this->mock(OpenCompartmentCommandPublisher::class)->shouldIgnoreMissing();
         $alpha = $this->organization('alpha');
         $user = $this->memberOf([$alpha]);
 

@@ -14,6 +14,7 @@ use App\Models\UserRole;
 use App\Notifications\Auth\WebResetPasswordNotification;
 use App\Notifications\Organizations\AddedToOrganizationNotification;
 use App\StorableEvents\UserJoinedOrganization;
+use App\Support\EventSourcing\OrganizationStamp;
 use App\Support\Organizations\DefaultOrganization;
 use Filament\Actions\Testing\TestAction;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -95,6 +96,15 @@ class OrganizationMembershipUiTest extends TestCase
 
         // The person was added without being asked, so they are told who did it.
         Notification::assertSentTo($target, AddedToOrganizationNotification::class);
+        $this->assertTrue(
+            EloquentStoredEvent::query()
+                ->where('event_class', UserJoinedOrganization::class)
+                ->where('event_properties->userId', $target->id)
+                ->where('event_properties->actorUserId', $platformAdmin->id)
+                // In the organization joined, not the one the admin was acting in.
+                ->where('meta_data->'.OrganizationStamp::KEY, $other->id)
+                ->exists(),
+        );
     }
 
     public function test_creating_a_user_whose_email_exists_elsewhere_adds_that_account(): void

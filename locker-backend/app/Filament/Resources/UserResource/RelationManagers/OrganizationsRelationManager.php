@@ -104,7 +104,9 @@ class OrganizationsRelationManager extends RelationManager
                         $owner = $this->getOwnerRecord();
 
                         if ($actor instanceof User && $owner instanceof User) {
-                            app(UserAdministrationService::class)->notifyAddedToOrganization($actor, $owner, $record);
+                            $administration = app(UserAdministrationService::class);
+                            $administration->recordJoin($actor, $owner, $record, existingAccount: true);
+                            $administration->notifyAddedToOrganization($actor, $owner, $record);
                         }
                     }),
             ])

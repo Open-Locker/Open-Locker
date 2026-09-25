@@ -75,15 +75,7 @@ class UserAdministrationService
                 $organization->id => ['joined_at' => now()],
             ]);
 
-            OrganizationMembershipAggregate::retrieve(
-                OrganizationMembershipAggregate::aggregateUuidFor($user->id, $organization->id)
-            )->join(
-                userId: $user->id,
-                organizationId: $organization->id,
-                actorUserId: $actor->id,
-                existingAccount: ! $user->wasRecentlyCreated,
-                joinedAt: now(),
-            )->persist();
+            $this->recordJoin($actor, $user, $organization, existingAccount: ! $user->wasRecentlyCreated);
 
             return $user;
         });
@@ -95,6 +87,24 @@ class UserAdministrationService
         }
 
         return $user;
+    }
+
+    /**
+     * Record in an organization's audit log that someone joined it. Recorded
+     * inside that organization, which need not be the one being acted in: a
+     * platform admin adds people to any organization.
+     */
+    public function recordJoin(User $actor, User $user, Organization $organization, bool $existingAccount): void
+    {
+        app(OrganizationContext::class)->runWithin($organization, fn () => OrganizationMembershipAggregate::retrieve(
+            OrganizationMembershipAggregate::aggregateUuidFor($user->id, $organization->id)
+        )->join(
+            userId: $user->id,
+            organizationId: $organization->id,
+            actorUserId: $actor->id,
+            existingAccount: $existingAccount,
+            joinedAt: now(),
+        )->persist());
     }
 
     /**
@@ -206,6 +216,13 @@ class UserAdministrationService
     public function changeRole(User $actor, User $target, Role $role): bool
     {
         $this->ensureCanManageRoles($actor);
+        // Same boundary as canManageUser(): an organization admin must not
+        // change what a platform admin is, even inside their own organization.
+        throw_if(
+            $target->isPlatformAdmin() && ! $actor->isPlatformAdmin(),
+            AuthorizationException::class,
+            'You are not allowed to manage this user.',
+        );
         $this->ensureCanGrantPlatformAdmin($actor, $role);
 
         $selected = $role === Role::User ? [] : [$role->value];

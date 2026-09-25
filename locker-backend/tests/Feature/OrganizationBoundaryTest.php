@@ -495,6 +495,23 @@ class OrganizationBoundaryTest extends TestCase
         });
     }
 
+    public function test_an_organization_admin_cannot_change_a_platform_admins_role(): void
+    {
+        $alpha = Organization::create(['name' => 'Alpha', 'slug' => 'alpha']);
+        $alphaAdmin = $this->adminOf($alpha);
+        $platformAdmin = $this->memberOfOnly($alpha);
+        UserRole::create([
+            'user_id' => $platformAdmin->id,
+            'organization_id' => null,
+            'role' => Role::PlatformAdmin->value,
+            'granted_at' => now(),
+        ]);
+
+        $this->expectException(AuthorizationException::class);
+
+        $this->within($alpha, fn () => app(UserAdministrationService::class)->changeRole($alphaAdmin, $platformAdmin, Role::Manager));
+    }
+
     private function within(Organization $organization, callable $callback): mixed
     {
         return app(OrganizationContext::class)->runWithin($organization, $callback);

@@ -11,6 +11,8 @@ use App\Models\Organization;
 use App\Models\User;
 use App\Models\UserRole;
 use App\Mqtt\Handlers\DeviceEventHandler;
+use App\Mqtt\Publishers\ApplyConfigCommandPublisher;
+use App\Mqtt\Publishers\ProvisioningReplyPublisher;
 use App\Services\LockerProvisioningService;
 use App\StorableEvents\CompartmentUncommandedOpenDetected;
 use App\StorableEvents\DeviceEventReceived;
@@ -84,6 +86,9 @@ class MqttOrganizationAttributionTest extends TestCase
 
     public function test_a_device_can_provision_itself_without_an_organization_in_context(): void
     {
+        // Provisioning replies and pushes the config over MQTT; CI has no broker.
+        $this->mock(ProvisioningReplyPublisher::class)->shouldIgnoreMissing();
+        $this->mock(ApplyConfigCommandPublisher::class)->shouldIgnoreMissing();
         $beta = Organization::create(['name' => 'Beta Operator', 'slug' => 'beta']);
 
         $bank = app(OrganizationContext::class)->runWithin(
