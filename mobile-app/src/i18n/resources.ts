@@ -116,6 +116,9 @@ export const resources = {
         passwordUpdated: 'Password updated.',
         logout: 'Logout',
       },
+      organization: {
+        switch: 'Switch organization',
+      },
       terms: {
         mustAccept: 'You must accept {{documentName}} before using the app.',
         currentDocument: 'current document',
@@ -278,6 +281,9 @@ export const resources = {
         updatePassword: 'Passwort aktualisieren',
         passwordUpdated: 'Passwort aktualisiert.',
         logout: 'Abmelden',
+      },
+      organization: {
+        switch: 'Organisation wechseln',
       },
       terms: {
         mustAccept: 'Du musst {{documentName}} akzeptieren, bevor du die App nutzt.',

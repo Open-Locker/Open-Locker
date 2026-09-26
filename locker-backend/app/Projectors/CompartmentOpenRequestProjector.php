@@ -16,6 +16,7 @@ use App\StorableEvents\CompartmentOpeningFailed;
 use App\StorableEvents\CompartmentOpeningRequested;
 use App\StorableEvents\CompartmentOpenNotDetected;
 use App\StorableEvents\CompartmentOpenRequested;
+use App\Support\EventSourcing\OrganizationStamp;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Carbon;
 use Spatie\EventSourcing\EventHandlers\Projectors\Projector;
@@ -24,11 +25,15 @@ class CompartmentOpenRequestProjector extends Projector
 {
     public function onCompartmentOpenRequested(CompartmentOpenRequested $event): void
     {
-        CompartmentOpenRequest::query()->updateOrCreate(
+        // Taken from the event, not from context: a projector rebuilding history
+        // runs long after the request that recorded this, and a queued one runs
+        // with no request at all.
+        CompartmentOpenRequest::withoutGlobalScope('organization')->updateOrCreate(
             ['command_id' => $event->commandId],
             [
                 'actor_user_id' => $event->actorUserId,
                 'compartment_id' => $event->compartmentUuid,
+                'organization_id' => OrganizationStamp::from($event),
                 'status' => CompartmentOpenRequestStatus::Requested,
                 'requested_at' => now(),
             ]
@@ -37,11 +42,12 @@ class CompartmentOpenRequestProjector extends Projector
 
     public function onCompartmentOpenAuthorized(CompartmentOpenAuthorized $event): void
     {
-        CompartmentOpenRequest::query()->updateOrCreate(
+        CompartmentOpenRequest::withoutGlobalScope('organization')->updateOrCreate(
             ['command_id' => $event->commandId],
             [
                 'actor_user_id' => $event->actorUserId,
                 'compartment_id' => $event->compartmentUuid,
+                'organization_id' => OrganizationStamp::from($event),
                 'authorization_type' => $event->authorizationType,
                 'status' => CompartmentOpenRequestStatus::Accepted,
                 'accepted_at' => now(),
@@ -52,11 +58,12 @@ class CompartmentOpenRequestProjector extends Projector
 
     public function onCompartmentOpenDenied(CompartmentOpenDenied $event): void
     {
-        CompartmentOpenRequest::query()->updateOrCreate(
+        CompartmentOpenRequest::withoutGlobalScope('organization')->updateOrCreate(
             ['command_id' => $event->commandId],
             [
                 'actor_user_id' => $event->actorUserId,
                 'compartment_id' => $event->compartmentUuid,
+                'organization_id' => OrganizationStamp::from($event),
                 'status' => CompartmentOpenRequestStatus::Denied,
                 'denied_reason' => $event->reason,
                 'denied_at' => now(),
@@ -84,7 +91,7 @@ class CompartmentOpenRequestProjector extends Projector
      */
     public function onCompartmentOpenAcknowledged(CompartmentOpenAcknowledged $event): void
     {
-        $request = CompartmentOpenRequest::query()->where('command_id', $event->transactionId);
+        $request = CompartmentOpenRequest::withoutGlobalScope('organization')->where('command_id', $event->transactionId);
 
         (clone $request)->update([
             'acknowledged_at' => $this->timestampOrNow($event->timestamp),
@@ -145,7 +152,7 @@ class CompartmentOpenRequestProjector extends Projector
      */
     public function onCompartmentOpeningFailed(CompartmentOpeningFailed $event): void
     {
-        $request = CompartmentOpenRequest::query()->where('command_id', $event->transactionId);
+        $request = CompartmentOpenRequest::withoutGlobalScope('organization')->where('command_id', $event->transactionId);
 
         // What was reported is always recorded — the failure genuinely arrived,
         // and a `failed_at` with no reason beside it leaves an admin reading the
@@ -188,7 +195,7 @@ class CompartmentOpenRequestProjector extends Projector
      */
     private function applyToRequest(string $commandId, array $attributes): void
     {
-        CompartmentOpenRequest::query()
+        CompartmentOpenRequest::withoutGlobalScope('organization')
             ->where('command_id', $commandId)
             ->update($attributes);
     }

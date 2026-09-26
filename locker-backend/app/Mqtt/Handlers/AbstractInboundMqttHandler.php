@@ -4,13 +4,17 @@ declare(strict_types=1);
 
 namespace App\Mqtt\Handlers;
 
+use App\Models\LockerBank;
+use App\Models\Organization;
 use App\Mqtt\InboundMqttProtocolGuard;
 use App\Mqtt\MqttTopicRedactor;
 use App\Observability\MqttSpanAttributes;
 use App\Observability\MqttTraceContext;
 use App\Observability\SpanFlusher;
+use App\Support\Organizations\OrganizationContext;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Str;
 use Keepsuit\LaravelOpenTelemetry\Facades\Tracer;
 use OpenTelemetry\API\Trace\SpanKind;
 
@@ -101,7 +105,51 @@ abstract class AbstractInboundMqttHandler
             return;
         }
 
-        $this->handleValidated($topic, $payload);
+        // The listener is a long-running process: there is no request, so
+        // nothing has said which organization these events belong to. Every
+        // inbound message names its locker bank, and a bank belongs to exactly
+        // one operator — so ownership is resolved here, at the boundary that
+        // knows, and the handler runs inside it. Without this every device
+        // event stores unstamped and reads back as the default organization:
+        // one operator's door jams would reach another operator's managers, and
+        // never reach their own.
+        $this->withinOwningOrganization($topic, fn () => $this->handleValidated($topic, $payload));
+    }
+
+    /**
+     * Run the handler inside the organization that owns the bank named in the
+     * topic.
+     *
+     * Falls through untouched when no bank can be resolved — registration
+     * arrives before a bank exists, and its own flow establishes ownership.
+     */
+    private function withinOwningOrganization(string $topic, callable $handler): void
+    {
+        $organization = $this->owningOrganization($topic);
+
+        if (! $organization instanceof Organization) {
+            $handler();
+
+            return;
+        }
+
+        app(OrganizationContext::class)->runWithin($organization, $handler);
+    }
+
+    private function owningOrganization(string $topic): ?Organization
+    {
+        $segments = explode('/', $topic);
+        $lockerBankUuid = $segments[1] ?? null;
+
+        if (! is_string($lockerBankUuid) || ! Str::isUuid($lockerBankUuid)) {
+            return null;
+        }
+
+        // Unscoped on purpose: resolving who owns this bank is the step that
+        // decides the scope, so it cannot be subject to it.
+        return LockerBank::withoutGlobalScope('organization')
+            ->with('organization')
+            ->find($lockerBankUuid)?->organization;
     }
 
     /**

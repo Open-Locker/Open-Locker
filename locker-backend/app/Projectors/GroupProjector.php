@@ -13,6 +13,7 @@ use App\StorableEvents\GroupCompartmentAccessRevoked;
 use App\StorableEvents\GroupCreated;
 use App\StorableEvents\UserAddedToGroup;
 use App\StorableEvents\UserRemovedFromGroup;
+use App\Support\EventSourcing\OrganizationStamp;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\DB;
@@ -22,9 +23,12 @@ class GroupProjector extends Projector
 {
     public function onGroupCreated(GroupCreated $event): void
     {
-        Group::query()->updateOrCreate(
+        // Taken from the event, not from context: a rebuild runs with no
+        // request, and the organization columns are binding.
+        Group::withoutGlobalScope('organization')->updateOrCreate(
             ['id' => $event->groupUuid],
             [
+                'organization_id' => OrganizationStamp::from($event),
                 'name' => $event->name,
                 'description' => $event->description,
                 'created_by_user_id' => $event->actorUserId,
@@ -39,6 +43,12 @@ class GroupProjector extends Projector
         DB::table('group_user')->updateOrInsert(
             ['group_id' => $event->groupUuid, 'user_id' => $event->userId],
             [
+                // Taken from the group rather than from context: a projector
+                // rebuilding history has no request to read, and the row must
+                // agree with its group or the composite key refuses it.
+                'organization_id' => DB::table('groups')
+                    ->where('id', $event->groupUuid)
+                    ->value('organization_id'),
                 'added_at' => Date::parse($event->addedAt),
                 'added_by_user_id' => $event->actorUserId,
                 'expires_at' => $expiresAt,
@@ -68,12 +78,17 @@ class GroupProjector extends Projector
 
     public function onGroupCompartmentAccessGranted(GroupCompartmentAccessGranted $event): void
     {
-        GroupCompartmentAccess::query()->updateOrCreate(
+        GroupCompartmentAccess::withoutGlobalScope('organization')->updateOrCreate(
             [
                 'group_id' => $event->groupUuid,
                 'compartment_id' => $event->compartmentUuid,
             ],
             [
+                // From the group rather than from context, so the row agrees
+                // with its parent and the composite key accepts it.
+                'organization_id' => DB::table('groups')
+                    ->where('id', $event->groupUuid)
+                    ->value('organization_id'),
                 'granted_at' => Date::parse($event->grantedAt),
                 'granted_by_user_id' => $event->actorUserId,
                 'expires_at' => $event->expiresAt ? Date::parse($event->expiresAt) : null,
@@ -88,7 +103,7 @@ class GroupProjector extends Projector
 
     public function onGroupCompartmentAccessRevoked(GroupCompartmentAccessRevoked $event): void
     {
-        GroupCompartmentAccess::query()
+        GroupCompartmentAccess::withoutGlobalScope('organization')
             ->where('group_id', $event->groupUuid)
             ->where('compartment_id', $event->compartmentUuid)
             ->update([
@@ -101,7 +116,7 @@ class GroupProjector extends Projector
 
     public function onGroupArchived(GroupArchived $event): void
     {
-        Group::query()
+        Group::withoutGlobalScope('organization')
             ->where('id', $event->groupUuid)
             ->update([
                 'archived_at' => Date::parse($event->archivedAt),
@@ -135,8 +150,11 @@ class GroupProjector extends Projector
                 ->pluck('user_id')
                 ->all();
 
-            // Active compartment grants of this group.
-            $compartmentIds = GroupCompartmentAccess::query()
+            // Active compartment grants of this group. Unscoped like every
+            // other read here: a rebuild runs with no request, and a scoped
+            // query would return nothing — silently recomputing the group as
+            // granting no access at all.
+            $compartmentIds = GroupCompartmentAccess::withoutGlobalScope('organization')
                 ->where('group_id', $groupUuid)
                 ->active()
                 ->pluck('compartment_id')

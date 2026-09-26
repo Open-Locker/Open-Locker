@@ -2,6 +2,9 @@
 
 namespace Database\Factories;
 
+use App\Models\Organization;
+use App\Models\User;
+use App\Support\Organizations\DefaultOrganization;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
@@ -21,6 +24,27 @@ class UserFactory extends Factory
      *
      * @return array<string, mixed>
      */
+    /**
+     * A user always exists inside an organization: there is no such thing as a
+     * user belonging to the installation. Factories place them in the default
+     * one unless a test attaches its own memberships.
+     */
+    public function configure(): static
+    {
+        return $this->afterCreating(function (User $user): void {
+            if ($user->organizations()->exists()) {
+                return;
+            }
+
+            $organization = Organization::query()->firstOrCreate(
+                ['slug' => DefaultOrganization::SLUG],
+                ['name' => 'Default Organization'],
+            );
+
+            $user->organizations()->attach($organization->id, ['joined_at' => now()]);
+        });
+    }
+
     public function definition(): array
     {
         return [

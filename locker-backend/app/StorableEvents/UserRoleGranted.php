@@ -13,5 +13,7 @@ class UserRoleGranted extends ShouldBeStored
         public readonly string $role,
         public readonly ?int $actorUserId,
         public readonly string $grantedAt,
+        /** Null on events recorded before organizations existed, and on platform_admin. */
+        public readonly ?string $organizationId = null,
     ) {}
 }

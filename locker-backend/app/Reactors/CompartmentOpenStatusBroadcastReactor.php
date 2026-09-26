@@ -179,7 +179,10 @@ class CompartmentOpenStatusBroadcastReactor extends Reactor implements ShouldQue
      */
     private function compartmentContext(string $compartmentUuid): array
     {
-        $compartment = Compartment::with('lockerBank')->find($compartmentUuid);
+        // Queued, so no organization is in context; the uuid is globally unique.
+        $compartment = Compartment::withoutGlobalScope('organization')
+            ->with(['lockerBank' => fn ($query) => $query->withoutGlobalScope('organization')])
+            ->find($compartmentUuid);
 
         return [
             $compartment?->number,

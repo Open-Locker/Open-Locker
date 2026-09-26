@@ -129,7 +129,11 @@ class MembersRelationManager extends RelationManager
             User::query()
                 // Group membership confers compartment access, so it carries the
                 // same restriction as a direct grant (#254).
+                // Only people who belong here: offering another operator's
+                // staff would hand them access through the picker.
+                ->inCurrentOrganization()
                 ->manageableBy(Filament::auth()->user())
+                ->hidingPlatformAdminsFrom(Filament::auth()->user())
                 ->whereNotIn('id', $activeMemberIds)
         );
     }

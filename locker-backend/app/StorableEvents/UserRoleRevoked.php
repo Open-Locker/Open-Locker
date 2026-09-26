@@ -13,5 +13,7 @@ class UserRoleRevoked extends ShouldBeStored
         public readonly string $role,
         public readonly ?int $actorUserId,
         public readonly string $revokedAt,
+        /** Null on events recorded before organizations existed, and on platform_admin. */
+        public readonly ?string $organizationId = null,
     ) {}
 }

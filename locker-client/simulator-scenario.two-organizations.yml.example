@@ -1,0 +1,53 @@
+# Open-Locker Fleet Simulator — two organizations on one broker
+#
+#   cp simulator-scenario.two-organizations.yml.example simulator-scenario.yml
+#   pnpm sim
+#
+# An end-to-end isolation check for multi-organization support (ADR-0065).
+#
+# Nothing in this file mentions an organization, and that is the point. Locker
+# UUIDs and MQTT identities stay globally unique, topics are unchanged, and the
+# backend derives which operator a bank belongs to through the bank itself — so
+# the simulator needs no concept of organizations and no change to support them.
+#
+# What this proves, with two operators' hardware side by side on one broker:
+#
+#   1. Provision `alpha-front-desk` to a locker bank owned by organization Alpha
+#      and `beta-gym-lobby` to one owned by organization Beta, taking each
+#      provisioning token from that organization's own panel.
+#   2. Sign in as a manager of Alpha. The compartments of `beta-gym-lobby` must
+#      not appear anywhere: not in the app, not in the panel, not in a picker.
+#   3. Ask the API to open one of Beta's compartments by its UUID. Route model
+#      binding must refuse it rather than resolve it — the listing screens are
+#      not the interesting path, the direct UUID is.
+#   4. Watch the broker. Alpha's open command must reach only Alpha's bank.
+#
+# If any of those four leak, the isolation is decorative. If none do, the IoT
+# contract really was untouched.
+
+broker_url: mqtt://localhost:1883
+
+banks:
+  - name: alpha-front-desk
+    provisioning_token: replace-with-a-token-from-organization-alpha
+    compartments:
+      - compartment_number: 1
+        slaveId: 1
+        address: 0
+        door_state: closed
+      - compartment_number: 2
+        slaveId: 1
+        address: 1
+        door_state: closed
+
+  - name: beta-gym-lobby
+    provisioning_token: replace-with-a-token-from-organization-beta
+    compartments:
+      - compartment_number: 1
+        slaveId: 1
+        address: 0
+        door_state: closed
+      - compartment_number: 2
+        slaveId: 1
+        address: 1
+        door_state: open

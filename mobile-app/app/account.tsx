@@ -5,14 +5,15 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { HelperText, Text, useTheme } from 'react-native-paper';
 
 import { baseApi } from '@/src/store/baseApi';
-import { clearPersistedAuth } from '@/src/store/authStorage';
-import { clearCredentials } from '@/src/store/authSlice';
 import {
   useGetUserQuery,
   usePostLogoutMutation,
   usePutPasswordMutation,
   usePutProfileMutation,
 } from '@/src/store/generatedApi';
+import { clearPersistedAuth } from '@/src/store/authStorage';
+import { clearCredentials } from '@/src/store/authSlice';
+import { clearActiveOrganization } from '@/src/store/organizationSlice';
 import { useAppDispatch } from '@/src/store/hooks';
 import { useUserName } from '@/src/auth/useUserName';
 import { OPEN_LOCKER_DESIGN_TOKENS } from '@/src/theme/tokens';
@@ -50,6 +51,10 @@ export default function AccountScreen() {
     await clearPersistedAuth();
     dispatch(baseApi.util.resetApiState());
     dispatch(clearCredentials());
+    // The chosen organization belongs to the session that chose it. Left
+    // behind, the next person to sign in on this device starts acting in a
+    // stranger's choice instead of being asked.
+    dispatch(clearActiveOrganization());
   }, [dispatch]);
 
   const onLogout = React.useCallback(async () => {

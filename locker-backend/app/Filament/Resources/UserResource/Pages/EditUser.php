@@ -7,6 +7,7 @@ use App\Enums\Role;
 use App\Filament\Resources\UserResource;
 use App\Models\User;
 use App\Services\UserAdministrationService;
+use App\Support\Organizations\OrganizationContext;
 use Filament\Actions;
 use Filament\Forms\Components\Radio;
 use Filament\Notifications\Notification;
@@ -113,6 +114,18 @@ class EditUser extends EditRecord
                             ->options(self::roleOptions()),
                     ])
                     ->action(function (User $record, array $data): void {
+                        if ($record->isPlatformAdmin()
+                            && $data['role'] !== Role::PlatformAdmin->value
+                            && ! User::hasOtherPlatformAdmin([$record->id])) {
+                            Notification::make()
+                                ->title(__('Cannot change role'))
+                                ->body(__('The last platform administrator cannot lose that role.'))
+                                ->danger()
+                                ->send();
+
+                            return;
+                        }
+
                         $changed = app(UserAdministrationService::class)->changeRole(
                             actor: self::currentUser(),
                             target: $record,
@@ -139,11 +152,20 @@ class EditUser extends EditRecord
                 ->icon('heroicon-o-ellipsis-horizontal')
                 ->button(),
             Actions\DeleteAction::make()
-                ->visible(fn (User $record): bool => UserResource::canManageRecord($record))
+                ->visible(fn (User $record): bool => UserResource::canDeleteRecord($record))
                 ->before(function (Actions\DeleteAction $action, User $record) {
-                    app(UserAdministrationService::class)->ensureCanManageUser(self::currentUser(), $record);
+                    app(UserAdministrationService::class)->ensureCanDeleteUser(self::currentUser(), $record);
 
-                    if ($record->isAdmin() && ! User::hasOtherAdmin($record->id)) {
+                    if ($record->isPlatformAdmin() && ! User::hasOtherPlatformAdmin([$record->id])) {
+                        Notification::make()
+                            ->title(__('Cannot delete user'))
+                            ->body(__('The last platform administrator cannot be deleted.'))
+                            ->danger()
+                            ->send();
+                        $action->cancel();
+                    }
+
+                    if ($record->isAdmin() && ! User::hasOtherAdmin($record->id, app(OrganizationContext::class)->currentId())) {
                         Notification::make()
                             ->title(__('Cannot delete user'))
                             ->body(__('The last admin cannot be deleted.'))
@@ -176,6 +198,12 @@ class EditUser extends EditRecord
      */
     private static function currentRole(User $record): Role
     {
+        // Pre-selected otherwise as User, so saving the form unchanged would
+        // quietly take platform administration away.
+        if ($record->isPlatformAdmin()) {
+            return Role::PlatformAdmin;
+        }
+
         if ($record->isAdmin()) {
             return Role::Admin;
         }
@@ -194,7 +222,15 @@ class EditUser extends EditRecord
     {
         $options = [];
 
+        $actor = Auth::user();
+        $actorIsPlatformAdmin = $actor instanceof User && $actor->isPlatformAdmin();
+
         foreach (Role::cases() as $role) {
+            // Offering a role the service would refuse only invites the attempt.
+            if ($role === Role::PlatformAdmin && ! $actorIsPlatformAdmin) {
+                continue;
+            }
+
             $options[$role->value] = $role->label();
         }
 

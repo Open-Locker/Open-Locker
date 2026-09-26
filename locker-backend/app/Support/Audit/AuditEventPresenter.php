@@ -59,9 +59,13 @@ class AuditEventPresenter
         'LockerConfigAcknowledged' => 'devices',
         'LockerConfigAckFailed' => 'devices',
 
+        // Platform administration (visible to the operator being entered)
+        'PlatformAdminEnteredOrganization' => 'admin',
+
         // Admin (users, groups, roles, permissions)
         'GroupCreated' => 'admin',
         'GroupArchived' => 'admin',
+        'UserJoinedOrganization' => 'admin',
         'UserAddedToGroup' => 'admin',
         'UserRemovedFromGroup' => 'admin',
         'UserRoleGranted' => 'admin',
@@ -189,6 +193,8 @@ class AuditEventPresenter
             'LockerConfigAckFailed' => __('Configuration failed'),
             'GroupCreated' => __('Group created'),
             'GroupArchived' => __('Group archived'),
+            'PlatformAdminEnteredOrganization' => __('Platform administrator entered'),
+            'UserJoinedOrganization' => __('User joined organization'),
             'UserAddedToGroup' => __('User added to group'),
             'UserRemovedFromGroup' => __('User removed from group'),
             'UserRoleGranted' => __('Role granted'),
@@ -218,6 +224,9 @@ class AuditEventPresenter
                 'compartment' => $this->compartment($p['compartmentUuid'] ?? null),
                 'actor' => $this->user($p['actorUserId'] ?? null),
                 'type' => $p['authorizationType'] ?? '-',
+            ]),
+            'PlatformAdminEnteredOrganization' => __('Platform administrator :actor entered this organization', [
+                'actor' => $this->user($p['actorUserId'] ?? null),
             ]),
             'CompartmentOpenDenied' => __('Opening of compartment :compartment denied for :actor (:reason)', [
                 'compartment' => $this->compartment($p['compartmentUuid'] ?? null),
@@ -314,6 +323,15 @@ class AuditEventPresenter
                 'actor' => $this->user($p['actorUserId'] ?? null),
                 'group' => $this->group($p['groupUuid'] ?? null),
             ]),
+            'UserJoinedOrganization' => ($p['existingAccount'] ?? false)
+                ? __(':actor added the existing account of :user to this organization', [
+                    'actor' => $this->user($p['actorUserId'] ?? null),
+                    'user' => $this->user($p['userId'] ?? null),
+                ])
+                : __(':actor added :user to this organization', [
+                    'actor' => $this->user($p['actorUserId'] ?? null),
+                    'user' => $this->user($p['userId'] ?? null),
+                ]),
             'UserAddedToGroup' => __(':actor added :user to group :group', [
                 'actor' => $this->user($p['actorUserId'] ?? null),
                 'user' => $this->user($p['userId'] ?? null),

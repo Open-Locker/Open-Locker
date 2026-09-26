@@ -7,8 +7,11 @@ use App\Enums\Role;
 use App\Filament\Resources\UserResource\Pages;
 use App\Filament\Resources\UserResource\RelationManagers\CompartmentAccessesRelationManager;
 use App\Filament\Resources\UserResource\RelationManagers\GroupMembershipsRelationManager;
+use App\Filament\Resources\UserResource\RelationManagers\OrganizationsRelationManager;
 use App\Models\User;
 use App\Services\UserAdministrationService;
+use App\Support\Organizations\OrganizationContext;
+use Closure;
 use Filament\Forms;
 use Filament\Infolists\Components\TextEntry;
 use Filament\Notifications\Notification;
@@ -16,13 +19,22 @@ use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
 use Filament\Tables;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Validation\Rule;
+use Illuminate\Validation\Rules\Unique;
 
 class UserResource extends Resource
 {
     protected static ?string $model = User::class;
+
+    /**
+     * A user is a global identity with memberships, not a row an organization owns.
+     * Which users are visible is decided by membership, not by Filament's scope.
+     */
+    protected static bool $isScopedToTenant = false;
 
     protected static \BackedEnum|string|null $navigationIcon = 'heroicon-o-rectangle-stack';
 
@@ -70,7 +82,7 @@ class UserResource extends Resource
 
     public static function canDelete(Model $record): bool
     {
-        return $record instanceof User && self::canManageRecord($record);
+        return $record instanceof User && self::canDeleteRecord($record);
     }
 
     public static function canDeleteAny(): bool
@@ -92,8 +104,40 @@ class UserResource extends Resource
                     ->disabled(fn (?User $record): bool => $record instanceof User && ! self::canEdit($record)),
                 Forms\Components\TextInput::make('email')
                     ->label(__('Email'))
+                    // A pasted address often carries spaces; they must not make
+                    // an existing account look like a new one.
+                    ->mutateStateForValidationUsing(fn (mixed $state): mixed => is_string($state) ? trim($state) : $state)
+                    ->dehydrateStateUsing(fn (mixed $state): mixed => is_string($state) ? trim($state) : $state)
                     ->email()
                     ->required()
+                    // Editing: email is globally unique, so changing it to one
+                    // another account holds must fail here rather than as a
+                    // database error.
+                    ->rules(
+                        [fn (?User $record): Unique => Rule::unique(User::class, 'email')->ignore($record)],
+                        fn (string $operation): bool => $operation === 'edit',
+                    )
+                    ->validationMessages([
+                        'unique' => __('An account with this email already exists.'),
+                    ])
+                    // Creating: an existing account joins this organization
+                    // instead (UserAdministrationService::addUser), so the only
+                    // refusal left is someone who is already a member.
+                    ->rules(
+                        [fn (): Closure => function (string $attribute, mixed $value, Closure $fail): void {
+                            $existing = is_string($value)
+                                ? app(UserAdministrationService::class)->findByEmail($value)
+                                : null;
+                            $organizationId = app(OrganizationContext::class)->currentId();
+
+                            if ($existing instanceof User
+                                && $organizationId !== null
+                                && $existing->organizations()->whereKey($organizationId)->exists()) {
+                                $fail(__('This person is already a member of this organization.'));
+                            }
+                        }],
+                        fn (string $operation): bool => $operation === 'create',
+                    )
                     ->disabled(fn (?User $record): bool => $record instanceof User && ! self::canEdit($record)),
                 TextEntry::make('roles')
                     ->label(__('Roles'))
@@ -112,6 +156,11 @@ class UserResource extends Resource
     public static function roleLabels(User $user): array
     {
         $labels = [];
+
+        // Only another platform admin ever sees this role.
+        if (self::actor()?->isPlatformAdmin() === true && $user->isPlatformAdmin()) {
+            $labels[] = Role::PlatformAdmin->label();
+        }
 
         foreach ($user->roleNames() as $roleName) {
             $role = Role::tryFrom($roleName);
@@ -181,7 +230,7 @@ class UserResource extends Resource
                         // deletes through it, skipping model events entirely.
                         ->fetchSelectedRecords()
                         ->before(function (\Filament\Actions\DeleteBulkAction $action, Collection $records) {
-                            if ($records->contains(fn (Model $record): bool => $record instanceof User && ! self::canManageRecord($record))) {
+                            if ($records->contains(fn (Model $record): bool => $record instanceof User && ! self::canDeleteRecord($record))) {
                                 Notification::make()
                                     ->title(__('Cannot delete user'))
                                     ->body(__('This user cannot be deleted.'))
@@ -192,7 +241,22 @@ class UserResource extends Resource
                                 return;
                             }
 
-                            $adminCount = User::adminRoleCount();
+                            $platformAdminIds = $records
+                                ->filter(fn (Model $record): bool => $record instanceof User && $record->isPlatformAdmin())
+                                ->pluck('id')
+                                ->all();
+                            if ($platformAdminIds !== [] && ! User::hasOtherPlatformAdmin($platformAdminIds)) {
+                                Notification::make()
+                                    ->title(__('Cannot delete user'))
+                                    ->body(__('The last platform administrator cannot be deleted.'))
+                                    ->danger()
+                                    ->send();
+                                $action->cancel();
+
+                                return;
+                            }
+
+                            $adminCount = User::adminRoleCount(app(OrganizationContext::class)->currentId());
                             $deletedAdmins = $records->filter(fn (Model $record): bool => $record instanceof User && $record->isAdmin())->count();
 
                             if ($adminCount - $deletedAdmins < 1) {
@@ -233,11 +297,36 @@ class UserResource extends Resource
             ]);
     }
 
+    /**
+     * A user is a global identity, so this resource cannot be tenant-scoped the
+     * way an owned table is — but an administrator of one operator must not be
+     * shown another's people. Membership in the organization being acted in is
+     * what decides, including for a platform admin, who sees the organization
+     * they have entered like everyone else. Platform admins themselves are
+     * shown only to other platform admins.
+     *
+     * @return Builder<User>
+     */
+    public static function getEloquentQuery(): Builder
+    {
+        /** @var Builder<User> $query */
+        $query = parent::getEloquentQuery()
+            ->whereHas(
+                'organizations',
+                fn (Builder $organizations) => $organizations->whereKey(
+                    app(OrganizationContext::class)->currentId(),
+                ),
+            );
+
+        return $query->hidingPlatformAdminsFrom(self::actor());
+    }
+
     public static function getRelations(): array
     {
         return [
             CompartmentAccessesRelationManager::class,
             GroupMembershipsRelationManager::class,
+            OrganizationsRelationManager::class,
         ];
     }
 
@@ -248,6 +337,18 @@ class UserResource extends Resource
             'create' => Pages\CreateUser::route('/create'),
             'edit' => Pages\EditUser::route('/{record}/edit'),
         ];
+    }
+
+    /**
+     * Deleting someone who also belongs to another organization only removes
+     * them from this one, so it is offered even where editing is not: hiding it
+     * would tell an organization admin the person belongs elsewhere.
+     */
+    public static function canDeleteRecord(User $record): bool
+    {
+        $actor = self::actor();
+
+        return $actor instanceof User && app(UserAdministrationService::class)->canDeleteUser($actor, $record);
     }
 
     public static function canManageRecord(User $record): bool

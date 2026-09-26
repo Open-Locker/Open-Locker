@@ -9,6 +9,7 @@ import RenderHtml from 'react-native-render-html';
 import { baseApi } from '@/src/store/baseApi';
 import { clearPersistedAuth } from '@/src/store/authStorage';
 import { clearCredentials } from '@/src/store/authSlice';
+import { clearActiveOrganization } from '@/src/store/organizationSlice';
 import {
   openLockerApi,
   useGetTermsCurrentQuery,
@@ -62,6 +63,10 @@ export default function TermsScreen() {
     await clearPersistedAuth();
     dispatch(baseApi.util.resetApiState());
     dispatch(clearCredentials());
+    // The chosen organization belongs to the session that chose it. Left
+    // behind, the next person to sign in on this device starts acting in a
+    // stranger's choice instead of being asked.
+    dispatch(clearActiveOrganization());
   }, [dispatch]);
 
   const hasAcceptedCurrentTerms = !!user?.terms_current_accepted;
@@ -85,7 +90,9 @@ export default function TermsScreen() {
     setSubmitError(null);
     try {
       await acceptTerms({}).unwrap();
-      dispatch(openLockerApi.util.invalidateTags(['Auth', 'Terms']));
+      // `Compartment` too: an organization's lockers are loaded up front and
+      // refused until its terms are accepted, so that refusal is still cached.
+      dispatch(openLockerApi.util.invalidateTags(['Auth', 'Terms', 'Compartment']));
       navigateToTabs();
     } catch (error) {
       setSubmitError(getApiErrorMessage(error, t));

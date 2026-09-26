@@ -24,7 +24,12 @@ class CompartmentDoorStateBroadcastReactor extends Reactor implements ShouldQueu
 
     public function onCompartmentDoorStateChanged(CompartmentDoorStateChanged $event): void
     {
-        $compartment = Compartment::find($event->compartmentUuid);
+        // Queued, so no organization is in context. The uuid comes from the
+        // event being handled rather than from a request, and it is globally
+        // unique — so there is nothing here for a scope to protect. Scoped,
+        // this resolves to nothing and the broadcast is silently skipped: the
+        // app shows a stale door until someone reloads the screen.
+        $compartment = Compartment::withoutGlobalScope('organization')->find($event->compartmentUuid);
         if (! $compartment) {
             return;
         }
