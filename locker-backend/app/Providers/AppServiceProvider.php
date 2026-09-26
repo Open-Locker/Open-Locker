@@ -30,7 +30,10 @@ class AppServiceProvider extends ServiceProvider
         // One answer per request to "which organization am I acting in".
         // Middleware, the Filament panel and explicitly-passed job context all
         // write to this one place; nothing else discovers it on its own.
-        $this->app->singleton(OrganizationContext::class);
+        // Scoped, not a singleton: queue workers are long-lived, and Laravel
+        // resets scoped instances between jobs, so no job can start in the
+        // organization a previous one left behind.
+        $this->app->scoped(OrganizationContext::class);
     }
 
     /**

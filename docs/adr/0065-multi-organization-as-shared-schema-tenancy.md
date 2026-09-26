@@ -185,6 +185,14 @@ present and the multi-organization UI gated behind an optional mode.
     it: under this model a platform admin has full read *and* write inside any
     organization, and the audit trail that decision 13 creates is visible to
     platform admins only. The operator is trusting the host, not checking it.
+    Platform admins are visible only to each other. A platform admin who is
+    also a member of an organization does not appear to its admins in the user
+    list, on a user page, in the user pickers or in the audit log's actor
+    filter, and only a platform admin sees the platform admin role or can grant
+    it. An organization admin can therefore neither change nor delete one. The
+    last platform admin can be neither deleted nor demoted, so organizations
+    always have someone able to manage them; `platform-admin:grant` stays the
+    way back in from the console.
     Deleting an organization is deliberately excluded. One owns locker banks,
     compartments, grants, terms and an immutable event history, and there is no
     safe default for what becomes of those — the database already refuses to
@@ -209,6 +217,10 @@ present and the multi-organization UI gated behind an optional mode.
       ambient state is needed.
     - Work that is not event-driven takes the organization as an explicit
       argument, captured at dispatch and serialized into the job payload.
+    - The one place that holds the current organization is reset for every
+      request and every queue job (a scoped binding, not a singleton), so a
+      long-lived worker can never start a job in the organization the previous
+      one left behind.
     - Console commands take an explicit `--organization` option. A command given
       none operates on nothing rather than on everything. This is its own rule,
       not the header's: a request comes from a person whose memberships are
@@ -261,20 +273,19 @@ present and the multi-organization UI gated behind an optional mode.
     installation trust each other; an installation serving operators that do
     not should replace this with invitations the person accepts.
 
-    Removing is the mirror image. When an organization admin deletes someone
-    who also belongs to another organization, the person is removed from this
-    organization only, and it looks exactly like a deletion, so the admin
-    learns nothing about other organizations. Someone who belongs only to this
-    organization is deleted for good.
+    Removing is the mirror image. An account is deleted only from its last
+    organization. When anyone, a platform admin included, deletes someone who
+    also belongs to another organization, the person is removed from this
+    organization only, and it looks exactly like a deletion, so an
+    organization admin learns nothing about other organizations. Someone who
+    belongs only to this organization is deleted for good.
     - removal takes everything the person held here with it: compartment
       access, group memberships and roles, each revoked as an event, so nothing
       reappears if they are added again and no door updates reach them
     - the person gets an email naming the organization and who removed them;
       a deleted account gets none, since nobody is left to write to
     - the last admin of an organization can be neither deleted nor removed
-    - the last platform admin cannot be deleted; `platform-admin:grant` stays
-      the way back in from the console
-    - a platform admin's own delete removes the account itself
+    - the last platform admin can be neither deleted nor demoted (decision 17)
 
 ## Rationale
 

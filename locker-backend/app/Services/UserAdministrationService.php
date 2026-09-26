@@ -290,6 +290,12 @@ class UserAdministrationService
             $target->unsetRelation('userRoles');
             $current = $target->roleNames();
 
+            // Inside the guard's lock, like the last-admin rule.
+            throw_if(
+                $revokePlatformAdmin && ! User::hasOtherPlatformAdmin([$target->id]),
+                LastAdminException::class,
+            );
+
             if ($revokePlatformAdmin) {
                 // Recorded with a null organization, the way it was granted.
                 UserRoleAggregate::retrieve(UserRoleAggregate::aggregateUuidFor($target->id))
@@ -361,10 +367,11 @@ class UserAdministrationService
             );
 
             foreach ($targets as $target) {
-                // An organization admin knows nothing of other organizations,
-                // so deleting someone who also belongs to one removes them from
-                // this organization only, and looks the same as a deletion.
-                if ($organization instanceof Organization && $this->belongsElsewhere($actor, $target, $organization)) {
+                // An account is deleted only from its last organization.
+                // Anyone else is removed from this one only, which looks the
+                // same as a deletion, so an organization admin learns nothing
+                // about other organizations.
+                if ($organization instanceof Organization && $this->belongsElsewhere($target, $organization)) {
                     $this->detachFromCurrentOrganization($actor, $target, $organization);
                     $removed[] = $target;
 
@@ -406,8 +413,10 @@ class UserAdministrationService
 
         $organizationId = app(OrganizationContext::class)->currentId();
 
-        if (! $actor->isPlatformAdmin()
-            && ($organizationId === null || ! $target->organizations()->whereKey($organizationId)->exists())) {
+        // Deleting acts on the membership here, so the person must have one;
+        // for a platform admin too, who otherwise could "remove" someone from
+        // an organization they never belonged to.
+        if ($organizationId === null || ! $target->organizations()->whereKey($organizationId)->exists()) {
             return false;
         }
 
@@ -427,12 +436,11 @@ class UserAdministrationService
     }
 
     /**
-     * A platform admin administers the installation, so their deletion is real.
+     * Whoever deletes: an account is deleted only from its last organization.
      */
-    private function belongsElsewhere(User $actor, User $target, Organization $organization): bool
+    private function belongsElsewhere(User $target, Organization $organization): bool
     {
-        return ! $actor->isPlatformAdmin()
-            && $target->organizations()->whereKeyNot($organization->id)->exists();
+        return $target->organizations()->whereKeyNot($organization->id)->exists();
     }
 
     /**

@@ -113,6 +113,9 @@ class OrganizationResource extends Resource
             TextInput::make('slug')
                 ->label(__('Slug'))
                 ->required()
+                // It is the {tenant} segment of every panel URL: a slash or a
+                // space would make the organization unreachable.
+                ->rules(['alpha_dash:ascii'])
                 ->unique(ignoreRecord: true)
                 // The default organization's slug is looked up by name to
                 // resolve history that predates organizations; renaming it

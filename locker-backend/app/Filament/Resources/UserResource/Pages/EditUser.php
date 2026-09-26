@@ -114,6 +114,18 @@ class EditUser extends EditRecord
                             ->options(self::roleOptions()),
                     ])
                     ->action(function (User $record, array $data): void {
+                        if ($record->isPlatformAdmin()
+                            && $data['role'] !== Role::PlatformAdmin->value
+                            && ! User::hasOtherPlatformAdmin([$record->id])) {
+                            Notification::make()
+                                ->title(__('Cannot change role'))
+                                ->body(__('The last platform administrator cannot lose that role.'))
+                                ->danger()
+                                ->send();
+
+                            return;
+                        }
+
                         $changed = app(UserAdministrationService::class)->changeRole(
                             actor: self::currentUser(),
                             target: $record,
@@ -186,6 +198,12 @@ class EditUser extends EditRecord
      */
     private static function currentRole(User $record): Role
     {
+        // Pre-selected otherwise as User, so saving the form unchanged would
+        // quietly take platform administration away.
+        if ($record->isPlatformAdmin()) {
+            return Role::PlatformAdmin;
+        }
+
         if ($record->isAdmin()) {
             return Role::Admin;
         }

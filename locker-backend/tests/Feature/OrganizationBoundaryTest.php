@@ -8,7 +8,10 @@ use App\Aggregates\UserRoleAggregate;
 use App\Console\Commands\DetectOfflineLockers;
 use App\Enums\Role;
 use App\Filament\Resources\AuditLogResource;
+use App\Filament\Resources\AuditLogResource\Pages\ListAuditLog;
 use App\Filament\Resources\OrganizationResource;
+use App\Filament\Resources\OrganizationResource\Pages\ListOrganizations;
+use App\Filament\Resources\UserResource;
 use App\Filament\Resources\UserResource\Pages\EditUser;
 use App\Filament\Resources\UserResource\RelationManagers\OrganizationsRelationManager;
 use App\Models\Compartment;
@@ -576,6 +579,20 @@ class OrganizationBoundaryTest extends TestCase
         Notification::assertNotSentTo($onlyAdmin, RemovedFromOrganizationNotification::class);
     }
 
+    public function test_a_platform_admin_also_deletes_only_from_the_last_organization(): void
+    {
+        $alpha = Organization::create(['name' => 'Alpha', 'slug' => 'alpha']);
+        $beta = Organization::create(['name' => 'Beta', 'slug' => 'beta']);
+        $platformAdmin = $this->platformAdmin();
+        $shared = $this->memberOfOnly($alpha);
+        $shared->organizations()->attach($beta->id, ['joined_at' => now()]);
+
+        $this->within($alpha, fn (): bool => app(UserAdministrationService::class)->deleteUser($platformAdmin, $shared));
+
+        $this->assertNotNull(User::query()->find($shared->id));
+        $this->assertSame([$beta->id], $shared->organizations()->pluck('organizations.id')->all());
+    }
+
     public function test_deleting_someone_who_belongs_only_here_deletes_the_account(): void
     {
         Notification::fake();
@@ -626,15 +643,98 @@ class OrganizationBoundaryTest extends TestCase
         $this->assertNull(User::query()->find($another->id));
     }
 
+    public function test_only_platform_admins_see_platform_admins(): void
+    {
+        $alpha = Organization::create(['name' => 'Alpha', 'slug' => 'alpha']);
+        $alphaAdmin = $this->adminOf($alpha);
+        $memberPlatformAdmin = $this->platformAdmin();
+        $memberPlatformAdmin->organizations()->syncWithoutDetaching([$alpha->id => ['joined_at' => now()]]);
+        $otherPlatformAdmin = $this->platformAdmin();
+
+        $seenBy = fn (User $viewer): array => $this->within($alpha, function () use ($viewer): array {
+            $this->actingAs($viewer);
+
+            return UserResource::getEloquentQuery()->pluck('id')->all();
+        });
+
+        $this->assertNotContains($memberPlatformAdmin->id, $seenBy($alphaAdmin));
+        $this->assertContains($memberPlatformAdmin->id, $seenBy($otherPlatformAdmin));
+    }
+
+    public function test_saving_the_role_form_unchanged_keeps_platform_admin(): void
+    {
+        // The form used to pre-select User for a platform admin, so saving it
+        // without touching anything took the role away.
+        $platformAdmin = $this->platformAdmin();
+        $target = $this->platformAdmin();
+
+        Livewire::actingAs($platformAdmin)
+            ->test(EditUser::class, ['record' => $target->getRouteKey()])
+            ->callAction('changeRole')
+            ->assertHasNoActionErrors();
+
+        $this->assertTrue($target->fresh()->isPlatformAdmin());
+    }
+
+    public function test_the_last_platform_admin_cannot_be_demoted(): void
+    {
+        $platformAdmin = $this->platformAdmin();
+
+        $changed = $this->within(
+            Organization::query()->where('slug', DefaultOrganization::SLUG)->firstOrFail(),
+            fn (): bool => app(UserAdministrationService::class)->changeRole($platformAdmin, $platformAdmin, Role::Admin),
+        );
+
+        $this->assertFalse($changed);
+        $this->assertTrue($platformAdmin->fresh()->isPlatformAdmin());
+    }
+
+    /**
+     * Granted through events, as `platform-admin:grant` does: a role row with no
+     * event behind it cannot be revoked, which would hide the bugs these tests
+     * are about.
+     */
+    public function test_an_organization_slug_must_be_url_safe(): void
+    {
+        config()->set('organizations.multi_organization', true);
+
+        Livewire::actingAs($this->platformAdmin())
+            ->test(ListOrganizations::class)
+            ->callAction('create', data: ['name' => 'Gamma', 'slug' => 'gamma lobby/2'])
+            ->assertHasActionErrors(['slug']);
+    }
+
+    public function test_the_audit_actor_filter_lists_platform_admins_only_to_platform_admins(): void
+    {
+        $platformAdmin = $this->platformAdmin();
+        $default = Organization::query()->where('slug', DefaultOrganization::SLUG)->firstOrFail();
+        $admin = $this->adminOf($default);
+
+        $actorsSeenBy = fn (User $viewer): array => array_keys(
+            Livewire::actingAs($viewer)->test(ListAuditLog::class)->instance()->getTable()->getFilter('actor')->getOptions(),
+        );
+
+        $this->assertContains($platformAdmin->id, $actorsSeenBy($platformAdmin));
+        $this->assertNotContains($platformAdmin->id, $actorsSeenBy($admin));
+    }
+
+    public function test_no_queue_job_inherits_the_previous_jobs_organization(): void
+    {
+        $alpha = Organization::create(['name' => 'Alpha', 'slug' => 'alpha']);
+        app(OrganizationContext::class)->set($alpha);
+
+        // What the queue worker does between two jobs.
+        app()->forgetScopedInstances();
+
+        $this->assertNull(app(OrganizationContext::class)->current());
+    }
+
     private function platformAdmin(): User
     {
         $user = User::factory()->create();
-        UserRole::create([
-            'user_id' => $user->id,
-            'organization_id' => null,
-            'role' => Role::PlatformAdmin->value,
-            'granted_at' => now(),
-        ]);
+        UserRoleAggregate::retrieve(UserRoleAggregate::aggregateUuidFor($user->id))
+            ->grantRole($user->id, Role::PlatformAdmin->value, null, now(), null)
+            ->persist();
 
         return $user;
     }

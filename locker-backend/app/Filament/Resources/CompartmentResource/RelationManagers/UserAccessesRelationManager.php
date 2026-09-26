@@ -147,6 +147,7 @@ class UserAccessesRelationManager extends RelationManager
                 // staff would hand them access through the picker.
                 ->inCurrentOrganization()
                 ->manageableBy(Filament::auth()->user())
+                ->hidingPlatformAdminsFrom(Filament::auth()->user())
                 ->whereDoesntHave(
                     'activeCompartmentAccesses',
                     fn (Builder $query): Builder => $query->where('compartment_id', $compartment->id)

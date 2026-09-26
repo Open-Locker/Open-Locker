@@ -79,6 +79,7 @@
     "The last admin cannot be removed from the organization.": "Der letzte Admin kann nicht aus der Organisation entfernt werden.",
     "The last admin cannot lose admin rights.": "Dem letzten Admin können nicht die Adminrechte entzogen werden.",
     "The last platform administrator cannot be deleted.": "Der letzte Plattform-Administrator kann nicht gelöscht werden.",
+    "The last platform administrator cannot lose that role.": "Der letzte Plattform-Administrator kann diese Rolle nicht verlieren.",
     "This person already had an account, so it was added to this organization. They were notified by email.": "Diese Person hatte bereits ein Konto, daher wurde es zu dieser Organisation hinzugefügt. Sie wurde per E-Mail benachrichtigt.",
     "This person is already a member of this organization.": "Diese Person ist bereits Mitglied dieser Organisation.",
     "Unable to save note": "Notiz konnte nicht gespeichert werden",

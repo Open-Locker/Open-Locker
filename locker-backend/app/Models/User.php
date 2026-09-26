@@ -334,6 +334,27 @@ class User extends Authenticatable implements FilamentUser, HasName, HasTenants,
     }
 
     /**
+     * Platform admins belong to no organization, so only other platform admins
+     * see them in lists and pickers, even when one is also a member here.
+     *
+     * @param  Builder<User>  $query
+     * @return Builder<User>
+     */
+    public function scopeHidingPlatformAdminsFrom(Builder $query, ?self $viewer): Builder
+    {
+        if ($viewer?->isPlatformAdmin() === true) {
+            return $query;
+        }
+
+        return $query->whereDoesntHave(
+            'userRoles',
+            fn (Builder $roles): Builder => $roles
+                ->where('role', Role::PlatformAdmin->value)
+                ->whereNull('organization_id'),
+        );
+    }
+
+    /**
      * Restrict a user query to those the actor is allowed to administer.
      *
      * ADR-0022: a manager may list and view admin accounts but may not mutate

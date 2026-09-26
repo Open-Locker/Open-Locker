@@ -133,6 +133,7 @@ class MembersRelationManager extends RelationManager
                 // staff would hand them access through the picker.
                 ->inCurrentOrganization()
                 ->manageableBy(Filament::auth()->user())
+                ->hidingPlatformAdminsFrom(Filament::auth()->user())
                 ->whereNotIn('id', $activeMemberIds)
         );
     }

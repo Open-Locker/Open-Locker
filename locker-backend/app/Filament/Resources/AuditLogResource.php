@@ -123,8 +123,22 @@ class AuditLogResource extends Resource
                     // to be too. A user is a global identity that nothing
                     // scopes, so an unfiltered dropdown names another
                     // operator's staff.
+                    // Platform admins belong to no organization, yet their
+                    // actions here show in the log; another platform admin can
+                    // filter by them, nobody else ever sees them.
                     ->options(fn (): array => User::query()
-                        ->inCurrentOrganization()
+                        ->where(fn (Builder $actors): Builder => $actors
+                            ->inCurrentOrganization()
+                            ->when(
+                                self::viewerIsPlatformAdmin(),
+                                fn (Builder $withPlatformAdmins): Builder => $withPlatformAdmins->orWhereHas(
+                                    'userRoles',
+                                    fn (Builder $roles): Builder => $roles
+                                        ->where('role', Role::PlatformAdmin->value)
+                                        ->whereNull('organization_id'),
+                                ),
+                            ))
+                        ->hidingPlatformAdminsFrom(auth()->user() instanceof User ? auth()->user() : null)
                         ->orderBy('first_name')
                         ->get()
                         ->mapWithKeys(fn (User $user): array => [$user->id => $user->fullName()])
@@ -187,6 +201,13 @@ class AuditLogResource extends Resource
             ->whereIn('event_class', app(AuditEventPresenter::class)->auditableEventClasses());
 
         return self::hidePlatformAdministration(self::confineToCurrentOrganization($query));
+    }
+
+    private static function viewerIsPlatformAdmin(): bool
+    {
+        $user = auth()->user();
+
+        return $user instanceof User && $user->isPlatformAdmin();
     }
 
     /**

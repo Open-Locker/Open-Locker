@@ -157,6 +157,11 @@ class UserResource extends Resource
     {
         $labels = [];
 
+        // Only another platform admin ever sees this role.
+        if (self::actor()?->isPlatformAdmin() === true && $user->isPlatformAdmin()) {
+            $labels[] = Role::PlatformAdmin->label();
+        }
+
         foreach ($user->roleNames() as $roleName) {
             $role = Role::tryFrom($roleName);
 
@@ -297,18 +302,23 @@ class UserResource extends Resource
      * way an owned table is — but an administrator of one operator must not be
      * shown another's people. Membership in the organization being acted in is
      * what decides, including for a platform admin, who sees the organization
-     * they have entered like everyone else.
+     * they have entered like everyone else. Platform admins themselves are
+     * shown only to other platform admins.
      *
-     * @return Builder<\Illuminate\Database\Eloquent\Model>
+     * @return Builder<User>
      */
     public static function getEloquentQuery(): Builder
     {
-        return parent::getEloquentQuery()->whereHas(
-            'organizations',
-            fn (Builder $organizations) => $organizations->whereKey(
-                app(OrganizationContext::class)->currentId(),
-            ),
-        );
+        /** @var Builder<User> $query */
+        $query = parent::getEloquentQuery()
+            ->whereHas(
+                'organizations',
+                fn (Builder $organizations) => $organizations->whereKey(
+                    app(OrganizationContext::class)->currentId(),
+                ),
+            );
+
+        return $query->hidingPlatformAdminsFrom(self::actor());
     }
 
     public static function getRelations(): array
