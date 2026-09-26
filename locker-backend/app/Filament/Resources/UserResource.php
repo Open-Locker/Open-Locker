@@ -82,7 +82,7 @@ class UserResource extends Resource
 
     public static function canDelete(Model $record): bool
     {
-        return $record instanceof User && self::canManageRecord($record);
+        return $record instanceof User && self::canDeleteRecord($record);
     }
 
     public static function canDeleteAny(): bool
@@ -225,10 +225,25 @@ class UserResource extends Resource
                         // deletes through it, skipping model events entirely.
                         ->fetchSelectedRecords()
                         ->before(function (\Filament\Actions\DeleteBulkAction $action, Collection $records) {
-                            if ($records->contains(fn (Model $record): bool => $record instanceof User && ! self::canManageRecord($record))) {
+                            if ($records->contains(fn (Model $record): bool => $record instanceof User && ! self::canDeleteRecord($record))) {
                                 Notification::make()
                                     ->title(__('Cannot delete user'))
                                     ->body(__('This user cannot be deleted.'))
+                                    ->danger()
+                                    ->send();
+                                $action->cancel();
+
+                                return;
+                            }
+
+                            $platformAdminIds = $records
+                                ->filter(fn (Model $record): bool => $record instanceof User && $record->isPlatformAdmin())
+                                ->pluck('id')
+                                ->all();
+                            if ($platformAdminIds !== [] && ! User::hasOtherPlatformAdmin($platformAdminIds)) {
+                                Notification::make()
+                                    ->title(__('Cannot delete user'))
+                                    ->body(__('The last platform administrator cannot be deleted.'))
                                     ->danger()
                                     ->send();
                                 $action->cancel();
@@ -312,6 +327,18 @@ class UserResource extends Resource
             'create' => Pages\CreateUser::route('/create'),
             'edit' => Pages\EditUser::route('/{record}/edit'),
         ];
+    }
+
+    /**
+     * Deleting someone who also belongs to another organization only removes
+     * them from this one, so it is offered even where editing is not: hiding it
+     * would tell an organization admin the person belongs elsewhere.
+     */
+    public static function canDeleteRecord(User $record): bool
+    {
+        $actor = self::actor();
+
+        return $actor instanceof User && app(UserAdministrationService::class)->canDeleteUser($actor, $record);
     }
 
     public static function canManageRecord(User $record): bool

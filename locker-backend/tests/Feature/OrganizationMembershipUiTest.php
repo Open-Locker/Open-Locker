@@ -13,6 +13,7 @@ use App\Models\User;
 use App\Models\UserRole;
 use App\Notifications\Auth\WebResetPasswordNotification;
 use App\Notifications\Organizations\AddedToOrganizationNotification;
+use App\Notifications\Organizations\RemovedFromOrganizationNotification;
 use App\StorableEvents\UserJoinedOrganization;
 use App\Support\EventSourcing\OrganizationStamp;
 use App\Support\Organizations\DefaultOrganization;
@@ -222,6 +223,7 @@ class OrganizationMembershipUiTest extends TestCase
 
     public function test_removing_a_person_revokes_their_role_there_for_good(): void
     {
+        Notification::fake();
         $other = Organization::create(['name' => 'Rival Operator', 'slug' => 'rival']);
         $platformAdmin = $this->givenPlatformAdmin();
         $target = User::factory()->create();
@@ -242,10 +244,12 @@ class OrganizationMembershipUiTest extends TestCase
         $this->assertFalse(
             UserRole::query()->where('user_id', $target->id)->where('organization_id', $other->id)->exists(),
         );
+        Notification::assertSentTo($target, RemovedFromOrganizationNotification::class);
     }
 
     public function test_the_last_admin_cannot_be_removed(): void
     {
+        Notification::fake();
         $other = Organization::create(['name' => 'Rival Operator', 'slug' => 'rival']);
         $platformAdmin = $this->givenPlatformAdmin();
         $onlyAdmin = User::factory()->create();
@@ -266,6 +270,7 @@ class OrganizationMembershipUiTest extends TestCase
                 ->where('role', Role::Admin->value)
                 ->exists(),
         );
+        Notification::assertNotSentTo($onlyAdmin, RemovedFromOrganizationNotification::class);
     }
 
     private function givenPlatformAdmin(): User

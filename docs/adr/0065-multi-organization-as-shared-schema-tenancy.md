@@ -261,6 +261,21 @@ present and the multi-organization UI gated behind an optional mode.
     installation trust each other; an installation serving operators that do
     not should replace this with invitations the person accepts.
 
+    Removing is the mirror image. When an organization admin deletes someone
+    who also belongs to another organization, the person is removed from this
+    organization only, and it looks exactly like a deletion, so the admin
+    learns nothing about other organizations. Someone who belongs only to this
+    organization is deleted for good.
+    - removal takes everything the person held here with it: compartment
+      access, group memberships and roles, each revoked as an event, so nothing
+      reappears if they are added again and no door updates reach them
+    - the person gets an email naming the organization and who removed them;
+      a deleted account gets none, since nobody is left to write to
+    - the last admin of an organization can be neither deleted nor removed
+    - the last platform admin cannot be deleted; `platform-admin:grant` stays
+      the way back in from the console
+    - a platform admin's own delete removes the account itself
+
 ## Rationale
 
 Shared schema is the only alternative that serves a managed service and the open

@@ -12,6 +12,7 @@ use App\Exceptions\LastAdminException;
 use App\Models\Organization;
 use App\Models\User;
 use App\Notifications\Organizations\AddedToOrganizationNotification;
+use App\Notifications\Organizations\RemovedFromOrganizationNotification;
 use App\Support\Organizations\OrganizationContext;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Support\Facades\DB;
@@ -123,19 +124,64 @@ class UserAdministrationService
         return app(OrganizationContext::class)->runWithin($organization, function () use ($actor, $target, $organization): bool {
             $this->ensureCanManageRoles($actor);
 
-            return $this->lastAdminGuard->attempt(function () use ($actor, $target, $organization): void {
-                $target->flushPermissionCache();
-                $target->unsetRelation('userRoles');
+            $removed = $this->lastAdminGuard->attempt(
+                fn () => $this->detachFromCurrentOrganization($actor, $target, $organization),
+            );
 
-                foreach ($target->roleNames() as $roleName) {
-                    UserRoleAggregate::retrieve(UserRoleAggregate::aggregateUuidFor($target->id))
-                        ->revokeRole($target->id, $roleName, $actor->id, now(), $organization->id)
-                        ->persist();
-                }
+            // After the commit, so the email never announces a refused removal.
+            if ($removed) {
+                $this->notifyRemovedFromOrganization($actor, $target, $organization);
+            }
 
-                $target->organizations()->detach($organization->id);
-            });
+            return $removed;
         });
+    }
+
+    /**
+     * Take away everything the target had in the organization in context, then
+     * the membership itself. Access and groups go too: left behind they would
+     * still route that organization's door updates to the person, and come
+     * back if they were ever added again. Each revocation is recorded.
+     *
+     * Runs inside the caller's last-admin guard.
+     */
+    private function detachFromCurrentOrganization(User $actor, User $target, Organization $organization): void
+    {
+        $accessService = app(CompartmentAccessService::class);
+        foreach ($target->activeCompartmentAccesses()->with('compartment')->get() as $access) {
+            if ($access->compartment !== null) {
+                $accessService->revokeAccess($target, $access->compartment, $actor);
+            }
+        }
+
+        $groupService = app(GroupAccessService::class);
+        foreach ($target->activeGroups()->get() as $group) {
+            $groupService->removeUser($group, $target, $actor);
+        }
+
+        $target->flushPermissionCache();
+        $target->unsetRelation('userRoles');
+
+        foreach ($target->roleNames() as $roleName) {
+            UserRoleAggregate::retrieve(UserRoleAggregate::aggregateUuidFor($target->id))
+                ->revokeRole($target->id, $roleName, $actor->id, now(), $organization->id)
+                ->persist();
+        }
+
+        $target->organizations()->detach($organization->id);
+    }
+
+    /**
+     * Tell someone they were removed from an organization and kept their
+     * account. Replying reaches whoever removed them.
+     */
+    public function notifyRemovedFromOrganization(User $actor, User $user, Organization $organization): void
+    {
+        $user->notify(new RemovedFromOrganizationNotification(
+            organizationName: $organization->name,
+            actorName: $actor->fullName(),
+            actorEmail: $actor->email,
+        ));
     }
 
     /**
@@ -297,16 +343,96 @@ class UserAdministrationService
         $targets = collect($targets);
 
         foreach ($targets as $target) {
-            $this->ensureCanManageUser($actor, $target);
+            $this->ensureCanDeleteUser($actor, $target);
         }
 
-        return $this->lastAdminGuard->attempt(function () use ($targets): void {
+        $organization = app(OrganizationContext::class)->current();
+        $removed = [];
+
+        $done = $this->lastAdminGuard->attempt(function () use ($actor, $targets, $organization, &$removed): void {
+            $removed = [];
+
+            // Inside the guard's lock, so two deletions at once cannot each see
+            // the other as the one that remains.
+            $platformAdminIds = $targets->filter(fn (User $target): bool => $target->isPlatformAdmin())->pluck('id')->all();
+            throw_if(
+                $platformAdminIds !== [] && ! User::hasOtherPlatformAdmin($platformAdminIds),
+                LastAdminException::class,
+            );
+
             foreach ($targets as $target) {
+                // An organization admin knows nothing of other organizations,
+                // so deleting someone who also belongs to one removes them from
+                // this organization only, and looks the same as a deletion.
+                if ($organization instanceof Organization && $this->belongsElsewhere($actor, $target, $organization)) {
+                    $this->detachFromCurrentOrganization($actor, $target, $organization);
+                    $removed[] = $target;
+
+                    continue;
+                }
+
                 // The model's deleting hook vetoes by returning false rather
                 // than throwing, which would otherwise commit as a silent no-op.
                 throw_unless($target->delete(), LastAdminException::class);
             }
         });
+
+        // Only people who were removed rather than deleted still have an
+        // account to write to; and only once the whole selection committed.
+        if ($done && $organization instanceof Organization) {
+            foreach ($removed as $target) {
+                $this->notifyRemovedFromOrganization($actor, $target, $organization);
+            }
+        }
+
+        return $done;
+    }
+
+    /**
+     * Whether the actor may delete the target from the organization being
+     * administered. Unlike identity changes (canManageUser), this is allowed for
+     * someone who also belongs to another organization, because for them it
+     * only removes the membership here.
+     */
+    public function canDeleteUser(User $actor, User $target): bool
+    {
+        if (! $actor->can(Permission::UsersManage->value)) {
+            return false;
+        }
+
+        if ($target->isPlatformAdmin() && ! $actor->isPlatformAdmin()) {
+            return false;
+        }
+
+        $organizationId = app(OrganizationContext::class)->currentId();
+
+        if (! $actor->isPlatformAdmin()
+            && ($organizationId === null || ! $target->organizations()->whereKey($organizationId)->exists())) {
+            return false;
+        }
+
+        return $actor->can(Permission::RolesManage->value) || ! $target->isAdmin();
+    }
+
+    /**
+     * @throws AuthorizationException
+     */
+    public function ensureCanDeleteUser(User $actor, User $target): void
+    {
+        throw_unless(
+            $this->canDeleteUser($actor, $target),
+            AuthorizationException::class,
+            'You are not allowed to delete this user.',
+        );
+    }
+
+    /**
+     * A platform admin administers the installation, so their deletion is real.
+     */
+    private function belongsElsewhere(User $actor, User $target, Organization $organization): bool
+    {
+        return ! $actor->isPlatformAdmin()
+            && $target->organizations()->whereKeyNot($organization->id)->exists();
     }
 
     /**

@@ -140,9 +140,18 @@ class EditUser extends EditRecord
                 ->icon('heroicon-o-ellipsis-horizontal')
                 ->button(),
             Actions\DeleteAction::make()
-                ->visible(fn (User $record): bool => UserResource::canManageRecord($record))
+                ->visible(fn (User $record): bool => UserResource::canDeleteRecord($record))
                 ->before(function (Actions\DeleteAction $action, User $record) {
-                    app(UserAdministrationService::class)->ensureCanManageUser(self::currentUser(), $record);
+                    app(UserAdministrationService::class)->ensureCanDeleteUser(self::currentUser(), $record);
+
+                    if ($record->isPlatformAdmin() && ! User::hasOtherPlatformAdmin([$record->id])) {
+                        Notification::make()
+                            ->title(__('Cannot delete user'))
+                            ->body(__('The last platform administrator cannot be deleted.'))
+                            ->danger()
+                            ->send();
+                        $action->cancel();
+                    }
 
                     if ($record->isAdmin() && ! User::hasOtherAdmin($record->id, app(OrganizationContext::class)->currentId())) {
                         Notification::make()

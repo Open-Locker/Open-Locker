@@ -374,6 +374,22 @@ class User extends Authenticatable implements FilamentUser, HasName, HasTenants,
             ->count();
     }
 
+    /**
+     * Whether a platform admin remains besides the given users. The last one
+     * cannot be deleted: nobody could then manage organizations until someone
+     * with server access ran `platform-admin:grant`.
+     *
+     * @param  array<mixed>  $excludedUserIds
+     */
+    public static function hasOtherPlatformAdmin(array $excludedUserIds): bool
+    {
+        return UserRole::query()
+            ->where('role', Role::PlatformAdmin->value)
+            ->whereNull('organization_id')
+            ->whereNotIn('user_id', $excludedUserIds)
+            ->exists();
+    }
+
     public static function hasOtherAdmin(int $excludedUserId, ?string $organizationId = null): bool
     {
         return UserRole::query()

@@ -11,11 +11,16 @@ use App\Filament\Resources\AuditLogResource;
 use App\Filament\Resources\OrganizationResource;
 use App\Filament\Resources\UserResource\Pages\EditUser;
 use App\Filament\Resources\UserResource\RelationManagers\OrganizationsRelationManager;
+use App\Models\Compartment;
+use App\Models\CompartmentAccess;
 use App\Models\LockerBank;
 use App\Models\Organization;
 use App\Models\TermsDocument;
 use App\Models\User;
 use App\Models\UserRole;
+use App\Notifications\Organizations\RemovedFromOrganizationNotification;
+use App\Services\CompartmentAccessService;
+use App\Services\GroupAccessService;
 use App\Services\UserAdministrationService;
 use App\Support\EventSourcing\OrganizationStamp;
 use App\Support\Organizations\DefaultOrganization;
@@ -23,6 +28,8 @@ use App\Support\Organizations\OrganizationContext;
 use Filament\Facades\Filament;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Notification;
 use Livewire\Livewire;
 use Tests\TestCase;
 
@@ -510,6 +517,126 @@ class OrganizationBoundaryTest extends TestCase
         $this->expectException(AuthorizationException::class);
 
         $this->within($alpha, fn () => app(UserAdministrationService::class)->changeRole($alphaAdmin, $platformAdmin, Role::Manager));
+    }
+
+    public function test_deleting_someone_who_belongs_elsewhere_only_removes_them_here(): void
+    {
+        Notification::fake();
+        $alpha = Organization::create(['name' => 'Alpha', 'slug' => 'alpha']);
+        $beta = Organization::create(['name' => 'Beta', 'slug' => 'beta']);
+        $alphaAdmin = $this->adminOf($alpha);
+        $shared = $this->memberOfOnly($alpha);
+        $shared->organizations()->attach($beta->id, ['joined_at' => now()]);
+
+        [$compartment, $group] = $this->within($alpha, function () use ($alphaAdmin, $shared): array {
+            $compartment = Compartment::factory()->for(LockerBank::factory())->create();
+            app(CompartmentAccessService::class)->grantAccess($shared, $compartment, actor: $alphaAdmin);
+            $group = app(GroupAccessService::class)->createGroup('Staff', actor: $alphaAdmin);
+            app(GroupAccessService::class)->addUser($group, $shared, actor: $alphaAdmin);
+
+            return [$compartment, $group];
+        });
+
+        $deleted = $this->within($alpha, fn (): bool => app(UserAdministrationService::class)->deleteUser($alphaAdmin, $shared));
+
+        $this->assertTrue($deleted);
+        $this->assertNotNull(User::query()->find($shared->id), 'Another organization still depends on the account.');
+        $this->assertSame([$beta->id], $shared->organizations()->pluck('organizations.id')->all());
+        $this->assertNotNull(
+            CompartmentAccess::withoutGlobalScope('organization')
+                ->where('user_id', $shared->id)->where('compartment_id', $compartment->id)->value('revoked_at'),
+            'Access left behind would still route door updates to the person.',
+        );
+        $this->assertNotNull(
+            DB::table('group_user')->where('user_id', $shared->id)->where('group_id', $group->id)->value('revoked_at'),
+        );
+        Notification::assertSentTo($shared, RemovedFromOrganizationNotification::class);
+    }
+
+    public function test_the_last_admin_cannot_be_removed_by_deleting_them(): void
+    {
+        // Their only way here: the sole admin, who also belongs elsewhere,
+        // deletes themselves, which would only remove them from this one.
+        Notification::fake();
+        $alpha = Organization::create(['name' => 'Alpha', 'slug' => 'alpha']);
+        $beta = Organization::create(['name' => 'Beta', 'slug' => 'beta']);
+        $onlyAdmin = $this->adminOf($alpha);
+        $onlyAdmin->organizations()->syncWithoutDetaching([
+            $alpha->id => ['joined_at' => now()],
+            $beta->id => ['joined_at' => now()],
+        ]);
+
+        $deleted = $this->within($alpha, fn (): bool => app(UserAdministrationService::class)->deleteUser($onlyAdmin, $onlyAdmin));
+
+        $this->assertFalse($deleted);
+        $this->assertTrue($onlyAdmin->organizations()->whereKey($alpha->id)->exists());
+        $this->assertTrue(
+            UserRole::query()->where('user_id', $onlyAdmin->id)->where('organization_id', $alpha->id)->where('role', Role::Admin->value)->exists(),
+        );
+        Notification::assertNotSentTo($onlyAdmin, RemovedFromOrganizationNotification::class);
+    }
+
+    public function test_deleting_someone_who_belongs_only_here_deletes_the_account(): void
+    {
+        Notification::fake();
+        $alpha = Organization::create(['name' => 'Alpha', 'slug' => 'alpha']);
+        $alphaAdmin = $this->adminOf($alpha);
+        $ours = $this->memberOfOnly($alpha);
+
+        $this->within($alpha, fn (): bool => app(UserAdministrationService::class)->deleteUser($alphaAdmin, $ours));
+
+        $this->assertNull(User::query()->find($ours->id));
+        // Nobody is left to write to.
+        Notification::assertNotSentTo($ours, RemovedFromOrganizationNotification::class);
+    }
+
+    public function test_the_delete_button_is_offered_for_someone_who_belongs_elsewhere(): void
+    {
+        // Hiding it would tell the admin that the person belongs to another
+        // organization, which is exactly what they must not learn.
+        $alpha = Organization::create(['name' => 'Alpha', 'slug' => 'alpha']);
+        $beta = Organization::create(['name' => 'Beta', 'slug' => 'beta']);
+        $alphaAdmin = $this->adminOf($alpha);
+        $shared = $this->memberOfOnly($alpha);
+        $shared->organizations()->attach($beta->id, ['joined_at' => now()]);
+
+        $this->within($alpha, function () use ($alphaAdmin, $shared): void {
+            $this->assertTrue(app(UserAdministrationService::class)->canDeleteUser($alphaAdmin, $shared));
+        });
+    }
+
+    public function test_the_last_platform_admin_cannot_be_deleted(): void
+    {
+        $platformAdmin = $this->platformAdmin();
+
+        $deleted = app(UserAdministrationService::class)->deleteUser($platformAdmin, $platformAdmin);
+
+        $this->assertFalse($deleted);
+        $this->assertNotNull(User::query()->find($platformAdmin->id));
+    }
+
+    public function test_a_platform_admin_can_be_deleted_while_another_remains(): void
+    {
+        $platformAdmin = $this->platformAdmin();
+        $another = $this->platformAdmin();
+
+        $deleted = app(UserAdministrationService::class)->deleteUser($platformAdmin, $another);
+
+        $this->assertTrue($deleted);
+        $this->assertNull(User::query()->find($another->id));
+    }
+
+    private function platformAdmin(): User
+    {
+        $user = User::factory()->create();
+        UserRole::create([
+            'user_id' => $user->id,
+            'organization_id' => null,
+            'role' => Role::PlatformAdmin->value,
+            'granted_at' => now(),
+        ]);
+
+        return $user;
     }
 
     private function within(Organization $organization, callable $callback): mixed
