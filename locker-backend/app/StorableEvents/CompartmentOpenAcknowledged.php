@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\StorableEvents;
 
+use App\Support\Audit\AuditCategory;
+use App\Support\Audit\Audited;
 use Spatie\EventSourcing\StoredEvents\ShouldBeStored;
 
 /**
@@ -13,6 +15,7 @@ use Spatie\EventSourcing\StoredEvents\ShouldBeStored;
  * reported separately. This fact used to be recorded as
  * CompartmentOpened, which conflated the two.
  */
+#[Audited(AuditCategory::Access, 'Unlock pulse sent')]
 class CompartmentOpenAcknowledged extends ShouldBeStored
 {
     public function __construct(

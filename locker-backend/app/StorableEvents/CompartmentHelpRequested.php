@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\StorableEvents;
 
+use App\Support\Audit\AuditCategory;
+use App\Support\Audit\Audited;
 use Spatie\EventSourcing\StoredEvents\ShouldBeStored;
 
 /**
@@ -12,6 +14,7 @@ use Spatie\EventSourcing\StoredEvents\ShouldBeStored;
  * event store with the rest of the audit trail, as does the optional call-back
  * phone (ADR-0063).
  */
+#[Audited(AuditCategory::Access, 'Help requested')]
 class CompartmentHelpRequested extends ShouldBeStored
 {
     public function __construct(
