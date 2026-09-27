@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\StorableEvents;
 
+use App\Support\Audit\AuditCategory;
+use App\Support\Audit\Audited;
 use Spatie\EventSourcing\StoredEvents\ShouldBeStored;
 
 /**
@@ -12,6 +14,7 @@ use Spatie\EventSourcing\StoredEvents\ShouldBeStored;
  * A deviation rather than a plain success: the compartment was accessible before
  * anyone was authorized to open it.
  */
+#[Audited(AuditCategory::Access, 'Door was already open')]
 class CompartmentDoorAlreadyOpen extends ShouldBeStored
 {
     public function __construct(

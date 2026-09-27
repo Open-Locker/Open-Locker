@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\StorableEvents;
 
+use App\Support\Audit\AuditCategory;
+use App\Support\Audit\Audited;
 use Spatie\EventSourcing\StoredEvents\ShouldBeStored;
 
 /**
@@ -14,6 +16,7 @@ use Spatie\EventSourcing\StoredEvents\ShouldBeStored;
  * is recorded and thresholds live in alerting policy, so they can change without
  * rewriting history.
  */
+#[Audited(AuditCategory::Access, 'Uncommanded door opening')]
 class CompartmentUncommandedOpenDetected extends ShouldBeStored
 {
     public function __construct(

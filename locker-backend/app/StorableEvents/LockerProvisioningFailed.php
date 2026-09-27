@@ -2,8 +2,11 @@
 
 namespace App\StorableEvents;
 
+use App\Support\Audit\AuditCategory;
+use App\Support\Audit\Audited;
 use Spatie\EventSourcing\StoredEvents\ShouldBeStored;
 
+#[Audited(AuditCategory::Devices, 'Provisioning failed')]
 class LockerProvisioningFailed extends ShouldBeStored
 {
     /**

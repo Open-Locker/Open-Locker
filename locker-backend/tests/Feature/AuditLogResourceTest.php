@@ -8,7 +8,9 @@ use App\Filament\Resources\AuditLogResource;
 use App\Filament\Resources\AuditLogResource\Pages\ListAuditLog;
 use App\Models\AuditEvent;
 use App\Models\Group;
+use App\Models\LockerBank;
 use App\Models\User;
+use App\StorableEvents\LockerProvisioningReplyFailed;
 use App\Support\Audit\AuditEventPresenter;
 use Filament\Tables\Contracts\HasTable;
 use Filament\Tables\Table;
@@ -62,6 +64,32 @@ class AuditLogResourceTest extends TestCase
         // No actor id => attributed to the system.
         $this->assertNull($presenter->actorName($event));
         $this->assertSame(__('Role granted'), $presenter->label($event->event_class));
+    }
+
+    public function test_a_failed_provisioning_reply_is_shown_without_its_raw_reason(): void
+    {
+        // "Locker provisioned" is recorded before the credentials are sent, so
+        // without this entry the log reads as a success for a device that never
+        // received its login.
+        $bank = LockerBank::factory()->create(['name' => 'Lobby Bank']);
+        $event = new AuditEvent([
+            'event_class' => LockerProvisioningReplyFailed::class,
+            'event_properties' => [
+                'lockerBankUuid' => (string) $bank->id,
+                'replyToTopic' => 'locker/register/reply',
+                'reason' => 'broker unreachable',
+            ],
+        ]);
+
+        $presenter = app(AuditEventPresenter::class);
+
+        $this->assertContains(LockerProvisioningReplyFailed::class, $presenter->auditableEventClasses());
+        $description = $presenter->describe($event);
+
+        $this->assertStringContainsString('Lobby Bank', $description);
+        // The raw exception message can carry SQL bindings such as the MQTT
+        // credential hash, so it must never reach the audit log.
+        $this->assertStringNotContainsString('broker unreachable', $description);
     }
 
     public function test_presenter_renders_archived_group_with_actor(): void
