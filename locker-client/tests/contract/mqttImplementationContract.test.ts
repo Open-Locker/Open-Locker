@@ -7,7 +7,7 @@ import { OutboundMqttAdapter } from '../../src/adapters/mqtt/outbound-mqtt.adapt
 import { createOpenCompartmentHandler } from '../../src/adapters/mqtt/handlers/open-compartment.handler';
 import { createApplyConfigHandler } from '../../src/adapters/mqtt/handlers/apply-config.handler';
 import { OpenCompartmentUseCase } from '../../src/application/open-compartment';
-import { RelayFireLog } from '../../src/domain/door-detection';
+import { ActuationLog } from '../../src/domain/door-detection';
 import { FakeDoorEventPublisher } from '../helpers/fake-door-event-publisher';
 import { ApplyConfigUseCase } from '../../src/application/apply-config';
 import { PollCompartmentStateUseCase } from '../../src/application/state-publishing';
@@ -46,7 +46,7 @@ test('handler-built open_compartment success matches AsyncAPI schema', async () 
     config,
     scheduler: new RunAfterCompleteScheduler(),
     doorEvents: new FakeDoorEventPublisher(),
-    relayFireLog: new RelayFireLog(),
+    actuationLog: new ActuationLog(),
   });
   const pollSnapshot = new PollCompartmentStateUseCase(
     bus,
@@ -105,7 +105,7 @@ test('handler-built apply_config success matches AsyncAPI schema', async () => {
       transaction_id: 'txn-config-001',
       timestamp: '2026-04-14T19:31:00Z',
       data: {
-        adapter_type: 'waveshare_modbus',
+        adapter_type: 'rs485_lock_board',
         feedback_type: 'door_closing',
         config_hash: configHash,
         heartbeat_interval_seconds: 30,
@@ -138,7 +138,7 @@ test('dispatcher-built validation error matches AsyncAPI schema', async () => {
     config,
     scheduler: new RunAfterCompleteScheduler(),
     doorEvents: new FakeDoorEventPublisher(),
-    relayFireLog: new RelayFireLog(),
+    actuationLog: new ActuationLog(),
   });
   const pollSnapshot = new PollCompartmentStateUseCase(
     bus,
@@ -170,7 +170,7 @@ test('dispatcher-built validation error matches AsyncAPI schema', async () => {
 
 test('dispatcher-built handler error matches AsyncAPI schema', async () => {
   const bus = new FakeLockerBus([1]);
-  bus.flashRelay = async () => {
+  bus.unlockCompartment = async () => {
     throw new Error('door jammed');
   };
 
@@ -188,7 +188,7 @@ test('dispatcher-built handler error matches AsyncAPI schema', async () => {
     config,
     scheduler: new RunAfterCompleteScheduler(),
     doorEvents: new FakeDoorEventPublisher(),
-    relayFireLog: new RelayFireLog(),
+    actuationLog: new ActuationLog(),
   });
   const pollSnapshot = new PollCompartmentStateUseCase(
     bus,

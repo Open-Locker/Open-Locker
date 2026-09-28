@@ -1,5 +1,11 @@
 # RS485 Locker Board PR Adjustment Plan
 
+> **Historical.** This plan describes PR 237, when Waveshare and the RS485 board
+> were both supported. The current design is
+> [ADR-0067](adr/0067-rs485-lock-board-behind-a-protocol-neutral-bus-port.md):
+> the RS485 board is the only adapter, `modbus:` became `serial:`, and
+> `flashDurationMs` no longer exists.
+
 ## Goal
 
 Reduce PR 237 to the smallest reliable implementation of the proprietary RS485

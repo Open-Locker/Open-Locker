@@ -76,7 +76,7 @@ test('apply_config accepts an empty compartments array like backend and AsyncAPI
     transaction_id: 'txn-empty-compartments',
     timestamp: '2026-04-11T10:00:00Z',
     data: {
-      adapter_type: 'waveshare_modbus',
+      adapter_type: 'rs485_lock_board',
       feedback_type: 'door_closing',
       config_hash: 'a'.repeat(64),
       heartbeat_interval_seconds: 30,
@@ -110,6 +110,24 @@ test('apply_config requires a supported runtime hardware profile', () => {
   );
 });
 
+test('apply_config rejects the retired Waveshare adapter', () => {
+  const command = {
+    action: 'apply_config',
+    message_id: 'msg-waveshare',
+    transaction_id: 'txn-waveshare',
+    timestamp: '2026-04-11T10:00:00Z',
+    data: {
+      adapter_type: 'waveshare_modbus',
+      feedback_type: 'door_closing',
+      config_hash: 'a'.repeat(64),
+      heartbeat_interval_seconds: 30,
+      compartments: [{ compartment_number: 1, slaveId: 1, address: 0 }],
+    },
+  };
+
+  assert.equal(applyConfigCommandSchema.safeParse(command).success, false);
+});
+
 test('apply_config rejects wire addresses above 254', () => {
   const base = {
     action: 'apply_config',
@@ -117,7 +135,7 @@ test('apply_config rejects wire addresses above 254', () => {
     transaction_id: 'txn-address',
     timestamp: '2026-04-11T10:00:00Z',
     data: {
-      adapter_type: 'waveshare_modbus',
+      adapter_type: 'rs485_lock_board',
       feedback_type: 'door_closing',
       config_hash: 'a'.repeat(64),
       heartbeat_interval_seconds: 30,

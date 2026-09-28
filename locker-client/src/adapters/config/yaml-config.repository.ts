@@ -5,9 +5,9 @@ import type {
   EffectiveLockerConfig,
   RuntimeConfigOverlay,
 } from '../../domain/config';
-import { deriveConfiguredSlaveIds } from '../../domain/config';
-import { normalizeFlashDurationMs } from '../../domain/compartment';
+import { deriveConfiguredBoardAddresses } from '../../domain/config';
 import type { ConfigRepositoryPort, RuntimeOverlayStorePort } from '../../ports/config.port';
+import { noopLogger, type LoggerPort } from '../../ports/logging.port';
 import type { MqttTransportSettings } from '../../ports/mqtt.port';
 import { CONFIG_FILE } from '../../infrastructure/paths';
 import { FileRuntimeOverlayStore } from './runtime-overlay.store';
@@ -17,7 +17,7 @@ function mergeRuntimeConfig(
   overlay: RuntimeConfigOverlay | null,
 ): EffectiveLockerConfig {
   const effective: EffectiveLockerConfig = {
-    modbus: base.modbus,
+    serial: base.serial,
     mqtt: base.mqtt ? { ...base.mqtt } : undefined,
   };
 
@@ -35,26 +35,47 @@ function mergeRuntimeConfig(
     effective.hardwareProfile = overlay.hardwareProfile;
   }
 
-  if (
-    overlay?.compartments !== undefined &&
-    overlay.hardwareProfile === undefined &&
-    effective.hardwareProfile === undefined
-  ) {
-    effective.hardwareProfile = {
-      adapterType: 'waveshare_modbus',
-      feedbackType: 'door_closing',
-    };
-  }
-
   return effective;
 }
 
-function parseBaseConfig(raw: unknown): BaseLockerConfig {
+/**
+ * `serial.port` is the only serial setting (ADR-0067). `modbus:` is read as a
+ * deprecated alias so deployed files keep working; its other keys no longer
+ * apply and are reported rather than silently dropped.
+ */
+function parseSerialConfig(
+  parsed: Record<string, unknown>,
+  log: LoggerPort,
+): BaseLockerConfig['serial'] {
+  const serial = parsed.serial as Record<string, unknown> | undefined;
+  const legacy = parsed.modbus as Record<string, unknown> | undefined;
+  const source = serial ?? legacy;
+
+  if (serial === undefined && legacy !== undefined) {
+    log.warn('locker-config.yml: `modbus:` is deprecated, rename it to `serial:`');
+  }
+
+  const ignoredKeys = Object.keys(source ?? {}).filter((key) => key !== 'port');
+  if (ignoredKeys.length > 0) {
+    log.warn('locker-config.yml: serial settings other than `port` are ignored', {
+      ignoredKeys,
+    });
+  }
+
+  const port = source?.port;
+  if (typeof port !== 'string' || port.trim() === '') {
+    throw new Error('serial.port is required');
+  }
+
+  return { port };
+}
+
+function parseBaseConfig(raw: unknown, log: LoggerPort): BaseLockerConfig {
   const parsed = (raw as Record<string, unknown>) ?? {};
   const mqtt = parsed.mqtt as BaseLockerConfig['mqtt'] | undefined;
 
   return {
-    modbus: parsed.modbus as BaseLockerConfig['modbus'],
+    serial: parseSerialConfig(parsed, log),
     mqtt: mqtt
       ? {
           cleanSession: mqtt.cleanSession,
@@ -109,30 +130,13 @@ function requireBoundedSetting(
   }
 }
 
-/**
- * Rejects a setting the driver only accepts from a fixed set. Absent stays
- * absent, so the caller's default applies.
- */
-function requireEnumSetting<T extends number | string>(
-  value: T | undefined,
-  name: string,
-  allowed: readonly T[],
-): void {
-  if (value === undefined) {
-    return;
-  }
-
-  if (!allowed.includes(value)) {
-    throw new Error(`${name} must be one of ${allowed.join(', ')}`);
-  }
-}
-
 export class YamlConfigRepository implements ConfigRepositoryPort {
   private config: EffectiveLockerConfig | null = null;
 
   constructor(
     private readonly overlayStore: RuntimeOverlayStorePort = new FileRuntimeOverlayStore(),
     private readonly configFilePath: string = CONFIG_FILE,
+    private readonly log: LoggerPort = noopLogger,
   ) {}
 
   load(): EffectiveLockerConfig {
@@ -144,32 +148,11 @@ export class YamlConfigRepository implements ConfigRepositoryPort {
       throw new Error(`Configuration file not found: ${this.configFilePath}`);
     }
 
-    const base = parseBaseConfig(load(fs.readFileSync(this.configFilePath, 'utf8')));
+    const base = parseBaseConfig(load(fs.readFileSync(this.configFilePath, 'utf8')), this.log);
     base.mqtt = base.mqtt ?? {};
-
-    if (!base.modbus?.port) {
-      throw new Error('modbus.port is required');
-    }
-
-    normalizeFlashDurationMs(base.modbus.flashDurationMs);
 
     // Timer and transport values, bounded at load so a bad file fails at
     // startup rather than becoming odd behaviour hours later.
-    // Serial framing. `baudRate` is not just handed to the driver: it drives the
-    // RTU inter-frame delay, so a bogus value degrades the pacing silently
-    // rather than failing loudly.
-    requireBoundedSetting(base.modbus.baudRate, 'modbus.baudRate', 1_200, 921_600);
-    requireBoundedSetting(base.modbus.timeout, 'modbus.timeout', 50, 60_000);
-    requireBoundedSetting(
-      base.modbus.reconnectCooldownSeconds,
-      'modbus.reconnectCooldownSeconds',
-      5,
-      3600,
-    );
-    requireEnumSetting(base.modbus.dataBits, 'modbus.dataBits', [7, 8]);
-    requireEnumSetting(base.modbus.stopBits, 'modbus.stopBits', [1, 2]);
-    requireEnumSetting(base.modbus.parity, 'modbus.parity', ['none', 'even', 'odd']);
-
     requireBoundedSetting(base.mqtt.keepaliveSeconds, 'mqtt.keepaliveSeconds', 5, 3600, 0);
     requireBoundedSetting(base.mqtt.reconnectPeriodMs, 'mqtt.reconnectPeriodMs', 500, 300_000, 0);
     requireBoundedSetting(base.mqtt.connectTimeoutMs, 'mqtt.connectTimeoutMs', 1_000, 120_000);
@@ -217,12 +200,8 @@ export class YamlConfigRepository implements ConfigRepositoryPort {
     return config.compartments?.find((c) => c.compartment_number === compartmentNumber) ?? null;
   }
 
-  getConfiguredSlaveIds(): number[] {
-    return deriveConfiguredSlaveIds(this.load().compartments);
-  }
-
-  getFlashDurationMs(): number {
-    return normalizeFlashDurationMs(this.load().modbus.flashDurationMs);
+  getConfiguredBoardAddresses(): number[] {
+    return deriveConfiguredBoardAddresses(this.load().compartments);
   }
 
   getHeartbeatIntervalSeconds(): number {

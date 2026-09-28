@@ -1,6 +1,5 @@
 import type { CompartmentConfig } from '../../domain/compartment';
-import { normalizeFlashDurationMs } from '../../domain/compartment';
-import { deriveConfiguredSlaveIds, type EffectiveLockerConfig } from '../../domain/config';
+import { deriveConfiguredBoardAddresses, type EffectiveLockerConfig } from '../../domain/config';
 import type { ConfigRepositoryPort, RuntimeOverlayStorePort } from '../../ports/config.port';
 import type { MqttTransportSettings } from '../../ports/mqtt.port';
 import type { SimulatorBankScenario } from './scenario';
@@ -35,10 +34,7 @@ export class ScenarioConfigRepository implements ConfigRepositoryPort {
       // `port` is required by the shared config shape but never opened: the
       // simulator's bus is in memory. The value is deliberately not a device
       // path so a misconfigured simulator cannot touch a real serial port.
-      modbus: {
-        port: 'simulated',
-        flashDurationMs: this.bank.flash_duration_ms,
-      },
+      serial: { port: 'simulated' },
       mqtt: {
         heartbeatInterval: overlay?.mqtt?.heartbeatInterval ?? this.bank.heartbeat_interval_seconds,
       },
@@ -62,12 +58,8 @@ export class ScenarioConfigRepository implements ConfigRepositoryPort {
     );
   }
 
-  getConfiguredSlaveIds(): number[] {
-    return deriveConfiguredSlaveIds(this.load().compartments);
-  }
-
-  getFlashDurationMs(): number {
-    return normalizeFlashDurationMs(this.load().modbus.flashDurationMs);
+  getConfiguredBoardAddresses(): number[] {
+    return deriveConfiguredBoardAddresses(this.load().compartments);
   }
 
   getHeartbeatIntervalSeconds(): number {

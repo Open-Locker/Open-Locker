@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { ReconnectCoordinator } from '../../src/adapters/modbus/reconnect-coordinator';
+import { ReconnectCoordinator } from '../../src/adapters/serial/reconnect-coordinator';
 
 const failReconnect = async (): Promise<void> => {
   throw new Error('adapter unplugged');

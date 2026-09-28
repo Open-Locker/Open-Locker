@@ -20,11 +20,11 @@ the mobile application uses React Native with Expo.
    - PostgreSQL, Redis, queue/event workers, scheduler, and Laravel Reverb
    - Mosquitto with `mosquitto-go-auth`, authenticating through Laravel
    - publishes locker commands over MQTT and consumes client state/responses
-   - never communicates with Modbus hardware directly
+   - never communicates with locker hardware directly
 2. **Locker client (`locker-client/`)**
    - TypeScript/Node service in Docker on a Raspberry Pi
    - provisions and communicates with the backend through MQTT
-   - owns serialized Modbus RTU communication with Waveshare hardware
+   - owns serialized RS485 communication with the locker boards
    - persists MQTT identity, credentials, runtime configuration, and command
      deduplication state under `/data`
 3. **Mobile app (`mobile-app/`)**
@@ -34,7 +34,7 @@ the mobile application uses React Native with Expo.
 
 The runtime flow is:
 
-`Mobile app → Laravel API → MQTT → locker-client → Modbus RTU → locker hardware`
+`Mobile app → Laravel API → MQTT → locker-client → RS485 → locker hardware`
 
 ## Release and security status
 
@@ -308,7 +308,7 @@ admin panel is available under `/admin` on the configured backend URL.
 
 - Raspberry Pi 3/4/5 or Zero 2 W with 64-bit Raspberry Pi OS
 - Docker with the Compose plugin
-- supported USB/RS485 connection and Waveshare relay hardware
+- a USB-to-RS485 adapter and the dedicated RS485 lock board
 - recommended hardware from the [Bill of Materials](Bill-of-Materials.md)
 - a one-time provisioning token issued from the backend admin panel
 
@@ -332,26 +332,21 @@ by the production reference deployment.
 The token is shown only once. If it is lost or consumed before provisioning
 finishes, restart provisioning in the admin panel and use the new token.
 
-### 2. Configure Modbus RTU
+### 2. Configure the serial device
 
 Edit `config/locker-config.yml`:
 
 ```yaml
-modbus:
-  port: /dev/ttyACM0
-  baudRate: 9600
-  dataBits: 8
-  stopBits: 1
-  parity: none
-  timeout: 1000
-  flashDurationMs: 200
+serial:
+  port: /dev/serial/by-id/usb-FTDI_USB_RS485-if00-port0
 ```
 
-Map the same serial device in `locker-client/docker-compose.yml`. The client
-supports the Modbus RTU/Waveshare path; the old backend Modbus integration and
-the previous environment-based TCP/RTU examples do not describe the current
-architecture. Compartment mapping is delivered later by the backend through
-MQTT `apply_config` and persisted in `/data`.
+The serial device is the only hardware setting; the lock board fixes 9600 8N1.
+Map the same device in `locker-client/docker-compose.yml`. Compartment mapping,
+DIP addresses, and feedback type are delivered later by the backend through MQTT
+`apply_config` and persisted in `/data`. Addressing and commissioning are
+described in
+[`locker-client/docs/rs485-lock-board.md`](../locker-client/docs/rs485-lock-board.md).
 
 ### 3. Start and verify
 
@@ -361,7 +356,7 @@ docker compose logs -f locker-client
 ```
 
 Verify the running image digest, successful provisioning/MQTT connection,
-heartbeat, runtime configuration, Modbus reachability, and a supervised
+heartbeat, runtime configuration, lock-board reachability, and a supervised
 compartment snapshot/open cycle. Keep `config/` and `/data` backed up and
 private. Do not delete identity, credential, runtime-overlay, or dedup files as
 a routine recovery step.

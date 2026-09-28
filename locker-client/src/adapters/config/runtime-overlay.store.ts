@@ -10,6 +10,8 @@ import {
   readPrivateFileSync,
 } from '../../infrastructure/file-persistence';
 
+const SUPPORTED_ADAPTER_TYPES: readonly AdapterType[] = ['rs485_lock_board'];
+
 export function sanitizeRuntimeConfigOverlay(value: unknown): RuntimeConfigOverlay {
   const overlay = value as Record<string, unknown> | null;
   if (overlay === null || typeof overlay !== 'object' || Array.isArray(overlay)) {
@@ -75,19 +77,23 @@ export function sanitizeRuntimeConfigOverlay(value: unknown): RuntimeConfigOverl
       typeof profile !== 'object' ||
       Array.isArray(profile) ||
       Object.keys(profile).some((key) => !['adapterType', 'feedbackType'].includes(key)) ||
-      !['waveshare_modbus', 'rs485_lock_board'].includes(String(profile.adapterType)) ||
+      !['waveshare_modbus', ...SUPPORTED_ADAPTER_TYPES].includes(String(profile.adapterType)) ||
       !['door_closing', 'door_opening'].includes(String(profile.feedbackType))
     ) {
       throw new Error('invalid hardware profile in overlay');
     }
-    sanitized.hardwareProfile = {
-      adapterType: profile.adapterType as AdapterType,
-      feedbackType: profile.feedbackType as FeedbackType,
-    };
+    // A profile stored by a Waveshare-capable client stays readable but selects
+    // no adapter: RS485 frames must never reach a Modbus relay board (ADR-0067).
+    if (SUPPORTED_ADAPTER_TYPES.includes(profile.adapterType as AdapterType)) {
+      sanitized.hardwareProfile = {
+        adapterType: profile.adapterType as AdapterType,
+        feedbackType: profile.feedbackType as FeedbackType,
+      };
+    }
   }
 
   if (
-    sanitized.hardwareProfile?.adapterType === 'rs485_lock_board' &&
+    sanitized.hardwareProfile !== undefined &&
     sanitized.compartments?.some((entry) => entry.slaveId > 31)
   ) {
     throw new Error('RS485 lock board address exceeds DIP range');

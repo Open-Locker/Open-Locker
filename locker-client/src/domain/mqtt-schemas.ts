@@ -28,17 +28,13 @@ export const applyConfigCommandSchema = mqttCommandEnvelopeSchema.extend({
   action: z.literal('apply_config'),
   data: z
     .object({
-      adapter_type: z.enum(['waveshare_modbus', 'rs485_lock_board']),
+      adapter_type: z.literal('rs485_lock_board'),
       feedback_type: z.enum(['door_closing', 'door_opening']),
       config_hash: z.string().regex(/^[a-f0-9]{64}$/i),
       heartbeat_interval_seconds: z.number().int().positive(),
       compartments: z.array(applyConfigCompartmentSchema),
     })
     .superRefine((data, ctx) => {
-      if (data.adapter_type !== 'rs485_lock_board') {
-        return;
-      }
-
       for (const [index, compartment] of data.compartments.entries()) {
         if (compartment.slaveId > 31) {
           ctx.addIssue({

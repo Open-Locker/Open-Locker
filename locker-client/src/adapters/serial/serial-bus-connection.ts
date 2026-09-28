@@ -1,6 +1,6 @@
 import type { ConnectionState } from '../../ports/locker-bus.port';
 import { noopLogger, type LoggerPort } from '../../ports/logging.port';
-import { ReconnectCoordinator } from '../modbus/reconnect-coordinator';
+import { ReconnectCoordinator } from './reconnect-coordinator';
 
 export interface SerialPortLifecycle {
   connect(): Promise<void>;
@@ -50,7 +50,15 @@ export class SerialBusConnection {
     }
   }
 
-  async runWithReconnectRetry<T>(operation: () => Promise<T>): Promise<T> {
+  /**
+   * Reconnects after a reconnectable failure. The operation runs again only when
+   * `rerunAfterReconnect` allows it: an unlock that may already have reached the
+   * board must not be sent twice (ADR-0067).
+   */
+  async runWithReconnectRetry<T>(
+    operation: () => Promise<T>,
+    rerunAfterReconnect: (error: unknown) => boolean = () => true,
+  ): Promise<T> {
     try {
       return await operation();
     } catch (error) {
@@ -61,11 +69,18 @@ export class SerialBusConnection {
       await this.driver.disconnect();
       this.connectionState = 'disconnected';
 
+      const rerun = rerunAfterReconnect(error);
       try {
         await this.reconnect.run(() => this.connectInternal(), this.reconnectOptions());
       } catch (reconnectError) {
         this.markUnreachable(reconnectError);
-        throw reconnectError;
+        // Without a re-run the caller must still learn what happened to its own
+        // operation, not only that the reconnect failed.
+        throw rerun ? reconnectError : error;
+      }
+
+      if (!rerun) {
+        throw error;
       }
 
       return operation();

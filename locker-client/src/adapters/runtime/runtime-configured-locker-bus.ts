@@ -3,11 +3,20 @@ import type { CompartmentTarget, DoorState } from '../../domain/compartment';
 import type { HardwareProfile } from '../../domain/config';
 import { LockerError, MqttErrorCode } from '../../domain/errors';
 import type { ConfigRepositoryPort } from '../../ports/config.port';
-import { type ConnectionState, type LockerBusPort } from '../../ports/locker-bus.port';
+import {
+  BusPriority,
+  type ConnectionState,
+  type LockerBusPort,
+  type UnlockObservation,
+} from '../../ports/locker-bus.port';
 
 export type LockerBusFactory = (profile: HardwareProfile) => LockerBusPort;
 
 export class RuntimeConfiguredLockerBus implements LockerBusPort {
+  /**
+   * Serializes adapter swaps against bus operations. Priorities pass through so
+   * an unlock is not stuck behind polls already waiting here (ADR-0067).
+   */
   private readonly queue = new PQueue({ concurrency: 1 });
   private active: LockerBusPort | null = null;
   private activeProfileKey: string | null = null;
@@ -42,7 +51,7 @@ export class RuntimeConfiguredLockerBus implements LockerBusPort {
     return this.enqueue(async () => {
       await this.reconcile();
       return operation(this.requireActive());
-    });
+    }, BusPriority.COMMAND);
   }
 
   ensureConnected(): Promise<boolean> {
@@ -58,20 +67,19 @@ export class RuntimeConfiguredLockerBus implements LockerBusPort {
     return this.enqueue(() => this.reconcile(true));
   }
 
-  flashRelay(target: CompartmentTarget, durationMs: number): Promise<void> {
-    return this.enqueue(() => this.requireActive().flashRelay(target, durationMs));
+  unlockCompartment(target: CompartmentTarget): Promise<UnlockObservation> {
+    return this.enqueue(() => this.requireActive().unlockCompartment(target), BusPriority.COMMAND);
   }
 
-  readDoorSensors(slaveId: number, startAddress: number, length: number): Promise<DoorState[]> {
-    return this.enqueue(() => this.requireActive().readDoorSensors(slaveId, startAddress, length));
+  readCompartmentStates(boardAddress: number, addresses: readonly number[]): Promise<DoorState[]> {
+    return this.enqueue(
+      () => this.requireActive().readCompartmentStates(boardAddress, addresses),
+      BusPriority.SNAPSHOT,
+    );
   }
 
-  initializeBoard(slaveId: number): Promise<void> {
-    return this.enqueue(() => this.requireActive().initializeBoard(slaveId));
-  }
-
-  getConfiguredSlaveIds(): number[] {
-    return this.config.getConfiguredSlaveIds();
+  getConfiguredBoardAddresses(): number[] {
+    return this.config.getConfiguredBoardAddresses();
   }
 
   private async reconcile(forceReload = false): Promise<void> {
@@ -80,12 +88,12 @@ export class RuntimeConfiguredLockerBus implements LockerBusPort {
     if (nextKey === this.activeProfileKey && this.active) {
       if (this.shouldBeConnected && this.active.getConnectionState() !== 'connected') {
         await this.active.connect();
-        await this.initializeConfiguredBoards(this.active);
+        await this.checkConfiguredBoards(this.active);
         return;
       }
       if (forceReload) {
         await this.active.reloadRuntimeConfig();
-        await this.initializeConfiguredBoards(this.active);
+        await this.checkConfiguredBoards(this.active);
       }
       return;
     }
@@ -102,26 +110,38 @@ export class RuntimeConfiguredLockerBus implements LockerBusPort {
     this.activeProfileKey = nextKey;
     if (this.shouldBeConnected || forceReload) {
       await next.connect();
-      await this.initializeConfiguredBoards(next);
+      await this.checkConfiguredBoards(next);
     }
   }
 
-  private async initializeConfiguredBoards(bus: LockerBusPort): Promise<void> {
-    const slaveIds = this.config.getConfiguredSlaveIds();
-    let successCount = 0;
-    for (const slaveId of slaveIds) {
+  /**
+   * A connected bus on which no configured board answers is a wiring or
+   * configuration fault; startup and `apply_config` fail loudly on it
+   * (ADR-0051, ADR-0067).
+   */
+  private async checkConfiguredBoards(bus: LockerBusPort): Promise<void> {
+    const compartments = this.config.load().compartments ?? [];
+    const boardAddresses = this.config.getConfiguredBoardAddresses();
+    let answeringBoards = 0;
+    for (const boardAddress of boardAddresses) {
+      const addresses = compartments
+        .filter((compartment) => compartment.slaveId === boardAddress)
+        .map((compartment) => compartment.address);
       try {
-        await bus.initializeBoard(slaveId);
-        successCount++;
+        await bus.readCompartmentStates(boardAddress, addresses);
+        answeringBoards++;
       } catch {
-        // Continue so one absent board does not prevent other boards from being initialized.
+        // Continue so one absent board does not hide the others.
       }
     }
-    const connectionState = bus.getConnectionState();
-    if (slaveIds.length > 0 && successCount === 0 && connectionState === 'connected') {
+    if (
+      boardAddresses.length > 0 &&
+      answeringBoards === 0 &&
+      bus.getConnectionState() === 'connected'
+    ) {
       throw new LockerError(
         MqttErrorCode.HARDWARE_ERROR,
-        'Runtime hardware initialization failed for every configured board',
+        'No configured board answered on the connected bus',
       );
     }
   }
@@ -136,7 +156,10 @@ export class RuntimeConfiguredLockerBus implements LockerBusPort {
     return this.active;
   }
 
-  private enqueue<T>(operation: () => Promise<T>): Promise<T> {
-    return this.queue.add(operation) as Promise<T>;
+  private enqueue<T>(
+    operation: () => Promise<T>,
+    priority: BusPriority = BusPriority.MAINTENANCE,
+  ): Promise<T> {
+    return this.queue.add(operation, { priority }) as Promise<T>;
   }
 }
