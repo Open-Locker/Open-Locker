@@ -208,7 +208,7 @@ test('apply_config remaps compartments and answers with the applied hash', async
       timestamp: new Date().toISOString(),
       transaction_id: transactionId,
       data: {
-        adapter_type: 'waveshare_modbus',
+        adapter_type: 'rs485_lock_board',
         feedback_type: 'door_closing',
         compartments,
         heartbeat_interval_seconds: 30,

@@ -2,7 +2,11 @@ import EventEmitter from 'node:events';
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import type { InjectableSerialPort } from '../../src/adapters/rs485/injectable-serial-port';
-import { SerialPortTransactionTransport } from '../../src/adapters/rs485/serialport-transaction.transport';
+import {
+  RequestNotSentError,
+  ResponseTimeoutError,
+  SerialPortTransactionTransport,
+} from '../../src/adapters/rs485/serialport-transaction.transport';
 import { xorBcc } from '../../src/adapters/rs485/rs485-lock-board-codec';
 import { HardwareTransportError } from '../../src/domain/errors';
 
@@ -12,7 +16,6 @@ const connection = {
   dataBits: 8 as const,
   stopBits: 1 as const,
   parity: 'none' as const,
-  timeout: 1000,
 };
 
 class FakeSerialPort extends EventEmitter implements InjectableSerialPort {
@@ -181,4 +184,98 @@ test('late bytes after a timeout are flushed away before the next transaction', 
 
   assert.deepEqual([...(await pending)], [...queryResponse()]);
   assert.ok(port.flushCalls >= 2);
+});
+
+test('a response split into USB bursts 15 ms apart is still one frame', async () => {
+  const port = new FakeSerialPort();
+  const transport = createTransport(port);
+  await transport.open();
+
+  const response = queryResponse();
+  const pending = transport.transact(request, 500);
+  await waitForTransactReady();
+  port.push(response.subarray(0, 2));
+  await sleep(15);
+  port.push(response.subarray(2));
+
+  assert.deepEqual([...(await pending)], [...response]);
+});
+
+test('a timeout reports how many bytes arrived', async () => {
+  const port = new FakeSerialPort();
+  const transport = createTransport(port);
+  await transport.open();
+
+  await assert.rejects(
+    () => transport.transact(request, 15),
+    (error: unknown) => error instanceof ResponseTimeoutError && error.receivedBytes === 0,
+  );
+});
+
+test('a closed port fails before anything is written', async () => {
+  const port = new FakeSerialPort();
+  const transport = createTransport(port);
+
+  await assert.rejects(() => transport.transact(request, 50), RequestNotSentError);
+  assert.deepEqual(port.written, []);
+});
+
+test('a serial error reported between transactions fails the next one before writing', async () => {
+  const port = new FakeSerialPort();
+  const transport = createTransport(port);
+  await transport.open();
+  port.emit('error', new Error('device disconnected'));
+
+  await assert.rejects(() => transport.transact(request, 50), RequestNotSentError);
+  assert.deepEqual(port.written, []);
+});
+
+test('a write error after the request started is not reported as not sent', async () => {
+  const port = new FakeSerialPort();
+  port.write = (data, callback) => {
+    port.written.push(data);
+    callback(new Error('write failed'));
+  };
+  const transport = createTransport(port);
+  await transport.open();
+
+  await assert.rejects(
+    () => transport.transact(request, 200),
+    (error: unknown) =>
+      error instanceof HardwareTransportError && !(error instanceof RequestNotSentError),
+  );
+});
+
+test('a frame the validator rejects fails the transaction', async () => {
+  const port = new FakeSerialPort();
+  const transport = createTransport(port);
+  await transport.open();
+
+  const pending = transport.transact(request, 200, () => {
+    throw new Error('invalid response BCC');
+  });
+  await waitForTransactReady();
+  port.push(queryResponse());
+
+  await assert.rejects(pending, /invalid response BCC/);
+});
+
+test('a late response after a timeout is discarded, not read as the next answer', async () => {
+  const port = new FakeSerialPort();
+  const transport = createTransport(port);
+  await transport.open();
+
+  const lateResponse = Buffer.from([0x8a, 0x01, 0x01, 0x00, 0x8a]);
+  const first = transport.transact(request, 15);
+  await waitForTransactReady();
+  setTimeout(() => port.push(lateResponse), 20);
+  await assert.rejects(first, ResponseTimeoutError);
+
+  const baseWrite = port.write.bind(port);
+  port.write = (data, callback) => {
+    baseWrite(data, callback);
+    setImmediate(() => port.push(queryResponse()));
+  };
+
+  assert.deepEqual([...(await transport.transact(request, 200))], [...queryResponse()]);
 });

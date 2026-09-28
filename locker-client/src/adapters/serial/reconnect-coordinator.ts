@@ -1,5 +1,5 @@
 import { noopLogger, type LoggerPort } from '../../ports/logging.port';
-import { ModbusTransportError } from '../../domain/errors';
+import { HardwareTransportError } from '../../domain/errors';
 
 /**
  * Elapsed time, not wall-clock time. A Raspberry Pi has no RTC: it boots with a
@@ -14,7 +14,7 @@ function monotonicNow(): number {
 }
 
 /** How long a spent reconnect cycle waits before another one may start. */
-export const DEFAULT_MODBUS_RECONNECT_COOLDOWN_MS = 60_000;
+export const DEFAULT_RECONNECT_COOLDOWN_MS = 60_000;
 
 export class ReconnectCoordinator {
   private inFlight: Promise<void> | null = null;
@@ -34,7 +34,7 @@ export class ReconnectCoordinator {
   ) {
     this.maxAttempts = options.maxAttempts ?? 0;
     this.delayMs = options.delayMs ?? 5000;
-    this.cooldownMs = options.cooldownMs ?? DEFAULT_MODBUS_RECONNECT_COOLDOWN_MS;
+    this.cooldownMs = options.cooldownMs ?? DEFAULT_RECONNECT_COOLDOWN_MS;
   }
 
   /**
@@ -86,14 +86,14 @@ export class ReconnectCoordinator {
       // unusable long after the outage that spent it had ended. The cooldown is
       // what makes the budget belong to the outage rather than to the process.
       if (this.cycleSpentAt !== null && monotonicNow() - this.cycleSpentAt >= this.cooldownMs) {
-        this.log.warn('Modbus reconnect cooldown elapsed, starting a new cycle', {
+        this.log.warn('Serial reconnect cooldown elapsed, starting a new cycle', {
           previousAttempts: this.attempts,
           cooldownMs: this.cooldownMs,
         });
         this.attempts = 0;
         this.cycleSpentAt = null;
       } else {
-        throw new ModbusTransportError('Max reconnect attempts reached');
+        throw new HardwareTransportError('Max reconnect attempts reached');
       }
     }
 
@@ -109,7 +109,7 @@ export class ReconnectCoordinator {
       }
 
       if (this.maxAttempts === 0 || this.attempts < this.maxAttempts) {
-        this.log.warn('Modbus reconnect attempt failed, retrying', {
+        this.log.warn('Serial reconnect attempt failed, retrying', {
           attempt: this.attempts,
           maxAttempts: this.maxAttempts,
           retryInMs: this.delayMs,
@@ -122,7 +122,7 @@ export class ReconnectCoordinator {
       // follows: a bus down for an hour must not produce an hour of identical
       // error lines, or the one that matters is never noticed.
       this.cycleSpentAt = monotonicNow();
-      this.log.error('Modbus reconnect gave up after final attempt', {
+      this.log.error('Serial reconnect gave up after final attempt', {
         attempts: this.attempts,
         maxAttempts: this.maxAttempts,
         retryAfterMs: this.cooldownMs,

@@ -59,7 +59,7 @@ export class ApplyConfigUseCase {
 
   private buildOverlay(command: ApplyConfigCommand) {
     const normalized = normalizeCompartments(command.data.compartments);
-    this.validateCompartments(normalized, command.data.adapter_type);
+    this.validateCompartments(normalized);
     const hash = computeAppliedConfigHash({
       adapter_type: command.data.adapter_type,
       feedback_type: command.data.feedback_type,
@@ -85,10 +85,7 @@ export class ApplyConfigUseCase {
     };
   }
 
-  private validateCompartments(
-    compartments: CompartmentConfig[],
-    adapterType: ApplyConfigCommand['data']['adapter_type'],
-  ): void {
+  private validateCompartments(compartments: CompartmentConfig[]): void {
     const seenNumbers = new Set<number>();
     const seenTargets = new Set<string>();
 
@@ -99,7 +96,7 @@ export class ApplyConfigUseCase {
           'compartment addresses must be between 0 and 254',
         );
       }
-      if (adapterType === 'rs485_lock_board' && c.slaveId > 31) {
+      if (c.slaveId > 31) {
         throw new LockerError(
           MqttErrorCode.INVALID_CONFIG,
           'RS485 lock board slaveId must be between 1 and 31',
@@ -113,7 +110,10 @@ export class ApplyConfigUseCase {
       }
       const target = `${c.slaveId}:${c.address}`;
       if (seenTargets.has(target)) {
-        throw new LockerError(MqttErrorCode.INVALID_CONFIG, `duplicate relay target ${target}`);
+        throw new LockerError(
+          MqttErrorCode.INVALID_CONFIG,
+          `duplicate compartment target ${target}`,
+        );
       }
       seenNumbers.add(c.compartment_number);
       seenTargets.add(target);

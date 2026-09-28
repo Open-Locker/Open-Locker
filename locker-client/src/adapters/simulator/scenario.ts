@@ -1,13 +1,8 @@
 import fs from 'fs';
 import { load } from 'js-yaml';
 import { z } from 'zod';
-import {
-  DEFAULT_FLASH_DURATION_MS,
-  MAX_FLASH_DURATION_MS,
-  MIN_FLASH_DURATION_MS,
-} from '../../domain/compartment';
 
-const MAX_RELAY_ADDRESS = 7;
+const MAX_COMPARTMENT_ADDRESS = 7;
 
 /**
  * Scenario file for the fleet simulator.
@@ -23,10 +18,10 @@ const doorStateSchema = z.enum(['open', 'closed', 'unknown']);
 const compartmentSchema = z.object({
   compartment_number: z.number().int().positive(),
   slaveId: z.number().int().positive(),
-  address: z.number().int().min(0).max(MAX_RELAY_ADDRESS),
+  address: z.number().int().min(0).max(MAX_COMPARTMENT_ADDRESS),
   door_state: doorStateSchema.default('closed'),
   /**
-   * Relay fires but the door never moves — a jam, blockage, or worn latch. The
+   * The lock releases but the door never moves — a jam, blockage, or worn latch. The
    * case door-open detection exists to catch.
    */
   jammed: z.boolean().default(false),
@@ -37,12 +32,6 @@ const bankSchema = z.object({
   name: z.string().min(1),
   provisioning_token: z.string().min(1),
   heartbeat_interval_seconds: z.number().int().positive().default(15),
-  flash_duration_ms: z
-    .number()
-    .int()
-    .min(MIN_FLASH_DURATION_MS)
-    .max(MAX_FLASH_DURATION_MS)
-    .default(DEFAULT_FLASH_DURATION_MS),
   /** Simulated bus round-trip delay, for exercising slow-hardware behaviour. */
   latency_ms: z.number().int().min(0).default(0),
   compartments: z.array(compartmentSchema).min(1),
@@ -125,7 +114,9 @@ function assertUniqueCompartmentTargets(bank: SimulatorBankScenario): void {
 
     const target = `${compartment.slaveId}:${compartment.address}`;
     if (seenTargets.has(target)) {
-      throw new ScenarioValidationError(`Bank "${bank.name}" has duplicate relay target ${target}`);
+      throw new ScenarioValidationError(
+        `Bank "${bank.name}" has duplicate compartment target ${target}`,
+      );
     }
     seenTargets.add(target);
   }

@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { OpenCompartmentUseCase, runStartupFailsafe } from '../../src/application/open-compartment';
-import { RelayFireLog } from '../../src/domain/door-detection';
+import { OpenCompartmentUseCase } from '../../src/application/open-compartment';
+import { ActuationLog } from '../../src/domain/door-detection';
+import { UnlockNotSentError, UnlockOutcomeUnknownError } from '../../src/domain/errors';
 import { FakeLockerBus } from '../helpers/fake-locker-bus';
 import { FakeDoorEventPublisher } from '../helpers/fake-door-event-publisher';
 import { ManualScheduler } from '../helpers/manual-scheduler';
@@ -10,7 +11,7 @@ import { createTestConfigRepository } from '../helpers/test-config-repository';
 import type { ConfigRepositoryPort } from '../../src/ports/config.port';
 
 const ONE_COMPARTMENT = [{ compartment_number: 1, slaveId: 1, address: 0 }];
-const TARGET = { compartmentNumber: 1, slaveId: 1, relayAddress: 0 };
+const TARGET = { compartmentNumber: 1, boardAddress: 1, address: 0 };
 
 /** Door detection shares the scheduler queue, so tests drain it until an outcome appears. */
 async function tickUntilOutcome(
@@ -35,7 +36,7 @@ function build(
 ) {
   const bus = overrides.bus ?? new FakeLockerBus([1]);
   const doorEvents = new FakeDoorEventPublisher();
-  const relayFireLog = new RelayFireLog();
+  const actuationLog = new ActuationLog();
   const scheduler = overrides.scheduler ?? new ManualScheduler();
 
   const useCase = new OpenCompartmentUseCase({
@@ -43,81 +44,50 @@ function build(
     config: overrides.config ?? createTestConfigRepository({ compartments: ONE_COMPARTMENT }),
     scheduler,
     doorEvents,
-    relayFireLog,
+    actuationLog,
     now: overrides.now,
   });
 
-  return { bus, doorEvents, relayFireLog, scheduler, useCase };
+  return { bus, doorEvents, actuationLog, scheduler, useCase };
 }
 
-test('OpenCompartmentUseCase uses hardware flash only', async () => {
-  const { bus, useCase } = build({ scheduler: new RunAfterCompleteScheduler() });
-
-  await useCase.execute(1, 'txn-1');
-  useCase.stopAllMonitoring();
-
-  assert.equal(bus.flashCalls.length, 1);
-  assert.equal(bus.flashCalls[0]?.durationMs, 200);
-  assert.equal(bus.writeCoilCalls.length, 0);
-});
-
-test('fires the relay without reading the door sensor first', async () => {
+test('unlocks the configured compartment without reading the door first', async () => {
   const { bus, useCase } = build();
 
   await useCase.execute(1, 'txn-immediate');
 
-  assert.equal(bus.flashCalls.length, 1);
-  assert.deepEqual(bus.doorBatchReads, []);
+  assert.deepEqual(bus.unlockCalls, [TARGET]);
+  assert.deepEqual(bus.doorReads, []);
 });
 
-test('does not record a fire or start detection when the relay pulse fails', async () => {
+test('does not record an actuation or start detection when the unlock was not sent', async () => {
   const bus = new FakeLockerBus([1]);
-  bus.flashRelay = async (): Promise<void> => {
-    throw new Error('relay write failed');
+  bus.unlockCompartment = async () => {
+    throw new UnlockNotSentError('port closed');
   };
-  const { doorEvents, relayFireLog, scheduler, useCase } = build({ bus });
+  const { doorEvents, actuationLog, scheduler, useCase } = build({ bus });
 
-  await assert.rejects(() => useCase.execute(1, 'txn-failed'), /relay write failed/);
+  await assert.rejects(() => useCase.execute(1, 'txn-failed'), /port closed/);
 
-  assert.equal(relayFireLog.lastFireAt(1), null);
-  assert.equal(relayFireLog.isDetecting(1), false);
+  assert.equal(actuationLog.lastActuationAt(1), null);
+  assert.equal(actuationLog.isDetecting(1), false);
   assert.deepEqual(doorEvents.detections, []);
   assert.equal(await (scheduler as ManualScheduler).runNext(), false);
 });
 
-test('startup initialization invokes the adapter capability per board', async () => {
-  const bus = new FakeLockerBus([1, 2]);
-  await runStartupFailsafe(bus);
-  assert.deepEqual(bus.turnAllOffCalls, [1, 2]);
-});
-
-test('startup initialization skips boards when no runtime mapping exists', async () => {
-  const bus = new FakeLockerBus([]);
-  await runStartupFailsafe(bus);
-  assert.deepEqual(bus.turnAllOffCalls, []);
-});
-
-test('an unreachable bus does not fail startup', async () => {
-  // Exiting here would restart the process until the adapter came back, churning
-  // the MQTT session and flapping the bank each time round. Reconnect keeps
-  // trying instead, and the bus reports itself unreachable meanwhile.
-  const bus = new FakeLockerBus([1, 2]);
-  bus.unreachable = true;
-
-  await assert.doesNotReject(runStartupFailsafe(bus));
-
-  assert.deepEqual(bus.turnAllOffCalls, [], 'no point sweeping a bus we cannot reach');
-});
-
-test('a reachable bus whose boards all stay silent still fails startup', async () => {
-  // The other half of the distinction: the bus is fine, so silence means wiring or
-  // configuration — something only a human can fix, and startup should say so.
-  const bus = new FakeLockerBus([1, 2]);
-  bus.initializeBoard = async (): Promise<void> => {
-    throw new Error('board did not answer');
+test('records a possible actuation but starts no detection when the unlock outcome is unknown', async () => {
+  const bus = new FakeLockerBus([1]);
+  bus.unlockCompartment = async () => {
+    throw new UnlockOutcomeUnknownError('response timed out');
   };
+  const { doorEvents, actuationLog, scheduler, useCase } = build({ bus, now: () => 777 });
 
-  await assert.rejects(runStartupFailsafe(bus), /all boards unreachable/);
+  await assert.rejects(() => useCase.execute(1, 'txn-unknown'), /response timed out/);
+
+  assert.equal(actuationLog.lastActuationAt(1), 777);
+  assert.equal(actuationLog.isDetecting(1), false);
+  assert.deepEqual(doorEvents.detections, []);
+  assert.equal(await (scheduler as ManualScheduler).runNext(), false);
 });
 
 test('OpenCompartmentUseCase throws when runtime mapping is missing', async () => {
@@ -192,6 +162,31 @@ test('reports door_jammed when the door never opens within the window', async ()
   });
 });
 
+test('a slow unlock does not use up the detection window', async () => {
+  let nowMs = 0;
+  const bus = new FakeLockerBus([1]);
+  bus.unlockCompartment = async () => {
+    nowMs = 20_000; // e.g. a reconnect before the unlock reached the board
+    return {};
+  };
+  const { doorEvents, scheduler, useCase } = build({ bus, now: () => nowMs });
+
+  await useCase.execute(1, 'txn-slow');
+  await tickUntilOutcome(scheduler as ManualScheduler, doorEvents, 1);
+  assert.deepEqual(doorEvents.detections, [], 'still within the window after a slow unlock');
+
+  bus.setDoorState(TARGET, 'open');
+  nowMs = 21_000;
+  await tickUntilOutcome(scheduler as ManualScheduler, doorEvents);
+
+  assert.deepEqual(doorEvents.lastDetection(), {
+    compartmentNumber: 1,
+    transactionId: 'txn-slow',
+    outcome: 'opened',
+    detectionMs: 21_000,
+  });
+});
+
 test('stops door detection when apply_config remaps the compartment', async () => {
   let compartments = ONE_COMPARTMENT;
   const baseConfig = createTestConfigRepository({ compartments });
@@ -202,14 +197,14 @@ test('stops door detection when apply_config remaps the compartment', async () =
       compartments,
     }),
   };
-  const { doorEvents, relayFireLog, scheduler, useCase } = build({ config });
+  const { doorEvents, actuationLog, scheduler, useCase } = build({ config });
 
   await useCase.execute(1, 'txn-remapped');
   compartments = [{ compartment_number: 1, slaveId: 2, address: 1 }];
   await (scheduler as ManualScheduler).drain(5);
 
   assert.deepEqual(doorEvents.detections, []);
-  assert.equal(relayFireLog.isDetecting(1), false);
+  assert.equal(actuationLog.isDetecting(1), false);
 });
 
 test('actuates before door monitoring even when the door was already open', async () => {
@@ -218,20 +213,57 @@ test('actuates before door monitoring even when the door was already open', asyn
   const { doorEvents, scheduler, useCase } = build({ bus });
 
   await useCase.execute(1, 'txn-already');
-  assert.equal(bus.flashCalls.length, 1);
+  assert.equal(bus.unlockCalls.length, 1);
 
   await tickUntilOutcome(scheduler as ManualScheduler, doorEvents);
   assert.equal(doorEvents.lastDetection()?.outcome, 'opened');
 });
 
-test('records the relay fire so a later door opening can be attributed', async () => {
+test('reports opened straight from an unlock response that observed the door open', async () => {
+  let nowMs = 0;
+  const bus = new FakeLockerBus([1]);
+  bus.unlockCompartment = async () => {
+    nowMs = 520;
+    return { doorState: 'open' };
+  };
+  const { actuationLog, doorEvents, scheduler, useCase } = build({ bus, now: () => nowMs });
+
+  await useCase.execute(1, 'txn-feedback');
+  assert.deepEqual(doorEvents.detections, [], 'the outcome follows the command response');
+  nowMs = 9999;
+  await (scheduler as ManualScheduler).runNext();
+
+  assert.deepEqual(doorEvents.lastDetection(), {
+    compartmentNumber: 1,
+    transactionId: 'txn-feedback',
+    outcome: 'opened',
+    detectionMs: 520,
+  });
+  assert.equal(actuationLog.isDetecting(1), false);
+  assert.equal(await (scheduler as ManualScheduler).runNext(), false, 'no polling needed');
+});
+
+test('keeps polling when the unlock response observed the door closed', async () => {
+  const bus = new FakeLockerBus([1]);
+  bus.unlockObservation = { doorState: 'closed' };
+  const { doorEvents, scheduler, useCase } = build({ bus });
+
+  await useCase.execute(1, 'txn-closed');
+  assert.deepEqual(doorEvents.detections, []);
+
+  bus.setDoorState(TARGET, 'open');
+  await tickUntilOutcome(scheduler as ManualScheduler, doorEvents);
+  assert.equal(doorEvents.lastDetection()?.outcome, 'opened');
+});
+
+test('records the actuation so a later door opening can be attributed', async () => {
   let nowMs = 4242;
-  const { relayFireLog, useCase } = build({ now: () => nowMs });
+  const { actuationLog, useCase } = build({ now: () => nowMs });
 
   await useCase.execute(1, 'txn-fire');
 
-  assert.equal(relayFireLog.lastFireAt(1), 4242);
-  assert.equal(relayFireLog.isDetecting(1), true);
+  assert.equal(actuationLog.lastActuationAt(1), 4242);
+  assert.equal(actuationLog.isDetecting(1), true);
 });
 
 test('a failed detection publish does not throw out of the tick', async () => {

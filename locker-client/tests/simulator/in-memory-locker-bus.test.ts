@@ -3,16 +3,16 @@ import { test } from 'node:test';
 import { InMemoryLockerBus, busTargetKey } from '../../src/adapters/simulator/in-memory-locker-bus';
 
 function createBus(initial?: Map<string, 'open' | 'closed' | 'unknown'>) {
-  return new InMemoryLockerBus({ slaveIds: [1, 2], initialDoorStates: initial });
+  return new InMemoryLockerBus({ boardAddresses: [1, 2], initialDoorStates: initial });
 }
 
 test('doors default to closed when the scenario does not seed them', async () => {
   const bus = createBus();
 
-  assert.deepEqual(await bus.readDoorSensors(1, 0, 3), ['closed', 'closed', 'closed']);
+  assert.deepEqual(await bus.readCompartmentStates(1, [0, 1, 2]), ['closed', 'closed', 'closed']);
 });
 
-test('seeded door states are returned by block reads', async () => {
+test('seeded door states are returned for the requested addresses', async () => {
   const bus = createBus(
     new Map([
       [busTargetKey(1, 0), 'open' as const],
@@ -20,21 +20,20 @@ test('seeded door states are returned by block reads', async () => {
     ]),
   );
 
-  assert.deepEqual(await bus.readDoorSensors(1, 0, 3), ['open', 'closed', 'unknown']);
+  assert.deepEqual(await bus.readCompartmentStates(1, [0, 1, 2]), ['open', 'closed', 'unknown']);
 });
 
-test('block reads are offset by startAddress, matching the real driver', async () => {
+test('reads return states in the order the addresses were requested', async () => {
   const bus = createBus(new Map([[busTargetKey(2, 5), 'open' as const]]));
 
-  assert.deepEqual(await bus.readDoorSensors(2, 4, 3), ['closed', 'open', 'closed']);
+  assert.deepEqual(await bus.readCompartmentStates(2, [5, 4]), ['open', 'closed']);
 });
 
-test('flashing a relay pops the door open and it stays open', async () => {
+test('an unlock pops the door open, reports it, and the door stays open', async () => {
   const bus = createBus();
-  const target = { compartmentNumber: 1, slaveId: 1, relayAddress: 0 };
+  const target = { compartmentNumber: 1, boardAddress: 1, address: 0 };
 
-  await bus.flashRelay(target, 10);
-
+  assert.deepEqual(await bus.unlockCompartment(target), { doorState: 'open' });
   assert.equal(bus.getDoorState(1, 0), 'open');
 
   await new Promise((resolve) => setTimeout(resolve, 30));
@@ -47,25 +46,10 @@ test('flashing a relay pops the door open and it stays open', async () => {
 test('a door only closes when something closes it', async () => {
   const bus = createBus();
 
-  await bus.flashRelay({ compartmentNumber: 1, slaveId: 1, relayAddress: 0 }, 10);
+  await bus.unlockCompartment({ compartmentNumber: 1, boardAddress: 1, address: 0 });
   bus.setDoorState(1, 0, 'closed');
 
   assert.equal(bus.getDoorState(1, 0), 'closed');
-
-  await bus.disconnect();
-});
-
-test('turnAllRelaysOff only affects the requested board', async () => {
-  const bus = createBus();
-  const first = { compartmentNumber: 1, slaveId: 1, relayAddress: 0 };
-  const second = { compartmentNumber: 2, slaveId: 2, relayAddress: 0 };
-
-  await bus.flashRelay(first, 10_000);
-  await bus.flashRelay(second, 10_000);
-
-  await bus.turnAllRelaysOff(1);
-
-  assert.deepEqual(await bus.readDoorSensors(2, 0, 1), ['open'], 'board 2 is unaffected');
 
   await bus.disconnect();
 });
@@ -89,61 +73,60 @@ test('connection lifecycle mirrors the port contract', async () => {
   await bus.disconnect();
 });
 
-test('flash reconnects a disconnected simulator bus before pulsing', async () => {
+test('an unlock reconnects a disconnected simulator bus first', async () => {
   const bus = createBus();
-  const target = { compartmentNumber: 1, slaveId: 1, relayAddress: 0 };
+  const target = { compartmentNumber: 1, boardAddress: 1, address: 0 };
 
-  await bus.flashRelay(target, 10);
+  await bus.unlockCompartment(target);
 
   assert.equal(bus.getConnectionState(), 'connected');
-  assert.equal(await bus.readDoorSensors(1, 0, 1).then((states) => states[0]), 'open');
+  assert.deepEqual(await bus.readCompartmentStates(1, [0]), ['open']);
 
   await bus.disconnect();
 });
 
-test('configured slave ids are reported from the scenario mapping', () => {
+test('configured board addresses are reported from the scenario mapping', () => {
   const bus = createBus();
 
-  assert.deepEqual(bus.getConfiguredSlaveIds(), [1, 2]);
+  assert.deepEqual(bus.getConfiguredBoardAddresses(), [1, 2]);
 });
 
 // --- jam mode ---
 
-test('a jammed compartment pulses the relay but its door stays shut', async () => {
+test('a jammed compartment unlocks but its door stays shut', async () => {
   const bus = new InMemoryLockerBus({
-    slaveIds: [1],
+    boardAddresses: [1],
     jammedTargets: new Set([busTargetKey(1, 0)]),
   });
-  const target = { compartmentNumber: 1, slaveId: 1, relayAddress: 0 };
+  const target = { compartmentNumber: 1, boardAddress: 1, address: 0 };
 
-  await bus.flashRelay(target, 200);
-
-  assert.deepEqual(await bus.readDoorSensors(1, 0, 1), ['closed'], 'the door does not move');
+  assert.deepEqual(await bus.unlockCompartment(target), { doorState: 'closed' });
+  assert.deepEqual(await bus.readCompartmentStates(1, [0]), ['closed'], 'the door does not move');
 });
 
-test('an unjammed compartment opens on the next pulse', async () => {
+test('an unjammed compartment opens on the next unlock', async () => {
   const bus = new InMemoryLockerBus({
-    slaveIds: [1],
+    boardAddresses: [1],
     jammedTargets: new Set([busTargetKey(1, 0)]),
   });
-  const target = { compartmentNumber: 1, slaveId: 1, relayAddress: 0 };
+  const target = { compartmentNumber: 1, boardAddress: 1, address: 0 };
 
-  await bus.flashRelay(target, 200);
+  await bus.unlockCompartment(target);
   assert.equal(bus.isJammed(1, 0), true);
 
   bus.setJammed(1, 0, false);
-  await bus.flashRelay(target, 200);
+  await bus.unlockCompartment(target);
 
   assert.equal(bus.isJammed(1, 0), false);
-  assert.deepEqual(await bus.readDoorSensors(1, 0, 1), ['open']);
+  assert.deepEqual(await bus.readCompartmentStates(1, [0]), ['open']);
 });
 
 test('jamming a compartment at runtime stops it opening', async () => {
-  const bus = new InMemoryLockerBus({ slaveIds: [1] });
-  const target = { compartmentNumber: 1, slaveId: 1, relayAddress: 0 };
+  const bus = new InMemoryLockerBus({ boardAddresses: [1] });
+  const target = { compartmentNumber: 1, boardAddress: 1, address: 0 };
 
   bus.setJammed(1, 0, true);
-  await bus.flashRelay(target, 200);
+  await bus.unlockCompartment(target);
 
-  assert.deepEqual(await bus.readDoorSensors(1, 0, 1), ['closed']);
+  assert.deepEqual(await bus.readCompartmentStates(1, [0]), ['closed']);
 });

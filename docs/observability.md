@@ -4,7 +4,7 @@ Opening a compartment crosses four processes:
 
 ```
 mobile app → HTTP request (Laravel) → queued reactor → MQTT publish
-           → locker client (Pi) → Modbus write → relay
+           → locker client (Pi) → RS485 unlock → lock
            → MQTT response/event → mqtt-listener → projector → read model
 ```
 
@@ -243,13 +243,13 @@ POST /api/compartments/{compartment}/open       (open-locker-backend)
 └── process events                              consumer — the queued reactor
     └── mqtt publish locker/{uuid}/command      producer
         └── mqtt process locker/{uuid}/command  consumer — open-locker-client
-            ├── modbus flash_relay              the physical pulse
+            ├── rs485 unlock                    the physical unlock
             └── mqtt publish locker/{uuid}/response
                 └── mqtt process locker/{uuid}/response   (open-locker-backend)
 ```
 
 The door-open outcome arrives separately, since a command response only
-acknowledges that the pulse was sent:
+acknowledges that the board accepted the unlock:
 
 ```
 mqtt publish locker/{uuid}/event                (open-locker-client)
@@ -261,15 +261,18 @@ mqtt publish locker/{uuid}/event                (open-locker-client)
 - **The trace stops after `mqtt publish .../command`.** The command reached the
   broker and nothing picked it up. The client is offline, subscribed to a
   different UUID, or not running with tracing configured.
-- **`mqtt process .../command` exists but no `modbus flash_relay`.** The command
+- **`mqtt process .../command` exists but no `rs485 unlock`.** The command
   was rejected before it reached hardware — schema validation, the protocol
   guard, or transaction deduplication. The span's own logs say which.
-- **`modbus flash_relay` is slow.** The span opens when the operation is queued,
-  not when it reaches the wire, so a long span means the Modbus bus was busy.
-  Operations on that bus are serialized deliberately.
-- **A red `modbus read_discrete_inputs`.** A board stopped answering. Door reads
-  degrade to `unknown` rather than failing the request, so this is visible on
-  the trace but not in the API response.
+- **`rs485 unlock` is slow.** The span opens when the operation is queued, not
+  when it reaches the wire, and the board replies about 500 ms after the
+  command, so a span well beyond that means the bus was busy. Operations on that
+  bus are serialized deliberately.
+- **A red `rs485 unlock`.** The command failed. If the reply was lost, the lock
+  may still have released; the client does not send the unlock again.
+- **A red `rs485 query_all`.** A board stopped answering. Its doors are reported
+  as `unknown` rather than failing the request, so this is visible on the trace
+  but not in the API response.
 
 ### Attributes worth filtering on
 
@@ -281,7 +284,7 @@ The same keys are used by both services, so one query spans them:
 | `open_locker.command_id`         | Correlate with the API's `command_id`.           |
 | `open_locker.locker_uuid`        | Everything for one locker bank.                  |
 | `open_locker.compartment_number` | Everything for one compartment.                  |
-| `open_locker.modbus.slave_id`    | Everything that touched one board.               |
+| `open_locker.hardware.board_address` | Everything that touched one board.           |
 | `messaging.destination.name`     | One MQTT topic.                                  |
 
 ## What is deliberately not traced

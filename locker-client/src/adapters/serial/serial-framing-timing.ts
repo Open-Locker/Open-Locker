@@ -23,8 +23,3 @@ export function calculateInterTransactionDelayMs(framing: SerialFraming): number
 
   return Math.ceil(specificationDelayMs + TIMER_SAFETY_MARGIN_MS);
 }
-
-/** Silence after the last response byte before a proprietary frame is considered complete. */
-export function calculateInterByteFrameQuietMs(framing: SerialFraming): number {
-  return calculateInterTransactionDelayMs(framing);
-}

@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import {
   decodeQueryAllResponse,
-  decodeUnlockAck,
+  decodeUnlockResponse,
   encodeQueryAllRequest,
   encodeUnlockRequest,
   VERIFIED_8_CHANNEL_QUERY_ALL_RESPONSE,
@@ -37,13 +37,19 @@ test('decodes every status byte in the frame without trimming to a declared boar
   assert.deepEqual(states.slice(8, 12), ['closed', 'open', 'closed', 'open']);
 });
 
-test('unlock ack accepts supported status bytes regardless of door feedback polarity', () => {
-  for (const status of [0x00, 0x11]) {
-    const unlockBody = [0x8a, 0x01, 0x01, status];
-    assert.doesNotThrow(() =>
-      decodeUnlockAck(Uint8Array.from([...unlockBody, xorBcc(unlockBody)]), 1, 0),
-    );
-  }
+function unlockResponse(status: number): Uint8Array {
+  const body = [0x8a, 0x01, 0x01, status];
+  return Uint8Array.from([...body, xorBcc(body)]);
+}
+
+test('unlock response maps door_closing feedback: 00 is open, 11 is closed', () => {
+  assert.equal(decodeUnlockResponse(unlockResponse(0x00), 1, 0, 'door_closing'), 'open');
+  assert.equal(decodeUnlockResponse(unlockResponse(0x11), 1, 0, 'door_closing'), 'closed');
+});
+
+test('unlock response maps door_opening feedback: 11 is open, 00 is closed', () => {
+  assert.equal(decodeUnlockResponse(unlockResponse(0x11), 1, 0, 'door_opening'), 'open');
+  assert.equal(decodeUnlockResponse(unlockResponse(0x00), 1, 0, 'door_opening'), 'closed');
 });
 
 test('query-all still inverts door state for door_opening wiring', () => {
@@ -59,15 +65,24 @@ test('query-all still inverts door state for door_opening wiring', () => {
 });
 
 test('rejects malformed BCC, address, and truncated frames', () => {
-  assert.throws(() => decodeUnlockAck(Uint8Array.from([0x8a, 1, 1, 0, 0]), 1, 0), /BCC/);
+  assert.throws(
+    () => decodeUnlockResponse(Uint8Array.from([0x8a, 1, 1, 0, 0]), 1, 0, 'door_closing'),
+    /BCC/,
+  );
   const body = [0x8a, 2, 1, 0];
   assert.throws(
-    () => decodeUnlockAck(Uint8Array.from([...body, xorBcc(body)]), 1, 0),
+    () => decodeUnlockResponse(Uint8Array.from([...body, xorBcc(body)]), 1, 0, 'door_closing'),
     /does not match/,
   );
   const badStatus = [0x8a, 1, 1, 0x22];
   assert.throws(
-    () => decodeUnlockAck(Uint8Array.from([...badStatus, xorBcc(badStatus)]), 1, 0),
+    () =>
+      decodeUnlockResponse(
+        Uint8Array.from([...badStatus, xorBcc(badStatus)]),
+        1,
+        0,
+        'door_closing',
+      ),
     /unsupported unlock response status/,
   );
   assert.throws(() => decodeQueryAllResponse(Uint8Array.from([0x80]), 1, 'door_closing'), /length/);
