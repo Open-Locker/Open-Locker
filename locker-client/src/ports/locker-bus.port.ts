@@ -1,4 +1,9 @@
-import type { CompartmentTarget, DoorState } from '../domain/compartment';
+import type {
+  BoardAddress,
+  CompartmentAddress,
+  CompartmentTarget,
+  DoorState,
+} from '../domain/compartment';
 
 export enum BusPriority {
   COMMAND = 4,
@@ -17,6 +22,16 @@ export enum BusPriority {
  */
 export type ConnectionState = 'disconnected' | 'connecting' | 'connected' | 'unreachable';
 
+/** Door state observed directly after actuation, when the controller reports one. */
+export interface UnlockObservation {
+  doorState?: DoorState;
+}
+
+/**
+ * Protocol-neutral locker controller boundary (ADR-0067). Board-specific
+ * behaviour — wire protocol, channel numbering, feedback polarity — stays in the
+ * adapter.
+ */
 export interface LockerBusPort {
   connect(): Promise<void>;
   disconnect(): Promise<void>;
@@ -24,13 +39,18 @@ export interface LockerBusPort {
   runExclusive<T>(operation: (bus: LockerBusPort) => Promise<T>): Promise<T>;
   ensureConnected(): Promise<boolean>;
   reloadRuntimeConfig(): Promise<void>;
-  flashRelay(target: CompartmentTarget, durationMs: number): Promise<void>;
-  readDoorSensors(slaveId: number, startAddress: number, length: number): Promise<DoorState[]>;
-  initializeBoard(slaveId: number): Promise<void>;
-  getConfiguredSlaveIds(): number[];
-}
-
-export interface BusOperationRecorder {
-  recordFlashRelay(target: CompartmentTarget, durationMs: number): Promise<void>;
-  recordWriteCoil?(slaveId: number, address: number, value: boolean): Promise<void>;
+  /**
+   * Rejects with `UnlockNotSentError` when no request left the client, and with
+   * `UnlockOutcomeUnknownError` when the lock may have moved.
+   */
+  unlockCompartment(target: CompartmentTarget): Promise<UnlockObservation>;
+  /**
+   * States for `addresses` on one board, in the same order. Rejects when the
+   * board cannot be read, with `BoardNotRespondingError` when it stays silent.
+   */
+  readCompartmentStates(
+    boardAddress: BoardAddress,
+    addresses: readonly CompartmentAddress[],
+  ): Promise<DoorState[]>;
+  getConfiguredBoardAddresses(): BoardAddress[];
 }

@@ -23,20 +23,6 @@ export class LockerError extends Error {
   }
 }
 
-export class ModbusTransportError extends LockerError {
-  /**
-   * @param reconnectable Whether dropping the port and dialling again could
-   *   clear this. A closed port can be reopened; a missing library API cannot.
-   */
-  constructor(
-    message: string,
-    public readonly reconnectable = false,
-  ) {
-    super(MqttErrorCode.MODBUS_ERROR, message);
-    this.name = 'ModbusTransportError';
-  }
-}
-
 export class HardwareTransportError extends LockerError {
   constructor(
     message: string,
@@ -44,6 +30,36 @@ export class HardwareTransportError extends LockerError {
   ) {
     super(MqttErrorCode.HARDWARE_ERROR, message);
     this.name = 'HardwareTransportError';
+  }
+}
+
+/**
+ * A failed unlock whose request never left the client. Safe to retry after a
+ * reconnect: the lock cannot have moved.
+ */
+export class UnlockNotSentError extends HardwareTransportError {
+  constructor(message: string, reconnectable = false) {
+    super(message, reconnectable);
+    this.name = 'UnlockNotSentError';
+  }
+}
+
+/**
+ * A failed unlock whose request may have reached the board. Never re-sent
+ * automatically: the lock may already have released (ADR-0067).
+ */
+export class UnlockOutcomeUnknownError extends HardwareTransportError {
+  constructor(message: string, reconnectable = false) {
+    super(message, reconnectable);
+    this.name = 'UnlockOutcomeUnknownError';
+  }
+}
+
+/** A board that stayed silent for a whole response window. */
+export class BoardNotRespondingError extends HardwareTransportError {
+  constructor(message: string, reconnectable = true) {
+    super(message, reconnectable);
+    this.name = 'BoardNotRespondingError';
   }
 }
 
@@ -84,22 +100,16 @@ function hasRecoverableSerialCode(error: unknown): boolean {
 }
 
 /**
- * Transport failures raised by `modbus-serial` itself.
+ * Serial transport failures raised by a library rather than by us.
  *
- * A fault carrying a serial error code is one; for the rest the library throws
- * plain `Error`s, so message text is the only signal available. Matching text is
- * fragile, which is why it is confined to this one function: everything we raise
- * ourselves carries an explicit code instead.
- *
- * The patterns name specific transport failures deliberately. A bare `modbus`
- * match caught nearly every hardware-adjacent message in this codebase,
- * including our own configuration and programming faults, and reported them to
- * the backend as MODBUS_ERROR — a bug dressed as a broken bus. Unrecognised
+ * A fault carrying a serial error code is one; otherwise message text is the
+ * only signal, which is why matching it is confined to this one function:
+ * everything we raise ourselves carries an explicit code instead. Unrecognised
  * errors are better reported as unknown than misattributed to the hardware.
  *
- * Reconnectability is decided separately, by `isReconnectableModbusError`.
+ * `MODBUS_ERROR` stays the wire code for these failures (ADR-0067).
  */
-function isModbusLibraryError(error: unknown): boolean {
+function isSerialLibraryError(error: unknown): boolean {
   if (!(error instanceof Error)) {
     return false;
   }
@@ -133,27 +143,6 @@ export function isReconnectableHardwareError(error: unknown): boolean {
   return hasRecoverableSerialCode(error);
 }
 
-export function isReconnectableModbusError(error: unknown): boolean {
-  if (error instanceof ModbusTransportError) {
-    return error.reconnectable;
-  }
-
-  if (serialErrorCode(error) === 'EACCES') {
-    return false;
-  }
-
-  if (hasRecoverableSerialCode(error)) {
-    return true;
-  }
-
-  // The one message match left. `Port Not Open` is the library's own wording for a
-  // port it knows is closed, and it carries no code to match on. `EACCES` is
-  // deliberately not recoverable: a device the container user may not open — a
-  // missing `dialout` group — fails that way every time, and cycling against a
-  // fault only a human can fix is the loop this classification exists to avoid.
-  return error instanceof Error && error.message.includes('Port Not Open');
-}
-
 /**
  * Errors we raise carry their own code. Only third-party transport failures are
  * inferred, and anything else is reported as unknown rather than guessed at
@@ -164,7 +153,7 @@ export function mapErrorToMqttCode(error: unknown): MqttErrorCode {
     return error.code;
   }
 
-  if (isModbusLibraryError(error)) {
+  if (isSerialLibraryError(error)) {
     return MqttErrorCode.MODBUS_ERROR;
   }
 

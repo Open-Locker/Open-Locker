@@ -1,12 +1,12 @@
 /**
- * Door-open detection vocabulary and relay-fire correlation.
+ * Door-open detection vocabulary and actuation correlation.
  *
- * Firing the relay and the door actually opening are two different facts. The
+ * Actuating the lock and the door actually opening are two different facts. The
  * command response reports the first; the outcomes below report the second.
  */
 
 /**
- * Outcome of watching the door after an unlock pulse.
+ * Outcome of watching the door after an unlock.
  * `already_open` remains for MQTT/AsyncAPI compatibility; the client no longer
  * publishes it after actuation.
  */
@@ -16,30 +16,32 @@ export type OpenDetectionOutcome = 'opened' | 'already_open' | 'door_jammed';
 export const DOOR_DETECTION_POLL_INTERVAL_MS = 500;
 
 /**
- * Remembers when each compartment's relay last fired, so a door that opens can
- * be attributed to the pulse that released it — or recognised as uncommanded.
+ * Remembers when each compartment's lock was last actuated, so a door that opens
+ * can be attributed to the unlock that released it — or recognised as
+ * uncommanded.
  *
- * The relay fire, not the command, is the anchor: a command that errored before
- * reaching the lock never touched it and cannot explain a door opening.
+ * The actuation, not the command, is the anchor: a command that errored before
+ * reaching the lock never touched it and cannot explain a door opening. An
+ * unlock whose outcome is unknown counts, because the lock may have moved.
  */
-export class RelayFireLog {
-  private readonly lastFireAtMs = new Map<number, number>();
+export class ActuationLog {
+  private readonly lastActuationAtMs = new Map<number, number>();
 
   private readonly detecting = new Set<number>();
 
-  recordFire(compartmentNumber: number, atMs: number): void {
-    this.lastFireAtMs.set(compartmentNumber, atMs);
+  recordActuation(compartmentNumber: number, atMs: number): void {
+    this.lastActuationAtMs.set(compartmentNumber, atMs);
   }
 
-  lastFireAt(compartmentNumber: number): number | null {
-    return this.lastFireAtMs.get(compartmentNumber) ?? null;
+  lastActuationAt(compartmentNumber: number): number | null {
+    return this.lastActuationAtMs.get(compartmentNumber) ?? null;
   }
 
-  /** Milliseconds since this compartment's relay last fired, or null if never. */
-  millisecondsSinceFire(compartmentNumber: number, nowMs: number): number | null {
-    const fireAt = this.lastFireAt(compartmentNumber);
+  /** Milliseconds since this compartment's lock was last actuated, or null if never. */
+  millisecondsSinceActuation(compartmentNumber: number, nowMs: number): number | null {
+    const actuatedAt = this.lastActuationAt(compartmentNumber);
 
-    return fireAt === null ? null : nowMs - fireAt;
+    return actuatedAt === null ? null : nowMs - actuatedAt;
   }
 
   beginDetection(compartmentNumber: number): void {
@@ -59,7 +61,7 @@ export class RelayFireLog {
   }
 
   clear(): void {
-    this.lastFireAtMs.clear();
+    this.lastActuationAtMs.clear();
     this.detecting.clear();
   }
 }

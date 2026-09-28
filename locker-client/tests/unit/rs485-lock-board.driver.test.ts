@@ -1,17 +1,29 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { Rs485LockBoardDriver } from '../../src/adapters/rs485/rs485-lock-board.driver';
-import { HardwareTransportError } from '../../src/domain/errors';
+import {
+  BoardNotRespondingError,
+  HardwareTransportError,
+  UnlockNotSentError,
+  UnlockOutcomeUnknownError,
+} from '../../src/domain/errors';
 import {
   VERIFIED_8_CHANNEL_QUERY_ALL_RESPONSE,
   xorBcc,
 } from '../../src/adapters/rs485/rs485-lock-board-codec';
-import type { Rs485TransactionTransport } from '../../src/adapters/rs485/serialport-transaction.transport';
+import {
+  RequestNotSentError,
+  ResponseTimeoutError,
+  type ResponseValidator,
+  type Rs485TransactionTransport,
+} from '../../src/adapters/rs485/serialport-transaction.transport';
 
+/** Applies the validator the way the real transport does, so decode failures surface. */
 class RecordingTransport implements Rs485TransactionTransport {
   requests: Array<{ bytes: number[]; timeoutMs: number }> = [];
   openState = false;
-  response = Buffer.alloc(0);
+  response: Buffer = Buffer.alloc(0);
+  failure: Error | null = null;
 
   async open(): Promise<void> {
     this.openState = true;
@@ -22,16 +34,35 @@ class RecordingTransport implements Rs485TransactionTransport {
   isOpen(): boolean {
     return this.openState;
   }
-  async transact(request: Uint8Array, timeoutMs: number): Promise<Buffer> {
+  async transact(
+    request: Uint8Array,
+    timeoutMs: number,
+    validate?: ResponseValidator,
+  ): Promise<Buffer> {
     this.requests.push({ bytes: [...request], timeoutMs });
+    if (this.failure) {
+      throw this.failure;
+    }
+    try {
+      validate?.(this.response);
+    } catch (error) {
+      throw new HardwareTransportError(
+        error instanceof Error ? error.message : String(error),
+        true,
+      );
+    }
     return this.response;
   }
 }
 
-test('driver generates exact unlock transaction and acknowledges success', async () => {
+function unlockResponse(board: number, wireChannel: number, status: number): Buffer {
+  const body = [0x8a, board, wireChannel, status];
+  return Buffer.from([...body, xorBcc(body)]);
+}
+
+test('driver generates the exact unlock transaction', async () => {
   const transport = new RecordingTransport();
-  const responseBody = [0x8a, 3, 12, 0x00];
-  transport.response = Buffer.from([...responseBody, xorBcc(responseBody)]);
+  transport.response = unlockResponse(3, 12, 0x00);
   const driver = new Rs485LockBoardDriver(transport, 'door_closing', 1750);
 
   await driver.unlock(3, 11);
@@ -41,6 +72,22 @@ test('driver generates exact unlock transaction and acknowledges success', async
       timeoutMs: 1750,
     },
   ]);
+});
+
+test('driver reports the unlock feedback through the configured polarity', async () => {
+  const cases = [
+    { feedback: 'door_closing', status: 0x00, expected: 'open' },
+    { feedback: 'door_closing', status: 0x11, expected: 'closed' },
+    { feedback: 'door_opening', status: 0x11, expected: 'open' },
+    { feedback: 'door_opening', status: 0x00, expected: 'closed' },
+  ] as const;
+  for (const { feedback, status, expected } of cases) {
+    const transport = new RecordingTransport();
+    transport.response = unlockResponse(1, 1, status);
+    const driver = new Rs485LockBoardDriver(transport, feedback);
+
+    assert.equal(await driver.unlock(1, 0), expected, `${feedback} 0x${status.toString(16)}`);
+  }
 });
 
 test('driver decodes the verified 8-channel query-all response', async () => {
@@ -58,27 +105,64 @@ test('driver validates wire channel encodability', async () => {
   await assert.rejects(() => driver.unlock(1, 255), /between 0 and 254/);
 });
 
-test('driver acknowledges unlock with either supported status byte', async () => {
-  for (const status of [0x00, 0x11]) {
-    const transport = new RecordingTransport();
-    const responseBody = [0x8a, 1, 1, status];
-    transport.response = Buffer.from([...responseBody, xorBcc(responseBody)]);
-    const driver = new Rs485LockBoardDriver(transport, 'door_opening');
-    await driver.unlock(1, 0);
-  }
-});
-
-test('driver maps malformed unlock replies to reconnectable transport errors', async () => {
+test('a malformed unlock reply means the unlock outcome is unknown', async () => {
   const transport = new RecordingTransport();
   transport.response = Buffer.from([0x8a, 1, 1, 0x00, 0x00]);
   const driver = new Rs485LockBoardDriver(transport, 'door_closing');
   await assert.rejects(
     () => driver.unlock(1, 0),
     (error: unknown) => {
-      assert.ok(error instanceof HardwareTransportError);
+      assert.ok(error instanceof UnlockOutcomeUnknownError);
       assert.match(error.message, /BCC/);
       assert.equal(error.reconnectable, true);
       return true;
     },
+  );
+});
+
+test('a reply for another channel means the unlock outcome is unknown', async () => {
+  const transport = new RecordingTransport();
+  transport.response = unlockResponse(1, 2, 0x00);
+  const driver = new Rs485LockBoardDriver(transport, 'door_closing');
+
+  await assert.rejects(() => driver.unlock(1, 0), UnlockOutcomeUnknownError);
+});
+
+test('a lost unlock reply means the unlock outcome is unknown', async () => {
+  const transport = new RecordingTransport();
+  transport.failure = new ResponseTimeoutError(1500, 0);
+  const driver = new Rs485LockBoardDriver(transport, 'door_closing');
+
+  await assert.rejects(() => driver.unlock(1, 0), UnlockOutcomeUnknownError);
+});
+
+test('an unlock that never reached the wire is reported as not sent', async () => {
+  const transport = new RecordingTransport();
+  transport.failure = new RequestNotSentError('RS485 port is not open');
+  const driver = new Rs485LockBoardDriver(transport, 'door_closing');
+
+  await assert.rejects(
+    () => driver.unlock(1, 0),
+    (error: unknown) => error instanceof UnlockNotSentError && error.reconnectable,
+  );
+});
+
+test('a board that stays silent on query-all is reported as not responding', async () => {
+  const transport = new RecordingTransport();
+  transport.failure = new ResponseTimeoutError(1500, 0);
+  const driver = new Rs485LockBoardDriver(transport, 'door_closing');
+
+  await assert.rejects(() => driver.queryAll(4), BoardNotRespondingError);
+});
+
+test('a partial query-all reply is a transport failure, not a silent board', async () => {
+  const transport = new RecordingTransport();
+  transport.failure = new ResponseTimeoutError(1500, 3);
+  const driver = new Rs485LockBoardDriver(transport, 'door_closing');
+
+  await assert.rejects(
+    () => driver.queryAll(4),
+    (error: unknown) =>
+      error instanceof ResponseTimeoutError && !(error instanceof BoardNotRespondingError),
   );
 });

@@ -1,8 +1,5 @@
 import { performance } from 'node:perf_hooks';
-import {
-  calculateInterByteFrameQuietMs,
-  calculateInterTransactionDelayMs,
-} from '../serial/serial-framing-timing';
+import { calculateInterTransactionDelayMs } from '../serial/serial-framing-timing';
 import type { SerialConnectionConfig } from '../serial/serial-connection-config';
 import { HardwareTransportError, isReconnectableHardwareError } from '../../domain/errors';
 import {
@@ -11,11 +8,39 @@ import {
   type SerialPortFactory,
 } from './injectable-serial-port';
 
+/**
+ * Silence after the last byte that completes a response. USB-RS485 adapters
+ * deliver one response in bursts that can be more than the 5 ms Modbus gap
+ * apart, so a shorter quiet time cuts frames in half (ADR-0067).
+ */
+const FRAME_QUIET_MS = 25;
+
+/** The request never reached the wire: nothing the board could have acted on. */
+export class RequestNotSentError extends HardwareTransportError {
+  constructor(message: string, reconnectable = true) {
+    super(message, reconnectable);
+    this.name = 'RequestNotSentError';
+  }
+}
+
+export class ResponseTimeoutError extends HardwareTransportError {
+  constructor(
+    timeoutMs: number,
+    public readonly receivedBytes: number,
+  ) {
+    super(`RS485 response timed out after ${timeoutMs}ms (${receivedBytes} bytes received)`, true);
+    this.name = 'ResponseTimeoutError';
+  }
+}
+
+/** Throws when a complete frame is not the answer to the pending request. */
+export type ResponseValidator = (response: Buffer) => void;
+
 export interface Rs485TransactionTransport {
   open(): Promise<void>;
   close(): Promise<void>;
   isOpen(): boolean;
-  transact(request: Uint8Array, timeoutMs: number): Promise<Buffer>;
+  transact(request: Uint8Array, timeoutMs: number, validate?: ResponseValidator): Promise<Buffer>;
 }
 
 interface TimingDependencies {
@@ -28,7 +53,6 @@ export class SerialPortTransactionTransport implements Rs485TransactionTransport
   private deferredError: HardwareTransportError | null = null;
   private lastTransactionCompletedAt: number | null = null;
   private readonly interTransactionDelayMs: number;
-  private readonly interByteQuietMs: number;
   private readonly timing: TimingDependencies;
   private readonly onPortError = (error: Error): void => {
     this.deferredError = new HardwareTransportError(`RS485 serial error: ${error.message}`, true);
@@ -38,15 +62,9 @@ export class SerialPortTransactionTransport implements Rs485TransactionTransport
     private readonly connection: SerialConnectionConfig,
     timing: Partial<TimingDependencies> = {},
     private readonly createPort: SerialPortFactory = defaultSerialPortFactory,
+    private readonly frameQuietMs = FRAME_QUIET_MS,
   ) {
-    const framing = {
-      baudRate: connection.baudRate,
-      dataBits: connection.dataBits,
-      stopBits: connection.stopBits,
-      parity: connection.parity,
-    };
-    this.interTransactionDelayMs = calculateInterTransactionDelayMs(framing);
-    this.interByteQuietMs = calculateInterByteFrameQuietMs(framing);
+    this.interTransactionDelayMs = calculateInterTransactionDelayMs(connection);
     this.timing = {
       now: timing.now ?? (() => performance.now()),
       sleep: timing.sleep ?? ((delayMs) => new Promise((resolve) => setTimeout(resolve, delayMs))),
@@ -94,24 +112,32 @@ export class SerialPortTransactionTransport implements Rs485TransactionTransport
     return Boolean(this.port?.isOpen);
   }
 
-  async transact(request: Uint8Array, timeoutMs: number): Promise<Buffer> {
+  async transact(
+    request: Uint8Array,
+    timeoutMs: number,
+    validate?: ResponseValidator,
+  ): Promise<Buffer> {
     await this.waitForInterTransactionDelay();
     try {
-      return await this.transactInternal(request, timeoutMs);
+      return await this.transactInternal(request, timeoutMs, validate);
     } finally {
       this.lastTransactionCompletedAt = this.timing.now();
     }
   }
 
-  private async transactInternal(request: Uint8Array, timeoutMs: number): Promise<Buffer> {
+  private async transactInternal(
+    request: Uint8Array,
+    timeoutMs: number,
+    validate: ResponseValidator | undefined,
+  ): Promise<Buffer> {
     const port = this.port;
     if (!port?.isOpen) {
-      throw new HardwareTransportError('RS485 port is not open', true);
+      throw new RequestNotSentError('RS485 port is not open');
     }
     if (this.deferredError) {
       const error = this.deferredError;
       this.deferredError = null;
-      throw error;
+      throw new RequestNotSentError(error.message, error.reconnectable);
     }
 
     await this.discardReceiveBuffer(port);
@@ -142,7 +168,7 @@ export class SerialPortTransactionTransport implements Rs485TransactionTransport
         settled = true;
         cleanup();
         try {
-          await this.discardReceiveBuffer(port);
+          await this.discardUntilQuiet(port, timeoutMs);
         } finally {
           reject(error);
         }
@@ -151,6 +177,19 @@ export class SerialPortTransactionTransport implements Rs485TransactionTransport
       const finish = (): void => {
         if (settled) {
           return;
+        }
+        if (validate !== undefined) {
+          try {
+            validate(received);
+          } catch (error) {
+            void fail(
+              new HardwareTransportError(
+                error instanceof Error ? error.message : String(error),
+                true,
+              ),
+            );
+            return;
+          }
         }
         settled = true;
         cleanup();
@@ -170,7 +209,7 @@ export class SerialPortTransactionTransport implements Rs485TransactionTransport
             return;
           }
           finish();
-        }, this.interByteQuietMs);
+        }, this.frameQuietMs);
       };
 
       const onData = (chunk: Buffer): void => {
@@ -182,13 +221,7 @@ export class SerialPortTransactionTransport implements Rs485TransactionTransport
       };
 
       responseTimer = setTimeout(
-        () =>
-          void fail(
-            new HardwareTransportError(
-              `RS485 response timed out after ${timeoutMs}ms (${received.length} bytes received)`,
-              true,
-            ),
-          ),
+        () => void fail(new ResponseTimeoutError(timeoutMs, received.length)),
         timeoutMs,
       );
 
@@ -218,6 +251,37 @@ export class SerialPortTransactionTransport implements Rs485TransactionTransport
     if (remainingMs > 0) {
       await this.timing.sleep(remainingMs);
     }
+  }
+
+  /**
+   * After a failed transaction the board may still be answering. Waiting for the
+   * line to go quiet before discarding keeps a late response from being read as
+   * the answer to the next request.
+   */
+  private async discardUntilQuiet(port: InjectableSerialPort, maxWaitMs: number): Promise<void> {
+    if (!port.isOpen) {
+      return;
+    }
+
+    await new Promise<void>((resolve) => {
+      const deadline = setTimeout(done, maxWaitMs);
+      let quietTimer = setTimeout(done, this.frameQuietMs);
+      const onData = (): void => {
+        clearTimeout(quietTimer);
+        quietTimer = setTimeout(done, this.frameQuietMs);
+      };
+
+      function done(): void {
+        clearTimeout(deadline);
+        clearTimeout(quietTimer);
+        port.off('data', onData);
+        resolve();
+      }
+
+      port.on('data', onData);
+    });
+
+    await this.discardReceiveBuffer(port);
   }
 
   private async discardReceiveBuffer(port: InjectableSerialPort): Promise<void> {

@@ -12,23 +12,12 @@ export interface MqttRuntimeConfig extends MqttTransportConfig {
   heartbeatInterval?: number;
 }
 
-export interface ModbusConfig {
+/** The serial device is the only operator setting; the adapter owns the rest (ADR-0067). */
+export interface SerialConfig {
   port: string;
-  flashDurationMs?: number;
-  baudRate?: number;
-  dataBits?: 7 | 8;
-  stopBits?: 1 | 2;
-  parity?: 'none' | 'even' | 'odd';
-  timeout?: number;
-  /**
-   * How long a spent reconnect cycle waits before another is allowed. Bounds the
-   * retry rate against hardware that is genuinely gone, without letting a spent
-   * budget outlive the outage that spent it.
-   */
-  reconnectCooldownSeconds?: number;
 }
 
-export type AdapterType = 'waveshare_modbus' | 'rs485_lock_board';
+export type AdapterType = 'rs485_lock_board';
 export type FeedbackType = 'door_closing' | 'door_opening';
 
 export interface HardwareProfile {
@@ -39,13 +28,13 @@ export interface HardwareProfile {
 /** Operator-managed settings loaded from locker-config.yml. */
 export interface BaseLockerConfig {
   mqtt?: MqttTransportConfig;
-  modbus: ModbusConfig;
+  serial: SerialConfig;
 }
 
 /** Effective runtime configuration: base YAML merged with server-managed overlay. */
 export interface EffectiveLockerConfig {
   mqtt?: MqttRuntimeConfig;
-  modbus: ModbusConfig;
+  serial: SerialConfig;
   hardwareProfile?: HardwareProfile;
   compartments?: CompartmentConfig[];
 }
@@ -60,16 +49,18 @@ export interface RuntimeConfigOverlay {
   updatedAt?: string;
 }
 
-export function deriveConfiguredSlaveIds(compartments: CompartmentConfig[] | undefined): number[] {
+export function deriveConfiguredBoardAddresses(
+  compartments: CompartmentConfig[] | undefined,
+): number[] {
   if (compartments === undefined) {
     return [];
   }
 
-  const ids = new Set<number>();
+  const addresses = new Set<number>();
   for (const compartment of compartments) {
-    ids.add(compartment.slaveId);
+    addresses.add(compartment.slaveId);
   }
-  return [...ids];
+  return [...addresses];
 }
 
 /** Zero-based channel address encodable as a non-zero one-byte wire channel (1..255). */

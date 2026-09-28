@@ -5,9 +5,10 @@ alwaysApply: false
 ---
 # Hardware Integration Guidelines
 
-The backend does **not** communicate with Modbus hardware directly. Physical
-locker control runs in **locker-client** (Raspberry Pi), which talks to
-hardware via Modbus and reports status back to the backend over **MQTT**.
+The backend does **not** communicate with locker hardware directly. Physical
+locker control runs in **locker-client** (Raspberry Pi), which talks to the
+dedicated RS485 lock boards and reports status back to the backend over **MQTT**
+(ADR-0067).
 
 ## Architecture Overview
 
@@ -16,7 +17,7 @@ hardware via Modbus and reports status back to the backend over **MQTT**.
 Laravel Backend
     ↓ MQTT commands / responses
 locker-client (Raspberry Pi)
-    ↓ serialized Modbus RTU
+    ↓ serialized RS485 (lock-board protocol)
 Physical Locker Hardware
 ```
 
@@ -30,7 +31,7 @@ Physical Locker Hardware
 ## locker-client Responsibilities
 
 - Subscribe to MQTT command topics for assigned locker banks
-- Execute serialized Modbus RTU operations against local hardware
+- Execute serialized RS485 lock-board operations against local hardware
 - Publish structured success/error responses on MQTT
 - Handle provisioning and credential rotation
 
@@ -42,7 +43,7 @@ Physical Locker Hardware
 
 ## Development & Testing
 
-- **Backend tests**: Mock MQTT publishers/subscribers; no Modbus mocks needed
+- **Backend tests**: Mock MQTT publishers/subscribers; no hardware mocks needed
 - **Hardware tests**: Run in `locker-client` against its simulator or connected
   serial hardware
 - **Contract tests**: Keep AsyncAPI/JSON schema fixtures aligned between backend and client
@@ -50,5 +51,5 @@ Physical Locker Hardware
 ## Troubleshooting
 
 1. **Commands not reaching hardware**: Verify MQTT broker connectivity and locker-client subscription
-2. **Stale compartment status**: Check locker-client logs and Modbus connectivity on the Pi
+2. **Stale compartment status**: Check locker-client logs and RS485 connectivity on the Pi
 3. **Provisioning failures**: Inspect provisioning request/reply topics and credentials

@@ -13,7 +13,6 @@ test('applies documented defaults', () => {
   const bank = scenario.banks[0]!;
 
   assert.equal(bank.heartbeat_interval_seconds, 15);
-  assert.equal(bank.flash_duration_ms, 200);
   assert.equal(bank.latency_ms, 0);
   assert.equal(bank.compartments[0]!.door_state, 'closed');
 });
@@ -67,7 +66,7 @@ test('rejects duplicate compartment numbers within a bank', () => {
   );
 });
 
-test('rejects two compartments sharing one relay target', () => {
+test('rejects two compartments sharing one board target', () => {
   assert.throws(
     () =>
       parseScenario({
@@ -82,11 +81,12 @@ test('rejects two compartments sharing one relay target', () => {
         ],
       }),
     (error: unknown) =>
-      error instanceof ScenarioValidationError && /duplicate relay target/.test(error.message),
+      error instanceof ScenarioValidationError &&
+      /duplicate compartment target/.test(error.message),
   );
 });
 
-test('rejects relay addresses outside the supported range', () => {
+test('rejects compartment addresses outside the supported range', () => {
   assert.throws(
     () =>
       parseScenario({
@@ -98,11 +98,8 @@ test('rejects relay addresses outside the supported range', () => {
   );
 });
 
-test('rejects flash durations the hardware contract forbids', () => {
-  assert.throws(
-    () => parseScenario({ banks: [{ ...minimalBank, flash_duration_ms: 600 }] }),
-    ScenarioValidationError,
-  );
+test('ignores the retired flash duration setting in older scenario files', () => {
+  assert.doesNotThrow(() => parseScenario({ banks: [{ ...minimalBank, flash_duration_ms: 600 }] }));
 });
 
 test('reports every validation issue at once', () => {

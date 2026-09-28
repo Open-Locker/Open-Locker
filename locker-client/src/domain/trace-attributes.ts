@@ -36,12 +36,9 @@ export const EVENT = 'open_locker.event';
 export const MESSAGING_SYSTEM_MQTT = 'mqtt';
 
 /**
- * Modbus has no OpenTelemetry semantic convention, so these are project keys.
- * They are what turns "the locker did not open" into "board 3 stopped
- * answering".
+ * Locker controllers have no OpenTelemetry semantic convention, so these are
+ * project keys. They are what turns "the locker did not open" into "board 3
+ * stopped answering".
  */
-export const MODBUS_OPERATION = 'open_locker.modbus.operation';
-export const MODBUS_SLAVE_ID = 'open_locker.modbus.slave_id';
-export const MODBUS_ADDRESS = 'open_locker.modbus.address';
-export const MODBUS_LENGTH = 'open_locker.modbus.length';
-export const MODBUS_DURATION_MS = 'open_locker.modbus.duration_ms';
+export const HARDWARE_BOARD_ADDRESS = 'open_locker.hardware.board_address';
+export const HARDWARE_COMPARTMENT_ADDRESS = 'open_locker.hardware.compartment_address';

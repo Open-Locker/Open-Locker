@@ -1,4 +1,5 @@
 import type { FeedbackType } from '../../domain/config';
+import { doorStateFromFeedbackSignal } from '../../domain/door-feedback-mapping';
 
 const UNLOCK_HEADER = 0x8a;
 const QUERY_HEADER = 0x80;
@@ -22,11 +23,16 @@ export function encodeUnlockRequest(boardAddress: number, zeroBasedChannel: numb
   return frame([UNLOCK_HEADER, boardAddress, zeroBasedChannel + 1, UNLOCK_COMMAND]);
 }
 
-export function decodeUnlockAck(
+/**
+ * Validates the unlock response and returns the door state it reports, mapped
+ * through the configured feedback polarity (ADR-0067).
+ */
+export function decodeUnlockResponse(
   response: Uint8Array,
   boardAddress: number,
   zeroBasedChannel: number,
-): void {
+  feedbackType: FeedbackType,
+): 'open' | 'closed' {
   validateMinimumFrame(response);
   if (
     response[0] !== UNLOCK_HEADER ||
@@ -39,6 +45,7 @@ export function decodeUnlockAck(
   if (status !== 0x00 && status !== 0x11) {
     throw new Error(`unsupported unlock response status 0x${status?.toString(16)}`);
   }
+  return doorStateFromFeedbackSignal(feedbackType, status === 0x11);
 }
 
 export function encodeQueryAllRequest(boardAddress: number): Buffer {
@@ -61,9 +68,10 @@ export function decodeQueryAllResponse(
     const status = response[2 + (statusByteCount - 1 - groupFromEnd)]!;
     const groupStart = groupFromEnd * 8;
     for (let bit = 0; bit < 8; bit++) {
-      const signalHigh = (status & (1 << bit)) !== 0;
-      const closed = feedbackType === 'door_closing' ? signalHigh : !signalHigh;
-      states[groupStart + bit] = closed ? 'closed' : 'open';
+      states[groupStart + bit] = doorStateFromFeedbackSignal(
+        feedbackType,
+        (status & (1 << bit)) !== 0,
+      );
     }
   }
 
@@ -84,7 +92,7 @@ function validateMinimumFrame(response: Uint8Array): void {
   }
 }
 
-function validateQueryAllFrame(response: Uint8Array, boardAddress: number): void {
+export function validateQueryAllFrame(response: Uint8Array, boardAddress: number): void {
   if (response.length < 5) {
     throw new Error(`invalid response length: expected at least 5 bytes, got ${response.length}`);
   }

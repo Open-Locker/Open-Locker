@@ -206,18 +206,18 @@ test('uncommanded open event matches AsyncAPI schema', async () => {
 
   await publisher.publishUncommandedOpen({
     compartmentNumber: 5,
-    millisecondsSinceLastRelayFire: 3_600_000,
+    millisecondsSinceLastActuation: 3_600_000,
   });
 
   assertMatchesSchema('payloads/event-compartment-uncommanded-open.json', published[0]);
 });
 
-test('uncommanded open with no prior relay fire matches AsyncAPI schema', async () => {
+test('uncommanded open with no prior actuation matches AsyncAPI schema', async () => {
   const { publisher, published } = capturePublishedDoorEvents();
 
   await publisher.publishUncommandedOpen({
     compartmentNumber: 7,
-    millisecondsSinceLastRelayFire: null,
+    millisecondsSinceLastActuation: null,
   });
 
   assertMatchesSchema('payloads/event-compartment-uncommanded-open.json', published[0]);

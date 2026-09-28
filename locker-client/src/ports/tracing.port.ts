@@ -12,7 +12,7 @@ export type SpanAttributes = Record<string, SpanAttributeValue>;
 
 /**
  * Only the kinds this client emits. `producer`/`consumer` mark the two ends of
- * the MQTT hop; Modbus work is `internal`.
+ * the MQTT hop; hardware work is `internal`.
  */
 export type TraceSpanKind = 'producer' | 'consumer' | 'internal';
 
@@ -57,7 +57,7 @@ export interface LogShippingPort {
 export interface TracingPort {
   /**
    * Runs `fn` inside a span that is current for its whole duration, so spans
-   * started deeper (a Modbus write under a command) nest without plumbing.
+   * started deeper (an unlock under a command) nest without plumbing.
    */
   inSpan<T>(name: string, options: SpanOptions, fn: (span: ActiveSpan) => Promise<T>): Promise<T>;
 

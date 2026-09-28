@@ -1,9 +1,19 @@
 import PQueue from 'p-queue';
 import type { CompartmentTarget, DoorState } from '../../domain/compartment';
-import { HardwareTransportError, isReconnectableHardwareError } from '../../domain/errors';
-import { BusPriority, type ConnectionState, type LockerBusPort } from '../../ports/locker-bus.port';
+import {
+  BoardNotRespondingError,
+  isReconnectableHardwareError,
+  UnlockNotSentError,
+} from '../../domain/errors';
+import {
+  BusPriority,
+  type ConnectionState,
+  type LockerBusPort,
+  type UnlockObservation,
+} from '../../ports/locker-bus.port';
 import { noopLogger, type LoggerPort } from '../../ports/logging.port';
 import { noopTracing, type TracingPort } from '../../ports/tracing.port';
+import * as attr from '../../domain/trace-attributes';
 import { SerialBusConnection } from '../serial/serial-bus-connection';
 import type { Rs485LockBoardDriverPort } from './rs485-lock-board.driver';
 
@@ -13,10 +23,10 @@ export class Rs485LockBoardBusActor implements LockerBusPort {
 
   constructor(
     private readonly driver: Rs485LockBoardDriverPort,
-    private readonly configuredSlaveIds: () => number[],
+    private readonly configuredBoardAddresses: () => number[],
     reconnectOptions?: { maxAttempts?: number; delayMs?: number; cooldownMs?: number },
     private readonly tracing: TracingPort = noopTracing,
-    private readonly log: LoggerPort = noopLogger,
+    log: LoggerPort = noopLogger,
   ) {
     this.connection = new SerialBusConnection(
       driver,
@@ -66,62 +76,66 @@ export class Rs485LockBoardBusActor implements LockerBusPort {
     }, BusPriority.MAINTENANCE);
   }
 
-  flashRelay(target: CompartmentTarget, _durationMs: number): Promise<void> {
+  unlockCompartment(target: CompartmentTarget): Promise<UnlockObservation> {
     return this.tracing.inSpan(
       'rs485 unlock',
       {
         kind: 'internal',
         attributes: {
-          'locker.rs485.board_address': target.slaveId,
-          'locker.rs485.channel': target.relayAddress,
-          'locker.compartment.number': target.compartmentNumber,
+          [attr.HARDWARE_BOARD_ADDRESS]: target.boardAddress,
+          [attr.HARDWARE_COMPARTMENT_ADDRESS]: target.address,
+          [attr.COMPARTMENT_NUMBER]: target.compartmentNumber,
         },
       },
-      () => this.run(() => this.unlockWhenConnected(target), BusPriority.COMMAND),
+      () =>
+        this.run(
+          () => this.unlockWhenConnected(target),
+          BusPriority.COMMAND,
+          (error) => error instanceof UnlockNotSentError,
+        ),
     );
   }
 
-  async readDoorSensors(
-    slaveId: number,
-    startAddress: number,
-    length: number,
+  async readCompartmentStates(
+    boardAddress: number,
+    addresses: readonly number[],
   ): Promise<DoorState[]> {
-    try {
-      const states = await this.run(() => this.driver.queryAll(slaveId), BusPriority.SNAPSHOT);
-      return Array.from({ length }, (_, offset) => {
-        const index = startAddress + offset;
-        return states[index] ?? 'unknown';
-      });
-    } catch (error) {
-      this.log.warn('RS485 lock board status query failed, reporting doors as unknown', {
-        slaveId,
-        startAddress,
-        length,
-        error: error instanceof Error ? error.message : String(error),
-      });
-      return Array.from({ length }, () => 'unknown');
-    }
+    const states = await this.tracing.inSpan(
+      'rs485 query_all',
+      { kind: 'internal', attributes: { [attr.HARDWARE_BOARD_ADDRESS]: boardAddress } },
+      () =>
+        this.run(
+          () => this.driver.queryAll(boardAddress),
+          BusPriority.SNAPSHOT,
+          // A silent board is not asked again straight away: the reconnect
+          // still runs, and the next poll retries, so an unlock waits at most
+          // one response timeout behind it.
+          (error) => !(error instanceof BoardNotRespondingError),
+        ),
+    );
+    return addresses.map((address) => states[address] ?? 'unknown');
   }
 
-  async initializeBoard(slaveId: number): Promise<void> {
-    await this.run(() => this.driver.queryAll(slaveId), BusPriority.MAINTENANCE);
+  getConfiguredBoardAddresses(): number[] {
+    return [...this.configuredBoardAddresses()];
   }
 
-  getConfiguredSlaveIds(): number[] {
-    return [...this.configuredSlaveIds()];
-  }
-
-  private async unlockWhenConnected(target: CompartmentTarget): Promise<void> {
+  private async unlockWhenConnected(target: CompartmentTarget): Promise<UnlockObservation> {
     if (!this.driver.isOpen() && !(await this.connection.dial())) {
-      throw new HardwareTransportError('Cannot open compartment: hardware bus unavailable');
+      throw new UnlockNotSentError('Cannot open compartment: hardware bus unavailable');
     }
 
-    await this.driver.unlock(target.slaveId, target.relayAddress);
+    return { doorState: await this.driver.unlock(target.boardAddress, target.address) };
   }
 
-  private run<T>(operation: () => Promise<T>, priority: BusPriority): Promise<T> {
-    return this.queue.add(() => this.connection.runWithReconnectRetry(operation), {
-      priority,
-    }) as Promise<T>;
+  private run<T>(
+    operation: () => Promise<T>,
+    priority: BusPriority,
+    rerunAfterReconnect?: (error: unknown) => boolean,
+  ): Promise<T> {
+    return this.queue.add(
+      () => this.connection.runWithReconnectRetry(operation, rerunAfterReconnect),
+      { priority },
+    ) as Promise<T>;
   }
 }

@@ -1,9 +1,9 @@
 import type { CompartmentTarget, DoorState } from '../domain/compartment';
-import { DOOR_DETECTION_POLL_INTERVAL_MS, RelayFireLog } from '../domain/door-detection';
-import { HardwareTransportError, LockerError, MqttErrorCode } from '../domain/errors';
+import { ActuationLog, DOOR_DETECTION_POLL_INTERVAL_MS } from '../domain/door-detection';
+import { LockerError, MqttErrorCode, UnlockOutcomeUnknownError } from '../domain/errors';
 import type { ConfigRepositoryPort } from '../ports/config.port';
 import type { DoorEventPublisherPort } from '../ports/door-events.port';
-import type { LockerBusPort } from '../ports/locker-bus.port';
+import type { LockerBusPort, UnlockObservation } from '../ports/locker-bus.port';
 import type { SchedulerPort } from '../ports/config.port';
 import { noopLogger, type LoggerPort } from '../ports/logging.port';
 
@@ -12,19 +12,19 @@ export interface OpenCompartmentDeps {
   config: ConfigRepositoryPort;
   scheduler: SchedulerPort;
   doorEvents: DoorEventPublisherPort;
-  relayFireLog: RelayFireLog;
+  actuationLog: ActuationLog;
   log?: LoggerPort;
   now?: () => number;
 }
 
 /**
- * Fires the unlock pulse, then watches the door to find out whether it actually
+ * Unlocks the compartment, then watches the door to find out whether it actually
  * opened.
  *
- * `execute()` returns as soon as the pulse is sent so the caller can acknowledge
- * immediately; detection continues in the background and reports its own
- * outcome. The relay pulse and the door opening are separate facts and are
- * reported separately.
+ * `execute()` returns as soon as the controller accepts the unlock so the caller
+ * can acknowledge immediately; detection continues in the background and
+ * reports its own outcome. The unlock and the door opening are separate facts
+ * and are reported separately.
  */
 export class OpenCompartmentUseCase {
   private readonly bus: LockerBusPort;
@@ -35,7 +35,7 @@ export class OpenCompartmentUseCase {
 
   private readonly doorEvents: DoorEventPublisherPort;
 
-  private readonly relayFireLog: RelayFireLog;
+  private readonly actuationLog: ActuationLog;
 
   private readonly log: LoggerPort;
 
@@ -46,28 +46,38 @@ export class OpenCompartmentUseCase {
     this.config = deps.config;
     this.scheduler = deps.scheduler;
     this.doorEvents = deps.doorEvents;
-    this.relayFireLog = deps.relayFireLog;
+    this.actuationLog = deps.actuationLog;
     this.log = deps.log ?? noopLogger;
     this.now = deps.now ?? (() => Date.now());
   }
 
   async execute(compartmentNumber: number, transactionId: string): Promise<void> {
-    const { target, targetConfigKey } = await this.bus.runExclusive(async (exclusiveBus) => {
-      const resolvedTarget = this.resolveTarget(compartmentNumber);
-      const durationMs = this.config.getFlashDurationMs();
-      await exclusiveBus.flashRelay(resolvedTarget, durationMs);
-      return {
-        target: resolvedTarget,
-        targetConfigKey: this.targetConfigKey(resolvedTarget),
-      };
-    });
-    this.relayFireLog.recordFire(compartmentNumber, this.now());
-    this.startDoorDetection(target, transactionId, targetConfigKey);
+    const startedAt = this.now();
+    const { target, targetConfigKey, observation } = await this.bus.runExclusive(
+      async (exclusiveBus) => {
+        const resolvedTarget = this.resolveTarget(compartmentNumber);
+        try {
+          return {
+            target: resolvedTarget,
+            targetConfigKey: this.targetConfigKey(resolvedTarget),
+            observation: await exclusiveBus.unlockCompartment(resolvedTarget),
+          };
+        } catch (error) {
+          if (error instanceof UnlockOutcomeUnknownError) {
+            // The lock may have released: a door opening now is not uncommanded.
+            this.actuationLog.recordActuation(compartmentNumber, this.now());
+          }
+          throw error;
+        }
+      },
+    );
+    this.actuationLog.recordActuation(compartmentNumber, this.now());
+    this.startDoorDetection(target, transactionId, targetConfigKey, startedAt, observation);
   }
 
   stopAllMonitoring(): void {
     this.scheduler.cancelAll();
-    this.relayFireLog.clear();
+    this.actuationLog.clear();
   }
 
   /**
@@ -82,16 +92,38 @@ export class OpenCompartmentUseCase {
     target: CompartmentTarget,
     transactionId: string,
     targetConfigKey: string,
+    startedAt: number,
+    observation: UnlockObservation,
   ): void {
     const compartmentNumber = target.compartmentNumber;
     const timeoutMs = this.detectionTimeoutMs();
-    const startedAt = this.now();
+    // The window starts with detection, not with the command: a slow unlock
+    // (queue wait, reconnect) must not use up the door's time to open.
+    // `detectionMs` still counts from the command.
+    const detectionStartedAt = this.now();
 
-    this.relayFireLog.beginDetection(compartmentNumber);
+    this.actuationLog.beginDetection(compartmentNumber);
+
+    if (observation.doorState === 'open') {
+      const detectionMs = this.now() - startedAt;
+      // Scheduled rather than published inline, so the outcome follows the
+      // command response and stopAllMonitoring() can still cancel it.
+      this.scheduler.scheduleAfter(0, async () => {
+        this.actuationLog.endDetection(compartmentNumber);
+        await this.reportOutcome({
+          compartmentNumber,
+          transactionId,
+          outcome: 'opened',
+          detectionMs,
+        });
+      });
+
+      return;
+    }
 
     const tick = async (): Promise<void> => {
       if (this.targetConfigKey(target) !== targetConfigKey) {
-        this.relayFireLog.endDetection(compartmentNumber);
+        this.actuationLog.endDetection(compartmentNumber);
         this.log.warn('Door detection stopped because the compartment mapping changed', {
           compartmentNumber,
         });
@@ -99,10 +131,11 @@ export class OpenCompartmentUseCase {
       }
 
       const doorState = await this.readDoorState(target);
-      const elapsedMs = this.now() - startedAt;
+      const nowMs = this.now();
+      const elapsedMs = nowMs - startedAt;
 
       if (doorState === 'open') {
-        this.relayFireLog.endDetection(compartmentNumber);
+        this.actuationLog.endDetection(compartmentNumber);
         await this.reportOutcome({
           compartmentNumber,
           transactionId,
@@ -113,8 +146,8 @@ export class OpenCompartmentUseCase {
         return;
       }
 
-      if (elapsedMs >= timeoutMs) {
-        this.relayFireLog.endDetection(compartmentNumber);
+      if (nowMs - detectionStartedAt >= timeoutMs) {
+        this.actuationLog.endDetection(compartmentNumber);
         await this.reportOutcome({
           compartmentNumber,
           transactionId,
@@ -149,12 +182,9 @@ export class OpenCompartmentUseCase {
   }
 
   /** Single-compartment door read; `unknown` on any bus failure. */
-  private async readDoorState(
-    target: CompartmentTarget,
-    bus: LockerBusPort = this.bus,
-  ): Promise<DoorState> {
+  private async readDoorState(target: CompartmentTarget): Promise<DoorState> {
     try {
-      const states = await bus.readDoorSensors(target.slaveId, target.relayAddress, 1);
+      const states = await this.bus.readCompartmentStates(target.boardAddress, [target.address]);
 
       return states[0] ?? 'unknown';
     } catch {
@@ -184,8 +214,8 @@ export class OpenCompartmentUseCase {
 
     return {
       compartmentNumber,
-      relayAddress: compartment.address,
-      slaveId: compartment.slaveId,
+      boardAddress: compartment.slaveId,
+      address: compartment.address,
     };
   }
 
@@ -199,35 +229,5 @@ export class OpenCompartmentUseCase {
       hardwareProfile: effective.hardwareProfile ?? null,
       mapping,
     });
-  }
-}
-
-export async function runStartupFailsafe(
-  bus: LockerBusPort,
-  log: LoggerPort = noopLogger,
-): Promise<void> {
-  const slaveIds = bus.getConfiguredSlaveIds();
-
-  if (bus.getConnectionState() === 'unreachable') {
-    log.error('Startup failsafe skipped: Modbus bus unreachable, relays left as found', {
-      configuredBoards: slaveIds.length,
-    });
-
-    return;
-  }
-
-  let successCount = 0;
-
-  for (const slaveId of slaveIds) {
-    try {
-      await bus.initializeBoard(slaveId);
-      successCount++;
-    } catch {
-      // One unreachable board must not stop the others from being cleared.
-    }
-  }
-
-  if (successCount === 0 && slaveIds.length > 0) {
-    throw new HardwareTransportError('Startup hardware initialization: all boards unreachable');
   }
 }

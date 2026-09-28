@@ -14,7 +14,7 @@ Create or update an ADR when at least one of these applies:
 
 - API contract, schema, or external integration boundary changes
 - MQTT topic structure or payload contract changes
-- Modbus protocol, register mapping, or hardware communication strategy changes
+- Lock-board protocol, channel mapping, or hardware communication strategy changes
 - New infrastructure, platform dependency, or hosting/runtime strategy changes
 - Security, performance, reliability, or operability trade-offs
 - Cross-component decisions affecting backend, mobile app, and/or IoT flows
