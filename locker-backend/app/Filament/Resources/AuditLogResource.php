@@ -34,8 +34,9 @@ class AuditLogResource extends Resource
 
     public static function canAccess(): bool
     {
-        // System-wide audit trail is admin-only (mirrors Terms / Roles screens).
-        return auth()->user()?->can(Permission::SystemConfigure->value) ?? false;
+        // System-wide audit trail is admin-only; managers hold system.configure
+        // for the terms screens, so it has its own permission.
+        return auth()->user()?->can(Permission::AuditLogView->value) ?? false;
     }
 
     public static function getNavigationGroup(): ?string

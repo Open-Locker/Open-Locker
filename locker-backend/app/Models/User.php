@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Models;
 
 use App\Enums\Permission;
@@ -8,6 +10,7 @@ use App\Models\Concerns\HasPermissions;
 use App\Notifications\Auth\WebResetPasswordNotification;
 use App\Notifications\Auth\WebVerifyEmailNotification;
 use App\Services\UserAdministrationService;
+use Carbon\CarbonImmutable;
 use Database\Factories\UserFactory;
 use Filament\Models\Contracts\FilamentUser;
 use Filament\Models\Contracts\HasName;
@@ -24,7 +27,7 @@ use Illuminate\Support\Facades\Password;
 use Laravel\Sanctum\HasApiTokens;
 
 /**
- * @property \Carbon\CarbonImmutable|null $email_verified_at
+ * @property CarbonImmutable|null $email_verified_at
  */
 class User extends Authenticatable implements FilamentUser, HasName, MustVerifyEmail
 {

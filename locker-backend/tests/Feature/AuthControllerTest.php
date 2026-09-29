@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Tests\Feature;
 
 use App\Models\User;
@@ -7,8 +9,10 @@ use App\Notifications\Auth\WebResetPasswordNotification;
 use App\Notifications\Auth\WebVerifyEmailNotification;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Foundation\Testing\WithFaker;
+use Illuminate\Routing\Middleware\ThrottleRequests;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Notification;
+use Illuminate\Support\Facades\Password;
 use Illuminate\Support\Facades\URL;
 use Tests\TestCase;
 
@@ -318,6 +322,24 @@ class AuthControllerTest extends TestCase
             ->assertJsonValidationErrors(['email']);
     }
 
+    public function test_reset_password_attempts_are_rate_limited(): void
+    {
+        $this->withMiddleware(ThrottleRequests::class);
+        $user = User::factory()->create();
+        $attempt = fn () => $this->postJson('/api/reset-password', [
+            'token' => 'invalid-token',
+            'email' => $user->email,
+            'password' => 'newpassword',
+            'password_confirmation' => 'newpassword',
+        ]);
+
+        for ($i = 0; $i < 6; $i++) {
+            $attempt()->assertStatus(422);
+        }
+
+        $attempt()->assertStatus(429);
+    }
+
     public function test_password_reset_page_is_publicly_accessible()
     {
         $response = $this->get('/reset-password?token=test-token&email=user@example.com');
@@ -367,7 +389,7 @@ class AuthControllerTest extends TestCase
 
         $status = $user->sendAdminPasswordResetLink();
 
-        $this->assertSame(\Illuminate\Support\Facades\Password::RESET_LINK_SENT, $status);
+        $this->assertSame(Password::RESET_LINK_SENT, $status);
         Notification::assertSentTo($user, WebResetPasswordNotification::class);
     }
 
@@ -409,6 +431,21 @@ class AuthControllerTest extends TestCase
             'last_name' => 'Name',
             'email' => 'updated@example.com',
         ]);
+    }
+
+    public function test_changing_the_email_requires_verifying_it_again(): void
+    {
+        Notification::fake();
+        $user = User::factory()->create();
+
+        $this->actingAs($user)->putJson('/api/profile', [
+            'first_name' => $user->first_name,
+            'last_name' => $user->last_name,
+            'email' => 'changed@example.com',
+        ])->assertOk();
+
+        $this->assertNull($user->fresh()?->email_verified_at);
+        Notification::assertSentTo($user, WebVerifyEmailNotification::class);
     }
 
     public function test_user_cannot_update_profile_with_existing_email()

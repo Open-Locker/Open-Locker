@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Providers;
 
 use App\Scramble\Transformers\AcceptLanguageHeaderTransformer;
@@ -10,8 +12,10 @@ use Carbon\CarbonImmutable;
 use Dedoc\Scramble\Scramble;
 use Dedoc\Scramble\Support\Generator\OpenApi;
 use Dedoc\Scramble\Support\Generator\SecurityScheme;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Resources\Json\JsonResource;
 use Illuminate\Support\Facades\Date;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\ServiceProvider;
 
@@ -32,6 +36,15 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        // N+1 queries fail loudly where they are found (local, tests) and are
+        // only logged where an exception would reach users.
+        Model::preventLazyLoading();
+        if (! $this->app->environment(['local', 'testing'])) {
+            Model::handleLazyLoadingViolationUsing(function (Model $model, string $relation): void {
+                Log::warning('Lazy loading violation', ['model' => $model::class, 'relation' => $relation]);
+            });
+        }
+
         // Force HTTPS in production or if explicitly enabled
         if ($this->app->environment('production') || config('app.force_https')) {
             URL::forceScheme('https');

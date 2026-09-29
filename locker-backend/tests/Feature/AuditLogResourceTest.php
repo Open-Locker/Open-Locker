@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use App\Aggregates\UserRoleAggregate;
+use App\Enums\Role;
 use App\Filament\Resources\AuditLogResource;
 use App\Filament\Resources\AuditLogResource\Pages\ListAuditLog;
 use App\Models\AuditEvent;
@@ -159,6 +161,22 @@ class AuditLogResourceTest extends TestCase
             'meta_data' => [],
             'created_at' => now(),
         ]);
+    }
+
+    public function test_manager_cannot_access_audit_log(): void
+    {
+        $manager = User::factory()->create();
+        UserRoleAggregate::retrieve(UserRoleAggregate::aggregateUuidFor($manager->id))
+            ->grantRole($manager->id, Role::Manager->value, null, now())
+            ->persist();
+        $manager->flushPermissionCache();
+
+        $this->actingAs($manager);
+
+        $this->assertFalse(AuditLogResource::canAccess());
+
+        $this->get(route('filament.admin.resources.audit-logs.index'))
+            ->assertForbidden();
     }
 
     public function test_non_admin_cannot_access_audit_log(): void

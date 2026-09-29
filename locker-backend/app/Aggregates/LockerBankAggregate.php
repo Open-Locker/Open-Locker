@@ -6,6 +6,7 @@ namespace App\Aggregates;
 
 use App\Models\Compartment;
 use App\Models\LockerBank;
+use App\Services\LockerProvisioningService;
 use App\StorableEvents\CompartmentOpeningRequested;
 use App\StorableEvents\LockerConfigApplyRequested;
 use App\StorableEvents\LockerProvisioningFailed;
@@ -59,7 +60,7 @@ class LockerBankAggregate extends TransactionalAggregateRoot
      * manually (the backend has no push channel).
      *
      * Rotating the token, deleting the MQTT user and enforcing authorization
-     * belong to {@see \App\Services\LockerProvisioningService}.
+     * belong to {@see LockerProvisioningService}.
      */
     public function resetProvisioning(int $actorUserId, CarbonImmutable $resetAt): self
     {

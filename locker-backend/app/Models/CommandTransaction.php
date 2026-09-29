@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Carbon;
 
 /**
  * Durable inbox/tracker row for a command transaction (dedup for QoS1).
@@ -17,9 +18,9 @@ use Illuminate\Database\Eloquent\Model;
  * @property string|null $error_code
  * @property string|null $source_topic
  * @property string|null $payload_hash
- * @property \Illuminate\Support\Carbon|null $first_seen_at
- * @property \Illuminate\Support\Carbon|null $last_seen_at
- * @property \Illuminate\Support\Carbon|null $completed_at
+ * @property Carbon|null $first_seen_at
+ * @property Carbon|null $last_seen_at
+ * @property Carbon|null $completed_at
  */
 class CommandTransaction extends Model
 {

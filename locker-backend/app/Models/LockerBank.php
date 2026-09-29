@@ -6,6 +6,8 @@ namespace App\Models;
 
 use App\Enums\LockerAdapterType;
 use App\Enums\LockerFeedbackType;
+use Carbon\CarbonImmutable;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -21,14 +23,14 @@ use Illuminate\Database\Eloquent\Relations\HasManyThrough;
  * @property LockerFeedbackType $feedback_type
  * @property string|null $provisioning_token_hmac
  * @property string|null $provisioning_generation
- * @property-read \Carbon\CarbonImmutable|null $provisioned_at
- * @property-read \Carbon\CarbonImmutable|null $last_heartbeat_at
+ * @property-read CarbonImmutable|null $provisioned_at
+ * @property-read CarbonImmutable|null $last_heartbeat_at
  * @property-read int $heartbeat_interval_seconds
  * @property-read int $heartbeat_timeout_seconds
  * @property-read string $connection_status
- * @property-read \Carbon\CarbonImmutable|null $connection_status_changed_at
- * @property-read \Carbon\CarbonImmutable|null $last_compartment_state_change_at
- * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\Compartment> $compartments
+ * @property-read CarbonImmutable|null $connection_status_changed_at
+ * @property-read CarbonImmutable|null $last_compartment_state_change_at
+ * @property-read Collection<int, Compartment> $compartments
  * @property-read int|null $compartments_count
  */
 class LockerBank extends Model
