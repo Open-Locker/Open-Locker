@@ -9,6 +9,7 @@ const calls: string[] = [];
 const handlers = new Map<string, (change?: { current: string }) => void>();
 
 const mockConnection = {
+  state: 'connecting',
   bind: (event: string, handler: (change?: { current: string }) => void) => {
     handlers.set(event, handler);
   },
@@ -44,6 +45,15 @@ describe('useCompartmentStatusRealtime', () => {
     jest.clearAllMocks();
     calls.length = 0;
     handlers.clear();
+    mockConnection.state = 'connecting';
+  });
+
+  it('picks up a state the socket reached before the listener was bound', () => {
+    mockConnection.state = 'failed';
+
+    renderHook(() => useCompartmentStatusRealtime());
+
+    expect(mockDispatch).toHaveBeenCalledWith(realtimeConnectionChanged('failed'));
   });
 
   it('mirrors socket state changes into the realtime slice', () => {

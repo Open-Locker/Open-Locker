@@ -152,6 +152,8 @@ export function useCompartmentStatusRealtime(): void {
     connection.bind('unavailable', refetchFallback);
     connection.bind('disconnected', refetchFallback);
     connection.bind('state_change', handleStateChange);
+    // Pusher can reach `failed` inside `createEcho`, before anything was bound.
+    dispatch(realtimeConnectionChanged(connection.state));
 
     const appStateSub = AppState.addEventListener('change', (state) => {
       if (state === 'active') {
@@ -176,6 +178,7 @@ export function useCompartmentStatusRealtime(): void {
 type PusherStateChangeHandler = (change: { current: string }) => void;
 
 type PusherConnection = {
+  state: string;
   bind(event: 'state_change', handler: PusherStateChangeHandler): void;
   bind(event: string, handler: () => void): void;
   unbind(event: 'state_change', handler: PusherStateChangeHandler): void;
