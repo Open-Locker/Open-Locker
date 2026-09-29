@@ -131,6 +131,7 @@ function getCompartmentStatusFromApi(
 export default function CompartmentsScreen() {
   const { t } = useTranslation();
   const token = useAppSelector((state) => state.auth.token);
+  const livePaused = useAppSelector((state) => state.realtime.livePaused);
   const userName = useUserName();
   const { refetch: refetchUser } = useGetUserQuery({});
   const [isPullRefreshing, setIsPullRefreshing] = React.useState(false);
@@ -346,6 +347,14 @@ export default function CompartmentsScreen() {
       {errorMessage ? (
         <Text style={[styles.error, { color: theme.colors.error }]} accessibilityRole="alert">
           {errorMessage}
+        </Text>
+      ) : null}
+      {livePaused ? (
+        <Text
+          style={[styles.livePaused, { color: theme.colors.onSurfaceVariant }]}
+          accessibilityLiveRegion="polite"
+        >
+          {t('compartments.livePaused')}
         </Text>
       ) : null}
 
@@ -738,6 +747,7 @@ const styles = StyleSheet.create({
     fontFamily: 'Inter_500Medium',
   },
   error: { paddingHorizontal: 16, paddingTop: 12 },
+  livePaused: { paddingHorizontal: 16, paddingTop: 12 },
   gridItem: {
     flex: 1,
   },
