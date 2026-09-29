@@ -14,6 +14,7 @@ use App\StorableEvents\CompartmentAccessGranted;
 use App\StorableEvents\CompartmentOpenAuthorized;
 use App\StorableEvents\CompartmentOpenDenied;
 use App\StorableEvents\CompartmentOpenRequested;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Spatie\EventSourcing\StoredEvents\Models\EloquentStoredEvent;
 use Tests\TestCase;
@@ -241,7 +242,7 @@ class CompartmentAccessControllerTest extends TestCase
         $targetUser = $this->createRegularUser();
         $compartment = Compartment::factory()->create();
 
-        $this->expectException(\Illuminate\Auth\Access\AuthorizationException::class);
+        $this->expectException(AuthorizationException::class);
 
         app(CompartmentAccessService::class)->grantAccess(
             user: $targetUser,
@@ -260,7 +261,7 @@ class CompartmentAccessControllerTest extends TestCase
         $service = app(CompartmentAccessService::class);
         $service->grantAccess($targetUser, $compartment, actor: $admin);
 
-        $this->expectException(\Illuminate\Auth\Access\AuthorizationException::class);
+        $this->expectException(AuthorizationException::class);
 
         $service->revokeAccess(
             user: $targetUser,

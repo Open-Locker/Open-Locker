@@ -1,9 +1,10 @@
 <?php
 
+declare(strict_types=1);
+
 use App\Http\Controllers\AppInfoController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\CompartmentController;
-use App\Http\Controllers\LockerBankStatusController;
 use App\Http\Controllers\Mqtt\MosquittoAuthController;
 use App\Http\Controllers\TermsController;
 use App\Http\Middleware\VerifyMosqHttpAuth;
@@ -14,10 +15,9 @@ Route::get('identify', [AppInfoController::class, 'identify'])->name('api.identi
 
 Route::controller(AuthController::class)->group(function () {
     Route::post('login', 'login')->middleware(['throttle:6,1'])->name('auth.login');
-    Route::post('password/email', 'sendPasswordEmail')->middleware(['throttle:6,1'])->name('password.email');
+    Route::post('password/email', 'sendPasswordEmail')->middleware(['throttle:password-reset'])->name('password.email');
 
-    Route::post('reset-password', 'storeNewPassword')
-        ->name('password.store');
+    Route::post('reset-password', 'storeNewPassword')->middleware(['throttle:password-reset'])->name('password.store');
 
 });
 
@@ -29,9 +29,6 @@ Route::middleware('auth:sanctum')->group(function () {
 });
 
 Route::middleware(['auth:sanctum', 'terms.accepted'])->group(function () {
-
-    Route::get('locker-banks/{lockerBank}/status', LockerBankStatusController::class)
-        ->name('locker-banks.status');
 
     // Backward-compatible alias for accessible compartments.
     Route::get('compartments', [CompartmentController::class, 'accessible'])
@@ -70,8 +67,6 @@ Route::middleware(['auth:sanctum', 'terms.accepted'])->group(function () {
 // Mosquitto HTTP auth endpoints (secured via Basic Auth middleware)
 Route::prefix('mosq')->group(function () {
     Route::post('auth', [MosquittoAuthController::class, 'auth'])
-        ->middleware(VerifyMosqHttpAuth::class);
-    Route::post('superuser', [MosquittoAuthController::class, 'superuser'])
         ->middleware(VerifyMosqHttpAuth::class);
     Route::post('acl', [MosquittoAuthController::class, 'acl'])
         ->middleware(VerifyMosqHttpAuth::class);

@@ -41,6 +41,7 @@ class AuthorizationEnumTest extends TestCase
         // ...but NOT these.
         $this->assertNotContains(Permission::RolesManage, $managerPermissions);
         $this->assertNotContains(Permission::LockerBankConfigure, $managerPermissions);
+        $this->assertNotContains(Permission::AuditLogView, $managerPermissions);
     }
 
     public function test_roles_can_be_resolved_by_permission(): void

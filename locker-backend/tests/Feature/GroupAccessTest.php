@@ -7,6 +7,7 @@ namespace Tests\Feature;
 use App\Models\Compartment;
 use App\Models\Group;
 use App\Models\User;
+use App\Models\UserGroupCompartmentAccess;
 use App\Services\GroupAccessService;
 use App\StorableEvents\GroupArchived;
 use App\StorableEvents\GroupCreated;
@@ -124,7 +125,7 @@ class GroupAccessTest extends TestCase
         $this->service()->addUser($group, $user, expiresAt: $membershipExpiry, actor: $admin);
         $this->service()->grantCompartmentAccess($group, $compartment, expiresAt: $grantExpiry, actor: $admin);
 
-        $row = \App\Models\UserGroupCompartmentAccess::query()
+        $row = UserGroupCompartmentAccess::query()
             ->where('user_id', $user->id)
             ->where('compartment_id', (string) $compartment->id)
             ->firstOrFail();

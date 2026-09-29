@@ -16,6 +16,7 @@ use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
 use Filament\Tables;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Auth;
 use Throwable;
 
@@ -61,6 +62,7 @@ class TermsDocumentVersionResource extends Resource
     public static function table(Table $table): Table
     {
         return $table
+            ->modifyQueryUsing(fn (Builder $query) => $query->with('createdByUser'))
             ->defaultSort('version', 'desc')
             ->columns([
                 Tables\Columns\TextColumn::make('version')

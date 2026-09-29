@@ -7,15 +7,21 @@ namespace Tests\Feature;
 use App\Aggregates\UserRoleAggregate;
 use App\Enums\Permission;
 use App\Enums\Role;
+use App\Filament\Resources\CompartmentOpenRequestResource;
 use App\Filament\Resources\CompartmentResource\Pages\ViewCompartment;
 use App\Filament\Resources\CompartmentResource\RelationManagers\UserAccessesRelationManager;
+use App\Filament\Resources\GroupResource;
+use App\Filament\Resources\LockerBankResource;
+use App\Filament\Resources\TermsDocumentVersionResource;
 use App\Filament\Resources\UserResource;
 use App\Filament\Resources\UserResource\Pages\EditUser;
 use App\Filament\Resources\UserResource\Pages\ListUsers;
+use App\Filament\Resources\UserResource\RelationManagers\CompartmentAccessesRelationManager;
 use App\Models\Compartment;
 use App\Models\User;
 use App\Services\CompartmentAccessService;
 use App\Services\GroupAccessService;
+use App\Services\LockerService;
 use App\Services\UserAdministrationService;
 use App\StorableEvents\CompartmentOpenAuthorized;
 use Filament\Actions\EditAction;
@@ -23,6 +29,7 @@ use Filament\Tables\Contracts\HasTable;
 use Filament\Tables\Table;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Livewire\Livewire;
 use Spatie\EventSourcing\StoredEvents\Models\EloquentStoredEvent;
 use Tests\TestCase;
 
@@ -114,7 +121,7 @@ class ManagerAuthorizationTest extends TestCase
         // (#254), so a submitted admin id fails the select's own validation
         // rather than reaching the service. The service still refuses it — see
         // test_manager_cannot_grant_access_to_an_admin_user.
-        \Livewire\Livewire::actingAs($manager)
+        Livewire::actingAs($manager)
             ->test(UserAccessesRelationManager::class, [
                 'ownerRecord' => $compartment,
                 'pageClass' => ViewCompartment::class,
@@ -140,7 +147,7 @@ class ManagerAuthorizationTest extends TestCase
 
         // An authorized open drives the reactor -> LockerService -> MQTT publish;
         // mock the hardware boundary so the test doesn't hit a real broker.
-        $this->mock(\App\Services\LockerService::class, function ($mock): void {
+        $this->mock(LockerService::class, function ($mock): void {
             $mock->shouldReceive('openCompartment');
         });
 
@@ -201,10 +208,18 @@ class ManagerAuthorizationTest extends TestCase
         $manager = $this->makeManager();
         $this->actingAs($manager);
 
-        $this->assertTrue(\App\Filament\Resources\UserResource::canAccess());
-        $this->assertFalse(\App\Filament\Resources\LockerBankResource::canAccess());
-        $this->assertTrue(\App\Filament\Resources\GroupResource::canAccess());
-        $this->assertTrue(\App\Filament\Resources\TermsDocumentVersionResource::canAccess());
+        $this->assertTrue(UserResource::canAccess());
+        $this->assertFalse(LockerBankResource::canAccess());
+        $this->assertTrue(GroupResource::canAccess());
+        $this->assertTrue(TermsDocumentVersionResource::canAccess());
+        $this->assertTrue(CompartmentOpenRequestResource::canAccess());
+    }
+
+    public function test_regular_user_cannot_access_open_command_history(): void
+    {
+        $this->actingAs(User::factory()->create());
+
+        $this->assertFalse(CompartmentOpenRequestResource::canAccess());
     }
 
     public function test_admin_sees_all_filament_resources(): void
@@ -213,10 +228,10 @@ class ManagerAuthorizationTest extends TestCase
         $admin->makeAdmin();
         $this->actingAs($admin);
 
-        $this->assertTrue(\App\Filament\Resources\UserResource::canAccess());
-        $this->assertTrue(\App\Filament\Resources\LockerBankResource::canAccess());
-        $this->assertTrue(\App\Filament\Resources\GroupResource::canAccess());
-        $this->assertTrue(\App\Filament\Resources\TermsDocumentVersionResource::canAccess());
+        $this->assertTrue(UserResource::canAccess());
+        $this->assertTrue(LockerBankResource::canAccess());
+        $this->assertTrue(GroupResource::canAccess());
+        $this->assertTrue(TermsDocumentVersionResource::canAccess());
     }
 
     public function test_admin_can_assign_manager_role_via_panel_action(): void
@@ -225,7 +240,7 @@ class ManagerAuthorizationTest extends TestCase
         $admin->makeAdmin();
         $target = User::factory()->create();
 
-        \Livewire\Livewire::actingAs($admin)
+        Livewire::actingAs($admin)
             ->test(EditUser::class, ['record' => $target->getRouteKey()])
             ->callAction('changeRole', data: ['role' => Role::Manager->value])
             ->assertHasNoActionErrors();
@@ -244,7 +259,7 @@ class ManagerAuthorizationTest extends TestCase
         $this->assertTrue(UserResource::canEdit($target));
         $this->assertTrue(UserResource::canDelete($target));
 
-        \Livewire\Livewire::actingAs($manager)
+        Livewire::actingAs($manager)
             ->test(EditUser::class, ['record' => $target->getRouteKey()])
             ->fillForm([
                 'first_name' => 'Updated',
@@ -273,7 +288,7 @@ class ManagerAuthorizationTest extends TestCase
 
         $response->assertOk();
 
-        \Livewire\Livewire::actingAs($manager)
+        Livewire::actingAs($manager)
             ->test(EditUser::class, ['record' => $admin->getRouteKey()])
             ->fillForm([
                 'first_name' => 'Updated',
@@ -294,7 +309,7 @@ class ManagerAuthorizationTest extends TestCase
         $admin->makeAdmin();
         app()->setLocale('de');
 
-        \Livewire\Livewire::actingAs($manager)
+        Livewire::actingAs($manager)
             ->test(ListUsers::class)
             ->assertCanSeeTableRecords([$regular, $admin])
             ->assertTableActionVisible('edit', $regular)
@@ -313,7 +328,7 @@ class ManagerAuthorizationTest extends TestCase
         $admin = User::factory()->create();
         $admin->makeAdmin();
 
-        \Livewire\Livewire::actingAs($manager)
+        Livewire::actingAs($manager)
             ->test(ListUsers::class)
             ->callTableBulkAction('delete', [$admin]);
 
@@ -325,8 +340,8 @@ class ManagerAuthorizationTest extends TestCase
         $manager = $this->makeManager();
         $target = User::factory()->create();
 
-        \Livewire\Livewire::actingAs($manager)
-            ->test(\App\Filament\Resources\UserResource\RelationManagers\CompartmentAccessesRelationManager::class, [
+        Livewire::actingAs($manager)
+            ->test(CompartmentAccessesRelationManager::class, [
                 'ownerRecord' => $target,
                 'pageClass' => EditUser::class,
             ])
@@ -339,8 +354,8 @@ class ManagerAuthorizationTest extends TestCase
         $owner = $this->makeRegularUser();
         $target = User::factory()->create();
 
-        \Livewire\Livewire::actingAs($owner)
-            ->test(\App\Filament\Resources\UserResource\RelationManagers\CompartmentAccessesRelationManager::class, [
+        Livewire::actingAs($owner)
+            ->test(CompartmentAccessesRelationManager::class, [
                 'ownerRecord' => $target,
                 'pageClass' => EditUser::class,
             ])
@@ -353,8 +368,8 @@ class ManagerAuthorizationTest extends TestCase
         $admin = User::factory()->create();
         $admin->makeAdmin();
 
-        \Livewire\Livewire::actingAs($manager)
-            ->test(\App\Filament\Resources\UserResource\RelationManagers\CompartmentAccessesRelationManager::class, [
+        Livewire::actingAs($manager)
+            ->test(CompartmentAccessesRelationManager::class, [
                 'ownerRecord' => $admin,
                 'pageClass' => EditUser::class,
             ])
@@ -368,7 +383,7 @@ class ManagerAuthorizationTest extends TestCase
             ->grantRole($manager->id, Role::Manager->value, null, now())
             ->persist();
 
-        \Livewire\Livewire::actingAs($manager)
+        Livewire::actingAs($manager)
             ->test(EditUser::class, ['record' => $manager->getRouteKey()])
             ->assertActionHidden('changeRole');
     }
@@ -389,7 +404,7 @@ class ManagerAuthorizationTest extends TestCase
         $admin = User::factory()->unverified()->create();
         $admin->makeAdmin();
 
-        \Livewire\Livewire::actingAs($manager)
+        Livewire::actingAs($manager)
             ->test(EditUser::class, ['record' => $admin->getRouteKey()])
             ->assertActionHidden('sendPasswordResetLink')
             ->assertActionHidden('sendVerificationEmail')

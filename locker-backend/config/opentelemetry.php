@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 use Illuminate\Support\Str;
 use Keepsuit\LaravelOpenTelemetry\Instrumentation;
 use Keepsuit\LaravelOpenTelemetry\Support\ResourceAttributesParser;

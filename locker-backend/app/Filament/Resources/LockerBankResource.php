@@ -14,6 +14,8 @@ use App\Models\LockerBank;
 use App\Models\User;
 use App\Services\LockerProvisioningService;
 use Filament\Actions\Action;
+use Filament\Actions\BulkActionGroup;
+use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
 use Filament\Facades\Filament;
 use Filament\Forms\Components\Placeholder;
@@ -310,8 +312,8 @@ class LockerBankResource extends Resource
                 static::restartProvisioningAction(),
             ])
             ->bulkActions([
-                \Filament\Actions\BulkActionGroup::make([
-                    \Filament\Actions\DeleteBulkAction::make(),
+                BulkActionGroup::make([
+                    DeleteBulkAction::make(),
                 ]),
             ]);
     }
