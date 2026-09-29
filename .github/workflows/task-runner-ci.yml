@@ -1,0 +1,95 @@
+name: Task Runner Quality
+
+on:
+  pull_request:
+    paths:
+      - '.gitattributes'
+      - '.github/workflows/task-runner-ci.yml'
+      - 'Justfile'
+      - 'scripts/*.ps1'
+      - 'scripts/*.sh'
+  push:
+    branches:
+      - main
+      - dev
+    paths:
+      - '.gitattributes'
+      - '.github/workflows/task-runner-ci.yml'
+      - 'Justfile'
+      - 'scripts/*.ps1'
+      - 'scripts/*.sh'
+
+concurrency:
+  group: task-runner-quality-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  justfile:
+    name: Justfile (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - ubuntu-latest
+          - windows-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Install Just
+        uses: extractions/setup-just@v4
+        with:
+          just-version: '1.58.0'
+
+      - name: Validate Justfile
+        run: |
+          just --fmt --check
+          just --list
+          just --dry-run install-hooks
+          just --dry-run sim
+          just --dry-run start
+          just --dry-run status
+          just --dry-run stop
+          just --dry-run setup-mqtt
+          just --dry-run trace-overlay
+          just --dry-run trace-up
+          just --dry-run trace-down
+          just --dry-run trace-status
+
+  bash:
+    name: Bash scripts
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Run ShellCheck
+        run: >-
+          docker run --rm
+          --volume "${{ github.workspace }}:/mnt"
+          --workdir /mnt
+          koalaman/shellcheck:v0.11.0
+          scripts/setup-mqtt.sh scripts/tracing.sh
+
+  powershell:
+    name: PowerShell scripts
+    runs-on: windows-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Install PSScriptAnalyzer
+        shell: pwsh
+        run: Install-Module PSScriptAnalyzer -RequiredVersion 1.25.0 -Scope CurrentUser -Force
+
+      - name: Run PSScriptAnalyzer
+        shell: pwsh
+        run: Invoke-ScriptAnalyzer -Path scripts -Recurse -EnableExit

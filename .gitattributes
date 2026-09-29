@@ -1,0 +1,4 @@
+# Shell entry points must retain Unix-compatible line endings on every platform.
+Justfile text eol=lf
+*.sh text eol=lf
+*.ps1 text eol=lf

@@ -77,9 +77,13 @@ services:
                 condition: service_started
         healthcheck:
             test: ["CMD", "curl", "-f", "http://localhost:8080/up"]
-            interval: 5s
-            timeout: 5s
-            retries: 5
+            # Laravel cache warmup is considerably slower through Docker
+            # Desktop bind mounts. Ignore failures while the entrypoint runs,
+            # then allow enough time for a full framework request.
+            start_period: 3m
+            interval: 30s
+            timeout: 30s
+            retries: 3
 
     queue-worker:
         <<: *laravel_service_dev
