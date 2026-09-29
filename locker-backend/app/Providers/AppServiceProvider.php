@@ -12,10 +12,13 @@ use Carbon\CarbonImmutable;
 use Dedoc\Scramble\Scramble;
 use Dedoc\Scramble\Support\Generator\OpenApi;
 use Dedoc\Scramble\Support\Generator\SecurityScheme;
+use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\ServiceProvider;
 
@@ -33,17 +36,22 @@ class AppServiceProvider extends ServiceProvider
 
     /**
      * Bootstrap any application services.
+     *
+     * Lazy loading throws in local and testing, so N+1 queries surface where
+     * they are written, and is only logged elsewhere, where an exception would
+     * reach users. Password-reset requests get their own rate-limit bucket, so
+     * failed logins cannot block a valid reset link.
      */
     public function boot(): void
     {
-        // N+1 queries fail loudly where they are found (local, tests) and are
-        // only logged where an exception would reach users.
         Model::preventLazyLoading();
         if (! $this->app->environment(['local', 'testing'])) {
             Model::handleLazyLoadingViolationUsing(function (Model $model, string $relation): void {
                 Log::warning('Lazy loading violation', ['model' => $model::class, 'relation' => $relation]);
             });
         }
+
+        RateLimiter::for('password-reset', fn (Request $request): Limit => Limit::perMinute(6)->by((string) $request->ip()));
 
         // Force HTTPS in production or if explicitly enabled
         if ($this->app->environment('production') || config('app.force_https')) {

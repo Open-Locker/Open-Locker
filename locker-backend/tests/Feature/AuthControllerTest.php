@@ -340,6 +340,23 @@ class AuthControllerTest extends TestCase
         $attempt()->assertStatus(429);
     }
 
+    public function test_failed_logins_do_not_block_a_password_reset(): void
+    {
+        $this->withMiddleware(ThrottleRequests::class);
+        $user = User::factory()->create();
+
+        for ($i = 0; $i < 7; $i++) {
+            $this->postJson('/api/login', ['email' => $user->email, 'password' => 'wrong-password']);
+        }
+
+        $this->postJson('/api/reset-password', [
+            'token' => 'invalid-token',
+            'email' => $user->email,
+            'password' => 'newpassword',
+            'password_confirmation' => 'newpassword',
+        ])->assertStatus(422);
+    }
+
     public function test_password_reset_page_is_publicly_accessible()
     {
         $response = $this->get('/reset-password?token=test-token&email=user@example.com');

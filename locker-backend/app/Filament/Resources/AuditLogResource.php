@@ -32,10 +32,12 @@ class AuditLogResource extends Resource
 
     protected static ?int $navigationSort = 90;
 
+    /**
+     * The system-wide audit trail is admin-only. Managers hold system.configure
+     * for the terms screens, so the audit log has its own permission.
+     */
     public static function canAccess(): bool
     {
-        // System-wide audit trail is admin-only; managers hold system.configure
-        // for the terms screens, so it has its own permission.
         return auth()->user()?->can(Permission::AuditLogView->value) ?? false;
     }
 
