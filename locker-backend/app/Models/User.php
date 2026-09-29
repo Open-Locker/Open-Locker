@@ -2,12 +2,12 @@
 
 namespace App\Models;
 
-use App\Aggregates\UserRoleAggregate;
 use App\Enums\Permission;
 use App\Enums\Role;
 use App\Models\Concerns\HasPermissions;
 use App\Notifications\Auth\WebResetPasswordNotification;
 use App\Notifications\Auth\WebVerifyEmailNotification;
+use App\Services\UserAdministrationService;
 use Database\Factories\UserFactory;
 use Filament\Models\Contracts\FilamentUser;
 use Filament\Models\Contracts\HasName;
@@ -205,11 +205,7 @@ class User extends Authenticatable implements FilamentUser, HasName, MustVerifyE
      */
     public function makeAdmin(?int $actorUserId = null): void
     {
-        UserRoleAggregate::retrieve(UserRoleAggregate::aggregateUuidFor($this->id))
-            ->grantRole($this->id, Role::Admin->value, $actorUserId, now())
-            ->persist();
-
-        $this->flushPermissionCache();
+        app(UserAdministrationService::class)->grantAdmin($this, $actorUserId);
     }
 
     /**
@@ -217,11 +213,7 @@ class User extends Authenticatable implements FilamentUser, HasName, MustVerifyE
      */
     public function removeAdmin(?int $actorUserId = null): void
     {
-        UserRoleAggregate::retrieve(UserRoleAggregate::aggregateUuidFor($this->id))
-            ->revokeRole($this->id, Role::Admin->value, $actorUserId, now())
-            ->persist();
-
-        $this->flushPermissionCache();
+        app(UserAdministrationService::class)->revokeAdmin($this, $actorUserId);
     }
 
     /**
