@@ -395,6 +395,8 @@ class LockerBankProvisioningResetTest extends TestCase
         $this->assertNotNull($modalContent);
         $renderedModalContent = $modalContent->render();
         $this->assertStringContainsString($token, $renderedModalContent);
+        $this->assertStringContainsString('x-data="window.provisioningTokenCopy(', $renderedModalContent);
+        $this->assertStringContainsString('x-on:click="copyToken()"', $renderedModalContent);
         $this->assertStringNotContainsString(
             $token,
             json_encode($component->instance()->mountedActions, JSON_THROW_ON_ERROR),

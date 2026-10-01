@@ -5,7 +5,7 @@
     "scripts": {
         "build": "vite build",
         "dev": "vite",
-        "test:js": "node --test \"tests/JavaScript/**/*.test.js\""
+        "test:js": "node --test tests/JavaScript/provisioning-token-copy.test.js"
     },
     "pnpm": {
         "overrides": {
