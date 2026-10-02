@@ -221,7 +221,7 @@ export default function AccountScreen() {
         <AppButton
           mode="contained"
           buttonColor={theme.colors.errorContainer}
-          textColor={theme.colors.error}
+          textColor={theme.colors.onErrorContainer}
           onPress={() => void onLogout()}
           style={styles.logoutButton}
         >
