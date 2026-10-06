@@ -1,5 +1,6 @@
 import { DarkTheme, DefaultTheme, type Theme as NavigationTheme } from '@react-navigation/native';
 import { MD3DarkTheme, MD3LightTheme } from 'react-native-paper';
+import type { ColorSchemeName } from 'react-native';
 
 import {
   OPEN_LOCKER_DARK_BACKGROUND,
@@ -14,7 +15,7 @@ import {
   OPEN_LOCKER_PRIMARY,
 } from '@/src/theme/tokens';
 
-export function createPaperTheme(colorScheme: 'dark' | 'light' | null | undefined) {
+export function createPaperTheme(colorScheme: ColorSchemeName) {
   if (colorScheme === 'dark') {
     return {
       ...MD3DarkTheme,
@@ -91,7 +92,7 @@ export function createPaperTheme(colorScheme: 'dark' | 'light' | null | undefine
 }
 
 export function createNavigationTheme(
-  colorScheme: 'dark' | 'light' | null | undefined,
+  colorScheme: ColorSchemeName,
   paperTheme: ReturnType<typeof createPaperTheme>,
 ): NavigationTheme {
   if (colorScheme === 'dark') {
