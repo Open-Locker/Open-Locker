@@ -28,7 +28,7 @@
     "@opentelemetry/sdk-trace-base": "^2.11.0",
     "@opentelemetry/sdk-trace-node": "^2.11.0",
     "@opentelemetry/semantic-conventions": "^1.43.0",
-    "dotenv": "^16.5.0",
+    "dotenv": "^18.0.5",
     "js-yaml": "^4.3.2",
     "modbus-serial": "^8.0.23-no-serial-port",
     "mqtt": "^5.16.0",
