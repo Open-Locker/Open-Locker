@@ -5,7 +5,7 @@ import {
   Inter_700Bold,
 } from '@expo-google-fonts/inter';
 import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
-import { ThemeProvider } from '@react-navigation/native';
+import { ThemeProvider } from 'expo-router/react-navigation';
 import { useFonts } from 'expo-font';
 import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
