@@ -115,8 +115,8 @@ importers:
         specifier: ^26.4.2
         version: 26.4.2(typescript@5.9.3)
       laravel-echo:
-        specifier: ^2.3.7
-        version: 2.3.7(pusher-js@8.5.0)
+        specifier: ^2.5.0
+        version: 2.5.0(pusher-js@8.5.0)
       lucide-react-native:
         specifier: ^0.575.0
         version: 0.575.0(react-native-svg@15.15.4(react-native@0.86.3(@babel/core@7.29.7)(@react-native/jest-preset@0.86.3(@babel/core@7.29.7)(react@19.2.3))(@react-native/metro-config@0.86.3(@babel/core@7.29.7))(@types/react@19.2.18)(react@19.2.3))(react@19.2.3))(react-native@0.86.3(@babel/core@7.29.7)(@react-native/jest-preset@0.86.3(@babel/core@7.29.7)(react@19.2.3))(@react-native/metro-config@0.86.3(@babel/core@7.29.7))(@types/react@19.2.18)(react@19.2.3))(react@19.2.3)
@@ -3903,9 +3903,9 @@ packages:
     resolution: {integrity: sha512-ONPnazC96VKDntab9j9JKwIWhZ4ZUceB4A9Epu4Ssg0hYFmtHZSeQ+n15nIwTFmcBUKtExOer8WTJ4GF9MO64A==}
     hasBin: true
 
-  laravel-echo@2.3.7:
-    resolution: {integrity: sha512-6NoPtOk16PuaykVgcV1MV5665VPtrbyvacBD6AJ8NJdRjTwrOwKrgOYHgq4bz5E1zUbbVi2UJfMN7P7D/yceyQ==}
-    engines: {node: '>=20'}
+  laravel-echo@2.5.0:
+    resolution: {integrity: sha512-h/4iS6lyxbLRJOteLEg9yodFT0xyK1e2N7tknKFwHdPhIsLdUl6uGGXptio8ugtIUKrmlEazW3/04iU+iVJYWg==}
+    engines: {node: ^20.19.0 || >=22.12.0}
     peerDependencies:
       pusher-js: '*'
       socket.io-client: '*'
@@ -10375,7 +10375,7 @@ snapshots:
 
   lan-network@0.2.1: {}
 
-  laravel-echo@2.3.7(pusher-js@8.5.0):
+  laravel-echo@2.5.0(pusher-js@8.5.0):
     optionalDependencies:
       pusher-js: 8.5.0
 
