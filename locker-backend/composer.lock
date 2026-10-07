@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "0253d44f6eb095c4b119fce3f731761f",
+    "content-hash": "10a456dca10afd9881e882603f515502",
     "packages": [
         {
             "name": "anourvalar/eloquent-serialize",
@@ -7426,26 +7426,26 @@
         },
         {
             "name": "php-mqtt/laravel-client",
-            "version": "v1.7.0",
+            "version": "v1.8.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/php-mqtt/laravel-client.git",
-                "reference": "1aeb5bd545527e82234d74ae5cfd6ebe62a98de8"
+                "reference": "b8b304b29dd5cad79f751911841b6164b76f0216"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/php-mqtt/laravel-client/zipball/1aeb5bd545527e82234d74ae5cfd6ebe62a98de8",
-                "reference": "1aeb5bd545527e82234d74ae5cfd6ebe62a98de8",
+                "url": "https://api.github.com/repos/php-mqtt/laravel-client/zipball/b8b304b29dd5cad79f751911841b6164b76f0216",
+                "reference": "b8b304b29dd5cad79f751911841b6164b76f0216",
                 "shasum": ""
             },
             "require": {
-                "illuminate/config": "^10.0|^11.0|^12.0",
-                "illuminate/support": "^10.0|^11.0|^12.0",
+                "illuminate/config": "^10.0|^11.0|^12.0|^13.0",
+                "illuminate/support": "^10.0|^11.0|^12.0|^13.0",
                 "php": "^8.2",
                 "php-mqtt/client": "^2.1"
             },
             "require-dev": {
-                "squizlabs/php_codesniffer": "^3.5"
+                "squizlabs/php_codesniffer": "^3.5|^4.0"
             },
             "type": "library",
             "extra": {
@@ -7485,9 +7485,9 @@
             ],
             "support": {
                 "issues": "https://github.com/php-mqtt/laravel-client/issues",
-                "source": "https://github.com/php-mqtt/laravel-client/tree/v1.7.0"
+                "source": "https://github.com/php-mqtt/laravel-client/tree/v1.8.0"
             },
-            "time": "2026-01-10T08:20:56+00:00"
+            "time": "2026-03-27T19:09:32+00:00"
         },
         {
             "name": "phpdocumentor/reflection-common",
