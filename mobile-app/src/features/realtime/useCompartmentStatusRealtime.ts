@@ -127,13 +127,14 @@ export function useCompartmentStatusRealtime(): void {
     // way compartment state does, and restarting the app was the only thing that
     // refreshed it.
     const refetchFallback = () => {
-      dispatch(openLockerApi.util.invalidateTags(['Compartment', 'Auth']));
+      dispatch(openLockerApi.util.invalidateTags(['Compartment', 'Auth', 'Terms']));
     };
 
-    // The payload carries only a version; the profile is re-read rather than
-    // patched, so there is one answer to "must I accept" and it comes from the API.
+    // The payload carries only a version; both the profile status and displayed
+    // document are re-read so the app cannot accept a newer version while
+    // still showing the previous text.
     const handleTermsAcceptanceRequired = () => {
-      dispatch(openLockerApi.util.invalidateTags(['Auth']));
+      dispatch(openLockerApi.util.invalidateTags(['Auth', 'Terms']));
     };
 
     echo

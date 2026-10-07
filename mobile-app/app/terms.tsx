@@ -47,10 +47,11 @@ export default function TermsScreen() {
   const dispatch = useAppDispatch();
   const [acceptTerms, acceptTermsState] = usePostTermsAcceptMutation();
   const [logoutCurrentSession] = usePostLogoutMutation();
-  const { data: user, isLoading: isLoadingUser } = useGetUserQuery({});
+  const { data: user, isLoading: isLoadingUser, isFetching: isFetchingUser } = useGetUserQuery({});
   const {
     data: currentTerms,
     isLoading: isLoadingTerms,
+    isFetching: isFetchingTerms,
     error: termsError,
   } = useGetTermsCurrentQuery({});
   const [submitError, setSubmitError] = React.useState<string | null>(null);
@@ -75,16 +76,16 @@ export default function TermsScreen() {
   const hasNoActiveTerms = isNotFoundError(termsError);
 
   React.useEffect(() => {
-    if (!isLoadingUser && termsAlreadyAccepted) {
+    if (!isLoadingUser && !isFetchingUser && termsAlreadyAccepted) {
       navigateToTabs();
     }
-  }, [isLoadingUser, navigateToTabs, termsAlreadyAccepted]);
+  }, [isFetchingUser, isLoadingUser, navigateToTabs, termsAlreadyAccepted]);
 
   React.useEffect(() => {
-    if (!isLoadingTerms && hasNoActiveTerms) {
+    if (!isLoadingTerms && !isFetchingTerms && hasNoActiveTerms) {
       navigateToTabs();
     }
-  }, [hasNoActiveTerms, isLoadingTerms, navigateToTabs]);
+  }, [hasNoActiveTerms, isFetchingTerms, isLoadingTerms, navigateToTabs]);
 
   const onAccept = React.useCallback(async () => {
     setSubmitError(null);
@@ -113,7 +114,7 @@ export default function TermsScreen() {
     navigateToTabs();
   }, [navigateToTabs]);
 
-  if (isLoadingUser || isLoadingTerms) {
+  if (isLoadingUser || isLoadingTerms || isFetchingUser || isFetchingTerms) {
     const loadingDocumentName = currentTerms?.document_name ?? t('terms.currentDocument');
     return (
       <SafeAreaView

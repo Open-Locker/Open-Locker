@@ -2,11 +2,16 @@ import { renderHook } from '@testing-library/react-native';
 
 import { realtimeConnectionChanged, realtimeReset } from '@/src/store/realtimeSlice';
 
-import { useCompartmentStatusRealtime } from './useCompartmentStatusRealtime';
+import {
+  TERMS_ACCEPTANCE_EVENT,
+  useCompartmentStatusRealtime,
+} from './useCompartmentStatusRealtime';
 
 const mockDispatch = jest.fn();
+const mockInvalidateTags = jest.fn((tags: string[]) => ({ tags }));
 const calls: string[] = [];
 const handlers = new Map<string, (change?: { current: string }) => void>();
+const channelHandlers = new Map<string, () => void>();
 
 const mockConnection = {
   state: 'connecting',
@@ -19,7 +24,12 @@ const mockConnection = {
   },
 };
 
-const mockChannel = { listen: () => mockChannel };
+const mockChannel = {
+  listen: (event: string, handler: () => void) => {
+    channelHandlers.set(event, handler);
+    return mockChannel;
+  },
+};
 
 jest.mock('./echo', () => ({
   createEcho: () => ({
@@ -31,7 +41,12 @@ jest.mock('./echo', () => ({
 }));
 
 jest.mock('@/src/store/generatedApi', () => ({
-  openLockerApi: { util: { updateQueryData: jest.fn(), invalidateTags: jest.fn() } },
+  openLockerApi: {
+    util: {
+      updateQueryData: jest.fn(),
+      invalidateTags: (tags: string[]) => mockInvalidateTags(tags),
+    },
+  },
   useGetUserQuery: () => ({ data: { id: 7 } }),
 }));
 
@@ -40,11 +55,16 @@ jest.mock('@/src/store/hooks', () => ({
   useAppSelector: () => 'token',
 }));
 
+jest.mock('@/src/features/organizations', () => ({
+  patchAllOrganizationCompartments: jest.fn(),
+}));
+
 describe('useCompartmentStatusRealtime', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     calls.length = 0;
     handlers.clear();
+    channelHandlers.clear();
     mockConnection.state = 'connecting';
   });
 
@@ -62,6 +82,15 @@ describe('useCompartmentStatusRealtime', () => {
     handlers.get('state_change')?.({ current: 'unavailable' });
 
     expect(mockDispatch).toHaveBeenCalledWith(realtimeConnectionChanged('unavailable'));
+  });
+
+  it('refreshes both the acceptance status and terms document on a terms event', () => {
+    renderHook(() => useCompartmentStatusRealtime());
+
+    channelHandlers.get(TERMS_ACCEPTANCE_EVENT)?.();
+
+    expect(mockInvalidateTags).toHaveBeenCalledWith(['Auth', 'Terms']);
+    expect(mockDispatch).toHaveBeenCalledWith({ tags: ['Auth', 'Terms'] });
   });
 
   it('stops listening before disconnecting, then clears the paused flag', () => {
