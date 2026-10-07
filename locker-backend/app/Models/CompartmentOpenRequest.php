@@ -5,11 +5,14 @@ declare(strict_types=1);
 namespace App\Models;
 
 use App\Enums\CompartmentOpenRequestStatus;
+use App\Models\Concerns\BelongsToOrganization;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class CompartmentOpenRequest extends Model
 {
+    use BelongsToOrganization;
+
     protected $primaryKey = 'command_id';
 
     public $incrementing = false;

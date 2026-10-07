@@ -11,6 +11,7 @@ use App\Models\User;
 use App\Models\UserRole;
 use App\Notifications\CompartmentHelpRequestedNotification;
 use App\StorableEvents\CompartmentHelpRequested;
+use App\Support\EventSourcing\OrganizationStamp;
 use Filament\Notifications\Notification as FilamentNotification;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Database\Eloquent\Collection;
@@ -29,7 +30,9 @@ class CompartmentHelpRequestAlertReactor extends Reactor implements ShouldQueue
 
     public function onCompartmentHelpRequested(CompartmentHelpRequested $event): void
     {
-        $recipients = $this->recipients();
+        // Queued, so no organization is in context: the operators are the ones
+        // of the organization the request was made in, taken from the event.
+        $recipients = $this->recipients(OrganizationStamp::from($event));
         if ($recipients->isEmpty()) {
             Log::warning('Help requested but no operator holds compartment.open.', [
                 'helpRequestUuid' => $event->helpRequestUuid,
@@ -39,7 +42,11 @@ class CompartmentHelpRequestAlertReactor extends Reactor implements ShouldQueue
             return;
         }
 
-        $compartment = Compartment::with('lockerBank')->find($event->compartmentUuid);
+        // Looked up by a globally unique uuid from the event; scoped, a queued
+        // job would find nothing and the email would name no compartment.
+        $compartment = Compartment::withoutGlobalScope('organization')
+            ->with(['lockerBank' => fn ($query) => $query->withoutGlobalScope('organization')])
+            ->find($event->compartmentUuid);
         $user = User::query()->find($event->actorUserId);
 
         $compartmentNumber = (int) ($compartment->number ?? 0);
@@ -74,14 +81,16 @@ class CompartmentHelpRequestAlertReactor extends Reactor implements ShouldQueue
     }
 
     /**
-     * The same operators CompartmentOpenDeviationAlertReactor alerts.
+     * The same operators CompartmentOpenDeviationAlertReactor alerts: those of
+     * one organization, never every organization's.
      *
      * @return Collection<int, User>
      */
-    private function recipients(): Collection
+    private function recipients(?string $organizationId): Collection
     {
         $operatorIds = UserRole::query()
             ->whereIn('role', Role::valuesWithPermission(Permission::CompartmentOpen))
+            ->where('organization_id', $organizationId)
             ->pluck('user_id');
 
         return User::query()->whereIn('id', $operatorIds)->get();

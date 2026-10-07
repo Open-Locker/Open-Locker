@@ -10,11 +10,14 @@ use App\StorableEvents\CompartmentContentNoteUpdated;
 use App\StorableEvents\CompartmentDoorStateChanged;
 use App\StorableEvents\CompartmentOpened;
 use App\StorableEvents\CompartmentOpeningFailed;
+use App\Support\EventSourcing\ProjectsWithinEventOrganization;
 use Illuminate\Support\Carbon;
 use Spatie\EventSourcing\EventHandlers\Projectors\Projector;
 
 class CompartmentProjector extends Projector
 {
+    use ProjectsWithinEventOrganization;
+
     public function onCompartmentDoorStateChanged(CompartmentDoorStateChanged $event): void
     {
         $compartment = Compartment::find($event->compartmentUuid);

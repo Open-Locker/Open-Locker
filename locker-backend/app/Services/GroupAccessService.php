@@ -9,6 +9,7 @@ use App\Enums\Permission;
 use App\Models\Compartment;
 use App\Models\Group;
 use App\Models\User;
+use App\Support\Organizations\OrganizationContext;
 use Carbon\CarbonInterface;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Support\Facades\Auth;
@@ -38,6 +39,7 @@ class GroupAccessService
         // on the projection having completed yet.
         $group = new Group([
             'id' => $groupUuid,
+            'organization_id' => app(OrganizationContext::class)->currentId(),
             'name' => $name,
             'description' => $description,
             'created_by_user_id' => $actor->id,
@@ -88,6 +90,7 @@ class GroupAccessService
     ): void {
         $actor = $this->ensureCanManageAccess($actor);
         $this->ensureGroupIsActive($group);
+        $this->ensureSameOrganization($group, $compartment);
 
         GroupAggregate::retrieve((string) $group->id)
             ->grantCompartmentAccess(
@@ -104,6 +107,7 @@ class GroupAccessService
     public function revokeCompartmentAccess(Group $group, Compartment $compartment, ?User $actor = null): void
     {
         $actor = $this->ensureCanManageAccess($actor);
+        $this->ensureSameOrganization($group, $compartment);
 
         GroupAggregate::retrieve((string) $group->id)
             ->revokeCompartmentAccess(
@@ -143,6 +147,15 @@ class GroupAccessService
         if ($group->isArchived()) {
             throw new LogicException('Archived groups cannot receive new members or access grants.');
         }
+    }
+
+    private function ensureSameOrganization(Group $group, Compartment $compartment): void
+    {
+        throw_unless(
+            $group->getAttribute('organization_id') === $compartment->organization_id,
+            AuthorizationException::class,
+            'Groups can only access compartments in their organization.',
+        );
     }
 
     /**

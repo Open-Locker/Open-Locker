@@ -17,12 +17,19 @@ use Filament\Schemas\Schema;
 use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Auth;
 use Throwable;
 
 class TermsDocumentVersionResource extends Resource
 {
     protected static ?string $model = TermsDocumentVersion::class;
+
+    /**
+     * Versions belong to their document, and the document is what carries the
+     * organization.
+     */
+    protected static bool $isScopedToTenant = false;
 
     protected static \BackedEnum|string|null $navigationIcon = 'heroicon-o-document-text';
 
@@ -52,6 +59,18 @@ class TermsDocumentVersionResource extends Resource
     public static function getPluralModelLabel(): string
     {
         return __('legal document versions');
+    }
+
+    /**
+     * A version carries no organization of its own — its document does. Going
+     * through the relation applies the document's scope, so a manager cannot
+     * reach another operator's terms by id.
+     *
+     * @return Builder<Model>
+     */
+    public static function getEloquentQuery(): Builder
+    {
+        return parent::getEloquentQuery()->whereHas('document');
     }
 
     public static function form(Schema $form): Schema

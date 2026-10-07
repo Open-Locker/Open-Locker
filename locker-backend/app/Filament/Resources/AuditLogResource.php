@@ -5,16 +5,24 @@ declare(strict_types=1);
 namespace App\Filament\Resources;
 
 use App\Enums\Permission;
+use App\Enums\Role;
 use App\Filament\Resources\AuditLogResource\Pages;
 use App\Models\AuditEvent;
 use App\Models\User;
+use App\StorableEvents\PlatformAdminEnteredOrganization;
+use App\StorableEvents\UserRoleGranted;
+use App\StorableEvents\UserRoleRevoked;
 use App\Support\Audit\AuditEventPresenter;
+use App\Support\EventSourcing\OrganizationStamp;
+use App\Support\Organizations\DefaultOrganization;
+use App\Support\Organizations\OrganizationContext;
 use Filament\Forms;
 use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
 use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Model;
 
 /**
  * Admin audit log (#109): a read-only view over the event store
@@ -27,6 +35,12 @@ use Illuminate\Database\Eloquent\Builder;
 class AuditLogResource extends Resource
 {
     protected static ?string $model = AuditEvent::class;
+
+    /**
+     * A read-only view over the event store, which is shared: rows are filtered by
+     * the organization they refer to rather than owned by one.
+     */
+    protected static bool $isScopedToTenant = false;
 
     protected static \BackedEnum|string|null $navigationIcon = 'heroicon-o-clipboard-document-list';
 
@@ -109,7 +123,26 @@ class AuditLogResource extends Resource
                     ->searchable(),
                 Tables\Filters\SelectFilter::make('actor')
                     ->label(__('Actor'))
+                    // Rows are confined to this organization; the filter has
+                    // to be too. A user is a global identity that nothing
+                    // scopes, so an unfiltered dropdown names another
+                    // operator's staff.
+                    // Platform admins belong to no organization, yet their
+                    // actions here show in the log; another platform admin can
+                    // filter by them, nobody else ever sees them.
                     ->options(fn (): array => User::query()
+                        ->where(fn (Builder $actors): Builder => $actors
+                            ->inCurrentOrganization()
+                            ->when(
+                                self::viewerIsPlatformAdmin(),
+                                fn (Builder $withPlatformAdmins): Builder => $withPlatformAdmins->orWhereHas(
+                                    'userRoles',
+                                    fn (Builder $roles): Builder => $roles
+                                        ->where('role', Role::PlatformAdmin->value)
+                                        ->whereNull('organization_id'),
+                                ),
+                            ))
+                        ->hidingPlatformAdminsFrom(auth()->user() instanceof User ? auth()->user() : null)
                         ->orderBy('first_name')
                         ->get()
                         ->mapWithKeys(fn (User $user): array => [$user->id => $user->fullName()])
@@ -168,8 +201,73 @@ class AuditLogResource extends Resource
     {
         // Scope to the curated, admin-meaningful events; the
         // whitelist lives in the presenter as the single source of truth.
-        return parent::getEloquentQuery()
+        $query = parent::getEloquentQuery()
             ->whereIn('event_class', app(AuditEventPresenter::class)->auditableEventClasses());
+
+        return self::hidePlatformAdministration(self::confineToCurrentOrganization($query));
+    }
+
+    private static function viewerIsPlatformAdmin(): bool
+    {
+        $user = auth()->user();
+
+        return $user instanceof User && $user->isPlatformAdmin();
+    }
+
+    /**
+     * Platform administrators belong to no organization, so what concerns them
+     * is shown only to them: granting or revoking the role, and their entering
+     * an organization (ADR-0065, decision 13).
+     *
+     * @param  Builder<Model>  $query
+     * @return Builder<Model>
+     */
+    private static function hidePlatformAdministration(Builder $query): Builder
+    {
+        $user = auth()->user();
+
+        if ($user instanceof User && $user->isPlatformAdmin()) {
+            return $query;
+        }
+
+        return $query
+            ->where('event_class', '!=', PlatformAdminEnteredOrganization::class)
+            ->whereNot(fn (Builder $roleChange): Builder => $roleChange
+                ->whereIn('event_class', [UserRoleGranted::class, UserRoleRevoked::class])
+                ->where('event_properties->role', Role::PlatformAdmin->value));
+    }
+
+    /**
+     * The event store is shared, so this resource cannot be tenant-scoped the
+     * way an owned table is — the rows are filtered by the organization each
+     * event records, which is stamped into its metadata when it happens.
+     *
+     * Events predating organizations carry no stamp and belong to the default
+     * organization, so they are included there and nowhere else.
+     *
+     * A platform admin sees the organization they have entered, like everyone
+     * else: entering is what makes the data visible, and entering is recorded.
+     *
+     * @param  Builder<Model>  $query
+     * @return Builder<Model>
+     */
+    private static function confineToCurrentOrganization(Builder $query): Builder
+    {
+        $organizationId = app(OrganizationContext::class)->currentId();
+
+        if ($organizationId === null) {
+            // Fail closed, as everywhere else: no organization in context shows
+            // no history rather than all of it.
+            return $query->whereRaw('1 = 0');
+        }
+
+        return $query->where(function (Builder $scoped) use ($organizationId): void {
+            $scoped->where('meta_data->'.OrganizationStamp::KEY, $organizationId);
+
+            if ($organizationId === DefaultOrganization::id()) {
+                $scoped->orWhereNull('meta_data->'.OrganizationStamp::KEY);
+            }
+        });
     }
 
     public static function canCreate(): bool

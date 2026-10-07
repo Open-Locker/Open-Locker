@@ -21,6 +21,8 @@ import { hydrateApiBaseUrl } from '@/src/api/baseUrl';
 import { hydrateAppLanguage } from '@/src/i18n';
 import { RealtimeBridge } from '@/src/features/realtime';
 import { loadPersistedAuth } from '@/src/store/authStorage';
+import { loadPersistedOrganization } from '@/src/store/organizationStorage';
+import { restoreActiveOrganization } from '@/src/store/organizationSlice';
 import { restoreAuth } from '@/src/store/authSlice';
 import { useAppDispatch, useAppSelector } from '@/src/store/hooks';
 import { store } from '@/src/store/store';
@@ -64,9 +66,15 @@ function RootLayoutBootstrap() {
     (async () => {
       await hydrateAppLanguage();
       await hydrateApiBaseUrl();
-      const auth = await loadPersistedAuth();
+      const [auth, activeOrganizationId] = await Promise.all([
+        loadPersistedAuth(),
+        loadPersistedOrganization(),
+      ]);
       if (!cancelled) {
         dispatch(restoreAuth(auth));
+        // Restored alongside the token: a choice already made should not be
+        // asked again on every launch.
+        dispatch(restoreActiveOrganization(activeOrganizationId));
       }
     })();
     return () => {

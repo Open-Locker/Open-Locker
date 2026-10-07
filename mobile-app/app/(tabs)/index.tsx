@@ -7,7 +7,6 @@ import {
   BottomSheetView,
 } from '@gorhom/bottom-sheet';
 import { CircleHelp, Lock, LockOpen, WifiOff } from 'lucide-react-native';
-import type { FetchBaseQueryError } from '@reduxjs/toolkit/query';
 import { skipToken } from '@reduxjs/toolkit/query';
 import { router } from 'expo-router';
 import { useTranslation } from 'react-i18next';
@@ -16,13 +15,17 @@ import { ActivityIndicator, Button, Chip, HelperText, Text, useTheme } from 'rea
 
 import {
   type GetCompartmentsAccessibleApiResponse,
-  useGetCompartmentsAccessibleQuery,
   useGetUserQuery,
   usePostCompartmentsByCompartmentOpenMutation,
   usePutCompartmentsByCompartmentContentNoteMutation,
 } from '@/src/store/generatedApi';
 import { useAppSelector } from '@/src/store/hooks';
 import { useUserName } from '@/src/auth/useUserName';
+import {
+  OrganizationSwitcher,
+  useAllOrganizationCompartments,
+  useGetOrganizationCompartmentsQuery,
+} from '@/src/features/organizations';
 import {
   GET_HELP_AFTER_PROBLEMS,
   isOpenFinished,
@@ -133,12 +136,19 @@ export default function CompartmentsScreen() {
   const [requestOpen, requestOpenState] = usePostCompartmentsByCompartmentOpenMutation();
   const [updateContentNote, updateContentNoteState] =
     usePutCompartmentsByCompartmentContentNoteMutation();
+  const activeOrganizationId = useAppSelector((state) => state.organization.activeOrganizationId);
+  useAllOrganizationCompartments(!!token);
+  // `currentData`, not `data`: after a switch to an organization whose lockers
+  // are not loaded yet, `data` would still show the previous organization's.
   const {
-    data,
+    currentData: data,
     error,
-    isLoading,
+    isFetching,
     refetch: refetchCompartments,
-  } = useGetCompartmentsAccessibleQuery(token ? {} : skipToken);
+  } = useGetOrganizationCompartmentsQuery(
+    token ? { organizationId: activeOrganizationId } : skipToken,
+  );
+  const isLoading = data === undefined && isFetching;
   const [selectedCompartment, setSelectedCompartment] = React.useState<CompartmentEntry | null>(
     null,
   );
@@ -393,6 +403,59 @@ export default function CompartmentsScreen() {
           />
         }
         contentContainerStyle={[styles.gridContent, { paddingBottom: insets.bottom + 24 }]}
+        ListHeaderComponent={
+          <View style={[styles.bankFilterRow, { backgroundColor: theme.colors.background }]}>
+            <OrganizationSwitcher />
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.filterRail}
+            >
+              {lockerBanks.map((section) => {
+                const lockerStatus = section.status;
+                const isSelected = effectiveLockerBankId === section.id;
+                const lockerStatusPalette = getLockerStatusPalette(theme, lockerStatus, isSelected);
+
+                return (
+                  <Chip
+                    key={section.id}
+                    selected={isSelected}
+                    onPress={() => setSelectedLockerBankId(section.id)}
+                    style={[
+                      styles.bankChip,
+                      {
+                        backgroundColor: lockerStatusPalette.backgroundColor,
+                        borderColor: lockerStatusPalette.borderColor,
+                      },
+                    ]}
+                    selectedColor={theme.colors.onPrimaryContainer}
+                    textStyle={[
+                      styles.bankChipText,
+                      {
+                        color: lockerStatusPalette.color,
+                      },
+                    ]}
+                    compact
+                    showSelectedCheck={false}
+                    icon={
+                      lockerStatus === 'offline'
+                        ? ({ size }) => (
+                            <WifiOff
+                              size={size}
+                              color={lockerStatusPalette.color}
+                              strokeWidth={2.2}
+                            />
+                          )
+                        : undefined
+                    }
+                  >
+                    {section.title}
+                  </Chip>
+                );
+              })}
+            </ScrollView>
+          </View>
+        }
         renderItem={({ item }) => {
           const compartmentStatus = getCompartmentStatusFromApi(item.compartment);
 
@@ -564,7 +627,10 @@ export default function CompartmentsScreen() {
               onPress={() => {
                 const compartmentId = selectedCompartment.id;
                 closeCompartmentSheet();
-                router.push({ pathname: '/compartment-help', params: { compartmentId } });
+                router.push({
+                  pathname: '/compartment-help',
+                  params: { compartmentId },
+                } as never);
               }}
             >
               {t('compartments.getHelp')}

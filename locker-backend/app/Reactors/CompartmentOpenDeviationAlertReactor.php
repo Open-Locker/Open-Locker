@@ -14,6 +14,7 @@ use App\Notifications\Security\CompartmentOpenDeviationNotification;
 use App\StorableEvents\CompartmentDoorAlreadyOpen;
 use App\StorableEvents\CompartmentOpenNotDetected;
 use App\StorableEvents\CompartmentUncommandedOpenDetected;
+use App\Support\EventSourcing\OrganizationStamp;
 use Filament\Notifications\Notification as FilamentNotification;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Database\Eloquent\Collection;
@@ -42,6 +43,7 @@ class CompartmentOpenDeviationAlertReactor extends Reactor implements ShouldQueu
             CompartmentOpenDeviation::DoorJammed,
             $event->lockerBankUuid,
             $event->compartmentNumber,
+            OrganizationStamp::from($event),
         );
     }
 
@@ -51,6 +53,7 @@ class CompartmentOpenDeviationAlertReactor extends Reactor implements ShouldQueu
             CompartmentOpenDeviation::AlreadyOpen,
             $event->lockerBankUuid,
             $event->compartmentNumber,
+            OrganizationStamp::from($event),
         );
     }
 
@@ -60,6 +63,7 @@ class CompartmentOpenDeviationAlertReactor extends Reactor implements ShouldQueu
             CompartmentOpenDeviation::UncommandedOpen,
             $event->lockerBankUuid,
             $event->compartmentNumber,
+            OrganizationStamp::from($event),
             $event->millisecondsSinceLastRelayFire,
         );
     }
@@ -68,9 +72,12 @@ class CompartmentOpenDeviationAlertReactor extends Reactor implements ShouldQueu
         CompartmentOpenDeviation $deviation,
         string $lockerBankUuid,
         int $compartmentNumber,
+        // Queued work has no request to read from, so each handler passes the
+        // organization taken from the event that caused the alert.
+        ?string $organizationId,
         ?int $millisecondsSinceLastRelayFire = null,
     ): void {
-        $recipients = $this->recipients();
+        $recipients = $this->recipients($organizationId);
 
         if ($recipients->isEmpty()) {
             Log::warning('Compartment deviation detected but no operator holds compartment.open.', [
@@ -106,10 +113,18 @@ class CompartmentOpenDeviationAlertReactor extends Reactor implements ShouldQueu
      *
      * @return Collection<int, User>
      */
-    private function recipients(): Collection
+    /**
+     * The operators of the organization the deviation happened in — a manager
+     * for one operator is not on call for another's hardware, and telling them
+     * would leak that the other's locker even exists.
+     *
+     * @return Collection<int, User>
+     */
+    private function recipients(?string $organizationId): Collection
     {
         $operatorIds = UserRole::query()
             ->whereIn('role', Role::valuesWithPermission(Permission::CompartmentOpen))
+            ->where('organization_id', $organizationId)
             ->pluck('user_id');
 
         return User::query()->whereIn('id', $operatorIds)->get();
@@ -117,6 +132,6 @@ class CompartmentOpenDeviationAlertReactor extends Reactor implements ShouldQueu
 
     private function lockerBankName(string $lockerBankUuid): string
     {
-        return LockerBank::query()->find($lockerBankUuid)->name ?? $lockerBankUuid;
+        return LockerBank::withoutGlobalScope('organization')->find($lockerBankUuid)->name ?? $lockerBankUuid;
     }
 }

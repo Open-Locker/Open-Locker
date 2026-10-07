@@ -12,11 +12,14 @@ use App\StorableEvents\LockerConnectionRestored;
 use App\StorableEvents\LockerProvisioningReset;
 use App\StorableEvents\LockerProvisioningTokenIssued;
 use App\StorableEvents\LockerWasProvisioned;
+use App\Support\EventSourcing\ProjectsWithinEventOrganization;
 use Illuminate\Support\Carbon;
 use Spatie\EventSourcing\EventHandlers\Projectors\Projector;
 
 class LockerBankProjector extends Projector
 {
+    use ProjectsWithinEventOrganization;
+
     public function onCompartmentStateChangesApplied(CompartmentStateChangesApplied $event): void
     {
         $this->applyLastCompartmentStateChangeAt($event->lockerBankUuid, $event->changesObservedAtIso8601);

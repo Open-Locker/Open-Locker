@@ -7,11 +7,10 @@ namespace App\Filament\Resources\UserResource\Pages;
 use App\Filament\Resources\UserResource;
 use App\Models\User;
 use App\Services\AuthService;
+use App\Services\UserAdministrationService;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\CreateRecord;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Str;
 
 class CreateUser extends CreateRecord
 {
@@ -19,14 +18,27 @@ class CreateUser extends CreateRecord
 
     protected function handleRecordCreation(array $data): Model
     {
-        $tempPassword = Str::random(32);
-        $data['password'] = Hash::make($tempPassword);
+        $actor = auth()->user();
+        abort_unless($actor instanceof User, 403);
 
-        /** @var User $user */
-        $user = static::getModel()::create($data);
+        $user = app(UserAdministrationService::class)->addUser(
+            $actor,
+            (string) $data['first_name'],
+            (string) $data['last_name'],
+            (string) $data['email'],
+        );
 
-        $passwordResetService = app(AuthService::class);
-        $status = $passwordResetService->sendResetLink($user->email);
+        if (! $user->wasRecentlyCreated) {
+            Notification::make()
+                ->title(__('User added'))
+                ->body(__('This person already had an account, so it was added to this organization. They were notified by email.'))
+                ->success()
+                ->send();
+
+            return $user;
+        }
+
+        app(AuthService::class)->sendResetLink($user->email);
 
         Notification::make()
             ->title(__('User created'))
@@ -35,5 +47,14 @@ class CreateUser extends CreateRecord
             ->send();
 
         return $user;
+    }
+
+    /**
+     * The messages above say whether an account was created or joined;
+     * Filament's generic "Created" would contradict the second.
+     */
+    protected function getCreatedNotification(): ?Notification
+    {
+        return null;
     }
 }

@@ -26,7 +26,9 @@ class AuthorizationServiceProvider extends ServiceProvider
     public function boot(): void
     {
         Gate::before(function (User $user, string $ability): ?bool {
-            if ($user->hasRole(Role::Admin->value)) {
+            // platform_admin is not a member of the organization it is acting
+            // in, so it is checked separately from the organization-scoped roles.
+            if ($user->isPlatformAdmin() || $user->hasRole(Role::Admin->value)) {
                 return true;
             }
 

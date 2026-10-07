@@ -47,6 +47,13 @@ class TermsAcceptanceRequired implements ShouldBroadcastNow
     }
 
     /**
+     * A signal, not a copy of the terms: the app re-reads its own profile.
+     *
+     * Deliberately carries no organization. The channel is keyed by user, so
+     * someone in two of them receives both — but the re-read goes out with
+     * their active organization, so the answer that comes back is already the
+     * right one and there is nothing here to filter on.
+     *
      * @return array<string, int>
      */
     public function broadcastWith(): array

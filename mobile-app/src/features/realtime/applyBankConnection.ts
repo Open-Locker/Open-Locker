@@ -3,7 +3,7 @@ import type { GetCompartmentsAccessibleApiResponse } from '@/src/store/generated
 import type { LockerBankConnectionUpdatedPayload } from './echo';
 
 /**
- * Patches a bank's connection status into the `getCompartmentsAccessible` cache
+ * Patches a bank's connection status into the cached locker list (one per organization, `getOrganizationCompartments`)
  * draft. No-op if the bank is not in the current cache (e.g. none of its
  * compartments are accessible to this user).
  */

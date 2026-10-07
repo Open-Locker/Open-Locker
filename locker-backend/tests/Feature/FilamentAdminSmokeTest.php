@@ -96,7 +96,13 @@ class FilamentAdminSmokeTest extends TestCase
 
         $response = $this->actingAs($user)->get(route('filament.admin.auth.login'));
 
-        $response->assertRedirect(route('filament.admin.home'));
+        // Compared by path: the login route carries no tenant, so Filament
+        // leaves an empty tenant default behind that only pollutes the expected
+        // URL built afterwards. Where the redirect goes is what matters.
+        $this->assertSame(
+            '/admin/default',
+            parse_url((string) $response->headers->get('Location'), PHP_URL_PATH),
+        );
     }
 
     public function test_non_admin_cannot_access_filament_panel(): void

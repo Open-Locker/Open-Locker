@@ -7,11 +7,14 @@ namespace App\Projectors;
 use App\Models\CompartmentAccess;
 use App\StorableEvents\CompartmentAccessGranted;
 use App\StorableEvents\CompartmentAccessRevoked;
+use App\Support\EventSourcing\ProjectsWithinEventOrganization;
 use Illuminate\Support\Carbon;
 use Spatie\EventSourcing\EventHandlers\Projectors\Projector;
 
 class CompartmentAccessProjector extends Projector
 {
+    use ProjectsWithinEventOrganization;
+
     public function onCompartmentAccessGranted(CompartmentAccessGranted $event): void
     {
         $grantedAt = Carbon::parse($event->grantedAt);

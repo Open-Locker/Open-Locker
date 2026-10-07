@@ -8,6 +8,7 @@ use App\Aggregates\LockerBankAggregate;
 use App\Enums\Permission;
 use App\Models\LockerBank;
 use App\Models\User;
+use App\Support\Organizations\OrganizationContext;
 use Carbon\CarbonImmutable;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Encryption\Encrypter;
@@ -78,7 +79,12 @@ class LockerProvisioningService
         $tokenHmac = $this->hashToken($token);
 
         return DB::transaction(function () use ($tokenHmac, $replyToTopic): bool {
-            $lockerBank = LockerBank::query()
+            // Unscoped deliberately. The device sends only its token, as it
+            // always has; registration names no bank, so nothing has
+            // established an organization yet — and this lookup is the step
+            // that establishes it. Scoped, it matches nothing and every device
+            // is told its token is invalid.
+            $lockerBank = LockerBank::withoutGlobalScope('organization')
                 ->where('provisioning_token_hmac', $tokenHmac)
                 ->lockForUpdate()
                 ->first();
@@ -87,15 +93,24 @@ class LockerProvisioningService
                 return false;
             }
 
-            LockerBankAggregate::retrieve((string) $lockerBank->id)
-                ->provision(
-                    $lockerBank,
-                    $replyToTopic,
-                    (string) $lockerBank->provisioning_generation,
-                )
-                ->persist();
+            // Ownership is derived from the bank, on this side only: once it is
+            // known, the provisioning is recorded inside that operator so the
+            // events land in their history rather than the default
+            // organization's.
+            return app(OrganizationContext::class)->runWithin(
+                $lockerBank->organization,
+                function () use ($lockerBank, $replyToTopic): bool {
+                    LockerBankAggregate::retrieve((string) $lockerBank->id)
+                        ->provision(
+                            $lockerBank,
+                            $replyToTopic,
+                            (string) $lockerBank->provisioning_generation,
+                        )
+                        ->persist();
 
-            return true;
+                    return true;
+                },
+            );
         });
     }
 

@@ -4,6 +4,7 @@ export const addTagTypes = [
   "Auth",
   "Compartment",
   "MosquittoAuth",
+  "Organization",
   "Terms",
 ] as const;
 const injectedRtkApi = api
@@ -65,6 +66,7 @@ const injectedRtkApi = api
           url: `/logout`,
           method: "POST",
           headers: {
+            "X-Organization": queryArg["X-Organization"],
             "Accept-Language": queryArg["Accept-Language"],
           },
         }),
@@ -74,6 +76,7 @@ const injectedRtkApi = api
         query: (queryArg) => ({
           url: `/user`,
           headers: {
+            "X-Organization": queryArg["X-Organization"],
             "Accept-Language": queryArg["Accept-Language"],
           },
         }),
@@ -85,6 +88,7 @@ const injectedRtkApi = api
           method: "PUT",
           body: queryArg.updateProfileRequest,
           headers: {
+            "X-Organization": queryArg["X-Organization"],
             "Accept-Language": queryArg["Accept-Language"],
           },
         }),
@@ -96,6 +100,7 @@ const injectedRtkApi = api
           method: "PUT",
           body: queryArg.changePasswordRequest,
           headers: {
+            "X-Organization": queryArg["X-Organization"],
             "Accept-Language": queryArg["Accept-Language"],
           },
         }),
@@ -108,6 +113,7 @@ const injectedRtkApi = api
         query: (queryArg) => ({
           url: `/verify-email/${queryArg.id}/${queryArg.hash}`,
           headers: {
+            "X-Organization": queryArg["X-Organization"],
             "Accept-Language": queryArg["Accept-Language"],
           },
         }),
@@ -121,6 +127,7 @@ const injectedRtkApi = api
           url: `/email/verification-notification`,
           method: "POST",
           headers: {
+            "X-Organization": queryArg["X-Organization"],
             "Accept-Language": queryArg["Accept-Language"],
           },
         }),
@@ -133,6 +140,7 @@ const injectedRtkApi = api
         query: (queryArg) => ({
           url: `/compartments`,
           headers: {
+            "X-Organization": queryArg["X-Organization"],
             "Accept-Language": queryArg["Accept-Language"],
           },
         }),
@@ -145,6 +153,7 @@ const injectedRtkApi = api
         query: (queryArg) => ({
           url: `/compartments/accessible`,
           headers: {
+            "X-Organization": queryArg["X-Organization"],
             "Accept-Language": queryArg["Accept-Language"],
           },
         }),
@@ -158,6 +167,7 @@ const injectedRtkApi = api
           url: `/compartments/${queryArg.compartment}/open`,
           method: "POST",
           headers: {
+            "X-Organization": queryArg["X-Organization"],
             "Accept-Language": queryArg["Accept-Language"],
           },
         }),
@@ -172,6 +182,7 @@ const injectedRtkApi = api
           method: "PUT",
           body: queryArg.updateCompartmentContentNoteRequest,
           headers: {
+            "X-Organization": queryArg["X-Organization"],
             "Accept-Language": queryArg["Accept-Language"],
           },
         }),
@@ -186,6 +197,7 @@ const injectedRtkApi = api
           method: "POST",
           body: queryArg.requestCompartmentHelpRequest,
           headers: {
+            "X-Organization": queryArg["X-Organization"],
             "Accept-Language": queryArg["Accept-Language"],
           },
         }),
@@ -198,6 +210,7 @@ const injectedRtkApi = api
         query: (queryArg) => ({
           url: `/compartments/open-requests/${queryArg.commandId}`,
           headers: {
+            "X-Organization": queryArg["X-Organization"],
             "Accept-Language": queryArg["Accept-Language"],
           },
         }),
@@ -227,6 +240,18 @@ const injectedRtkApi = api
         }),
         invalidatesTags: ["MosquittoAuth"],
       }),
+      getOrganizations: build.query<
+        GetOrganizationsApiResponse,
+        GetOrganizationsApiArg
+      >({
+        query: (queryArg) => ({
+          url: `/organizations`,
+          headers: {
+            "Accept-Language": queryArg["Accept-Language"],
+          },
+        }),
+        providesTags: ["Organization"],
+      }),
       getTermsCurrent: build.query<
         GetTermsCurrentApiResponse,
         GetTermsCurrentApiArg
@@ -234,6 +259,7 @@ const injectedRtkApi = api
         query: (queryArg) => ({
           url: `/terms/current`,
           headers: {
+            "X-Organization": queryArg["X-Organization"],
             "Accept-Language": queryArg["Accept-Language"],
           },
         }),
@@ -247,6 +273,7 @@ const injectedRtkApi = api
           url: `/terms/accept`,
           method: "POST",
           headers: {
+            "X-Organization": queryArg["X-Organization"],
             "Accept-Language": queryArg["Accept-Language"],
           },
         }),
@@ -296,16 +323,22 @@ export type PostLogoutApiResponse = /** status 200  */ {
   message: "Erfolgreich abgemeldet";
 };
 export type PostLogoutApiArg = {
+  /** Organization to act in. Must identify one of the authenticated user's organizations; platform administrators may select any organization. When omitted, the API selects the user's first organization by name. */
+  "X-Organization"?: string;
   /** Preferred language for server-rendered strings (API messages, web pages, and request-triggered emails). Falls back to the application default when omitted or unsupported. */
   "Accept-Language"?: "en" | "de";
 };
 export type GetUserApiResponse = /** status 200 `User` */ User;
 export type GetUserApiArg = {
+  /** Organization to act in. Must identify one of the authenticated user's organizations; platform administrators may select any organization. When omitted, the API selects the user's first organization by name. */
+  "X-Organization"?: string;
   /** Preferred language for server-rendered strings (API messages, web pages, and request-triggered emails). Falls back to the application default when omitted or unsupported. */
   "Accept-Language"?: "en" | "de";
 };
 export type PutProfileApiResponse = /** status 200 `User` */ User;
 export type PutProfileApiArg = {
+  /** Organization to act in. Must identify one of the authenticated user's organizations; platform administrators may select any organization. When omitted, the API selects the user's first organization by name. */
+  "X-Organization"?: string;
   /** Preferred language for server-rendered strings (API messages, web pages, and request-triggered emails). Falls back to the application default when omitted or unsupported. */
   "Accept-Language"?: "en" | "de";
   updateProfileRequest: UpdateProfileRequest;
@@ -314,6 +347,8 @@ export type PutPasswordApiResponse = /** status 200  */ {
   message: "Passwort erfolgreich aktualisiert";
 };
 export type PutPasswordApiArg = {
+  /** Organization to act in. Must identify one of the authenticated user's organizations; platform administrators may select any organization. When omitted, the API selects the user's first organization by name. */
+  "X-Organization"?: string;
   /** Preferred language for server-rendered strings (API messages, web pages, and request-triggered emails). Falls back to the application default when omitted or unsupported. */
   "Accept-Language"?: "en" | "de";
   changePasswordRequest: ChangePasswordRequest;
@@ -326,6 +361,8 @@ export type GetVerifyEmailByIdAndHashApiResponse = /** status 200 `ApiError` */
 export type GetVerifyEmailByIdAndHashApiArg = {
   id: string;
   hash: string;
+  /** Organization to act in. Must identify one of the authenticated user's organizations; platform administrators may select any organization. When omitted, the API selects the user's first organization by name. */
+  "X-Organization"?: string;
   /** Preferred language for server-rendered strings (API messages, web pages, and request-triggered emails). Falls back to the application default when omitted or unsupported. */
   "Accept-Language"?: "en" | "de";
 };
@@ -336,18 +373,24 @@ export type PostEmailVerificationNotificationApiResponse =
       }
     | ApiError;
 export type PostEmailVerificationNotificationApiArg = {
+  /** Organization to act in. Must identify one of the authenticated user's organizations; platform administrators may select any organization. When omitted, the API selects the user's first organization by name. */
+  "X-Organization"?: string;
   /** Preferred language for server-rendered strings (API messages, web pages, and request-triggered emails). Falls back to the application default when omitted or unsupported. */
   "Accept-Language"?: "en" | "de";
 };
 export type GetCompartmentsApiResponse =
   /** status 200 `AccessibleCompartments` */ AccessibleCompartments;
 export type GetCompartmentsApiArg = {
+  /** Organization to act in. Must identify one of the authenticated user's organizations; platform administrators may select any organization. When omitted, the API selects the user's first organization by name. */
+  "X-Organization"?: string;
   /** Preferred language for server-rendered strings (API messages, web pages, and request-triggered emails). Falls back to the application default when omitted or unsupported. */
   "Accept-Language"?: "en" | "de";
 };
 export type GetCompartmentsAccessibleApiResponse =
   /** status 200 `AccessibleCompartments` */ AccessibleCompartments;
 export type GetCompartmentsAccessibleApiArg = {
+  /** Organization to act in. Must identify one of the authenticated user's organizations; platform administrators may select any organization. When omitted, the API selects the user's first organization by name. */
+  "X-Organization"?: string;
   /** Preferred language for server-rendered strings (API messages, web pages, and request-triggered emails). Falls back to the application default when omitted or unsupported. */
   "Accept-Language"?: "en" | "de";
 };
@@ -356,6 +399,8 @@ export type PostCompartmentsByCompartmentOpenApiResponse =
 export type PostCompartmentsByCompartmentOpenApiArg = {
   /** The compartment ID */
   compartment: string;
+  /** Organization to act in. Must identify one of the authenticated user's organizations; platform administrators may select any organization. When omitted, the API selects the user's first organization by name. */
+  "X-Organization"?: string;
   /** Preferred language for server-rendered strings (API messages, web pages, and request-triggered emails). Falls back to the application default when omitted or unsupported. */
   "Accept-Language"?: "en" | "de";
 };
@@ -364,6 +409,8 @@ export type PutCompartmentsByCompartmentContentNoteApiResponse =
 export type PutCompartmentsByCompartmentContentNoteApiArg = {
   /** The compartment ID */
   compartment: string;
+  /** Organization to act in. Must identify one of the authenticated user's organizations; platform administrators may select any organization. When omitted, the API selects the user's first organization by name. */
+  "X-Organization"?: string;
   /** Preferred language for server-rendered strings (API messages, web pages, and request-triggered emails). Falls back to the application default when omitted or unsupported. */
   "Accept-Language"?: "en" | "de";
   updateCompartmentContentNoteRequest: UpdateCompartmentContentNoteRequest;
@@ -373,6 +420,8 @@ export type PostCompartmentsByCompartmentHelpRequestsApiResponse =
 export type PostCompartmentsByCompartmentHelpRequestsApiArg = {
   /** The compartment ID */
   compartment: string;
+  /** Organization to act in. Must identify one of the authenticated user's organizations; platform administrators may select any organization. When omitted, the API selects the user's first organization by name. */
+  "X-Organization"?: string;
   /** Preferred language for server-rendered strings (API messages, web pages, and request-triggered emails). Falls back to the application default when omitted or unsupported. */
   "Accept-Language"?: "en" | "de";
   requestCompartmentHelpRequest: RequestCompartmentHelpRequest;
@@ -381,6 +430,8 @@ export type GetCompartmentsOpenRequestsByCommandIdApiResponse =
   /** status 200 `CompartmentOpenStatus` */ CompartmentOpenStatus;
 export type GetCompartmentsOpenRequestsByCommandIdApiArg = {
   commandId: string;
+  /** Organization to act in. Must identify one of the authenticated user's organizations; platform administrators may select any organization. When omitted, the API selects the user's first organization by name. */
+  "X-Organization"?: string;
   /** Preferred language for server-rendered strings (API messages, web pages, and request-triggered emails). Falls back to the application default when omitted or unsupported. */
   "Accept-Language"?: "en" | "de";
 };
@@ -399,9 +450,20 @@ export type PostMosqAclApiArg = {
   "Accept-Language"?: "en" | "de";
   aclRequest: AclRequest;
 };
+export type GetOrganizationsApiResponse = /** status 200  */ {
+  id: string;
+  name: string;
+  slug: string;
+}[];
+export type GetOrganizationsApiArg = {
+  /** Preferred language for server-rendered strings (API messages, web pages, and request-triggered emails). Falls back to the application default when omitted or unsupported. */
+  "Accept-Language"?: "en" | "de";
+};
 export type GetTermsCurrentApiResponse =
   /** status 200 `CurrentTerms` */ CurrentTerms;
 export type GetTermsCurrentApiArg = {
+  /** Organization to act in. Must identify one of the authenticated user's organizations; platform administrators may select any organization. When omitted, the API selects the user's first organization by name. */
+  "X-Organization"?: string;
   /** Preferred language for server-rendered strings (API messages, web pages, and request-triggered emails). Falls back to the application default when omitted or unsupported. */
   "Accept-Language"?: "en" | "de";
 };
@@ -411,6 +473,8 @@ export type PostTermsAcceptApiResponse = /** status 200  */ {
   accepted_at: string;
 };
 export type PostTermsAcceptApiArg = {
+  /** Organization to act in. Must identify one of the authenticated user's organizations; platform administrators may select any organization. When omitted, the API selects the user's first organization by name. */
+  "X-Organization"?: string;
   /** Preferred language for server-rendered strings (API messages, web pages, and request-triggered emails). Falls back to the application default when omitted or unsupported. */
   "Accept-Language"?: "en" | "de";
 };
@@ -560,6 +624,7 @@ export const {
   useGetCompartmentsOpenRequestsByCommandIdQuery,
   usePostMosqAuthMutation,
   usePostMosqAclMutation,
+  useGetOrganizationsQuery,
   useGetTermsCurrentQuery,
   usePostTermsAcceptMutation,
 } = injectedRtkApi;

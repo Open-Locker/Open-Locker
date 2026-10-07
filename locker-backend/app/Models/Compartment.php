@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Models;
 
 use App\Enums\CompartmentDoorState;
+use App\Models\Concerns\BelongsToOrganization;
 use Database\Factories\CompartmentFactory;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
@@ -31,6 +32,8 @@ use Illuminate\Validation\ValidationException;
  */
 class Compartment extends Model
 {
+    use BelongsToOrganization;
+
     /** @use HasFactory<CompartmentFactory> */
     use HasFactory, HasUuids;
 

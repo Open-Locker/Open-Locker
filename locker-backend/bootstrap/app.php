@@ -4,12 +4,14 @@ declare(strict_types=1);
 
 use App\Http\Middleware\EnsureVerifiedEmailApi;
 use App\Http\Middleware\RequireAcceptedTerms;
+use App\Http\Middleware\ResolveOrganization;
 use App\Http\Middleware\SetLocale;
 use Illuminate\Auth\AuthenticationException;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\Request;
+use Illuminate\Routing\Middleware\SubstituteBindings;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -37,7 +39,19 @@ return Application::configure(basePath: dirname(__DIR__))
 
             return route('filament.admin.auth.login');
         });
+        // Route model binding happens in the `api` group, which runs before
+        // route middleware — so a compartment was resolved from the URL before
+        // anything had established which organization the request acts in, and
+        // the fail-closed scope matched nothing. Inserted into the framework's
+        // own list rather than replacing it, so entries like
+        // ThrottleRequestsWithRedis keep their ordering.
+        $middleware->prependToPriorityList(
+            SubstituteBindings::class,
+            ResolveOrganization::class,
+        );
+
         $middleware->alias([
+            'organization' => ResolveOrganization::class,
             'verified.api' => EnsureVerifiedEmailApi::class,
             'terms.accepted' => RequireAcceptedTerms::class,
         ]);

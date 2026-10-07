@@ -4,8 +4,13 @@ declare(strict_types=1);
 
 namespace Tests;
 
+use App\Models\Organization;
+use App\Support\Organizations\DefaultOrganization;
+use App\Support\Organizations\OrganizationContext;
+use Filament\Facades\Filament;
 use Illuminate\Foundation\Testing\TestCase as BaseTestCase;
 use Illuminate\Routing\Middleware\ThrottleRequests;
+use Illuminate\Support\Facades\URL;
 
 abstract class TestCase extends BaseTestCase
 {
@@ -42,5 +47,39 @@ abstract class TestCase extends BaseTestCase
 
         // Führen Sie die Migrationen aus
         $this->artisan('migrate');
+
+        $this->actWithinDefaultOrganization();
+    }
+
+    /**
+     * Put the default organization in context, the way a single-organization
+     * installation always is.
+     *
+     * Organization-owned models are scoped fail-closed: with nothing in context
+     * they match no rows and cannot be created. That is deliberate for
+     * production code, but a test that never mentions organizations is a test
+     * about something else, and it should behave as the single-organization
+     * case it was written for. Tests that care set their own context.
+     */
+    protected function actWithinDefaultOrganization(): void
+    {
+        DefaultOrganization::forget();
+
+        $organization = Organization::query()->firstOrCreate(
+            ['slug' => 'default'],
+            ['name' => 'Default Organization'],
+        );
+
+        app(OrganizationContext::class)->set($organization);
+
+        // Panel routes carry the tenant now, so a Livewire test that never
+        // mentions organizations still needs one resolved — the same way a real
+        // session always has one after the switcher.
+        Filament::setTenant($organization, isQuiet: true);
+
+        // Panel URLs are generated with the tenant in the path, which Filament
+        // normally supplies from the resolved route. Tests generate those URLs
+        // outside a panel request, so the default has to be set here too.
+        URL::defaults(['tenant' => $organization->slug]);
     }
 }

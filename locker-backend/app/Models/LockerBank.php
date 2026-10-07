@@ -6,6 +6,7 @@ namespace App\Models;
 
 use App\Enums\LockerAdapterType;
 use App\Enums\LockerFeedbackType;
+use App\Models\Concerns\BelongsToOrganization;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
@@ -35,6 +36,8 @@ use Illuminate\Database\Eloquent\Relations\HasManyThrough;
  */
 class LockerBank extends Model
 {
+    use BelongsToOrganization;
+
     /** Highest zero-based channel address encodable on the RS485 wire (maps to byte 0xFF). */
     public const MAX_WIRE_CHANNEL_ADDRESS = 254;
 
