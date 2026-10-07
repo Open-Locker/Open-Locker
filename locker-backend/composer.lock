@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "10a456dca10afd9881e882603f515502",
+    "content-hash": "ae201e1a33bd47d83a242ad5ac6f1688",
     "packages": [
         {
             "name": "anourvalar/eloquent-serialize",
@@ -9532,16 +9532,16 @@
         },
         {
             "name": "spatie/laravel-event-sourcing",
-            "version": "7.15.0",
+            "version": "7.15.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/spatie/laravel-event-sourcing.git",
-                "reference": "55a0819d38e14e5c3bce89310b1de40f2def2d98"
+                "reference": "863a1acc279c538f6d263d4445559a305c4a3eab"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/spatie/laravel-event-sourcing/zipball/55a0819d38e14e5c3bce89310b1de40f2def2d98",
-                "reference": "55a0819d38e14e5c3bce89310b1de40f2def2d98",
+                "url": "https://api.github.com/repos/spatie/laravel-event-sourcing/zipball/863a1acc279c538f6d263d4445559a305c4a3eab",
+                "reference": "863a1acc279c538f6d263d4445559a305c4a3eab",
                 "shasum": ""
             },
             "require": {
@@ -9551,7 +9551,7 @@
                 "illuminate/events": "^10.0|^11.0|^12.0|^13.0",
                 "illuminate/support": "^10.0|^11.0|^12.0|^13.0",
                 "php": "^8.0",
-                "phpdocumentor/reflection-docblock": "^5.6.1",
+                "phpdocumentor/reflection-docblock": "^5.6.1|^6.0",
                 "spatie/better-types": "^1.0",
                 "spatie/laravel-package-tools": "^1.19",
                 "spatie/laravel-schemaless-attributes": "^2.5.1",
@@ -9569,8 +9569,8 @@
                 "pestphp/pest": "^2.34|^3.7.4|^4.0",
                 "phpunit/phpunit": "^9.5.10|^10.5|^11.5.3|^12.5.12",
                 "spatie/fork": "^1.2.4",
-                "spatie/pest-plugin-snapshots": "^1.1|^2.2",
-                "spatie/phpunit-snapshot-assertions": "^4.0|^5.1.8 <5.2"
+                "spatie/pest-plugin-snapshots": "^1.1|^2.3.1",
+                "spatie/phpunit-snapshot-assertions": "^4.0|^5.3.1"
             },
             "type": "library",
             "extra": {
@@ -9613,7 +9613,7 @@
             ],
             "support": {
                 "issues": "https://github.com/spatie/laravel-event-sourcing/issues",
-                "source": "https://github.com/spatie/laravel-event-sourcing/tree/7.15.0"
+                "source": "https://github.com/spatie/laravel-event-sourcing/tree/7.15.1"
             },
             "funding": [
                 {
@@ -9621,7 +9621,7 @@
                     "type": "custom"
                 }
             ],
-            "time": "2026-02-22T23:16:35+00:00"
+            "time": "2026-08-10T08:41:25+00:00"
         },
         {
             "name": "spatie/laravel-package-tools",
