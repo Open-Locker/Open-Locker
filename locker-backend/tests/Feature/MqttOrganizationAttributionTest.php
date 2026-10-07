@@ -13,9 +13,12 @@ use App\Models\UserRole;
 use App\Mqtt\Handlers\DeviceEventHandler;
 use App\Mqtt\Publishers\ApplyConfigCommandPublisher;
 use App\Mqtt\Publishers\ProvisioningReplyPublisher;
+use App\Reactors\CommandResponseReactor;
 use App\Services\LockerProvisioningService;
+use App\StorableEvents\CommandResponseReceived;
 use App\StorableEvents\CompartmentUncommandedOpenDetected;
 use App\StorableEvents\DeviceEventReceived;
+use App\StorableEvents\LockerConfigAcknowledged;
 use App\Support\EventSourcing\OrganizationStamp;
 use App\Support\Organizations\OrganizationContext;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -82,6 +85,41 @@ class MqttOrganizationAttributionTest extends TestCase
         // it reads as the default organization — so one operator's jammed door
         // alerts another operator's managers and never reaches its own.
         $this->assertSame($beta->id, $derived->meta_data[OrganizationStamp::KEY] ?? null);
+    }
+
+    public function test_an_event_derived_from_a_command_response_keeps_its_organization(): void
+    {
+        $beta = Organization::create(['name' => 'Beta Operator', 'slug' => 'beta']);
+
+        $bank = app(OrganizationContext::class)->runWithin(
+            $beta,
+            fn (): LockerBank => LockerBank::factory()->create(['name' => 'Beta Bank']),
+        );
+
+        app(OrganizationContext::class)->set(null);
+
+        $response = new CommandResponseReceived(
+            lockerBankUuid: (string) $bank->id,
+            transactionId: '77777777-7777-7777-7777-777777777777',
+            action: 'apply_config',
+            result: 'success',
+            data: ['applied_config_hash' => str_repeat('a', 64)],
+            timestamp: now()->toIso8601String(),
+        );
+        $response->setMetaData([OrganizationStamp::KEY => $beta->id]);
+
+        app(CommandResponseReactor::class)->onCommandResponseReceived($response);
+
+        $derived = EloquentStoredEvent::query()
+            ->where('event_class', LockerConfigAcknowledged::class)
+            ->latest('id')
+            ->firstOrFail();
+
+        $this->assertSame($beta->id, $derived->meta_data[OrganizationStamp::KEY] ?? null);
+        $this->assertSame(
+            str_repeat('a', 64),
+            LockerBank::withoutGlobalScope('organization')->findOrFail($bank->id)->last_config_ack_hash,
+        );
     }
 
     public function test_a_device_can_provision_itself_without_an_organization_in_context(): void
