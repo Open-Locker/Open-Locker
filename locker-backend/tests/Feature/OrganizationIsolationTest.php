@@ -7,11 +7,14 @@ namespace Tests\Feature;
 use App\Enums\Permission;
 use App\Enums\Role;
 use App\Models\Compartment;
+use App\Models\Group;
 use App\Models\LockerBank;
 use App\Models\Organization;
 use App\Models\User;
 use App\Models\UserRole;
+use App\Services\GroupAccessService;
 use App\Support\Organizations\OrganizationContext;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
@@ -124,6 +127,62 @@ class OrganizationIsolationTest extends TestCase
             'locker_bank_id' => $this->betaBank->id,
             'organization_id' => $this->alpha->id,
             'number' => 99,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+    }
+
+    public function test_the_service_refuses_a_group_grant_to_another_organizations_compartment(): void
+    {
+        $admin = $this->memberOf($this->alpha, Role::Admin);
+        $group = $this->within(
+            $this->alpha,
+            fn (): Group => app(GroupAccessService::class)->createGroup('Alpha Team', actor: $admin),
+        );
+        $betaCompartment = $this->within($this->beta, fn (): Compartment => Compartment::create([
+            'locker_bank_id' => $this->betaBank->id,
+            'number' => 1,
+            'slave_id' => 1,
+            'address' => 1,
+        ]));
+
+        $this->expectException(AuthorizationException::class);
+
+        $this->within(
+            $this->alpha,
+            fn () => app(GroupAccessService::class)->grantCompartmentAccess(
+                $group,
+                $betaCompartment,
+                actor: $admin,
+            ),
+        );
+    }
+
+    public function test_the_database_refuses_a_group_grant_to_another_organizations_compartment(): void
+    {
+        if (DB::connection()->getDriverName() === 'sqlite') {
+            $this->markTestSkipped('Composite foreign keys require PostgreSQL; the suite runs SQLite.');
+        }
+
+        $admin = $this->memberOf($this->alpha, Role::Admin);
+        $group = $this->within(
+            $this->alpha,
+            fn (): Group => app(GroupAccessService::class)->createGroup('Alpha Team', actor: $admin),
+        );
+        $betaCompartment = $this->within($this->beta, fn (): Compartment => Compartment::create([
+            'locker_bank_id' => $this->betaBank->id,
+            'number' => 1,
+            'slave_id' => 1,
+            'address' => 1,
+        ]));
+
+        $this->expectException(QueryException::class);
+
+        DB::table('group_compartment_accesses')->insert([
+            'group_id' => $group->id,
+            'compartment_id' => $betaCompartment->id,
+            'organization_id' => $this->alpha->id,
+            'granted_at' => now(),
             'created_at' => now(),
             'updated_at' => now(),
         ]);

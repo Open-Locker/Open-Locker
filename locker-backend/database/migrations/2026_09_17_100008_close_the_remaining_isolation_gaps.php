@@ -79,11 +79,24 @@ return new class extends Migration
                 ON DELETE CASCADE
             SQL);
         }
+
+        DB::statement(<<<'SQL'
+            ALTER TABLE group_compartment_accesses
+            ADD CONSTRAINT group_compartment_accesses_compartment_same_organization_foreign
+            FOREIGN KEY (compartment_id, organization_id)
+            REFERENCES compartments (id, organization_id)
+            ON DELETE CASCADE
+        SQL);
     }
 
     public function down(): void
     {
         if (DB::connection()->getDriverName() !== 'sqlite') {
+            DB::statement(
+                'ALTER TABLE group_compartment_accesses '
+                .'DROP CONSTRAINT IF EXISTS group_compartment_accesses_compartment_same_organization_foreign'
+            );
+
             foreach (array_keys(self::GROUP_CHILDREN) as $table) {
                 DB::statement("ALTER TABLE {$table} DROP CONSTRAINT IF EXISTS {$table}_group_same_organization_foreign");
             }
