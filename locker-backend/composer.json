@@ -10,7 +10,7 @@
     "license": "MIT",
     "require": {
         "php": "^8.2",
-        "dedoc/scramble": "^0.13.22",
+        "dedoc/scramble": "^0.13.47",
         "filament/filament": "^5.10.0",
         "keepsuit/laravel-opentelemetry": "^2.2",
         "laravel-lang/common": "*",
