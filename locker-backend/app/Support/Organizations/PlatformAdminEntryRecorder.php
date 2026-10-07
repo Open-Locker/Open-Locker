@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace App\Support\Organizations;
 
-use App\Aggregates\PlatformAdminAccessAggregate;
 use App\Models\Organization;
 use App\Models\User;
+use App\Services\PlatformAdminAccessService;
 use App\StorableEvents\PlatformAdminEnteredOrganization;
 use App\Support\EventSourcing\OrganizationStamp;
 use Spatie\EventSourcing\StoredEvents\Models\EloquentStoredEvent;
@@ -47,10 +47,6 @@ class PlatformAdminEntryRecorder
             return;
         }
 
-        app(OrganizationContext::class)->runWithin($organization, function () use ($user, $organization): void {
-            PlatformAdminAccessAggregate::retrieve(
-                PlatformAdminAccessAggregate::aggregateUuidFor($user->id, $organization->id)
-            )->enter($user->id, $organization->id, now())->persist();
-        });
+        app(PlatformAdminAccessService::class)->recordEntry($user, $organization);
     }
 }

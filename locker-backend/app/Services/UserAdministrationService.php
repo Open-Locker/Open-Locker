@@ -270,6 +270,24 @@ class UserAdministrationService
     }
 
     /**
+     * Grant installation-wide administration from a trusted bootstrap path.
+     */
+    public function grantPlatformAdmin(User $target, ?int $actorUserId = null): void
+    {
+        UserRoleAggregate::retrieve(UserRoleAggregate::aggregateUuidFor($target->id))
+            ->grantRole(
+                $target->id,
+                Role::PlatformAdmin->value,
+                $actorUserId,
+                now(),
+                null,
+            )
+            ->persist();
+
+        $target->flushPermissionCache();
+    }
+
+    /**
      * Revoke the admin role without the last-admin guard or an authorization
      * check. Use changeRole() for anything a person triggers.
      */

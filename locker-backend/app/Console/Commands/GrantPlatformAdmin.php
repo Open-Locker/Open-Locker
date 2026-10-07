@@ -4,9 +4,8 @@ declare(strict_types=1);
 
 namespace App\Console\Commands;
 
-use App\Aggregates\UserRoleAggregate;
-use App\Enums\Role;
 use App\Models\User;
+use App\Services\UserAdministrationService;
 use Illuminate\Console\Command;
 
 /**
@@ -44,11 +43,7 @@ class GrantPlatformAdmin extends Command
             return self::SUCCESS;
         }
 
-        // Recorded with no organization, the way the role is defined: it
-        // administers the installation rather than any one operator.
-        UserRoleAggregate::retrieve(UserRoleAggregate::aggregateUuidFor($user->id))
-            ->grantRole($user->id, Role::PlatformAdmin->value, null, now(), null)
-            ->persist();
+        app(UserAdministrationService::class)->grantPlatformAdmin($user);
 
         $this->info(sprintf('%s now administers the installation.', $email));
 

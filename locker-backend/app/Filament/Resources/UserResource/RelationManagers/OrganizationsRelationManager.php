@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Filament\Resources\UserResource\RelationManagers;
 
-use App\Aggregates\UserRoleAggregate;
 use App\Enums\Role;
 use App\Models\Organization;
 use App\Models\User;
@@ -179,23 +178,20 @@ class OrganizationsRelationManager extends RelationManager
         return $options;
     }
 
-    /**
-     * Role::User is the absence of a role rather than a row of its own, so
-     * there is nothing to record for it.
-     */
     private function grantRoleWithin(Organization $organization, string $role): void
     {
-        if ($role === Role::User->value) {
+        $actor = $this->currentUser();
+        $owner = $this->getOwnerRecord();
+        $selectedRole = Role::tryFrom($role);
+
+        if (! $actor instanceof User || ! $owner instanceof User || ! $selectedRole instanceof Role) {
             return;
         }
 
-        $owner = $this->getOwnerRecord();
-
-        app(OrganizationContext::class)->runWithin($organization, function () use ($owner, $organization, $role): void {
-            UserRoleAggregate::retrieve(UserRoleAggregate::aggregateUuidFor($owner->getKey()))
-                ->grantRole($owner->getKey(), $role, $this->currentUser()?->getKey(), now(), $organization->getKey())
-                ->persist();
-        });
+        app(OrganizationContext::class)->runWithin(
+            $organization,
+            fn (): bool => app(UserAdministrationService::class)->changeRole($actor, $owner, $selectedRole)
+        );
     }
 
     /**
