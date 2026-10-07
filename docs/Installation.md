@@ -302,15 +302,23 @@ docker compose exec app php artisan first-admin:create admin@example.com
 Mail delivery must work so the administrator can set a password. The Filament 5
 admin panel is available under `/admin` on the configured backend URL.
 
-### 7. Enable multi-organization support (optional)
+### 7. Upgrade to organization-aware ownership
 
-Only needed when one installation serves several operators. Take a verified
-database backup first: once a second organization exists, the migration that
-assigns existing data to the default organization cannot be undone.
+This release applies organization ownership to every installation, including
+single-operator installations. `MULTI_ORGANIZATION` controls only the
+organization-management UI and workflows; it does not disable the schema,
+migrations, authorization scopes, or tenant-aware admin routes.
 
-1. Set `MULTI_ORGANIZATION=true` and deploy. The migrations create the default
-   organization, move all existing data into it, and keep every existing
-   administrator as an administrator of that organization.
+Before upgrading an existing installation, take and verify a database backup.
+Deploy normally and run the migrations. They create one default organization,
+move all existing data into it, attach all existing users, and keep every
+existing administrator as an administrator of that organization. After the
+upgrade, Filament resource URLs include the organization
+(`/admin/{organization}/...`); `/admin` remains the panel entry point.
+
+To serve several operators from one installation:
+
+1. Set `MULTI_ORGANIZATION=true` and deploy.
 2. Nobody becomes a platform administrator automatically. Grant the role to the
    account that should create and manage organizations (the account must
    already exist):
