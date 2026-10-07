@@ -14,7 +14,7 @@
         "filament/filament": "^5.3.5",
         "keepsuit/laravel-opentelemetry": "^2.2",
         "laravel-lang/common": "*",
-        "laravel/framework": "^12.0",
+        "laravel/framework": "^12.69.3",
         "laravel/reverb": "^1.0",
         "laravel/sanctum": "^4.0",
         "laravel/tinker": "^2.9",
