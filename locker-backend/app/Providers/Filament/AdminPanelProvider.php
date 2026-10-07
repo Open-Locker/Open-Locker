@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Providers\Filament;
 
 use App\Filament\Pages\Auth\EditProfile;
@@ -17,6 +19,7 @@ use Filament\Panel;
 use Filament\PanelProvider;
 use Filament\Support\Enums\Width;
 use Filament\View\PanelsRenderHook;
+use Illuminate\Contracts\View\View;
 use Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse;
 use Illuminate\Cookie\Middleware\EncryptCookies;
 use Illuminate\Foundation\Http\Middleware\VerifyCsrfToken;
@@ -91,33 +94,33 @@ class AdminPanelProvider extends PanelProvider
             // link both resolve through this `home` route.
             ->renderHook(
                 PanelsRenderHook::USER_MENU_BEFORE,
-                fn (): \Illuminate\Contracts\View\View => view('filament.locale-switcher')
+                fn (): View => view('filament.locale-switcher')
             )
             // The user menu does not exist on the pre-auth SimplePage layout
             // (login, password reset, register, email verification), so render
             // the switcher there too.
             ->renderHook(
                 PanelsRenderHook::SIMPLE_PAGE_END,
-                fn (): \Illuminate\Contracts\View\View => view('filament.locale-switcher', ['center' => true])
+                fn (): View => view('filament.locale-switcher', ['center' => true])
             )
             // The topbar user menu shows only an avatar; surface the signed-in
             // user's name + email as a hover tooltip on it.
             ->renderHook(
                 PanelsRenderHook::USER_MENU_AFTER,
-                fn (): \Illuminate\Contracts\View\View => view('filament.user-menu-tooltip')
+                fn (): View => view('filament.user-menu-tooltip')
             )
             ->renderHook(
                 PanelsRenderHook::BODY_END,
-                fn (): \Illuminate\Contracts\View\View => view('filament.realtime-compartment-open-notifications')
+                fn (): View => view('filament.realtime-compartment-open-notifications')
             )
             ->renderHook(
                 PanelsRenderHook::SIDEBAR_FOOTER,
-                fn (): \Illuminate\Contracts\View\View => view('filament.version')
+                fn (): View => view('filament.version')
             )
             // Only one locker bank stays open at a time on the compartment list (#167).
             ->renderHook(
                 PanelsRenderHook::PAGE_END,
-                fn (): \Illuminate\Contracts\View\View => view('filament.compartments.accordion-groups'),
+                fn (): View => view('filament.compartments.accordion-groups'),
                 scopes: ListCompartments::class,
             )
             ->middleware([

@@ -1,8 +1,11 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Tests;
 
 use App\Models\Organization;
+use App\Support\Organizations\DefaultOrganization;
 use App\Support\Organizations\OrganizationContext;
 use Filament\Facades\Filament;
 use Illuminate\Foundation\Testing\TestCase as BaseTestCase;
@@ -60,6 +63,8 @@ abstract class TestCase extends BaseTestCase
      */
     protected function actWithinDefaultOrganization(): void
     {
+        DefaultOrganization::forget();
+
         $organization = Organization::query()->firstOrCreate(
             ['slug' => 'default'],
             ['name' => 'Default Organization'],

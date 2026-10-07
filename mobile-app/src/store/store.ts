@@ -7,6 +7,7 @@ import {
   organizationPersistenceListener,
   organizationReducer,
 } from '@/src/store/organizationSlice';
+import { realtimeReducer } from '@/src/store/realtimeSlice';
 
 const organizationPersistence = createListenerMiddleware();
 
@@ -21,6 +22,7 @@ export const store = configureStore({
   reducer: {
     auth: authReducer,
     organization: organizationReducer,
+    realtime: realtimeReducer,
     [baseApi.reducerPath]: baseApi.reducer,
   },
   middleware: (getDefaultMiddleware) =>

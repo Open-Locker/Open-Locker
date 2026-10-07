@@ -56,9 +56,6 @@ class MosquittoAuthController extends Controller
         return response()->json(['allow' => false, 'ok' => false]);
     }
 
-    // Superuser check is disabled in mosquitto.conf
-    // public function superuser(...)
-
     /**
      * HTTP ACL check: authorize publish/subscribe per topic.
      */

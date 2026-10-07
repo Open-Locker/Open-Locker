@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 use App\Http\Controllers\AuthController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cookie;
@@ -21,6 +23,7 @@ Route::get('/verify-email/{id}/{hash}', [AuthController::class, 'verifyEmailLink
     ->name('verification.verify.web');
 
 Route::post('/reset-password', [AuthController::class, 'storeNewPassword'])
+    ->middleware(['throttle:password-reset'])
     ->name('password.reset.web.store');
 
 // The admin panel's `EN | DE` switcher links here; the locale is persisted in

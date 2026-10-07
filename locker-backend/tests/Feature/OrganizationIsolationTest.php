@@ -14,6 +14,8 @@ use App\Models\UserRole;
 use App\Support\Organizations\OrganizationContext;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Tests\TestCase;
 
 /**
@@ -109,7 +111,7 @@ class OrganizationIsolationTest extends TestCase
         // which cannot ADD CONSTRAINT, so the constraint is not present here to
         // be tested. Verified by hand against PostgreSQL, and the reason the
         // spike flags the test driver as a decision the team has to make.
-        if (\Illuminate\Support\Facades\DB::connection()->getDriverName() === 'sqlite') {
+        if (DB::connection()->getDriverName() === 'sqlite') {
             $this->markTestSkipped('Composite foreign keys require PostgreSQL; the suite runs SQLite.');
         }
 
@@ -118,7 +120,7 @@ class OrganizationIsolationTest extends TestCase
         // Deliberately bypassing the model so no global scope or observer can
         // intervene: this asserts the constraint, not the application.
         Compartment::query()->getQuery()->insert([
-            'id' => (string) \Illuminate\Support\Str::uuid(),
+            'id' => (string) Str::uuid(),
             'locker_bank_id' => $this->betaBank->id,
             'organization_id' => $this->alpha->id,
             'number' => 99,

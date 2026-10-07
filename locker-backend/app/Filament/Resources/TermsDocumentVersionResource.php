@@ -17,6 +17,7 @@ use Filament\Schemas\Schema;
 use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Auth;
 use Throwable;
 
@@ -65,7 +66,7 @@ class TermsDocumentVersionResource extends Resource
      * through the relation applies the document's scope, so a manager cannot
      * reach another operator's terms by id.
      *
-     * @return Builder<\Illuminate\Database\Eloquent\Model>
+     * @return Builder<Model>
      */
     public static function getEloquentQuery(): Builder
     {
@@ -80,6 +81,7 @@ class TermsDocumentVersionResource extends Resource
     public static function table(Table $table): Table
     {
         return $table
+            ->modifyQueryUsing(fn (Builder $query) => $query->with('createdByUser'))
             ->defaultSort('version', 'desc')
             ->columns([
                 Tables\Columns\TextColumn::make('version')

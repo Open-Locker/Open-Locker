@@ -3,7 +3,6 @@ export const addTagTypes = [
   "AppInfo",
   "Auth",
   "Compartment",
-  "LockerBankStatus",
   "MosquittoAuth",
   "Organization",
   "Terms",
@@ -205,18 +204,6 @@ const injectedRtkApi = api
         }),
         providesTags: ["Compartment"],
       }),
-      getLockerBanksByLockerBankStatus: build.query<
-        GetLockerBanksByLockerBankStatusApiResponse,
-        GetLockerBanksByLockerBankStatusApiArg
-      >({
-        query: (queryArg) => ({
-          url: `/locker-banks/${queryArg.lockerBank}/status`,
-          headers: {
-            "Accept-Language": queryArg["Accept-Language"],
-          },
-        }),
-        providesTags: ["LockerBankStatus"],
-      }),
       postMosqAuth: build.mutation<PostMosqAuthApiResponse, PostMosqAuthApiArg>(
         {
           query: (queryArg) => ({
@@ -410,20 +397,6 @@ export type GetCompartmentsOpenRequestsByCommandIdApiArg = {
   /** Preferred language for server-rendered strings (API messages, web pages, and request-triggered emails). Falls back to the application default when omitted or unsupported. */
   "Accept-Language"?: "en" | "de";
 };
-export type GetLockerBanksByLockerBankStatusApiResponse = /** status 200  */ {
-  id: string;
-  connection_status: string;
-  connection_status_changed_at: string;
-  last_heartbeat_at: string;
-  heartbeat_interval_seconds: number;
-  heartbeat_timeout_seconds: number;
-};
-export type GetLockerBanksByLockerBankStatusApiArg = {
-  /** The locker bank ID */
-  lockerBank: string;
-  /** Preferred language for server-rendered strings (API messages, web pages, and request-triggered emails). Falls back to the application default when omitted or unsupported. */
-  "Accept-Language"?: "en" | "de";
-};
 export type PostMosqAuthApiResponse = /** status 200  */ {
   allow: boolean;
   ok: boolean;
@@ -607,7 +580,6 @@ export const {
   usePutCompartmentsByCompartmentContentNoteMutation,
   usePostCompartmentsByCompartmentHelpRequestsMutation,
   useGetCompartmentsOpenRequestsByCommandIdQuery,
-  useGetLockerBanksByLockerBankStatusQuery,
   usePostMosqAuthMutation,
   usePostMosqAclMutation,
   useGetOrganizationsQuery,

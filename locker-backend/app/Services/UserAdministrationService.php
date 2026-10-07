@@ -251,6 +251,44 @@ class UserAdministrationService
     }
 
     /**
+     * Grant the admin role without the last-admin guard or an authorization
+     * check; used for bootstrapping (first admin, seeding).
+     */
+    public function grantAdmin(User $target, ?int $actorUserId = null): void
+    {
+        UserRoleAggregate::retrieve(UserRoleAggregate::aggregateUuidFor($target->id))
+            ->grantRole(
+                $target->id,
+                Role::Admin->value,
+                $actorUserId,
+                now(),
+                app(OrganizationContext::class)->currentId(),
+            )
+            ->persist();
+
+        $target->flushPermissionCache();
+    }
+
+    /**
+     * Revoke the admin role without the last-admin guard or an authorization
+     * check. Use changeRole() for anything a person triggers.
+     */
+    public function revokeAdmin(User $target, ?int $actorUserId = null): void
+    {
+        UserRoleAggregate::retrieve(UserRoleAggregate::aggregateUuidFor($target->id))
+            ->revokeRole(
+                $target->id,
+                Role::Admin->value,
+                $actorUserId,
+                now(),
+                app(OrganizationContext::class)->currentId(),
+            )
+            ->persist();
+
+        $target->flushPermissionCache();
+    }
+
+    /**
      * Set the target's single role. Role::User means "no stored role binding"
      * and clears all bindings. Extra roles a user may still hold from the old
      * multi-role UI are revoked, normalizing the user to one role.

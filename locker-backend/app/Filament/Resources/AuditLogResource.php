@@ -22,6 +22,7 @@ use Filament\Schemas\Schema;
 use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Model;
 
 /**
  * Admin audit log (#109): a read-only view over the event store
@@ -45,10 +46,13 @@ class AuditLogResource extends Resource
 
     protected static ?int $navigationSort = 90;
 
+    /**
+     * The system-wide audit trail is admin-only. Managers hold system.configure
+     * for the terms screens, so the audit log has its own permission.
+     */
     public static function canAccess(): bool
     {
-        // System-wide audit trail is admin-only (mirrors Terms / Roles screens).
-        return auth()->user()?->can(Permission::SystemConfigure->value) ?? false;
+        return auth()->user()?->can(Permission::AuditLogView->value) ?? false;
     }
 
     public static function getNavigationGroup(): ?string
@@ -215,8 +219,8 @@ class AuditLogResource extends Resource
      * is shown only to them: granting or revoking the role, and their entering
      * an organization (ADR-0065, decision 13).
      *
-     * @param  Builder<\Illuminate\Database\Eloquent\Model>  $query
-     * @return Builder<\Illuminate\Database\Eloquent\Model>
+     * @param  Builder<Model>  $query
+     * @return Builder<Model>
      */
     private static function hidePlatformAdministration(Builder $query): Builder
     {
@@ -244,8 +248,8 @@ class AuditLogResource extends Resource
      * A platform admin sees the organization they have entered, like everyone
      * else: entering is what makes the data visible, and entering is recorded.
      *
-     * @param  Builder<\Illuminate\Database\Eloquent\Model>  $query
-     * @return Builder<\Illuminate\Database\Eloquent\Model>
+     * @param  Builder<Model>  $query
+     * @return Builder<Model>
      */
     private static function confineToCurrentOrganization(Builder $query): Builder
     {

@@ -15,6 +15,11 @@ use App\Services\CompartmentService;
 use App\Services\LockerService;
 use App\StorableEvents\CompartmentContentNoteUpdated;
 use Filament\Actions\Action;
+use Filament\Actions\BulkActionGroup;
+use Filament\Actions\CreateAction;
+use Filament\Actions\DeleteAction;
+use Filament\Actions\DeleteBulkAction;
+use Filament\Actions\EditAction;
 use Filament\Facades\Filament;
 use Filament\Forms;
 use Filament\Infolists\Components\RepeatableEntry;
@@ -28,6 +33,7 @@ use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Log;
 use Spatie\EventSourcing\StoredEvents\Models\EloquentStoredEvent;
@@ -36,7 +42,7 @@ class CompartmentsRelationManager extends RelationManager
 {
     protected static string $relationship = 'compartments';
 
-    public static function getTitle(\Illuminate\Database\Eloquent\Model $ownerRecord, string $pageClass): string
+    public static function getTitle(Model $ownerRecord, string $pageClass): string
     {
         return __('Compartments');
     }
@@ -205,7 +211,7 @@ class CompartmentsRelationManager extends RelationManager
                 //
             ])
             ->headerActions([
-                \Filament\Actions\Action::make('sendConfigToClient')
+                Action::make('sendConfigToClient')
                     ->label(__('Send config to client'))
                     ->icon('heroicon-m-paper-airplane')
                     ->requiresConfirmation()
@@ -240,10 +246,10 @@ class CompartmentsRelationManager extends RelationManager
                                 ->send();
                         }
                     }),
-                \Filament\Actions\CreateAction::make(),
+                CreateAction::make(),
             ])
             ->actions([
-                \Filament\Actions\EditAction::make(),
+                EditAction::make(),
                 OpenCompartmentAction::make(),
                 Action::make('editContentNote')
                     ->label(__('Edit note'))
@@ -298,11 +304,11 @@ class CompartmentsRelationManager extends RelationManager
                             ->success()
                             ->send();
                     }),
-                \Filament\Actions\DeleteAction::make(),
+                DeleteAction::make(),
             ])
             ->bulkActions([
-                \Filament\Actions\BulkActionGroup::make([
-                    \Filament\Actions\DeleteBulkAction::make(),
+                BulkActionGroup::make([
+                    DeleteBulkAction::make(),
                 ]),
             ]);
     }

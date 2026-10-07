@@ -12,6 +12,7 @@ use App\Observability\MqttSpanAttributes;
 use App\Observability\MqttTraceContext;
 use App\Observability\SpanFlusher;
 use App\Support\Organizations\OrganizationContext;
+use Illuminate\Contracts\Validation\Validator as ValidatorContract;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
@@ -174,7 +175,7 @@ abstract class AbstractInboundMqttHandler
     /**
      * @param  array<string, mixed>  $payload
      */
-    protected function makeValidator(array $payload): \Illuminate\Contracts\Validation\Validator
+    protected function makeValidator(array $payload): ValidatorContract
     {
         return Validator::make($payload, $this->rules(), $this->messages(), $this->attributes());
     }

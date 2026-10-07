@@ -68,7 +68,7 @@ class TermsNotificationReactor extends Reactor implements ShouldQueue
      * about them. Notifying everyone would announce one organization's legal
      * changes to another's users.
      *
-     * @return \Illuminate\Database\Eloquent\Builder<User>
+     * @return Builder<User>
      */
     private function membersOf(?string $organizationId): Builder
     {

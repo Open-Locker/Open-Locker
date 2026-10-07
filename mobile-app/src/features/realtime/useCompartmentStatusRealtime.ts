@@ -4,6 +4,7 @@ import { AppState } from 'react-native';
 
 import { openLockerApi, useGetUserQuery } from '@/src/store/generatedApi';
 import { useAppDispatch, useAppSelector } from '@/src/store/hooks';
+import { realtimeConnectionChanged, realtimeReset } from '@/src/store/realtimeSlice';
 
 import { patchAllOrganizationCompartments } from '@/src/features/organizations';
 
@@ -56,6 +57,9 @@ export function lockerBankChannelName(userId: number | string): string {
  * - Falls back to a REST refetch when realtime is untrustworthy: the socket
  *   reports unavailable/disconnected, or the app returns to the foreground
  *   (events sent while backgrounded are not replayed).
+ * - Mirrors the socket's state into the `realtime` slice, so the compartment
+ *   screen can say when live updates are paused. That is the app's own
+ *   connection, not a locker bank's.
  *
  * `door_state` is sourced only from the API and the door-state event, and
  * open-command feedback only from the open request's own status (ADR-0023) —
@@ -143,8 +147,15 @@ export function useCompartmentStatusRealtime(): void {
 
     const connection = (echo.connector as { pusher: { connection: PusherConnection } }).pusher
       .connection;
+    const handleStateChange = ({ current }: { current: string }) => {
+      dispatch(realtimeConnectionChanged(current));
+    };
+
     connection.bind('unavailable', refetchFallback);
     connection.bind('disconnected', refetchFallback);
+    connection.bind('state_change', handleStateChange);
+    // Pusher can reach `failed` inside `createEcho`, before anything was bound.
+    dispatch(realtimeConnectionChanged(connection.state));
 
     const appStateSub = AppState.addEventListener('change', (state) => {
       if (state === 'active') {
@@ -156,15 +167,22 @@ export function useCompartmentStatusRealtime(): void {
       appStateSub.remove();
       connection.unbind('unavailable', refetchFallback);
       connection.unbind('disconnected', refetchFallback);
+      connection.unbind('state_change', handleStateChange);
       echo.leave(channelName);
       echo.leave(accountChannel);
       echo.leave(lockerBankChannel);
       echo.disconnect();
+      dispatch(realtimeReset());
     };
   }, [token, userId, dispatch]);
 }
 
+type PusherStateChangeHandler = (change: { current: string }) => void;
+
 type PusherConnection = {
-  bind: (event: string, handler: () => void) => void;
-  unbind: (event: string, handler: () => void) => void;
+  state: string;
+  bind(event: 'state_change', handler: PusherStateChangeHandler): void;
+  bind(event: string, handler: () => void): void;
+  unbind(event: 'state_change', handler: PusherStateChangeHandler): void;
+  unbind(event: string, handler: () => void): void;
 };

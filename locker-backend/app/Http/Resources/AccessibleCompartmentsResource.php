@@ -7,11 +7,12 @@ namespace App\Http\Resources;
 use App\Models\Compartment;
 use App\Models\LockerBank;
 use Dedoc\Scramble\Attributes\SchemaName;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
 /**
- * @property \Illuminate\Database\Eloquent\Collection<int, LockerBank> $resource
+ * @property Collection<int, LockerBank> $resource
  */
 #[SchemaName('AccessibleCompartments')]
 class AccessibleCompartmentsResource extends JsonResource

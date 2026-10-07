@@ -11,18 +11,20 @@ use App\Models\Group;
 use App\Models\GroupCompartmentAccess;
 use App\Models\User;
 use App\Services\GroupAccessService;
+use Filament\Actions\Action;
 use Filament\Facades\Filament;
 use Filament\Resources\RelationManagers\RelationManager;
 use Filament\Schemas\Schema;
 use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Model;
 
 class CompartmentAccessesRelationManager extends RelationManager
 {
     protected static string $relationship = 'compartmentAccesses';
 
-    public static function getTitle(\Illuminate\Database\Eloquent\Model $ownerRecord, string $pageClass): string
+    public static function getTitle(Model $ownerRecord, string $pageClass): string
     {
         return __('Compartment access');
     }
@@ -64,7 +66,7 @@ class CompartmentAccessesRelationManager extends RelationManager
                     ->toggleable(),
             ])
             ->headerActions([
-                \Filament\Actions\Action::make('grantAccess')
+                Action::make('grantAccess')
                     ->label(__('Grant access'))
                     ->icon('heroicon-m-key')
                     ->visible(fn (): bool => $this->currentUserCanManageGroups() && ! $this->ownerGroupIsArchived())
@@ -101,7 +103,7 @@ class CompartmentAccessesRelationManager extends RelationManager
                     }),
             ])
             ->actions([
-                \Filament\Actions\Action::make('revokeAccess')
+                Action::make('revokeAccess')
                     ->label(__('Revoke access'))
                     ->color('danger')
                     ->icon('heroicon-m-no-symbol')
