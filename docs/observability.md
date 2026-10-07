@@ -34,13 +34,19 @@ configuration change, not a deploy.
 
 ## The short way
 
-From the repo root:
+From the repo root, with Just 1.56+, Node 22+, pnpm 11.25.0 and Docker installed:
 
 ```bash
+just script-deps     # install workflow dependencies once
 just trace-up        # SigNoz + the stack with tracing on
 just trace-status    # is it actually wired up?
 just trace-down      # back to a stack with no tracing
 ```
+
+Install the TypeScript workflow dependencies once with `just script-deps` (pnpm
+11.25.0). Preview its internal actions with
+`pnpm --dir scripts trace up --dry-run`; `just --dry-run trace-up` previews only
+the script invocation.
 
 `trace-up` clones SigNoz to `~/.open-locker/signoz` on first run, publishes its
 UI on **http://localhost:8085**, and brings our stack up with the overlay and

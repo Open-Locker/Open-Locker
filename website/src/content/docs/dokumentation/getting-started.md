@@ -12,14 +12,15 @@ deployment, see [Operations](/dokumentation/operations/).
 
 - **Docker** & Docker Compose
 - **PHP 8.4+** and **Composer** (backend)
-- **Node.js 22+** and **pnpm** (mobile app, locker client, website)
-- **just** (task runner, optional but recommended)
+- **Node.js 22+** (MQTT/tracing scripts, mobile app, locker client, website) and **pnpm 11.25.0** (repository workflow dependencies)
+- **just 1.56+** (task runner, optional but recommended)
 
 ## Clone the repository
 
 ```bash
 git clone https://github.com/Open-Locker/Open-Locker.git
 cd Open-Locker
+just script-deps          # install Execa and dotenv for repository workflows
 ```
 
 ## Backend

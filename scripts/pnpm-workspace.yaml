@@ -1,0 +1,6 @@
+allowBuilds:
+  # tsx uses esbuild to execute TypeScript without an emitted build directory.
+  esbuild: true
+minimumReleaseAgeExclude:
+  - dotenv@18.0.6
+  - execa@10.1.0

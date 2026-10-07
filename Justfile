@@ -1,24 +1,21 @@
 set minimum-version := "1.56.0"
-
-# This file is the public command menu: keep portable one-command tasks here.
-# Put branching, retries, file generation, and platform logic in scripts/.
-# Matching .ps1/.sh entry points must keep the same inputs, defaults, output,
-# mutation order, and failure behavior. If that duplication grows, move shared
-# logic to an already-required cross-platform runtime instead of adding wrappers.
 set dotenv-load := false
 
-scripts_dir := justfile_directory() / "scripts"
+# Just is the command menu. pnpm runs the shared TypeScript workflows.
 
-# Explicit shells prevent Just's default `sh -cu` from becoming a hidden Windows
-# dependency. Top-level conditional settings require Just 1.56 or newer.
+# Select the launching shell once; workflow logic is shared across platforms.
 [windows]
 set shell := ["powershell.exe", "-NoLogo", "-NoProfile", "-Command"]
 
 [unix]
-set shell := ["bash", "-uc"]
+set shell := ["sh", "-uc"]
 
 default:
     @just --list
+
+# Install the pinned Node workflow dependencies (requires pnpm).
+script-deps:
+    pnpm --dir scripts install --frozen-lockfile
 
 # Start the backend, database, Redis, MQTT, Mailpit, and Reverb services.
 start:
@@ -41,46 +38,21 @@ install-hooks:
     git config core.hooksPath .githooks
 
 # Generate Mosquitto configuration from the local backend .env file.
-[windows]
 setup-mqtt:
-    @powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File "{{ scripts_dir / 'setup-mqtt.ps1' }}"
+    pnpm --dir scripts setup-mqtt
 
-[unix]
-setup-mqtt:
-    @bash "{{ scripts_dir / 'setup-mqtt.sh' }}"
-
-# Start the stack with tracing enabled, using an existing trace backend.
-[windows]
+# Start the stack with tracing enabled, using an existing trace backend (Node 22+).
 trace-overlay:
-    @powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File "{{ scripts_dir / 'tracing.ps1' }}" -Action overlay
+    pnpm --dir scripts trace overlay
 
-[unix]
-trace-overlay:
-    @bash "{{ scripts_dir / 'tracing.sh' }}" overlay
-
-# Start SigNoz and the stack with tracing enabled.
-[windows]
+# Start SigNoz and the stack with tracing enabled (Node 22+).
 trace-up:
-    @powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File "{{ scripts_dir / 'tracing.ps1' }}" -Action up
+    pnpm --dir scripts trace up
 
-[unix]
-trace-up:
-    @bash "{{ scripts_dir / 'tracing.sh' }}" up
-
-# Stop tracing while retaining SigNoz data.
-[windows]
+# Stop tracing while retaining SigNoz data (Node 22+).
 trace-down:
-    @powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File "{{ scripts_dir / 'tracing.ps1' }}" -Action down
+    pnpm --dir scripts trace down
 
-[unix]
-trace-down:
-    @bash "{{ scripts_dir / 'tracing.sh' }}" down
-
-# Check the local tracing stack.
-[windows]
+# Check the local tracing stack (Node 22+).
 trace-status:
-    @powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File "{{ scripts_dir / 'tracing.ps1' }}" -Action status
-
-[unix]
-trace-status:
-    @bash "{{ scripts_dir / 'tracing.sh' }}" status
+    pnpm --dir scripts trace status
