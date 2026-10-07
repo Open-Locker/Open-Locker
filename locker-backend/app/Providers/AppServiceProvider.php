@@ -7,6 +7,7 @@ namespace App\Providers;
 use App\Scramble\Transformers\AcceptLanguageHeaderTransformer;
 use App\Scramble\Transformers\AccessibleCompartmentsNullableTransformer;
 use App\Scramble\Transformers\NullableFieldsTransformer;
+use App\Scramble\Transformers\OrganizationHeaderTransformer;
 use App\Support\Audit\AuditEventPresenter;
 use App\Support\Organizations\OrganizationContext;
 use Carbon\CarbonImmutable;
@@ -77,6 +78,8 @@ class AppServiceProvider extends ServiceProvider
             new AccessibleCompartmentsNullableTransformer,
             new NullableFieldsTransformer,
             new AcceptLanguageHeaderTransformer,
+        ])->withOperationTransformers([
+            OrganizationHeaderTransformer::class,
         ]);
 
         // Use CarbonImmutable for all date instances. Prevents date mutability.
