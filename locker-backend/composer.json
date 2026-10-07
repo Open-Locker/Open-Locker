@@ -13,7 +13,7 @@
         "dedoc/scramble": "^0.13.47",
         "filament/filament": "^5.10.0",
         "keepsuit/laravel-opentelemetry": "^2.2",
-        "laravel-lang/common": "*",
+        "laravel-lang/common": "^6.8.0",
         "laravel/framework": "^12.69.3",
         "laravel/reverb": "^1.0",
         "laravel/sanctum": "^4.0",
