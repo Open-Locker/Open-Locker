@@ -1,6 +1,6 @@
 # Dependency upgrade release research: backend and mobile
 
-Research date: 2026-10-06. Companion to `dependency-upgrade-plan.md`. This is a plan, not an executed upgrade; no manifests or lockfiles were changed and no compatibility checks were run. Exact versions below are observed registry candidates, not a successfully solved dependency set. Recheck registries and release notes when implementing.
+Research date: 2026-10-06, with implementation review on 2026-10-07. Companion to `dependency-upgrade-plan.md`, which records implemented versions, checks and remaining limits. Candidate tables preserve the initial research snapshot; the lockfiles and implementation record are authoritative for the resolved result.
 
 ## Scope and evidence
 
@@ -52,7 +52,21 @@ Transitive Livewire candidate: **4.4.3→4.4.7**, keeping Filament 5's Livewire-
 - [Larastan 3.12.3](https://github.com/larastan/larastan/releases/tag/v3.12.3) improves collection/relation/property inference. Fix actual typing errors rather than expanding the baseline blindly.
 - [ParaTest metadata](https://repo.packagist.org/p2/brianium/paratest.json) shows that latest 7.26.0 requires PHPUnit 13.4 despite remaining in major 7. Keep 7.8.6 with PHPUnit 11.5.57; document the compatible hold instead of introducing a test-runner major migration.
 
-Routine tooling/unchanged packages not discussed above have registry requirements checked, but their entire intervening changelog range has not been exhaustively reviewed. The implementation PR must finish that range review after resolution and record any deprecations; this document does not claim all patch releases are behavior-neutral.
+The initial research deferred the remaining tooling release intervals until resolution. The implementation review below records the subsequently reviewed upgrades and transitive requirements. Packages retained at their original locked versions have no upgrade interval. Patch/minor numbering alone is not evidence that behavior is unchanged.
+
+### Implementation review on 2026-10-07
+
+Filament **5.10.0**, published after the original inventory, is the selected compatible target. The [5.10.0 notes](https://github.com/filamentphp/filament/releases/tag/v5.10.0) include stricter initial widget/relation-manager and nested ancestor authorization, guard-scoped authentication, relationship action failures, file-upload naming, persisted table state isolation and immutable date/time handling. Review these against the existing admin/resource tests; keep published frontend assets synchronized in a separate commit.
+
+The intervening [Laravel 12 notes](https://github.com/laravel/framework/releases) include stricter `in` validation, temporary upload query handling, recaller password validation, PostgreSQL JSON escaping and queue timeout exit codes. They require behavior checks, but no framework-major migration. Composer's security policy also selects CommonMark 2.10.3 and Flysystem 3.36.0 during the Laravel update.
+
+[Scramble 0.13.43](https://github.com/dedoc/scramble/releases/tag/0.13.43) explicitly changes homogeneous unions from `anyOf` to OpenAPI 3.1 type arrays, removes invalid `additionalItems` and its setter, and stops treating plain return comments as response descriptions. Check the generated schema and RTK Query output rather than assuming a minor update is invisible.
+
+[Boost's upgrade guide](https://github.com/laravel/boost/blob/v2.10.2/UPGRADE.md) documents the 2.5 guideline authoring API change from Roster enums to PackageRegistry/ProjectManager. This repository has no `.ai` overrides using the removed API. Its 2.2.1 Inertia guideline path migration is also inapplicable. Updating Boost does not require regenerating repository agent instructions.
+
+[Larastan's notes](https://github.com/larastan/larastan/releases) cover migration caching enabled by default, PHPStan 2.2.14 minimum, model serialization shapes and tighter relation/config inference. Preserve existing analysis gates and fix real diagnostics. [Pint's notes](https://github.com/laravel/pint/releases) include fully-qualified type formatting and Blade fixes; review formatter churn separately. Sail changes package repositories and container installation scripts, so container rebuilding remains required even when native PHP checks pass. Pail fixes malformed JSON handling and avoids resolving the auth user while logging. Mockery fixes partial constructor/clone handling and negative expectations. Collision's compatible changes affect test recap boundaries. PHPUnit 11.5.56–57 and ParaTest 7.8.6 mainly adjust PHP 8.6 support and PHAR metadata; retain PHPUnit 11.
+
+Expo **57.0.27** is the final patch target, with Constants 57.0.21, Linking 57.0.12 and Router 57.0.25. The [immutable Expo changelogs](https://github.com/expo/expo/tree/50ac74f1ab5682c8e32b24da6e5e97dd4dbbb80f/packages) describe platform-route parsing fixes, listener garbage collection, iOS reload/pod-install fixes, Android layout fixes and CLI cross-origin/prototype guards. Metro's file-map package removes its `braces` dependency; Jest still requires checking separately. No new compiler upgrade is required.
 
 ## Mobile: target and product support gate
 
@@ -135,10 +149,18 @@ These targets are the exact requirements in the published Expo packages, rather 
 
 ## Implementation checks and follow-ups
 
+### Additional resolved-package review (2026-10-07)
+
+Boost also advances its internal MCP dependency to 1.0.1 and Roster to 1.0.0. [Roster's upgrade guide](https://github.com/laravel/roster/blob/v1.0.0/UPGRADE.md) replaces the Roster scan API, package/IDE enums and version checks with the Project facade and ecosystem-specific queries; renamed package accessors and removed host-binary detections also affect extensions. No application or custom guideline references to those removed APIs were found. [MCP 1.0.1](https://github.com/laravel/mcp/releases/tag/v1.0.1) validates loopback redirect hosts. Larastan 3.12.3 requires PHPStan 2.3.0; its new inference is checked against the application rather than suppressed with additional ignores.
+
+The PHPUnit/ParaTest patch pair also resolves [DeepCopy 1.14.0](https://github.com/myclabs/DeepCopy/releases/tag/1.14.0), which drops PHP 7 and changes object tracking to WeakMap; the existing PHP 8.4 runtime meets its floor. CPU-core-counter [1.4.0](https://github.com/theofidry/cpu-core-counter/releases/tag/1.4.0) and [1.4.1](https://github.com/theofidry/cpu-core-counter/releases/tag/1.4.1) change quota/affinity detection and Windows CPU discovery, which can change parallel worker counts. Symfony Console/Process remain on 7.4 patch releases.
+
+The final mobile audit detected the newly published shell-quote advisory. A bounded 1.x override resolves 1.12.0; quoted arguments, round trips and malformed comment/newline input were checked using parser/quoting APIs. Three other advisories remain blocked by an incompatible decoder export or absence of a published fix; see the implementation record and follow-up draft in the plan.
+
 Backend: run all commands through Sail; `composer validate`, Composer dry-run/conflict analysis, `composer audit`, `composer quality`, parallel tests for changed ParaTest. Confirm PostgreSQL behavior as well as SQLite tests. Diff OpenAPI and exercise admin auth/CRUD, provisioning, MQTT dedup/ack/reconnect, event replay and tracing.
 
 Mobile: at each SDK checkpoint align with `pnpm exec expo install --fix`, run Expo Doctor, `pnpm check`, `pnpm test:ci`, and build a fresh native dev client. CI's Node22 selector should resolve to a sufficiently recent patch. Test iOS and Android: persisted auth/server/language startup, sign-in/reset-password links, terms HTML, compartment list/open progress/help phone link, BottomSheet keyboard/gestures, offline recovery, realtime subscription and account logout. SDK/Jest checks cannot replace native smoke. Preserve native runtime-version/build compatibility when issuing a native release.
 
 Inspect broad existing overrides before changing them: mobile currently forces major jumps such as `js-yaml>=5.2.2`, `fast-uri>=4.1.2`, and `uuid>=11.1.1` for older transitive consumers. Record why each still exists, compare the resolved SDK graph, and remove only when the new graph fixes the original advisory and tests pass. Do not lower security floors to make the solver succeed.
 
-Document actual blocked upgrades and create follow-ups only as required by the issue descriptions, naming the blocker, impact and proposed next step. The iOS 16.4 support decision is a known gate for the latest Expo target. No speculative TypeScript, testing-framework or Laravel-major migration is planned. This research did not create issues, publish comments or run updates.
+Document actual blocked upgrades and create follow-ups only as required by the issue descriptions, naming the blocker, impact and proposed next step. The user approved iOS 16.4+ and SDK 57. No speculative TypeScript, testing-framework or Laravel-major migration is planned. Implementation and the blocked follow-up creation attempt are recorded in the companion plan.

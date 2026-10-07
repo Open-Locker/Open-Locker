@@ -4,15 +4,15 @@ Research date: 2026-10-06. Repository baseline: `751993d2c5fa9aeaa32fc64c3024979
 
 ## Scope and approach
 
-The three requests are [mobile #304](https://github.com/Open-Locker/Open-Locker/issues/304), [backend #305](https://github.com/Open-Locker/Open-Locker/issues/305), and [locker client #306](https://github.com/Open-Locker/Open-Locker/issues/306). Each permits small compatibility fixes and asks for substantial migrations to be deferred with a documented blocker and follow-up. This document proposes work; no dependencies have been changed and no upgrade checks have been run.
+The three requests are [mobile #304](https://github.com/Open-Locker/Open-Locker/issues/304), [backend #305](https://github.com/Open-Locker/Open-Locker/issues/305), and [locker client #306](https://github.com/Open-Locker/Open-Locker/issues/306). Each permits small compatibility fixes and asks for substantial migrations to be deferred with a documented blocker and follow-up. Implementation results and remaining validation are recorded below.
 
 Scope is limited to compatible dependency updates, the Expo SDK upgrade, required compatibility fixes, lockfiles and the issue-specific checks. Keep TypeScript 5.9.3 in both TypeScript modules. Retain existing runtime/package-manager versions unless an in-scope dependency requires a change. Major migrations that are not needed for these updates are not planned work.
 
-Use three independently reviewable PRs, one per issue. Land backend compatible updates first, then mobile against that backend, then client. The client work can proceed independently, but each release must preserve the shared MQTT schemas. Website, hardware, and `utils/modbus-cli` are outside these issues.
+The user requested sequential dependency commits and separate compatibility-fix commits on the current worktree. Work is on `codex/dependency-upgrades` (the supplied worktree initially had a detached HEAD). Client/mobile work proceeds independently while the Sail environment is unavailable. Each release must preserve the shared MQTT schemas. Website, hardware, and `utils/modbus-cli` are outside these issues.
 
 Read lockfiles rather than treating manifest minimums as installed versions. For example, the client already has `modbus-serial` 8.0.25 and Winston 3.19.0. The backend already has Filament 5.7.8 and Livewire 4.4.3; references to Livewire 3 in agent guidance are stale.
 
-For each PR:
+For each module:
 
 1. Capture baseline checks, audit output, direct/transitive outdated lists and runtime versions. Investigate pre-existing failures separately.
 2. Update packages in coherent groups; inspect the complete release interval between the locked and resolved versions, including security fixes in minor/patch releases. Recheck registry versions at implementation time.
@@ -78,7 +78,7 @@ Detailed package inventory, upstream references and migration applicability are 
 
 ### Upgrade sequence
 
-1. **Compatible baseline:** advance Laravel 12.62.0 to 12.69.3 and other packages within their current supported lines, including Filament 5.9.0, Livewire 4.4.7 and event-sourcing 7.15.1. Keep the test tools coupled: PHPUnit 11.5.57 with ParaTest 7.8.6 for this first checkpoint. Use a bounded ParaTest constraint, such as `~7.8.6`, rather than widening PHPUnit just to let Composer select the newest ParaTest. Pint 1.32.1 already requires PHP 8.3: reconcile the declared PHP floor with that requirement, or retain a PHP-8.2-compatible Pint if PHP 8.2 support is intentional.
+1. **Compatible baseline:** advance Laravel 12.62.0 to 12.69.3 and other packages within their current supported lines, including Filament 5.10.0, Livewire 4.4.7 and event-sourcing 7.15.1. Keep the test tools coupled: PHPUnit 11.5.57 with ParaTest 7.8.6 for this first checkpoint. Use a bounded ParaTest constraint, such as `~7.8.6`, rather than widening PHPUnit just to let Composer select the newest ParaTest. Pint 1.32.1 requires PHP 8.3 and fits the existing deployed PHP 8.4 runtime. The original lock already includes Symfony 8 packages requiring PHP 8.4; validate this lock on 8.4 and do not introduce a runtime upgrade.
 2. Update `composer.lock` and apply straightforward fixes needed by those compatible versions. Keep Laravel 12, Tinker 2 and PHPUnit 11; no framework/test-runner major migration is scheduled.
 
 ### Breaking changes to address
@@ -110,13 +110,13 @@ Smoke-test worker/MQTT/Reverb processes where affected by the selected updates. 
 
 ## Mobile: #304
 
-The latest stable target checked for this plan is **Expo 57.0.26**. The goal of #304 remains the latest project-supported SDK. Expo 55.0.31 is a compatibility checkpoint and a fallback only when a documented blocker prevents proceeding. Exact SDK native-package sets and all other direct dependencies are in [the release research](dependency-upgrade-release-research.md).
+The latest stable target checked for this plan is **Expo 57.0.27**. The goal of #304 remains the latest project-supported SDK. Expo 55.0.31 is a compatibility checkpoint and a fallback only when a documented blocker prevents proceeding. Exact SDK native-package sets and all other direct dependencies are in [the release research](dependency-upgrade-release-research.md).
 
 ### Upgrade sequence and decision points
 
 1. **54 to 55 checkpoint:** use Expo's dependency alignment to upgrade React, React Native, Expo modules, Router, animation/native libraries, types and the Jest/ESLint configuration together. Prove the SDK 55 build before moving on.
 2. **Audit 56 migrations, then target 57:** [SDK 56 notes](https://expo.dev/changelog/sdk-56) and [SDK 57 notes](https://expo.dev/changelog/sdk-57) both matter. Do not ship an intermediate SDK 56 build: its documented Hermes regression affects applications importing Worklets/Reanimated, and this application uses both. SDK 57 with React Native 0.86.3 contains the fix.
-3. **Device-support decision:** SDK 56 and therefore 57 raise the minimum iOS version from 15.1 to 16.4. This requires a product support decision. If retaining iOS 15 is required or the decision is unresolved at implementation time, land the validated SDK 55 checkpoint and record the SDK 57 blocker/follow-up explicitly. Do not call SDK 55 the latest stable release.
+3. **Device-support decision:** the user approved iOS 16.4+ and SDK 57. See [ADR-0067](adr/0067-mobile-expo-57-ios-support.md). SDK 55 is a JavaScript-validated checkpoint, not the final SDK target.
 4. **Navigation compatibility:** SDK 56 changes Router's React Navigation integration. Actual application references are `ThemeProvider` in `app/_layout.tsx` and `DarkTheme`/`DefaultTheme`/`Theme` in `src/theme/themeFactory.ts`. Migrate those imports/types to the selected Router APIs, and confirm Paper's merged theme remains correct. Evaluate bottom-sheet/native peers against the SDK's exact Reanimated/Worklets versions.
 5. **Other packages:** update i18next/react-i18next, Lucide, Redux Toolkit, Echo/Pusher and UI dependencies to compatible versions, applying only straightforward fixes. Keep TypeScript 5.9.3 and compatible Jest/ESLint/testing-library families. Review existing pnpm overrides only as needed to resolve and validate the updated SDK graph.
 
@@ -129,7 +129,7 @@ pnpm exec expo install expo@~55.0.31 --fix
 pnpm exec expo install --check
 pnpm check
 pnpm test:ci
-# Repeat alignment and validation for ~57.0.26 after the support decision.
+# Repeat alignment and validation for ~57.0.27 after the support decision.
 ```
 
 Run a clean native build of both Android and iOS using the existing development/preview profiles; `expo-doctor`, JavaScript tests and Expo Go alone do not prove native compatibility. Confirm EAS/Xcode/Node image requirements for the SDK. Review generated native diffs before accepting regeneration; SDK 57 changes the default behavior of `expo prebuild` to clean native directories.
@@ -139,3 +139,46 @@ Smoke-test cold/warm startup, fonts/icons and splash, login/logout and SecureSto
 ## Completion and blocked updates
 
 For each issue, document selected versions, major version changes, checks actually performed and intentionally held dependencies. If an in-scope upgrade requires a substantial refactor, product/architecture decision, protocol change or hardware validation beyond the issue, retain the latest compatible version and create the follow-up requested by that issue, including blocker, impact and proposed next step. Do not create speculative compiler, package-manager or framework modernization tasks.
+
+## Implementation record (2026-10-07)
+
+Updates are committed sequentially on `codex/dependency-upgrades`; compatibility fixes and generated assets have separate commits. No changes were pushed. Exact versions are recorded in the three lockfiles. TypeScript remains 5.9.3 in both TypeScript modules, pnpm remains 9.0.0, and deployed Node/PHP runtime lines remain unchanged.
+
+| Module | Implemented updates |
+| --- | --- |
+| Client #306 | MQTT 5.16.0; OpenTelemetry stable 2.11.0 / experimental 0.222.0; Zod 4.6.5; dotenv 18.0.5; p-queue 9.3.3; oxlint 1.87.0; oxfmt 0.72.0; Fallow 3.31.0; bounded fast-uri/ip-address security patches. |
+| Backend #305 | Laravel 12.69.3; Filament 5.10.0 / Livewire 4.4.7; Scramble 0.13.47; OpenTelemetry 2.2.6; Reverb 1.12.0; Sanctum 4.3.3; MQTT client 1.8.0; event-sourcing 7.15.1; Larastan 3.12.3 / PHPStan 2.3.0; Boost 2.10.2; Pail 1.2.7; Pint 1.32.1; Sail 1.68.0; Mockery 1.6.15; Collision 8.9.5; PHPUnit 11.5.57 / ParaTest 7.8.6. Laravel-lang's unchanged 6.8.0 is bounded to fix strict manifest validation. |
+| Mobile #304 | Expo 57.0.27 and aligned native modules; React 19.2.3 / RN 0.86.3; Router 57.0.25; Reanimated 4.5.1 / Worklets 0.10.1; bottom-sheet 5.2.14; Redux Toolkit 2.13.0 / React Redux 9.3.0; i18next 26.4.2 / react-i18next 17.0.15; Echo 2.5.0 / Pusher 8.6.0; Paper 5.15.3; Lucide 1.52.0; Expo icons 15.1.1; ESLint 9.39.5; Prettier 3.9.9 / plugin 5.5.6; compatible transitive security fixes including shell-quote 1.12.0. |
+
+### Compatibility fixes and intentional holds
+
+Mobile migrates theme imports to `expo-router/react-navigation`, handles the native color-scheme `unspecified` value, removes obsolete architecture/edge-to-edge configuration and supplies the required native plugins/Jest peer. The iOS 16.4+ decision is recorded in ADR-0067. Three newly enabled React Compiler ESLint rules remain warnings for existing patterns (26 findings); other lint gates remain active. Echo's Metro ESM redirect remains because its selected package still exposes the problematic CJS entry point.
+
+Scramble's updated PHPDoc inference exposed a mismatch between the nullable `LockerBank.location_description` database/API field and its non-null PHPDoc. Corrected the PHPDoc with a response/schema regression test. Regenerated the mobile API client against a running backend with a migrated SQLite database; the generated timestamp becomes optional/nullable. No API runtime behavior was deliberately changed. Filament's published CSS/JS/fonts were regenerated in their own commit.
+
+Client YAML 4 is retained to preserve deployed configuration semantics. PHPUnit 11 is retained, and ParaTest is bounded to `~7.8.6` because newer 7.x releases require PHPUnit 13. Jest 29 and Testing Library 13 remain aligned with Expo's preset. Unchanged packages already current in their supported families were left alone. Website, hardware and Modbus utilities were not upgraded.
+
+### Checks and limits
+
+- Client: frozen install, type/lint/format checks and build pass; audit clean. Full tests: 349 pass, 12 skipped, three failures identical to the pre-upgrade Windows baseline (credential-file mode, cache path separators and directory-close mocking). Focused queue, telemetry and payload validation tests pass, as do dotenv precedence and Node 22 compiled startup/native binding load checks. Fallow reports three boundary violations also reproduced with its previous version.
+- Mobile: frozen install and Expo alignment pass; 87 tests in 17 suites pass, including after API regeneration. Typecheck, lint and format pass. Expo Doctor reports only the existing unmaintained `react-native-render-html` warning (20/21 checks pass); it was not hidden. Android release x86_64 builds succeed on SDK 57.0.26 and 57.0.27. The latter APK installs and cold-starts to the sign-in screen with fonts/icons and no AndroidRuntime/ReactNativeJS errors. Emulator System UI became unresponsive, limiting interaction smoke; this is not full device-flow validation. iOS JavaScript export succeeds, but native iOS/Xcode checks remain outstanding.
+- Backend: Docker/Sail was unavailable; the user approved native PHP/Composer fallback. Final Composer install with discovery/Filament scripts, strict validation, platform requirements and audit pass; audit has no advisories or abandoned packages. Pint and PHPStan pass. Full PHPUnit suite: 467 tests, 1,677 assertions, 461 passing, two skips and four publisher schema-loading errors, so `composer quality` exits 2. Those four errors also reproduce with old Mockery 1.6.12; the unchanged helper builds an invalid file URI from a Windows path. Focused token auth, private-channel auth, Filament access/actions, MQTT health, event-sourcing atomicity and trace propagation tests pass. Mockery's command-response tests and the two-process PHPUnit/ParaTest unit suite pass (10 tests / 94 assertions). Roster scanning and Boost's local command registration/help pass. Final live API regeneration and mobile typecheck pass without additional changes.
+- Remaining environment checks: Sail/container rebuild, PostgreSQL, Docker client builds for both architectures, broker/hardware integration, native iOS with Xcode 26.4+, and real-device authentication/deep links/gestures/reconnection flows. These checks are not represented as passing.
+
+The full `composer test:parallel -- --processes=2` run also completes all 467 tests with 1,677 assertions, the same four schema-loading errors and two skips (exit 2). No additional parallel-test failures were observed. Temporary backend/API servers and the Android emulator were stopped after validation.
+
+### Blocked mobile security follow-up draft
+
+Issue creation through the GitHub integration returned HTTP 403 (`Resource not accessible by integration`); no follow-up issue was created. The reviewable draft is retained here:
+
+**Title:** Resolve remaining Expo/Jest transitive security advisories after SDK 57 upgrade
+
+**Context:** Follow-up to #304. The final audit still reports:
+
+| Dependency | Advisory / impact path | Blocker |
+| --- | --- | --- |
+| decode-uri-component 0.2.2 | [GHSA-vcc3-ghjq-m6fr](https://github.com/advisories/GHSA-vcc3-ghjq-m6fr), Router's query-string parser | Fixed 0.5 exports ESM; overriding it breaks the CJS consumer with `decodeComponent is not a function`, including normal deep links. The incompatible override was reverted. |
+| node-forge 1.4.0 | [GHSA-86w9-cpqp-85rv](https://github.com/advisories/GHSA-86w9-cpqp-85rv), Expo CLI signing dependency | No fixed version published at the audit date. |
+| braces 3.0.3 | [GHSA-vfj7-8cjw-p6xm](https://github.com/advisories/GHSA-vfj7-8cjw-p6xm), Jest graph | No fixed version published at the audit date. The newest Metro file-map removes its separate dependency. |
+
+**Proposed next step:** Upgrade the parent parser/build/test packages when compatible fixes are published, or plan a bounded parent migration. Assess reachability separately for the runtime deep-link parser and development/build dependencies. Repeat audit, malformed/Unicode/normal deep-link parity, JavaScript tests and platform exports; do not force an incompatible decoder major solely to clear the audit.
