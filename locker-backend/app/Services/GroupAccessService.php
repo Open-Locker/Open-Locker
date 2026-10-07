@@ -152,7 +152,7 @@ class GroupAccessService
     private function ensureSameOrganization(Group $group, Compartment $compartment): void
     {
         throw_unless(
-            $group->organization_id === $compartment->organization_id,
+            $group->getAttribute('organization_id') === $compartment->organization_id,
             AuthorizationException::class,
             'Groups can only access compartments in their organization.',
         );
