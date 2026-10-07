@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "e9321bfb979208c6ab973333a9f38e3c",
+    "content-hash": "061781ababda63b4e0bd9de1281841cd",
     "packages": [
         {
             "name": "anourvalar/eloquent-serialize",
@@ -2960,16 +2960,16 @@
         },
         {
             "name": "keepsuit/laravel-opentelemetry",
-            "version": "2.2.4",
+            "version": "2.2.6",
             "source": {
                 "type": "git",
                 "url": "https://github.com/keepsuit/laravel-opentelemetry.git",
-                "reference": "2cbd0cbcc0d17890bc17ea28d44a029834d1d11b"
+                "reference": "e7bdf80fd847cc1c2942ad30a61c6d58f7a0419e"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/keepsuit/laravel-opentelemetry/zipball/2cbd0cbcc0d17890bc17ea28d44a029834d1d11b",
-                "reference": "2cbd0cbcc0d17890bc17ea28d44a029834d1d11b",
+                "url": "https://api.github.com/repos/keepsuit/laravel-opentelemetry/zipball/e7bdf80fd847cc1c2942ad30a61c6d58f7a0419e",
+                "reference": "e7bdf80fd847cc1c2942ad30a61c6d58f7a0419e",
                 "shasum": ""
             },
             "require": {
@@ -2992,7 +2992,7 @@
             "require-dev": {
                 "guzzlehttp/guzzle": "^7.3",
                 "guzzlehttp/psr7": "^2.0",
-                "guzzlehttp/test-server": "^0.5",
+                "guzzlehttp/test-server": "^0.7",
                 "larastan/larastan": "^3.0",
                 "laravel/octane": "^2.13",
                 "laravel/pint": "^1.18",
@@ -3054,9 +3054,9 @@
             ],
             "support": {
                 "issues": "https://github.com/keepsuit/laravel-opentelemetry/issues",
-                "source": "https://github.com/keepsuit/laravel-opentelemetry/tree/2.2.4"
+                "source": "https://github.com/keepsuit/laravel-opentelemetry/tree/2.2.6"
             },
-            "time": "2026-07-07T08:02:16+00:00"
+            "time": "2026-10-02T08:22:00+00:00"
         },
         {
             "name": "kirschbaum-development/eloquent-power-joins",
