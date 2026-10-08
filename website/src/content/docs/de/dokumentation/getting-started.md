@@ -10,7 +10,7 @@ Produktions-Deployment siehe [Betrieb](/dokumentation/operations/).
 
 ## Voraussetzungen
 
-- **Docker** & Docker Compose
+- **Docker** & Docker Compose (**2.24.4+** für `trace-up`)
 - **PHP 8.4+** und **Composer** (Backend)
 - **Node.js 22+** (MQTT-/Tracing-Skripte, Mobile App, Locker Client, Website) und **pnpm 11.25.0** (Abhängigkeiten der Repository-Skripte)
 - **just 1.56+** (Task-Runner, optional aber empfohlen)
@@ -21,6 +21,8 @@ Produktions-Deployment siehe [Betrieb](/dokumentation/operations/).
 git clone https://github.com/Open-Locker/Open-Locker.git
 cd Open-Locker
 just script-deps          # Execa und dotenv für die Repository-Skripte installieren
+# Oder ohne Just:
+# pnpm --dir scripts install --frozen-lockfile
 ```
 
 ## Backend

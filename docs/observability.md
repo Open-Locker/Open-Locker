@@ -34,7 +34,8 @@ configuration change, not a deploy.
 
 ## The short way
 
-From the repo root, with Just 1.56+, Node 22+, pnpm 11.25.0 and Docker installed:
+From the repo root, with Just 1.56+, Node 22+, pnpm 11.25.0, Docker and
+Docker Compose 2.24.4+ installed (`trace-up` uses the `!override` port tag):
 
 ```bash
 just script-deps     # install workflow dependencies once

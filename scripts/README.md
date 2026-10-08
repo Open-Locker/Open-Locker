@@ -48,16 +48,18 @@ it without side effects. The `Runtime` interface supplies the repository root,
 environment, logging and command execution; tests substitute commands to verify
 orchestration without starting services.
 
-MQTT uses a nonempty `MOSQ_HTTP_PASS` from the process environment first, then
-dotenv's parsed `locker-backend/.env` value. Environment values stay literal;
+MQTT uses dotenv's parsed `MOSQ_HTTP_PASS` from `locker-backend/.env`, matching
+Laravel's configuration. A nonempty host value must match that file value;
 file values follow dotenv quoting and comment rules, and the last duplicate key
 wins. Backend variables are never loaded into the host environment. Passwords
-must be a single line and are never printed. The template is replaced atomically
-before MQTT restarts.
+must be a single line and are never printed. Webhook query values are percent-encoded.
+The template is replaced atomically before MQTT is recreated without restarting
+its dependencies, so the single-file bind mount picks up the new configuration.
 
 Tracing keeps SigNoz in a separate Compose project and retains its volumes when
 stopping. `SIGNOZ_DIR` selects its checkout, `SIGNOZ_UI_PORT` selects its UI port,
 and `FORWARD_OTLP_HTTP_PORT` / `FORWARD_OTLP_GRPC_PORT` select collector host ports.
+`trace-up` requires Docker Compose 2.24.4+ for the `!override` port tag.
 Port overrides are passed only to the relevant subprocess. HTTP readiness uses
 a bounded overall deadline. See [the observability guide](../docs/observability.md)
 for setup and behavior.

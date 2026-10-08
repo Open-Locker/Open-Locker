@@ -51,11 +51,13 @@ and command usage.
 Preserve public command names, the pinned SigNoz version and retained data.
 Workflow `--dry-run` previews internal actions without file, network or subprocess
 operations; Just's dry run prints only the recipe command. MQTT configuration is
-written completely before restarting MQTT, and passwords are never logged.
+written completely before recreating MQTT without its dependencies, so its
+single-file bind mount references the new config. Passwords are never logged
+and are percent-encoded in webhook query values.
 
-A nonempty process environment password takes precedence and remains literal.
-File values follow dotenv quoting and comment rules, with the last duplicate key
-winning. This replaces the custom parser's first-match behavior. Reject multiline
+Use the backend file password to match Laravel; reject a nonempty host password
+that differs from it. File values follow dotenv quoting and comment rules, with
+the last duplicate key winning. This replaces the custom parser's first-match behavior. Reject multiline
 passwords, including escaped newlines decoded by dotenv.
 
 The selected combination keeps a discoverable command interface, reuses the
@@ -246,7 +248,7 @@ provide equivalent Windows ACL protection; existing secret URL semantics remain.
 Container-side generation and backend health-check changes are deferred. A runtime
 or task-runner choice alone does not sandbox external Docker/Git processes.
 
-Strict type checking, all 11 behavioral tests, frozen installation, dry-run entry
+Strict type checking, behavioral tests, frozen installation, dry-run entry
 points and Just formatting passed on Windows. CI is configured for Windows,
 Linux and macOS, covering paths with spaces, failed processes, secrets and bounded
 readiness. Linux/macOS results and full Docker startup were not verified locally.

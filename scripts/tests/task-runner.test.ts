@@ -82,45 +82,66 @@ test('process arguments with spaces and shell characters stay literal; failures 
   });
 });
 
-test('MQTT parses dotenv quotes, CRLF and special characters; environment wins', () => {
+test('MQTT parses dotenv quotes, CRLF and special characters; matching environment is allowed', () => {
   const content = 'MOSQ_HTTP_PASS="first & $& \\ value"\r\n';
   assert.equal(mqttPassword(content), 'first & $& \\ value');
-  assert.equal(mqttPassword(content, { MOSQ_HTTP_PASS: 'override' }), 'override');
-  assert.equal(mqttPassword(content, { MOSQ_HTTP_PASS: "'literal quotes'" }), "'literal quotes'");
+  assert.equal(mqttPassword(content, { MOSQ_HTTP_PASS: 'first & $& \\ value' }), 'first & $& \\ value');
+  assert.equal(mqttPassword('MOSQ_HTTP_PASS="\'literal quotes\'"', { MOSQ_HTTP_PASS: "'literal quotes'" }), "'literal quotes'");
   assert.equal(mqttPassword('MOSQ_HTTP_PASS=first\nMOSQ_HTTP_PASS=last # comment'), 'last');
   assert.equal(mqttPassword(' export MOSQ_HTTP_PASS = "quoted # value" # comment'), 'quoted # value');
   const environment = {};
   mqttPassword(content, environment);
   assert.deepEqual(environment, {});
   assert.throws(() => mqttPassword('MOSQ_HTTP_PASS=""'), /missing/);
-  assert.throws(() => mqttPassword('', { MOSQ_HTTP_PASS: 'bad\nsecret' }), /single line/);
+  assert.throws(() => mqttPassword('MOSQ_HTTP_PASS="bad\nsecret"', { MOSQ_HTTP_PASS: 'bad\nsecret' }), /single line/);
   assert.throws(() => mqttPassword('MOSQ_HTTP_PASS="bad\\nsecret"'), /single line/);
 });
 
-test('MQTT writes before restart, replaces existing config, cleans temporary files and hides secrets', async (t) => {
+test('MQTT refuses host secrets that differ from the backend file before changing config', async (t) => {
   const root = await fixture(t);
   const directory = join(root, 'locker-backend/mosquitto');
   await mkdir(directory, { recursive: true });
-  await writeFile(join(root, 'locker-backend/.env'), 'MOSQ_HTTP_PASS="secret $& \\ &"\r\n');
+  await writeFile(join(root, 'locker-backend/.env'), 'MOSQ_HTTP_PASS=file-secret');
   const target = join(directory, 'mosquitto.conf');
-  await writeFile(`${target}.template`, 'password=__AUTH_PASS__\nother=__AUTH_PASS__\n');
+  await writeFile(`${target}.template`, 'password=__AUTH_PASS__');
+  await writeFile(target, 'old config');
+  const runtime: Runtime = { root, env: { MOSQ_HTTP_PASS: 'host-secret' }, log() {}, run: () => assert.fail('Docker called') };
+  await assert.rejects(setupMqtt(runtime), /must match/);
+  assert.equal(await readFile(target, 'utf8'), 'old config');
+  assert.throws(() => mqttPassword('', { MOSQ_HTTP_PASS: 'host-secret' }), /missing/);
+});
+
+test('MQTT writes encoded webhook secrets before recreating, cleans temporary files and hides secrets', async (t) => {
+  const root = await fixture(t);
+  const directory = join(root, 'locker-backend/mosquitto');
+  await mkdir(directory, { recursive: true });
+  await writeFile(join(root, 'locker-backend/.env'), 'MOSQ_HTTP_PASS="secret $& \\ &#+%=é"\r\n');
+  const target = join(directory, 'mosquitto.conf');
+  await writeFile(`${target}.template`, 'auth_opt_http_getuser_uri /api/mosq/auth?mosq_secret=__AUTH_PASS__\nauth_opt_http_aclcheck_uri /api/mosq/acl?mosq_secret=__AUTH_PASS__\n');
   await writeFile(target, 'old config');
   const output: string[] = [];
   const runtime: Runtime = {
     root, env: {}, log: (line) => output.push(line),
     async run(program, args) {
       assert.equal(program, 'docker');
-      assert.deepEqual(args.slice(-2), ['restart', 'mqtt']);
-      assert.equal(await readFile(target, 'utf8'), 'password=secret $& \\ &\nother=secret $& \\ &\n');
-      throw new Error('restart failed');
+      assert.deepEqual(args, ['compose', '-f', 'locker-backend/docker-compose.yml', 'up', '-d', '--no-deps', '--force-recreate', 'mqtt']);
+      const config = await readFile(target, 'utf8');
+      assert.equal(config, 'auth_opt_http_getuser_uri /api/mosq/auth?mosq_secret=secret%20%24%26%20%5C%20%26%23%2B%25%3D%C3%A9\nauth_opt_http_aclcheck_uri /api/mosq/acl?mosq_secret=secret%20%24%26%20%5C%20%26%23%2B%25%3D%C3%A9\n');
+      for (const line of config.trim().split('\n')) {
+        const url = new URL(line.split(' ')[1]!, 'http://app:8080');
+        assert.equal(url.searchParams.get('mosq_secret'), 'secret $& \\ &#+%=é');
+        assert.equal(url.hash, '');
+      }
+      throw new Error('recreate failed');
     },
   };
-  await assert.rejects(setupMqtt(runtime), /restart failed/);
+  await assert.rejects(setupMqtt(runtime), /recreate failed/);
   assert.ok(output.every((line) => !line.includes('secret')));
   assert.deepEqual((await readdir(directory)).sort(), ['mosquitto.conf', 'mosquitto.conf.template']);
   await writeFile(join(root, 'locker-backend/.env'), 'MOSQ_HTTP_PASS=');
+  const previous = await readFile(target, 'utf8');
   await assert.rejects(setupMqtt({ root, env: {}, log() {}, run: () => assert.fail('Docker called') }), /missing/);
-  assert.equal(await readFile(target, 'utf8'), 'password=secret $& \\ &\nother=secret $& \\ &\n');
+  assert.equal(await readFile(target, 'utf8'), previous);
 });
 
 test('tracing refuses unrelated existing checkout and invalid ports', async (t) => {
