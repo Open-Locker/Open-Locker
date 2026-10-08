@@ -1,0 +1,58 @@
+name: Task Runner Quality
+
+on:
+  pull_request:
+    paths:
+      - '.gitattributes'
+      - '.github/workflows/task-runner-ci.yml'
+      - 'Justfile'
+      - 'scripts/**'
+  push:
+    branches: [main, dev]
+    paths:
+      - '.gitattributes'
+      - '.github/workflows/task-runner-ci.yml'
+      - 'Justfile'
+      - 'scripts/**'
+
+concurrency:
+  group: task-runner-quality-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  scripts:
+    name: Just and Node (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          version: '11.25.0'
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: scripts/pnpm-lock.yaml
+      - name: Install Just
+        uses: extractions/setup-just@v4
+        with:
+          just-version: '1.58.0'
+      - name: Install workflow dependencies
+        run: just script-deps
+      - name: Validate command menu
+        run: |
+          just --fmt --check
+          just --list
+      - name: Type-check workflows and tests
+        run: pnpm --dir scripts check
+      - name: Test workflows and Just integration
+        run: pnpm --dir scripts test

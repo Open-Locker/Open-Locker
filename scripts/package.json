@@ -1,0 +1,24 @@
+{
+  "name": "open-locker-scripts",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "packageManager": "pnpm@11.25.0",
+  "scripts": {
+    "setup-mqtt": "tsx setup-mqtt.ts",
+    "trace": "tsx tracing.ts",
+    "check": "tsc --noEmit",
+    "test": "tsx --test tests/task-runner.test.ts"
+  },
+  "dependencies": {
+    "dotenv": "18.0.6",
+    "execa": "10.1.0"
+  },
+  "devDependencies": {
+    "@types/node": "22.20.5",
+    "tsx": "4.23.15",
+    "typescript": "7.0.2"
+  }
+}
