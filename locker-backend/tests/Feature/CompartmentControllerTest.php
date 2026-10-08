@@ -12,6 +12,8 @@ use App\Services\TermsService;
 use App\StorableEvents\CompartmentOpenAuthorized;
 use App\StorableEvents\CompartmentOpenDenied;
 use App\StorableEvents\CompartmentOpenRequested;
+use Dedoc\Scramble\Generator;
+use Dedoc\Scramble\Scramble;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Notification;
 use Spatie\EventSourcing\StoredEvents\Models\EloquentStoredEvent;
@@ -70,6 +72,24 @@ class CompartmentControllerTest extends TestCase
         $this->actingAs($user)->getJson('/api/compartments')
             ->assertStatus(200)
             ->assertJsonPath('locker_banks.0.support_phone', '+49 30 1234567');
+    }
+
+    public function test_a_bank_without_a_location_description_is_nullable_in_the_api_and_schema(): void
+    {
+        $user = User::factory()->create();
+        $user->makeAdmin();
+
+        $compartment = Compartment::factory()->create();
+        $compartment->lockerBank->forceFill(['location_description' => null])->save();
+
+        $this->actingAs($user)->getJson('/api/compartments')
+            ->assertOk()
+            ->assertJsonPath('locker_banks.0.location_description', null);
+
+        $spec = app(Generator::class)->generate(Scramble::configure())->spec();
+        $location = $spec['components']['schemas']['AccessibleCompartments']['properties']['locker_banks']['items']['properties']['location_description'];
+
+        $this->assertEqualsCanonicalizing(['string', 'null'], $location['type']);
     }
 
     public function test_compartments_endpoint_returns_compartments_with_contents(): void
