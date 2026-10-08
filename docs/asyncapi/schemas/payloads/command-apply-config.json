@@ -21,16 +21,33 @@
           "required": [
             "config_hash",
             "heartbeat_interval_seconds",
+            "adapter_type",
+            "feedback_type",
             "compartments"
           ],
           "properties": {
             "config_hash": {
               "type": "string",
-              "pattern": "^[A-Fa-f0-9]{64}$"
+              "pattern": "^[A-Fa-f0-9]{64}$",
+              "description": "SHA-256 of the compact canonical JSON object containing exactly adapter_type, feedback_type, and compartments in that key order; compartments are sorted by compartment_number."
             },
             "heartbeat_interval_seconds": {
               "type": "integer",
               "minimum": 1
+            },
+            "adapter_type": {
+              "type": "string",
+              "enum": [
+                "waveshare_modbus",
+                "rs485_lock_board"
+              ]
+            },
+            "feedback_type": {
+              "type": "string",
+              "enum": [
+                "door_closing",
+                "door_opening"
+              ]
             },
             "compartments": {
               "type": "array",
@@ -52,7 +69,9 @@
                   },
                   "address": {
                     "type": "integer",
-                    "minimum": 0
+                    "minimum": 0,
+                    "maximum": 254,
+                    "description": "Zero-based channel address; must be wire-encodable as a non-zero one-byte channel (0 maps to wire channel 1, maximum 254)."
                   }
                 },
                 "additionalProperties": false

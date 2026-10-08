@@ -6,6 +6,7 @@ namespace App\Aggregates;
 
 use App\Models\Compartment;
 use App\Models\LockerBank;
+use App\Services\LockerProvisioningService;
 use App\StorableEvents\CompartmentOpeningRequested;
 use App\StorableEvents\LockerConfigApplyRequested;
 use App\StorableEvents\LockerProvisioningFailed;
@@ -59,7 +60,7 @@ class LockerBankAggregate extends TransactionalAggregateRoot
      * manually (the backend has no push channel).
      *
      * Rotating the token, deleting the MQTT user and enforcing authorization
-     * belong to {@see \App\Services\LockerProvisioningService}.
+     * belong to {@see LockerProvisioningService}.
      */
     public function resetProvisioning(int $actorUserId, CarbonImmutable $resetAt): self
     {
@@ -124,8 +125,13 @@ class LockerBankAggregate extends TransactionalAggregateRoot
      *
      * @param  array<int, array<string, int>>  $compartments
      */
-    public function requestApplyConfig(string $configHash, int $heartbeatIntervalSeconds, array $compartments): self
-    {
+    public function requestApplyConfig(
+        string $configHash,
+        int $heartbeatIntervalSeconds,
+        string $adapterType,
+        string $feedbackType,
+        array $compartments,
+    ): self {
         $lockerBankUuid = (string) $this->uuid();
         $commandId = (string) Str::uuid();
 
@@ -134,6 +140,8 @@ class LockerBankAggregate extends TransactionalAggregateRoot
             'commandId' => $commandId,
             'configHash' => $configHash,
             'heartbeatIntervalSeconds' => $heartbeatIntervalSeconds,
+            'adapterType' => $adapterType,
+            'feedbackType' => $feedbackType,
             'compartmentCount' => count($compartments),
         ]);
 
@@ -143,6 +151,8 @@ class LockerBankAggregate extends TransactionalAggregateRoot
             configHash: $configHash,
             heartbeatIntervalSeconds: $heartbeatIntervalSeconds,
             compartments: $compartments,
+            adapterType: $adapterType,
+            feedbackType: $feedbackType,
         ));
 
         return $this;

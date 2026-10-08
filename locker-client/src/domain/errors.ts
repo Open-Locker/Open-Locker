@@ -37,6 +37,16 @@ export class ModbusTransportError extends LockerError {
   }
 }
 
+export class HardwareTransportError extends LockerError {
+  constructor(
+    message: string,
+    public readonly reconnectable = false,
+  ) {
+    super(MqttErrorCode.HARDWARE_ERROR, message);
+    this.name = 'HardwareTransportError';
+  }
+}
+
 /**
  * Serial faults the operating system reports by code. A removed adapter, a device
  * node that no longer exists, a handle the kernel has invalidated: all of them
@@ -111,9 +121,25 @@ function isModbusLibraryError(error: unknown): boolean {
   );
 }
 
+export function isReconnectableHardwareError(error: unknown): boolean {
+  if (error instanceof HardwareTransportError) {
+    return error.reconnectable;
+  }
+
+  if (serialErrorCode(error) === 'EACCES') {
+    return false;
+  }
+
+  return hasRecoverableSerialCode(error);
+}
+
 export function isReconnectableModbusError(error: unknown): boolean {
   if (error instanceof ModbusTransportError) {
     return error.reconnectable;
+  }
+
+  if (serialErrorCode(error) === 'EACCES') {
+    return false;
   }
 
   if (hasRecoverableSerialCode(error)) {

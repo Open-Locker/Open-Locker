@@ -8,16 +8,17 @@ use App\Models\Compartment;
 use App\Models\Group;
 use App\Models\LockerBank;
 use App\Models\User;
+use ReflectionClass;
 use Spatie\EventSourcing\StoredEvents\Models\EloquentStoredEvent;
 
 /**
  * Turns raw {@see EloquentStoredEvent} rows into the curated, human-readable
  * shape used by the admin audit log (#109).
  *
- * Only the event classes listed in {@see self::CATEGORIES} are considered
- * "auditable" — high-volume telemetry events (heartbeats, door-state changes,
- * raw device/command traffic) are deliberately excluded so the log stays a
- * record of *who did what*, not a firehose.
+ * Which events appear, under which category and label, is declared on each
+ * event class with {@see Audited} or {@see NotAudited} (#202): high-volume
+ * telemetry and raw device/command traffic are marked NotAudited so the log
+ * stays a record of *who did what*, not a firehose.
  *
  * Lookups are memoised per request so rendering a page of rows does not issue a
  * query per row for the same actor/compartment/group.
@@ -27,51 +28,11 @@ class AuditEventPresenter
     private const EVENT_NAMESPACE = 'App\\StorableEvents\\';
 
     /**
-     * Whitelist: short event class name => category key. Anything not listed
-     * here is excluded from the audit log.
+     * Audited event class => its attribute, read once from the event classes.
+     *
+     * @var array<string, Audited>|null
      */
-    private const CATEGORIES = [
-        // Access
-        'CompartmentOpenRequested' => 'access',
-        'CompartmentOpenAuthorized' => 'access',
-        'CompartmentOpenDenied' => 'access',
-        'CompartmentOpened' => 'access',
-        'CompartmentOpenAcknowledged' => 'access',
-        'CompartmentDoorOpenDetected' => 'access',
-        'CompartmentDoorAlreadyOpen' => 'access',
-        'CompartmentOpenNotDetected' => 'access',
-        'CompartmentUncommandedOpenDetected' => 'access',
-        'CompartmentOpeningFailed' => 'access',
-        'CompartmentAccessGranted' => 'access',
-        'CompartmentAccessRevoked' => 'access',
-        'GroupCompartmentAccessGranted' => 'access',
-        'GroupCompartmentAccessRevoked' => 'access',
-        'CompartmentContentNoteUpdated' => 'access',
-
-        // Devices / lockers
-        'LockerWasProvisioned' => 'devices',
-        'LockerProvisioningFailed' => 'devices',
-        'LockerProvisioningReset' => 'devices',
-        'LockerProvisioningTokenIssued' => 'devices',
-        'LockerConnectionLost' => 'devices',
-        'LockerConnectionRestored' => 'devices',
-        'LockerConfigAcknowledged' => 'devices',
-        'LockerConfigAckFailed' => 'devices',
-
-        // Admin (users, groups, roles, permissions)
-        'GroupCreated' => 'admin',
-        'GroupArchived' => 'admin',
-        'UserAddedToGroup' => 'admin',
-        'UserRemovedFromGroup' => 'admin',
-        'UserRoleGranted' => 'admin',
-        'UserRoleRevoked' => 'admin',
-
-        // Terms & legal
-        'TermsDocumentCreated' => 'terms',
-        'TermsVersionPublished' => 'terms',
-        'TermsVersionActivated' => 'terms',
-        'UserAcceptedTermsVersion' => 'terms',
-    ];
+    private ?array $audited = null;
 
     /** @var array<int, string|null> */
     private array $userCache = [];
@@ -86,16 +47,30 @@ class AuditEventPresenter
     private array $lockerBankCache = [];
 
     /**
+     * Every class in app/StorableEvents, auditable or not. Shared with
+     * AuditEventClassificationTest so both look at the same set.
+     *
+     * @return list<string>
+     */
+    public static function storedEventClasses(): array
+    {
+        $files = glob(app_path('StorableEvents/*.php')) ?: [];
+        sort($files);
+
+        return array_map(
+            static fn (string $file): string => self::EVENT_NAMESPACE.basename($file, '.php'),
+            $files,
+        );
+    }
+
+    /**
      * Fully-qualified class names of every auditable event.
      *
      * @return list<string>
      */
     public function auditableEventClasses(): array
     {
-        return array_map(
-            static fn (string $short): string => self::EVENT_NAMESPACE.$short,
-            array_keys(self::CATEGORIES),
-        );
+        return array_keys($this->audited());
     }
 
     /**
@@ -105,12 +80,13 @@ class AuditEventPresenter
      */
     public function categories(): array
     {
-        return [
-            'access' => __('Access'),
-            'devices' => __('Devices & Lockers'),
-            'admin' => __('Administration'),
-            'terms' => __('Terms & Legal'),
-        ];
+        $categories = [];
+
+        foreach (AuditCategory::cases() as $category) {
+            $categories[$category->value] = $category->label();
+        }
+
+        return $categories;
     }
 
     /**
@@ -122,9 +98,9 @@ class AuditEventPresenter
     {
         $classes = [];
 
-        foreach (self::CATEGORIES as $short => $cat) {
-            if ($cat === $category) {
-                $classes[] = self::EVENT_NAMESPACE.$short;
+        foreach ($this->audited() as $class => $audited) {
+            if ($audited->category->value === $category) {
+                $classes[] = $class;
             }
         }
 
@@ -140,8 +116,8 @@ class AuditEventPresenter
     {
         $options = [];
 
-        foreach (array_keys(self::CATEGORIES) as $short) {
-            $options[self::EVENT_NAMESPACE.$short] = $this->label(self::EVENT_NAMESPACE.$short);
+        foreach (array_keys($this->audited()) as $class) {
+            $options[$class] = $this->label($class);
         }
 
         asort($options);
@@ -151,52 +127,24 @@ class AuditEventPresenter
 
     public function categoryLabel(?string $eventClass): ?string
     {
-        $category = self::CATEGORIES[$this->short($eventClass)] ?? null;
-
-        return $category ? ($this->categories()[$category] ?? null) : null;
+        return ($this->audited()[$eventClass ?? ''] ?? null)?->category->label();
     }
 
     /**
-     * Human-readable label for an event type.
+     * Translated label of an audited event type; the short class name for any
+     * other class, which the log never lists.
      */
     public function label(?string $eventClass): string
     {
-        return match ($this->short($eventClass)) {
-            'CompartmentOpenRequested' => __('Open requested'),
-            'CompartmentOpenAuthorized' => __('Open authorized'),
-            'CompartmentOpenDenied' => __('Open denied'),
-            'CompartmentOpened' => __('Compartment opened'),
-            'CompartmentOpenAcknowledged' => __('Unlock pulse sent'),
-            'CompartmentDoorOpenDetected' => __('Door opened'),
-            'CompartmentDoorAlreadyOpen' => __('Door was already open'),
-            'CompartmentOpenNotDetected' => __('Door did not open'),
-            'CompartmentUncommandedOpenDetected' => __('Uncommanded door opening'),
-            'CompartmentOpeningFailed' => __('Opening failed'),
-            'CompartmentAccessGranted' => __('Access granted'),
-            'CompartmentAccessRevoked' => __('Access revoked'),
-            'GroupCompartmentAccessGranted' => __('Group access granted'),
-            'GroupCompartmentAccessRevoked' => __('Group access revoked'),
-            'CompartmentContentNoteUpdated' => __('Content note updated'),
-            'LockerWasProvisioned' => __('Locker provisioned'),
-            'LockerProvisioningFailed' => __('Provisioning failed'),
-            'LockerProvisioningReset' => __('Provisioning reset'),
-            'LockerProvisioningTokenIssued' => __('Provisioning token issued'),
-            'LockerConnectionLost' => __('Connection lost'),
-            'LockerConnectionRestored' => __('Connection restored'),
-            'LockerConfigAcknowledged' => __('Configuration acknowledged'),
-            'LockerConfigAckFailed' => __('Configuration failed'),
-            'GroupCreated' => __('Group created'),
-            'GroupArchived' => __('Group archived'),
-            'UserAddedToGroup' => __('User added to group'),
-            'UserRemovedFromGroup' => __('User removed from group'),
-            'UserRoleGranted' => __('Role granted'),
-            'UserRoleRevoked' => __('Role revoked'),
-            'TermsDocumentCreated' => __('Terms document created'),
-            'TermsVersionPublished' => __('Terms version published'),
-            'TermsVersionActivated' => __('Terms version activated'),
-            'UserAcceptedTermsVersion' => __('Terms accepted'),
-            default => $this->short($eventClass) ?? __('Unknown'),
-        };
+        $audited = $this->audited()[$eventClass ?? ''] ?? null;
+
+        if ($audited !== null) {
+            return __($audited->label);
+        }
+
+        // Only reachable for classes the log never lists: a NotAudited event,
+        // or an old stored event whose class no longer exists.
+        return $this->short($eventClass) ?? __('Unknown');
     }
 
     /**
@@ -269,11 +217,24 @@ class AuditEventPresenter
                 'actor' => $this->user($p['actorUserId'] ?? null),
                 'compartment' => $this->compartment($p['compartmentUuid'] ?? null),
             ]),
+            // The audit log is the durable record if the email is lost, so it keeps the words.
+            'CompartmentHelpRequested' => __(':actor asked for help with compartment :compartment: ":message"', [
+                'actor' => $this->user($p['actorUserId'] ?? null),
+                'compartment' => $this->compartment($p['compartmentUuid'] ?? null),
+                'message' => $p['message'] ?? '',
+            ]),
             'LockerWasProvisioned' => __('Locker bank :bank was provisioned', [
                 'bank' => $this->lockerBank($p['lockerBankUuid'] ?? null),
             ]),
             'LockerProvisioningFailed' => __('Locker provisioning failed (:reason)', [
                 'reason' => $p['reason'] ?? '-',
+            ]),
+            // "Provisioned" was already recorded, but the device never got its
+            // MQTT credentials; without this entry the log reads as a success.
+            // The stored reason is the raw exception message, which can carry SQL
+            // bindings such as the MQTT credential hash, so it stays in the log.
+            'LockerProvisioningReplyFailed' => __('Sending the credentials to locker bank :bank failed. Details are in the server log.', [
+                'bank' => $this->lockerBank($p['lockerBankUuid'] ?? null),
             ]),
             // Never renders token material: the event does not carry it.
             'LockerProvisioningReset' => __(':actor reset provisioning for locker bank :bank', [
@@ -377,6 +338,32 @@ class AuditEventPresenter
             ?? ($this->short($event->event_class) === 'UserAcceptedTermsVersion' ? ($p['userId'] ?? null) : null);
 
         return $actorId !== null ? $this->user((int) $actorId) : null;
+    }
+
+    /**
+     * @return array<string, Audited>
+     */
+    private function audited(): array
+    {
+        if ($this->audited !== null) {
+            return $this->audited;
+        }
+
+        $audited = [];
+
+        foreach (self::storedEventClasses() as $class) {
+            if (! class_exists($class)) {
+                continue;
+            }
+
+            $attribute = (new ReflectionClass($class))->getAttributes(Audited::class)[0] ?? null;
+
+            if ($attribute !== null) {
+                $audited[$class] = $attribute->newInstance();
+            }
+        }
+
+        return $this->audited = $audited;
     }
 
     private function short(?string $eventClass): ?string

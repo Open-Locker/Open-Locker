@@ -114,7 +114,7 @@ services:
     # is not atomic — a second consumer would let a redelivered event be
     # recorded twice, and duplicated events are permanent history. Do not scale
     # this service without making those guards safe first.
-    command: "php artisan queue:work --queue=events --tries=3 --timeout=90"
+    command: "php artisan queue:work --queue=events --sleep=1 --tries=3 --timeout=90"
     depends_on:
       <<: *worker_depends_on_prod
     healthcheck:
@@ -208,14 +208,16 @@ services:
       - default
       - coolify
     labels:
+      # Coolify does not interpolate ${VAR} in Compose labels. Keep these
+      # literal; HostSNI(`*`) still requires TLS and the mqtts entrypoint.
       - "traefik.enable=true"
       - "traefik.docker.network=coolify"
-      - "traefik.tcp.routers.${COOLIFY_MQTT_ROUTER_NAME:-open-locker-mqtt}.rule=HostSNI(`${MQTT_DOMAIN:?Set MQTT_DOMAIN}`)"
-      - "traefik.tcp.routers.${COOLIFY_MQTT_ROUTER_NAME:-open-locker-mqtt}.entrypoints=mqtts"
-      - "traefik.tcp.routers.${COOLIFY_MQTT_ROUTER_NAME:-open-locker-mqtt}.tls=true"
-      - "traefik.tcp.routers.${COOLIFY_MQTT_ROUTER_NAME:-open-locker-mqtt}.tls.certresolver=letsencrypt"
-      - "traefik.tcp.routers.${COOLIFY_MQTT_ROUTER_NAME:-open-locker-mqtt}.service=${COOLIFY_MQTT_ROUTER_NAME:-open-locker-mqtt}"
-      - "traefik.tcp.services.${COOLIFY_MQTT_ROUTER_NAME:-open-locker-mqtt}.loadbalancer.server.port=1883"
+      - "traefik.tcp.routers.open-locker-mqtt.rule=HostSNI(`*`)"
+      - "traefik.tcp.routers.open-locker-mqtt.entrypoints=mqtts"
+      - "traefik.tcp.routers.open-locker-mqtt.tls=true"
+      - "traefik.tcp.routers.open-locker-mqtt.tls.certresolver=letsencrypt"
+      - "traefik.tcp.routers.open-locker-mqtt.service=open-locker-mqtt"
+      - "traefik.tcp.services.open-locker-mqtt.loadbalancer.server.port=1883"
 
   redis:
     image: "redis:alpine"

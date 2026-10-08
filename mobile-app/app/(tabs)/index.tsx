@@ -1,20 +1,13 @@
 import React from 'react';
-import {
-  Animated,
-  FlatList,
-  Pressable,
-  RefreshControl,
-  ScrollView,
-  StyleSheet,
-  View,
-} from 'react-native';
+import { FlatList, Pressable, RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
 import {
   BottomSheetBackdrop,
   BottomSheetModal,
   BottomSheetTextInput,
   BottomSheetView,
 } from '@gorhom/bottom-sheet';
-import { CircleHelp, CircleUserRound, Lock, LockOpen, WifiOff } from 'lucide-react-native';
+import { CircleHelp, Lock, LockOpen, WifiOff } from 'lucide-react-native';
+import type { FetchBaseQueryError } from '@reduxjs/toolkit/query';
 import { skipToken } from '@reduxjs/toolkit/query';
 import { router } from 'expo-router';
 import { useTranslation } from 'react-i18next';
@@ -30,6 +23,17 @@ import {
 } from '@/src/store/generatedApi';
 import { useAppSelector } from '@/src/store/hooks';
 import { useUserName } from '@/src/auth/useUserName';
+import {
+  GET_HELP_AFTER_PROBLEMS,
+  isOpenFinished,
+  NO_OPEN_PROBLEMS,
+  OpenProgressNotice,
+  openProgressTone,
+  readCommandId,
+  tallyForCompartment,
+  tallyOpenOutcome,
+  useOpenProgress,
+} from '@/src/features/compartmentOpen';
 import {
   getCompartmentStatusPalette,
   getLockerStatusPalette,
@@ -120,12 +124,12 @@ function getCompartmentStatusFromApi(
 export default function CompartmentsScreen() {
   const { t } = useTranslation();
   const token = useAppSelector((state) => state.auth.token);
+  const livePaused = useAppSelector((state) => state.realtime.livePaused);
   const userName = useUserName();
   const { refetch: refetchUser } = useGetUserQuery({});
   const [isPullRefreshing, setIsPullRefreshing] = React.useState(false);
   const theme = useTheme();
   const insets = useSafeAreaInsets();
-  const scrollY = React.useRef(new Animated.Value(0)).current;
   const [requestOpen, requestOpenState] = usePostCompartmentsByCompartmentOpenMutation();
   const [updateContentNote, updateContentNoteState] =
     usePutCompartmentsByCompartmentContentNoteMutation();
@@ -141,6 +145,19 @@ export default function CompartmentsScreen() {
   const [selectedLockerBankId, setSelectedLockerBankId] = React.useState<string>('');
   const [modalError, setModalError] = React.useState<string | null>(null);
   const [modalInfo, setModalInfo] = React.useState<string | null>(null);
+  const [openCommandId, setOpenCommandId] = React.useState<string | null>(null);
+  // The open call can resolve after the sheet was closed or another compartment
+  // opened; its answer must not be shown or counted for that other compartment.
+  const sheetCompartmentIdRef = React.useRef<string | null>(null);
+  const openProgress = useOpenProgress(openCommandId);
+  const isOpenInFlight =
+    requestOpenState.isLoading || (openProgress !== null && !isOpenFinished(openProgress));
+  const [openProblems, setOpenProblems] = React.useState(NO_OPEN_PROBLEMS);
+  React.useEffect(() => {
+    if (openCommandId && openProgress) {
+      setOpenProblems((tally) => tallyOpenOutcome(tally, openCommandId, openProgress));
+    }
+  }, [openCommandId, openProgress]);
   const [isEditingNote, setIsEditingNote] = React.useState(false);
   const [noteDraft, setNoteDraft] = React.useState('');
   const compartmentSheetRef = React.useRef<BottomSheetModal>(null);
@@ -164,6 +181,9 @@ export default function CompartmentsScreen() {
   const openCompartmentSheet = React.useCallback((compartment: CompartmentEntry) => {
     setModalError(null);
     setModalInfo(null);
+    setOpenCommandId(null);
+    sheetCompartmentIdRef.current = compartment.id;
+    setOpenProblems((tally) => tallyForCompartment(tally, compartment.id));
     setIsEditingNote(false);
     setNoteDraft(compartment.content_note ?? '');
     setSelectedCompartment(compartment);
@@ -261,66 +281,93 @@ export default function CompartmentsScreen() {
   const selectedStatusPalette = selectedCompartmentStatus
     ? getCompartmentStatusPalette(theme, selectedCompartmentStatus)
     : null;
-  const headerMaxHeight = 74;
-  const headerTranslateY = scrollY.interpolate({
-    inputRange: [0, headerMaxHeight],
-    outputRange: [0, -headerMaxHeight],
-    extrapolate: 'clamp',
-  });
-  const headerOpacity = scrollY.interpolate({
-    inputRange: [0, headerMaxHeight * 0.8],
-    outputRange: [1, 0],
-    extrapolate: 'clamp',
-  });
-  const headerContainerHeight = scrollY.interpolate({
-    inputRange: [0, headerMaxHeight],
-    outputRange: [headerMaxHeight, 0],
-    extrapolate: 'clamp',
-  });
-
   return (
     <SafeAreaView
       style={[styles.safe, { backgroundColor: theme.colors.background }]}
       edges={['top']}
     >
-      <Animated.View style={[styles.screenHeaderContainer, { height: headerContainerHeight }]}>
-        <Animated.View
-          style={[
-            styles.screenHeader,
-            {
-              opacity: headerOpacity,
-              transform: [{ translateY: headerTranslateY }],
-            },
-          ]}
-        >
-          <View style={styles.screenHeaderTop}>
-            <View style={styles.screenHeaderText}>
-              <Text style={styles.screenHeading}>{t('compartments.title')}</Text>
-              <Text style={styles.screenSubheading}>{t('compartments.subtitle')}</Text>
-            </View>
-            <Pressable
-              onPress={() => router.push('/account' as never)}
-              style={({ pressed }) => [styles.profileButton, pressed && styles.cardPressed]}
-              accessibilityRole="button"
-              accessibilityLabel={t('compartments.openProfile')}
-            >
-              <View
-                style={[styles.profileAvatar, { backgroundColor: theme.colors.primaryContainer }]}
-              >
-                <Text style={[styles.profileInitial, { color: theme.colors.onPrimaryContainer }]}>
-                  {accountInitial}
-                </Text>
-              </View>
-              <CircleUserRound size={16} color={theme.colors.onSurfaceVariant} strokeWidth={2.2} />
-            </Pressable>
+      <View style={styles.screenHeader}>
+        <View style={styles.screenHeaderTop}>
+          <View style={styles.screenHeaderText}>
+            <Text style={styles.screenHeading}>{t('compartments.title')}</Text>
+            <Text style={styles.screenSubheading}>{t('compartments.subtitle')}</Text>
           </View>
-        </Animated.View>
-      </Animated.View>
+          <Pressable
+            onPress={() => router.push('/account' as never)}
+            style={({ pressed }) => [styles.profileButton, pressed && styles.cardPressed]}
+            accessibilityRole="button"
+            accessibilityLabel={t('compartments.openProfile')}
+          >
+            <View
+              style={[styles.profileAvatar, { backgroundColor: theme.colors.primaryContainer }]}
+            >
+              <Text style={[styles.profileInitial, { color: theme.colors.onPrimaryContainer }]}>
+                {accountInitial}
+              </Text>
+            </View>
+          </Pressable>
+        </View>
+      </View>
       {errorMessage ? (
         <Text style={[styles.error, { color: theme.colors.error }]} accessibilityRole="alert">
           {errorMessage}
         </Text>
       ) : null}
+      {livePaused ? (
+        <Text
+          style={[styles.livePaused, { color: theme.colors.onSurfaceVariant }]}
+          accessibilityLiveRegion="polite"
+        >
+          {t('compartments.livePaused')}
+        </Text>
+      ) : null}
+
+      <View style={[styles.bankFilterRow, { backgroundColor: theme.colors.background }]}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.filterRail}
+        >
+          {lockerBanks.map((section) => {
+            const lockerStatus = section.status;
+            const isSelected = effectiveLockerBankId === section.id;
+            const lockerStatusPalette = getLockerStatusPalette(theme, lockerStatus, isSelected);
+
+            return (
+              <Chip
+                key={section.id}
+                selected={isSelected}
+                onPress={() => setSelectedLockerBankId(section.id)}
+                style={[
+                  styles.bankChip,
+                  {
+                    backgroundColor: lockerStatusPalette.backgroundColor,
+                    borderColor: lockerStatusPalette.borderColor,
+                  },
+                ]}
+                selectedColor={theme.colors.onPrimaryContainer}
+                textStyle={[
+                  styles.bankChipText,
+                  {
+                    color: lockerStatusPalette.color,
+                  },
+                ]}
+                compact
+                showSelectedCheck={false}
+                icon={
+                  lockerStatus === 'offline'
+                    ? ({ size }) => (
+                        <WifiOff size={size} color={lockerStatusPalette.color} strokeWidth={2.2} />
+                      )
+                    : undefined
+                }
+              >
+                {section.title}
+              </Chip>
+            );
+          })}
+        </ScrollView>
+      </View>
 
       <FlatList
         data={visibleCompartments}
@@ -328,11 +375,6 @@ export default function CompartmentsScreen() {
         numColumns={2}
         columnWrapperStyle={styles.gridRow}
         contentInsetAdjustmentBehavior="never"
-        stickyHeaderIndices={[0]}
-        onScroll={Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], {
-          useNativeDriver: false,
-        })}
-        scrollEventThrottle={16}
         refreshControl={
           <RefreshControl
             refreshing={isPullRefreshing}
@@ -351,58 +393,6 @@ export default function CompartmentsScreen() {
           />
         }
         contentContainerStyle={[styles.gridContent, { paddingBottom: insets.bottom + 24 }]}
-        ListHeaderComponent={
-          <View style={[styles.bankFilterRow, { backgroundColor: theme.colors.background }]}>
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.filterRail}
-            >
-              {lockerBanks.map((section) => {
-                const lockerStatus = section.status;
-                const isSelected = effectiveLockerBankId === section.id;
-                const lockerStatusPalette = getLockerStatusPalette(theme, lockerStatus, isSelected);
-
-                return (
-                  <Chip
-                    key={section.id}
-                    selected={isSelected}
-                    onPress={() => setSelectedLockerBankId(section.id)}
-                    style={[
-                      styles.bankChip,
-                      {
-                        backgroundColor: lockerStatusPalette.backgroundColor,
-                        borderColor: lockerStatusPalette.borderColor,
-                      },
-                    ]}
-                    selectedColor={theme.colors.onPrimaryContainer}
-                    textStyle={[
-                      styles.bankChipText,
-                      {
-                        color: lockerStatusPalette.color,
-                      },
-                    ]}
-                    compact
-                    showSelectedCheck={false}
-                    icon={
-                      lockerStatus === 'offline'
-                        ? ({ size }) => (
-                            <WifiOff
-                              size={size}
-                              color={lockerStatusPalette.color}
-                              strokeWidth={2.2}
-                            />
-                          )
-                        : undefined
-                    }
-                  >
-                    {section.title}
-                  </Chip>
-                );
-              })}
-            </ScrollView>
-          </View>
-        }
         renderItem={({ item }) => {
           const compartmentStatus = getCompartmentStatusFromApi(item.compartment);
 
@@ -430,6 +420,8 @@ export default function CompartmentsScreen() {
         onDismiss={() => {
           setSelectedCompartment(null);
           setIsEditingNote(false);
+          setOpenCommandId(null);
+          sheetCompartmentIdRef.current = null;
         }}
         backdropComponent={sheetBackdrop}
         enablePanDownToClose
@@ -565,26 +557,49 @@ export default function CompartmentsScreen() {
           <HelperText type="info" visible={!!modalInfo}>
             {modalInfo}
           </HelperText>
+          {openProgress ? <OpenProgressNotice progress={openProgress} /> : null}
+          {selectedCompartment && openProblems.count >= GET_HELP_AFTER_PROBLEMS ? (
+            <Button
+              mode="outlined"
+              onPress={() => {
+                const compartmentId = selectedCompartment.id;
+                closeCompartmentSheet();
+                router.push({ pathname: '/compartment-help', params: { compartmentId } });
+              }}
+            >
+              {t('compartments.getHelp')}
+            </Button>
+          ) : null}
           <Button
             mode="contained"
             onPress={() => {
               if (!selectedCompartment) return;
+              const compartmentId = selectedCompartment.id;
               void (async () => {
                 setModalError(null);
                 setModalInfo(null);
+                setOpenCommandId(null);
                 try {
-                  await requestOpen({ compartment: selectedCompartment.id }).unwrap();
-                  setModalInfo(t('compartments.openRequestSent'));
-                  closeCompartmentSheet();
+                  const response: unknown = await requestOpen({
+                    compartment: compartmentId,
+                  }).unwrap();
+                  if (sheetCompartmentIdRef.current !== compartmentId) return;
+                  const commandId = readCommandId(response);
+                  if (commandId) {
+                    setOpenCommandId(commandId);
+                  } else {
+                    setModalInfo(t('compartments.openRequestSent'));
+                  }
                 } catch (e) {
+                  if (sheetCompartmentIdRef.current !== compartmentId) return;
                   setModalError(getApiErrorMessage(e, t));
                 }
               })();
             }}
-            loading={requestOpenState.isLoading}
+            loading={isOpenInFlight}
             disabled={
               !selectedCompartment ||
-              requestOpenState.isLoading ||
+              isOpenInFlight ||
               // A confirmed-open door cannot be opened again; `unknown`/`closed`
               // stay actionable since the real state isn't known to be open.
               selectedCompartmentStatus === 'open'
@@ -592,7 +607,9 @@ export default function CompartmentsScreen() {
           >
             {selectedCompartmentStatus === 'open'
               ? t('compartments.openCompartmentDisabledOpen')
-              : t('compartments.openCompartment')}
+              : openProgress && openProgressTone(openProgress) === 'problem'
+                ? t('compartments.openCompartmentRetry')
+                : t('compartments.openCompartment')}
           </Button>
           <Button mode="text" onPress={closeCompartmentSheet}>
             {t('common.close')}
@@ -605,9 +622,6 @@ export default function CompartmentsScreen() {
 
 const styles = StyleSheet.create({
   safe: { flex: 1 },
-  screenHeaderContainer: {
-    overflow: 'hidden',
-  },
   screenHeader: {
     paddingHorizontal: 16,
     paddingTop: 8,
@@ -636,24 +650,24 @@ const styles = StyleSheet.create({
     lineHeight: 18,
   },
   profileButton: {
-    height: 38,
+    height: 54,
     borderRadius: 999,
-    paddingHorizontal: 8,
+    paddingHorizontal: 0,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 5,
   },
   profileAvatar: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
+    width: 54,
+    height: 54,
+    borderRadius: 27,
     alignItems: 'center',
     justifyContent: 'center',
   },
   profileInitial: {
     fontFamily: 'Inter_600SemiBold',
-    fontSize: 12,
+    fontSize: 18,
   },
   gridContent: {
     paddingTop: 8,
@@ -667,6 +681,7 @@ const styles = StyleSheet.create({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24, gap: 12 },
   centerText: { opacity: 0.7 },
   bankFilterRow: {
+    paddingHorizontal: 16,
     paddingBottom: 8,
   },
   filterRail: {
@@ -684,6 +699,7 @@ const styles = StyleSheet.create({
     fontFamily: 'Inter_500Medium',
   },
   error: { paddingHorizontal: 16, paddingTop: 12 },
+  livePaused: { paddingHorizontal: 16, paddingTop: 12 },
   gridItem: {
     flex: 1,
   },

@@ -6,6 +6,7 @@ namespace App\Http\Middleware;
 
 use App\Http\Resources\ApiErrorResource;
 use Closure;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
 
@@ -19,12 +20,22 @@ class EnsureVerifiedEmailApi
         $user = $request->user();
 
         if (! $user || ! $user->hasVerifiedEmail()) {
-            return (new ApiErrorResource([
-                'status' => false,
-                'message' => __('Please verify your email address before opening compartments'),
-            ]))->response()->setStatusCode(403);
+            return self::unverifiedResponse();
         }
 
         return $next($request);
+    }
+
+    /**
+     * Shared with the compartment-open route, which records the refusal as an
+     * auditable event before answering and so cannot rely on this middleware.
+     * Clients see the same body either way.
+     */
+    public static function unverifiedResponse(): JsonResponse
+    {
+        return (new ApiErrorResource([
+            'status' => false,
+            'message' => __('Please verify your email address before opening compartments'),
+        ]))->response()->setStatusCode(403);
     }
 }

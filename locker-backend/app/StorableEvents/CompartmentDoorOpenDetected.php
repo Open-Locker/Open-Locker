@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\StorableEvents;
 
+use App\Support\Audit\AuditCategory;
+use App\Support\Audit\Audited;
 use Spatie\EventSourcing\StoredEvents\ShouldBeStored;
 
 /**
@@ -13,6 +15,7 @@ use Spatie\EventSourcing\StoredEvents\ShouldBeStored;
  * sent. Any CompartmentOpened in the store predates that split and carries the old
  * meaning; this event is the door itself.
  */
+#[Audited(AuditCategory::Access, 'Door opened')]
 class CompartmentDoorOpenDetected extends ShouldBeStored
 {
     public function __construct(

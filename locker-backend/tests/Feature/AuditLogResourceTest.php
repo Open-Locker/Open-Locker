@@ -4,11 +4,15 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use App\Aggregates\UserRoleAggregate;
+use App\Enums\Role;
 use App\Filament\Resources\AuditLogResource;
 use App\Filament\Resources\AuditLogResource\Pages\ListAuditLog;
 use App\Models\AuditEvent;
 use App\Models\Group;
+use App\Models\LockerBank;
 use App\Models\User;
+use App\StorableEvents\LockerProvisioningReplyFailed;
 use App\Support\Audit\AuditEventPresenter;
 use Filament\Tables\Contracts\HasTable;
 use Filament\Tables\Table;
@@ -62,6 +66,32 @@ class AuditLogResourceTest extends TestCase
         // No actor id => attributed to the system.
         $this->assertNull($presenter->actorName($event));
         $this->assertSame(__('Role granted'), $presenter->label($event->event_class));
+    }
+
+    public function test_a_failed_provisioning_reply_is_shown_without_its_raw_reason(): void
+    {
+        // "Locker provisioned" is recorded before the credentials are sent, so
+        // without this entry the log reads as a success for a device that never
+        // received its login.
+        $bank = LockerBank::factory()->create(['name' => 'Lobby Bank']);
+        $event = new AuditEvent([
+            'event_class' => LockerProvisioningReplyFailed::class,
+            'event_properties' => [
+                'lockerBankUuid' => (string) $bank->id,
+                'replyToTopic' => 'locker/register/reply',
+                'reason' => 'broker unreachable',
+            ],
+        ]);
+
+        $presenter = app(AuditEventPresenter::class);
+
+        $this->assertContains(LockerProvisioningReplyFailed::class, $presenter->auditableEventClasses());
+        $description = $presenter->describe($event);
+
+        $this->assertStringContainsString('Lobby Bank', $description);
+        // The raw exception message can carry SQL bindings such as the MQTT
+        // credential hash, so it must never reach the audit log.
+        $this->assertStringNotContainsString('broker unreachable', $description);
     }
 
     public function test_presenter_renders_archived_group_with_actor(): void
@@ -131,6 +161,22 @@ class AuditLogResourceTest extends TestCase
             'meta_data' => [],
             'created_at' => now(),
         ]);
+    }
+
+    public function test_manager_cannot_access_audit_log(): void
+    {
+        $manager = User::factory()->create();
+        UserRoleAggregate::retrieve(UserRoleAggregate::aggregateUuidFor($manager->id))
+            ->grantRole($manager->id, Role::Manager->value, null, now())
+            ->persist();
+        $manager->flushPermissionCache();
+
+        $this->actingAs($manager);
+
+        $this->assertFalse(AuditLogResource::canAccess());
+
+        $this->get(route('filament.admin.resources.audit-logs.index'))
+            ->assertForbidden();
     }
 
     public function test_non_admin_cannot_access_audit_log(): void

@@ -1,13 +1,16 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Models;
 
-use App\Aggregates\UserRoleAggregate;
 use App\Enums\Permission;
 use App\Enums\Role;
 use App\Models\Concerns\HasPermissions;
 use App\Notifications\Auth\WebResetPasswordNotification;
 use App\Notifications\Auth\WebVerifyEmailNotification;
+use App\Services\UserAdministrationService;
+use Carbon\CarbonImmutable;
 use Database\Factories\UserFactory;
 use Filament\Models\Contracts\FilamentUser;
 use Filament\Models\Contracts\HasName;
@@ -24,7 +27,7 @@ use Illuminate\Support\Facades\Password;
 use Laravel\Sanctum\HasApiTokens;
 
 /**
- * @property \Carbon\CarbonImmutable|null $email_verified_at
+ * @property CarbonImmutable|null $email_verified_at
  */
 class User extends Authenticatable implements FilamentUser, HasName, MustVerifyEmail
 {
@@ -205,11 +208,7 @@ class User extends Authenticatable implements FilamentUser, HasName, MustVerifyE
      */
     public function makeAdmin(?int $actorUserId = null): void
     {
-        UserRoleAggregate::retrieve(UserRoleAggregate::aggregateUuidFor($this->id))
-            ->grantRole($this->id, Role::Admin->value, $actorUserId, now())
-            ->persist();
-
-        $this->flushPermissionCache();
+        app(UserAdministrationService::class)->grantAdmin($this, $actorUserId);
     }
 
     /**
@@ -217,11 +216,7 @@ class User extends Authenticatable implements FilamentUser, HasName, MustVerifyE
      */
     public function removeAdmin(?int $actorUserId = null): void
     {
-        UserRoleAggregate::retrieve(UserRoleAggregate::aggregateUuidFor($this->id))
-            ->revokeRole($this->id, Role::Admin->value, $actorUserId, now())
-            ->persist();
-
-        $this->flushPermissionCache();
+        app(UserAdministrationService::class)->revokeAdmin($this, $actorUserId);
     }
 
     /**

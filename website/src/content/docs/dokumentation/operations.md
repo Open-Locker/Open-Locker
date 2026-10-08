@@ -42,8 +42,8 @@ command:
   - "--entrypoints.mqtts.address=:8883"
 ```
 
-The adapter then routes `HostSNI(MQTT_DOMAIN)` through that entrypoint to
-Mosquitto port 1883. A normal HTTPS domain route or a `1883:1883` mapping does
+The adapter then routes HostSNI(*) through that entrypoint to
+Mosquitto port 1883. Coolify does not interpolate `${VAR}` in Compose labels. A normal HTTPS domain route or a `1883:1883` mapping does
 not secure MQTT. If Coolify resets the proxy config, re-apply this step.
 Follow the installation guide for DNS, firewall, and the MQTTS smoke test.
 

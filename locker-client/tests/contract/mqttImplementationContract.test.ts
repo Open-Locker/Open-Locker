@@ -12,7 +12,7 @@ import { FakeDoorEventPublisher } from '../helpers/fake-door-event-publisher';
 import { ApplyConfigUseCase } from '../../src/application/apply-config';
 import { PollCompartmentStateUseCase } from '../../src/application/state-publishing';
 import { RunAfterCompleteScheduler } from '../../src/infrastructure/scheduler';
-import { computeAppliedConfigHash } from '../../src/domain/config-normalization';
+import { canonicalConfigHash } from '../helpers/canonical-config-hash';
 import { parseProvisioningResponse } from '../../src/domain/mqtt-parsing';
 import { knownMQTTCommandSchema } from '../../src/domain/mqtt-schemas';
 import { FakeLockerBus } from '../helpers/fake-locker-bus';
@@ -87,7 +87,7 @@ test('handler-built apply_config success matches AsyncAPI schema', async () => {
     'locker/test/response',
     () => '2026-04-14T19:31:02Z',
   );
-  const configHash = computeAppliedConfigHash(compartments);
+  const configHash = canonicalConfigHash(compartments);
   const applyConfig = new ApplyConfigUseCase({
     overlayStore: new MemoryOverlayStore(),
     config: createTestConfigRepository({ compartments }),
@@ -105,6 +105,8 @@ test('handler-built apply_config success matches AsyncAPI schema', async () => {
       transaction_id: 'txn-config-001',
       timestamp: '2026-04-14T19:31:00Z',
       data: {
+        adapter_type: 'waveshare_modbus',
+        feedback_type: 'door_closing',
         config_hash: configHash,
         heartbeat_interval_seconds: 30,
         compartments,

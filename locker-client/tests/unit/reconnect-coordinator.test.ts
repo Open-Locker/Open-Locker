@@ -2,6 +2,10 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { ReconnectCoordinator } from '../../src/adapters/modbus/reconnect-coordinator';
 
+const failReconnect = async (): Promise<void> => {
+  throw new Error('adapter unplugged');
+};
+
 test('ReconnectCoordinator retries until connect succeeds', async () => {
   const coordinator = new ReconnectCoordinator({
     maxAttempts: 0,
@@ -55,6 +59,24 @@ test('ReconnectCoordinator deduplicates concurrent reconnect calls', async () =>
   ]);
 
   assert.equal(attempts, 1);
+});
+
+test('ReconnectCoordinator resolves a pending retry when cancelled', async () => {
+  const coordinator = new ReconnectCoordinator({ delayMs: 60_000 });
+  let notifyAttempt!: () => void;
+  const attempted = new Promise<void>((resolve) => {
+    notifyAttempt = resolve;
+  });
+
+  const reconnect = coordinator.run(async () => {
+    notifyAttempt();
+    throw new Error('connect failed');
+  });
+  await attempted;
+  await delay(0);
+
+  coordinator.cancelScheduled();
+  await reconnect;
 });
 
 function delay(ms: number): Promise<void> {
@@ -112,17 +134,32 @@ test('giving up is logged once per cycle, not once per refusal', async () => {
     },
   );
 
-  const fail = async (): Promise<void> => {
-    throw new Error('adapter unplugged');
-  };
-
-  await assert.rejects(coordinator.run(fail));
+  await assert.rejects(coordinator.run(failReconnect));
   for (let i = 0; i < 5; i++) {
-    await assert.rejects(coordinator.run(fail));
+    await assert.rejects(coordinator.run(failReconnect));
   }
 
   assert.equal(errors.length, 1, 'one error for the cycle, not one per refusal');
   assert.equal(warns.length, 1, 'the retry within the cycle still warns');
+});
+
+test('ReconnectCoordinator does not retry non-reconnectable failures', async () => {
+  const coordinator = new ReconnectCoordinator({ maxAttempts: 5, delayMs: 1 });
+  let attempts = 0;
+
+  await assert.rejects(
+    () =>
+      coordinator.run(
+        async () => {
+          attempts++;
+          throw Object.assign(new Error('permission denied'), { code: 'EACCES' });
+        },
+        { isReconnectable: (error) => (error as NodeJS.ErrnoException).code !== 'EACCES' },
+      ),
+    /permission denied/,
+  );
+
+  assert.equal(attempts, 1);
 });
 
 test('a successful connect clears the spent marker', async () => {

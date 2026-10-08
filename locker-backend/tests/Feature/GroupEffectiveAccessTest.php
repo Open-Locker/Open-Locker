@@ -8,6 +8,7 @@ use App\Aggregates\UserRoleAggregate;
 use App\Enums\Role;
 use App\Models\Compartment;
 use App\Models\User;
+use App\Services\CompartmentAccessService;
 use App\Services\CompartmentStatusBroadcastService;
 use App\Services\GroupAccessService;
 use App\Services\LockerService;
@@ -82,7 +83,7 @@ class GroupEffectiveAccessTest extends TestCase
         $compartment = Compartment::factory()->create();
 
         // User reachable both directly and via a group.
-        app(\App\Services\CompartmentAccessService::class)->grantAccess($user, $compartment, actor: $admin);
+        app(CompartmentAccessService::class)->grantAccess($user, $compartment, actor: $admin);
         $this->grantGroupAccess($user, $compartment, $admin);
 
         $this->mock(LockerService::class, function ($mock): void {

@@ -14,6 +14,7 @@ enum Permission: string
     case RolesManage = 'roles.manage';
     case LockerBankConfigure = 'lockerbank.configure';
     case SystemConfigure = 'system.configure';
+    case AuditLogView = 'audit.view';
 
     public function description(): string
     {
@@ -26,6 +27,7 @@ enum Permission: string
             self::RolesManage => 'Allows granting and revoking user roles.',
             self::LockerBankConfigure => 'Allows changing technical locker-bank configuration like Modbus, provisioning, and heartbeat settings.',
             self::SystemConfigure => 'Allows changing legal and system-wide configuration resources.',
+            self::AuditLogView => 'Allows viewing the system-wide audit log.',
         };
     }
 

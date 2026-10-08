@@ -23,6 +23,10 @@ compartments and coordinates asynchronous compartment opening.
 - Use aggregates to record domain events when an aggregate/event path exists.
 - Let projectors update read models and reactors perform side effects.
 - Do not directly mutate projected state to bypass those flows.
+- Give every new class in `app/StorableEvents` either
+  `#[Audited(AuditCategory::..., 'Label')]` (shown in the admin audit log; add
+  the label to `lang/de.json`) or `#[NotAudited('reason')]`.
+  `AuditEventClassificationTest` enforces it.
 - Keep message IDs and transaction IDs distinct as defined by the accepted
   MQTT ADRs.
 

@@ -31,6 +31,20 @@ function mergeRuntimeConfig(
   if (overlay?.compartments !== undefined) {
     effective.compartments = overlay.compartments;
   }
+  if (overlay?.hardwareProfile !== undefined) {
+    effective.hardwareProfile = overlay.hardwareProfile;
+  }
+
+  if (
+    overlay?.compartments !== undefined &&
+    overlay.hardwareProfile === undefined &&
+    effective.hardwareProfile === undefined
+  ) {
+    effective.hardwareProfile = {
+      adapterType: 'waveshare_modbus',
+      feedbackType: 'door_closing',
+    };
+  }
 
   return effective;
 }

@@ -1,5 +1,6 @@
 import { createHash } from 'crypto';
 import type { CompartmentConfig } from './compartment';
+import type { AdapterType, FeedbackType } from './config';
 
 export function normalizeCompartments(compartments: CompartmentConfig[]): CompartmentConfig[] {
   return [...compartments]
@@ -11,8 +12,22 @@ export function normalizeCompartments(compartments: CompartmentConfig[]): Compar
     .toSorted((a, b) => a.compartment_number - b.compartment_number);
 }
 
-export function computeAppliedConfigHash(compartments: CompartmentConfig[]): string {
+export interface CanonicalRuntimeConfig {
+  adapter_type: AdapterType;
+  feedback_type: FeedbackType;
+  compartments: CompartmentConfig[];
+}
+
+export function canonicalizeRuntimeConfig(config: CanonicalRuntimeConfig): CanonicalRuntimeConfig {
+  return {
+    adapter_type: config.adapter_type,
+    feedback_type: config.feedback_type,
+    compartments: normalizeCompartments(config.compartments),
+  };
+}
+
+export function computeAppliedConfigHash(config: CanonicalRuntimeConfig): string {
   return createHash('sha256')
-    .update(JSON.stringify(normalizeCompartments(compartments)))
+    .update(JSON.stringify(canonicalizeRuntimeConfig(config)))
     .digest('hex');
 }

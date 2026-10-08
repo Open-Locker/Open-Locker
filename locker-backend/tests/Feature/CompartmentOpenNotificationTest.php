@@ -11,6 +11,8 @@ use App\Filament\Resources\LockerBankResource\RelationManagers\CompartmentsRelat
 use App\Models\Compartment;
 use App\Models\User;
 use App\Services\CompartmentAccessService;
+use App\Services\TermsService;
+use App\StorableEvents\CompartmentOpenAuthorized;
 use App\StorableEvents\CompartmentOpenDenied;
 use Filament\Actions\Testing\TestAction;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -44,6 +46,40 @@ class CompartmentOpenNotificationTest extends TestCase
             ->firstOrFail();
 
         $this->assertSame('unverified_email', $storedEvent->event_properties['reason'] ?? null);
+    }
+
+    /**
+     * Terms acceptance gates the API only. The panel has no way to accept a
+     * version — acceptance happens through the mobile app — and activating a
+     * version is itself done from the panel, so gating the Open button here
+     * would lock an admin out of it with no remedy inside the panel.
+     */
+    public function test_the_admin_panel_open_action_is_not_gated_by_outstanding_terms(): void
+    {
+        $admin = User::factory()->create();
+        $admin->makeAdmin();
+
+        $compartment = Compartment::factory()->create();
+
+        app(TermsService::class)->publishNewVersion('AGB', '<p>Version 1</p>', $admin);
+        $this->assertFalse(app(TermsService::class)->hasAcceptedActiveVersion($admin));
+
+        MQTT::shouldReceive('connection')
+            ->once()
+            ->with('publisher')
+            ->andReturn(new FakeMqttClient);
+
+        Livewire::actingAs($admin)
+            ->test(ListCompartments::class)
+            ->callAction(TestAction::make('open')->table($compartment))
+            ->assertNotNotified();
+
+        $this->assertTrue(
+            EloquentStoredEvent::query()->where('event_class', CompartmentOpenAuthorized::class)->exists()
+        );
+        $this->assertFalse(
+            EloquentStoredEvent::query()->where('event_class', CompartmentOpenDenied::class)->exists()
+        );
     }
 
     public function test_authorized_open_sends_no_synchronous_notification(): void

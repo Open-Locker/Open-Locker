@@ -46,7 +46,8 @@ command:
 
 Kein `1883:1883` in der Coolify-Port-UI. Setzt Coolify die Proxy-Config
 zurück, den Schritt wiederholen. Der Adapter routet
-`HostSNI(MQTT_DOMAIN)` über diesen Entrypoint zu Mosquitto-Port 1883.
+HostSNI(*) über diesen Entrypoint zu Mosquitto-Port 1883.
+Coolify interpoliert `${VAR}` in Compose-Labels nicht.
 
 Die vollständigen Anleitungen für Standalone und Coolify einschließlich
 Firewall, DNS, Zertifikaten und Smoke Tests stehen im

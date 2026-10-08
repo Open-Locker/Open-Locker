@@ -14,6 +14,7 @@ use App\StorableEvents\CompartmentAccessGranted;
 use App\StorableEvents\CompartmentOpenAuthorized;
 use App\StorableEvents\CompartmentOpenDenied;
 use App\StorableEvents\CompartmentOpenRequested;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Spatie\EventSourcing\StoredEvents\Models\EloquentStoredEvent;
 use Tests\TestCase;
@@ -130,8 +131,13 @@ class CompartmentAccessControllerTest extends TestCase
             ->assertJsonPath('status', false)
             ->assertJsonPath('message', __('Please verify your email address before opening compartments'));
 
-        $this->assertDatabaseMissing('stored_events', [
+        // The attempt is recorded before it is turned away, so an admin reading
+        // the audit log can see that the user tried and why it did not work.
+        $this->assertDatabaseHas('stored_events', [
             'event_class' => CompartmentOpenRequested::class,
+        ]);
+        $this->assertDatabaseHas('stored_events', [
+            'event_class' => CompartmentOpenDenied::class,
         ]);
         $this->assertDatabaseMissing('stored_events', [
             'event_class' => CompartmentOpenAuthorized::class,
@@ -236,7 +242,7 @@ class CompartmentAccessControllerTest extends TestCase
         $targetUser = $this->createRegularUser();
         $compartment = Compartment::factory()->create();
 
-        $this->expectException(\Illuminate\Auth\Access\AuthorizationException::class);
+        $this->expectException(AuthorizationException::class);
 
         app(CompartmentAccessService::class)->grantAccess(
             user: $targetUser,
@@ -255,7 +261,7 @@ class CompartmentAccessControllerTest extends TestCase
         $service = app(CompartmentAccessService::class);
         $service->grantAccess($targetUser, $compartment, actor: $admin);
 
-        $this->expectException(\Illuminate\Auth\Access\AuthorizationException::class);
+        $this->expectException(AuthorizationException::class);
 
         $service->revokeAccess(
             user: $targetUser,
@@ -425,7 +431,7 @@ class CompartmentAccessControllerTest extends TestCase
         $user->forceFill(['email_verified_at' => null])->save();
         $compartment = Compartment::factory()->create();
 
-        $decision = app(CompartmentAccessService::class)->requestOpen($user, $compartment);
+        $decision = app(CompartmentAccessService::class)->requestOpen($user, $compartment, requireAcceptedTerms: false);
 
         $this->assertFalse($decision['authorized']);
         $this->assertNotEmpty($decision['command_id']);

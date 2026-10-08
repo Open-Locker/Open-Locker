@@ -18,6 +18,7 @@ use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Str;
 use Livewire\Livewire;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
 
 /**
@@ -63,7 +64,7 @@ class OpenRequestStatusBadgeTest extends TestCase
         return $cases;
     }
 
-    #[\PHPUnit\Framework\Attributes\DataProvider('statusProvider')]
+    #[DataProvider('statusProvider')]
     public function test_locker_bank_tables_render_every_status(CompartmentOpenRequestStatus $status): void
     {
         $admin = $this->admin();
@@ -89,7 +90,7 @@ class OpenRequestStatusBadgeTest extends TestCase
             ->assertSee($status->label());
     }
 
-    #[\PHPUnit\Framework\Attributes\DataProvider('statusProvider')]
+    #[DataProvider('statusProvider')]
     public function test_user_compartment_access_table_renders_every_status(CompartmentOpenRequestStatus $status): void
     {
         $admin = $this->admin();

@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Filament\Resources;
 
+use App\Enums\LockerAdapterType;
+use App\Enums\LockerFeedbackType;
 use App\Enums\Permission;
 use App\Filament\Concerns\InteractsWithOneTimeProvisioningToken;
 use App\Filament\Resources\LockerBankResource\Pages;
@@ -12,9 +14,12 @@ use App\Models\LockerBank;
 use App\Models\User;
 use App\Services\LockerProvisioningService;
 use Filament\Actions\Action;
+use Filament\Actions\BulkActionGroup;
+use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
 use Filament\Facades\Filament;
 use Filament\Forms\Components\Placeholder;
+use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Notifications\Notification;
@@ -71,6 +76,29 @@ class LockerBankResource extends Resource
                     ->label(__('Location description'))
                     ->maxLength(65535)
                     ->columnSpanFull(),
+                TextInput::make('support_phone')
+                    ->label(__('Support phone'))
+                    ->tel()
+                    ->maxLength(32)
+                    ->helperText(__('Shown on the Get help screen in the app, offered after a compartment of this bank fails to open twice.')),
+                Select::make('adapter_type')
+                    ->label(__('Hardware adapter'))
+                    ->options([
+                        LockerAdapterType::WaveshareModbus->value => LockerAdapterType::WaveshareModbus->label(),
+                        LockerAdapterType::Rs485LockBoard->value => LockerAdapterType::Rs485LockBoard->label(),
+                    ])
+                    ->default(LockerAdapterType::WaveshareModbus->value)
+                    ->required()
+                    ->helperText(__('Selects the board protocol and relay pulse implementation used by the locker client.')),
+                Select::make('feedback_type')
+                    ->label(__('Lock feedback polarity'))
+                    ->options([
+                        LockerFeedbackType::DoorClosing->value => LockerFeedbackType::DoorClosing->label(),
+                        LockerFeedbackType::DoorOpening->value => LockerFeedbackType::DoorOpening->label(),
+                    ])
+                    ->default(LockerFeedbackType::DoorClosing->value)
+                    ->required()
+                    ->helperText(__('Defines whether an active feedback input represents a closing or opening door.')),
                 TextInput::make('heartbeat_interval_seconds')
                     ->label(__('Heartbeat interval (seconds)'))
                     ->numeric()
@@ -284,8 +312,8 @@ class LockerBankResource extends Resource
                 static::restartProvisioningAction(),
             ])
             ->bulkActions([
-                \Filament\Actions\BulkActionGroup::make([
-                    \Filament\Actions\DeleteBulkAction::make(),
+                BulkActionGroup::make([
+                    DeleteBulkAction::make(),
                 ]),
             ]);
     }
