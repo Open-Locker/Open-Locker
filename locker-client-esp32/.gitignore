@@ -1,0 +1,9 @@
+.pio/
+build/
+.cache/
+managed_components/
+sdkconfig*
+!sdkconfig.defaults
+*.local.json
+__pycache__/
+*.log

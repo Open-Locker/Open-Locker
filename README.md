@@ -57,6 +57,7 @@ setup. Component-specific details live in:
 
 - [Backend documentation](locker-backend/README.md)
 - [Locker client documentation](locker-client/README.md)
+- [ESP32 bench client and commissioning](locker-client-esp32/README.md)
 - [Website documentation](website/README.md)
 - [Hardware-free simulator guide](docs/simulator.md)
 

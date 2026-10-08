@@ -1,0 +1,67 @@
+name: ESP32 Client
+
+on:
+  pull_request:
+    paths:
+      - 'locker-client-esp32/**'
+      - 'docs/asyncapi/**'
+      - '.github/workflows/locker-client-esp32-ci.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'locker-client-esp32/**'
+      - 'docs/asyncapi/**'
+      - '.github/workflows/locker-client-esp32-ci.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: esp32-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  host:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+      - run: python -m pip install -r locker-client-esp32/tests/requirements.txt
+      - name: Native safety tests, GCC analyzer and shared MQTT contracts
+        env:
+          LC_ANALYZE: '1'
+          LC_SANITIZE: '1'
+        run: python locker-client-esp32/tests/run_host_tests.py
+      - name: Desktop USB setup protocol tests
+        run: python locker-client-esp32/tests/test_usb_setup.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: esp32-host-contract-evidence
+          path: locker-client-esp32/.cache/host/emitted.jsonl
+  firmware:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+      - run: python -m pip install platformio==6.2.0
+      - name: Pinned ESP-IDF target build
+        run: pio run -d locker-client-esp32
+      - name: Record source and firmware hashes
+        run: |
+          git rev-parse HEAD > locker-client-esp32/.pio/build/wemos_d1_mini32/source-commit.txt
+          sha256sum locker-client-esp32/.pio/build/wemos_d1_mini32/firmware.bin > locker-client-esp32/.pio/build/wemos_d1_mini32/firmware.sha256
+      - uses: actions/upload-artifact@v4
+        with:
+          name: esp32-bench-firmware
+          path: |
+            locker-client-esp32/.pio/build/wemos_d1_mini32/firmware.bin
+            locker-client-esp32/.pio/build/wemos_d1_mini32/firmware.elf
+            locker-client-esp32/.pio/build/wemos_d1_mini32/partitions.bin
+            locker-client-esp32/.pio/build/wemos_d1_mini32/bootloader.bin
+            locker-client-esp32/.pio/build/wemos_d1_mini32/source-commit.txt
+            locker-client-esp32/.pio/build/wemos_d1_mini32/firmware.sha256
