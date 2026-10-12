@@ -109,3 +109,12 @@ lc_host_test(test_rs485_codec)
 lc_host_test(test_rs485_bus)
 lc_host_test(test_console_line)
 lc_host_test(test_console)
+
+# Slice 2
+lc_pending_test(test_mqtt_codec)
+lc_pending_test(test_config)
+lc_pending_test(test_journal)
+lc_pending_test(test_handle_command)
+lc_pending_test(test_open_compartment)
+lc_pending_test(test_apply_config)
+lc_pending_test(test_owner_inbox)
