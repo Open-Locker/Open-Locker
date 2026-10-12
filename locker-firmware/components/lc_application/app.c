@@ -23,6 +23,7 @@ bool lc_app_track(lc_app_t *app, lc_publish_id_t id, lc_app_publish_kind_t kind,
             memset(slot, 0, sizeof(*slot));
             slot->id = id;
             slot->kind = kind;
+            slot->sent_at_ms = app->ports.clock.now_ms(app->ports.clock.ctx);
             slot->compartment_index = compartment_index;
             (void)lc_text_copy(slot->transaction_id, sizeof(slot->transaction_id), transaction_id);
             return true;
@@ -165,10 +166,23 @@ void lc_app_on_publish_failed(lc_app_t *app, lc_publish_id_t id)
     }
 }
 
+/* An acknowledgement that never came, for example one lost by a full queue. */
+static void expire_outstanding(lc_app_t *app, int64_t now_ms)
+{
+    for (size_t i = 0; i < LC_APP_OUTSTANDING_MAX; ++i) {
+        lc_app_outstanding_t *slot = &app->outstanding[i];
+        if (slot->id != LC_PUBLISH_REFUSED && now_ms - slot->sent_at_ms >= LC_APP_PUBLISH_TIMEOUT_MS) {
+            lose(app, slot);
+            memset(slot, 0, sizeof(*slot));
+        }
+    }
+}
+
 void lc_app_tick(lc_app_t *app)
 {
     int64_t now_ms = app->ports.clock.now_ms(app->ports.clock.ctx);
 
+    expire_outstanding(app, now_ms);
     lc_app_send_heartbeat(app, now_ms);
     if (now_ms < app->next_poll_ms) {
         return;

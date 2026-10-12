@@ -5,7 +5,8 @@
 #include "lc_domain/text.h"
 
 /*
- * Record format, version 1. See docs/adr/0068-command-journal-record-format.md.
+ * Record format, version 1. See
+ * docs/adr/0068-esp32-command-journal-record-format-and-retention.md.
  *
  *   0       magic             0xA7
  *   1       version           0x01

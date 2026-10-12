@@ -334,15 +334,39 @@ void test_S5_H09_new_commands_are_refused_from_the_moment_settings_are_accepted(
     TEST_ASSERT_EQUAL_INT(LC_COMMISSION_SAVED, lc_commission_apply(&commission, &setup));
 
     TEST_ASSERT_EQUAL_UINT(1, stop_count);
-    TEST_ASSERT_TRUE(fake_trace_first("commission.stop_commands") <
+    TEST_ASSERT_TRUE(fake_trace_first("commission.stop_commands") >
                      fake_trace_first("settings.save"));
+    TEST_ASSERT_TRUE(fake_trace_first("commission.stop_commands") <
+                     fake_trace_first("system.restart"));
 
     setUp();
     enroll();
     TEST_ASSERT_TRUE(lc_commission_reset(&commission));
     TEST_ASSERT_EQUAL_UINT(1, stop_count);
-    TEST_ASSERT_TRUE(fake_trace_first("commission.stop_commands") <
+    TEST_ASSERT_TRUE(fake_trace_first("commission.stop_commands") >
                      fake_trace_first("identity.save"));
+    TEST_ASSERT_TRUE(fake_trace_first("commission.stop_commands") <
+                     fake_trace_first("system.restart"));
+}
+
+void test_a_failed_save_does_not_leave_the_device_refusing_commands(void)
+{
+    const lc_setup_request_t setup = request();
+
+    settings.save_ok = false;
+    TEST_ASSERT_EQUAL_INT(LC_COMMISSION_SAVE_FAILED, lc_commission_apply(&commission, &setup));
+    TEST_ASSERT_EQUAL_UINT(0, stop_count);
+
+    settings.save_ok = true;
+    identity.save_ok = false;
+    TEST_ASSERT_EQUAL_INT(LC_COMMISSION_SAVE_FAILED, lc_commission_apply(&commission, &setup));
+    TEST_ASSERT_EQUAL_UINT(0, stop_count);
+
+    setUp();
+    enroll();
+    identity.save_ok = false;
+    TEST_ASSERT_FALSE(lc_commission_reset(&commission));
+    TEST_ASSERT_EQUAL_UINT(0, stop_count);
 }
 
 int main(void)
@@ -353,6 +377,7 @@ int main(void)
     RUN_TEST(test_S5_H03_store_failure_produces_no_acknowledgement_and_no_restart);
     RUN_TEST(test_failed_identity_save_leaves_the_old_network_and_the_old_bootstrap);
     RUN_TEST(test_failed_identity_save_on_a_blank_device_leaves_it_unconfigured);
+    RUN_TEST(test_a_failed_save_does_not_leave_the_device_refusing_commands);
     RUN_TEST(test_S5_H04_network_change_on_an_enrolled_device_keeps_identity_and_mapping);
     RUN_TEST(test_S5_H05_enrollment_fields_are_ignored_on_an_enrolled_device);
     RUN_TEST(test_S5_H06_pending_enrollment_refuses_new_settings_until_reset);

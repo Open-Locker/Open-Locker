@@ -15,7 +15,8 @@
  * unlock, can ever interleave.
  */
 
-#define QUEUE_DEPTH 8
+/* A slow bus exchange blocks the task for over a second while events keep arriving. */
+#define QUEUE_DEPTH 32
 #define TICK_MS 100
 /* The application keeps a few kilobytes of working copies on this stack. */
 #define STACK_SIZE 12288

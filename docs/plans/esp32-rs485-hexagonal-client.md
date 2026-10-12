@@ -688,7 +688,7 @@ Host suite `test_commission_device`:
 | S5-H06 | A device with the pending flag set refuses new settings until it is reset |
 | S5-H07 | Reset clears identity, credentials, and mapping, and keeps the journal |
 | S5-H08 | When online, the offline message is published before the restart is requested |
-| S5-H09 | New commands are refused from the moment settings are accepted |
+| S5-H09 | New commands are refused once the settings are stored, before the restart; a failed save leaves the device taking commands |
 
 Host suite `test_console_protocol`:
 

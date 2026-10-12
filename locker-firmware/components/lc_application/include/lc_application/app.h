@@ -32,6 +32,8 @@ typedef struct {
 
 /* Publishes whose acknowledgement is still outstanding. */
 #define LC_APP_OUTSTANDING_MAX 16
+/* A publish not acknowledged by then is treated as lost, so its slot cannot leak. */
+#define LC_APP_PUBLISH_TIMEOUT_MS 60000
 
 typedef struct {
     lc_door_tracker_t door;
@@ -52,6 +54,7 @@ typedef enum {
 typedef struct {
     lc_publish_id_t id;
     lc_app_publish_kind_t kind;
+    int64_t sent_at_ms;
     /* LC_APP_PUBLISH_RESPONSE */
     char transaction_id[LC_ID_MAX + 1];
     /* LC_APP_PUBLISH_DETECTION: index into the configured mappings. */

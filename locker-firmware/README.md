@@ -121,7 +121,7 @@ one line starting with `ok` or `error`; a reply never repeats a value you sent.
 | `diagnostics` | Bus state and the number of unlock requests that reached the wire since boot |
 | `self-test` | Checks the frame encoder. Sends nothing to the panel |
 | `query <board>` | Reads the door state of addresses 0 to 31 of a panel (`c` closed, `o` open, `?` unknown) |
-| `unlock <board> <address>` | **Releases the lock** at that address, once. Bench use: it bypasses the journal |
+| `unlock <board> <address>` | **Releases the lock** at that address, once. Bench use: it bypasses the journal, so it is refused once the device is enrolled or has network settings |
 | `command <json>` | Feeds one MQTT command payload to the application, as if the broker had sent it |
 | `configure <json>` | What the commissioning tool sends |
 | `reset-network` | Forgets network settings, identity and mapping, then restarts. The journal is kept |

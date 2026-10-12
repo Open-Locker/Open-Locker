@@ -99,6 +99,36 @@ void test_unlock_that_could_not_be_written_reports_not_sent(void)
     TEST_ASSERT_EQUAL_STRING("error unlock not_sent\n", replies);
 }
 
+static bool device_enrolled;
+static bool device_configured;
+
+static bool provisioning_state(void *ctx, bool *enrolled, bool *pending, bool *configured)
+{
+    (void)ctx;
+    *enrolled = device_enrolled;
+    *pending = false;
+    *configured = device_configured;
+    return true;
+}
+
+void test_unlock_is_refused_once_the_device_is_enrolled_or_configured(void)
+{
+    console.provisioning_state = provisioning_state;
+
+    device_enrolled = true;
+    device_configured = false;
+    lc_console_execute(&console, "unlock 2 4");
+    TEST_ASSERT_EQUAL_STRING("error unlock disabled\n", replies);
+
+    replies[0] = '\0';
+    device_enrolled = false;
+    device_configured = true;
+    lc_console_execute(&console, "unlock 2 4");
+    TEST_ASSERT_EQUAL_STRING("error unlock disabled\n", replies);
+
+    TEST_ASSERT_EQUAL_UINT(0, fake_serial_write_count(&serial));
+}
+
 void test_query_prints_one_state_per_address(void)
 {
     fake_serial_reply_to_write(&serial, 0, REPLY_MS, STATUS_0_AND_2_HIGH,
@@ -177,6 +207,7 @@ int main(void)
     RUN_TEST(test_unlock_sends_one_frame_for_the_given_board_and_address);
     RUN_TEST(test_unlock_without_a_reply_reports_outcome_unknown);
     RUN_TEST(test_unlock_that_could_not_be_written_reports_not_sent);
+    RUN_TEST(test_unlock_is_refused_once_the_device_is_enrolled_or_configured);
     RUN_TEST(test_query_prints_one_state_per_address);
     RUN_TEST(test_query_without_a_reply_reports_an_error);
     RUN_TEST(test_status_diagnostics_and_self_test_write_nothing_to_the_bus);

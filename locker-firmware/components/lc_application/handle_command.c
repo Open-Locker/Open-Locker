@@ -91,6 +91,11 @@ void lc_app_handle_command(lc_app_t *app, const lc_command_t *command)
         lc_app_respond_transient(app, command, command->defect);
         return;
     }
+    /* No side effect to guard, so it needs no journal slot either. */
+    if (command->action == LC_ACTION_UNKNOWN) {
+        lc_app_respond_transient(app, command, LC_ERROR_UNKNOWN_ACTION);
+        return;
+    }
     if (!journal->healthy(journal->ctx)) {
         lc_app_respond_transient(app, command, LC_ERROR_UNKNOWN_ERROR);
         return;

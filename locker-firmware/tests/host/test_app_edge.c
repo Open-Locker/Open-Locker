@@ -136,6 +136,38 @@ void test_a_refusal_while_closing_is_dropped_when_the_table_is_full(void)
     TEST_ASSERT_EQUAL_UINT(0, fx_bus.unlock_count);
 }
 
+void test_an_unknown_action_does_not_use_a_journal_slot(void)
+{
+    for (unsigned i = 0; i < 3; ++i) {
+        char transaction_id[16];
+        char message_id[16];
+        snprintf(transaction_id, sizeof(transaction_id), "tx-%u", i);
+        snprintf(message_id, sizeof(message_id), "msg-%u", i);
+        lc_command_t command = fx_open(transaction_id, message_id, 1);
+        command.action = LC_ACTION_UNKNOWN;
+        snprintf(command.action_name, sizeof(command.action_name), "self_destruct");
+
+        lc_app_handle_command(&fx_app, &command);
+
+        TEST_ASSERT_EQUAL_INT(LC_ERROR_UNKNOWN_ACTION,
+                              fake_outbound_last_response(&fx_outbound)->error);
+    }
+    TEST_ASSERT_EQUAL_UINT(0, fx_journal.claim_count);
+}
+
+void test_a_publish_that_is_never_acknowledged_gives_its_slot_back(void)
+{
+    fill_the_table();
+    const lc_command_t command = fx_open("tx-1", "msg-1", 1);
+    lc_app_handle_command(&fx_app, &command);
+    TEST_ASSERT_EQUAL_UINT(LC_APP_OUTSTANDING_MAX, fx_outbound.accepted[FAKE_RESPONSE]);
+
+    /* The acknowledgement event was lost, for example by a full queue. */
+    fx_advance(LC_APP_PUBLISH_TIMEOUT_MS + 1000);
+
+    TEST_ASSERT_TRUE(fx_outbound.accepted[FAKE_RESPONSE] > LC_APP_OUTSTANDING_MAX);
+}
+
 void test_unknown_publish_events_are_ignored(void)
 {
     unsigned attempts = fake_outbound_attempts(&fx_outbound);
@@ -158,6 +190,8 @@ int main(void)
     RUN_TEST(test_recovery_puts_the_stored_profile_on_the_bus);
     RUN_TEST(test_a_full_table_of_unacknowledged_publishes_holds_a_response_back);
     RUN_TEST(test_a_refusal_while_closing_is_dropped_when_the_table_is_full);
+    RUN_TEST(test_an_unknown_action_does_not_use_a_journal_slot);
+    RUN_TEST(test_a_publish_that_is_never_acknowledged_gives_its_slot_back);
     RUN_TEST(test_unknown_publish_events_are_ignored);
     return UNITY_END();
 }

@@ -86,8 +86,6 @@ lc_commission_result_t lc_commission_apply(lc_commission_t *commission,
         return answer(commission, LC_COMMISSION_INVALID);
     }
 
-    /* From here on the device is being set up, and new commands are not taken. */
-    ports->stop_commands(ports->ctx);
 
     /* Kept so a failed identity save can put the network back: old or new, never a mix. */
     lc_network_settings_t previous;
@@ -120,6 +118,8 @@ lc_commission_result_t lc_commission_apply(lc_commission_t *commission,
         }
     }
 
+    /* Only once everything is stored: a failed save must leave the device taking commands. */
+    ports->stop_commands(ports->ctx);
     (void)answer(commission, LC_COMMISSION_SAVED);
     say_goodbye(commission);
     ports->system.restart(ports->system.ctx);
@@ -131,13 +131,12 @@ bool lc_commission_reset(lc_commission_t *commission)
     const lc_commission_ports_t *ports = &commission->ports;
     lc_identity_t cleared;
 
-    ports->stop_commands(ports->ctx);
-
     /* The identity goes first: without it the rest is a device waiting to be set up. */
     memset(&cleared, 0, sizeof(cleared));
     if (!ports->identity_store.save(ports->identity_store.ctx, &cleared)) {
         return false;
     }
+    ports->stop_commands(ports->ctx);
     (void)ports->config_store.clear(ports->config_store.ctx);
     (void)ports->settings_store.clear(ports->settings_store.ctx);
 

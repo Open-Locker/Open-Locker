@@ -70,6 +70,22 @@ static void diagnostics(const lc_console_t *console)
     reply(console, text);
 }
 
+/*
+ * The bench `unlock` skips the journal, so it exists only until the device is
+ * set up. Once it is enrolled or has network settings, commands come from the
+ * broker alone.
+ */
+static bool bench_commands_allowed(const lc_console_t *console)
+{
+    bool enrolled = false;
+    bool pending = false;
+    bool configured = false;
+
+    return console->provisioning_state == NULL ||
+           (console->provisioning_state(console->ctx, &enrolled, &pending, &configured) &&
+            !enrolled && !configured);
+}
+
 static void unlock(const lc_console_t *console, uint8_t board, uint8_t address)
 {
     /* A bench command addresses the board directly; no compartment is mapped. */
@@ -138,7 +154,11 @@ void lc_console_execute(const lc_console_t *console, const char *line)
                                                         : "error self-test failed\n");
         break;
     case LC_CONSOLE_UNLOCK:
-        unlock(console, command.board, command.address);
+        if (bench_commands_allowed(console)) {
+            unlock(console, command.board, command.address);
+        } else {
+            reply(console, "error unlock disabled\n");
+        }
         break;
     case LC_CONSOLE_QUERY:
         query(console, command.board);
