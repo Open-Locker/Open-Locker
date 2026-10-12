@@ -1,8 +1,11 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Resources;
 
 use App\Models\User;
+use Carbon\CarbonImmutable;
 use Dedoc\Scramble\Attributes\SchemaName;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
@@ -21,13 +24,13 @@ class UserResource extends JsonResource
      *     first_name: string,
      *     last_name: string|null,
      *     email: string,
-     *     email_verified_at: \Carbon\CarbonImmutable|null,
+     *     email_verified_at: CarbonImmutable|null,
      *     is_admin: bool,
      *     terms_last_accepted_version: int|null,
      *     terms_current_version: int|null,
      *     terms_current_accepted: bool,
-     *     created_at: \Carbon\CarbonImmutable|null,
-     *     updated_at: \Carbon\CarbonImmutable|null
+     *     created_at: CarbonImmutable|null,
+     *     updated_at: CarbonImmutable|null
      * }
      */
     public function toArray(Request $request): array

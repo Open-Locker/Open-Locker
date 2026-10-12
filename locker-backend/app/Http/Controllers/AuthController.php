@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Controllers;
 
 use App\Http\Requests\Auth\ChangePasswordRequest;
@@ -12,15 +14,11 @@ use App\Http\Resources\TokenResponseResource;
 use App\Http\Resources\UserResource;
 use App\Models\User;
 use App\Services\AuthService;
-use Illuminate\Auth\Events\PasswordReset;
-use Illuminate\Auth\Events\Verified;
 use Illuminate\Foundation\Auth\EmailVerificationRequest;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Password;
-use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -44,9 +42,7 @@ class AuthController extends Controller
             ]))->response();
         }
 
-        if ($user->markEmailAsVerified()) {
-            event(new Verified($user));
-        }
+        $this->authService->markEmailAsVerified($user);
 
         return response()->json([
             'message' => __('Email verified'),
@@ -63,10 +59,7 @@ class AuthController extends Controller
         abort_unless(hash_equals(sha1($user->getEmailForVerification()), $hash), 403);
 
         $alreadyVerified = $user->hasVerifiedEmail();
-
-        if (! $alreadyVerified && $user->markEmailAsVerified()) {
-            event(new Verified($user));
-        }
+        $this->authService->markEmailAsVerified($user);
 
         return view('auth.verify-email', [
             'email' => $user->email,
@@ -166,26 +159,12 @@ class AuthController extends Controller
         // Here we will attempt to reset the user's password. If it is successful we
         // will update the password on an actual user model and persist it to the
         // database. Otherwise we will parse the error and return the response.
-        $status = Password::reset(
-            [
-                'email' => $validated['email'],
-                'password' => $validated['password'],
-                'password_confirmation' => $validated['password_confirmation'],
-                'token' => $validated['token'],
-            ],
-            function ($user) use ($validated) {
-                $user->forceFill([
-                    'password' => Hash::make($validated['password']),
-                    'remember_token' => Str::random(60),
-                ])->save();
-
-                if (! $user->hasVerifiedEmail() && $user->markEmailAsVerified()) {
-                    event(new Verified($user));
-                }
-
-                event(new PasswordReset($user));
-            }
-        );
+        $status = $this->authService->resetPassword([
+            'email' => $validated['email'],
+            'password' => $validated['password'],
+            'password_confirmation' => $validated['password_confirmation'],
+            'token' => $validated['token'],
+        ]);
 
         // If the password was successfully reset, we will redirect the user back to
         // the application's home authenticated view. If there is an error we can
@@ -214,25 +193,12 @@ class AuthController extends Controller
     {
         $validated = $request->validated();
 
-        $user = $this->authenticatedUser($request);
-        $user->fill([
-            'first_name' => $validated['first_name'],
-            'last_name' => $validated['last_name'],
-            'email' => $validated['email'],
-        ]);
-
-        $emailChanged = $user->isDirty('email');
-        if ($emailChanged) {
-            $user->email_verified_at = null;
-        }
-
-        $user->save();
-
-        if ($emailChanged) {
-            $user->sendEmailVerificationNotification();
-        }
-
-        return new UserResource($user->fresh());
+        return new UserResource($this->authService->updateProfile(
+            $this->authenticatedUser($request),
+            $validated['first_name'],
+            $validated['last_name'],
+            $validated['email'],
+        ));
     }
 
     /**
@@ -242,11 +208,7 @@ class AuthController extends Controller
     {
         $validated = $request->validated();
 
-        $user = $this->authenticatedUser($request);
-        $user->forceFill([
-            'password' => Hash::make($validated['password']),
-            'remember_token' => Str::random(60),
-        ])->save();
+        $this->authService->changePassword($this->authenticatedUser($request), $validated['password']);
 
         return response()->json([
             'message' => __('Password updated successfully'),

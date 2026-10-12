@@ -5,17 +5,23 @@ declare(strict_types=1);
 namespace App\Services;
 
 use App\Aggregates\CompartmentContentNoteAggregate;
+use App\Aggregates\CompartmentHelpRequestAggregate;
 use App\Enums\Permission;
 use App\Models\Compartment;
 use App\Models\User;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Support\Str;
 use InvalidArgumentException;
 
 class CompartmentService
 {
     /** Matches the `content_note` column and both entry-point validations. */
     public const CONTENT_NOTE_MAX_LENGTH = 80;
+
+    public const HELP_MESSAGE_MAX_LENGTH = 1000;
+
+    public const CALLBACK_PHONE_MAX_LENGTH = 32;
 
     public function __construct(
         private readonly CompartmentAccessService $accessService,
@@ -52,7 +58,7 @@ class CompartmentService
      */
     public function updateContentNote(User $actor, Compartment $compartment, ?string $note): Compartment
     {
-        $this->ensureCanEditNote($actor, $compartment);
+        $this->ensureHasAccess($actor, $compartment);
 
         // The Filament form and the API request each cap this at 80, matching the
         // column. Enforced here as well because what gets past this point becomes
@@ -78,13 +84,57 @@ class CompartmentService
     }
 
     /**
+     * Record that a user asked the locker managers for help with a compartment;
+     * CompartmentHelpRequestAlertReactor passes it on. The phone is an optional
+     * number the user left for a call back. Returns the request id.
+     *
      * @throws AuthorizationException
      */
-    private function ensureCanEditNote(User $actor, Compartment $compartment): void
+    public function requestHelp(
+        User $actor,
+        Compartment $compartment,
+        string $message,
+        ?string $callbackPhone = null,
+    ): string {
+        $this->ensureHasAccess($actor, $compartment);
+
+        // Both become permanent audit history, so the caps hold for every
+        // caller, not only the API request that validates them.
+        if ($message === '' || mb_strlen($message) > self::HELP_MESSAGE_MAX_LENGTH) {
+            throw new InvalidArgumentException(
+                sprintf('Help message must be 1 to %d characters.', self::HELP_MESSAGE_MAX_LENGTH),
+            );
+        }
+        if ($callbackPhone !== null && ($callbackPhone === '' || mb_strlen($callbackPhone) > self::CALLBACK_PHONE_MAX_LENGTH)) {
+            throw new InvalidArgumentException(
+                sprintf('Callback phone must be 1 to %d characters.', self::CALLBACK_PHONE_MAX_LENGTH),
+            );
+        }
+
+        $helpRequestUuid = (string) Str::uuid();
+
+        CompartmentHelpRequestAggregate::retrieve($helpRequestUuid)
+            ->requestHelp(
+                helpRequestUuid: $helpRequestUuid,
+                compartmentUuid: (string) $compartment->id,
+                actorUserId: $actor->id,
+                message: $message,
+                callbackPhone: $callbackPhone,
+                requestedAt: now(),
+            )
+            ->persist();
+
+        return $helpRequestUuid;
+    }
+
+    /**
+     * @throws AuthorizationException
+     */
+    private function ensureHasAccess(User $actor, Compartment $compartment): void
     {
-        $canEdit = $actor->can(Permission::CompartmentAccessManage->value)
+        $hasAccess = $actor->can(Permission::CompartmentAccessManage->value)
             || $this->accessService->hasActiveAccess($actor, $compartment);
 
-        throw_unless($canEdit, AuthorizationException::class, 'You do not have access to this compartment.');
+        throw_unless($hasAccess, AuthorizationException::class, 'You do not have access to this compartment.');
     }
 }

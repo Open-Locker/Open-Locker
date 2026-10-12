@@ -14,6 +14,8 @@ use App\Models\LockerBank;
 use App\Models\User;
 use App\Services\LockerProvisioningService;
 use Filament\Actions\Action;
+use Filament\Actions\BulkActionGroup;
+use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
 use Filament\Facades\Filament;
 use Filament\Forms\Components\Placeholder;
@@ -74,6 +76,11 @@ class LockerBankResource extends Resource
                     ->label(__('Location description'))
                     ->maxLength(65535)
                     ->columnSpanFull(),
+                TextInput::make('support_phone')
+                    ->label(__('Support phone'))
+                    ->tel()
+                    ->maxLength(32)
+                    ->helperText(__('Shown on the Get help screen in the app, offered after a compartment of this bank fails to open twice.')),
                 Select::make('adapter_type')
                     ->label(__('Hardware adapter'))
                     ->options([
@@ -305,8 +312,8 @@ class LockerBankResource extends Resource
                 static::restartProvisioningAction(),
             ])
             ->bulkActions([
-                \Filament\Actions\BulkActionGroup::make([
-                    \Filament\Actions\DeleteBulkAction::make(),
+                BulkActionGroup::make([
+                    DeleteBulkAction::make(),
                 ]),
             ]);
     }

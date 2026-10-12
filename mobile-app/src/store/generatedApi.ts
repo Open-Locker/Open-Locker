@@ -3,7 +3,6 @@ export const addTagTypes = [
   "AppInfo",
   "Auth",
   "Compartment",
-  "LockerBankStatus",
   "MosquittoAuth",
   "Terms",
 ] as const;
@@ -178,6 +177,20 @@ const injectedRtkApi = api
         }),
         invalidatesTags: ["Compartment"],
       }),
+      postCompartmentsByCompartmentHelpRequests: build.mutation<
+        PostCompartmentsByCompartmentHelpRequestsApiResponse,
+        PostCompartmentsByCompartmentHelpRequestsApiArg
+      >({
+        query: (queryArg) => ({
+          url: `/compartments/${queryArg.compartment}/help-requests`,
+          method: "POST",
+          body: queryArg.requestCompartmentHelpRequest,
+          headers: {
+            "Accept-Language": queryArg["Accept-Language"],
+          },
+        }),
+        invalidatesTags: ["Compartment"],
+      }),
       getCompartmentsOpenRequestsByCommandId: build.query<
         GetCompartmentsOpenRequestsByCommandIdApiResponse,
         GetCompartmentsOpenRequestsByCommandIdApiArg
@@ -189,18 +202,6 @@ const injectedRtkApi = api
           },
         }),
         providesTags: ["Compartment"],
-      }),
-      getLockerBanksByLockerBankStatus: build.query<
-        GetLockerBanksByLockerBankStatusApiResponse,
-        GetLockerBanksByLockerBankStatusApiArg
-      >({
-        query: (queryArg) => ({
-          url: `/locker-banks/${queryArg.lockerBank}/status`,
-          headers: {
-            "Accept-Language": queryArg["Accept-Language"],
-          },
-        }),
-        providesTags: ["LockerBankStatus"],
       }),
       postMosqAuth: build.mutation<PostMosqAuthApiResponse, PostMosqAuthApiArg>(
         {
@@ -367,24 +368,19 @@ export type PutCompartmentsByCompartmentContentNoteApiArg = {
   "Accept-Language"?: "en" | "de";
   updateCompartmentContentNoteRequest: UpdateCompartmentContentNoteRequest;
 };
+export type PostCompartmentsByCompartmentHelpRequestsApiResponse =
+  /** status 202 `CompartmentHelpRequest` */ CompartmentHelpRequest;
+export type PostCompartmentsByCompartmentHelpRequestsApiArg = {
+  /** The compartment ID */
+  compartment: string;
+  /** Preferred language for server-rendered strings (API messages, web pages, and request-triggered emails). Falls back to the application default when omitted or unsupported. */
+  "Accept-Language"?: "en" | "de";
+  requestCompartmentHelpRequest: RequestCompartmentHelpRequest;
+};
 export type GetCompartmentsOpenRequestsByCommandIdApiResponse =
   /** status 200 `CompartmentOpenStatus` */ CompartmentOpenStatus;
 export type GetCompartmentsOpenRequestsByCommandIdApiArg = {
   commandId: string;
-  /** Preferred language for server-rendered strings (API messages, web pages, and request-triggered emails). Falls back to the application default when omitted or unsupported. */
-  "Accept-Language"?: "en" | "de";
-};
-export type GetLockerBanksByLockerBankStatusApiResponse = /** status 200  */ {
-  id: string;
-  connection_status: string;
-  connection_status_changed_at: string;
-  last_heartbeat_at: string;
-  heartbeat_interval_seconds: number;
-  heartbeat_timeout_seconds: number;
-};
-export type GetLockerBanksByLockerBankStatusApiArg = {
-  /** The locker bank ID */
-  lockerBank: string;
   /** Preferred language for server-rendered strings (API messages, web pages, and request-triggered emails). Falls back to the application default when omitted or unsupported. */
   "Accept-Language"?: "en" | "de";
 };
@@ -470,6 +466,7 @@ export type AccessibleCompartments = {
     id: string;
     name: string;
     location_description: string | null;
+    support_phone: string | null;
     last_compartment_state_change_at?: string | null;
     /** What the app colours each bank by, sent with the list so the
         first paint is right; the realtime event keeps it current.
@@ -497,6 +494,14 @@ export type CompartmentContentNote = {
 };
 export type UpdateCompartmentContentNoteRequest = {
   note?: string | null;
+};
+export type CompartmentHelpRequest = {
+  status: boolean;
+  help_request_id: string;
+};
+export type RequestCompartmentHelpRequest = {
+  message: string;
+  phone?: string | null;
 };
 export type CompartmentOpenStatus = {
   status: boolean;
@@ -551,8 +556,8 @@ export const {
   useGetCompartmentsAccessibleQuery,
   usePostCompartmentsByCompartmentOpenMutation,
   usePutCompartmentsByCompartmentContentNoteMutation,
+  usePostCompartmentsByCompartmentHelpRequestsMutation,
   useGetCompartmentsOpenRequestsByCommandIdQuery,
-  useGetLockerBanksByLockerBankStatusQuery,
   usePostMosqAuthMutation,
   usePostMosqAclMutation,
   useGetTermsCurrentQuery,

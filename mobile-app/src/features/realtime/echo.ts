@@ -28,6 +28,17 @@ export type CompartmentNoteUpdatedPayload = {
   content_note_updated_by_user_id: number;
 };
 
+/** Payload of `.compartment.open.status.updated` (CompartmentOpenStatusUpdated, ADR-0045). */
+export type CompartmentOpenStatusUpdatedPayload = {
+  command_id: string;
+  compartment_id: string;
+  status: string;
+  error_code: string | null;
+  message: string | null;
+  compartment_number: number | null;
+  locker_name: string | null;
+};
+
 /** The three states the backend's `connection_status` column can hold. */
 export type LockerBankConnectionStatus = 'online' | 'offline' | 'unknown';
 

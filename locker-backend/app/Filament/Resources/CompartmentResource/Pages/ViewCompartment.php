@@ -6,6 +6,7 @@ namespace App\Filament\Resources\CompartmentResource\Pages;
 
 use App\Filament\Resources\CompartmentResource;
 use App\Filament\Support\EditContentNoteAction;
+use Filament\Actions\Action;
 use Filament\Resources\Pages\ViewRecord;
 
 class ViewCompartment extends ViewRecord
@@ -13,7 +14,7 @@ class ViewCompartment extends ViewRecord
     protected static string $resource = CompartmentResource::class;
 
     /**
-     * @return array<int, \Filament\Actions\Action>
+     * @return array<int, Action>
      */
     protected function getHeaderActions(): array
     {

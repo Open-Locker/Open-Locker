@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Filament\Resources;
 
 use App\Enums\CompartmentOpenRequestStatus;
+use App\Enums\Permission;
 use App\Filament\Resources\CompartmentOpenRequestResource\Pages;
 use App\Models\CompartmentOpenRequest;
 use Filament\Resources\Resource;
@@ -20,6 +21,11 @@ class CompartmentOpenRequestResource extends Resource
     protected static \BackedEnum|string|null $navigationIcon = 'heroicon-o-clock';
 
     protected static bool $shouldRegisterNavigation = false;
+
+    public static function canAccess(): bool
+    {
+        return auth()->user()?->can(Permission::CompartmentAccessManage->value) ?? false;
+    }
 
     public static function getNavigationLabel(): string
     {

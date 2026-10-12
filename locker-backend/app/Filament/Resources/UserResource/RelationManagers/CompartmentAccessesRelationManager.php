@@ -12,6 +12,7 @@ use App\Models\Compartment;
 use App\Models\CompartmentAccess;
 use App\Models\User;
 use App\Services\CompartmentAccessService;
+use Filament\Actions\Action;
 use Filament\Facades\Filament;
 use Filament\Resources\RelationManagers\RelationManager;
 use Filament\Schemas\Schema;
@@ -99,7 +100,7 @@ class CompartmentAccessesRelationManager extends RelationManager
                     ->toggleable(),
             ])
             ->headerActions([
-                \Filament\Actions\Action::make('grantAccess')
+                Action::make('grantAccess')
                     ->label(__('Grant access'))
                     ->icon('heroicon-m-key')
                     ->visible(fn (): bool => $this->currentUserCanManageAccess())
@@ -136,7 +137,7 @@ class CompartmentAccessesRelationManager extends RelationManager
                     }),
             ])
             ->actions([
-                \Filament\Actions\Action::make('revokeAccess')
+                Action::make('revokeAccess')
                     ->label(__('Revoke access'))
                     ->color('danger')
                     ->icon('heroicon-m-no-symbol')

@@ -22,5 +22,5 @@ export function useUserName(): string | null {
     return formatUserName(user.first_name, user.last_name) || null;
   }
 
-  return persistedName;
+  return persistedName?.trim() || null;
 }

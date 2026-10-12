@@ -10,12 +10,15 @@ use App\Filament\Resources\GroupResource\RelationManagers\CompartmentAccessesRel
 use App\Filament\Resources\GroupResource\RelationManagers\MembersRelationManager;
 use App\Models\Group;
 use App\Services\GroupAccessService;
+use Filament\Actions\Action;
+use Filament\Actions\EditAction;
 use Filament\Facades\Filament;
 use Filament\Forms;
 use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
 use Filament\Tables;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
 
 class GroupResource extends Resource
 {
@@ -74,6 +77,7 @@ class GroupResource extends Resource
     public static function table(Table $table): Table
     {
         return $table
+            ->modifyQueryUsing(fn (Builder $query) => $query->with('createdByUser'))
             ->columns([
                 Tables\Columns\TextColumn::make('name')
                     ->label(__('Name'))
@@ -105,8 +109,8 @@ class GroupResource extends Resource
                     ->default(false),
             ])
             ->actions([
-                \Filament\Actions\EditAction::make(),
-                \Filament\Actions\Action::make('archive')
+                EditAction::make(),
+                Action::make('archive')
                     ->label(__('Archive'))
                     ->icon('heroicon-o-archive-box')
                     ->color('danger')

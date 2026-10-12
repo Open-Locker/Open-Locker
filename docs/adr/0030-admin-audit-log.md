@@ -4,7 +4,7 @@
 
 ## Status
 
-Proposed
+Accepted
 
 ## Date
 
@@ -135,7 +135,7 @@ becomes a problem, supersede this ADR with a dedicated audit projection.
 ## Supersedes / Superseded By
 
 - Supersedes: none
-- Superseded by: none
+- Superseded by: ADR-0066 in part (decision 2 and the whitelist-drift mitigation)
 
 ## References
 

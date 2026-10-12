@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\StorableEvents;
 
+use App\Support\Audit\AuditCategory;
+use App\Support\Audit\Audited;
 use Spatie\EventSourcing\StoredEvents\ShouldBeStored;
 
 /**
@@ -12,6 +14,7 @@ use Spatie\EventSourcing\StoredEvents\ShouldBeStored;
  *
  * Recorded instead of the success this used to be reported as.
  */
+#[Audited(AuditCategory::Access, 'Door did not open')]
 class CompartmentOpenNotDetected extends ShouldBeStored
 {
     public function __construct(

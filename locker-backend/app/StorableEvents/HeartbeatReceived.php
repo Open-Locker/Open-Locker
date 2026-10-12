@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\StorableEvents;
 
+use App\Support\Audit\NotAudited;
+
 /**
  * Legacy telemetry event.
  *
@@ -13,6 +15,7 @@ namespace App\StorableEvents;
  * Note: Do not delete this class if you already have historical stored events referencing
  * App\StorableEvents\HeartbeatReceived. Spatie will need the class to deserialize/replay them.
  */
+#[NotAudited('Legacy heartbeat telemetry, no longer recorded.')]
 class HeartbeatReceived
 {
     /**

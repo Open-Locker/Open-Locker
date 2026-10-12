@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace App\StorableEvents;
 
+use App\Support\Audit\NotAudited;
 use Spatie\EventSourcing\StoredEvents\ShouldBeStored;
 
+#[NotAudited('Internal dispatch of the configuration to the locker; the outcome is LockerConfigAcknowledged or LockerConfigAckFailed.')]
 class LockerConfigApplyRequested extends ShouldBeStored
 {
     /**

@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Filament\Resources;
 
 use App\Enums\Permission;
@@ -9,6 +11,9 @@ use App\Filament\Resources\UserResource\RelationManagers\CompartmentAccessesRela
 use App\Filament\Resources\UserResource\RelationManagers\GroupMembershipsRelationManager;
 use App\Models\User;
 use App\Services\UserAdministrationService;
+use Filament\Actions\BulkActionGroup;
+use Filament\Actions\DeleteBulkAction;
+use Filament\Actions\EditAction;
 use Filament\Forms;
 use Filament\Infolists\Components\TextEntry;
 use Filament\Notifications\Notification;
@@ -169,18 +174,18 @@ class UserResource extends Resource
                 //
             ])
             ->actions([
-                \Filament\Actions\EditAction::make()
+                EditAction::make()
                     ->authorize(fn (User $record): bool => self::canView($record))
                     ->label(fn (User $record): string => self::canEdit($record) ? __('Edit') : __('View')),
             ])->actionsAlignment('left')
             ->bulkActions([
-                \Filament\Actions\BulkActionGroup::make([
-                    \Filament\Actions\DeleteBulkAction::make()
+                BulkActionGroup::make([
+                    DeleteBulkAction::make()
                         // Both guards below need the actual records. Without this
                         // the "select all" path hands Filament a bare query and
                         // deletes through it, skipping model events entirely.
                         ->fetchSelectedRecords()
-                        ->before(function (\Filament\Actions\DeleteBulkAction $action, Collection $records) {
+                        ->before(function (DeleteBulkAction $action, Collection $records) {
                             if ($records->contains(fn (Model $record): bool => $record instanceof User && ! self::canManageRecord($record))) {
                                 Notification::make()
                                     ->title(__('Cannot delete user'))
@@ -208,7 +213,7 @@ class UserResource extends Resource
                         // the installation without an admin when another request
                         // demotes one in between, so the service commits the whole
                         // selection under a lock or none of it.
-                        ->using(function (\Filament\Actions\DeleteBulkAction $action, Collection $records): void {
+                        ->using(function (DeleteBulkAction $action, Collection $records): void {
                             $actor = self::actor();
                             abort_unless($actor instanceof User, 403);
 

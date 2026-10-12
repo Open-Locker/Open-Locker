@@ -1,10 +1,13 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Tests\Feature;
 
 use App\Reactors\MqttReactor;
 use App\Services\LockerService;
 use App\StorableEvents\CompartmentOpeningRequested;
+use Carbon\CarbonImmutable;
 use Database\Factories\CompartmentFactory;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use PhpMqtt\Client\Facades\MQTT;
@@ -96,7 +99,7 @@ class CompartmentOpeningTest extends TestCase
         $this->assertSame($commandId, $decoded['transaction_id'] ?? null);
         $this->assertIsString($timestamp);
         $this->assertNotEmpty($timestamp);
-        \Carbon\CarbonImmutable::parse($timestamp); // should not throw
+        CarbonImmutable::parse($timestamp); // should not throw
         $this->assertArrayNotHasKey('compartment_id', $decoded['data']);
         $this->assertSame($compartmentNumber, $decoded['data']['compartment_number'] ?? null);
     }

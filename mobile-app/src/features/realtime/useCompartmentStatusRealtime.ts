@@ -4,19 +4,24 @@ import { AppState } from 'react-native';
 
 import { openLockerApi, useGetUserQuery } from '@/src/store/generatedApi';
 import { useAppDispatch, useAppSelector } from '@/src/store/hooks';
+import { realtimeConnectionChanged, realtimeReset } from '@/src/store/realtimeSlice';
 
 import { applyBankConnection } from './applyBankConnection';
 import { applyContentNote } from './applyContentNote';
 import { applyDoorState } from './applyDoorState';
+import { applyOpenStatus } from './applyOpenStatus';
 import {
   createEcho,
   type CompartmentDoorStateUpdatedPayload,
   type CompartmentNoteUpdatedPayload,
+  type CompartmentOpenStatusUpdatedPayload,
   type LockerBankConnectionUpdatedPayload,
 } from './echo';
 
 const DOOR_STATE_EVENT = '.compartment.door_state.updated';
 const CONTENT_NOTE_EVENT = '.compartment.content_note.updated';
+/** Must match `CompartmentOpenStatusUpdated::broadcastAs()`. */
+const OPEN_STATUS_EVENT = '.compartment.open.status.updated';
 /** Must match `LockerBankConnectionUpdated::broadcastAs()`. */
 export const BANK_CONNECTION_EVENT = '.locker_bank.connection.updated';
 /** Must match `TermsAcceptanceRequired::broadcastAs()`. The leading dot stops Echo
@@ -41,6 +46,8 @@ export function lockerBankChannelName(userId: number | string): string {
  *   `door_state` in place (no refetch).
  * - On `.compartment.content_note.updated`, patches the matching compartment's
  *   `content_note` fields in place (no refetch).
+ * - On `.compartment.open.status.updated`, advances the cached status of that
+ *   open request, if the app is following it (no refetch).
  * - On `.locker_bank.connection.updated` (its own channel), patches the bank's
  *   `connection_status` in place, so a bank going offline recolours without a
  *   refetch. Coming back is immediate; going offline waits for the backend's
@@ -48,9 +55,13 @@ export function lockerBankChannelName(userId: number | string): string {
  * - Falls back to a REST refetch when realtime is untrustworthy: the socket
  *   reports unavailable/disconnected, or the app returns to the foreground
  *   (events sent while backgrounded are not replayed).
+ * - Mirrors the socket's state into the `realtime` slice, so the compartment
+ *   screen can say when live updates are paused. That is the app's own
+ *   connection, not a locker bank's.
  *
- * `door_state` is sourced only from the API and this event — open-command
- * feedback stays on the mutation path and is never derived here.
+ * `door_state` is sourced only from the API and the door-state event, and
+ * open-command feedback only from the open request's own status (ADR-0023) —
+ * neither is derived from the other.
  */
 export function useCompartmentStatusRealtime(): void {
   const token = useAppSelector((state) => state.auth.token);
@@ -96,6 +107,18 @@ export function useCompartmentStatusRealtime(): void {
       );
     };
 
+    const handleOpenStatus = (payload: CompartmentOpenStatusUpdatedPayload) => {
+      dispatch(
+        openLockerApi.util.updateQueryData(
+          'getCompartmentsOpenRequestsByCommandId',
+          { commandId: payload.command_id },
+          (draft) => {
+            applyOpenStatus(draft, payload);
+          },
+        ),
+      );
+    };
+
     // Independent of the socket: a plain REST refetch to reconcile missed events.
     // Runs when the socket drops and when the app returns to the foreground.
     // `Auth` is included because the user's terms acceptance goes stale the same
@@ -114,15 +137,23 @@ export function useCompartmentStatusRealtime(): void {
     echo
       .private(channelName)
       .listen(DOOR_STATE_EVENT, handleDoorState)
-      .listen(CONTENT_NOTE_EVENT, handleContentNote);
+      .listen(CONTENT_NOTE_EVENT, handleContentNote)
+      .listen(OPEN_STATUS_EVENT, handleOpenStatus);
 
     echo.private(accountChannel).listen(TERMS_ACCEPTANCE_EVENT, handleTermsAcceptanceRequired);
     echo.private(lockerBankChannel).listen(BANK_CONNECTION_EVENT, handleBankConnection);
 
     const connection = (echo.connector as { pusher: { connection: PusherConnection } }).pusher
       .connection;
+    const handleStateChange = ({ current }: { current: string }) => {
+      dispatch(realtimeConnectionChanged(current));
+    };
+
     connection.bind('unavailable', refetchFallback);
     connection.bind('disconnected', refetchFallback);
+    connection.bind('state_change', handleStateChange);
+    // Pusher can reach `failed` inside `createEcho`, before anything was bound.
+    dispatch(realtimeConnectionChanged(connection.state));
 
     const appStateSub = AppState.addEventListener('change', (state) => {
       if (state === 'active') {
@@ -134,15 +165,22 @@ export function useCompartmentStatusRealtime(): void {
       appStateSub.remove();
       connection.unbind('unavailable', refetchFallback);
       connection.unbind('disconnected', refetchFallback);
+      connection.unbind('state_change', handleStateChange);
       echo.leave(channelName);
       echo.leave(accountChannel);
       echo.leave(lockerBankChannel);
       echo.disconnect();
+      dispatch(realtimeReset());
     };
   }, [token, userId, dispatch]);
 }
 
+type PusherStateChangeHandler = (change: { current: string }) => void;
+
 type PusherConnection = {
-  bind: (event: string, handler: () => void) => void;
-  unbind: (event: string, handler: () => void) => void;
+  state: string;
+  bind(event: 'state_change', handler: PusherStateChangeHandler): void;
+  bind(event: string, handler: () => void): void;
+  unbind(event: 'state_change', handler: PusherStateChangeHandler): void;
+  unbind(event: string, handler: () => void): void;
 };

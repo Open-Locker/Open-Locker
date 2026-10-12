@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace App\StorableEvents;
 
+use App\Support\Audit\NotAudited;
 use Spatie\EventSourcing\StoredEvents\ShouldBeStored;
 
+#[NotAudited('Raw device event traffic.')]
 class DeviceEventReceived extends ShouldBeStored
 {
     /**

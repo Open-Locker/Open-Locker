@@ -1,5 +1,37 @@
 <?php
 
+declare(strict_types=1);
+
+use App\Projectors\CompartmentAccessProjector;
+use App\Projectors\CompartmentOpenRequestProjector;
+use App\Projectors\CompartmentProjector;
+use App\Projectors\GroupProjector;
+use App\Projectors\LockerBankProjector;
+use App\Projectors\TermsProjector;
+use App\Projectors\UserRoleProjector;
+use App\Reactors\CommandResponseReactor;
+use App\Reactors\CompartmentContentNoteBroadcastReactor;
+use App\Reactors\CompartmentDoorStateBroadcastReactor;
+use App\Reactors\CompartmentHelpRequestAlertReactor;
+use App\Reactors\CompartmentOpenAuthorizationReactor;
+use App\Reactors\CompartmentOpenDeviationAlertReactor;
+use App\Reactors\CompartmentOpenStatusBroadcastReactor;
+use App\Reactors\DoorDetectionReactor;
+use App\Reactors\LockerBankConnectionBroadcastReactor;
+use App\Reactors\MqttReactor;
+use App\Reactors\TermsNotificationReactor;
+use App\Support\EventSourcing\HandleStoredEventAfterCommitJob;
+use Spatie\EventSourcing\EventSerializers\JsonEventSerializer;
+use Spatie\EventSourcing\Snapshots\EloquentSnapshot;
+use Spatie\EventSourcing\Snapshots\EloquentSnapshotRepository;
+use Spatie\EventSourcing\StoredEvents\Models\EloquentStoredEvent;
+use Spatie\EventSourcing\StoredEvents\Repositories\EloquentStoredEventRepository;
+use Spatie\EventSourcing\Support\CarbonNormalizer;
+use Spatie\EventSourcing\Support\ModelIdentifierNormalizer;
+use Spatie\EventSourcing\Support\ObjectNormalizer;
+use Symfony\Component\Serializer\Normalizer\ArrayDenormalizer;
+use Symfony\Component\Serializer\Normalizer\DateTimeNormalizer;
+
 return [
 
     /*
@@ -22,13 +54,13 @@ return [
      * Projectors can be registered in this array or a service provider.
      */
     'projectors' => [
-        App\Projectors\LockerBankProjector::class,
-        App\Projectors\CompartmentProjector::class,
-        App\Projectors\CompartmentAccessProjector::class,
-        App\Projectors\CompartmentOpenRequestProjector::class,
-        App\Projectors\GroupProjector::class,
-        App\Projectors\TermsProjector::class,
-        App\Projectors\UserRoleProjector::class,
+        LockerBankProjector::class,
+        CompartmentProjector::class,
+        CompartmentAccessProjector::class,
+        CompartmentOpenRequestProjector::class,
+        GroupProjector::class,
+        TermsProjector::class,
+        UserRoleProjector::class,
     ],
 
     /*
@@ -37,16 +69,17 @@ return [
      * Reactors can be registered in this array or a service provider.
      */
     'reactors' => [
-        App\Reactors\MqttReactor::class,
-        App\Reactors\CommandResponseReactor::class,
-        App\Reactors\DoorDetectionReactor::class,
-        App\Reactors\CompartmentOpenDeviationAlertReactor::class,
-        App\Reactors\CompartmentOpenAuthorizationReactor::class,
-        App\Reactors\CompartmentOpenStatusBroadcastReactor::class,
-        App\Reactors\CompartmentDoorStateBroadcastReactor::class,
-        App\Reactors\CompartmentContentNoteBroadcastReactor::class,
-        App\Reactors\LockerBankConnectionBroadcastReactor::class,
-        App\Reactors\TermsNotificationReactor::class,
+        MqttReactor::class,
+        CommandResponseReactor::class,
+        DoorDetectionReactor::class,
+        CompartmentOpenDeviationAlertReactor::class,
+        CompartmentHelpRequestAlertReactor::class,
+        CompartmentOpenAuthorizationReactor::class,
+        CompartmentOpenStatusBroadcastReactor::class,
+        CompartmentDoorStateBroadcastReactor::class,
+        CompartmentContentNoteBroadcastReactor::class,
+        LockerBankConnectionBroadcastReactor::class,
+        TermsNotificationReactor::class,
     ],
 
     /*
@@ -67,35 +100,35 @@ return [
      * To add extra behaviour you can change this to a class of your own. It should
      * extend the \Spatie\EventSourcing\StoredEvents\Models\EloquentStoredEvent model.
      */
-    'stored_event_model' => Spatie\EventSourcing\StoredEvents\Models\EloquentStoredEvent::class,
+    'stored_event_model' => EloquentStoredEvent::class,
 
     /*
      * This class is responsible for storing events. To add extra behaviour you
      * can change this to a class of your own. The only restriction is that
      * it should implement \Spatie\EventSourcing\StoredEvents\Repositories\EloquentStoredEventRepository.
      */
-    'stored_event_repository' => Spatie\EventSourcing\StoredEvents\Repositories\EloquentStoredEventRepository::class,
+    'stored_event_repository' => EloquentStoredEventRepository::class,
 
     /*
      * This class is responsible for storing snapshots. To add extra behaviour you
      * can change this to a class of your own. The only restriction is that
      * it should implement \Spatie\EventSourcing\Snapshots\EloquentSnapshotRepository.
      */
-    'snapshot_repository' => Spatie\EventSourcing\Snapshots\EloquentSnapshotRepository::class,
+    'snapshot_repository' => EloquentSnapshotRepository::class,
 
     /*
      * This class is responsible for storing events in the EloquentSnapshotRepository.
      * To add extra behaviour you can change this to a class of your own. It should
      * extend the \Spatie\EventSourcing\Snapshots\EloquentSnapshot model.
      */
-    'snapshot_model' => Spatie\EventSourcing\Snapshots\EloquentSnapshot::class,
+    'snapshot_model' => EloquentSnapshot::class,
 
     /*
      * This class is responsible for handling stored events. To add extra behaviour you
      * can change this to a class of your own. The only restriction is that
      * it should implement \Spatie\EventSourcing\StoredEvents\HandleDomainEventJob.
      */
-    'stored_event_job' => App\Support\EventSourcing\HandleStoredEventAfterCommitJob::class,
+    'stored_event_job' => HandleStoredEventAfterCommitJob::class,
 
     /*
      * Similar to Relation::enforceMorphMap() this option will make sure that every event has a
@@ -116,7 +149,7 @@ return [
      * and stored as json. You can customize the class name. A valid serializer
      * should implement Spatie\EventSourcing\EventSerializers\EventSerializer.
      */
-    'event_serializer' => Spatie\EventSourcing\EventSerializers\JsonEventSerializer::class,
+    'event_serializer' => JsonEventSerializer::class,
 
     /*
      * These classes normalize and restore your events when they're serialized. They allow
@@ -125,11 +158,11 @@ return [
      * to the chain. See https://symfony.com/doc/current/components/serializer.html#normalizers
      */
     'event_normalizers' => [
-        Spatie\EventSourcing\Support\CarbonNormalizer::class,
-        Spatie\EventSourcing\Support\ModelIdentifierNormalizer::class,
-        Symfony\Component\Serializer\Normalizer\DateTimeNormalizer::class,
-        Symfony\Component\Serializer\Normalizer\ArrayDenormalizer::class,
-        Spatie\EventSourcing\Support\ObjectNormalizer::class,
+        CarbonNormalizer::class,
+        ModelIdentifierNormalizer::class,
+        DateTimeNormalizer::class,
+        ArrayDenormalizer::class,
+        ObjectNormalizer::class,
     ],
 
     /*

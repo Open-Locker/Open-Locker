@@ -9,6 +9,7 @@ use App\Filament\Support\AccessPickerOptions;
 use App\Models\Group;
 use App\Models\User;
 use App\Services\GroupAccessService;
+use Filament\Actions\Action;
 use Filament\Facades\Filament;
 use Filament\Resources\RelationManagers\RelationManager;
 use Filament\Schemas\Schema;
@@ -50,7 +51,7 @@ class MembersRelationManager extends RelationManager
                     ->placeholder(__('Never')),
             ])
             ->headerActions([
-                \Filament\Actions\Action::make('addMember')
+                Action::make('addMember')
                     ->label(__('Add member'))
                     ->icon('heroicon-m-user-plus')
                     ->visible(fn (): bool => $this->currentUserCanManageGroups() && ! $this->ownerGroupIsArchived())
@@ -87,7 +88,7 @@ class MembersRelationManager extends RelationManager
                     }),
             ])
             ->actions([
-                \Filament\Actions\Action::make('removeMember')
+                Action::make('removeMember')
                     ->label(__('Remove'))
                     ->color('danger')
                     ->icon('heroicon-m-user-minus')

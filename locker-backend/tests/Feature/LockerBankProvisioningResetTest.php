@@ -261,7 +261,7 @@ class LockerBankProvisioningResetTest extends TestCase
             'enabled' => false,
         ]);
         $this->assertNotNull(
-            \App\Models\MqttUser::query()->where('username', (string) $lockerBank->id)->value('revoked_at')
+            MqttUser::query()->where('username', (string) $lockerBank->id)->value('revoked_at')
         );
         $this->assertSame(1, EloquentStoredEvent::query()
             ->where('event_class', LockerProvisioningReset::class)

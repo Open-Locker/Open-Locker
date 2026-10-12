@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use PhpMqtt\Client\MqttClient;
+use PhpMqtt\Client\Repositories\MemoryRepository;
 
 return [
 
@@ -40,7 +41,7 @@ return [
             'clean_session' => false,
             'enable_logging' => env('MQTT_ENABLE_LOGGING', false),
             'log_channel' => env('MQTT_LOG_CHANNEL', 'stack'),
-            'repository' => \PhpMqtt\Client\Repositories\MemoryRepository::class,
+            'repository' => MemoryRepository::class,
             'connection_settings' => [
                 // Use auth only if provided, otherwise connect anonymously in dev
                 'auth' => env('MQTT_USERNAME') !== null ? [
@@ -96,7 +97,7 @@ return [
     | System Users (Backend & Provisioning)
     |--------------------------------------------------------------------------
     |
-    | Credentials used to provision the VerneMQ DB auth entries for the
+    | Credentials used to provision the MQTT auth entries (mqtt_users) for the
     | backend publisher/listener and the provisioning client. Loaded here so
     | they are available from cached config at runtime.
     |
@@ -111,16 +112,15 @@ return [
 
     /*
     |--------------------------------------------------------------------------
-    | VerneMQ Webhooks Auth
+    | Mosquitto HTTP Auth
     |--------------------------------------------------------------------------
     |
-    | Credentials VerneMQ uses to call our webhook endpoints. Read via config
-    | (backed by env) instead of env() directly in code.
+    | Shared secret mosquitto-go-auth sends to our /api/mosq endpoints. Read
+    | via config (backed by env) instead of env() directly in code.
     |
     */
 
     'webhooks' => [
-        'user' => env('MOSQ_HTTP_USER'),
         'pass' => env('MOSQ_HTTP_PASS'),
     ],
 

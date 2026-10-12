@@ -4,11 +4,13 @@ declare(strict_types=1);
 
 namespace App\StorableEvents;
 
+use App\Support\Audit\NotAudited;
 use Spatie\EventSourcing\StoredEvents\ShouldBeStored;
 
 /**
  * Domain signal that a compartment's effective door state changed according to MQTT snapshot telemetry.
  */
+#[NotAudited('High-volume door sensor telemetry.')]
 class CompartmentDoorStateChanged extends ShouldBeStored
 {
     public function __construct(

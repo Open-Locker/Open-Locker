@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace App\StorableEvents;
 
+use App\Support\Audit\NotAudited;
 use Spatie\EventSourcing\StoredEvents\ShouldBeStored;
 
+#[NotAudited('Raw locker command responses; their outcomes are recorded as dedicated audited events.')]
 class CommandResponseReceived extends ShouldBeStored
 {
     /**
