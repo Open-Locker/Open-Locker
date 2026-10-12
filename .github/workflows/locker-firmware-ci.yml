@@ -1,7 +1,7 @@
 name: Locker Firmware Quality
 
-# No branch filter on pull_request: stacked slice PRs target the branch below
-# them, not main, and must be checked too.
+# No branch filter on pull_request: the SoftAP PR may target the first
+# firmware PR's branch until that one merges, and must be checked too.
 on:
   pull_request:
     paths:

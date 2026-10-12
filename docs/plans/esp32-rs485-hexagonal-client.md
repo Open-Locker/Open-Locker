@@ -103,52 +103,46 @@ Use C on ESP-IDF, built through PlatformIO, with the toolchain versions pinned
 in slice 1. Share the MQTT schemas in `docs/asyncapi/` and the RS485 golden
 frames with the Pi client; share no code.
 
-Work in vertical slices, test-first inside each slice. A slice adds one layer
-of capability together with its automated tests, which need no hardware.
-Everything that needs the real hardware is tested once, after the last slice
-(5.1).
+Work in vertical slices, test-first. The automated tests of every slice in the
+first PR are written before the code; a slice adds one layer of capability and
+is done when its tests pass. None of those tests needs hardware.
+Everything that needs the real hardware is tested on the pull request, before
+it merges (5.1).
 
-Delivery is by pull request into `main` only, seven PRs in total. No tags and
-no releases are part of this plan.
+Delivery is by pull request into `main` only, two PRs in total. No tags and no
+releases are part of this plan.
 
 ### 2.1 Pull requests and branches
 
-Branch names follow the pattern already used in the repository,
-`<type>/<issue>-<short-description>`. Each slice has its own sub-issue under
-#56; `<n>` stands for an issue number that does not exist yet.
-
 | # | PR | Branch |
 | --- | --- | --- |
-| 1 | This plan, the ADR-0005 update, and slice 1 | `feat/<n>-firmware-rs485-unlock` |
-| 2 | Slice 2 | `feat/<n>-firmware-commands-journal` |
-| 3 | Slice 3 | `feat/58-firmware-mqtt-enrollment` |
-| 4 | Slice 4 | `feat/<n>-firmware-door-state` |
-| 5 | Slice 5 | `feat/<n>-firmware-usb-commissioning` |
-| 6 | Slice 6 | `feat/57-firmware-softap` |
-| 7 | Hardware-test fixes and the hardware acceptance record | `fix/56-firmware-hardware-acceptance` |
+| 1 | This plan, the ADR-0005 update, slices 1 to 5, and their hardware tests: a complete firmware commissioned over USB | `feat/56-firmware-rs485-unlock` |
+| 2 | Slice 6, SoftAP commissioning, and its hardware tests | `feat/57-firmware-softap` |
 
-- **Every PR is opened as a draft.** It is marked ready for review when both
-  gates in 4.1 pass, and merged after review.
-- **Branches are stacked.** Each slice needs the code of the one before it, so
-  each branch is cut from the previous slice's branch, not from `main`: PR 1
-  from `main`, PR 2 from the PR 1 branch, and so on. A PR's base is the branch
-  below it, so its diff shows only its own slice. Work on the next slice can
-  start while the one below is still a draft.
-- **Merging goes bottom-up, one PR at a time.** When a PR is squash-merged into
-  `main`, the PR above it is retargeted to `main` and its branch is rebased
-  onto `main` with `git rebase --onto main <old base branch>`. Without that
-  step, the squash makes the next PR show the already-merged commits again as
-  conflicts.
-- A change requested in a lower PR is made on that PR's branch, and the
-  branches above it are rebased onto it.
-- CI must run on pull requests whatever their base branch, so stacked PRs are
-  checked too.
-- Each branch is deleted after its merge.
-- `firmware` appears in every name so the branches sort together.
-- Slice 5 also serves #57 but has its own sub-issue, so that slices 5 and 6 do
-  not share one issue number.
-- PR 7 stays open as a draft for the whole hardware campaign (5.1) and merges
-  when the campaign passes. The issue updates in 5.2 are made when it merges.
+The slices stay the unit of work inside each PR:
+
+- **Each slice is a run of commits.** Its tests exist before its
+  implementation (4.1); the slice makes them pass. Commit messages name the
+  slice, for example `feat(firmware): slice 2 command journal`.
+- **A slice is finished before the next one starts.** Both gates in 4.1 pass at
+  its last commit, and `verify.mjs` then counts it as implemented, so its
+  tests are required from that commit on.
+- **The PR description is the slice record.** It holds one row per slice with
+  the status, the commit range, the gate result at the last commit, and any
+  deviation from this plan. Reviewers go through the PR slice by slice in the
+  commit view.
+- **Both PRs are opened as drafts** and stay drafts while slices are added.
+  A PR is marked ready when its last slice passes the gates and its hardware
+  tests in 5.1 pass, and it merges after review.
+- **Hardware-test fixes are further commits on the same PR**, each with a host
+  test where the fault can be reproduced without hardware. The hardware
+  acceptance record is committed on the PR as well.
+- PR 2 is cut from `main` after PR 1 has merged. If work on it starts earlier,
+  it is cut from the PR 1 branch and rebased onto `main` once PR 1 merges.
+- The branch is brought up to date with `main` whenever `main` changes files
+  the firmware build reads, such as `docs/asyncapi/`.
+- The repository squash-merges, so `main` receives one commit per PR. The
+  slice commits remain visible on the PR page.
 
 ### 2.2 Safety behaviours the firmware must prove
 
@@ -356,14 +350,16 @@ bounded and conservative: no pruning by wall-clock time, no automatic erase.
 
 ## 4. Slices
 
-Each slice is one reviewable PR that contains its code and its tests. Estimated size of the whole firmware: 2,000 to
+Each slice is a run of commits on its PR (2.1), containing its code and its
+tests. Estimated size of the whole firmware: 2,000 to
 2,500 lines of C, 1,500 to 2,000 lines of host tests, and a few hundred lines of
 Node tooling. These are estimates, not measurements.
 
-### 4.1 Gates every slice PR must pass
+### 4.1 Gates every slice must pass
 
-A slice PR merges only when both gates pass. Every PR runs every suite. Neither
-gate needs hardware.
+A slice is finished only when both gates pass at its last commit. CI runs both
+gates on every push, with every suite implemented so far. Neither gate needs
+hardware.
 
 | Gate | What runs | Where |
 | --- | --- | --- |
@@ -381,17 +377,31 @@ Rules:
 - Host suites compile the real component sources. Only ports are faked. The
   fakes live in `tests/host/fakes/` and record call order, so ordering rules
   are asserted, not assumed.
-- **Tests are written in the slice they belong to, before the code they
-  test.** In each slice PR the tests are committed first and fail; the
-  implementation follows and makes them pass. The PR description links the
-  failing run and the passing run.
+- **The tests of slices 2 to 5 are already written.** They were committed
+  together, after slice 1, with the headers that declare the interfaces they
+  call. Until its slice is implemented a suite is *pending*: the host build
+  compiles it against those headers, so it cannot drift, but does not link or
+  run it, because the code it tests does not exist. Pending suites are listed
+  with `lc_pending_test()` in `tests/host/CMakeLists.txt`.
+- **A slice turns its suites on and makes them pass.** It changes each
+  `lc_pending_test()` line of its suites to `lc_host_test()`, adds its sources
+  to the build, and implements until every test passes. It does not edit the
+  tests or the interfaces to get there. Where a test or an interface turns out
+  to be wrong, the change is a commit of its own and is listed, with the
+  reason, under "Test changes" in the slice record.
+- The tests of slice 6 depend on the portal security design and are written
+  at the start of that slice, before its implementation.
+- **Encoded messages are checked against the AsyncAPI schemas.** The tests
+  that encode a message hand it to `emit_message()`, which appends it to the
+  file named by `LC_EMITTED_MESSAGES`. The host gate validates every line of
+  that file against `docs/asyncapi/schemas`; slice 2 adds that step.
 - **Plan IDs in test names.** Each test function carries its ID, for example
   `test_S2_H27_claim_committed_before_bus_call`. A script fails the build
   when a plan ID of a slice implemented so far has no test, or a test carries
   an ID this document does not list.
-- A slice PR is complete when every test listed for that slice exists and
-  passes. Tests for details this plan does not list are added in the same way,
-  without a plan ID.
+- A slice is complete when every test listed for that slice runs and passes.
+  Tests for details this plan does not list are written first too, in the
+  slice that needs them, without a plan ID.
 - A test from an earlier slice is changed only with a line in the PR
   description saying what changed and why.
 - Line coverage of `lc_domain`, `lc_application`, and the pure adapters
@@ -399,11 +409,12 @@ Rules:
   for every component implemented so far.
 - A test that fails intermittently is a failing test. No test is removed or
   skipped without a line in the PR saying why.
-- Hardware checks are not part of any slice PR. They are listed in 5.1.
+- Hardware checks are not part of any slice. They gate the PR, not the slice,
+  and are listed in 5.1.
 
 ### Slice 1: skeleton, domain, and one unlock
 
-This PR also adds this plan document to the repository.
+The first commits of PR 1 also add this plan document to the repository.
 
 Scope:
 
@@ -541,7 +552,7 @@ Host suite `test_handle_command`, with call-order recording fakes:
 | S2-H35 | A refused claim yields an error response and no bus call |
 | S2-H36 | Recovery turns an incomplete claim into an unknown-outcome response with no bus call |
 | S2-H37 | Running recovery twice produces one completion |
-| S2-H38 | With allocation forced to fail after the bus call, a final outcome is still committed |
+| S2-H38 | With the response refused after the bus call, as when no memory is left to encode it, a final outcome is still committed; a journal that cannot commit it keeps the claim and never unlocks again |
 | S2-H39 | While closing, a new command yields `SHUTTING_DOWN` and no bus call |
 
 Host suites `test_open_compartment`, `test_apply_config`, `test_owner_inbox`:
@@ -712,7 +723,8 @@ Scope:
   read-only console commands (`status`, `diagnostics`, `self-test`) for
   recovery and bench work.
 
-The portal ADR is the first commit of this PR, because the tests depend on it.
+This slice is PR 2. The portal ADR is its first commit, because the tests
+depend on it.
 
 Host suite `test_softap_portal`, on the portal's request handling and state
 machine:
@@ -730,28 +742,32 @@ machine:
 | S6-H09 | The portal never exposes status, diagnostics, or stored settings |
 | S6-H10 | S5-H01 to S5-H09 pass unchanged |
 
-## 5. After the last slice
-
-Two things happen once slice 6 is merged: the hardware tests, then the issue
-updates.
+## 5. Hardware tests and follow-up
 
 ### 5.1 Hardware tests
 
 Everything that needs the real board, converter, panel, lock, Wi-Fi, or broker
-is tested here, in one campaign on the hardware in 1.2. No slice PR waits for
-it.
+is tested here, on the hardware in 1.2. No slice waits for it, but each PR
+does: a PR merges only when its hardware tests pass.
+
+| PR | Hardware tests before it merges |
+| --- | --- |
+| 1 | Groups A to E, then Group G |
+| 2 | Group F, then the regression checks HW-A1, HW-A6, HW-C4, HW-D2, and HW-D4 |
 
 Rules:
 
 - Run the groups in order. A failure in an earlier group makes later results
   unreliable; stop, fix, and restart from the failed group.
-- Every fix is a commit on the closing PR (PR 7 in 2.1), which must pass the
-  static and host gates like any slice PR. Where the fault can be reproduced
-  without hardware, the commit adds a host test for it.
-- Record each check in a hardware acceptance document with the source commit,
-  the firmware SHA-256, the operator, and the date. A check that was not run is
-  marked as not run, never as passed.
+- Every fix is a commit on the same PR, which must pass the static and host
+  gates. Where the fault can be reproduced without hardware, the commit adds a
+  host test for it.
+- Record each check in a hardware acceptance document, committed on the PR,
+  with the source commit, the firmware SHA-256, the operator, and the date. A
+  check that was not run is marked as not run, never as passed.
 - Checks marked **actuates** release the lock and need someone at the bench.
+- A group may be run informally as soon as its slice is finished. Only a run
+  against the final commit of the PR counts for the merge.
 
 Group A, serial bus and panel (verifies slice 1):
 
@@ -813,9 +829,6 @@ Group E, USB commissioning (verifies slice 5):
 | HW-E4 | Unplug USB during a save, ten times: the device has either the old or the new settings, never a mix |
 | HW-E5 | Reset the unit: the old credentials no longer work, and a fresh token enrolls it |
 
-Skip HW-E1 to HW-E4 if slice 6 removed USB commissioning; HW-F6 covers that
-case.
-
 Group F, SoftAP commissioning (verifies slice 6):
 
 | ID | Check |
@@ -836,10 +849,17 @@ Group G, endurance and rollback:
 
 ### 5.2 Todo: update the issues
 
+When PR 1 merges:
+
 - #56: RS485 lock panel instead of Waveshare Modbus; link the hardware acceptance
   document.
-- #57: how commissioning was delivered (USB, then SoftAP).
+- #57: USB commissioning is delivered; the SoftAP follows in PR 2.
 - #58: close against slice 3 and the Group C results.
+
+When PR 2 merges:
+
+- #57: close against slice 6 and the Group F results, stating what remained of
+  the USB path.
 
 ### 5.3 Later, each behind its own decision
 
@@ -888,10 +908,13 @@ security (slice 6), each get an ADR in their slice.
 - **Drift from the Pi client.** Two implementations of one contract. The shared
   schemas, shared golden frames, and the ported test names are the controls;
   there is no shared code.
-- **Hardware problems found late.** All six slices merge before the firmware
-  has run on the real panel. A wrong assumption about the protocol, timing, or
-  wiring surfaces only in 5.1 and may reach back into slice 1. Running Group A
-  informally as soon as slice 1 builds is cheap insurance.
+- **Hardware problems found late.** Five slices are written before the
+  firmware has to pass on the real panel. A wrong assumption about the
+  protocol, timing, or wiring may reach back into slice 1. Nothing has merged
+  at that point, so the fix lands on the same PR; running Group A informally as
+  soon as slice 1 is finished keeps the rework small.
+- **A large first PR.** PR 1 carries most of the firmware. Review depends on
+  the slice record and on going through it commit by commit.
 - **Unverified hardware facts.** Everything listed as not established in 1.2
   stays open until recorded in the prerequisites and in HW-A4. Host tests
   establish none of it.
