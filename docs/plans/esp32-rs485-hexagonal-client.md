@@ -471,7 +471,7 @@ Host suite `test_rs485_bus`, against a scripted serial fake:
 | S1-H24 | The first successful exchange after cooldown reports the bus as connected |
 | S1-H27 | After a request times out, nothing is written until the settle period has passed, and bytes received in it are discarded |
 | S1-H28 | Request A to a channel times out; request B to the same channel follows; A's acknowledgement arrives late: B is not reported as acknowledged by it |
-| S1-H29 | A reply that is already waiting the moment the request has been written arrived during the transmission and cannot be its answer: the outcome is `OUTCOME_UNKNOWN`, not `ACKNOWLEDGED` |
+| S1-H29 | A reply that arrives while the write is still completing (a UART returns only after the last bit left) is accepted: an unlock is `ACKNOWLEDGED`, a status query is answered |
 | S1-H30 | An unlock requested during the settle period waits for it to end and is then sent once |
 | S1-H31 | A late status reply to a timed-out query is not used as the answer to the next query |
 

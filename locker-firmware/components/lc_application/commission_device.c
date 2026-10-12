@@ -89,6 +89,10 @@ lc_commission_result_t lc_commission_apply(lc_commission_t *commission,
     /* From here on the device is being set up, and new commands are not taken. */
     ports->stop_commands(ports->ctx);
 
+    /* Kept so a failed identity save can put the network back: old or new, never a mix. */
+    lc_network_settings_t previous;
+    bool had_previous = ports->settings_store.load(ports->settings_store.ctx, &previous);
+
     lc_network_settings_t settings;
     memset(&settings, 0, sizeof(settings));
     settings.configured = true;
@@ -107,6 +111,11 @@ lc_commission_result_t lc_commission_apply(lc_commission_t *commission,
                            request->bootstrap_password);
         (void)lc_text_copy(identity.token, sizeof(identity.token), request->token);
         if (!ports->identity_store.save(ports->identity_store.ctx, &identity)) {
+            if (had_previous) {
+                (void)ports->settings_store.save(ports->settings_store.ctx, &previous);
+            } else {
+                (void)ports->settings_store.clear(ports->settings_store.ctx);
+            }
             return answer(commission, LC_COMMISSION_SAVE_FAILED);
         }
     }

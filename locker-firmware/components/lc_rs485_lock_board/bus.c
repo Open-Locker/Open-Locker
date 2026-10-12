@@ -61,16 +61,24 @@ static bool discard_until(lc_rs485_bus_t *bus, int64_t until_ms)
     return true;
 }
 
-/* Discards what is in the receive buffer, until the line has been quiet. */
+/*
+ * Discards what is in the receive buffer, until the line has been quiet. False
+ * when it cannot be read, or is still not quiet after one reply deadline.
+ */
 static bool drain(lc_rs485_bus_t *bus)
 {
     uint8_t discarded[LC_RS485_FRAME_MAX];
-    int received;
+    int64_t deadline_ms = now_ms(bus) + bus->config.reply_deadline_ms;
 
-    do {
-        received = read_serial(bus, discarded, sizeof(discarded), bus->config.quiet_interval_ms);
-    } while (received > 0);
-    return received == 0;
+    for (;;) {
+        int received = read_serial(bus, discarded, sizeof(discarded), bus->config.quiet_interval_ms);
+        if (received <= 0) {
+            return received == 0;
+        }
+        if (now_ms(bus) >= deadline_ms) {
+            return false;
+        }
+    }
 }
 
 /*
@@ -140,13 +148,8 @@ static exchange_t exchange(lc_rs485_bus_t *bus, const uint8_t request[LC_RS485_R
     }
 
     int64_t deadline_ms = now_ms(bus) + bus->config.reply_deadline_ms;
-    uint8_t early;
-    /*
-     * The panel cannot answer a request it has not fully received, so bytes
-     * waiting now arrived during transmission and belong to something else.
-     */
-    if (read_serial(bus, &early, sizeof(early), 0) != 0 ||
-        !receive_frame(bus, deadline_ms, frame, length)) {
+    /* write() returns once the last bit is out, so a fast reply may already be waiting. */
+    if (!receive_frame(bus, deadline_ms, frame, length)) {
         record_failure(bus, true);
         return EXCHANGE_NO_REPLY;
     }

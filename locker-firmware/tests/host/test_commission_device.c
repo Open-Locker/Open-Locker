@@ -175,6 +175,41 @@ void test_S5_H03_store_failure_produces_no_acknowledgement_and_no_restart(void)
     TEST_ASSERT_FALSE(identity.identity.token[0] != '\0');
 }
 
+void test_failed_identity_save_leaves_the_old_network_and_the_old_bootstrap(void)
+{
+    /* A device commissioned before, not yet enrolled, being set up again. */
+    settings.has = true;
+    settings.settings.configured = true;
+    snprintf(settings.settings.ssid, sizeof(settings.settings.ssid), "old-network");
+    snprintf(identity.identity.bootstrap_user, sizeof(identity.identity.bootstrap_user), "old-user");
+    snprintf(identity.identity.token, sizeof(identity.identity.token), "old-token");
+    identity.save_ok = false;
+    const lc_setup_request_t setup = request();
+
+    TEST_ASSERT_EQUAL_INT(LC_COMMISSION_SAVE_FAILED, lc_commission_apply(&commission, &setup));
+
+    /* Reloaded as the next start would: old or new, never a mix. */
+    lc_network_settings_t reloaded_settings;
+    lc_identity_t reloaded_identity;
+    TEST_ASSERT_TRUE(settings.has);
+    reloaded_settings = settings.settings;
+    reloaded_identity = identity.identity;
+    TEST_ASSERT_EQUAL_STRING("old-network", reloaded_settings.ssid);
+    TEST_ASSERT_EQUAL_STRING("old-user", reloaded_identity.bootstrap_user);
+    TEST_ASSERT_EQUAL_STRING("old-token", reloaded_identity.token);
+    TEST_ASSERT_EQUAL_UINT(0, device.restart_count);
+}
+
+void test_failed_identity_save_on_a_blank_device_leaves_it_unconfigured(void)
+{
+    identity.save_ok = false;
+    const lc_setup_request_t setup = request();
+
+    TEST_ASSERT_EQUAL_INT(LC_COMMISSION_SAVE_FAILED, lc_commission_apply(&commission, &setup));
+
+    TEST_ASSERT_FALSE(settings.has);
+}
+
 void test_S5_H04_network_change_on_an_enrolled_device_keeps_identity_and_mapping(void)
 {
     enroll();
@@ -316,6 +351,8 @@ int main(void)
     RUN_TEST(test_S5_H01_valid_settings_are_saved_then_acknowledged_then_the_restart_is_requested);
     RUN_TEST(test_S5_H02_invalid_settings_are_rejected_and_nothing_is_saved);
     RUN_TEST(test_S5_H03_store_failure_produces_no_acknowledgement_and_no_restart);
+    RUN_TEST(test_failed_identity_save_leaves_the_old_network_and_the_old_bootstrap);
+    RUN_TEST(test_failed_identity_save_on_a_blank_device_leaves_it_unconfigured);
     RUN_TEST(test_S5_H04_network_change_on_an_enrolled_device_keeps_identity_and_mapping);
     RUN_TEST(test_S5_H05_enrollment_fields_are_ignored_on_an_enrolled_device);
     RUN_TEST(test_S5_H06_pending_enrollment_refuses_new_settings_until_reset);

@@ -57,6 +57,7 @@ add_library(lc_under_test STATIC
   ${LC_COMPONENTS}/lc_usb_console/line.c
   ${LC_COMPONENTS}/lc_usb_console/console.c
   ${LC_COMPONENTS}/lc_usb_console/setup_json.c
+  fakes/probe.c
 )
 target_include_directories(lc_under_test PUBLIC
   ${LC_COMPONENTS}/lc_domain/include
@@ -74,19 +75,28 @@ add_library(lc_fakes STATIC
   fakes/fake_ports.c
   fakes/fake_flash.c
   fakes/emitted.c
+  fakes/probe.c
 )
 target_include_directories(lc_fakes PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(lc_fakes PUBLIC lc_under_test unity cjson)
 
 # The application wired to its fakes.
-add_library(lc_fixture STATIC fakes/app_fixture.c)
+add_library(lc_fixture STATIC fakes/app_fixture.c fakes/probe.c)
 target_link_libraries(lc_fixture PUBLIC lc_fakes)
+
+target_compile_definitions(lc_under_test PRIVATE PROBE_NAME=under_test)
+target_compile_definitions(lc_fakes PRIVATE PROBE_NAME=fakes)
+target_compile_definitions(lc_fixture PRIVATE PROBE_NAME=fixture)
 
 if(NOT MSVC)
   foreach(target lc_under_test lc_fakes lc_fixture)
     target_compile_options(${target} PRIVATE -Wall -Wextra -Werror)
   endforeach()
   if(LC_SANITIZE)
+    # add_compile_options() would only reach targets created after it, not these three.
+    foreach(target lc_under_test lc_fakes lc_fixture)
+      target_compile_options(${target} PRIVATE -fsanitize=address,undefined -fno-omit-frame-pointer)
+    endforeach()
     add_compile_options(-fsanitize=address,undefined -fno-omit-frame-pointer)
     add_link_options(-fsanitize=address,undefined)
   endif()
@@ -102,6 +112,9 @@ function(lc_host_test name)
   add_executable(${name} ${name}.c)
   target_link_libraries(${name} PRIVATE lc_fixture lc_under_test lc_fakes unity)
   target_compile_definitions(${name} PRIVATE LC_REPO_ROOT="${LC_REPO_ROOT}")
+  if(LC_SANITIZE AND NOT MSVC)
+    target_compile_definitions(${name} PRIVATE LC_SANITIZE_EXPECTED)
+  endif()
   if(NOT MSVC)
     target_compile_options(${name} PRIVATE -Wall -Wextra -Werror)
   endif()
@@ -121,6 +134,7 @@ function(lc_pending_test name)
   endif()
 endfunction()
 
+lc_host_test(test_sanitizer_coverage)
 lc_host_test(test_rs485_codec)
 lc_host_test(test_rs485_bus)
 lc_host_test(test_console_line)

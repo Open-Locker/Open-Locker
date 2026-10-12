@@ -57,12 +57,24 @@ static int fake_write(void *ctx, const uint8_t *data, size_t length)
             chunk->at_ms = fake->now_ms + chunk->delay_ms;
         }
     }
+    fake->now_ms += fake->write_duration_ms;
     return result;
 }
 
 static int fake_read(void *ctx, uint8_t *buffer, size_t capacity, uint32_t timeout_ms)
 {
     fake_serial_t *fake = ctx;
+
+    if (fake->noise_period_ms > 0 && fake->now_ms < fake->noise_until_ms) {
+        if (timeout_ms < fake->noise_period_ms) {
+            fake->now_ms += timeout_ms;
+            return 0;
+        }
+        fake->now_ms += fake->noise_period_ms;
+        buffer[0] = 0x55;
+        return 1;
+    }
+
     fake_serial_chunk_t *chunk = next_chunk(fake);
 
     if (chunk == NULL || chunk->at_ms > fake->now_ms + timeout_ms) {
@@ -122,6 +134,17 @@ void fake_serial_set_next_write_result(fake_serial_t *fake, int result)
 {
     fake->override_next_write = true;
     fake->next_write_result = result;
+}
+
+void fake_serial_set_write_duration(fake_serial_t *fake, uint32_t milliseconds)
+{
+    fake->write_duration_ms = milliseconds;
+}
+
+void fake_serial_set_noise(fake_serial_t *fake, uint32_t period_ms, int64_t until_ms)
+{
+    fake->noise_period_ms = period_ms;
+    fake->noise_until_ms = until_ms;
 }
 
 void fake_serial_advance(fake_serial_t *fake, uint32_t milliseconds)

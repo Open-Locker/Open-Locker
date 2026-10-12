@@ -263,14 +263,37 @@ void test_S1_H28_late_ack_of_a_timed_out_unlock_does_not_acknowledge_the_next(vo
     TEST_ASSERT_EQUAL_UINT(2, fake_serial_write_count(&serial));
 }
 
-void test_S1_H29_reply_already_waiting_when_the_request_was_written_is_outcome_unknown(void)
+void test_S1_H29_reply_that_arrives_while_the_write_completes_is_accepted(void)
 {
-    /* Zero delay: it arrived while the request was still being transmitted. */
-    fake_serial_reply_to_write(&serial, 0, 0, UNLOCK_ACK, sizeof(UNLOCK_ACK));
+    /* The UART returns only after the last bit left; the panel answered within that time. */
+    fake_serial_set_write_duration(&serial, 5);
+    fake_serial_reply_to_write(&serial, 0, 2, UNLOCK_ACK, sizeof(UNLOCK_ACK));
 
-    TEST_ASSERT_EQUAL_INT(LC_UNLOCK_OUTCOME_UNKNOWN, unlock());
+    TEST_ASSERT_EQUAL_INT(LC_UNLOCK_ACKNOWLEDGED, unlock());
 
     TEST_ASSERT_EQUAL_UINT(1, fake_serial_write_count(&serial));
+}
+
+void test_status_reply_that_arrives_while_the_write_completes_is_accepted(void)
+{
+    fake_serial_set_write_duration(&serial, 5);
+    fake_serial_reply_to_write(&serial, 0, 2, STATUS_0_AND_2_HIGH, sizeof(STATUS_0_AND_2_HIGH));
+
+    TEST_ASSERT_TRUE(read_doors());
+}
+
+void test_continuous_noise_cannot_hold_the_bus_before_transmission(void)
+{
+    /* A byte every 10 ms, closer together than the quiet interval, for a minute. */
+    fake_serial_set_noise(&serial, 10, 60000);
+
+    TEST_ASSERT_EQUAL_INT(LC_UNLOCK_NOT_SENT, unlock());
+
+    TEST_ASSERT_EQUAL_UINT(0, fake_serial_write_count(&serial));
+    TEST_ASSERT_TRUE_MESSAGE(serial.now_ms <= DEADLINE_MS + QUIET_MS,
+                             "draining ran past its deadline");
+    TEST_ASSERT_FALSE(read_doors());
+    TEST_ASSERT_EQUAL_UINT(0, fake_serial_write_count(&serial));
 }
 
 void test_S1_H30_unlock_during_the_settle_period_waits_and_is_sent_once(void)
@@ -361,7 +384,9 @@ int main(void)
     RUN_TEST(test_S1_H24_first_success_after_cooldown_reports_connected);
     RUN_TEST(test_S1_H27_after_a_timeout_the_bus_stays_silent_for_the_settle_period);
     RUN_TEST(test_S1_H28_late_ack_of_a_timed_out_unlock_does_not_acknowledge_the_next);
-    RUN_TEST(test_S1_H29_reply_already_waiting_when_the_request_was_written_is_outcome_unknown);
+    RUN_TEST(test_S1_H29_reply_that_arrives_while_the_write_completes_is_accepted);
+    RUN_TEST(test_status_reply_that_arrives_while_the_write_completes_is_accepted);
+    RUN_TEST(test_continuous_noise_cannot_hold_the_bus_before_transmission);
     RUN_TEST(test_S1_H30_unlock_during_the_settle_period_waits_and_is_sent_once);
     RUN_TEST(test_S1_H31_late_status_reply_is_not_the_answer_to_the_next_query);
     RUN_TEST(test_invalid_target_is_not_sent_and_writes_nothing);
