@@ -7,6 +7,8 @@
 /* Line assembly and command parsing for the USB console. Pure: no I/O. */
 
 #define LC_CONSOLE_LINE_MAX 128
+/* A partial line with no new byte for this long is abandoned. */
+#define LC_CONSOLE_IDLE_TIMEOUT_MS 10000
 
 typedef struct {
     char line[LC_CONSOLE_LINE_MAX + 1];
@@ -28,6 +30,12 @@ typedef enum {
  * ignored. After READY or REJECTED the next byte starts a new line.
  */
 lc_console_feed_t lc_console_line_feed(lc_console_line_t *input, char byte);
+
+/*
+ * Reports how long no byte has arrived. At LC_CONSOLE_IDLE_TIMEOUT_MS a partial
+ * line is discarded through its newline, like a line that was too long.
+ */
+void lc_console_line_idle(lc_console_line_t *input, uint32_t idle_ms);
 
 typedef enum {
     LC_CONSOLE_INVALID = 0,
