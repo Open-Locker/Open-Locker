@@ -12,6 +12,8 @@
 /* 64 hex digits and the terminator. */
 #define LC_CONFIG_HASH_SIZE 65
 #define LC_CONFIG_CANONICAL_MAX 4096
+/* The longest interval accepted; it also bounds the door detection window. */
+#define LC_HEARTBEAT_SECONDS_MAX 86400
 /* Used until a configuration has been applied. */
 #define LC_DEFAULT_HEARTBEAT_SECONDS 15
 

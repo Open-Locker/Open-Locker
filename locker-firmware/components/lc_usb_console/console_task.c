@@ -9,32 +9,32 @@
 #include "sdkconfig.h"
 
 #define CONSOLE_UART ((uart_port_t)CONFIG_ESP_CONSOLE_UART_NUM)
-#define RX_BUFFER_SIZE 256
-/* A status query decodes every address on the stack of this task. */
-#define TASK_STACK_SIZE 6144
+/* A whole `configure` line arrives at once; the ring must hold what comes while a command runs. */
+#define RX_BUFFER_SIZE 2048
+#define POLL_MS 100
+/* A status query decodes every address, and a command line is a kilobyte. */
+#define TASK_STACK_SIZE 8192
 #define TASK_PRIORITY 5
 
 static void console_task(void *arg)
 {
     const lc_console_t *console = arg;
-    lc_console_line_t input = {0};
+    static lc_console_line_t input;
+    uint32_t idle_ms = 0;
 
     for (;;) {
-        uint8_t byte;
-        if (uart_read_bytes(CONSOLE_UART, &byte, 1, portMAX_DELAY) != 1) {
-            vTaskDelay(pdMS_TO_TICKS(10));
+        uint8_t bytes[LC_CONSOLE_BYTES_PER_PASS];
+        int length = uart_read_bytes(CONSOLE_UART, bytes, sizeof(bytes), pdMS_TO_TICKS(POLL_MS));
+
+        if (length <= 0) {
+            /* A partial line nobody finishes is abandoned, with its tail. */
+            idle_ms += POLL_MS;
+            lc_console_line_idle(&input, idle_ms);
             continue;
         }
-        switch (lc_console_line_feed(&input, (char)byte)) {
-        case LC_CONSOLE_LINE_READY:
-            lc_console_execute(console, input.line);
-            break;
-        case LC_CONSOLE_LINE_REJECTED:
-            lc_console_reject(console);
-            break;
-        case LC_CONSOLE_LINE_PENDING:
-        default:
-            break;
+        idle_ms = 0;
+        for (size_t offset = 0; offset < (size_t)length;) {
+            offset += lc_console_feed_bytes(console, &input, bytes + offset, (size_t)length - offset);
         }
     }
 }

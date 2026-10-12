@@ -1,0 +1,20 @@
+{
+  "name": "locker-firmware-tools",
+  "private": true,
+  "type": "module",
+  "description": "Host-side tools of the locker firmware: gates, commissioning, broker check. The firmware itself is built with PlatformIO.",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "verify": "node scripts/verify.mjs",
+    "test": "node --test scripts/*.test.mjs",
+    "commission": "node scripts/commission.mjs",
+    "broker-check": "node scripts/broker-check.mjs"
+  },
+  "dependencies": {
+    "@serialport/parser-readline": "^12.0.0",
+    "mqtt": "^5.10.0",
+    "serialport": "^12.0.0"
+  }
+}

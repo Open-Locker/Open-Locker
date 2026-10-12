@@ -17,15 +17,22 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { SchemaSet } from './json-schema.mjs';
+
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const REPO = path.dirname(ROOT);
 const PLAN = path.join(REPO, 'docs', 'plans', 'esp32-rs485-hexagonal-client.md');
 const COMPONENTS = path.join(ROOT, 'components');
 const HOST_TESTS = path.join(ROOT, 'tests', 'host');
 const BUILD = path.join(ROOT, 'build', 'verify');
+const HOST_BUILD = path.join(BUILD, 'host');
+const SCRIPTS = path.join(ROOT, 'scripts');
+const SCHEMAS = path.join(REPO, 'docs', 'asyncapi', 'schemas');
+// The host tests append every message they encode to this file.
+const EMITTED_MESSAGES = path.join(BUILD, 'emitted-messages.jsonl');
 
 // Slices whose plan IDs must all have a test. Extend it in each slice PR.
-const IMPLEMENTED_SLICES = [1];
+const IMPLEMENTED_SLICES = [1, 2, 3, 4, 5];
 
 const MIN_LINE_COVERAGE = 90.0;
 
@@ -65,13 +72,19 @@ const STANDARD_HEADERS = [
 const EXTRA_PURE_HEADERS = { lc_mqtt_codec: ['cJSON.h'] };
 
 // Pure files in components that also hold SDK code; analysed with the rest.
-const EXTRA_ANALYSED_SOURCES = ['lc_usb_console/line.c', 'lc_usb_console/console.c'];
+const EXTRA_ANALYSED_SOURCES = [
+  'lc_usb_console/line.c',
+  'lc_usb_console/console.c',
+  'lc_usb_console/setup_json.c',
+];
 
 const INCLUDE = /^\s*#\s*include\s*[<"]([^>"]+)[>"]/gm;
 const PLAN_ID = /^\| (S(\d+)-H(\d+)) \|/gm;
 const TEST_DEFINITION = /^void (test_\w+)\(void\)/gm;
 const TEST_RUN = /RUN_TEST\((test_\w+)\)/g;
 const TEST_ID = /^test_S(\d+)_H(\d+)_/;
+// Node tests of the tools: test('S5-H16 what it does', ...)
+const TOOL_TEST_ID = /^test\('S(\d+)-H(\d+) /gm;
 
 const read = (file) => fs.readFileSync(file, 'utf8');
 const posix = (file) => file.split(path.sep).join('/');
@@ -177,6 +190,19 @@ function checkPlanIds() {
     }
   }
 
+  for (const source of filesBelow(SCRIPTS, /\.test\.mjs$/)) {
+    for (const match of read(source).matchAll(TOOL_TEST_ID)) {
+      const planId = `S${Number(match[1])}-H${match[2]}`;
+      if (tested.has(planId)) {
+        errors.push(`${planId} is tested twice: ${tested.get(planId)} and ${path.basename(source)}`);
+      }
+      tested.set(planId, path.basename(source));
+      if (!listed.has(planId)) {
+        errors.push(`${path.basename(source)}: ${planId} is a test ID the plan does not list`);
+      }
+    }
+  }
+
   for (const planId of [...planned].filter((id) => !tested.has(id)).sort()) {
     errors.push(`${planId} is in the plan but has no test`);
   }
@@ -225,10 +251,13 @@ function checkLayers() {
 }
 
 function includeFlags() {
-  return components()
+  const flags = components()
     .map((component) => path.join(component, 'include'))
     .filter((include) => fs.existsSync(include))
     .map((include) => `-I${include}`);
+  // cJSON is fetched by the host CMake project; see configureHost().
+  const cjson = path.join(HOST_BUILD, '_deps', 'cjson-src');
+  return fs.existsSync(cjson) ? [...flags, `-I${cjson}`] : flags;
 }
 
 function analysedSources() {
@@ -240,6 +269,9 @@ function analysedSources() {
 
 /** Compiler static analysis of the pure sources; any finding fails. */
 function checkStaticAnalysis() {
+  if (!configureHost()) {
+    return ['cmake configure failed'];
+  }
   let command;
   if (which('clang')) {
     command = ['clang', '--analyze', '--analyzer-output', 'text', '-Xclang', '-analyzer-werror', '-o', '-'];
@@ -273,15 +305,36 @@ function run(command, cwd = ROOT) {
   return spawnSync(command[0], command.slice(1), { cwd, stdio: 'inherit' }).status === 0;
 }
 
+let hostConfigured = null;
+
+/** Configures the host CMake project once; it also fetches Unity and cJSON. */
+function configureHost() {
+  hostConfigured ??= run([
+    'cmake',
+    '-S',
+    HOST_TESTS,
+    '-B',
+    HOST_BUILD,
+    '-DCMAKE_BUILD_TYPE=Debug',
+    '-DLC_SANITIZE=ON',
+    '-DLC_COVERAGE=ON',
+  ]);
+  return hostConfigured;
+}
+
 /** Every host suite, built with the sanitizers and coverage recording. */
 function checkHostTests() {
-  const host = path.join(BUILD, 'host');
+  const host = HOST_BUILD;
   // Counts from an earlier run would be added to this one.
   for (const stale of filesBelow(host, /\.gcda$/)) {
     fs.unlinkSync(stale);
   }
+  fs.rmSync(EMITTED_MESSAGES, { force: true });
+  process.env.LC_EMITTED_MESSAGES = EMITTED_MESSAGES;
+  if (!configureHost()) {
+    return ['`cmake -S` failed'];
+  }
   const steps = [
-    ['cmake', '-S', HOST_TESTS, '-B', host, '-DCMAKE_BUILD_TYPE=Debug', '-DLC_SANITIZE=ON', '-DLC_COVERAGE=ON'],
     ['cmake', '--build', host],
     ['ctest', '--test-dir', host, '--output-on-failure'],
   ];
@@ -291,6 +344,46 @@ function checkHostTests() {
     }
   }
   return [];
+}
+
+/** The Node tests of the tools in scripts/, with the Node test runner. */
+function checkToolTests() {
+  const files = filesBelow(SCRIPTS, /\.test\.mjs$/);
+  if (files.length === 0) {
+    return [];
+  }
+  return run([process.execPath, '--test', ...files]) ? [] : ['the tool tests failed'];
+}
+
+/** Every message the host tests encoded is valid against its AsyncAPI schema. */
+function checkEmittedMessages() {
+  const lines = fs.existsSync(EMITTED_MESSAGES)
+    ? read(EMITTED_MESSAGES)
+        .split('\n')
+        .filter((line) => line.trim() !== '')
+    : [];
+  if (lines.length === 0) {
+    return ['no messages were recorded; did the host tests run?'];
+  }
+
+  const schemas = new SchemaSet();
+  const errors = [];
+  const seen = new Set();
+  for (const [index, line] of lines.entries()) {
+    try {
+      const { schema, message } = JSON.parse(line);
+      seen.add(schema);
+      for (const problem of schemas.validateFile(path.join(SCHEMAS, schema), message)) {
+        errors.push(`message ${index + 1} against ${schema}: ${problem}`);
+      }
+    } catch (error) {
+      errors.push(`message ${index + 1}: ${error.message}`);
+    }
+  }
+  if (errors.length === 0) {
+    console.log(`  ${lines.length} messages valid against ${seen.size} schemas`);
+  }
+  return errors;
 }
 
 function gcovCommand() {
@@ -325,7 +418,9 @@ function checkCoverage() {
     }
     const reports = result.stdout.matchAll(/File '([^']+)'\s+Lines executed:([\d.]+)% of (\d+)/g);
     for (const [, file, percent, total] of reports) {
-      const match = /\/components\/(\w+)\//.exec(file.replaceAll('\\', '/'));
+      // Sources only: an inline function in a header is counted once for every
+      // file that includes it, with the lines that file never called.
+      const match = /\/components\/(\w+)\/.*\.c$/.exec(file.replaceAll('\\', '/'));
       if (match === null || !PURE_COMPONENTS.includes(match[1])) {
         continue;
       }
@@ -380,6 +475,8 @@ function main() {
     ['layer includes', checkLayers],
     ['static analysis', checkStaticAnalysis],
     ['host tests', checkHostTests],
+    ['message schemas', checkEmittedMessages],
+    ['tool tests', checkToolTests],
     ['line coverage', checkCoverage],
   ];
   if (!skipTarget) {
@@ -389,7 +486,7 @@ function main() {
   const failed = [];
   for (const [name, check] of checks) {
     console.log(`== ${name}`);
-    if (name === 'line coverage' && failed.includes('host tests')) {
+    if ((name === 'line coverage' || name === 'message schemas') && failed.includes('host tests')) {
       console.log('  not run: the host tests failed');
       continue;
     }

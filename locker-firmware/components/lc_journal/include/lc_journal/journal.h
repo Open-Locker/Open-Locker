@@ -8,8 +8,10 @@
 
 /*
  * Append-only command journal over a region of flash. Records are only ever
- * appended; nothing is rewritten or erased. A record that is torn or fails its
- * checksum marks the journal unhealthy.
+ * appended; nothing is rewritten or erased. A record that fails its check, or
+ * makes no sense, marks the journal unhealthy. A write that was cut short
+ * before its commit marker is skipped. Record format and retention:
+ * docs/adr/0068-esp32-command-journal-record-format-and-retention.md.
  */
 
 #define LC_JOURNAL_TRANSACTIONS_MAX 64
@@ -34,6 +36,9 @@ typedef struct {
     lc_flash_io_t io;
     bool healthy;
     size_t next_offset;
+    /* A write was cut short at `torn_start`; the next append makes its debris unreadable. */
+    bool torn;
+    size_t torn_start;
     size_t count;
     lc_journal_entry_t entries[LC_JOURNAL_TRANSACTIONS_MAX];
     size_t message_count;

@@ -36,22 +36,38 @@ set(LC_COMPONENTS ${CMAKE_CURRENT_SOURCE_DIR}/../../components)
 get_filename_component(LC_REPO_ROOT ${CMAKE_CURRENT_SOURCE_DIR}/../../.. ABSOLUTE)
 
 add_library(lc_under_test STATIC
+  ${LC_COMPONENTS}/lc_domain/config.c
+  ${LC_COMPONENTS}/lc_domain/door_detection.c
+  ${LC_COMPONENTS}/lc_application/app.c
+  ${LC_COMPONENTS}/lc_application/handle_command.c
+  ${LC_COMPONENTS}/lc_application/open_compartment.c
+  ${LC_COMPONENTS}/lc_application/apply_config.c
+  ${LC_COMPONENTS}/lc_application/publish_state.c
+  ${LC_COMPONENTS}/lc_application/inbox.c
+  ${LC_COMPONENTS}/lc_application/provision_device.c
+  ${LC_COMPONENTS}/lc_application/commission_device.c
+  ${LC_COMPONENTS}/lc_mqtt_codec/codec.c
+  ${LC_COMPONENTS}/lc_mqtt_codec/topics.c
+  ${LC_COMPONENTS}/lc_mqtt_codec/provisioning.c
+  ${LC_COMPONENTS}/lc_mqtt_codec/events.c
+  ${LC_COMPONENTS}/lc_journal/journal.c
   ${LC_COMPONENTS}/lc_rs485_lock_board/codec.c
   ${LC_COMPONENTS}/lc_rs485_lock_board/bus.c
   ${LC_COMPONENTS}/lc_rs485_lock_board/self_test.c
   ${LC_COMPONENTS}/lc_usb_console/line.c
   ${LC_COMPONENTS}/lc_usb_console/console.c
+  ${LC_COMPONENTS}/lc_usb_console/setup_json.c
 )
 target_include_directories(lc_under_test PUBLIC
   ${LC_COMPONENTS}/lc_domain/include
   ${LC_COMPONENTS}/lc_ports/include
   ${LC_COMPONENTS}/lc_rs485_lock_board/include
   ${LC_COMPONENTS}/lc_usb_console/include
-  # Declared by slice 0 of the tests; implemented slice by slice.
   ${LC_COMPONENTS}/lc_application/include
   ${LC_COMPONENTS}/lc_mqtt_codec/include
   ${LC_COMPONENTS}/lc_journal/include
 )
+target_link_libraries(lc_under_test PUBLIC cjson)
 
 add_library(lc_fakes STATIC
   fakes/fake_serial.c
@@ -62,8 +78,7 @@ add_library(lc_fakes STATIC
 target_include_directories(lc_fakes PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(lc_fakes PUBLIC lc_under_test unity cjson)
 
-# The application wired to its fakes. It calls the application, so it can only
-# be linked once slice 2 exists; until then it is compiled and nothing more.
+# The application wired to its fakes.
 add_library(lc_fixture STATIC fakes/app_fixture.c)
 target_link_libraries(lc_fixture PUBLIC lc_fakes)
 
@@ -85,7 +100,8 @@ enable_testing()
 
 function(lc_host_test name)
   add_executable(${name} ${name}.c)
-  target_link_libraries(${name} PRIVATE lc_under_test lc_fakes unity)
+  target_link_libraries(${name} PRIVATE lc_fixture lc_under_test lc_fakes unity)
+  target_compile_definitions(${name} PRIVATE LC_REPO_ROOT="${LC_REPO_ROOT}")
   if(NOT MSVC)
     target_compile_options(${name} PRIVATE -Wall -Wextra -Werror)
   endif()
@@ -111,19 +127,25 @@ lc_host_test(test_console_line)
 lc_host_test(test_console)
 
 # Slice 2
-lc_pending_test(test_mqtt_codec)
-lc_pending_test(test_config)
-lc_pending_test(test_journal)
-lc_pending_test(test_handle_command)
-lc_pending_test(test_open_compartment)
-lc_pending_test(test_apply_config)
-lc_pending_test(test_owner_inbox)
+lc_host_test(test_mqtt_codec)
+lc_host_test(test_config)
+lc_host_test(test_journal)
+lc_host_test(test_handle_command)
+lc_host_test(test_open_compartment)
+lc_host_test(test_apply_config)
+lc_host_test(test_owner_inbox)
+# Beyond the plan's list
+lc_host_test(test_domain)
+lc_host_test(test_journal_edge)
+lc_host_test(test_app_edge)
+lc_host_test(test_mqtt_codec_edge)
+lc_host_test(test_console_command)
 # Slice 3
-lc_pending_test(test_provision_device)
-lc_pending_test(test_session)
+lc_host_test(test_provision_device)
+lc_host_test(test_session)
 # Slice 4
-lc_pending_test(test_door_detection)
-lc_pending_test(test_publish_state)
+lc_host_test(test_door_detection)
+lc_host_test(test_publish_state)
 # Slice 5
-lc_pending_test(test_commission_device)
-lc_pending_test(test_console_protocol)
+lc_host_test(test_commission_device)
+lc_host_test(test_console_protocol)

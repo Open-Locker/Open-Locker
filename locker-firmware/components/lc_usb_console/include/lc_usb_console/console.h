@@ -29,12 +29,24 @@ typedef struct {
     /* Must not use the bus: `self-test` sends nothing to the panel. */
     bool (*self_test)(void *ctx);
     /*
-     * `configure <json>`: hands the settings over. The outcome is reported
-     * later by the application; no reply may repeat a submitted value.
+     * `command <json>`: hands one command payload to the owner task, as if the
+     * broker had delivered it. False when it was not accepted. May be NULL.
+     */
+    bool (*submit_command)(void *ctx, const char *json);
+    /*
+     * `configure <json>`: hands the settings over. False when they were not
+     * accepted for processing. When they were, the console says nothing: the
+     * application reports the outcome as the one reply to that line. No reply
+     * may repeat a submitted value. May be NULL.
      */
     bool (*submit_setup)(void *ctx, const lc_setup_request_t *request);
-    /* `reset-network` */
+    /* `reset-network`. May be NULL. */
     bool (*request_reset)(void *ctx);
+    /*
+     * Whether the device is enrolled, an enrollment is pending, and network
+     * settings are stored. Shown by `status`. May be NULL.
+     */
+    bool (*provisioning_state)(void *ctx, bool *enrolled, bool *pending, bool *configured);
 } lc_console_t;
 
 void lc_console_execute(const lc_console_t *console, const char *line);

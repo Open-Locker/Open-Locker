@@ -10,3 +10,14 @@ CONFIG_ESP_TASK_WDT_EN=y
 CONFIG_ESP_TASK_WDT_INIT=y
 CONFIG_ESP_TASK_WDT_PANIC=y
 CONFIG_ESP_INT_WDT=y
+
+# The main task builds the objects of the application and opens the journal.
+CONFIG_ESP_MAIN_TASK_STACK_SIZE=6144
+
+# MQTT 3.1.1 over TLS, verified against the CA bundle built into the firmware.
+# The broker certificate and its host name are always checked: ESP_TLS_INSECURE
+# stays unset, and the MQTT transport refuses to build if it is set.
+CONFIG_MQTT_PROTOCOL_311=y
+CONFIG_MQTT_TRANSPORT_SSL=y
+CONFIG_MBEDTLS_CERTIFICATE_BUNDLE=y
+CONFIG_MBEDTLS_CERTIFICATE_BUNDLE_DEFAULT_FULL=y

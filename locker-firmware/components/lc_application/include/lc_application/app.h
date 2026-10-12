@@ -6,6 +6,7 @@
 
 #include "lc_domain/command.h"
 #include "lc_domain/config.h"
+#include "lc_domain/door_detection.h"
 #include "lc_domain/events.h"
 #include "lc_ports/clock_port.h"
 #include "lc_ports/command_journal_port.h"
@@ -33,19 +34,28 @@ typedef struct {
 #define LC_APP_OUTSTANDING_MAX 16
 
 typedef struct {
-    lc_door_t reported;
-    lc_door_t last_known;
-    uint8_t unknown_reads;
-    bool unlocked_since_boot;
-    int64_t unlocked_at_ms;
-    bool watching;
-    bool outcome_due;
-    lc_open_detection_t outcome;
+    lc_door_tracker_t door;
+    /* An uncommanded opening not yet accepted for sending. */
+    bool uncommanded_due;
+    lc_uncommanded_open_t uncommanded;
 } lc_app_compartment_t;
+
+typedef enum {
+    LC_APP_PUBLISH_RESPONSE = 0,
+    /* A response that is not in the journal, such as SHUTTING_DOWN. */
+    LC_APP_PUBLISH_TRANSIENT,
+    LC_APP_PUBLISH_DETECTION,
+    LC_APP_PUBLISH_UNCOMMANDED,
+    LC_APP_PUBLISH_SNAPSHOT,
+} lc_app_publish_kind_t;
 
 typedef struct {
     lc_publish_id_t id;
+    lc_app_publish_kind_t kind;
+    /* LC_APP_PUBLISH_RESPONSE */
     char transaction_id[LC_ID_MAX + 1];
+    /* LC_APP_PUBLISH_DETECTION: index into the configured mappings. */
+    size_t compartment_index;
 } lc_app_outstanding_t;
 
 /* Caller-allocated. Fields are private; the implementation may add to them. */
@@ -55,6 +65,8 @@ typedef struct {
     bool connected;
     bool closing;
     bool snapshot_due;
+    /* The doors have been read since the configuration was applied. */
+    bool settled;
     int64_t started_at_ms;
     int64_t next_poll_ms;
     int64_t next_heartbeat_ms;

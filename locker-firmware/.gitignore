@@ -3,3 +3,4 @@ build/
 sdkconfig
 sdkconfig.*
 !sdkconfig.defaults
+node_modules/
