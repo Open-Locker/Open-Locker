@@ -84,8 +84,11 @@ a microcontroller rather than ported:
 
 Before slice 1 starts:
 
-1. Python, PlatformIO Core, and a host C compiler are installed. Nothing in
-   this plan can be built or tested without them.
+1. PlatformIO Core, Node, CMake, and a host C compiler are installed. Nothing
+   in this plan can be built or tested without them. PlatformIO is itself a
+   Python program and needs Python installed; the project adds no Python code
+   of its own. Project tooling is written for Node, which the repository
+   already uses.
 2. An unmodified ESP-IDF example builds for the board, proving the toolchain.
 3. The facts from 1.2 that need no firmware are written down: panel model and
    label, measured supply voltage, channel count, lock model, board flash size,
@@ -355,7 +358,7 @@ bounded and conservative: no pruning by wall-clock time, no automatic erase.
 
 Each slice is one reviewable PR that contains its code and its tests. Estimated size of the whole firmware: 2,000 to
 2,500 lines of C, 1,500 to 2,000 lines of host tests, and a few hundred lines of
-Python tooling. These are estimates, not measurements.
+Node tooling. These are estimates, not measurements.
 
 ### 4.1 Gates every slice PR must pass
 
@@ -370,7 +373,7 @@ gate needs hardware.
 Rules:
 
 - One command runs the static and host gates locally and in CI:
-  `python scripts/verify.py`. CI runs it in a `locker-firmware-ci` workflow that
+  `node scripts/verify.mjs`. CI runs it in a `locker-firmware-ci` workflow that
   is a required check.
 - Host suites use Unity, the C test framework that ships with ESP-IDF, built by
   a host CMake project under `tests/host/`. One file per suite, one function
@@ -412,7 +415,7 @@ Scope:
   board selection, and links this plan. The status stays "Proposed".
 - Project scaffold: pinned platform and ESP-IDF versions, partition table with
   a journal partition, warnings as errors, watchdog enabled.
-- `scripts/verify.py`, the host CMake project, the fakes directory, the layer
+- `scripts/verify.mjs`, the host CMake project, the fakes directory, the layer
   include check, the plan-ID check, and the CI workflow.
 - `lc_domain`: compartment, target, door state, hardware profile, error codes.
 - `lc_ports`: `lc_locker_bus_port_t`, `lc_clock_port_t`.
@@ -577,7 +580,7 @@ Scope:
 - `lc_application/provision_device.c` and the session state machine, with
   `lc_provisioning_gateway_port_t` and `lc_credential_store_port_t`.
 - The owner task in `main/`.
-- `scripts/broker_check.py`, which sends `apply_config` and, only with an
+- `scripts/broker-check.mjs`, which sends `apply_config` and, only with an
   explicit flag, one open plus duplicates.
 - A minimal `configure` console command for network settings, hardened in
   slice 5.
@@ -657,7 +660,7 @@ Scope:
 - `lc_application/commission_device.c`: validate, persist, acknowledge, restart;
   network reset; orderly offline publish before restart.
 - `lc_usb_console` line protocol completed and bounded, and
-  `scripts/commission.py`, which prompts for settings with hidden secret input.
+  `scripts/commission.mjs`, which prompts for settings with hidden secret input.
 - `main/app_main.c` reduced to construction and wiring.
 - README: wiring, build, commissioning, limits, recovery, and returning a bank
   to the Pi client.
@@ -687,7 +690,7 @@ Host suite `test_console_protocol`:
 | S5-H14 | No reply contains any submitted value |
 | S5-H15 | Input processed per pass is bounded, so a flood cannot starve the inbox |
 
-Tool suite `test_commission_tool` (Python, runs in the host gate):
+Tool suite `commission.test.mjs` (Node test runner, runs in the host gate):
 
 | ID | Test |
 | --- | --- |
@@ -781,9 +784,9 @@ Group C, network, MQTT, and enrollment (verifies slice 3):
 | --- | --- |
 | HW-C1 | Enroll a fresh unit against the real backend; the locker bank shows as connected |
 | HW-C2 | Point the device at a broker with a certificate for another hostname, then at a self-signed one: it refuses both |
-| HW-C3 | `broker_check.py` without the actuation flag: `apply_config` is acknowledged with the matching hash |
+| HW-C3 | `broker-check.mjs` without the actuation flag: `apply_config` is acknowledged with the matching hash |
 | HW-C4 | **Actuates.** One open from the admin panel releases the lock once |
-| HW-C5 | **Actuates.** `broker_check.py` with the actuation flag: one open and two duplicates raise the unlock transmission counter by one |
+| HW-C5 | **Actuates.** `broker-check.mjs` with the actuation flag: one open and two duplicates raise the unlock transmission counter by one |
 | HW-C6 | Switch the access point off for one minute, then the broker for one minute: the device reconnects unaided and a response pending at the time is delivered |
 | HW-C7 | Use an invalid token: the device reports rejection and does not retry; after a backend provisioning reset and a fresh token it enrolls |
 | HW-C8 | Pull power from the ESP32: the backend shows the bank offline through the Last Will |
@@ -804,7 +807,7 @@ Group E, USB commissioning (verifies slice 5):
 
 | ID | Check |
 | --- | --- |
-| HW-E1 | **Actuates.** Commission a fully erased unit with `commission.py` through to an open from the admin panel |
+| HW-E1 | **Actuates.** Commission a fully erased unit with `commission.mjs` through to an open from the admin panel |
 | HW-E2 | Enter wrong Wi-Fi credentials, then correct them over USB without a reset: identity is kept |
 | HW-E3 | Move an enrolled unit to another Wi-Fi network: identity, mapping, and journal are kept |
 | HW-E4 | Unplug USB during a save, ten times: the device has either the old or the new settings, never a mix |

@@ -36,6 +36,12 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v7
 
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+
+      # PlatformIO is a Python program; the project has no Python code of its own.
       - name: Setup Python
         uses: actions/setup-python@v6
         with:
@@ -51,4 +57,4 @@ jobs:
         run: pip install platformio==6.1.18
 
       - name: Run static and host gates
-        run: python scripts/verify.py
+        run: node scripts/verify.mjs
