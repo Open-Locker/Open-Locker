@@ -18,6 +18,8 @@ use App\StorableEvents\LockerWasProvisioned;
 use App\Support\Audit\AuditEventPresenter;
 use Carbon\CarbonImmutable;
 use Filament\Actions\Action;
+use Filament\Support\Assets\Js;
+use Filament\Support\Facades\FilamentAsset;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Log\Events\MessageLogged;
@@ -402,6 +404,13 @@ class LockerBankProvisioningResetTest extends TestCase
         $this->assertStringContainsString(
             __('Automatic copying is unavailable. Select the token, then press Ctrl+C (or Cmd+C on macOS) to copy it.'),
             $renderedModalContent,
+        );
+        $this->assertCount(
+            1,
+            array_filter(
+                FilamentAsset::getScripts(['app']),
+                fn (Js $script): bool => $script->getId() === 'provisioning-token-copy',
+            ),
         );
         $this->assertStringNotContainsString(
             $token,

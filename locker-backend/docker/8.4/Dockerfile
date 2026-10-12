@@ -57,6 +57,7 @@ RUN pnpm run build
 #
 # Scoped to the RUN, so it does not leak into the runtime image.
 RUN OTEL_SDK_DISABLED=true composer dump-autoload --optimize
+RUN OTEL_SDK_DISABLED=true php artisan filament:assets
 
 # Clean up build dependencies
 RUN rm -rf node_modules
