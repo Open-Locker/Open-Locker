@@ -12,7 +12,7 @@
  * once and never resends them, and it never resets the device; a reset is a
  * deliberate act of the operator (`reset-network` in the console).
  *
- * Needs the `serialport` package (`npm install` in locker-firmware/) only when
+ * Needs the `serialport` package (`pnpm install` in locker-firmware/) only when
  * run from the command line. The commissioning logic below uses nothing but
  * the three objects it is handed, so it is tested without a serial port.
  */
@@ -159,7 +159,7 @@ async function main(args) {
     ({ SerialPort } = await import('serialport'));
     ({ ReadlineParser } = await import('@serialport/parser-readline'));
   } catch {
-    console.error('The serialport package is missing. Run `npm install` in locker-firmware/.');
+    console.error('The serialport package is missing. Run `pnpm install` in locker-firmware/.');
     return 2;
   }
 

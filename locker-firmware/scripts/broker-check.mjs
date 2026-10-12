@@ -17,7 +17,7 @@
  * (`diagnostics` on the console) before and after, which must differ by one.
  *
  * The credentials are read from the environment, so they do not show up in a
- * process list. Needs the `mqtt` package (`npm install` in locker-firmware/).
+ * process list. Needs the `mqtt` package (`pnpm install` in locker-firmware/).
  */
 
 import { createHash, randomUUID } from 'node:crypto';
@@ -107,7 +107,7 @@ async function main(args) {
   try {
     mqtt = (await import('mqtt')).default;
   } catch {
-    console.error('The mqtt package is missing. Run `npm install` in locker-firmware/.');
+    console.error('The mqtt package is missing. Run `pnpm install` in locker-firmware/.');
     return 2;
   }
 

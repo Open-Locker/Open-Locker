@@ -87,7 +87,7 @@ to the codec, so no adapter depends on another.
 A new board has no network settings. Give it some with the tool:
 
 ```bash
-npm install                                  # once: serial port, MQTT, schema validation
+pnpm install                                 # once: serial port, MQTT, schema validation
 node scripts/commission.mjs --port COM3      # or /dev/ttyUSB0
 ```
 
