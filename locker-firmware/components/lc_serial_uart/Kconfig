@@ -1,0 +1,46 @@
+menu "Locker RS485 serial line"
+
+    # Bench defaults for the ESP32 D1 mini with an XY-485 converter. None of
+    # them has been confirmed against the panel documentation yet; see the
+    # prerequisites in docs/plans/esp32-rs485-hexagonal-client.md, 1.5.
+
+    config LC_RS485_UART_NUM
+        int "UART number"
+        range 1 2
+        default 2
+        help
+            UART wired to the RS485 converter. UART 0 carries the USB console.
+
+    config LC_RS485_TX_PIN
+        int "TX GPIO"
+        range 0 33
+        default 17
+
+    config LC_RS485_RX_PIN
+        int "RX GPIO"
+        range 0 39
+        default 16
+
+    config LC_RS485_BAUD_RATE
+        int "Baud rate"
+        range 1200 115200
+        default 9600
+
+    choice LC_RS485_PARITY
+        prompt "Parity"
+        default LC_RS485_PARITY_NONE
+
+        config LC_RS485_PARITY_NONE
+            bool "None"
+        config LC_RS485_PARITY_EVEN
+            bool "Even"
+        config LC_RS485_PARITY_ODD
+            bool "Odd"
+    endchoice
+
+    config LC_RS485_STOP_BITS
+        int "Stop bits"
+        range 1 2
+        default 1
+
+endmenu

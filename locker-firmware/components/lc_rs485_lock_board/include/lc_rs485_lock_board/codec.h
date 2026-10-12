@@ -37,3 +37,6 @@ bool lc_rs485_decode_unlock_ack(const uint8_t *frame, size_t length, uint8_t boa
 bool lc_rs485_decode_query_all(const uint8_t *frame, size_t length, uint8_t board,
                                lc_feedback_t feedback,
                                lc_door_t states[LC_RS485_ADDRESS_COUNT]);
+
+/* Checks the codec against the golden frames. No I/O: nothing reaches the panel. */
+bool lc_rs485_codec_self_test(void);

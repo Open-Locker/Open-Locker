@@ -300,6 +300,49 @@ void test_S1_H31_late_status_reply_is_not_the_answer_to_the_next_query(void)
     TEST_ASSERT_EQUAL_UINT(2, fake_serial_write_count(&serial));
 }
 
+void test_invalid_target_is_not_sent_and_writes_nothing(void)
+{
+    const lc_target_t board_0 = {.compartment_number = 1, .board = 0, .address = 0};
+    const lc_target_t address_255 = {.compartment_number = 1, .board = 1, .address = 255};
+
+    TEST_ASSERT_EQUAL_INT(LC_UNLOCK_NOT_SENT, port.unlock_compartment(port.ctx, board_0).result);
+    TEST_ASSERT_EQUAL_INT(LC_UNLOCK_NOT_SENT,
+                          port.unlock_compartment(port.ctx, address_255).result);
+    doors[0] = LC_DOOR_CLOSED;
+    TEST_ASSERT_FALSE(port.read_compartment_states(port.ctx, 32, ADDRESSES, 1, doors));
+
+    TEST_ASSERT_EQUAL_INT(LC_DOOR_UNKNOWN, doors[0]);
+    TEST_ASSERT_EQUAL_UINT(0, fake_serial_write_count(&serial));
+}
+
+void test_unlock_acknowledgement_is_not_an_answer_to_a_query(void)
+{
+    fake_serial_reply_to_write(&serial, 0, REPLY_MS, UNLOCK_ACK, sizeof(UNLOCK_ACK));
+
+    TEST_ASSERT_FALSE(read_doors());
+
+    assert_all_doors_unknown();
+    TEST_ASSERT_TRUE(port.connection_state(port.ctx) != LC_BUS_CONNECTED);
+}
+
+void test_reply_still_arriving_at_the_deadline_is_outcome_unknown(void)
+{
+    fake_serial_reply_to_write(&serial, 0, DEADLINE_MS - QUIET_MS / 2, UNLOCK_ACK, 3);
+    fake_serial_reply_to_write(&serial, 0, DEADLINE_MS, UNLOCK_ACK + 3, 2);
+
+    TEST_ASSERT_EQUAL_INT(LC_UNLOCK_OUTCOME_UNKNOWN, unlock());
+
+    TEST_ASSERT_EQUAL_UINT(1, fake_serial_write_count(&serial));
+}
+
+void test_unsupported_feedback_profile_is_refused(void)
+{
+    const lc_hardware_profile_t profile = {.feedback = (lc_feedback_t)7};
+
+    TEST_ASSERT_FALSE(port.apply_profile(port.ctx, &profile));
+    TEST_ASSERT_FALSE(port.apply_profile(port.ctx, NULL));
+}
+
 int main(void)
 {
     UNITY_BEGIN();
@@ -321,5 +364,9 @@ int main(void)
     RUN_TEST(test_S1_H29_reply_already_waiting_when_the_request_was_written_is_outcome_unknown);
     RUN_TEST(test_S1_H30_unlock_during_the_settle_period_waits_and_is_sent_once);
     RUN_TEST(test_S1_H31_late_status_reply_is_not_the_answer_to_the_next_query);
+    RUN_TEST(test_invalid_target_is_not_sent_and_writes_nothing);
+    RUN_TEST(test_unlock_acknowledgement_is_not_an_answer_to_a_query);
+    RUN_TEST(test_reply_still_arriving_at_the_deadline_is_outcome_unknown);
+    RUN_TEST(test_unsupported_feedback_profile_is_refused);
     return UNITY_END();
 }

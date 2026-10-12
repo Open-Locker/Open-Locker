@@ -9,6 +9,7 @@ set(CMAKE_C_STANDARD_REQUIRED ON)
 set(CMAKE_C_EXTENSIONS OFF)
 
 option(LC_SANITIZE "Build with AddressSanitizer and UndefinedBehaviorSanitizer" OFF)
+option(LC_COVERAGE "Record line coverage of the components under test" OFF)
 
 include(FetchContent)
 FetchContent_Declare(
@@ -23,7 +24,9 @@ set(LC_COMPONENTS ${CMAKE_CURRENT_SOURCE_DIR}/../../components)
 add_library(lc_under_test STATIC
   ${LC_COMPONENTS}/lc_rs485_lock_board/codec.c
   ${LC_COMPONENTS}/lc_rs485_lock_board/bus.c
+  ${LC_COMPONENTS}/lc_rs485_lock_board/self_test.c
   ${LC_COMPONENTS}/lc_usb_console/line.c
+  ${LC_COMPONENTS}/lc_usb_console/console.c
 )
 target_include_directories(lc_under_test PUBLIC
   ${LC_COMPONENTS}/lc_domain/include
@@ -44,6 +47,10 @@ if(NOT MSVC)
     add_compile_options(-fsanitize=address,undefined -fno-omit-frame-pointer)
     add_link_options(-fsanitize=address,undefined)
   endif()
+  if(LC_COVERAGE)
+    target_compile_options(lc_under_test PRIVATE --coverage -O0)
+    add_link_options(--coverage)
+  endif()
 endif()
 
 enable_testing()
@@ -60,3 +67,4 @@ endfunction()
 lc_host_test(test_rs485_codec)
 lc_host_test(test_rs485_bus)
 lc_host_test(test_console_line)
+lc_host_test(test_console)

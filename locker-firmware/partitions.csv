@@ -1,0 +1,7 @@
+# Name,    Type, SubType, Offset,   Size
+# 4 MB flash assumed; the flash size of the board is not confirmed yet.
+# The journal is a raw append-only log (slice 2), not a filesystem.
+nvs,       data, nvs,     0x9000,   0x6000
+phy_init,  data, phy,     0xf000,   0x1000
+factory,   app,  factory, 0x10000,  0x180000
+journal,   data, 0x40,    0x190000, 0x40000

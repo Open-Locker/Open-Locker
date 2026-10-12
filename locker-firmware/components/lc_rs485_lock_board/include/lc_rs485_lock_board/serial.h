@@ -11,7 +11,8 @@ typedef struct {
     void *ctx;
     /*
      * Transmits up to `length` bytes and returns how many were sent, or a
-     * negative value on error. Returns only when those bytes are on the wire.
+     * negative value when none were. Returns only when those bytes are on the
+     * wire.
      * The bus adapter calls this exactly once per request.
      */
     int (*write)(void *ctx, const uint8_t *data, size_t length);
