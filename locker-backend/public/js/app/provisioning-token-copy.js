@@ -4,8 +4,17 @@ window.provisioningTokenCopy = (token, messages) => ({
     copiedLabel: messages.copiedLabel,
     copied: false,
     copiedTimeout: null,
+    canCopy: Boolean(
+        window.isSecureContext
+        && navigator.clipboard
+        && typeof navigator.clipboard.writeText === 'function',
+    ),
 
     async copyToken() {
+        if (!this.canCopy) {
+            return;
+        }
+
         try {
             await navigator.clipboard.writeText(this.token);
             this.copied = true;
