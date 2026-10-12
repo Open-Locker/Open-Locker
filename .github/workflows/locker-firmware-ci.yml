@@ -56,5 +56,8 @@ jobs:
       - name: Install PlatformIO Core
         run: pip install platformio==6.1.18
 
+      - name: Install tool dependencies
+        run: npm ci
+
       - name: Run static and host gates
         run: node scripts/verify.mjs

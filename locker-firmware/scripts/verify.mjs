@@ -366,7 +366,7 @@ function checkEmittedMessages() {
     return ['no messages were recorded; did the host tests run?'];
   }
 
-  const schemas = new SchemaSet();
+  const schemas = new SchemaSet(SCHEMAS);
   const errors = [];
   const seen = new Set();
   for (const [index, line] of lines.entries()) {
