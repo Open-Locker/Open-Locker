@@ -47,6 +47,19 @@ The planned hardware boundary is:
 This is a planning decision for documentation and BOM purposes. It does not yet
 mean the ESP-based build is fully validated for production use.
 
+### Development hardware (added 2026-10-12)
+
+The ESP32 client firmware in `locker-firmware/` is not developed on the board
+selected above. It is developed against the proprietary RS485 lock panel
+(`adapter_type = rs485_lock_board`, ADR-0061) on an ESP32 D1 mini with an
+XY-485 automatic-direction converter, and supports that panel only; it does not
+drive onboard relays or Waveshare Modbus boards.
+
+The D1 mini and the converter are bench hardware, not a production board
+selection. The selection above stays a proposal and is revisited once the
+firmware has passed its hardware tests. The implementation plan is
+`docs/plans/esp32-rs485-hexagonal-client.md`.
+
 ## Rationale
 
 The selected ESP board already combines several capabilities that match the
@@ -136,7 +149,10 @@ Mitigations:
   - none yet
 - Related issues:
   - `https://github.com/Open-Locker/Open-Locker/issues/47`
+  - `https://github.com/Open-Locker/Open-Locker/issues/56`
 - Related docs:
+  - `docs/plans/esp32-rs485-hexagonal-client.md`
+  - `docs/adr/0061-backend-managed-rs485-locker-board-profile.md`
   - `docs/Bill-of-Materials.md`
   - `docs/Bill-of-Materials.de.md`
   - `docs/adr/0004-waveshare-hardware-flash-and-supported-boards.md`
