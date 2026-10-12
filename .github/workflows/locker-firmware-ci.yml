@@ -1,0 +1,54 @@
+name: Locker Firmware Quality
+
+# No branch filter on pull_request: stacked slice PRs target the branch below
+# them, not main, and must be checked too.
+on:
+  pull_request:
+    paths:
+      - 'locker-firmware/**'
+      - '!locker-firmware/**/*.md'
+      - 'docs/plans/esp32-rs485-hexagonal-client.md'
+      - '.github/workflows/locker-firmware-ci.yml'
+  push:
+    branches:
+      - main
+    paths:
+      - 'locker-firmware/**'
+      - '!locker-firmware/**/*.md'
+      - 'docs/plans/esp32-rs485-hexagonal-client.md'
+      - '.github/workflows/locker-firmware-ci.yml'
+
+concurrency:
+  group: ${{ github.workflow }}-quality-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  locker-firmware-ci:
+    name: Static and host gates
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    defaults:
+      run:
+        working-directory: locker-firmware
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Setup Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+
+      - name: Cache PlatformIO packages
+        uses: actions/cache@v5
+        with:
+          path: ~/.platformio
+          key: platformio-${{ runner.os }}-${{ hashFiles('locker-firmware/platformio.ini') }}
+
+      - name: Install PlatformIO Core
+        run: pip install platformio==6.1.18
+
+      - name: Run static and host gates
+        run: python scripts/verify.py
