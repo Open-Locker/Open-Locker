@@ -124,3 +124,6 @@ lc_pending_test(test_session)
 # Slice 4
 lc_pending_test(test_door_detection)
 lc_pending_test(test_publish_state)
+# Slice 5
+lc_pending_test(test_commission_device)
+lc_pending_test(test_console_protocol)
