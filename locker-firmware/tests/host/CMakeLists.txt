@@ -121,3 +121,6 @@ lc_pending_test(test_owner_inbox)
 # Slice 3
 lc_pending_test(test_provision_device)
 lc_pending_test(test_session)
+# Slice 4
+lc_pending_test(test_door_detection)
+lc_pending_test(test_publish_state)
