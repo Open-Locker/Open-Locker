@@ -50,6 +50,12 @@ jobs:
           cache: pnpm
           cache-dependency-path: locker-firmware/pnpm-lock.yaml
 
+      # The tests of the Python tools use the standard library only.
+      - name: Setup Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+
       - name: Install tool dependencies
         run: pnpm install --frozen-lockfile
 

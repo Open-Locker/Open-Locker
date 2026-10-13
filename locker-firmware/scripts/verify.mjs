@@ -83,8 +83,8 @@ const PLAN_ID = /^\| (S(\d+)-H(\d+)) \|/gm;
 const TEST_DEFINITION = /^void (test_\w+)\(void\)/gm;
 const TEST_RUN = /RUN_TEST\((test_\w+)\)/g;
 const TEST_ID = /^test_S(\d+)_H(\d+)_/;
-// Node tests of the tools: test('S5-H16 what it does', ...)
-const TOOL_TEST_ID = /^test\('S(\d+)-H(\d+) /gm;
+// Python tests of the tools: def test_S5_H16_what_it_does(self):
+const TOOL_TEST_ID = /^\s*def test_S(\d+)_H(\d+)_/gm;
 
 const read = (file) => fs.readFileSync(file, 'utf8');
 const posix = (file) => file.split(path.sep).join('/');
@@ -190,7 +190,7 @@ function checkPlanIds() {
     }
   }
 
-  for (const source of filesBelow(SCRIPTS, /\.test\.mjs$/)) {
+  for (const source of filesBelow(SCRIPTS, /^test_.*\.py$/)) {
     for (const match of read(source).matchAll(TOOL_TEST_ID)) {
       const planId = `S${Number(match[1])}-H${match[2]}`;
       if (tested.has(planId)) {
@@ -346,13 +346,14 @@ function checkHostTests() {
   return [];
 }
 
-/** The Node tests of the tools in scripts/, with the Node test runner. */
+/** The Python tests of the tools in scripts/, with unittest from the standard library. */
 function checkToolTests() {
-  const files = filesBelow(SCRIPTS, /\.test\.mjs$/);
-  if (files.length === 0) {
-    return [];
+  const python = which('python3') ?? which('python');
+  if (python === null) {
+    return ['python not found'];
   }
-  return run([process.execPath, '--test', ...files]) ? [] : ['the tool tests failed'];
+  const command = [python, '-m', 'unittest', 'discover', '-s', SCRIPTS, '-p', 'test_*.py'];
+  return run(command) ? [] : ['the tool tests failed'];
 }
 
 /** Every message the host tests encoded is valid against its AsyncAPI schema. */

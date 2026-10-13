@@ -53,11 +53,13 @@ or without installing it, in Docker:
 
 `verify.mjs` is the one command for the gates. CI runs it with `--skip-target`
 and builds the target in a separate step with the ESP-IDF container. It needs
-Node 20 or later, CMake, and a C compiler (clang or gcc) for the host gates,
-and an ESP-IDF shell for the target build. It checks the plan IDs of the tests, the layer rules (see below), static
+Node 20 or later (`pnpm install` once, for the schema validator), Python 3,
+CMake, and a C compiler (clang or gcc) for the host gates, and an ESP-IDF shell
+for the target build. Flashing and commissioning a board need only ESP-IDF and
+`pip install -r requirements.txt`. It checks the plan IDs of the tests, the layer rules (see below), static
 analysis of the pure components, the host suites with AddressSanitizer and
 UndefinedBehaviorSanitizer, every encoded MQTT message against its AsyncAPI
-schema, the Node tests of the tools, and line coverage of at least 90 % for the
+schema, the Python tests of the tools, and line coverage of at least 90 % for the
 pure components.
 
 ## How it is laid out
@@ -93,8 +95,8 @@ to the codec, so no adapter depends on another.
 A new board has no network settings. Give it some with the tool:
 
 ```bash
-pnpm install                                 # once: serial port, MQTT, schema validation
-node scripts/commission.mjs --port COM3      # or /dev/ttyUSB0
+pip install -r requirements.txt              # once: pyserial, paho-mqtt
+python scripts/commission.py --port COM3     # or /dev/ttyUSB0
 ```
 
 It asks for the Wi-Fi network name and password, the broker URL (`mqtts://`

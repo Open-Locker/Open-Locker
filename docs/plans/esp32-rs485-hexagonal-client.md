@@ -86,9 +86,10 @@ Before slice 1 starts:
 
 1. ESP-IDF, Node, CMake, and a host C compiler are installed. Nothing
    in this plan can be built or tested without them. ESP-IDF is itself driven
-   by a Python program (`idf.py`) and needs Python installed; the project adds no Python code
-   of its own. Project tooling is written for Node, which the repository
-   already uses.
+   by a Python program (`idf.py`) and needs Python installed, so the tools an
+   operator runs against a board (`commission.py`, `broker_check.py`) are
+   Python too and add only `pyserial` and `paho-mqtt`. The CI gate
+   `verify.mjs` stays in Node, which the repository already uses.
 2. An unmodified ESP-IDF example builds for the board, proving the toolchain.
 3. The facts from 1.2 that need no firmware are written down: panel model and
    label, measured supply voltage, channel count, lock model, board flash size,
@@ -353,7 +354,7 @@ bounded and conservative: no pruning by wall-clock time, no automatic erase.
 Each slice is a run of commits on its PR (2.1), containing its code and its
 tests. Estimated size of the whole firmware: 2,000 to
 2,500 lines of C, 1,500 to 2,000 lines of host tests, and a few hundred lines of
-Node tooling. These are estimates, not measurements.
+tooling. These are estimates, not measurements.
 
 ### 4.1 Gates every slice must pass
 
@@ -591,7 +592,7 @@ Scope:
 - `lc_application/provision_device.c` and the session state machine, with
   `lc_provisioning_gateway_port_t` and `lc_credential_store_port_t`.
 - The owner task in `main/`.
-- `scripts/broker-check.mjs`, which sends `apply_config` and, only with an
+- `scripts/broker_check.py`, which sends `apply_config` and, only with an
   explicit flag, one open plus duplicates.
 - A minimal `configure` console command for network settings, hardened in
   slice 5.
@@ -671,7 +672,7 @@ Scope:
 - `lc_application/commission_device.c`: validate, persist, acknowledge, restart;
   network reset; orderly offline publish before restart.
 - `lc_usb_console` line protocol completed and bounded, and
-  `scripts/commission.mjs`, which prompts for settings with hidden secret input.
+  `scripts/commission.py`, which prompts for settings with hidden secret input.
 - `main/app_main.c` reduced to construction and wiring.
 - README: wiring, build, commissioning, limits, recovery, and returning a bank
   to the Pi client.
@@ -701,7 +702,7 @@ Host suite `test_console_protocol`:
 | S5-H14 | No reply contains any submitted value |
 | S5-H15 | Input processed per pass is bounded, so a flood cannot starve the inbox |
 
-Tool suite `commission.test.mjs` (Node test runner, runs in the host gate):
+Tool suite `test_commission.py` (unittest, runs in the host gate):
 
 | ID | Test |
 | --- | --- |
@@ -800,9 +801,9 @@ Group C, network, MQTT, and enrollment (verifies slice 3):
 | --- | --- |
 | HW-C1 | Enroll a fresh unit against the real backend; the locker bank shows as connected |
 | HW-C2 | Point the device at a broker with a certificate for another hostname, then at a self-signed one: it refuses both |
-| HW-C3 | `broker-check.mjs` without the actuation flag: `apply_config` is acknowledged with the matching hash |
+| HW-C3 | `broker_check.py` without the actuation flag: `apply_config` is acknowledged with the matching hash |
 | HW-C4 | **Actuates.** One open from the admin panel releases the lock once |
-| HW-C5 | **Actuates.** `broker-check.mjs` with the actuation flag: one open and two duplicates raise the unlock transmission counter by one |
+| HW-C5 | **Actuates.** `broker_check.py` with the actuation flag: one open and two duplicates raise the unlock transmission counter by one |
 | HW-C6 | Switch the access point off for one minute, then the broker for one minute: the device reconnects unaided and a response pending at the time is delivered |
 | HW-C7 | Use an invalid token: the device reports rejection and does not retry; after a backend provisioning reset and a fresh token it enrolls |
 | HW-C8 | Pull power from the ESP32: the backend shows the bank offline through the Last Will |
@@ -823,7 +824,7 @@ Group E, USB commissioning (verifies slice 5):
 
 | ID | Check |
 | --- | --- |
-| HW-E1 | **Actuates.** Commission a fully erased unit with `commission.mjs` through to an open from the admin panel |
+| HW-E1 | **Actuates.** Commission a fully erased unit with `commission.py` through to an open from the admin panel |
 | HW-E2 | Enter wrong Wi-Fi credentials, then correct them over USB without a reset: identity is kept |
 | HW-E3 | Move an enrolled unit to another Wi-Fi network: identity, mapping, and journal are kept |
 | HW-E4 | Unplug USB during a save, ten times: the device has either the old or the new settings, never a mix |
