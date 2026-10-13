@@ -373,7 +373,9 @@ def check_emitted_messages():
 def gcov_command():
     cache = read(HOST_BUILD / "CMakeCache.txt")
     compiler = re.search(r"^CMAKE_C_COMPILER:\w+=(.*)$", cache, re.M)
-    if compiler and "clang" in Path(compiler[1].strip()).name:
+    is_clang = compiler and "clang" in Path(compiler[1].strip()).name
+    # A clang installed as `gcc` (llvm-mingw) has no gcov, only llvm-cov.
+    if is_clang or (shutil.which("gcov") is None and shutil.which("llvm-cov")):
         return ["llvm-cov", "gcov"]
     return ["gcov"]
 
