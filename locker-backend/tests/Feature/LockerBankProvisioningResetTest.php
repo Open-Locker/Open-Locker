@@ -18,6 +18,8 @@ use App\StorableEvents\LockerWasProvisioned;
 use App\Support\Audit\AuditEventPresenter;
 use Carbon\CarbonImmutable;
 use Filament\Actions\Action;
+use Filament\Support\Assets\Js;
+use Filament\Support\Facades\FilamentAsset;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Log\Events\MessageLogged;
@@ -393,7 +395,23 @@ class LockerBankProvisioningResetTest extends TestCase
 
         $modalContent = $component->instance()->getMountedAction()?->getModalContent();
         $this->assertNotNull($modalContent);
-        $this->assertStringContainsString($token, $modalContent->render());
+        $renderedModalContent = $modalContent->render();
+        $this->assertStringContainsString($token, $renderedModalContent);
+        $this->assertStringContainsString('x-data="window.provisioningTokenCopy(', $renderedModalContent);
+        $this->assertStringContainsString('x-on:click="copyToken()"', $renderedModalContent);
+        $this->assertStringContainsString('x-show="canCopy"', $renderedModalContent);
+        $this->assertStringContainsString('x-show="!canCopy"', $renderedModalContent);
+        $this->assertStringContainsString(
+            __('Automatic copying is unavailable. Select the token, then press Ctrl+C (or Cmd+C on macOS) to copy it.'),
+            $renderedModalContent,
+        );
+        $this->assertCount(
+            1,
+            array_filter(
+                FilamentAsset::getScripts(['app']),
+                fn (Js $script): bool => $script->getId() === 'provisioning-token-copy',
+            ),
+        );
         $this->assertStringNotContainsString(
             $token,
             json_encode($component->instance()->mountedActions, JSON_THROW_ON_ERROR),
@@ -499,6 +517,15 @@ class LockerBankProvisioningResetTest extends TestCase
         $this->assertSame('Verbraucht', __('Consumed'));
         $this->assertSame('Bereitstellungstoken jetzt kopieren', __('Copy the provisioning token now'));
         $this->assertSame('Token kopieren', __('Copy token'));
+        $this->assertSame('Bereitstellungstoken konnte nicht kopiert werden', __('Could not copy provisioning token'));
+        $this->assertSame(
+            'Kopieren wurde blockiert. Wähle das Token aus und drücke Strg+C (oder Cmd+C auf macOS), um es manuell zu kopieren.',
+            __('Copying was blocked. Select the token, then press Ctrl+C (or Cmd+C on macOS) to copy it manually.'),
+        );
+        $this->assertSame(
+            'Automatisches Kopieren ist nicht verfügbar. Wähle das Token aus und drücke Strg+C (oder Cmd+C auf macOS), um es zu kopieren.',
+            __('Automatic copying is unavailable. Select the token, then press Ctrl+C (or Cmd+C on macOS) to copy it.'),
+        );
 
         Livewire::actingAs($admin)
             ->test(ListLockerBanks::class)

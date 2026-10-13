@@ -47,4 +47,22 @@ describe('useUserName', () => {
 
     expect(result.current).toBeNull();
   });
+
+  it.each([null, '', '   '])('reports no name for a blank stored name (%p)', (storedName) => {
+    mockUseAppSelector.mockReturnValue(storedName);
+    mockUseGetUserQuery.mockReturnValue({ data: undefined });
+
+    const { result } = renderHook(() => useUserName());
+
+    expect(result.current).toBeNull();
+  });
+
+  it('trims the stored name until the query resolves', () => {
+    mockUseAppSelector.mockReturnValue('  Stored Name  ');
+    mockUseGetUserQuery.mockReturnValue({ data: undefined });
+
+    const { result } = renderHook(() => useUserName());
+
+    expect(result.current).toBe('Stored Name');
+  });
 });
