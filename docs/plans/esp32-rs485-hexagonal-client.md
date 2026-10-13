@@ -84,12 +84,11 @@ a microcontroller rather than ported:
 
 Before slice 1 starts:
 
-1. ESP-IDF, Node, CMake, and a host C compiler are installed. Nothing
+1. ESP-IDF, Python, CMake, and a host C compiler are installed. Nothing
    in this plan can be built or tested without them. ESP-IDF is itself driven
-   by a Python program (`idf.py`) and needs Python installed, so the tools an
-   operator runs against a board (`commission.py`, `broker_check.py`) are
-   Python too and add only `pyserial` and `paho-mqtt`. The CI gate
-   `verify.mjs` stays in Node, which the repository already uses.
+   by a Python program (`idf.py`), so all project tooling is Python too:
+   `verify.py`, `commission.py` and `broker_check.py`. Operators need
+   `pyserial` and `paho-mqtt`; the gate also needs `jsonschema`.
 2. An unmodified ESP-IDF example builds for the board, proving the toolchain.
 3. The facts from 1.2 that need no firmware are written down: panel model and
    label, measured supply voltage, channel count, lock model, board flash size,
@@ -126,7 +125,7 @@ The slices stay the unit of work inside each PR:
   implementation (4.1); the slice makes them pass. Commit messages name the
   slice, for example `feat(firmware): slice 2 command journal`.
 - **A slice is finished before the next one starts.** Both gates in 4.1 pass at
-  its last commit, and `verify.mjs` then counts it as implemented, so its
+  its last commit, and `verify.py` then counts it as implemented, so its
   tests are required from that commit on.
 - **The PR description is the slice record.** It holds one row per slice with
   the status, the commit range, the gate result at the last commit, and any
@@ -370,7 +369,7 @@ hardware.
 Rules:
 
 - One command runs the static and host gates locally and in CI:
-  `node scripts/verify.mjs`. CI runs it in a `locker-firmware-ci` workflow that
+  `python scripts/verify.py`. CI runs it in a `locker-firmware-ci` workflow that
   is a required check.
 - Host suites use Unity, the C test framework that ships with ESP-IDF, built by
   a host CMake project under `tests/host/`. One file per suite, one function
@@ -427,7 +426,7 @@ Scope:
   board selection, and links this plan. The status stays "Proposed".
 - Project scaffold: pinned platform and ESP-IDF versions, partition table with
   a journal partition, warnings as errors, watchdog enabled.
-- `scripts/verify.mjs`, the host CMake project, the fakes directory, the layer
+- `scripts/verify.py`, the host CMake project, the fakes directory, the layer
   include check, the plan-ID check, and the CI workflow.
 - `lc_domain`: compartment, target, door state, hardware profile, error codes.
 - `lc_ports`: `lc_locker_bus_port_t`, `lc_clock_port_t`.

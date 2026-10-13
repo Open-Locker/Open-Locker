@@ -39,8 +39,8 @@ been confirmed against the panel yet** (plan, section 1.5). Change them with
 ## Build and test
 
 ```bash
-node scripts/verify.mjs               # static and host gates, and the target build
-node scripts/verify.mjs --skip-target # without ESP-IDF
+python scripts/verify.py               # static and host gates, and the target build
+python scripts/verify.py --skip-target # without ESP-IDF
 idf.py build                          # target build only
 idf.py -p COM3 flash                  # flash the board
 idf.py -p COM3 monitor                # console and log, 115200 baud
@@ -51,12 +51,14 @@ Run the `idf.py` commands from an ESP-IDF 5.4 shell (see Espressif's
 or without installing it, in Docker:
 `docker run --rm -v "$PWD:/project" -w /project espressif/idf:v5.4 idf.py build`.
 
-`verify.mjs` is the one command for the gates. CI runs it with `--skip-target`
+`verify.py` is the one command for the gates. CI runs it with `--skip-target`
 and builds the target in a separate step with the ESP-IDF container. It needs
-Node 20 or later (`pnpm install` once, for the schema validator), Python 3,
+Python 3 with `pip install -r requirements-dev.txt` (the schema validator),
 CMake, and a C compiler (clang or gcc) for the host gates, and an ESP-IDF shell
 for the target build. Flashing and commissioning a board need only ESP-IDF and
-`pip install -r requirements.txt`. It checks the plan IDs of the tests, the layer rules (see below), static
+`pip install -r requirements.txt`. On Windows, set `CMAKE_GENERATOR` and `CC`
+(for example `MinGW Makefiles` and `gcc`) if CMake finds no compiler. The gate
+checks the plan IDs of the tests, the layer rules (see below), static
 analysis of the pure components, the host suites with AddressSanitizer and
 UndefinedBehaviorSanitizer, every encoded MQTT message against its AsyncAPI
 schema, the Python tests of the tools, and line coverage of at least 90 % for the

@@ -2,4 +2,4 @@ build/
 sdkconfig
 sdkconfig.*
 !sdkconfig.defaults
-node_modules/
+__pycache__/
