@@ -14,7 +14,7 @@
  *   prompt.askSecret(label) asks for a value without echo
  *   output.write(text)      everything the tool prints
  *
- * `outcome` is 'saved', 'refused' or 'connection_lost'.
+ * `outcome` is 'saved', 'refused', 'connection_lost' or 'no_reply'.
  */
 
 import assert from 'node:assert/strict';
@@ -163,4 +163,18 @@ test('S5-H18 the tool never issues a reset on its own', async () => {
       assert.doesNotMatch(line, /^reset/i, `the tool sent "${line.split(' ')[0]}"`);
     }
   }
+});
+
+test('a device that does not answer is reported, not thrown', async () => {
+  const device = harness({ status: 'saved' });
+  device.serial.exchange = async (line) => {
+    device.sent.push(line);
+    throw new Error('no reply');
+  };
+
+  const result = await run(device);
+
+  assert.equal(result.outcome, 'no_reply');
+  assert.deepEqual(device.sent, ['status']);
+  assert.match(device.printed.join(''), /no reply/i);
 });

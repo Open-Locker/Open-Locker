@@ -52,8 +52,6 @@ typedef struct {
 bool lc_mqtt_transport_start(const lc_mqtt_transport_config_t *config,
                              const lc_mqtt_handlers_t *handlers);
 
-/* Ends the connection and frees the client. */
-void lc_mqtt_transport_stop(void);
 
 /* The message id of the request, or a negative number when it could not be made. */
 int lc_mqtt_transport_subscribe(const char *topic, int qos);

@@ -380,6 +380,24 @@ void test_S4_H23_uncommanded_open_is_detected_with_an_acknowledgement_outstandin
     TEST_ASSERT_EQUAL_UINT16(2, fx_outbound.uncommanded[0].compartment_number);
 }
 
+void test_an_event_in_flight_at_a_disconnect_is_not_published_again_at_once(void)
+{
+    settle();
+    fx_bus.doors[1] = LC_DOOR_OPEN;
+    fx_advance(1000);
+    TEST_ASSERT_EQUAL_UINT(1, fx_outbound.uncommanded_count);
+
+    /* The MQTT library resends what it holds; a second copy would be a second alarm. */
+    lc_app_on_disconnected(&fx_app);
+    lc_app_on_connected(&fx_app);
+    fx_advance(5000);
+    TEST_ASSERT_EQUAL_UINT(1, fx_outbound.uncommanded_count);
+
+    /* If nothing acknowledges it in time, it is sent again. */
+    fx_advance(LC_APP_PUBLISH_TIMEOUT_MS);
+    TEST_ASSERT_EQUAL_UINT(2, fx_outbound.uncommanded_count);
+}
+
 int main(void)
 {
     UNITY_BEGIN();
@@ -396,5 +414,6 @@ int main(void)
     RUN_TEST(test_S4_H21_state_and_event_messages_match_their_schemas);
     RUN_TEST(test_S4_H22_delayed_acknowledgement_does_not_turn_an_opening_into_a_jam);
     RUN_TEST(test_S4_H23_uncommanded_open_is_detected_with_an_acknowledgement_outstanding);
+    RUN_TEST(test_an_event_in_flight_at_a_disconnect_is_not_published_again_at_once);
     return UNITY_END();
 }

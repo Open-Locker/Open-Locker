@@ -36,10 +36,18 @@ const MESSAGES = {
  * @param {{ serial: { exchange(line: string): Promise<object> },
  *           prompt: { ask(label: string): Promise<string>, askSecret(label: string): Promise<string> },
  *           output: { write(text: string): void } }} io
- * @returns {Promise<{ outcome: 'saved' | 'refused' | 'connection_lost' }>}
+ * @returns {Promise<{ outcome: 'saved' | 'refused' | 'connection_lost' | 'no_reply' }>}
  */
 export async function commission({ serial, prompt, output }) {
-  const state = await serial.exchange('status');
+  let state;
+  try {
+    state = await serial.exchange('status');
+  } catch {
+    output.write(
+      'No reply from the device. Check the port, and that the board has finished booting, then try again.\n',
+    );
+    return { outcome: 'no_reply' };
+  }
   output.write(
     `Device: ${state.enrolled ? 'enrolled' : 'not enrolled'}${state.pending ? ', enrollment pending' : ''}${
       state.configured ? ', network settings stored' : ', no network settings'
@@ -181,7 +189,10 @@ async function main(args) {
       return new Promise((resolve, reject) => {
         const request = { resolve, reject };
         waiting.push(request);
-        const timer = setTimeout(() => reject(new Error('no reply')), CONFIGURE_REPLY_TIMEOUT_MS);
+        const timer = setTimeout(() => {
+          waiting.splice(waiting.indexOf(request), 1);
+          reject(new Error('no reply'));
+        }, CONFIGURE_REPLY_TIMEOUT_MS);
         request.resolve = (value) => {
           clearTimeout(timer);
           resolve(value);

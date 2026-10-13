@@ -122,7 +122,8 @@ bool lc_mqtt_transport_start(const lc_mqtt_transport_config_t *config,
         },
         .session = {
             .keepalive = (int)config->keepalive_seconds,
-            /* The broker keeps the session, and what was queued for it, while we are away. */
+            /* The broker keeps the session. Commands queued while away arrive before the
+             * subscription is confirmed and are dropped by design (S3-H11). */
             .disable_clean_session = true,
             .last_will = {
                 .topic = config->will_topic,
@@ -160,15 +161,6 @@ bool lc_mqtt_transport_start(const lc_mqtt_transport_config_t *config,
         return false;
     }
     return true;
-}
-
-void lc_mqtt_transport_stop(void)
-{
-    if (client != NULL) {
-        esp_mqtt_client_stop(client);
-        esp_mqtt_client_destroy(client);
-        client = NULL;
-    }
 }
 
 int lc_mqtt_transport_subscribe(const char *topic, int qos)

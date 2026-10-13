@@ -18,6 +18,8 @@
 /* A slow bus exchange blocks the task for over a second while events keep arriving. */
 #define QUEUE_DEPTH 32
 #define TICK_MS 100
+/* How long the network may be up without a valid time before it is reported. */
+#define TIME_WARNING_MS 30000
 /* The application keeps a few kilobytes of working copies on this stack. */
 #define STACK_SIZE 12288
 #define PRIORITY 6
@@ -29,6 +31,8 @@ device_state_t device_state;
 static QueueHandle_t queue;
 static owner_context_t owner;
 static bool network_up;
+static int64_t network_up_ms;
+static bool time_warned;
 static bool session_started;
 static int command_subscription = -1;
 
@@ -72,12 +76,27 @@ static void refresh_device_state(void)
 /* Starts the MQTT session once the network, the clock and an identity to use are all there. */
 static void maybe_start_session(void)
 {
-    if (session_started || owner.bench_mode || !network_up || !lc_wifi_time_valid()) {
+    if (session_started || owner.bench_mode || !network_up) {
+        return;
+    }
+    if (!lc_wifi_time_valid()) {
+        /* The certificate check needs the date; a network that blocks NTP waits here for good. */
+        if (!time_warned && esp_timer_get_time() / 1000 - network_up_ms >= TIME_WARNING_MS) {
+            ESP_LOGW(TAG, "the network is up but the time is not set (NTP blocked?); not connecting");
+            time_warned = true;
+        }
+        return;
+    }
+
+    const lc_identity_t *identity = lc_provision_identity(owner.provision);
+    bool enroll = !identity->enrolled && lc_provision_state(owner.provision) == LC_PROVISION_IDLE &&
+                  identity->token[0] != '\0';
+    /* Nothing to enroll with, or an enrollment that needs a reset: no reason to connect. */
+    if (!identity->enrolled && !enroll) {
         return;
     }
 
     lc_network_settings_t settings;
-    const lc_identity_t *identity = lc_provision_identity(owner.provision);
     if (!owner.settings_store.load(owner.settings_store.ctx, &settings)) {
         return;
     }
@@ -90,14 +109,9 @@ static void maybe_start_session(void)
         memcpy(config.username, identity->mqtt_user, sizeof(config.username));
         memcpy(config.password, identity->mqtt_password, sizeof(config.password));
         memcpy(config.locker_uuid, identity->locker_uuid, sizeof(config.locker_uuid));
-    } else if (lc_provision_state(owner.provision) == LC_PROVISION_IDLE &&
-               identity->token[0] != '\0') {
+    } else {
         memcpy(config.username, identity->bootstrap_user, sizeof(config.username));
         memcpy(config.password, identity->bootstrap_password, sizeof(config.password));
-    } else {
-        /* Nothing to enroll with, or an enrollment that needs a reset: no reason to connect. */
-        memset(&settings, 0, sizeof(settings));
-        return;
     }
 
     session_started = mqtt_session_start(&config);
@@ -169,6 +183,8 @@ static void handle(owner_event_t *event)
         break;
     case OWNER_NETWORK_UP:
         network_up = true;
+        network_up_ms = esp_timer_get_time() / 1000;
+        time_warned = false;
         break;
     case OWNER_NETWORK_DOWN:
         network_up = false;

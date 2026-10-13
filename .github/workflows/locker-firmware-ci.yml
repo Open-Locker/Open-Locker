@@ -8,6 +8,7 @@ on:
       - 'locker-firmware/**'
       - '!locker-firmware/**/*.md'
       - 'docs/plans/esp32-rs485-hexagonal-client.md'
+      - 'docs/asyncapi/**'
       - '.github/workflows/locker-firmware-ci.yml'
   push:
     branches:
@@ -16,6 +17,7 @@ on:
       - 'locker-firmware/**'
       - '!locker-firmware/**/*.md'
       - 'docs/plans/esp32-rs485-hexagonal-client.md'
+      - 'docs/asyncapi/**'
       - '.github/workflows/locker-firmware-ci.yml'
 
 concurrency:

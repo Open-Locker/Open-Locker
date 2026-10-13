@@ -119,6 +119,14 @@ void lc_app_on_disconnected(lc_app_t *app)
     /* What was in flight is lost with the connection and is sent again later. */
     for (size_t i = 0; i < LC_APP_OUTSTANDING_MAX; ++i) {
         lc_app_outstanding_t *slot = &app->outstanding[i];
+        /*
+         * A door event stays: the MQTT library resends it itself after the reconnect, and a
+         * second copy under a new message id would be a second alarm. The timeout covers a
+         * library that gave up.
+         */
+        if (slot->kind == LC_APP_PUBLISH_DETECTION || slot->kind == LC_APP_PUBLISH_UNCOMMANDED) {
+            continue;
+        }
         if (slot->id != LC_PUBLISH_REFUSED) {
             lose(app, slot);
         }

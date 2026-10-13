@@ -21,7 +21,6 @@ static const char *TAG = "mqtt_session";
 
 static mqtt_session_config_t session;
 static char encoded[ENCODE_BUFFER_SIZE];
-static int command_subscription = -1;
 static int reply_subscription = -1;
 
 /* The inbound message in progress; the esp-mqtt task alone touches these. */
@@ -242,8 +241,7 @@ int mqtt_session_subscribe_commands(void)
     if (!lc_mqtt_topic(LC_TOPIC_COMMAND, session.locker_uuid, name, sizeof(name))) {
         return -1;
     }
-    command_subscription = lc_mqtt_transport_subscribe(name, 1);
-    return command_subscription;
+    return lc_mqtt_transport_subscribe(name, 1);
 }
 
 /* ---- Start ---- */
@@ -270,7 +268,6 @@ bool mqtt_session_start(const mqtt_session_config_t *config)
     char will[256];
 
     session = *config;
-    command_subscription = -1;
     reply_subscription = -1;
     memset(&assembler, 0, sizeof(assembler));
     inbound_kind = LC_INBOUND_OTHER;
