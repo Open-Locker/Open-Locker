@@ -182,3 +182,38 @@ Issue creation through the GitHub integration returned HTTP 403 (`Resource not a
 | braces 3.0.3 | [GHSA-vfj7-8cjw-p6xm](https://github.com/advisories/GHSA-vfj7-8cjw-p6xm), Jest graph | No fixed version published at the audit date. The newest Metro file-map removes its separate dependency. |
 
 **Proposed next step:** Upgrade the parent parser/build/test packages when compatible fixes are published, or plan a bounded parent migration. Assess reachability separately for the runtime deep-link parser and development/build dependencies. Repeat audit, malformed/Unicode/normal deep-link parity, JavaScript tests and platform exports; do not force an incompatible decoder major solely to clear the audit.
+
+## PR validation follow-up (2026-10-13)
+
+PR #318's online Expo alignment gate now uses Expo 57.0.28, Router 57.0.26,
+Splash Screen 57.0.10 and jest-expo 57.0.6. The pinned pnpm 9.0.0 lockfile was
+regenerated without changing the React Native, React or TypeScript runtime lines.
+
+The backend's existing npm audit failure was addressed with Axios 1.20.0,
+shell-quote 1.12.0 and source-map-js 1.2.2. Obsolete overlapping Axios and
+shell-quote overrides were replaced with same-major security floors. Backend
+pnpm remains 10.17.1; the npm audit now reports no advisories. Frozen installation,
+Vite production build and Linux ARM64/AMD64 backend image builds pass.
+
+Mobile frozen installation, online Expo alignment, typecheck, lint, formatting,
+all 87 tests and iOS/Android JavaScript exports pass. Lint retains 26 existing
+warnings. Expo Doctor passes 20/21 checks; the sole remaining failure is the
+existing unmaintained react-native-render-html dependency. Representative normal,
+Unicode, malformed and escaped-percent query parsing passed through Router's
+installed query-string consumer; this is compatibility coverage, not a fix for
+the decoder denial-of-service advisory.
+
+The npm registry was rechecked: node-forge 1.4.0 and braces 3.0.3 are still the
+latest published versions, with no patched release for the recorded advisories.
+The fixed decode-uri-component 0.5.0 remains outside query-string 7.1.3's ^0.2.2
+range and changes its CommonJS export contract. Mobile audit therefore retains
+the same two high and one moderate advisories. Track these blockers, HTML-renderer
+replacement, React Compiler warning cleanup, the existing Sail www-data user
+configuration and native/device validation in [issue #319](https://github.com/Open-Locker/Open-Locker/issues/319).
+
+Before these npm-only follow-up changes, the PHP/Sail quality suite passed with
+467 tests, 1,729 assertions and two skips. PostgreSQL migrations/seeding, both
+client image architectures, and the live API/MQTT simulator unlock flow also
+passed. Those results do not establish native mobile or physical Modbus hardware
+compatibility; native device, deep-link, gesture and WebSocket reconnection smoke
+tests remain release validation requirements.
