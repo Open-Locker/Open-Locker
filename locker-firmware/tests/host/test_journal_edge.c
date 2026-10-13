@@ -262,6 +262,33 @@ void test_records_that_make_no_sense_mark_the_journal_unhealthy(void)
     put_record(0, 1, 1, payload, length);
     assert_unhealthy_open();
 
+    /* A claim without a message id, and a later message id that is empty. */
+    fake_flash_init(&flash, FLASH_SIZE);
+    length = claim_payload(payload, "tx-1", "", "open_compartment");
+    put_record(0, 1, 1, payload, length);
+    assert_unhealthy_open();
+
+    fake_flash_init(&flash, FLASH_SIZE);
+    length = claim_payload(payload, "tx-1", "msg-1", "open_compartment");
+    offset = put_record(0, 1, 1, payload, length);
+    length = text(payload, "tx-1");
+    length += text(payload + length, "");
+    put_record(offset, 1, 4, payload, length);
+    assert_unhealthy_open();
+
+    /* No payload at all, and a completion that ends before its error code. */
+    fake_flash_init(&flash, FLASH_SIZE);
+    put_record(0, 1, 1, payload, 0);
+    assert_unhealthy_open();
+
+    fake_flash_init(&flash, FLASH_SIZE);
+    length = claim_payload(payload, "tx-1", "msg-1", "open_compartment");
+    offset = put_record(0, 1, 1, payload, length);
+    length = text(payload, "tx-1");
+    length += text(payload + length, "open_compartment");
+    put_record(offset, 1, 2, payload, length);
+    assert_unhealthy_open();
+
     /* A text with a NUL inside it. */
     fake_flash_init(&flash, FLASH_SIZE);
     length = claim_payload(payload, "tx-1", "msg-1", "open_compartment");
@@ -317,6 +344,32 @@ void test_unreadable_flash_is_unhealthy(void)
 
     TEST_ASSERT_FALSE(lc_journal_open(&journal, io));
     TEST_ASSERT_FALSE(journal.healthy);
+}
+
+void test_a_read_error_at_start_never_looks_like_an_empty_log(void)
+{
+    TEST_ASSERT_TRUE(claim("tx-1", "msg-1"));
+    TEST_ASSERT_TRUE(complete("tx-1"));
+
+    /* Every read of a start fails in turn, until a start gets through without one. */
+    unsigned failed = 0;
+    for (unsigned nth = 1;; ++nth) {
+        fake_flash_fail_read(&flash, nth);
+        if (reopen()) {
+            break;
+        }
+        ++failed;
+        TEST_ASSERT_FALSE(port.healthy(port.ctx));
+        /* Neither the command that already ran nor a new one. */
+        TEST_ASSERT_FALSE(claim("tx-1", "msg-2"));
+        TEST_ASSERT_FALSE(claim("tx-2", "msg-3"));
+    }
+    fake_flash_fail_read(&flash, 0);
+
+    /* The scan for the end of the log, and then the reads of both records. */
+    TEST_ASSERT_TRUE(failed > FLASH_SIZE / 64 + 4);
+    TEST_ASSERT_TRUE(port.find(port.ctx, "tx-1", &entry));
+    TEST_ASSERT_TRUE(entry.completed);
 }
 
 void test_room_runs_out_in_flash_before_it_runs_out_of_slots(void)
@@ -409,6 +462,12 @@ void test_arguments_the_journal_cannot_store_are_refused(void)
     TEST_ASSERT_FALSE(claim(too_long, "msg-1"));
     TEST_ASSERT_FALSE(claim("tx-1", too_long));
     TEST_ASSERT_FALSE(port.claim(port.ctx, "tx-1", "msg-1", too_long));
+    /* An action name that fits a record but not the index: the next start could not read it. */
+    char long_action[LC_ACTION_NAME_MAX + 2];
+    memset(long_action, 'a', sizeof(long_action));
+    long_action[sizeof(long_action) - 1] = '\0';
+    TEST_ASSERT_FALSE(port.claim(port.ctx, "tx-1", "msg-1", long_action));
+    TEST_ASSERT_EQUAL_UINT(0, flash.bytes_written);
     TEST_ASSERT_FALSE(claim("tx-1", "msg-1") && claim("tx-2", "msg-1"));
 
     TEST_ASSERT_TRUE(claim("tx-3", "msg-3"));
@@ -464,6 +523,7 @@ int main(void)
     RUN_TEST(test_headers_that_are_not_version_one_are_rejected);
     RUN_TEST(test_data_after_the_end_of_the_log_is_corruption);
     RUN_TEST(test_unreadable_flash_is_unhealthy);
+    RUN_TEST(test_a_read_error_at_start_never_looks_like_an_empty_log);
     RUN_TEST(test_room_runs_out_in_flash_before_it_runs_out_of_slots);
     RUN_TEST(test_message_ids_are_bounded);
     RUN_TEST(test_arguments_the_journal_cannot_store_are_refused);

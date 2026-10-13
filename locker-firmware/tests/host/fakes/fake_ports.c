@@ -457,6 +457,9 @@ static bool identity_load(void *ctx, lc_identity_t *out)
     const fake_identity_store_t *store = ctx;
     if (store->has) {
         *out = store->identity;
+    } else {
+        /* A load that fails may leave anything behind. */
+        memset(out, 0xFF, sizeof(*out));
     }
     return store->has;
 }

@@ -65,6 +65,9 @@ static int fake_read(void *ctx, uint8_t *buffer, size_t capacity, uint32_t timeo
 {
     fake_serial_t *fake = ctx;
 
+    if (fake->reads_until_error > 0 && --fake->reads_until_error == 0) {
+        return -1;
+    }
     if (fake->noise_period_ms > 0 && fake->now_ms < fake->noise_until_ms) {
         if (timeout_ms < fake->noise_period_ms) {
             fake->now_ms += timeout_ms;
@@ -134,6 +137,11 @@ void fake_serial_set_next_write_result(fake_serial_t *fake, int result)
 {
     fake->override_next_write = true;
     fake->next_write_result = result;
+}
+
+void fake_serial_fail_read(fake_serial_t *fake, unsigned nth)
+{
+    fake->reads_until_error = nth;
 }
 
 void fake_serial_set_write_duration(fake_serial_t *fake, uint32_t milliseconds)

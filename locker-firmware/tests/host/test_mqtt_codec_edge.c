@@ -48,6 +48,7 @@ void test_timestamps_follow_rfc_3339(void)
         OPEN_WITH("2026-04-14T19:30:00.Z"), OPEN_WITH("2026-04-14T19:30:00+2:00"),
         OPEN_WITH("2026-04-14T19:30:00+24:00"), OPEN_WITH("2026-04-14T19:30:00+02:60"),
         OPEN_WITH("2026-04-14T19:30:00ZZ"), OPEN_WITH("26-04-14T19:30:00Z"),
+        OPEN_WITH("2026-04-1xT19:30:00Z"),
     };
 
     for (size_t i = 0; i < sizeof(VALID) / sizeof(VALID[0]); ++i) {

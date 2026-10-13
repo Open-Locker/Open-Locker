@@ -129,7 +129,7 @@ void test_S5_H01_valid_settings_are_saved_then_acknowledged_then_the_restart_is_
 
 void test_S5_H02_invalid_settings_are_rejected_and_nothing_is_saved(void)
 {
-    lc_setup_request_t cases[8];
+    lc_setup_request_t cases[9];
     for (size_t i = 0; i < sizeof(cases) / sizeof(cases[0]); ++i) {
         cases[i] = request();
     }
@@ -142,6 +142,8 @@ void test_S5_H02_invalid_settings_are_rejected_and_nothing_is_saved(void)
     /* A device that is not enrolled needs all three enrollment values. */
     cases[6].token[0] = '\0';
     cases[7].bootstrap_user[0] = '\0';
+    /* A text that fills its field leaves no room for the terminator. */
+    memset(cases[8].ssid, 'a', sizeof(cases[8].ssid));
 
     for (size_t i = 0; i < sizeof(cases) / sizeof(cases[0]); ++i) {
         TEST_ASSERT_EQUAL_INT(LC_COMMISSION_INVALID, lc_commission_apply(&commission, &cases[i]));
@@ -208,6 +210,24 @@ void test_failed_identity_save_on_a_blank_device_leaves_it_unconfigured(void)
     TEST_ASSERT_EQUAL_INT(LC_COMMISSION_SAVE_FAILED, lc_commission_apply(&commission, &setup));
 
     TEST_ASSERT_FALSE(settings.has);
+}
+
+void test_a_device_whose_identity_cannot_be_loaded_is_set_up_as_not_enrolled(void)
+{
+    identity.has = false;
+    lc_setup_request_t setup = request();
+
+    /* Not enrolled, so the enrollment values are needed. */
+    setup.token[0] = '\0';
+    TEST_ASSERT_EQUAL_INT(LC_COMMISSION_INVALID, lc_commission_apply(&commission, &setup));
+    assert_nothing_stored();
+
+    setup = request();
+    TEST_ASSERT_EQUAL_INT(LC_COMMISSION_SAVED, lc_commission_apply(&commission, &setup));
+    TEST_ASSERT_FALSE(identity.identity.enrolled);
+    TEST_ASSERT_FALSE(identity.identity.enrollment_pending);
+    TEST_ASSERT_EQUAL_STRING("one-time-token", identity.identity.token);
+    TEST_ASSERT_EQUAL_STRING("", identity.identity.mqtt_password);
 }
 
 void test_S5_H04_network_change_on_an_enrolled_device_keeps_identity_and_mapping(void)
@@ -378,6 +398,7 @@ int main(void)
     RUN_TEST(test_failed_identity_save_leaves_the_old_network_and_the_old_bootstrap);
     RUN_TEST(test_failed_identity_save_on_a_blank_device_leaves_it_unconfigured);
     RUN_TEST(test_a_failed_save_does_not_leave_the_device_refusing_commands);
+    RUN_TEST(test_a_device_whose_identity_cannot_be_loaded_is_set_up_as_not_enrolled);
     RUN_TEST(test_S5_H04_network_change_on_an_enrolled_device_keeps_identity_and_mapping);
     RUN_TEST(test_S5_H05_enrollment_fields_are_ignored_on_an_enrolled_device);
     RUN_TEST(test_S5_H06_pending_enrollment_refuses_new_settings_until_reset);

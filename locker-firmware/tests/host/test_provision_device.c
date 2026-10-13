@@ -302,6 +302,20 @@ void test_S3_H10_enrolled_device_never_publishes_a_registration(void)
     TEST_ASSERT_EQUAL_UINT(0, gateway.registration_count);
 }
 
+void test_a_device_whose_identity_cannot_be_loaded_is_not_enrolled_and_never_registers(void)
+{
+    fake_identity_store_init(&store);
+    start();
+
+    TEST_ASSERT_EQUAL_INT(LC_PROVISION_IDLE, state());
+    TEST_ASSERT_FALSE(lc_provision_identity(&provision)->enrolled);
+    TEST_ASSERT_EQUAL_STRING("", lc_provision_identity(&provision)->token);
+    provoke_a_retry();
+    TEST_ASSERT_EQUAL_UINT(0, gateway.subscribe_count);
+    TEST_ASSERT_EQUAL_UINT(0, gateway.registration_count);
+    TEST_ASSERT_EQUAL_UINT(0, store.save_count);
+}
+
 int main(void)
 {
     UNITY_BEGIN();
@@ -315,5 +329,6 @@ int main(void)
     RUN_TEST(test_S3_H08_malformed_and_misdirected_replies_are_ignored);
     RUN_TEST(test_S3_H09_device_is_not_enrolled_if_saving_the_credentials_fails);
     RUN_TEST(test_S3_H10_enrolled_device_never_publishes_a_registration);
+    RUN_TEST(test_a_device_whose_identity_cannot_be_loaded_is_not_enrolled_and_never_registers);
     return UNITY_END();
 }

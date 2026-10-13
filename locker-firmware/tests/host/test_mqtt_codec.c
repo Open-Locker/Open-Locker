@@ -167,6 +167,12 @@ void test_S2_H06_hostile_payloads_are_rejected(void)
                              "\"timestamp\":\"2026-04-14T19:30:00Z\","
                              "\"data\":{\"compartment_number\":3}}"));
 
+    /* And one level down. */
+    TEST_ASSERT_FALSE(decode("{\"transaction_id\":\"t1\",\"message_id\":\"m1\","
+                             "\"action\":\"open_compartment\","
+                             "\"timestamp\":\"2026-04-14T19:30:00Z\","
+                             "\"data\":{\"compartment_number\":3,\"compartment_number\":4}}"));
+
     /* A NUL byte inside the payload, raw and escaped. */
     static const char WITH_NUL[] = "{\"transaction_id\":\"t1\"\0,\"message_id\":\"m1\"}";
     TEST_ASSERT_FALSE(lc_mqtt_decode_command(WITH_NUL, sizeof(WITH_NUL) - 1, &command));

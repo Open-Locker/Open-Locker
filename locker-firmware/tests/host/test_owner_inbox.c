@@ -157,6 +157,21 @@ void test_S2_H53_acknowledgement_for_an_unknown_or_delivered_response_changes_no
     TEST_ASSERT_EQUAL_UINT(1, fx_bus.unlock_count);
 }
 
+void test_connection_events_decide_whether_a_queued_command_runs(void)
+{
+    TEST_ASSERT_TRUE(post_publish_event(LC_EVENT_DISCONNECTED, 0));
+    TEST_ASSERT_TRUE(post_open(1, 1));
+    TEST_ASSERT_EQUAL_UINT(2, drain());
+    TEST_ASSERT_EQUAL_UINT(0, fx_bus.unlock_count);
+    TEST_ASSERT_NULL(fake_journal_entry(&fx_journal, "tx-1"));
+
+    TEST_ASSERT_TRUE(post_publish_event(LC_EVENT_CONNECTED, 0));
+    TEST_ASSERT_TRUE(post_open(2, 1));
+    TEST_ASSERT_EQUAL_UINT(2, drain());
+    TEST_ASSERT_EQUAL_UINT(1, fx_bus.unlock_count);
+    TEST_ASSERT_NOT_NULL(fake_journal_entry(&fx_journal, "tx-2"));
+}
+
 int main(void)
 {
     UNITY_BEGIN();
@@ -164,5 +179,6 @@ int main(void)
     RUN_TEST(test_S2_H51_full_inbox_drops_the_new_item_without_a_bus_call);
     RUN_TEST(test_S2_H52_owner_task_goes_on_while_an_acknowledgement_is_outstanding);
     RUN_TEST(test_S2_H53_acknowledgement_for_an_unknown_or_delivered_response_changes_nothing);
+    RUN_TEST(test_connection_events_decide_whether_a_queued_command_runs);
     return UNITY_END();
 }

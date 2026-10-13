@@ -152,6 +152,21 @@ void test_S2_H13_hash_mismatch_is_rejected(void)
     TEST_ASSERT_EQUAL_UINT(0, fx_config_store.save_count);
 }
 
+void test_a_hash_of_the_wrong_length_is_rejected(void)
+{
+    lc_command_t cut = fx_apply("tx-cut", "msg-cut", TWO, 2, LC_FEEDBACK_DOOR_CLOSING,
+                                FX_HEARTBEAT_SECONDS);
+    /* A correct beginning is not the hash. */
+    cut.config.hash[LC_SHA256_HEX_SIZE - 2] = '\0';
+
+    lc_app_handle_command(&fx_app, &cut);
+
+    TEST_ASSERT_EQUAL_INT(LC_ERROR_INVALID_CONFIG,
+                          fake_outbound_last_response(&fx_outbound)->error);
+    TEST_ASSERT_FALSE(lc_app_config(&fx_app)->applied);
+    TEST_ASSERT_EQUAL_UINT(0, fx_config_store.save_count);
+}
+
 void test_S2_H14_duplicate_numbers_and_duplicate_addresses_are_rejected(void)
 {
     static const lc_mapping_t SAME_NUMBER[] = {
@@ -257,6 +272,7 @@ int main(void)
     RUN_TEST(test_S2_H11_canonical_hash_of_the_example_equals_its_config_hash);
     RUN_TEST(test_S2_H12_input_order_does_not_change_the_hash);
     RUN_TEST(test_S2_H13_hash_mismatch_is_rejected);
+    RUN_TEST(test_a_hash_of_the_wrong_length_is_rejected);
     RUN_TEST(test_S2_H14_duplicate_numbers_and_duplicate_addresses_are_rejected);
     RUN_TEST(test_S2_H15_out_of_range_board_and_address_are_rejected);
     RUN_TEST(test_S2_H16_second_board_address_is_rejected);

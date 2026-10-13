@@ -5,7 +5,10 @@
 
 static bool flash_read(void *ctx, size_t offset, void *out, size_t length)
 {
-    const fake_flash_t *flash = ctx;
+    fake_flash_t *flash = ctx;
+    if (flash->reads_until_failure > 0 && --flash->reads_until_failure == 0) {
+        return false;
+    }
     if (offset > flash->capacity || length > flash->capacity - offset) {
         return false;
     }
@@ -59,4 +62,9 @@ void fake_flash_cut_power_after(fake_flash_t *flash, size_t bytes)
 void fake_flash_restore_power(fake_flash_t *flash)
 {
     flash->power_cut_armed = false;
+}
+
+void fake_flash_fail_read(fake_flash_t *flash, unsigned nth)
+{
+    flash->reads_until_failure = nth;
 }

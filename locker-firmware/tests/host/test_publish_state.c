@@ -398,6 +398,21 @@ void test_an_event_in_flight_at_a_disconnect_is_not_published_again_at_once(void
     TEST_ASSERT_EQUAL_UINT(2, fx_outbound.uncommanded_count);
 }
 
+void test_a_configuration_without_compartments_is_never_polled(void)
+{
+    static const lc_mapping_t NONE[1];
+    fx_connect();
+    const lc_command_t empty = fx_apply("tx-empty", "msg-empty", NONE, 0, LC_FEEDBACK_DOOR_CLOSING,
+                                        FX_HEARTBEAT_SECONDS);
+    lc_app_handle_command(&fx_app, &empty);
+    TEST_ASSERT_TRUE(lc_app_config(&fx_app)->applied);
+
+    fx_advance_acknowledging(2 * HEARTBEAT_MS);
+
+    /* There is no board address to ask. */
+    TEST_ASSERT_EQUAL_UINT(0, fx_bus.read_count);
+}
+
 int main(void)
 {
     UNITY_BEGIN();
@@ -415,5 +430,6 @@ int main(void)
     RUN_TEST(test_S4_H22_delayed_acknowledgement_does_not_turn_an_opening_into_a_jam);
     RUN_TEST(test_S4_H23_uncommanded_open_is_detected_with_an_acknowledgement_outstanding);
     RUN_TEST(test_an_event_in_flight_at_a_disconnect_is_not_published_again_at_once);
+    RUN_TEST(test_a_configuration_without_compartments_is_never_polled);
     return UNITY_END();
 }

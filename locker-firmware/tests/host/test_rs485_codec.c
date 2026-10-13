@@ -169,6 +169,23 @@ void test_S1_H10_addresses_beyond_the_status_bytes_are_unknown(void)
     }
 }
 
+void test_status_bits_beyond_the_last_address_are_ignored(void)
+{
+    /* 32 status bytes carry 256 bits, one more than there are addresses. */
+    uint8_t frame[2 + 32 + 2] = {0x80, 0x01};
+    memset(frame + 2, 0xFF, 32);
+    frame[34] = 0x33;
+    for (size_t i = 0; i < 35; ++i) {
+        frame[35] ^= frame[i];
+    }
+
+    TEST_ASSERT_TRUE(decode(frame, sizeof(frame), 1, LC_FEEDBACK_DOOR_CLOSING));
+
+    for (size_t address = 0; address < LC_RS485_ADDRESS_COUNT; ++address) {
+        TEST_ASSERT_EQUAL_INT(LC_DOOR_CLOSED, states[address]);
+    }
+}
+
 static void assert_rejected(const uint8_t *frame, size_t length, uint8_t board)
 {
     for (size_t i = 0; i < LC_RS485_ADDRESS_COUNT; ++i) {
@@ -211,6 +228,7 @@ int main(void)
     RUN_TEST(test_S1_H08_verified_query_all_response_decodes);
     RUN_TEST(test_S1_H09_status_bits_map_to_addresses_for_both_polarities);
     RUN_TEST(test_S1_H10_addresses_beyond_the_status_bytes_are_unknown);
+    RUN_TEST(test_status_bits_beyond_the_last_address_are_ignored);
     RUN_TEST(test_S1_H11_malformed_query_all_responses_are_rejected);
     return UNITY_END();
 }

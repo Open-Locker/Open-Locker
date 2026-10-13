@@ -358,6 +358,32 @@ void test_reply_still_arriving_at_the_deadline_is_outcome_unknown(void)
     TEST_ASSERT_EQUAL_UINT(1, fake_serial_write_count(&serial));
 }
 
+void test_read_error_before_transmission_is_not_sent_and_writes_nothing(void)
+{
+    fake_serial_fail_read(&serial, 1);
+    TEST_ASSERT_EQUAL_INT(LC_UNLOCK_NOT_SENT, unlock());
+    TEST_ASSERT_EQUAL_UINT(0, fake_serial_write_count(&serial));
+
+    /* The same while the settle period of a timed-out request is waited out. */
+    TEST_ASSERT_EQUAL_INT(LC_UNLOCK_OUTCOME_UNKNOWN, unlock());
+    fake_serial_fail_read(&serial, 1);
+    TEST_ASSERT_EQUAL_INT(LC_UNLOCK_NOT_SENT, unlock());
+    TEST_ASSERT_EQUAL_UINT(1, fake_serial_write_count(&serial));
+    TEST_ASSERT_EQUAL_UINT32(1, lc_rs485_bus_unlock_transmissions(&bus));
+}
+
+void test_read_error_while_waiting_for_the_reply_is_outcome_unknown_after_one_write(void)
+{
+    fake_serial_reply_to_write(&serial, 0, REPLY_MS, UNLOCK_ACK, sizeof(UNLOCK_ACK));
+    /* Quiet line, then the acknowledgement, then the read that should find its end fails. */
+    fake_serial_fail_read(&serial, 3);
+
+    TEST_ASSERT_EQUAL_INT(LC_UNLOCK_OUTCOME_UNKNOWN, unlock());
+
+    TEST_ASSERT_EQUAL_UINT(1, fake_serial_write_count(&serial));
+    TEST_ASSERT_TRUE(port.connection_state(port.ctx) != LC_BUS_CONNECTED);
+}
+
 void test_unsupported_feedback_profile_is_refused(void)
 {
     const lc_hardware_profile_t profile = {.feedback = (lc_feedback_t)7};
@@ -392,6 +418,8 @@ int main(void)
     RUN_TEST(test_invalid_target_is_not_sent_and_writes_nothing);
     RUN_TEST(test_unlock_acknowledgement_is_not_an_answer_to_a_query);
     RUN_TEST(test_reply_still_arriving_at_the_deadline_is_outcome_unknown);
+    RUN_TEST(test_read_error_before_transmission_is_not_sent_and_writes_nothing);
+    RUN_TEST(test_read_error_while_waiting_for_the_reply_is_outcome_unknown_after_one_write);
     RUN_TEST(test_unsupported_feedback_profile_is_refused);
     return UNITY_END();
 }

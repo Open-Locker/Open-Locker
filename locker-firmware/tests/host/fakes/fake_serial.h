@@ -46,6 +46,7 @@ typedef struct {
     size_t write_count;
     bool override_next_write;
     int next_write_result;
+    unsigned reads_until_error;
     uint32_t write_duration_ms;
     uint32_t noise_period_ms;
     int64_t noise_until_ms;
@@ -62,6 +63,8 @@ void fake_serial_reply_to_write(fake_serial_t *fake, size_t write_index, uint32_
                                 const uint8_t *data, size_t length);
 /* The next write returns `result` instead of accepting every byte. */
 void fake_serial_set_next_write_result(fake_serial_t *fake, int result);
+/* The `nth` read from now returns an error, counting from 1. */
+void fake_serial_fail_read(fake_serial_t *fake, unsigned nth);
 /* Every write returns this long after it started, as a UART waiting for the last bit does. */
 void fake_serial_set_write_duration(fake_serial_t *fake, uint32_t milliseconds);
 /* One byte of noise every `period_ms` until `until_ms`, whatever else is scripted. */
