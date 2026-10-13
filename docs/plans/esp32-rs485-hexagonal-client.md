@@ -33,8 +33,8 @@ Two points in the issue text need a decision before work starts:
 
 ### 1.2 Bench hardware
 
-- ESP32 D1 mini development board with onboard USB programming (PlatformIO
-  board `wemos_d1_mini32`).
+- ESP32 D1 mini development board with onboard USB programming (ESP-IDF
+  target `esp32`).
 - XY-485 automatic-direction converter on the ESP32's 3V3, 3.3 V UART levels.
   There is no DE/RE line for the firmware to drive.
 - RS485 locker control panel on its own supply; seller documentation specifies
@@ -84,9 +84,9 @@ a microcontroller rather than ported:
 
 Before slice 1 starts:
 
-1. PlatformIO Core, Node, CMake, and a host C compiler are installed. Nothing
-   in this plan can be built or tested without them. PlatformIO is itself a
-   Python program and needs Python installed; the project adds no Python code
+1. ESP-IDF, Node, CMake, and a host C compiler are installed. Nothing
+   in this plan can be built or tested without them. ESP-IDF is itself driven
+   by a Python program (`idf.py`) and needs Python installed; the project adds no Python code
    of its own. Project tooling is written for Node, which the repository
    already uses.
 2. An unmodified ESP-IDF example builds for the board, proving the toolchain.
@@ -99,7 +99,7 @@ Before slice 1 starts:
 
 ## 2. Approach
 
-Use C on ESP-IDF, built through PlatformIO, with the toolchain versions pinned
+Use C on ESP-IDF, built with ESP-IDF's own tooling (`idf.py`), with the toolchain versions pinned
 in slice 1. Share the MQTT schemas in `docs/asyncapi/` and the RS485 golden
 frames with the Pi client; share no code.
 
@@ -968,7 +968,7 @@ security (slice 6), each get an ADR in their slice.
 | Owner task | The single task that runs all application logic, so no two commands can interleave. See 3.4. |
 | Partition | A fixed region of flash reserved for one purpose, such as the firmware image or the journal. |
 | Persistent session | An MQTT setting under which the broker keeps messages for a device while it is offline and delivers them on reconnect. |
-| PlatformIO | The build and flashing tool used to compile the firmware and load it onto the board. |
+| ESP-IDF | Espressif's SDK. Its `idf.py` tool compiles the firmware and loads it onto the board. |
 | Port | An interface the application defines for something it needs from outside. In C here, a struct of function pointers. |
 | Provisioning token | The one-time secret created in the backend that lets a new device enroll. |
 | PUBACK | The broker's acknowledgement that it received a published message. |

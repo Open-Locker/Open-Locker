@@ -16,7 +16,7 @@ This is bench firmware. Read [Limits](#limits) before you put a lock on it.
 
 | Part | Notes |
 | --- | --- |
-| ESP32 D1 mini | PlatformIO board `wemos_d1_mini32`, USB data cable |
+| ESP32 D1 mini | ESP-IDF target `esp32`, USB data cable |
 | XY-485 converter | Automatic direction: no DE/RE pin to drive. Powered from the ESP32's 3V3 |
 | RS485 lock panel | Own supply; check the seller's documentation for the voltage |
 | A lock on channel 1 | The panel times the release pulse; the firmware only sends commands |
@@ -34,21 +34,27 @@ A and B of the converter go to A and B of the panel. UART 0 is the USB console
 and cannot be used for the bus. The serial parameters default to 9600 baud, 8N1
 and the timing to `components/lc_rs485_lock_board/Kconfig`; **none of these has
 been confirmed against the panel yet** (plan, section 1.5). Change them with
-`pio run -t menuconfig`.
+`idf.py menuconfig`.
 
 ## Build and test
 
 ```bash
 node scripts/verify.mjs               # static and host gates, and the target build
-node scripts/verify.mjs --skip-target # without PlatformIO
-pio run -d .                          # target build only
-pio run -d . -t upload                # flash the board
-pio device monitor                    # console and log, 115200 baud
+node scripts/verify.mjs --skip-target # without ESP-IDF
+idf.py build                          # target build only
+idf.py -p COM3 flash                  # flash the board
+idf.py -p COM3 monitor                # console and log, 115200 baud
 ```
 
-`verify.mjs` is the one command CI runs. It needs Node 20 or later, CMake, and a
-C compiler (clang or gcc) for the host gates, and PlatformIO for the target
-build. It checks the plan IDs of the tests, the layer rules (see below), static
+Run the `idf.py` commands from an ESP-IDF 5.4 shell (see Espressif's
+[getting started guide](https://docs.espressif.com/projects/esp-idf/en/v5.4/esp32/get-started/)),
+or without installing it, in Docker:
+`docker run --rm -v "$PWD:/project" -w /project espressif/idf:v5.4 idf.py build`.
+
+`verify.mjs` is the one command for the gates. CI runs it with `--skip-target`
+and builds the target in a separate step with the ESP-IDF container. It needs
+Node 20 or later, CMake, and a C compiler (clang or gcc) for the host gates,
+and an ESP-IDF shell for the target build. It checks the plan IDs of the tests, the layer rules (see below), static
 analysis of the pure components, the host suites with AddressSanitizer and
 UndefinedBehaviorSanitizer, every encoded MQTT message against its AsyncAPI
 schema, the Node tests of the tools, and line coverage of at least 90 % for the

@@ -6,7 +6,7 @@
  * docs/plans/esp32-rs485-hexagonal-client.md. Node built-ins only.
  *
  *     node scripts/verify.mjs                 # everything, as CI runs it
- *     node scripts/verify.mjs --skip-target   # without the PlatformIO build
+ *     node scripts/verify.mjs --skip-target   # without the ESP-IDF build
  *
  * The host build uses the default CMake generator and C compiler. Set the
  * CMAKE_GENERATOR and CC environment variables to choose others.
@@ -450,13 +450,13 @@ function checkCoverage() {
   return errors;
 }
 
-/** PlatformIO build for the board, with warnings as errors. */
+/** ESP-IDF build for the board. Needs an ESP-IDF shell, with `idf.py` on the PATH. */
 function checkTargetBuild() {
-  const tool = which('pio') ?? which('platformio');
+  const tool = which('idf.py');
   if (tool === null) {
-    return ['PlatformIO not found; install it or pass --skip-target'];
+    return ['idf.py not found; run from an ESP-IDF shell or pass --skip-target'];
   }
-  return run([tool, 'run', '-d', ROOT]) ? [] : ['target build failed'];
+  return run([tool, 'build']) ? [] : ['target build failed'];
 }
 
 function main() {

@@ -3,7 +3,7 @@
   "private": true,
   "packageManager": "pnpm@9.0.0",
   "type": "module",
-  "description": "Host-side tools of the locker firmware: gates, commissioning, broker check. The firmware itself is built with PlatformIO.",
+  "description": "Host-side tools of the locker firmware: gates, commissioning, broker check. The firmware itself is built with ESP-IDF.",
   "engines": {
     "node": ">=20"
   },

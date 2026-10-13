@@ -50,23 +50,15 @@ jobs:
           cache: pnpm
           cache-dependency-path: locker-firmware/pnpm-lock.yaml
 
-      # PlatformIO is a Python program; the project has no Python code of its own.
-      - name: Setup Python
-        uses: actions/setup-python@v6
-        with:
-          python-version: '3.12'
-
-      - name: Cache PlatformIO packages
-        uses: actions/cache@v5
-        with:
-          path: ~/.platformio
-          key: platformio-${{ runner.os }}-${{ hashFiles('locker-firmware/platformio.ini') }}
-
-      - name: Install PlatformIO Core
-        run: pip install platformio==6.1.18
-
       - name: Install tool dependencies
         run: pnpm install --frozen-lockfile
 
       - name: Run static and host gates
-        run: node scripts/verify.mjs
+        run: node scripts/verify.mjs --skip-target
+
+      - name: Build the firmware with ESP-IDF
+        uses: espressif/esp-idf-ci-action@v1
+        with:
+          esp_idf_version: v5.4
+          target: esp32
+          path: locker-firmware
