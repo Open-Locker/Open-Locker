@@ -2,7 +2,7 @@
 
 ## Status
 
-Proposed
+Accepted
 
 ## Date
 
@@ -180,7 +180,8 @@ are unchanged; inbound handlers derive the organization from the locker bank.
 
 - Single-organization installations keep their behavior; existing admins
   become `admin` of the default organization and `platform_admin`.
-- Isolation is enforced by the database, not only by services.
+- The database rejects cross-organization relationships, not only services.
+  Read isolation still depends on scoped queries.
 - Replays stay deterministic.
 - Each slice can be reviewed and merged on its own.
 
