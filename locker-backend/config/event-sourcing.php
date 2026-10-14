@@ -7,6 +7,7 @@ use App\Projectors\CompartmentOpenRequestProjector;
 use App\Projectors\CompartmentProjector;
 use App\Projectors\GroupProjector;
 use App\Projectors\LockerBankProjector;
+use App\Projectors\OrganizationMembershipProjector;
 use App\Projectors\TermsProjector;
 use App\Projectors\UserRoleProjector;
 use App\Reactors\CommandResponseReactor;
@@ -61,6 +62,7 @@ return [
         GroupProjector::class,
         TermsProjector::class,
         UserRoleProjector::class,
+        OrganizationMembershipProjector::class,
     ],
 
     /*
