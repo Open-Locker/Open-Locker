@@ -363,7 +363,7 @@ runtime admin action that survives deploys — previously impossible.
 
 - Supersedes: none (first authorization-model ADR; extends the binary
   `is_admin_since` flag).
-- Superseded by: none
+- Superseded by: ADR-0067 in part (`admin` as a global super-role in `Gate::before`)
 
 ## References
 
