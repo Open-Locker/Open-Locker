@@ -14,14 +14,14 @@ import { HelperText, Text, useTheme } from 'react-native-paper';
 
 import LogoOpenLocker from '@/assets/images/logo_open_locker.svg';
 import { getApiBaseUrl } from '@/src/api/baseUrl';
+import { LoginResponseError, sessionFromLoginResponse } from '@/src/auth/loginSession';
+import { getApiErrorMessage } from '@/src/store/apiErrorMessage';
 import { persistAuth } from '@/src/store/authStorage';
 import { setCredentials } from '@/src/store/authSlice';
 import { openLockerApi, useIdentifyQuery, usePostLoginMutation } from '@/src/store/generatedApi';
 import { useAppDispatch, useAppSelector } from '@/src/store/hooks';
 import { OPEN_LOCKER_DESIGN_TOKENS } from '@/src/theme/tokens';
 import { AppButton, AppTextInput, LanguageToggle } from '@/src/ui';
-import { formatUserName } from '@/src/utils/userName';
-import { getApiErrorMessage } from '@/src/store/apiErrorMessage';
 
 export default function SignInScreen() {
   const { t } = useTranslation();
@@ -70,9 +70,9 @@ export default function SignInScreen() {
         },
       }).unwrap();
 
-      const userName = formatUserName(res.first_name, res.last_name);
-      await persistAuth(res.token, userName);
-      dispatch(setCredentials({ token: res.token, userName }));
+      const session = sessionFromLoginResponse(res);
+      await persistAuth(session.token, session.userName);
+      dispatch(setCredentials(session));
 
       const userRequest = dispatch(openLockerApi.endpoints.getUser.initiate({}));
       const user = await userRequest.unwrap();
@@ -81,7 +81,11 @@ export default function SignInScreen() {
         router.replace('/terms' as never);
       }
     } catch (e) {
-      setError(getApiErrorMessage(e, t, { overrides: { 422: 'auth.invalidEmailOrPassword' } }));
+      setError(
+        e instanceof LoginResponseError
+          ? t('auth.sessionStoreFailed')
+          : getApiErrorMessage(e, t, { overrides: { 422: 'auth.invalidEmailOrPassword' } }),
+      );
     } finally {
       setIsSubmitting(false);
     }

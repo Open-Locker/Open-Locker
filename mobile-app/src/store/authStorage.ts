@@ -1,3 +1,4 @@
+import { LoginResponseError } from '@/src/auth/loginSession';
 import { deleteItem, getItem, setItem } from '@/src/auth/storage';
 
 const TOKEN_KEY = 'open-locker.token';
@@ -9,6 +10,10 @@ export async function loadPersistedAuth() {
 }
 
 export async function persistAuth(token: string, userName: string): Promise<void> {
+  if (typeof token !== 'string' || token.length === 0 || typeof userName !== 'string') {
+    throw new LoginResponseError();
+  }
+
   await Promise.all([setItem(TOKEN_KEY, token), setItem(USERNAME_KEY, userName)]);
 }
 
