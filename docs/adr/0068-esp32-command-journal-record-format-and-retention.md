@@ -6,7 +6,7 @@ Proposed
 
 ## Date
 
-2026-10-12
+2026-10-15 (first draft 2026-10-12)
 
 ## Context
 
@@ -21,9 +21,9 @@ The ESP32 firmware (`locker-firmware/`, `docs/plans/esp32-rs485-hexagonal-client
 section 3.5) has no filesystem and no atomic rename. Its flash:
 
 - is written in small units, and a write can be cut short by a power loss at any
-  byte;
-- can only clear bits until a whole sector is erased, and an erase touches
-  4 KiB at a time and wears the sector out;
+  byte, leaving bytes partly programmed;
+- can only clear bits until a whole 4 KiB sector is erased, and every erase
+  wears the sector (Espressif states about 100,000 cycles);
 - reads erased bytes as `0xFF`.
 
 The journal has to give the application three guarantees (plan section 2.2):
@@ -35,17 +35,69 @@ The journal has to give the application three guarantees (plan section 2.2):
 and one rule about failure: a corrupt journal must stop all actuation, because
 the firmware can no longer know which commands it has run.
 
-The first version has to be small enough to verify by host tests that cut a
-write at every byte, and conservative enough that it never makes an unlock more
-likely.
+The first draft of this ADR never pruned: after 64 commands for the life of the
+device it refused every new command, and any damaged record, including one torn
+by an ordinary power cut, stopped actuation until an operator erased the
+partition. Both make the firmware unusable outside a bench. This version keeps
+the record format and the guarantees and replaces the torn-write handling and
+the retention. The research behind each decision, with sources, is in
+`docs/plans/esp32-journal-retention-research.md`.
+
+How late a duplicate can arrive decides what may be forgotten:
+
+- The backend publishes each command once; a queue retry (`--tries=3`) can
+  publish the same transaction again under a new message ID shortly after.
+- The firmware keeps a persistent MQTT session, so the broker queues commands
+  for an offline unit and resends unacknowledged ones on reconnect (MQTT 3.1.1,
+  [MQTT-3.1.2-5], [MQTT-4.4.0-1]). The broker configuration sets no
+  `persistent_client_expiration`, and Mosquitto's default is to never expire.
+- esp-mqtt sends the PUBACK of a command after the event handler returns, and
+  the handler only queues the command for the owner task. A crash in between
+  loses the command (no actuation, no response, the backend times out); it
+  never duplicates it.
+
+So duplicates are recent in command count in practice, but nothing bounds them
+in time until commands carry an age the device can check (#134).
 
 ## Decision
 
-The journal is an append-only log in its own flash partition (`journal`, 256 KiB
-in `partitions.csv`). It sits behind a two-function flash I/O struct (`read`,
-`write`) so that the same code runs on a host against a memory fake. Nothing is
-ever erased or rewritten by the journal. The partition is read completely at
-start into a bounded index in RAM.
+The journal is a log of records in its own flash partition (`journal`, 256 KiB,
+ADR-0069), split into two regions of 128 KiB. One region is active and only
+appended to; the other is spare. When the active region fills, the records
+still needed are copied into the spare region, which then becomes active. The
+journal sits behind a flash I/O struct (`read`, `write`, `erase`) so the same
+code runs on a host against a memory fake.
+
+### Regions
+
+Each region starts with a 16-byte header:
+
+| Offset | Size | Content |
+| --- | --- | --- |
+| 0 | 4 | Magic `OLJR` |
+| 4 | 1 | Format version `0x01` |
+| 5 | 3 | `0xFF` |
+| 8 | 4 | Generation, little endian, 1 to `0xFFFFFFFE` |
+| 12 | 4 | CRC-32 (IEEE) of bytes 0 to 11, little endian |
+
+Records follow from offset 16. A region's header is written **last**, after all
+its records, so a region is valid only once it is complete.
+
+At start:
+
+- One valid header: that region is active; the other is spare.
+- Two valid headers: the higher generation is active (a restart between
+  committing a new region and invalidating the old one). Equal generations mark
+  the journal unhealthy.
+- No valid header, and nothing programmed outside the first 16 bytes of
+  region A: an empty journal (never used, or its first header write was cut).
+  The first append writes generation 1 to region A, erasing it first if needed.
+- No valid header and any record byte programmed: the journal is unhealthy. A
+  corrupt header must never be read as "nothing was done".
+
+The generation is a `uint32_t` compared with `>`. Each compaction erases one
+region, so the flash wears out after about 200,000 compactions, far below a
+wrap.
 
 ### Record format, version 1
 
@@ -69,85 +121,135 @@ bytes) and single bytes:
 - delivered: transaction ID;
 - message: transaction ID, a further message ID for it.
 
-Every text is at most 128 bytes and holds no NUL.
+Every text is at most 128 bytes and holds no NUL. The largest record is
+331 bytes. The checks do not cover the record's position, so a record can be
+copied unchanged into another region.
 
 ### Writing
 
 A record is written as two writes: everything up to the check, then the commit
-marker on its own. A record exists only when its marker is present. If either
-write fails, the journal marks itself unhealthy in memory and refuses every
-further operation until the next start; it does not guess how far the write got.
-A call returns true only after the marker is written.
+marker on its own. A record exists only when its marker is present. If a write
+or an erase fails, the journal marks itself unhealthy in memory and refuses
+every further operation until the next start. A call returns true only after
+the marker is written.
 
 ### Reading and torn writes
 
-At start the journal scans from the first byte:
+At start the active region is scanned from offset 16. Only the record that
+reaches the last programmed byte of the region (the *tail*) may be torn:
 
-1. `0x00` bytes are skipped (void bytes, below).
-2. `0xFF` ends the log, and every byte after it must be `0xFF`.
-3. Any other first byte must be the magic.
-4. Header and trailer are checked. A header that fails its check, an unknown
-   version or type, a payload length above the maximum, a record that does not
-   fit the partition, a missing or foreign commit marker, or a failing record
-   check **marks the journal unhealthy**.
-5. A record whose marker is still erased (`0xFF`), with nothing programmed behind
-   it, is the one case that is not corruption: it is a write cut short. It is a
-   *torn tail*, it is ignored, and the journal is healthy. Because a claim is
-   committed before the unlock is sent, a torn claim means nothing was done, and
-   the command can be sent again by the backend. Nothing is wrongly reported as
-   done.
-6. Each committed record is applied to the index. A record that is intact but
-   makes no sense (a claim for a known transaction or message ID, a completion
-   or delivery for a transaction that is not in the state to receive it, an
-   error code that does not exist) marks the journal unhealthy.
+1. `0xFF` ends the log, and every byte after it must be `0xFF`.
+2. A record that passes every check and ends in `0xC3` is committed.
+3. The tail record is **torn**, not corrupt, when it does not end in a valid
+   `0xC3` marker: its marker is erased or partly programmed, or its header is
+   damaged and the last programmed byte lies within 331 bytes of its start. A
+   torn record is ignored and the journal is healthy.
+4. Everything else marks the journal unhealthy: a damaged record followed by
+   any programmed byte, a record that ends in `0xC3` but fails a check, an
+   unknown version or type, and a record that is intact but makes no sense (a
+   claim for a known transaction or message ID, a completion or delivery for a
+   transaction that is not in the state to receive it, an error code that does
+   not exist).
 
-Opening writes nothing.
+Ignoring a torn record is safe because of the write order: nothing acts on a
+record before its marker write has returned. A torn claim means no unlock was
+sent. A torn completion leaves an interrupted command, answered with an
+unknown outcome (ADR-0041). A torn delivered record means the response is
+published again, and the backend deduplicates by transaction ID.
 
-Appending after a torn tail first writes `0x00` over the debris, so the next
-record can start behind it and the scan can skip it (step 1). The first append
-after a torn tail therefore performs one extra write. If power is lost again
-during that cleanup, the remains cannot be told from corruption and the journal
-is unhealthy at the next start. This is deliberate: fail closed, and the
-probability is a second power loss within milliseconds of the first.
+Torn debris is never overwritten. After a torn tail, the next append first
+compacts, which leaves the debris behind in the old region.
 
-Every single-bit corruption of a programmed byte is detected: the magic, the
+Every single-bit corruption of a committed record is detected: the magic, the
 commit marker and the type are compared exactly, the header check covers the
-length, and the record check covers the payload. A host test clears every bit of
-every programmed byte in turn.
+length, and the record check covers the payload. Since a committed record ends
+in `0xC3`, a bit error inside it can never be mistaken for a torn tail.
+
+### Retention
+
+Transactions fall into two kinds:
+
+- **Open**: claimed with no completion (unknown outcome), or completed and not
+  yet delivered. An open transaction is never forgotten. At most 32 are kept;
+  when that limit is reached, new claims are refused with `UNKNOWN_ERROR` while
+  stored responses are still replayed and delivered. The limit clears itself as
+  the broker acknowledges the responses.
+- **Delivered**: completed and acknowledged by the broker. Only these are
+  pruned, oldest first by log order, and only during compaction. The newest
+  256 delivered transactions are always kept, as long as they fit the snapshot
+  budget below.
+
+A pruned transaction is forgotten completely. A copy of it arriving later is
+treated as a new command. This is the accepted residual risk of this ADR: a
+duplicate would have to arrive after 256 newer delivered commands, which the
+redelivery paths in the context do not produce, but nothing rules out. It
+closes when commands carry a timestamp and the device refuses commands older
+than a bound *T* (#134): then retention also requires a delivered transaction
+to be older than *T* plus a clock margin, measured on SNTP time. Until then,
+nothing is pruned by time.
+
+Message IDs are kept with their transaction: the claim's message ID and every
+later message ID for the same transaction (at most 512 in total). When the
+message limit is reached, a further message ID is not recorded; the transaction
+ID still deduplicates the command.
+
+`apply_config`, and later the OTA update command (#59), are commands like any
+other and use transactions.
+
+### Compaction
+
+1. **Spare ready.** The spare region is erased ahead of time, one 4 KiB sector
+   per idle tick of the owner task, header sector first. After the last sector
+   it is read back; it is *ready* only if every byte reads `0xFF`. This state is
+   kept in RAM only: after a restart the spare is erased again. If the
+   blank check fails twice, the journal is unhealthy.
+2. **When.** Compaction runs when the owner task is idle and the active region
+   is more than 75 % full, and before an append that would not fit the room
+   reserved for open transactions, or that follows a torn tail. If the spare is
+   not ready at that moment, the claim is refused with `UNKNOWN_ERROR`.
+3. **Copy.** Into the spare, after its header space, the retained records are
+   copied byte for byte in log order: every record of the open transactions,
+   then the claim, completion, delivered and message records of the newest
+   delivered transactions, until 256 are kept or the copy reaches 64 KiB.
+   Torn debris and pruned transactions are not copied.
+4. **Commit.** The spare's header is written with generation + 1. From this
+   write on, the new region is active.
+5. **Invalidate.** The old region's header sector is erased at once. The rest of
+   the old region is erased ahead as the next spare (step 1).
+
+A power cut before step 4 leaves the old region active and the half-written
+spare without a header; it is erased again. A power cut between steps 4 and 5
+leaves two valid headers, and the higher generation wins. Step 5 shortens that
+window to one erase.
+
+A claim is accepted only if the active region has room for it **and** for the
+completion and delivered records of every open transaction, each at its largest
+size for its IDs. A message record may use only room that is not reserved this
+way.
+
+### Index in RAM
+
+The scan builds an index that holds no ID texts and no responses:
+
+- per transaction: an 8-byte hash of the transaction ID, its state, and the
+  flash offsets of its claim and completion records;
+- per message ID: an 8-byte hash and the index of its transaction.
+
+A hash match is confirmed by reading the claim (or message) record from flash
+and comparing the full ID; a collision is just a mismatch. A replay reads the
+stored response from the completion record. A failed read marks the journal
+unhealthy. For 288 transactions and 512 message IDs the index is about 12 KiB,
+allocated statically.
 
 ### What unhealthy means
 
 An unhealthy journal answers every command with `UNKNOWN_ERROR` and never calls
-the bus. It repairs itself in no way. Recovery is an operator action: erase the
-`journal` partition (for example `esptool.py erase_region`) and commission the
-device again. The journal is the only state that a network reset (plan slice 5)
-keeps.
-
-### Retention and capacity
-
-The first version is bounded and does not prune.
-
-- At most 64 transactions and 128 message IDs are kept. A message ID is kept for
-  the claim of its transaction and for each later redelivery of that transaction
-  under a new message ID.
-- There is no pruning by wall-clock time, no compaction and no automatic erase.
-  Time is not trusted on the device before SNTP, and an erase would destroy the
-  evidence the journal exists to keep.
-- A claim is accepted only if the partition has room for it **and** for the
-  completion and delivered records of every claim in the journal that does not
-  have them yet, each at its largest size for its IDs. A claim that was accepted
-  can therefore always be completed and delivered.
-- A message record may use only room that is not reserved this way.
-- When the transaction limit or the room is reached, new claims are refused. The
-  application answers them with `UNKNOWN_ERROR`; stored responses are still
-  replayed, and delivery of stored responses goes on.
-- `apply_config` is a command like any other and uses a transaction.
-
-Largest sizes at these limits: a claim record is 301 bytes, a completion 238, a
-delivered 140, a message 269. 64 transactions and 64 further message IDs need
-about 61 KiB, so the transaction limit, not the 256 KiB partition, is what
-fills first. In RAM the index is about 43 KiB (entries with their stored
-results, and the message IDs), allocated statically.
+the bus. It repairs itself in no way. With the torn-tail rule above, it means
+damage a power cut cannot cause: a failed flash operation, a bit error, or a
+software bug. Recovery is an operator action: erase the partition with
+`parttool.py --port <port> --partition-table-offset 0xC000 erase_partition --partition-name journal`
+and commission the device again. The journal is the only state that a network
+reset (plan slice 5) keeps.
 
 ## Alternatives Considered
 
@@ -155,30 +257,29 @@ results, and the message IDs), allocated statically.
 
 - Pros: ships with ESP-IDF, handles wear levelling and power loss itself.
 - Cons: no multi-record atomicity (a claim and its message ID are two keys),
-  garbage collection erases and rewrites pages, and a full store has no
-  defined "refuse but keep everything" mode. Entries cannot be shown to be
-  uncorrupted from the application.
-- Why not chosen: the journal must be able to prove that a record was never
-  rewritten, and to be cut at every byte in a host test. NVS stays in use for
-  small settings and credentials.
+  garbage collection moves entries at times the journal does not control, and a
+  full store has no defined "refuse but keep everything" mode.
+- Why not chosen: the journal must decide what may be forgotten, and must be
+  cut at every byte in a host test. NVS stays in use for small settings and
+  credentials.
 
 ### Alternative B: A filesystem (LittleFS or SPIFFS) on the partition
 
 - Pros: familiar files, built-in wear levelling.
-- Cons: copy-on-write and garbage collection rewrite data the journal wants to
-  keep verbatim; a large dependency whose power-loss behaviour is not covered by
-  our tests; no cheap way to run it on a host in the test gate.
-- Why not chosen: more code and more states than an append-only log, for a
-  feature the journal does not need.
+- Cons: a large dependency whose power-loss behaviour is not covered by our
+  tests; no cheap way to run it on a host in the test gate.
+- Why not chosen: the journal borrows littlefs's metadata-pair idea without
+  the rest of a filesystem.
 
-### Alternative C: A ring log that erases the oldest sector
+### Alternative C: A sector ring with live records copied forward
 
-- Pros: unlimited lifetime without operator action.
-- Cons: erasing the oldest sector forgets transactions that may still be
-  redelivered by the backend, which makes a second unlock possible. It also
-  wears flash with every command.
-- Why not chosen: forgetting is the failure the journal exists to prevent. A
-  compaction scheme that is safe needs its own decision (below).
+- Pros: uses more of the partition; the established scheme of Zephyr NVS and
+  ZMS and of ESP-IDF NVS pages.
+- Cons: a transaction spans several records that may sit in different sectors,
+  so copying forward and deciding what is still live involves many more states
+  under power loss than two regions with one header each.
+- Why not chosen: the retained set (at most 64 KiB) fits half the partition,
+  and two regions keep the cut-every-byte tests small.
 
 ### Alternative D: RAM only, with the Pi client's retention
 
@@ -187,56 +288,98 @@ results, and the message IDs), allocated statically.
   would be executed again.
 - Why not chosen: it breaks guarantee 1 outright.
 
+### Alternative E: Never prune (the first draft of this ADR)
+
+- Pros: forgets nothing.
+- Cons: the unit refuses all commands after 64, and the only remedy, erasing
+  the partition, forgets everything at once.
+- Why not chosen: bounded retention with a named residual risk forgets less in
+  practice than the operator erase it replaces.
+
+### Alternative F: Retention by age, like the Pi client (30 days)
+
+- Pros: matches ADR-0046.
+- Cons: the device has no trusted time before SNTP, and an age limit without a
+  matching limit on accepted commands still lets an old queued command arrive
+  after its record is gone (RFC 4120, section 3.2.3).
+- Why not chosen: it waits for #134, and is then added on top of the count.
+
 ## Consequences
 
 ### Positive
 
 - The three durability guarantees hold by construction and are tested by cutting
-  every write at every byte.
+  every write and every erase at every byte.
+- An ordinary power cut never stops actuation.
+- The journal runs indefinitely without operator action.
 - A corrupt record cannot be mistaken for a valid one by a single bit error.
-- The code is small, pure C, and runs on a host unchanged.
-- Flash is never erased, so the partition does not wear.
+- The index needs about 12 KiB of RAM instead of 43 KiB.
+- The code is pure C and runs on a host unchanged.
 
 ### Negative
 
-- After 64 commands (including `apply_config`) the device refuses new commands.
-  This is a hard limit of the first version, and it makes the firmware suitable
-  for a bench and an attended pilot only. The partition can be erased by an
-  operator.
-- A torn write at the wrong moment costs a few bytes; a second power loss during
-  cleanup costs the journal.
-- 43 KiB of RAM for the index.
+- A duplicate that arrives after 256 newer delivered commands is executed
+  again, until #134.
+- Up to 32 undelivered responses: while the broker is unreachable for long, new
+  commands are refused.
+- A replay and every duplicate check cost a flash read.
+- Each compaction erases one region: with UUID IDs, more than nine years of
+  continuous commands at ten per minute before the flash wears out.
+- The partition stays unencrypted when flash encryption is turned on: encrypted
+  writes go in 16-byte blocks, which records of any length do not fit. The
+  journal holds no secrets.
 
 ### Risks
 
-- Real flash may not fail like the fake: a partially programmed byte, or an
-  unordered write. The first is caught by the exact-match bytes and the checks
-  (fail closed); both are exercised on the device by hardware checks HW-B4 and
-  HW-B5.
-- The 64-transaction limit may be hit sooner than expected if the backend sends
-  `apply_config` often. HW-G1 (72 hours, an open every ten minutes, 432 commands)
-  would exceed it by design, so the test needs either the follow-up below or a
-  journal erase between runs. The follow-up decision should come before an
-  unattended pilot.
+- Real flash may not fail like the fake: an unordered write, or an erase that
+  reports success and leaves bits set. The first is caught by the checks and the
+  marker; the second by the blank check. Both are exercised on the device by
+  HW-B4 and HW-B5, and compaction by a hardware endurance run (HW-G1).
+- A sector erase can take up to about 500 ms (ESP-IDF driver timeouts; no
+  typical figure is published). Erasing one sector per idle tick keeps the
+  owner task well inside the 5 s task watchdog.
+- Whether the esp-mqtt version bundled with ESP-IDF v5.4 sends the PUBACK after
+  the handler, as upstream does, is not verified. Either way it decides only
+  whether a crash loses a command, never whether it is executed twice.
 
 ## Rollout / Migration
 
-The record format carries a version byte. A device with a journal of an unknown
-version reports it unhealthy and does not actuate. There is no migration from
-the Pi client's files: a Pi client and an ESP32 never share a bank at the same
-time (plan section 5.1, HW-G2).
+No unit is deployed, and this ADR was never accepted, so version 1 of the
+format is redefined rather than versioned. Bench boards need a full erase,
+which ADR-0069 already requires. A device with a journal of an unknown version
+reports it unhealthy and does not actuate. There is no migration from the Pi
+client's files: a Pi client and an ESP32 never share a bank at the same time
+(plan section 5.1, HW-G2).
 
 ## Supersedes / Superseded By
 
 - Supersedes: none. Follows ADR-0046 for the ESP32 firmware.
-- Superseded by: none. A compaction or rotation scheme, which has to keep every
-  transaction the backend can still redeliver, needs a new ADR that supersedes
-  the retention part of this one.
+- Superseded by: none. When #134 lands, the age condition in Retention is
+  enabled in a new ADR that amends this one.
 
 ## References
 
-- Related PRs: Open-Locker/Open-Locker#56 (ESP32 RS485 client)
-- Related issues: #56, #58
-- Related docs: `docs/plans/esp32-rs485-hexagonal-client.md` (sections 2.2, 3.5, 4),
-  ADR-0040, ADR-0041, ADR-0046, ADR-0005
+- Related PRs: Open-Locker/Open-Locker#321
+- Related issues: #56, #58, #59, #134
+- Related docs: `docs/plans/esp32-rs485-hexagonal-client.md` (sections 2.2, 3.5,
+  4), `docs/plans/esp32-journal-retention-research.md`, ADR-0040, ADR-0041,
+  ADR-0046, ADR-0069
 - Code: `locker-firmware/components/lc_journal/journal.c`
+- Torn tail: [LevelDB log reader](https://github.com/google/leveldb/blob/main/db/log_reader.cc),
+  [SQLite WAL format](https://www.sqlite.org/walformat.html),
+  [RocksDB WAL recovery modes](https://github.com/facebook/rocksdb/wiki/WAL-Recovery-Modes),
+  [PostgreSQL xlogrecovery.c](https://github.com/postgres/postgres/blob/master/src/backend/access/transam/xlogrecovery.c)
+- Two regions and compaction: [littlefs DESIGN.md](https://github.com/littlefs-project/littlefs/blob/master/DESIGN.md)
+  and [SPEC.md](https://github.com/littlefs-project/littlefs/blob/master/SPEC.md),
+  [ESP-IDF v5.4 NVS](https://docs.espressif.com/projects/esp-idf/en/v5.4/esp32/api-reference/storage/nvs_flash.html),
+  [Zephyr NVS](https://docs.zephyrproject.org/latest/services/storage/nvs/nvs.html),
+  [Zephyr ZMS](https://docs.zephyrproject.org/latest/services/storage/zms/zms.html),
+  [Espressif flash endurance FAQ](https://docs.espressif.com/projects/esp-faq/en/latest/software-framework/storage/nvs.html)
+- Index: [Bitcask](https://riak.com/assets/bitcask-intro.pdf),
+  [LevelDB filters](https://github.com/google/leveldb/blob/main/doc/index.md)
+- Retention: [RFC 4120, section 3.2.3](https://datatracker.ietf.org/doc/html/rfc4120#section-3.2.3),
+  [MQTT 3.1.1](https://docs.oasis-open.org/mqtt/mqtt/v3.1.1/os/mqtt-v3.1.1-os.html),
+  [mosquitto.conf](https://mosquitto.org/man/mosquitto-conf-5.html),
+  [esp-mqtt client](https://github.com/espressif/esp-mqtt/blob/master/mqtt_client.c)
+- Erase timing and watchdog: [ESP-IDF v5.4 spi_flash_chip_generic.c](https://github.com/espressif/esp-idf/blob/release/v5.4/components/spi_flash/spi_flash_chip_generic.c),
+  [ESP-IDF v5.4 esp_system Kconfig](https://github.com/espressif/esp-idf/blob/release/v5.4/components/esp_system/Kconfig)

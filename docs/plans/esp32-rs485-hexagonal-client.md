@@ -330,9 +330,10 @@ marker, read fully at startup into a bounded in-RAM index.
 - A **delivered** record is committed when the PUBACK event for that response
   arrives.
 
-Retention limits, compaction, and behaviour on a full partition are a
-reliability trade-off and get their own ADR in slice 2. The first version is
-bounded and conservative: no pruning by wall-clock time, no automatic erase.
+Retention, compaction and torn writes are decided in ADR-0068: two flash
+regions with a generation header, a torn last record counts as never written,
+open transactions are never forgotten, and the newest 256 delivered ones are
+kept across compaction. Pruning by age waits for #134.
 
 ### 3.6 Where the sub-issues land
 
@@ -424,8 +425,9 @@ Scope:
   ESP32 client is developed against the RS485 lock panel on an ESP32 D1 mini
   with an XY-485 converter, that this is bench hardware and not a production
   board selection, and links this plan. The status stays "Proposed".
-- Project scaffold: pinned platform and ESP-IDF versions, partition table with
-  a journal partition, warnings as errors, watchdog enabled.
+- Project scaffold: pinned platform and ESP-IDF versions, the final partition
+  table of ADR-0069 (two OTA slots, `nvs_keys` reserved, journal at the end,
+  table at `0xC000`), warnings as errors, watchdog enabled.
 - `scripts/verify.py`, the host CMake project, the fakes directory, the layer
   include check, the plan-ID check, and the CI workflow.
 - `lc_domain`: compartment, target, door state, hardware profile, error codes.
@@ -713,34 +715,83 @@ Tool suite `test_commission.py` (unittest, runs in the host gate):
 
 Scope:
 
-- `lc_softap_portal`: a second driving adapter over `commission_device.c`. The
-  device starts an access point with a captive portal when it has no Wi-Fi
-  credentials, and on a deliberate local reset.
-- An ADR for the portal's security: how the access point is protected, how the
-  provisioning token is entered, when the access point shuts down, and what
-  physical action reopens it.
-- A decision on what remains of the USB path. Recommended: remove USB commissioning of secrets but keep the
-  read-only console commands (`status`, `diagnostics`, `self-test`) for
-  recovery and bench work.
+- `lc_softap_portal`: a second driving adapter over `commission_device.c`,
+  built on Espressif's provisioning manager (`wifi_provisioning` in IDF v5.4,
+  `espressif/network_provisioning` in the component registry) over SoftAP with
+  protocomm Security 2 (SRP6a, AES-256-GCM), not a custom captive portal. Wi-Fi
+  credentials go through the standard endpoint; broker URL, bootstrap
+  credentials and provisioning token through one custom endpoint `ol-config`.
+  Reason: a plain HTTP portal cannot prove the device to the phone (an evil
+  twin with the same SSID collects the installer's token), and HTTPS on it
+  means a self-signed certificate every phone warns about. See
+  `esp32-security-research.md` §6.
+- Per-device secrets: at first flash, the bench tooling generates a random SRP
+  password (12 characters or more) and an AP passphrase, stores the SRP salt
+  and verifier and the AP passphrase in NVS (never the SRP password), and
+  prints a label/QR with device ID, SSID `OL-<id>`, AP passphrase and SRP
+  password. No shared default (ETSI EN 303 645 5.1-1).
+- When the access point runs: only when no settings are stored, or when the
+  board button is held for 5 s during boot. Never from MQTT, never from the
+  console alone, and never on its own on an enrolled unit that loses Wi-Fi (it
+  keeps retrying; the installer uses the button).
+- Access point rules: WPA2-PSK with the per-device passphrase (WPA2/WPA3 mixed
+  if the phone mix allows), one station, 10-minute window, closed early after
+  5 failed Security 2 sessions. A reboot without the button does not reopen it.
+- Enrolled units: the portal accepts only SSID and password; broker URL and
+  token are refused. While the portal is open on an enrolled unit, the unit
+  refuses commands (it restarts after saving anyway).
+- Factory reset: the button held for 10 s during boot wipes identity, mapping
+  and settings, keeps the journal (as S5-H07), and publishes nothing.
+  `reset-network` over USB follows the same rule: it needs the held button.
+- USB path: `configure`, `unlock` and `command` compile only with the Kconfig
+  option `LC_BENCH_CONSOLE` (default off). Production builds keep the
+  read-only commands (`status`, `diagnostics`, `self-test`). Today a
+  `reset-network` without authentication returns the unit to the unenrolled
+  state, where `bench_commands_allowed` (`lc_usb_console/console.c`) allows
+  `unlock`: anyone at the console can open any compartment.
+- Broker URL frozen at enrollment, over USB and portal alike. The device
+  trusts the public CA bundle, so whoever can change the URL can point it at
+  their own `mqtts://` host with a free certificate and collect the MQTT
+  password. Changing the broker needs a factory reset and a fresh token.
+- Hardening that rides along: `CONFIG_MBEDTLS_HAVE_TIME_DATE=y` (certificate
+  validity is not checked today; the existing SNTP gate makes it safe, and the
+  comment in `owner_task.c` already assumes it) and
+  `CONFIG_COMPILER_STACK_CHECK_MODE_STRONG=y`. Either may go in a small PR
+  before this one.
+- Backend: provisioning tokens get an expiry in `LockerProvisioningService`
+  (today they never expire). May be a separate backend PR; the ADR names it.
+- An ADR for the portal's security recording the decisions above.
+- Phone side for the pilot: installers use Espressif's `esp_prov` tool.
+  Espressif maintains native Android and iOS provisioning libraries but no
+  React Native one; the mobile app integration is a later decision.
+- After it is online again, the device reports that it was commissioned
+  through the portal in its first heartbeat or an event.
 
 This slice is PR 2. The portal ADR is its first commit, because the tests
-depend on it.
+depend on it. Unverified, to settle in the ADR with `esp_prov` and a packet
+capture: that the custom endpoint is encrypted by the Security 2 session like
+the Wi-Fi endpoint.
 
 Host suite `test_softap_portal`, on the portal's request handling and state
 machine:
 
 | ID | Test |
 | --- | --- |
-| S6-H01 | A valid form submission reaches `commission_device` with the same values a USB submission would |
-| S6-H02 | A body over the size limit, a missing field, and a malformed encoding are rejected and nothing is saved |
-| S6-H03 | A request without the portal credential defined in the ADR is rejected |
+| S6-H01 | A valid `ol-config` submission reaches `commission_device` with the same values a USB submission would |
+| S6-H02 | A payload over the size limit, a missing field, and a malformed encoding are rejected and nothing is saved |
+| S6-H03 | A session that fails Security 2 reaches no endpoint; 5 failed sessions close the window |
 | S6-H04 | No response contains any submitted value |
-| S6-H05 | The portal starts when no Wi-Fi credentials are stored |
-| S6-H06 | The portal does not start on a device that is enrolled and online |
-| S6-H07 | The portal stops once settings are accepted |
-| S6-H08 | A Wi-Fi connection that fails after commissioning brings the portal back and keeps identity |
+| S6-H05 | The portal starts when no settings are stored |
+| S6-H06 | The portal does not start on an enrolled unit, online or offline, unless the button was held at boot |
+| S6-H07 | The portal stops once settings are accepted, and after the 10-minute window |
+| S6-H08 | A Wi-Fi connection that fails after commissioning keeps retrying, does not reopen the portal, and keeps identity |
 | S6-H09 | The portal never exposes status, diagnostics, or stored settings |
-| S6-H10 | S5-H01 to S5-H09 pass unchanged |
+| S6-H10 | S5-H01 to S5-H09 pass unchanged, with S5-H04 changed: `configure` on an enrolled unit refuses a new broker URL |
+| S6-H11 | On an enrolled unit, broker URL and token fields are refused and only SSID and password are saved |
+| S6-H12 | No code path from the portal reaches the bus port |
+| S6-H13 | A second station is refused while one is connected |
+| S6-H14 | A production build (`LC_BENCH_CONSOLE` off) has no `configure`, `unlock` or `command`; `reset-network` without the held button changes nothing |
+| S6-H15 | A factory reset by button wipes identity, mapping and settings, keeps the journal, and publishes nothing |
 
 ## 5. Hardware tests and follow-up
 
@@ -792,7 +843,7 @@ Group B, commands and journal (verifies slice 2):
 | HW-B3 | Restart with configuration applied: the mapping is still in effect |
 | HW-B4 | **Actuates.** Cut ESP32 power immediately after feeding an open, ten times: after each restart the transaction has a stored outcome and no unlock is sent during boot |
 | HW-B5 | **Actuates.** Cut ESP32 power at claim, after transmission, at completion, and before PUBACK: each case ends in a stored outcome and no second unlock |
-| HW-B6 | Fill the journal on a dedicated test unit: new commands are refused and earlier responses are still replayed |
+| HW-B6 | Send 600 commands on a dedicated test unit: the journal compacts at least once without refusing a command, the newest 256 delivered transactions are still replayed, and an older one is executed as new |
 
 Group C, network, MQTT, and enrollment (verifies slice 3):
 
@@ -833,12 +884,14 @@ Group F, SoftAP commissioning (verifies slice 6):
 
 | ID | Check |
 | --- | --- |
-| HW-F1 | **Actuates.** Commission a fully erased unit from a phone with no cable attached, through to an open from the admin panel |
-| HW-F2 | Enter wrong Wi-Fi credentials: the portal returns and identity is kept |
-| HW-F3 | Once the device is enrolled and online, scan for the access point and probe the HTTP port from the same network: neither is reachable |
-| HW-F4 | The physical action defined in the portal ADR reopens the portal; nothing else does |
-| HW-F5 | With the portal open on a previously enrolled unit, send an open through the backend: behaviour matches the portal ADR |
-| HW-F6 | If USB commissioning was removed, `configure` over USB is refused and the read-only commands still work |
+| HW-F1 | **Actuates.** Commission a fully erased unit with `esp_prov` from a laptop or phone with no cable attached, through to an open from the admin panel |
+| HW-F2 | Enter wrong Wi-Fi credentials: the unit keeps retrying, the portal does not return on its own, the button reopens it, and identity is kept |
+| HW-F3 | Once the device is enrolled, online or with Wi-Fi switched off, scan for the access point and probe the provisioning port: neither is reachable |
+| HW-F4 | The button held 5 s at boot reopens the portal; nothing else does. Held 10 s, it performs the factory reset |
+| HW-F5 | With the portal open on a previously enrolled unit, send an open through the backend: it is refused and delivered after the restart |
+| HW-F6 | On a production build, `configure` and `unlock` over USB are refused and the read-only commands still work |
+| HW-F7 | A second station is refused; the window closes after 10 minutes; a wrong SRP password fails the session and 5 failures close the window |
+| HW-F8 | Capture the provisioning traffic: neither the Wi-Fi password nor the token appears in clear, including on `ol-config` |
 
 Group G, endurance and rollback:
 
@@ -863,17 +916,34 @@ When PR 2 merges:
 
 ### 5.3 Later, each behind its own decision
 
-- OTA (#59): two application slots, signed images, rollback, and the control
-  plane from #70. It needs a measured image size against the board's flash and
-  the journal partition.
+- OTA (#59): signed images, rollback, and the control plane from #70, over the
+  two application slots that ADR-0069 already sets up in PR 1. Plan:
+  `esp32-ota-pr-draft.md`.
 - More than one panel per bus.
 - Secure boot, flash encryption, encrypted credentials at rest, journal
-  compaction, trusted time, and the pilot gates listed in #56.
+  compaction, trusted time, and the pilot gates listed in #56. One ADR covers
+  the eFuse provisioning step (secure boot v2, flash encryption in release
+  mode, NVS encryption, JTAG and download-mode eFuses) and states that
+  disabling download mode removes USB recovery, since the ESP32 has no secure
+  download mode. ESP32 v3.0 is not resistant to a lab fault-injection attack
+  (advisory AR2023-005, CVE-2023-35818), so UART0 and the RS485 bus stay inside
+  the locked enclosure, with a tamper input as a later option.
+- A small firmware CI PR, at any time: libFuzzer targets for the codec on the
+  existing clang+ASan host build, CI pinned to the newest ESP-IDF v5.4.x patch
+  release (today `v5.4`, which is 5.4.0), and an `esp-idf-sbom` job.
+- A small repo/backend PR: `SECURITY.md` with a vulnerability disclosure policy
+  (ETSI EN 303 645 5.2-1), Mosquitto `max_packet_size` and
+  `persistent_client_expiration`, and go-auth taken off `debug` logging.
+- Each behind its own ADR: a staleness bound on commands, a credential rotation
+  command, and mTLS (not now: ADR-0053 ends TLS at Traefik, so a client
+  certificate would not reach Mosquitto).
 
 ## 6. Decisions
 
 - **Commissioning.** USB serial first (slice 5). The SoftAP portal is the last
-  slice (slice 6), which also decides how much of the USB path stays.
+  slice (slice 6), on Espressif's provisioning manager with Security 2. Only the
+  read-only console commands stay in production builds; the rest is behind
+  `LC_BENCH_CONSOLE`.
 - **Hardware scope.** The RS485 lock panel is the only supported locker
   protocol. One panel per bus in this plan.
 - **Port naming.** The locker bus port uses the names proposed in ADR-0067
