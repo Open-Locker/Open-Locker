@@ -27,11 +27,11 @@ export class LoginResponseError extends Error {
  * used to reach that call as `undefined` and surfaced the storage error on the
  * sign-in form.
  */
-export function sessionFromLoginResponse(response: LoginSessionResponse): {
+export function sessionFromLoginResponse(response: LoginSessionResponse | null): {
   token: string;
   userName: string;
 } {
-  if (typeof response.token !== 'string' || response.token.trim() === '') {
+  if (response == null || typeof response.token !== 'string' || response.token.trim() === '') {
     throw new LoginResponseError();
   }
 

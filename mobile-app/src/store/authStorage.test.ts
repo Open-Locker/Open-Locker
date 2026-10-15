@@ -1,6 +1,6 @@
 import { LoginResponseError } from '@/src/auth/loginSession';
 import { setItem } from '@/src/auth/storage';
-import { persistAuth } from '@/src/store/authStorage';
+import { persistAuth, SessionStoreError } from '@/src/store/authStorage';
 
 jest.mock('@/src/auth/storage', () => ({
   setItem: jest.fn(() => Promise.resolve()),
@@ -34,5 +34,11 @@ describe('persistAuth', () => {
     );
 
     expect(mockedSetItem).not.toHaveBeenCalled();
+  });
+
+  it('reports a storage failure separately from an invalid login response', async () => {
+    mockedSetItem.mockRejectedValueOnce(new Error('SecureStore failed'));
+
+    await expect(persistAuth('1|token', 'Ada')).rejects.toBeInstanceOf(SessionStoreError);
   });
 });

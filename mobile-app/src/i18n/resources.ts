@@ -28,6 +28,7 @@ export const resources = {
         forgotPassword: 'Forgot password?',
         changeServer: 'Change server',
         invalidEmailOrPassword: 'Invalid email or password.',
+        invalidLoginResponse: 'The server response could not be used to sign in. Please try again.',
         sessionStoreFailed:
           'The sign-in response could not be saved on this device. Please try again.',
         sessionExpired: 'Session expired, please sign in again.',
@@ -189,6 +190,8 @@ export const resources = {
         forgotPassword: 'Passwort vergessen?',
         changeServer: 'Server ändern',
         invalidEmailOrPassword: 'Ungültige E-Mail oder ungültiges Passwort.',
+        invalidLoginResponse:
+          'Die Antwort des Servers konnte nicht für die Anmeldung verwendet werden. Bitte versuche es erneut.',
         sessionStoreFailed:
           'Die Anmeldung konnte auf diesem Gerät nicht gespeichert werden. Bitte versuche es erneut.',
         sessionExpired: 'Deine Sitzung ist abgelaufen, bitte melde dich erneut an.',

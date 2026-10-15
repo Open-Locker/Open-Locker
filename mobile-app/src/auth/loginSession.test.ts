@@ -35,4 +35,8 @@ describe('sessionFromLoginResponse', () => {
       LoginResponseError,
     );
   });
+
+  it('rejects a missing login response', () => {
+    expect(() => sessionFromLoginResponse(null)).toThrow(LoginResponseError);
+  });
 });

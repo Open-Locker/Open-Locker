@@ -1,6 +1,13 @@
 import { LoginResponseError } from '@/src/auth/loginSession';
 import { deleteItem, getItem, setItem } from '@/src/auth/storage';
 
+export class SessionStoreError extends Error {
+  constructor() {
+    super('Could not store the sign-in session.');
+    this.name = 'SessionStoreError';
+  }
+}
+
 const TOKEN_KEY = 'open-locker.token';
 const USERNAME_KEY = 'open-locker.userName';
 
@@ -14,7 +21,15 @@ export async function persistAuth(token: string, userName: string): Promise<void
     throw new LoginResponseError();
   }
 
-  await Promise.all([setItem(TOKEN_KEY, token), setItem(USERNAME_KEY, userName)]);
+  try {
+    await Promise.all([setItem(TOKEN_KEY, token), setItem(USERNAME_KEY, userName)]);
+  } catch (error) {
+    if (error instanceof LoginResponseError) {
+      throw error;
+    }
+
+    throw new SessionStoreError();
+  }
 }
 
 export async function clearPersistedAuth(): Promise<void> {
