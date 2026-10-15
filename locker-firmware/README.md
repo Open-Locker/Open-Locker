@@ -163,8 +163,9 @@ token.
 - **The journal holds 64 commands, ever.** There is no pruning and no erase
   (ADR-0068). `apply_config` counts. When it is full, new commands are refused
   with `UNKNOWN_ERROR` and earlier responses are still replayed. To clear it,
-  erase the `journal` partition, for example
-  `esptool.py --port COM3 erase_region 0x190000 0x40000`, and commission again.
+  erase the `journal` partition by name, for example
+  `parttool.py --port COM3 --partition-table-offset 0xC000 erase_partition --partition-name journal`,
+  and commission again.
   The 72-hour endurance check (HW-G1) sends more commands than that and needs the
   journal erased between runs until a retention scheme is decided.
 - **An unhealthy journal stops all actuation.** A corrupt record, a journal
@@ -187,5 +188,20 @@ token.
 
 ## Layout of flash
 
-`partitions.csv`: `nvs` for settings, identity and mapping; `factory` for the
-firmware; `journal` (256 KiB, raw, subtype `0x40`) for the command journal.
+`partitions.csv` is the final layout (ADR-0069); it cannot change over the air.
+The partition table sits at `0xC000`, so the bootloader has room to grow.
+
+| Partition | Offset | Size | Holds |
+| --- | --- | --- | --- |
+| `nvs` | `0xD000` | 24 KiB | Settings, identity and mapping |
+| `otadata` | `0x13000` | 8 KiB | Which app slot boots (empty: `ota_0`) |
+| `phy_init` | `0x15000` | 4 KiB | Radio calibration |
+| `nvs_keys` | `0x16000` | 4 KiB | Reserved for NVS encryption, unused today |
+| `ota_0` | `0x20000` | 1.8 MiB | The firmware; `idf.py flash` writes it here |
+| `ota_1` | `0x1F0000` | 1.8 MiB | Second slot, used by OTA (#59) |
+| `journal` | `0x3C0000` | 256 KiB | The command journal (raw, subtype `0x40`) |
+
+A board flashed before this layout must be erased completely
+(`idf.py -p COM3 erase-flash flash`) and commissioned again. A local
+`sdkconfig` created before it keeps the old table offset; delete it so
+`sdkconfig.defaults` applies.
