@@ -138,7 +138,10 @@ the marker is written.
 At start the active region is scanned from offset 16. Only the record that
 reaches the last programmed byte of the region (the *tail*) may be torn:
 
-1. `0xFF` ends the log, and every byte after it must be `0xFF`.
+1. `0xFF` where a record would start ends the log when every byte after it is
+   `0xFF`. With programmed bytes after it, it is a damaged header (rule 3 or
+   4): a page program cut by a power loss can leave any of its bytes erased,
+   the first one included.
 2. A record that passes every check and ends in `0xC3` is committed.
 3. The tail record is **torn**, not corrupt, when it does not end in a valid
    `0xC3` marker: its marker is erased or partly programmed, or its header is
@@ -366,9 +369,12 @@ reset (plan slice 5) keeps.
 ### Risks
 
 - Real flash may not fail like the fake: an unordered write, or an erase that
-  reports success and leaves bits set. The first is caught by the checks and the
-  marker; the second by the blank check. Both are exercised on the device by
-  HW-B4 and HW-B5, and compaction by a hardware endurance run (HW-G1).
+  reports success and leaves bits set. The host tests cut writes both in order
+  and out of order (the last bytes land, the first stay erased); either reads
+  as a torn tail by rule 3, unless the last programmed byte happens to be
+  `0xC3`, which fails closed. An erase that leaves bits set is caught by the
+  blank check. Both are exercised on the device by HW-B4 and HW-B5, and
+  compaction by a hardware endurance run (HW-G1).
 - A sector erase can take up to about 500 ms (ESP-IDF driver timeouts; no
   typical figure is published). Erasing one sector per idle tick keeps the
   owner task well inside the 5 s task watchdog. At start the erases run in a

@@ -28,6 +28,8 @@ typedef struct {
     size_t bytes_until_power_cut;
     /* An erase that reports success and leaves the last byte of each sector as it was. */
     bool erase_leaves_bits;
+    /* A cut write lands its last bytes instead of its first, as a cut page program may. */
+    bool cut_out_of_order;
 } fake_flash_t;
 
 void fake_flash_init(fake_flash_t *flash, size_t capacity);

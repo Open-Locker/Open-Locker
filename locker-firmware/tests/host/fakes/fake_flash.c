@@ -32,7 +32,8 @@ static bool flash_write(void *ctx, size_t offset, const void *data, size_t lengt
         flash->bytes_until_power_cut -= landed;
     }
     const uint8_t *bytes = data;
-    for (size_t i = 0; i < landed; ++i) {
+    size_t first = flash->cut_out_of_order ? length - landed : 0;
+    for (size_t i = first; i < first + landed; ++i) {
         flash->memory[offset + i] &= bytes[i];
     }
     flash->bytes_written += landed;

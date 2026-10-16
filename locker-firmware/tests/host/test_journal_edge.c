@@ -323,16 +323,59 @@ void test_headers_that_are_not_version_one_are_rejected(void)
 
 }
 
-void test_data_after_the_end_of_the_log_is_corruption(void)
+void test_data_after_the_end_of_the_log_is_torn_nearby_and_corrupt_further_on(void)
 {
     uint8_t payload[200];
     blank();
     size_t length = claim_payload(payload, "tx-1", "msg-1", "open_compartment");
     size_t offset = put_record(REGION_START, 1, 1, payload, length);
 
+    /* Within one record of the end: what a cut write whose first byte stayed erased leaves. */
     flash.memory[offset + 100] = 0x12;
+    TEST_ASSERT_TRUE(reopen());
+    TEST_ASSERT_TRUE(port.find(port.ctx, "tx-1", &entry));
+    settle();
+    TEST_ASSERT_TRUE(claim("tx-2", "msg-2"));
 
+    /* The same byte where a committed record would end: never read as torn. */
+    blank();
+    offset = put_record(REGION_START, 1, 1, payload, length);
+    flash.memory[offset + 100] = 0xC3;
     TEST_ASSERT_FALSE(reopen());
+
+    /* Further than any record reaches: corruption. */
+    blank();
+    offset = put_record(REGION_START, 1, 1, payload, length);
+    flash.memory[offset + 400] = 0x12;
+    TEST_ASSERT_FALSE(reopen());
+}
+
+void test_a_write_cut_out_of_order_is_torn_not_corrupt(void)
+{
+    /* The cut write lands its last bytes; its first ones, the magic among them, stay erased. */
+    for (size_t landed = 1; landed < 60; ++landed) {
+        fake_flash_init(&flash, FLASH_SIZE);
+        TEST_ASSERT_TRUE(reopen());
+        TEST_ASSERT_TRUE(claim("tx-0", "msg-0"));
+        TEST_ASSERT_TRUE(complete("tx-0"));
+        flash.cut_out_of_order = true;
+        fake_flash_cut_power_after(&flash, landed);
+        bool claimed = claim("tx-1", "msg-1");
+        fake_flash_restore_power(&flash);
+        flash.cut_out_of_order = false;
+        if (claimed) {
+            continue;
+        }
+
+        TEST_ASSERT_TRUE_MESSAGE(reopen(), "an out-of-order cut stopped the journal");
+        TEST_ASSERT_TRUE(port.find(port.ctx, "tx-0", &entry));
+        TEST_ASSERT_TRUE(entry.completed);
+        TEST_ASSERT_FALSE(port.find(port.ctx, "tx-1", &entry));
+        settle();
+        TEST_ASSERT_TRUE(claim("tx-2", "msg-2"));
+        TEST_ASSERT_TRUE(reopen());
+        TEST_ASSERT_TRUE(port.find(port.ctx, "tx-2", &entry));
+    }
 }
 
 void test_unreadable_flash_is_unhealthy(void)
@@ -526,7 +569,8 @@ int main(void)
     RUN_TEST(test_bytes_between_records_are_corruption);
     RUN_TEST(test_records_that_make_no_sense_mark_the_journal_unhealthy);
     RUN_TEST(test_headers_that_are_not_version_one_are_rejected);
-    RUN_TEST(test_data_after_the_end_of_the_log_is_corruption);
+    RUN_TEST(test_data_after_the_end_of_the_log_is_torn_nearby_and_corrupt_further_on);
+    RUN_TEST(test_a_write_cut_out_of_order_is_torn_not_corrupt);
     RUN_TEST(test_unreadable_flash_is_unhealthy);
     RUN_TEST(test_a_read_error_at_start_never_looks_like_an_empty_log);
     RUN_TEST(test_room_runs_out_in_flash_before_it_runs_out_of_slots);

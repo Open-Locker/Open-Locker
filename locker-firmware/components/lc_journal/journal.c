@@ -501,9 +501,13 @@ static scan_result_t scan_record(const lc_journal_t *journal, size_t offset, siz
     if (!read_at(journal, offset, record->bytes, 1)) {
         return SCAN_CORRUPT;
     }
-    if (record->bytes[0] == ERASED) {
-        /* The log ends here, and nothing may follow. */
-        return last < (long)offset ? SCAN_END : SCAN_CORRUPT;
+    /*
+     * The log ends here when nothing follows. With bytes after it, an erased
+     * first byte is a damaged header: a cut page program can leave any of its
+     * bytes erased, the first one included.
+     */
+    if (record->bytes[0] == ERASED && last < (long)offset) {
+        return SCAN_END;
     }
     if (!read_at(journal, offset, record->bytes, head)) {
         return SCAN_CORRUPT;
