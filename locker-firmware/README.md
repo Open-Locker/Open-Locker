@@ -169,8 +169,9 @@ token.
 - **A burst of more than about 30 commands in 3 s can be refused.** After a
   compaction the spare region is erased one sector per idle 100 ms tick, and
   until it is ready no further compaction can make room.
-- **Boot erases the spare journal region**, up to 32 sector erases (about 1.5 s,
-  16 s at worst), before commands are taken.
+- **Boot may erase the spare journal region** before commands are taken: only
+  when it holds records, as after a compaction, with up to 32 sector erases
+  (about 1.5 s, 16 s at worst). A blank spare costs one read.
 - **An unhealthy journal stops all actuation.** A corrupt record, a failed flash
   write or erase, or a journal partition that is missing does this; a power cut
   does not. The console shows it in the boot log. To recover, erase the

@@ -209,8 +209,13 @@ other and use transactions.
 1. **Spare ready.** The spare region is erased ahead of time, one 4 KiB sector
    per idle tick of the owner task, header sector first. After the last sector
    it is read back; it is *ready* only if every byte reads `0xFF`. This state is
-   kept in RAM only: after a restart the spare is erased again. If the
-   blank check fails twice, the journal is unhealthy.
+   kept in RAM only. After a restart the spare is read once: if every byte is
+   `0xFF` it is ready without an erase, otherwise it is erased as above. If the
+   blank check after an erase fails twice, the journal is unhealthy. Skipping
+   the erase of a blank spare keeps a boot loop from wearing out the flash; the
+   price is that an erase cut so late that it reads blank but holds weak bits is
+   not redone. Such bits surface as a record that fails its check, which stops
+   the journal, so the failure is loud, not silent.
 2. **When.** Compaction runs when the owner task is idle and the active region
    is more than 75 % full and something was appended since the last
    compaction, before an append that would not fit the room reserved for open
@@ -353,15 +358,18 @@ reset (plan slice 5) keeps.
   30 commands. That gives about six million commands, roughly 1.2 years of
   continuous commands at ten per minute, or far more than a lifetime at a few
   hundred a day. A larger index would compact by bytes instead (about every
-  300 commands) at the cost of more RAM.
+  300 commands) at the cost of more RAM. A restart adds an erase only when the
+  spare holds records, that is once after each compaction, so restarts add no
+  wear of their own: a boot loop costs reads, not erases.
 - Right after a compaction the spare takes 33 idle ticks of the owner task
   (32 sector erases and the blank check, at least 3.3 s at one per 100 ms tick)
   to be ready again, while the index is full again after about 30 claims. A
   faster burst has its further claims refused with `UNKNOWN_ERROR` until the
   spare is ready.
-- Every start erases the whole spare before recovery runs, so that a torn tail
-  can be compacted before recovery appends to the journal: 32 sector erases,
-  about 1.5 s typically and up to 16 s, twice that if the start compacts.
+- Every start prepares the spare before recovery runs, so that a torn tail can
+  be compacted before recovery appends to the journal. A blank spare costs one
+  read of the region; a used one 32 sector erases, about 1.5 s typically and up
+  to 16 s, and as much again if the start compacts.
 - The partition stays unencrypted when flash encryption is turned on: encrypted
   writes go in 16-byte blocks, which records of any length do not fit. The
   journal holds no secrets.

@@ -228,6 +228,32 @@ void test_a_spare_that_does_not_erase_marks_the_journal_unhealthy(void)
     TEST_ASSERT_EQUAL_UINT(2 * REGION / FAKE_FLASH_SECTOR, flash.erase_calls);
 }
 
+void test_a_start_erases_the_spare_only_when_it_is_not_blank(void)
+{
+    TEST_ASSERT_TRUE(claim("tx-1"));
+    settle();
+    TEST_ASSERT_TRUE(journal.spare_ready);
+
+    /* A boot loop costs no erases while the spare is blank. */
+    for (int boot = 0; boot < 100; ++boot) {
+        TEST_ASSERT_TRUE(reopen());
+        settle();
+    }
+    TEST_ASSERT_EQUAL_UINT(0, flash.erase_calls);
+    TEST_ASSERT_TRUE(claim("tx-2"));
+
+    /* After a compaction the old region is the spare and holds records: erased once. */
+    fill_small_region();
+    TEST_ASSERT_TRUE(lc_journal_maintain(&journal));
+    TEST_ASSERT_TRUE(reopen());
+    unsigned before = flash.erase_calls;
+    settle();
+    TEST_ASSERT_EQUAL_UINT(REGION / FAKE_FLASH_SECTOR, flash.erase_calls - before);
+    TEST_ASSERT_TRUE(reopen());
+    settle();
+    TEST_ASSERT_EQUAL_UINT(REGION / FAKE_FLASH_SECTOR, flash.erase_calls - before);
+}
+
 void test_an_empty_journal_is_told_apart_from_a_corrupt_one(void)
 {
     /* The first header write was cut: still empty, and the next append starts over. */
@@ -317,6 +343,7 @@ int main(void)
     RUN_TEST(test_a_cut_anywhere_in_a_compaction_loses_nothing_that_is_needed);
     RUN_TEST(test_with_two_valid_headers_the_newer_generation_wins);
     RUN_TEST(test_a_spare_that_does_not_erase_marks_the_journal_unhealthy);
+    RUN_TEST(test_a_start_erases_the_spare_only_when_it_is_not_blank);
     RUN_TEST(test_an_empty_journal_is_told_apart_from_a_corrupt_one);
     RUN_TEST(test_a_full_region_refuses_claims_until_the_spare_is_ready);
     RUN_TEST(test_the_open_limit_clears_as_responses_are_delivered);

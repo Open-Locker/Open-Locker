@@ -71,6 +71,8 @@ typedef struct {
     /* Sectors of the spare region erased since the start, and whether it is blank. */
     size_t spare_erased;
     bool spare_ready;
+    /* The spare was checked for programmed bytes once after the start. */
+    bool spare_checked;
     unsigned blank_failures;
     size_t open_count;
     size_t count;
@@ -83,10 +85,10 @@ typedef struct {
 bool lc_journal_open(lc_journal_t *journal, lc_flash_io_t io);
 
 /*
- * One step of background work: erases one sector of the spare region, checks
- * it is blank, or compacts when the active region is more than 75 % full or
- * its last record is torn. Returns true while there is more to do. Call it
- * when the owner task is idle.
+ * One step of background work: checks the spare region, erases one sector of
+ * it, checks it is blank, or compacts when the active region is more than 75 %
+ * full or its last record is torn. Returns true while there is more to do.
+ * Call it when the owner task is idle.
  */
 bool lc_journal_maintain(lc_journal_t *journal);
 

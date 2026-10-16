@@ -706,6 +706,7 @@ static bool compact(lc_journal_t *journal)
     journal->active = spare;
     ++journal->generation;
     journal->spare_ready = false;
+    journal->spare_checked = true;
     journal->spare_erased = 1;
     journal->blank_failures = 0;
     journal->appended = false;
@@ -798,6 +799,21 @@ bool lc_journal_maintain(lc_journal_t *journal)
     }
     if (!journal->spare_ready) {
         size_t base = region_base(journal, 1 - journal->active);
+        bool erased;
+        /*
+         * A spare that reads blank at the start is used as it is, so a boot loop
+         * does not wear out the flash. An erase cut so late that it reads blank
+         * but holds weak bits then shows up as a record that fails its check,
+         * which stops the journal instead of passing silently.
+         */
+        if (!journal->spare_checked) {
+            journal->spare_checked = true;
+            if (!range_erased(journal, base, base + journal->region_size, &erased)) {
+                return fail(journal);
+            }
+            journal->spare_ready = erased;
+            return true;
+        }
         if (journal->spare_erased < journal->region_size / LC_JOURNAL_SECTOR_SIZE) {
             if (!journal->io.erase(journal->io.ctx,
                                    base + journal->spare_erased * LC_JOURNAL_SECTOR_SIZE,
@@ -807,7 +823,6 @@ bool lc_journal_maintain(lc_journal_t *journal)
             ++journal->spare_erased;
             return true;
         }
-        bool erased;
         if (!range_erased(journal, base, base + journal->region_size, &erased)) {
             return fail(journal);
         }
