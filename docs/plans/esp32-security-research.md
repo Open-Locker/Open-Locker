@@ -1,5 +1,9 @@
 # Research: ESP32 firmware security beyond secure boot and flash encryption
 
+> Historical research, kept as written. The flash layout it calls "PR 3 layout"
+> is decided by ADR-0069 and already ships in PR 1; the journal by ADR-0068.
+> Where this note and those ADRs differ, the ADRs apply.
+
 Input to the plan in `esp32-rs485-hexagonal-client.md` (PR 2, SoftAP), the OTA
 draft in `esp32-ota-pr-draft.md` (PR 3), and the "pilot gates" of #56. Secure
 Boot v2 and flash encryption are taken as decided for later and are only

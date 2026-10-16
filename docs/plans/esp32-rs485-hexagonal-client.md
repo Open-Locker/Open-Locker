@@ -159,7 +159,7 @@ host tests in the slice shown; section 4 lists them by ID.
 | The claim is durable before the unlock is sent; the result is durable before it is published; delivery is recorded only after PUBACK | 2 |
 | A repeated transaction ID replays the stored response with a fresh message ID and sends nothing to the panel | 2 |
 | A claim left incomplete by a restart becomes an unknown-outcome response, never a second unlock | 2 |
-| A corrupt or torn journal record disables actuation | 2 |
+| A corrupt journal record disables actuation; a torn last record counts as never written (ADR-0068) | 2 |
 | Running out of memory after transmission still leaves a durable final outcome | 2 |
 | Journal capacity exhaustion refuses new work and keeps stored responses | 2 |
 | `apply_config` cannot run during an in-flight unlock | 2 |
@@ -532,7 +532,7 @@ Host suite `test_journal`, against an in-memory flash fake:
 | --- | --- |
 | S2-H19 | A claim is found by transaction ID and its message ID is marked seen |
 | S2-H20 | Claim, completion, and delivered records survive closing and reopening |
-| S2-H21 | A write cut at every byte boundary of a claim leaves either no claim or an unhealthy journal, never a usable half record |
+| S2-H21 | A write cut at every byte boundary of a claim leaves no claim, never a usable half record; the journal stays healthy unless the damage cannot be told from corruption |
 | S2-H22 | The same for a completion record and for a delivered record |
 | S2-H23 | A record with a bad checksum marks the journal unhealthy |
 | S2-H24 | A claim is refused when there is no room left for its completion and delivered records |
@@ -587,8 +587,8 @@ applicable with a reason.
 Scope:
 
 - `lc_net_wifi` (station, SNTP) and `lc_mqtt_espidf` (verified TLS, MQTT 3.1.1,
-  persistent session, QoS 1, stable client ID, Last Will, publish that returns
-  after PUBACK).
+  persistent session, QoS 1, stable client ID, Last Will, publishes that return
+  a publish ID at once and report the PUBACK as an event, see 3.3).
 - `lc_storage_nvs` for settings and credentials.
 - `lc_application/provision_device.c` and the session state machine, with
   `lc_provisioning_gateway_port_t` and `lc_credential_store_port_t`.
@@ -920,8 +920,8 @@ When PR 2 merges:
   two application slots that ADR-0069 already sets up in PR 1. Plan:
   `esp32-ota-pr-draft.md`.
 - More than one panel per bus.
-- Secure boot, flash encryption, encrypted credentials at rest, journal
-  compaction, trusted time, and the pilot gates listed in #56. One ADR covers
+- Secure boot, flash encryption, encrypted credentials at rest, trusted time,
+  and the pilot gates listed in #56. One ADR covers
   the eFuse provisioning step (secure boot v2, flash encryption in release
   mode, NVS encryption, JTAG and download-mode eFuses) and states that
   disabling download mode removes USB recovery, since the ESP32 has no secure
@@ -956,9 +956,9 @@ When PR 2 merges:
   MQTT schemas and RS485 golden frames with it, not code.
 - **Directory name.** `locker-firmware/`.
 
-Nothing is open. These decisions are recorded here and get no separate ADR.
-The two design decisions still to be made, the journal (slice 2) and the portal
-security (slice 6), each get an ADR in their slice.
+These decisions are recorded here and get no separate ADR. The journal (slice 2)
+is decided in ADR-0068 and ADR-0069. The one design decision still open, the
+portal security (slice 6), gets an ADR in its slice.
 
 ## 7. Risks
 
@@ -972,9 +972,9 @@ security (slice 6), each get an ADR in their slice.
   unmeasured until HW-A9. A reply later than the settle period can still be
   misattributed; on the same channel that means a wrong report, not a wrong
   door.
-- **Flash behaviour under power loss.** Host tests cut journal writes at record
-  boundaries; real flash can fail differently. HW-B4 and HW-B5 test it on the
-  device.
+- **Flash behaviour under power loss.** Host tests cut journal writes and erases
+  at every byte, with writes cut both in order and out of order; real flash can
+  still fail differently. HW-B4 and HW-B5 test it on the device.
 - **Drift from the Pi client.** Two implementations of one contract. The shared
   schemas, shared golden frames, and the ported test names are the controls;
   there is no shared code.
@@ -1014,7 +1014,7 @@ security (slice 6), each get an ADR in their slice.
 | Driving adapter | An adapter that brings input into the application (an MQTT command, a console line), as opposed to one the application calls. |
 | Enrollment | The exchange in which a device presents its one-time provisioning token and receives its permanent MQTT credentials. Also called provisioning. |
 | ESP32 | The microcontroller family used here: a small chip with Wi-Fi, a few hundred kilobytes of memory, and no operating system in the PC sense. |
-| ESP-IDF | The official software development kit for the ESP32 from its maker, Espressif. |
+| ESP-IDF | The official software development kit for the ESP32 from its maker, Espressif. Its `idf.py` tool compiles the firmware and loads it onto the board. |
 | Fake | A test stand-in for a port that records what was called and returns scripted results. |
 | Feedback polarity | Whether a 1 from the panel's door sensor input means closed or open. It depends on the lock and wiring. |
 | Firmware | The program that runs on the microcontroller. |
@@ -1038,7 +1038,6 @@ security (slice 6), each get an ADR in their slice.
 | Owner task | The single task that runs all application logic, so no two commands can interleave. See 3.4. |
 | Partition | A fixed region of flash reserved for one purpose, such as the firmware image or the journal. |
 | Persistent session | An MQTT setting under which the broker keeps messages for a device while it is offline and delivers them on reconnect. |
-| ESP-IDF | Espressif's SDK. Its `idf.py` tool compiles the firmware and loads it onto the board. |
 | Port | An interface the application defines for something it needs from outside. In C here, a struct of function pointers. |
 | Provisioning token | The one-time secret created in the backend that lets a new device enroll. |
 | PUBACK | The broker's acknowledgement that it received a published message. |

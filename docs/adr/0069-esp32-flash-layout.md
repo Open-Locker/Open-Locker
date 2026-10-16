@@ -54,8 +54,8 @@ journal,   data, 0x40,     0x3C0000, 0x40000,
 - `nvs_keys` is reserved and unused until flash encryption and NVS encryption
   are turned on.
 - The journal moves to the end of flash and is **not** flash-encrypted: its
-  byte-granular appends and `0x00` void bytes (ADR-0068) do not fit the 16-byte
-  blocks of encrypted writes, and it holds no secrets.
+  byte-granular appends and separate commit-marker writes (ADR-0068) do not fit
+  the 16-byte blocks of encrypted writes, and it holds no secrets.
 - The table ends exactly at 4 MB.
 
 This ADR fixes the layout only. Rollback, image signing and the minimum chip
@@ -69,7 +69,8 @@ revision belong to the OTA ADR (#59).
   the bootloader never rolls back to it, it only boots it when `otadata` is
   invalid. ESP-IDF's eFuse anti-rollback also requires no factory slot.
 - Moving the table to `0xC000` removes the bootloader size limit for good,
-  including Secure Boot v2 later, at the cost of 16 KB before `ota_0`.
+  including Secure Boot v2 later, at the cost of moving the table 16 KB further
+  in.
 - Reserving `nvs_keys` now costs 4 KB from a gap that is unused anyway, and
   avoids a USB reflash of every unit when NVS encryption is turned on.
 
@@ -107,8 +108,8 @@ revision belong to the OTA ADR (#59).
 
 ### Negative
 
-- 640 KB less than a single-app layout is left for the app; 16 KB before
-  `ota_0` are unused.
+- 640 KB less than a single-app layout is left for the app; the 36 KB from
+  `0x17000` to `ota_0` at `0x20000` are unused.
 - Bench boards flashed before this change must be erased fully and
   commissioned again. A local `sdkconfig` from before keeps the old table
   offset and must be deleted.

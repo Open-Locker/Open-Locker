@@ -1,5 +1,10 @@
 # Research: ESP32 OTA for `locker-firmware/` (input to #59 draft)
 
+> Historical research, kept as written. It assumes the partition table at
+> `0x8000` and proposes a layout of its own; the layout that ships is ADR-0069
+> (table at `0xC000`, two OTA slots), and the journal is ADR-0068. Where this
+> note and those ADRs differ, the ADRs apply.
+
 Checks `docs/plans/esp32-ota-pr-draft.md` against Espressif primary sources for
 the IDF version the repo pins: **ESP-IDF v5.4** (`README.md`, CI
 `esp_idf_version: v5.4`, `sdkconfig` `CONFIG_IDF_INIT_VERSION="5.4.0"`). Target
