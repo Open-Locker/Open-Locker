@@ -225,13 +225,18 @@ static void owner_task(void *arg)
     int64_t last_tick_ms = esp_timer_get_time() / 1000;
 
     for (;;) {
-        if (xQueueReceive(queue, &event, pdMS_TO_TICKS(TICK_MS)) == pdTRUE) {
+        bool idle = xQueueReceive(queue, &event, pdMS_TO_TICKS(TICK_MS)) != pdTRUE;
+        if (!idle) {
             handle(&event);
         }
 
         int64_t now_ms = esp_timer_get_time() / 1000;
         if (now_ms - last_tick_ms >= TICK_MS) {
             last_tick_ms = now_ms;
+            /* One sector erase (up to about 500 ms) or one compaction per idle tick. */
+            if (idle) {
+                (void)lc_journal_maintain(owner.journal);
+            }
             lc_provision_tick(owner.provision);
             post_to_inbox(LC_EVENT_TICK);
             maybe_start_session();

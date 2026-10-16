@@ -214,6 +214,10 @@ void app_main(void)
     };
     lc_inbox_init(&inbox);
     lc_app_init(&app, &app_ports);
+    /* A torn last record is compacted away before recovery appends to the journal. */
+    while (lc_journal_maintain(&journal)) {
+        vTaskDelay(1);
+    }
     lc_app_recover(&app);
 
     const lc_provision_ports_t provision_ports = {
@@ -241,6 +245,7 @@ void app_main(void)
         .provision = &provision,
         .commission = &commission,
         .inbox = &inbox,
+        .journal = &journal,
         .settings_store = settings_store,
         .system = system,
         .bench_mode = !configured,

@@ -9,6 +9,7 @@
 #include "lc_application/inbox.h"
 #include "lc_application/provision_device.h"
 #include "lc_domain/identity.h"
+#include "lc_journal/journal.h"
 #include "lc_ports/locker_bus_port.h"
 #include "lc_ports/outbound_port.h"
 #include "lc_ports/provisioning_gateway_port.h"
@@ -66,6 +67,8 @@ typedef struct {
     lc_provision_t *provision;
     lc_commission_t *commission;
     lc_inbox_t *inbox;
+    /* Its background work runs on idle ticks; the app reaches it only through its port. */
+    lc_journal_t *journal;
     lc_settings_store_port_t settings_store;
     lc_system_port_t system;
     /* False on a device that has no network settings: commands then come from the console. */
