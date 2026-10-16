@@ -118,6 +118,7 @@ docker/mosquitto/config/password.conf
 *.DS_Store
 
 .pnpm-store/
+scripts/node_modules/
 .ai/
 .claude/settings.local.json
 .tmp/

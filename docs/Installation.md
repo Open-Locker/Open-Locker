@@ -92,9 +92,16 @@ Edit `locker-backend/.env` and configure at least:
 ### 2. Configure MQTT authentication
 
 Mosquitto authenticates clients against the Laravel `/api/mosq/*` endpoints.
-The recommended repository task generates the local configuration:
+The recommended repository task generates the local configuration. Run it from
+the repository root with Just 1.56+, Node 22+, pnpm 11.25.0 and Docker installed.
+The secret comes from the dotenv-parsed `MOSQ_HTTP_PASS` in `locker-backend/.env`;
+a nonempty host value must match it to keep MQTT and Laravel synchronized.
+The last duplicate file entry wins. Passwords must fit on a single line and are
+percent-encoded in the webhook URLs. The task recreates MQTT after replacing
+its configuration so the file bind mount is refreshed:
 
 ```bash
+just script-deps
 just setup-mqtt
 ```
 
