@@ -132,6 +132,37 @@ void test_compaction_keeps_open_and_the_newest_delivered_transactions(void)
     run_command(0);
 }
 
+void test_repeats_under_new_message_ids_never_fill_the_index_for_good(void)
+{
+    fake_flash_init(&flash, 256 * 1024);
+    TEST_ASSERT_TRUE(reopen());
+    settle();
+
+    /* Every command is also sent again under a new message ID, as a backend retry does. */
+    const unsigned commands = 700;
+    for (unsigned n = 0; n < commands; ++n) {
+        char transaction_id[32];
+        char repeat[32];
+        snprintf(transaction_id, sizeof(transaction_id), "tx-%u", n);
+        snprintf(repeat, sizeof(repeat), "again-%u", n);
+        run_command(n);
+        TEST_ASSERT_TRUE(port.remember_message(port.ctx, transaction_id, repeat));
+        for (int tick = 0; tick < 4; ++tick) {
+            (void)lc_journal_maintain(&journal);
+        }
+    }
+    TEST_ASSERT_TRUE(journal.generation > 2);
+    TEST_ASSERT_TRUE(journal.message_count < LC_JOURNAL_MESSAGES_MAX);
+
+    /* A retained transaction lost its extra ID, but its transaction ID still catches a copy. */
+    TEST_ASSERT_TRUE(reopen());
+    TEST_ASSERT_TRUE(known(commands - LC_JOURNAL_DELIVERED_KEEP));
+    TEST_ASSERT_TRUE(entry.delivered);
+    TEST_ASSERT_TRUE(port.seen_message(port.ctx, "m-tx-450"));
+    settle();
+    run_command(commands);
+}
+
 /* Delivered transactions, then one claimed and one completed, filling a small region past 75 %. */
 static void fill_small_region(void)
 {
@@ -340,6 +371,7 @@ int main(void)
 {
     UNITY_BEGIN();
     RUN_TEST(test_compaction_keeps_open_and_the_newest_delivered_transactions);
+    RUN_TEST(test_repeats_under_new_message_ids_never_fill_the_index_for_good);
     RUN_TEST(test_a_cut_anywhere_in_a_compaction_loses_nothing_that_is_needed);
     RUN_TEST(test_with_two_valid_headers_the_newer_generation_wins);
     RUN_TEST(test_a_spare_that_does_not_erase_marks_the_journal_unhealthy);

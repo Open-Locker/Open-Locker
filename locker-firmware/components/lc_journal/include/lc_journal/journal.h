@@ -39,7 +39,7 @@ typedef struct {
     uint32_t claim;
     /* 0 while there is no completion record. */
     uint32_t completion;
-    /* Bytes of all its records in the active region. */
+    /* Bytes of its claim, completion and delivered records in the active region. */
     uint32_t bytes;
     uint8_t id_length;
     uint8_t action_length;

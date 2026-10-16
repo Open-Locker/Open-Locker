@@ -442,7 +442,6 @@ static bool apply_record(lc_journal_t *journal, size_t offset, const record_t *r
             return false;
         }
         add_message(journal, (size_t)index, message_id, offset);
-        transaction->bytes += (uint32_t)record->size;
         return true;
     }
     }
@@ -640,7 +639,10 @@ static bool fits(const lc_journal_t *journal, size_t bytes, size_t more_reserved
  * Copies the records still needed into the spare region, in log order, and
  * makes it the active one: every open transaction, and the newest delivered
  * ones until LC_JOURNAL_DELIVERED_KEEP are kept or the copy reaches half a
- * region. Message records of open transactions are dropped past that point.
+ * region. Further message IDs are copied only for open transactions, and only
+ * in the room the budget has left; a delivered transaction keeps the message
+ * ID of its claim. A later copy under a dropped ID is still caught by its
+ * transaction ID and gets the stored response again.
  */
 static bool compact(lc_journal_t *journal)
 {
@@ -666,9 +668,9 @@ static bool compact(lc_journal_t *journal)
         ++kept;
     }
 
+    size_t message_room = budget > used ? budget - used : 0;
     unsigned spare = 1 - journal->active;
-    size_t start = region_base(journal, spare) + REGION_HEADER_SIZE;
-    size_t out = start;
+    size_t out = region_base(journal, spare) + REGION_HEADER_SIZE;
     size_t offset = region_base(journal, journal->active) + REGION_HEADER_SIZE;
     while (offset < journal->next_offset) {
         record_t record;
@@ -683,11 +685,15 @@ static bool compact(lc_journal_t *journal)
         if (index < 0) {
             return fail(journal);
         }
-        if (!keep[index] ||
-            (record_type(&record) == TYPE_MESSAGE &&
-             journal->transactions[index].state != STATE_DELIVERED &&
-             out - start + record.size > budget)) {
+        if (!keep[index]) {
             continue;
+        }
+        if (record_type(&record) == TYPE_MESSAGE) {
+            if (journal->transactions[index].state == STATE_DELIVERED ||
+                record.size > message_room) {
+                continue;
+            }
+            message_room -= record.size;
         }
         if (out + record.size > region_base(journal, spare) + journal->region_size ||
             !journal->io.write(journal->io.ctx, out, record.bytes, record.size)) {

@@ -197,9 +197,15 @@ to be older than *T* plus a clock margin, measured on SNTP time. Until then,
 nothing is pruned by time.
 
 Message IDs are kept with their transaction: the claim's message ID and every
-later message ID for the same transaction (at most 512 in total). When the
-message limit is reached, a further message ID is not recorded; the transaction
-ID still deduplicates the command.
+later message ID for the same transaction (at most 512 in total). Compaction
+keeps the later ones only for open transactions; a delivered transaction keeps
+just the message ID of its claim. Otherwise repeats under new message IDs (a
+backend retry publishes one) could leave 512 IDs in the retained set, and every
+compaction would end with the index still full, refusing every claim for good.
+A copy under a dropped message ID is still caught by its transaction ID and
+gets the stored response again, which the backend ignores. When the message
+limit is reached, a further message ID is not recorded; the transaction ID
+still deduplicates the command.
 
 `apply_config`, and later the OTA update command (#59), are commands like any
 other and use transactions.
@@ -228,9 +234,11 @@ other and use transactions.
    next one would take the copy past half a region (64 KiB). The records of the
    retained transactions are then copied byte for byte into the spare, after
    its header space, in their original log order, so claim order is kept.
-   Message records of an open transaction are dropped once the copy has
-   reached that budget; its claim, completion and delivered records are always
-   copied. Torn debris and pruned transactions are not copied.
+   Further message records are copied only for open transactions, and only in
+   the room the budget has left after the claim, completion and delivered
+   records, which are always copied. Delivered transactions keep only the
+   message ID of their claim. Torn debris and pruned transactions are not
+   copied.
 4. **Commit.** The spare's header is written with generation + 1. From this
    write on, the new region is active.
 5. **Invalidate.** The old region's header sector is erased at once. The rest of
@@ -253,8 +261,8 @@ way.
 The scan builds an index that holds no ID texts and no responses:
 
 - per transaction: an 8-byte hash (FNV-1a) of the transaction ID, its state,
-  the flash offsets of its claim and completion records, the bytes its records
-  take in the region, and the lengths of its ID and action name, from which the
+  the flash offsets of its claim and completion records, the bytes its claim,
+  completion and delivered records take in the region, and the lengths of its ID and action name, from which the
   room reserved for finishing it is computed;
 - per message ID: an 8-byte hash, the index of its transaction, and the offset
   of the record that holds it.
