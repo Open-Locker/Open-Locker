@@ -97,7 +97,8 @@ backend to authenticate clients and evaluate topic ACLs.
 
 The canonical topics, message schemas, and operation directions live in
 [the AsyncAPI MQTT contract](asyncapi/mqtt.yaml). Do not duplicate that contract
-in general architecture documentation.
+in general architecture documentation. How the messages behave over time, including
+every known failure case, is in [Locker command scenarios](locker-command-scenarios.md).
 
 ### Locker client to hardware
 
@@ -113,4 +114,5 @@ than through backend-side polling.
 - [Installation and deployment](Installation.md)
 - [REST and realtime app communication](app_communication.md)
 - [MQTT AsyncAPI contract](asyncapi/mqtt.yaml)
+- [Locker command scenarios](locker-command-scenarios.md)
 - [Architecture decision records](adr/)

@@ -79,7 +79,7 @@ lc_domain  <-  lc_ports  <-  lc_application  <-  adapters  <-  main
 | `lc_ports` | Header-only interfaces: bus, journal, outbound messages, stores, clock |
 | `lc_application` | Use cases: commands, `apply_config`, state publishing, enrollment, commissioning |
 | `lc_mqtt_codec` | Topics and JSON, both directions (pure, with cJSON) |
-| `lc_journal` | The append-only command journal (pure, over a flash I/O struct) |
+| `lc_journal` | The command journal: two flash regions with compaction (pure, over a flash I/O struct) |
 | `lc_rs485_lock_board`, `lc_serial_uart` | The bus adapter and its UART |
 | `lc_usb_console` | Line protocol of the USB console |
 | `lc_storage_nvs`, `lc_net_wifi`, `lc_mqtt_espidf` | Settings and journal flash, Wi-Fi and SNTP, MQTT transport |
@@ -160,17 +160,24 @@ token.
 
 ## Limits
 
-- **The journal holds 64 commands, ever.** There is no pruning and no erase
-  (ADR-0068). `apply_config` counts. When it is full, new commands are refused
-  with `UNKNOWN_ERROR` and earlier responses are still replayed. To clear it,
-  erase the `journal` partition by name, for example
+- **The journal remembers the newest 256 delivered commands** (ADR-0068).
+  `apply_config` counts. An older copy of a command arriving later is executed
+  again; this closes when commands carry an age (#134).
+- **At most 32 responses can wait for the broker.** While 32 are unacknowledged,
+  new commands are refused with `UNKNOWN_ERROR`; stored responses are still
+  replayed and delivered, which clears the limit.
+- **A burst of more than about 30 commands in 3 s can be refused.** After a
+  compaction the spare region is erased one sector per idle 100 ms tick, and
+  until it is ready no further compaction can make room.
+- **Boot erases the spare journal region**, up to 32 sector erases (about 1.5 s,
+  16 s at worst), before commands are taken.
+- **An unhealthy journal stops all actuation.** A corrupt record, a failed flash
+  write or erase, or a journal partition that is missing does this; a power cut
+  does not. The console shows it in the boot log. To recover, erase the
+  `journal` partition by name, for example
   `parttool.py --port COM3 --partition-table-offset 0xC000 erase_partition --partition-name journal`,
-  and commission again.
-  The 72-hour endurance check (HW-G1) sends more commands than that and needs the
-  journal erased between runs until a retention scheme is decided.
-- **An unhealthy journal stops all actuation.** A corrupt record, a journal
-  partition that is missing, or a second power loss during repair does this.
-  The console shows it in the boot log. Erase the partition to recover.
+  and commission again. Bench boards with a journal from before ADR-0068 was
+  revised need the same erase.
 - **One panel per bus.** A second board address is rejected, and so is any
   `adapter_type` other than `rs485_lock_board`.
 - **Credentials are stored unencrypted** in flash until flash encryption is

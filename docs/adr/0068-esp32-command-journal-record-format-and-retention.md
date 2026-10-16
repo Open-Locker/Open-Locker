@@ -6,7 +6,7 @@ Proposed
 
 ## Date
 
-2026-10-15 (first draft 2026-10-12)
+2026-10-16 (first draft 2026-10-12)
 
 ## Context
 
@@ -160,10 +160,15 @@ published again, and the backend deduplicates by transaction ID.
 Torn debris is never overwritten. After a torn tail, the next append first
 compacts, which leaves the debris behind in the old region.
 
-Every single-bit corruption of a committed record is detected: the magic, the
-commit marker and the type are compared exactly, the header check covers the
-length, and the record check covers the payload. Since a committed record ends
-in `0xC3`, a bit error inside it can never be mistaken for a torn tail.
+Every single-bit corruption of a committed record is detected, with one
+exception: the magic, the commit marker and the type are compared exactly, the
+header check covers the length, and the record check covers the payload. Since
+a committed record ends in `0xC3`, a bit error inside it is not mistaken for a
+torn tail. The exception is the commit marker of the last record itself: a
+marker that is not `0xC3` there looks exactly like a partly programmed one, so
+that record reads as torn and is dropped. A dropped claim can then run again
+if its command is delivered again, and a dropped completion is answered with
+an unknown outcome. This needs a bit error in that one byte and is accepted.
 
 ### Retention
 
@@ -204,18 +209,26 @@ other and use transactions.
    kept in RAM only: after a restart the spare is erased again. If the
    blank check fails twice, the journal is unhealthy.
 2. **When.** Compaction runs when the owner task is idle and the active region
-   is more than 75 % full, and before an append that would not fit the room
-   reserved for open transactions, or that follows a torn tail. If the spare is
-   not ready at that moment, the claim is refused with `UNKNOWN_ERROR`.
-3. **Copy.** Into the spare, after its header space, the retained records are
-   copied byte for byte in log order: every record of the open transactions,
-   then the claim, completion, delivered and message records of the newest
-   delivered transactions, until 256 are kept or the copy reaches 64 KiB.
-   Torn debris and pruned transactions are not copied.
+   is more than 75 % full and something was appended since the last
+   compaction, before an append that would not fit the room reserved for open
+   transactions, before a claim when the index is full (288 transactions or
+   512 message IDs), and before any append that follows a torn tail. If the
+   spare is not ready at that moment, the append is refused: a claim with
+   `UNKNOWN_ERROR`, a further message ID by not recording it.
+3. **Copy.** First the retained set is chosen: every open transaction, then
+   delivered transactions from the newest backwards, until 256 are kept or the
+   next one would take the copy past half a region (64 KiB). The records of the
+   retained transactions are then copied byte for byte into the spare, after
+   its header space, in their original log order, so claim order is kept.
+   Message records of an open transaction are dropped once the copy has
+   reached that budget; its claim, completion and delivered records are always
+   copied. Torn debris and pruned transactions are not copied.
 4. **Commit.** The spare's header is written with generation + 1. From this
    write on, the new region is active.
 5. **Invalidate.** The old region's header sector is erased at once. The rest of
    the old region is erased ahead as the next spare (step 1).
+
+After step 5 the index is rebuilt by scanning the new region.
 
 A power cut before step 4 leaves the old region active and the half-written
 spare without a header; it is erased again. A power cut between steps 4 and 5
@@ -231,15 +244,22 @@ way.
 
 The scan builds an index that holds no ID texts and no responses:
 
-- per transaction: an 8-byte hash of the transaction ID, its state, and the
-  flash offsets of its claim and completion records;
-- per message ID: an 8-byte hash and the index of its transaction.
+- per transaction: an 8-byte hash (FNV-1a) of the transaction ID, its state,
+  the flash offsets of its claim and completion records, the bytes its records
+  take in the region, and the lengths of its ID and action name, from which the
+  room reserved for finishing it is computed;
+- per message ID: an 8-byte hash, the index of its transaction, and the offset
+  of the record that holds it.
 
 A hash match is confirmed by reading the claim (or message) record from flash
 and comparing the full ID; a collision is just a mismatch. A replay reads the
 stored response from the completion record. A failed read marks the journal
-unhealthy. For 288 transactions and 512 message IDs the index is about 12 KiB,
+unhealthy. For 288 transactions and 512 message IDs the index is about 15 KiB,
 allocated statically.
+
+The port lists only open transactions (`count` and `at`), in claim order. That
+is all restart recovery and the response flush need, and it bounds the flash
+reads of one flush to the 32 open transactions.
 
 ### What unhealthy means
 
@@ -313,7 +333,7 @@ reset (plan slice 5) keeps.
 - An ordinary power cut never stops actuation.
 - The journal runs indefinitely without operator action.
 - A corrupt record cannot be mistaken for a valid one by a single bit error.
-- The index needs about 12 KiB of RAM instead of 43 KiB.
+- The index needs about 15 KiB of RAM instead of 43 KiB.
 - The code is pure C and runs on a host unchanged.
 
 ### Negative
@@ -323,8 +343,22 @@ reset (plan slice 5) keeps.
 - Up to 32 undelivered responses: while the broker is unreachable for long, new
   commands are refused.
 - A replay and every duplicate check cost a flash read.
-- Each compaction erases one region: with UUID IDs, more than nine years of
-  continuous commands at ten per minute before the flash wears out.
+- Each compaction erases one region, so each sector is erased once every two
+  compactions and the flash lasts about 200,000 compactions. With UUID IDs a
+  delivered transaction takes about 220 bytes, so 256 of them fit the copy
+  budget and the index, not the region, decides when to compact: about every
+  30 commands. That gives about six million commands, roughly 1.2 years of
+  continuous commands at ten per minute, or far more than a lifetime at a few
+  hundred a day. A larger index would compact by bytes instead (about every
+  300 commands) at the cost of more RAM.
+- Right after a compaction the spare takes 33 idle ticks of the owner task
+  (32 sector erases and the blank check, at least 3.3 s at one per 100 ms tick)
+  to be ready again, while the index is full again after about 30 claims. A
+  faster burst has its further claims refused with `UNKNOWN_ERROR` until the
+  spare is ready.
+- Every start erases the whole spare before recovery runs, so that a torn tail
+  can be compacted before recovery appends to the journal: 32 sector erases,
+  about 1.5 s typically and up to 16 s, twice that if the start compacts.
 - The partition stays unencrypted when flash encryption is turned on: encrypted
   writes go in 16-byte blocks, which records of any length do not fit. The
   journal holds no secrets.
@@ -337,7 +371,8 @@ reset (plan slice 5) keeps.
   HW-B4 and HW-B5, and compaction by a hardware endurance run (HW-G1).
 - A sector erase can take up to about 500 ms (ESP-IDF driver timeouts; no
   typical figure is published). Erasing one sector per idle tick keeps the
-  owner task well inside the 5 s task watchdog.
+  owner task well inside the 5 s task watchdog. At start the erases run in a
+  loop that yields to the scheduler after each one.
 - Whether the esp-mqtt version bundled with ESP-IDF v5.4 sends the PUBACK after
   the handler, as upstream does, is not verified. Either way it decides only
   whether a crash loses a command, never whether it is executed twice.
@@ -364,7 +399,9 @@ client's files: a Pi client and an ESP32 never share a bank at the same time
 - Related docs: `docs/plans/esp32-rs485-hexagonal-client.md` (sections 2.2, 3.5,
   4), `docs/plans/esp32-journal-retention-research.md`, ADR-0040, ADR-0041,
   ADR-0046, ADR-0069
-- Code: `locker-firmware/components/lc_journal/journal.c`
+- Code: `locker-firmware/components/lc_journal/journal.c`; tests in
+  `locker-firmware/tests/host/test_journal.c`, `test_journal_edge.c` and
+  `test_journal_retention.c`
 - Torn tail: [LevelDB log reader](https://github.com/google/leveldb/blob/main/db/log_reader.cc),
   [SQLite WAL format](https://www.sqlite.org/walformat.html),
   [RocksDB WAL recovery modes](https://github.com/facebook/rocksdb/wiki/WAL-Recovery-Modes),
