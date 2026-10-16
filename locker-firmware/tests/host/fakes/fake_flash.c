@@ -39,6 +39,28 @@ static bool flash_write(void *ctx, size_t offset, const void *data, size_t lengt
     return landed == length;
 }
 
+static bool flash_erase(void *ctx, size_t offset, size_t length)
+{
+    fake_flash_t *flash = ctx;
+    ++flash->erase_calls;
+    if (offset % FAKE_FLASH_SECTOR != 0 || length % FAKE_FLASH_SECTOR != 0 ||
+        offset > flash->capacity || length > flash->capacity - offset) {
+        return false;
+    }
+    for (size_t sector = offset; sector < offset + length; sector += FAKE_FLASH_SECTOR) {
+        if (flash->power_cut_armed) {
+            if (flash->bytes_until_power_cut == 0) {
+                memset(flash->memory + sector, 0xFF, FAKE_FLASH_SECTOR / 2);
+                return false;
+            }
+            --flash->bytes_until_power_cut;
+        }
+        memset(flash->memory + sector, 0xFF,
+               flash->erase_leaves_bits ? FAKE_FLASH_SECTOR - 1 : FAKE_FLASH_SECTOR);
+    }
+    return true;
+}
+
 void fake_flash_init(fake_flash_t *flash, size_t capacity)
 {
     assert(capacity <= FAKE_FLASH_MAX);
@@ -50,7 +72,12 @@ void fake_flash_init(fake_flash_t *flash, size_t capacity)
 lc_flash_io_t fake_flash_io(fake_flash_t *flash)
 {
     return (lc_flash_io_t){
-        .ctx = flash, .capacity = flash->capacity, .read = flash_read, .write = flash_write};
+        .ctx = flash,
+        .capacity = flash->capacity,
+        .read = flash_read,
+        .write = flash_write,
+        .erase = flash_erase,
+    };
 }
 
 void fake_flash_cut_power_after(fake_flash_t *flash, size_t bytes)

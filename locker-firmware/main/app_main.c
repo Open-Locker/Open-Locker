@@ -180,6 +180,7 @@ static lc_command_journal_port_t create_journal(void)
         .capacity = journal_partition.capacity,
         .read = lc_partition_read,
         .write = lc_partition_write,
+        .erase = lc_partition_erase,
     };
     if (!lc_journal_open(&journal, io)) {
         ESP_LOGE(TAG, "the command journal is not healthy: commands are refused until it is erased");

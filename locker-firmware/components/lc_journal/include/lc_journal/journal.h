@@ -24,6 +24,8 @@ typedef struct {
     bool (*read)(void *ctx, size_t offset, void *out, size_t length);
     /* May write only part of `data` before failing, as a power cut would. */
     bool (*write)(void *ctx, size_t offset, const void *data, size_t length);
+    /* Erases whole sectors. A cut erase leaves the sector in any state. */
+    bool (*erase)(void *ctx, size_t offset, size_t length);
 } lc_flash_io_t;
 
 typedef struct {

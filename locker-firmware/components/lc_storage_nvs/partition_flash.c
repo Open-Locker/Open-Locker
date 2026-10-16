@@ -35,3 +35,10 @@ bool lc_partition_write(void *ctx, size_t offset, const void *data, size_t lengt
     return partition->partition != NULL &&
            esp_partition_write(partition->partition, offset, data, length) == ESP_OK;
 }
+
+bool lc_partition_erase(void *ctx, size_t offset, size_t length)
+{
+    const lc_partition_t *partition = ctx;
+    return partition->partition != NULL &&
+           esp_partition_erase_range(partition->partition, offset, length) == ESP_OK;
+}

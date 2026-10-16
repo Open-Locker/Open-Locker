@@ -336,7 +336,7 @@ void test_data_after_the_end_of_the_log_is_corruption(void)
 
 void test_unreadable_flash_is_unhealthy(void)
 {
-    fake_flash_t small;
+    static fake_flash_t small;
     fake_flash_init(&small, 8);
     lc_flash_io_t io = fake_flash_io(&small);
     /* The region claims to be larger than it can be read. */

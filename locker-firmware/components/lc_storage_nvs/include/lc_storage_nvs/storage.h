@@ -35,3 +35,4 @@ bool lc_partition_open(lc_partition_t *partition, const char *label);
 /* The shape lc_flash_io_t expects. `ctx` is an lc_partition_t. */
 bool lc_partition_read(void *ctx, size_t offset, void *out, size_t length);
 bool lc_partition_write(void *ctx, size_t offset, const void *data, size_t length);
+bool lc_partition_erase(void *ctx, size_t offset, size_t length);
