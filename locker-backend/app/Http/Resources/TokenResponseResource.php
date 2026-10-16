@@ -26,6 +26,7 @@ class TokenResponseResource extends JsonResource
             'token' => $this->resource->createToken('auth_token')->plainTextToken,
             'first_name' => $this->resource->first_name,
             'last_name' => $this->resource->last_name,
+            'name' => $this->resource->fullName(),
             /** @var bool */
             'verified' => $this->resource->hasVerifiedEmail(),
         ];

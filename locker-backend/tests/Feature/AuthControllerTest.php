@@ -38,7 +38,34 @@ class AuthControllerTest extends TestCase
                 'token',
                 'first_name',
                 'last_name',
-            ]);
+                'name',
+            ])
+            ->assertJsonPath('name', $user->fullName());
+
+        $this->assertIsString($response->json('token'));
+        $this->assertNotSame('', $response->json('token'));
+        $this->assertIsString($response->json('name'));
+    }
+
+    public function test_login_returns_a_string_display_name_when_last_name_is_missing(): void
+    {
+        $user = User::factory()->create([
+            'first_name' => 'Ada',
+            'last_name' => null,
+            'password' => bcrypt('password123'),
+        ]);
+
+        $response = $this->postJson('/api/login', [
+            'email' => $user->email,
+            'password' => 'password123',
+        ]);
+
+        $response->assertOk()
+            ->assertJsonPath('name', 'Ada')
+            ->assertJsonPath('first_name', 'Ada');
+
+        $this->assertIsString($response->json('name'));
+        $this->assertIsString($response->json('token'));
     }
 
     public function test_user_cannot_login_with_invalid_credentials()
