@@ -1,0 +1,12 @@
+# Name,    Type, SubType,  Offset,   Size,     Flags
+# Final layout (ADR-0069): 4 MB flash, partition table at 0xC000 so the
+# bootloader has 0x1000-0xC000. The layout cannot change over the air.
+# The journal is a raw log in two regions (ADR-0068), not a filesystem, and stays
+# unencrypted under flash encryption. nvs_keys is reserved for NVS encryption.
+nvs,       data, nvs,      0xD000,   0x6000,
+otadata,   data, ota,      0x13000,  0x2000,
+phy_init,  data, phy,      0x15000,  0x1000,
+nvs_keys,  data, nvs_keys, 0x16000,  0x1000,   encrypted
+ota_0,     app,  ota_0,    0x20000,  0x1D0000,
+ota_1,     app,  ota_1,    0x1F0000, 0x1D0000,
+journal,   data, 0x40,     0x3C0000, 0x40000,

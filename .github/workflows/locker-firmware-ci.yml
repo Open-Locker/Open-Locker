@@ -1,0 +1,66 @@
+name: Locker Firmware Quality
+
+# No branch filter on pull_request: the SoftAP PR may target the first
+# firmware PR's branch until that one merges, and must be checked too.
+on:
+  pull_request:
+    paths:
+      - 'locker-firmware/**'
+      - '!locker-firmware/**/*.md'
+      - 'locker-firmware/docs/testing.md'
+      - 'docs/asyncapi/**'
+      - '.github/workflows/locker-firmware-ci.yml'
+  push:
+    branches:
+      - main
+    paths:
+      - 'locker-firmware/**'
+      - '!locker-firmware/**/*.md'
+      - 'locker-firmware/docs/testing.md'
+      - 'docs/asyncapi/**'
+      - '.github/workflows/locker-firmware-ci.yml'
+
+concurrency:
+  group: ${{ github.workflow }}-quality-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  locker-firmware-ci:
+    name: Static and host gates
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    defaults:
+      run:
+        working-directory: locker-firmware
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+        with:
+          # The hardware record names the tree of the PR head, not of the merge commit.
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+
+      - name: Setup Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: locker-firmware/requirements-dev.txt
+
+      - name: Install gate dependencies
+        run: pip install -r requirements-dev.txt
+
+      - name: Run static and host gates
+        run: python scripts/verify.py --skip-target
+
+      # Fails when locker-firmware/ changed since the bench run, or a check failed.
+      - name: Check the hardware record
+        run: python scripts/hwtest.py check
+
+      - name: Build the firmware with ESP-IDF
+        uses: espressif/esp-idf-ci-action@v1
+        with:
+          esp_idf_version: v5.4
+          target: esp32
+          path: locker-firmware
