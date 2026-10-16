@@ -8,7 +8,8 @@
 /*
  * Behaviour of the journal beyond the plan's list: what happens after a torn
  * write, and records that are intact but make no sense. Tests without a plan
- * ID, written before the code they cover, as section 4.1 allows.
+ * ID, written before the code they cover, as section 4.1 allows. Compaction
+ * and retention are in test_journal_retention.c.
  */
 
 #define FLASH_SIZE (16 * 1024)
@@ -24,6 +25,12 @@ static bool reopen(void)
     bool opened = lc_journal_open(&journal, fake_flash_io(&flash));
     port = lc_journal_port(&journal);
     return opened;
+}
+
+static void settle(void)
+{
+    while (lc_journal_maintain(&journal)) {
+    }
 }
 
 void setUp(void)
@@ -74,6 +81,20 @@ static uint32_t crc32(const uint8_t *data, size_t length)
         }
     }
     return ~crc;
+}
+
+/* Erased flash with a valid header for region A; records start at REGION_START. */
+#define REGION_START 16
+
+static void blank(void)
+{
+    fake_flash_init(&flash, FLASH_SIZE);
+    uint8_t header[16] = {'O', 'L', 'J', 'R', 1, 0xFF, 0xFF, 0xFF, 1, 0, 0, 0};
+    uint32_t check = crc32(header, 12);
+    for (size_t i = 0; i < 4; ++i) {
+        header[12 + i] = (uint8_t)(check >> (8 * i));
+    }
+    memcpy(flash.memory, header, sizeof(header));
 }
 
 /* Appends a committed record at `offset`; returns the offset after it. */
@@ -141,6 +162,8 @@ void test_log_goes_on_after_a_torn_claim(void)
         TEST_ASSERT_FALSE(claim("tx-x", "msg-x"));
 
         TEST_ASSERT_TRUE(reopen());
+        /* The torn tail is left behind by a compaction before anything is appended. */
+        settle();
         TEST_ASSERT_TRUE(claim("tx-2", "msg-2"));
         TEST_ASSERT_TRUE(complete("tx-2"));
         TEST_ASSERT_TRUE(claim("tx-3", "msg-3"));
@@ -156,37 +179,17 @@ void test_log_goes_on_after_a_torn_claim(void)
     }
 }
 
-void test_second_cut_during_cleanup_leaves_the_journal_unhealthy(void)
-{
-    TEST_ASSERT_TRUE(claim("tx-0", "msg-0"));
-    fake_flash_cut_power_after(&flash, 30);
-    TEST_ASSERT_FALSE(claim("tx-1", "msg-1"));
-    fake_flash_restore_power(&flash);
-    TEST_ASSERT_TRUE(reopen());
-
-    /* Power fails again while the debris is being made unreadable. */
-    fake_flash_cut_power_after(&flash, 5);
-    TEST_ASSERT_FALSE(claim("tx-2", "msg-2"));
-    TEST_ASSERT_FALSE(port.healthy(port.ctx));
-    fake_flash_restore_power(&flash);
-
-    /* Fail closed: what is left cannot be told from corruption. */
-    TEST_ASSERT_FALSE(reopen());
-    TEST_ASSERT_FALSE(claim("tx-3", "msg-3"));
-}
-
-void test_void_bytes_are_skipped_between_records(void)
+void test_bytes_between_records_are_corruption(void)
 {
     uint8_t payload[200];
+    blank();
     size_t length = claim_payload(payload, "tx-1", "msg-1", "open_compartment");
-    size_t offset = put_record(0, 1, 1, payload, length);
+    size_t offset = put_record(REGION_START, 1, 1, payload, length);
     memset(flash.memory + offset, 0x00, 7);
     length = claim_payload(payload, "tx-2", "msg-2", "open_compartment");
     put_record(offset + 7, 1, 1, payload, length);
 
-    TEST_ASSERT_TRUE(reopen());
-    TEST_ASSERT_EQUAL_UINT(2, port.count(port.ctx));
-    TEST_ASSERT_TRUE(port.find(port.ctx, "tx-2", &entry));
+    assert_unhealthy_open();
 }
 
 void test_records_that_make_no_sense_mark_the_journal_unhealthy(void)
@@ -196,47 +199,48 @@ void test_records_that_make_no_sense_mark_the_journal_unhealthy(void)
     size_t offset;
 
     /* The same transaction claimed twice. */
+    blank();
     length = claim_payload(payload, "tx-1", "msg-1", "open_compartment");
-    offset = put_record(0, 1, 1, payload, length);
+    offset = put_record(REGION_START, 1, 1, payload, length);
     length = claim_payload(payload, "tx-1", "msg-2", "open_compartment");
     put_record(offset, 1, 1, payload, length);
     assert_unhealthy_open();
 
     /* The same message id under two transactions. */
-    fake_flash_init(&flash, FLASH_SIZE);
+    blank();
     length = claim_payload(payload, "tx-1", "msg-1", "open_compartment");
-    offset = put_record(0, 1, 1, payload, length);
+    offset = put_record(REGION_START, 1, 1, payload, length);
     length = claim_payload(payload, "tx-2", "msg-1", "open_compartment");
     put_record(offset, 1, 1, payload, length);
     assert_unhealthy_open();
 
     /* A completion for a transaction nobody claimed. */
-    fake_flash_init(&flash, FLASH_SIZE);
+    blank();
     length = text(payload, "tx-9");
     length += text(payload + length, "open_compartment");
     payload[length++] = 0;
     length += text(payload + length, "");
-    put_record(0, 1, 2, payload, length);
+    put_record(REGION_START, 1, 2, payload, length);
     assert_unhealthy_open();
 
     /* A delivery before the completion, and a message for nobody. */
-    fake_flash_init(&flash, FLASH_SIZE);
+    blank();
     length = claim_payload(payload, "tx-1", "msg-1", "open_compartment");
-    offset = put_record(0, 1, 1, payload, length);
+    offset = put_record(REGION_START, 1, 1, payload, length);
     length = text(payload, "tx-1");
     put_record(offset, 1, 3, payload, length);
     assert_unhealthy_open();
 
-    fake_flash_init(&flash, FLASH_SIZE);
+    blank();
     length = text(payload, "tx-nobody");
     length += text(payload + length, "msg-1");
-    put_record(0, 1, 4, payload, length);
+    put_record(REGION_START, 1, 4, payload, length);
     assert_unhealthy_open();
 
     /* An error code that does not exist. */
-    fake_flash_init(&flash, FLASH_SIZE);
+    blank();
     length = claim_payload(payload, "tx-1", "msg-1", "open_compartment");
-    offset = put_record(0, 1, 1, payload, length);
+    offset = put_record(REGION_START, 1, 1, payload, length);
     length = text(payload, "tx-1");
     length += text(payload + length, "open_compartment");
     payload[length++] = 200;
@@ -245,89 +249,86 @@ void test_records_that_make_no_sense_mark_the_journal_unhealthy(void)
     assert_unhealthy_open();
 
     /* An empty transaction id, a text that runs past its record, a stray byte. */
-    fake_flash_init(&flash, FLASH_SIZE);
+    blank();
     length = claim_payload(payload, "", "msg-1", "open_compartment");
-    put_record(0, 1, 1, payload, length);
+    put_record(REGION_START, 1, 1, payload, length);
     assert_unhealthy_open();
 
-    fake_flash_init(&flash, FLASH_SIZE);
+    blank();
     payload[0] = 50;
     memcpy(payload + 1, "tx", 2);
-    put_record(0, 1, 1, payload, 3);
+    put_record(REGION_START, 1, 1, payload, 3);
     assert_unhealthy_open();
 
-    fake_flash_init(&flash, FLASH_SIZE);
+    blank();
     length = claim_payload(payload, "tx-1", "msg-1", "open_compartment");
     payload[length++] = 0x42;
-    put_record(0, 1, 1, payload, length);
+    put_record(REGION_START, 1, 1, payload, length);
     assert_unhealthy_open();
 
     /* A claim without a message id, and a later message id that is empty. */
-    fake_flash_init(&flash, FLASH_SIZE);
+    blank();
     length = claim_payload(payload, "tx-1", "", "open_compartment");
-    put_record(0, 1, 1, payload, length);
+    put_record(REGION_START, 1, 1, payload, length);
     assert_unhealthy_open();
 
-    fake_flash_init(&flash, FLASH_SIZE);
+    blank();
     length = claim_payload(payload, "tx-1", "msg-1", "open_compartment");
-    offset = put_record(0, 1, 1, payload, length);
+    offset = put_record(REGION_START, 1, 1, payload, length);
     length = text(payload, "tx-1");
     length += text(payload + length, "");
     put_record(offset, 1, 4, payload, length);
     assert_unhealthy_open();
 
     /* No payload at all, and a completion that ends before its error code. */
-    fake_flash_init(&flash, FLASH_SIZE);
-    put_record(0, 1, 1, payload, 0);
+    blank();
+    put_record(REGION_START, 1, 1, payload, 0);
     assert_unhealthy_open();
 
-    fake_flash_init(&flash, FLASH_SIZE);
+    blank();
     length = claim_payload(payload, "tx-1", "msg-1", "open_compartment");
-    offset = put_record(0, 1, 1, payload, length);
+    offset = put_record(REGION_START, 1, 1, payload, length);
     length = text(payload, "tx-1");
     length += text(payload + length, "open_compartment");
     put_record(offset, 1, 2, payload, length);
     assert_unhealthy_open();
 
     /* A text with a NUL inside it. */
-    fake_flash_init(&flash, FLASH_SIZE);
+    blank();
     length = claim_payload(payload, "tx-1", "msg-1", "open_compartment");
     payload[2] = 0;
-    put_record(0, 1, 1, payload, length);
+    put_record(REGION_START, 1, 1, payload, length);
     assert_unhealthy_open();
 }
 
 void test_headers_that_are_not_version_one_are_rejected(void)
 {
     uint8_t payload[200];
+    blank();
     size_t length = claim_payload(payload, "tx-1", "msg-1", "open_compartment");
 
-    put_record(0, 2, 1, payload, length);
+    put_record(REGION_START, 2, 1, payload, length);
     assert_unhealthy_open();
 
-    fake_flash_init(&flash, FLASH_SIZE);
-    put_record(0, 1, 9, payload, length);
+    blank();
+    put_record(REGION_START, 1, 9, payload, length);
     assert_unhealthy_open();
 
     /* Longer than any record the journal writes. */
-    fake_flash_init(&flash, FLASH_SIZE);
+    blank();
     static uint8_t big[390];
     memset(big, 'a', sizeof(big));
-    put_record(0, 1, 1, big, sizeof(big));
+    put_record(REGION_START, 1, 1, big, sizeof(big));
     assert_unhealthy_open();
 
-    /* A record that would run past the end of the region. */
-    fake_flash_init(&flash, 64);
-    put_record(40, 1, 1, payload, length);
-    memset(flash.memory, 0x00, 40);
-    TEST_ASSERT_FALSE(reopen());
 }
 
 void test_data_after_the_end_of_the_log_is_corruption(void)
 {
     uint8_t payload[200];
+    blank();
     size_t length = claim_payload(payload, "tx-1", "msg-1", "open_compartment");
-    size_t offset = put_record(0, 1, 1, payload, length);
+    size_t offset = put_record(REGION_START, 1, 1, payload, length);
 
     flash.memory[offset + 100] = 0x12;
 
@@ -337,10 +338,10 @@ void test_data_after_the_end_of_the_log_is_corruption(void)
 void test_unreadable_flash_is_unhealthy(void)
 {
     static fake_flash_t small;
-    fake_flash_init(&small, 8);
+    fake_flash_init(&small, 8 * 1024);
     lc_flash_io_t io = fake_flash_io(&small);
-    /* The region claims to be larger than it can be read. */
-    io.capacity = 1024;
+    /* The partition claims to be larger than it can be read. */
+    io.capacity = 16 * 1024;
 
     TEST_ASSERT_FALSE(lc_journal_open(&journal, io));
     TEST_ASSERT_FALSE(journal.healthy);
@@ -367,15 +368,15 @@ void test_a_read_error_at_start_never_looks_like_an_empty_log(void)
     fake_flash_fail_read(&flash, 0);
 
     /* The scan for the end of the log, and then the reads of both records. */
-    TEST_ASSERT_TRUE(failed > FLASH_SIZE / 64 + 4);
+    TEST_ASSERT_TRUE(failed > FLASH_SIZE / 2 / 64 + 4);
     TEST_ASSERT_TRUE(port.find(port.ctx, "tx-1", &entry));
     TEST_ASSERT_TRUE(entry.completed);
 }
 
 void test_room_runs_out_in_flash_before_it_runs_out_of_slots(void)
 {
-    /* Long ids make each transaction expensive; the region is small. */
-    fake_flash_init(&flash, 3000);
+    /* Long ids make each transaction expensive; the regions are small. */
+    fake_flash_init(&flash, 8 * 1024);
     TEST_ASSERT_TRUE(reopen());
     char tx[LC_ID_MAX + 1];
     char message[LC_ID_MAX + 1];
@@ -426,11 +427,16 @@ void test_room_runs_out_in_flash_before_it_runs_out_of_slots(void)
     }
     TEST_ASSERT_TRUE(port.healthy(port.ctx));
     TEST_ASSERT_TRUE(reopen());
-    TEST_ASSERT_EQUAL_UINT(claimed, port.count(port.ctx));
+    TEST_ASSERT_EQUAL_UINT(0, port.count(port.ctx));
+    TEST_ASSERT_TRUE(port.find(port.ctx, tx, &entry));
+    TEST_ASSERT_TRUE(entry.delivered);
 }
 
 void test_message_ids_are_bounded(void)
 {
+    /* Room for every message id without a compaction. */
+    fake_flash_init(&flash, 64 * 1024);
+    TEST_ASSERT_TRUE(reopen());
     TEST_ASSERT_TRUE(claim("tx-1", "msg-0"));
     unsigned remembered = 1;
     for (unsigned i = 1; i < LC_JOURNAL_MESSAGES_MAX + 10; ++i) {
@@ -517,8 +523,7 @@ int main(void)
 {
     UNITY_BEGIN();
     RUN_TEST(test_log_goes_on_after_a_torn_claim);
-    RUN_TEST(test_second_cut_during_cleanup_leaves_the_journal_unhealthy);
-    RUN_TEST(test_void_bytes_are_skipped_between_records);
+    RUN_TEST(test_bytes_between_records_are_corruption);
     RUN_TEST(test_records_that_make_no_sense_mark_the_journal_unhealthy);
     RUN_TEST(test_headers_that_are_not_version_one_are_rejected);
     RUN_TEST(test_data_after_the_end_of_the_log_is_corruption);

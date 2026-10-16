@@ -151,6 +151,7 @@ lc_host_test(test_owner_inbox)
 # Beyond the plan's list
 lc_host_test(test_domain)
 lc_host_test(test_journal_edge)
+lc_host_test(test_journal_retention)
 lc_host_test(test_app_edge)
 lc_host_test(test_mqtt_codec_edge)
 lc_host_test(test_console_command)

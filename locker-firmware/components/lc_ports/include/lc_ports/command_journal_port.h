@@ -34,7 +34,7 @@ typedef struct {
     bool (*remember_message)(void *ctx, const char *transaction_id, const char *message_id);
     bool (*complete)(void *ctx, const lc_command_result_t *result);
     bool (*mark_delivered)(void *ctx, const char *transaction_id);
+    /* The open entries, claimed or completed but not delivered, in claim order. */
     size_t (*count)(void *ctx);
-    /* Entries in claim order. */
     bool (*at)(void *ctx, size_t index, lc_journal_entry_t *out);
 } lc_command_journal_port_t;

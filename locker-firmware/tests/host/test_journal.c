@@ -22,6 +22,13 @@ static bool reopen(void)
     return opened;
 }
 
+/* The background work a start does before recovery: erase the spare, compact a torn tail. */
+static void settle(void)
+{
+    while (lc_journal_maintain(&journal)) {
+    }
+}
+
 void setUp(void)
 {
     fake_flash_init(&flash, FLASH_SIZE);
@@ -103,7 +110,8 @@ void test_S2_H20_records_survive_closing_and_reopening(void)
     TEST_ASSERT_TRUE(reopen());
 
     TEST_ASSERT_TRUE(port.healthy(port.ctx));
-    TEST_ASSERT_EQUAL_UINT(3, port.count(port.ctx));
+    /* Only the open transactions are listed. */
+    TEST_ASSERT_EQUAL_UINT(2, port.count(port.ctx));
     TEST_ASSERT_TRUE(find("tx-1"));
     TEST_ASSERT_FALSE(entry.completed);
     TEST_ASSERT_TRUE(find("tx-2"));
@@ -124,9 +132,10 @@ void test_S2_H20_records_survive_closing_and_reopening(void)
     /* Claim order is kept. */
     TEST_ASSERT_TRUE(port.at(port.ctx, 0, &entry));
     TEST_ASSERT_EQUAL_STRING("tx-1", entry.transaction_id);
-    TEST_ASSERT_TRUE(port.at(port.ctx, 2, &entry));
-    TEST_ASSERT_EQUAL_STRING("tx-3", entry.transaction_id);
-    TEST_ASSERT_FALSE(port.at(port.ctx, 3, &entry));
+    TEST_ASSERT_TRUE(port.at(port.ctx, 1, &entry));
+    TEST_ASSERT_EQUAL_STRING("tx-2", entry.transaction_id);
+    TEST_ASSERT_EQUAL_INT(LC_ERROR_HARDWARE_ERROR, entry.result.error);
+    TEST_ASSERT_FALSE(port.at(port.ctx, 2, &entry));
 
     /* And the journal goes on working. */
     TEST_ASSERT_TRUE(claim("tx-4", "msg-4"));
@@ -206,6 +215,7 @@ void test_S2_H21_torn_claim_leaves_no_claim_or_an_unhealthy_journal(void)
         TEST_ASSERT_FALSE(port.seen_message(port.ctx, "msg-1"));
         TEST_ASSERT_EQUAL_UINT(0, port.count(port.ctx));
         /* A healthy journal must stay usable after the torn record. */
+        settle();
         TEST_ASSERT_TRUE(claim("tx-2", "msg-2"));
         TEST_ASSERT_TRUE(reopen());
         TEST_ASSERT_TRUE(find("tx-2"));
@@ -247,14 +257,21 @@ void test_S2_H23_bad_checksum_marks_the_journal_unhealthy(void)
     TEST_ASSERT_TRUE(claim("tx-1", "msg-1"));
     TEST_ASSERT_TRUE(complete("tx-1", LC_ERROR_NONE));
     unsigned corrupted = 0;
+    size_t tail_marker = FLASH_SIZE;
+    while (flash.memory[tail_marker - 1] == 0xFF) {
+        --tail_marker;
+    }
+    --tail_marker;
 
     /*
-     * Clear one bit in every programmed byte in turn. Bytes still 0xFF may never
-     * have been written, and 0x00 has no bit left to clear.
+     * Clear one bit in every programmed byte in turn, the region header too.
+     * Bytes still 0xFF may never have been written, and 0x00 has no bit left
+     * to clear. The commit marker of the last record is the one exception: a
+     * marker that is not 0xC3 there is what a cut write leaves, so it is torn.
      */
     for (size_t offset = 0; offset < FLASH_SIZE; ++offset) {
         uint8_t original = flash.memory[offset];
-        if (original == 0x00 || original == 0xFF) {
+        if (original == 0x00 || original == 0xFF || offset == tail_marker) {
             continue;
         }
         ++corrupted;
@@ -270,6 +287,12 @@ void test_S2_H23_bad_checksum_marks_the_journal_unhealthy(void)
     TEST_ASSERT_TRUE(corrupted > 0);
     TEST_ASSERT_TRUE(reopen());
     TEST_ASSERT_TRUE(find("tx-1"));
+    TEST_ASSERT_TRUE(entry.completed);
+
+    flash.memory[tail_marker] = 0x43;
+    TEST_ASSERT_TRUE(reopen());
+    TEST_ASSERT_TRUE(find("tx-1"));
+    TEST_ASSERT_FALSE(entry.completed);
 }
 
 /* Claims until the journal refuses. Returns how many it took. */
@@ -291,14 +314,14 @@ static unsigned fill(void)
 
 void test_S2_H24_claim_is_refused_without_room_for_completion_and_delivery(void)
 {
-    /* A small region, so that space is likely to run out before the transaction limit. */
-    fake_flash_init(&flash, 16 * 1024);
+    /* Small regions with no spare ready, so space runs out before the open limit. */
+    fake_flash_init(&flash, 8 * 1024);
     TEST_ASSERT_TRUE(reopen());
 
     unsigned claimed = fill();
 
     TEST_ASSERT_TRUE(claimed > 0);
-    TEST_ASSERT_TRUE(claimed <= LC_JOURNAL_TRANSACTIONS_MAX);
+    TEST_ASSERT_TRUE(claimed < LC_JOURNAL_OPEN_MAX);
     /* Every claim that was accepted can still be finished. */
     for (unsigned i = 0; i < claimed; ++i) {
         char transaction_id[32];
@@ -312,10 +335,9 @@ void test_S2_H24_claim_is_refused_without_room_for_completion_and_delivery(void)
 
 void test_S2_H25_full_journal_refuses_claims_and_keeps_every_response(void)
 {
-    /* Full by the transaction limit or by space, whichever comes first. */
+    /* Full by the open transactions: completed responses the broker has not acknowledged. */
     unsigned claimed = fill();
-    TEST_ASSERT_TRUE(claimed > 0);
-    TEST_ASSERT_TRUE(claimed <= LC_JOURNAL_TRANSACTIONS_MAX);
+    TEST_ASSERT_EQUAL_UINT(LC_JOURNAL_OPEN_MAX, claimed);
     for (unsigned i = 0; i < claimed; ++i) {
         char transaction_id[32];
         snprintf(transaction_id, sizeof(transaction_id), "tx-%u", i);
