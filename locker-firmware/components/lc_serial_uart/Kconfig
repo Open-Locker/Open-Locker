@@ -2,7 +2,7 @@ menu "Locker RS485 serial line"
 
     # Bench defaults for the ESP32 D1 mini with an XY-485 converter. None of
     # them has been confirmed against the panel documentation yet; see the
-    # prerequisites in docs/plans/esp32-rs485-hexagonal-client.md, 1.5.
+    # unverified hardware facts in docs/architecture.md, Risks.
 
     config LC_RS485_UART_NUM
         int "UART number"

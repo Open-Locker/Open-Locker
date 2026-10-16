@@ -17,8 +17,8 @@ a second physical unlock. ADR-0040 and ADR-0041 define the behaviour around it:
 a repeated transaction replays the stored response, and a command interrupted by
 a restart is answered with an unknown outcome.
 
-The ESP32 firmware (`locker-firmware/`, `docs/plans/esp32-rs485-hexagonal-client.md`,
-section 3.5) has no filesystem and no atomic rename. Its flash:
+The ESP32 firmware (`locker-firmware/`, `locker-firmware/docs/architecture.md`)
+has no filesystem and no atomic rename. Its flash:
 
 - is written in small units, and a write can be cut short by a power loss at any
   byte, leaving bytes partly programmed;
@@ -26,7 +26,8 @@ section 3.5) has no filesystem and no atomic rename. Its flash:
   wears the sector (Espressif states about 100,000 cycles);
 - reads erased bytes as `0xFF`.
 
-The journal has to give the application three guarantees (plan section 2.2):
+The journal has to give the application three guarantees (the safety rules in
+`locker-firmware/docs/architecture.md`):
 
 1. The claim of a command is durable before the unlock is sent.
 2. The result is durable before it is published.
@@ -40,8 +41,7 @@ device it refused every new command, and any damaged record, including one torn
 by an ordinary power cut, stopped actuation until an operator erased the
 partition. Both make the firmware unusable outside a bench. This version keeps
 the record format and the guarantees and replaces the torn-write handling and
-the retention. The research behind each decision, with sources, is in
-`docs/plans/esp32-journal-retention-research.md`.
+the retention. The sources behind each decision are listed under References.
 
 How late a duplicate can arrive decides what may be forgotten:
 
@@ -285,7 +285,7 @@ damage a power cut cannot cause: a failed flash operation, a bit error, or a
 software bug. Recovery is an operator action: erase the partition with
 `parttool.py --port <port> --partition-table-offset 0xC000 erase_partition --partition-name journal`
 and commission the device again. The journal is the only state that a network
-reset (plan slice 5) keeps.
+reset (`reset-network`, see the firmware README) keeps.
 
 ## Alternatives Considered
 
@@ -406,7 +406,7 @@ format is redefined rather than versioned. Bench boards need a full erase,
 which ADR-0069 already requires. A device with a journal of an unknown version
 reports it unhealthy and does not actuate. There is no migration from the Pi
 client's files: a Pi client and an ESP32 never share a bank at the same time
-(plan section 5.1, HW-G2).
+(hardware check HW-G2 in `locker-firmware/docs/testing.md`).
 
 ## Supersedes / Superseded By
 
@@ -418,8 +418,8 @@ client's files: a Pi client and an ESP32 never share a bank at the same time
 
 - Related PRs: Open-Locker/Open-Locker#321
 - Related issues: #56, #58, #59, #134
-- Related docs: `docs/plans/esp32-rs485-hexagonal-client.md` (sections 2.2, 3.5,
-  4), `docs/plans/esp32-journal-retention-research.md`, ADR-0040, ADR-0041,
+- Related docs: `locker-firmware/docs/architecture.md`,
+  `locker-firmware/docs/testing.md`, ADR-0040, ADR-0041,
   ADR-0046, ADR-0069
 - Code: `locker-firmware/components/lc_journal/journal.c`; tests in
   `locker-firmware/tests/host/test_journal.c`, `test_journal_edge.c` and

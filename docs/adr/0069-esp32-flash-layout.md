@@ -136,8 +136,8 @@ unit and a new ADR.
 
 - Related PRs: #321
 - Related issues: #56, #59
-- Related docs: `docs/plans/esp32-ota-pr-draft.md`,
-  `docs/plans/esp32-ota-research.md`, ADR-0005, ADR-0068
+- Related docs: `locker-firmware/docs/architecture.md`, ADR-0005, ADR-0068;
+  OTA planning in #59
 - ESP-IDF v5.4: [Partition Tables](https://docs.espressif.com/projects/esp-idf/en/v5.4/esp32/api-guides/partition-tables.html),
   [Over The Air Updates](https://docs.espressif.com/projects/esp-idf/en/v5.4/esp32/api-reference/system/ota.html),
   [NVS Encryption](https://docs.espressif.com/projects/esp-idf/en/v5.4/esp32/api-reference/storage/nvs_encryption.html)

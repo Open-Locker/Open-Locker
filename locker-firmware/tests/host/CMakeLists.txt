@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.20)
 project(locker_firmware_host_tests C)
 
 # Host build of the pure firmware components with fakes for their ports.
-# No ESP-IDF involved. See docs/plans/esp32-rs485-hexagonal-client.md, 4.1.
+# No ESP-IDF involved. See docs/testing.md.
 
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_C_STANDARD_REQUIRED ON)
@@ -121,9 +121,9 @@ function(lc_host_test name)
   add_test(NAME ${name} COMMAND ${name})
 endfunction()
 
-# A suite whose slice is not implemented yet. It is compiled against the
+# A suite whose code is not implemented yet. It is compiled against the
 # headers, so it cannot rot, but not linked or run: the code it tests does not
-# exist. The slice that implements it turns the line into lc_host_test() and
+# exist. The change that implements it turns the line into lc_host_test() and
 # adds its sources to lc_under_test.
 function(lc_pending_test name)
   add_library(${name} OBJECT ${name}.c)
@@ -140,7 +140,7 @@ lc_host_test(test_rs485_bus)
 lc_host_test(test_console_line)
 lc_host_test(test_console)
 
-# Slice 2
+# S2: commands, journal and MQTT codec
 lc_host_test(test_mqtt_codec)
 lc_host_test(test_config)
 lc_host_test(test_journal)
@@ -148,19 +148,19 @@ lc_host_test(test_handle_command)
 lc_host_test(test_open_compartment)
 lc_host_test(test_apply_config)
 lc_host_test(test_owner_inbox)
-# Beyond the plan's list
+# Beyond the test catalogue
 lc_host_test(test_domain)
 lc_host_test(test_journal_edge)
 lc_host_test(test_journal_retention)
 lc_host_test(test_app_edge)
 lc_host_test(test_mqtt_codec_edge)
 lc_host_test(test_console_command)
-# Slice 3
+# S3: network, MQTT and enrollment
 lc_host_test(test_provision_device)
 lc_host_test(test_session)
-# Slice 4
+# S4: state and door events
 lc_host_test(test_door_detection)
 lc_host_test(test_publish_state)
-# Slice 5
+# S5: USB commissioning
 lc_host_test(test_commission_device)
 lc_host_test(test_console_protocol)

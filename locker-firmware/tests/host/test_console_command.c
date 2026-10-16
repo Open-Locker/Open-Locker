@@ -7,8 +7,8 @@
 
 /*
  * The `command` line of the console, which feeds one MQTT command payload to
- * the application, as the hardware checks of slice 2 do. Not in the plan's
- * list.
+ * the application, as the hardware checks of Group B do. Not in the test
+ * catalogue.
  */
 
 #define PAYLOAD                                                                              \

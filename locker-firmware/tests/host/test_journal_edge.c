@@ -6,9 +6,9 @@
 #include "unity.h"
 
 /*
- * Behaviour of the journal beyond the plan's list: what happens after a torn
+ * Behaviour of the journal beyond the test catalogue: what happens after a torn
  * write, and records that are intact but make no sense. Tests without a plan
- * ID, written before the code they cover, as section 4.1 allows. Compaction
+ * ID, written before the code they cover, as docs/testing.md allows. Compaction
  * and retention are in test_journal_retention.c.
  */
 

@@ -5,7 +5,7 @@
 #include "lc_mqtt_codec/codec.h"
 #include "unity.h"
 
-/* Behaviour of the codec beyond the plan's list. */
+/* Behaviour of the codec beyond the test catalogue. */
 
 static lc_command_t command;
 static lc_mqtt_envelope_t envelope;

@@ -4,7 +4,7 @@
 #include "fakes/app_fixture.h"
 #include "unity.h"
 
-/* Behaviour of the application beyond the plan's list. */
+/* Behaviour of the application beyond the test catalogue. */
 
 void setUp(void)
 {

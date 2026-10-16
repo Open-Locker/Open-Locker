@@ -8,7 +8,8 @@ which of the two it is talking to.
 
 This is bench firmware. Read [Limits](#limits) before you put a lock on it.
 
-- Plan and slices: [`docs/plans/esp32-rs485-hexagonal-client.md`](../docs/plans/esp32-rs485-hexagonal-client.md)
+- Architecture: [`docs/architecture.md`](docs/architecture.md)
+- Tests and hardware acceptance: [`docs/testing.md`](docs/testing.md)
 - Journal format and retention: [ADR-0068](../docs/adr/0068-esp32-command-journal-record-format-and-retention.md)
 - Hardware: [ADR-0005](../docs/adr/0005-esp-build-controller-board-selection.md)
 
@@ -33,7 +34,7 @@ Wiring, with the build defaults from `components/lc_serial_uart/Kconfig`:
 A and B of the converter go to A and B of the panel. UART 0 is the USB console
 and cannot be used for the bus. The serial parameters default to 9600 baud, 8N1
 and the timing to `components/lc_rs485_lock_board/Kconfig`; **none of these has
-been confirmed against the panel yet** (plan, section 1.5). Change them with
+been confirmed against the panel yet** ([Risks](docs/architecture.md#risks)). Change them with
 `idf.py menuconfig`.
 
 ## Build and test
@@ -58,7 +59,7 @@ CMake, and a C compiler (clang or gcc) for the host gates, and an ESP-IDF shell
 for the target build. Flashing and commissioning a board need only ESP-IDF and
 `pip install -r requirements.txt`. On Windows, set `CMAKE_GENERATOR` and `CC`
 (for example `MinGW Makefiles` and `gcc`) if CMake finds no compiler. The gate
-checks the plan IDs of the tests, the layer rules (see below), static
+checks the test IDs against [the catalogue](docs/testing.md), the layer rules (see below), static
 analysis of the pure components, the host suites with AddressSanitizer and
 UndefinedBehaviorSanitizer, every encoded MQTT message against its AsyncAPI
 schema, the Python tests of the tools, and line coverage of at least 90 % for the
@@ -192,7 +193,7 @@ token.
 - **Unconfirmed hardware facts:** panel model, supply voltage, channel count,
   lock model, board flash size (the partition table assumes 4 MB), UART pins,
   serial parameters, DIP address and feedback polarity. The host tests establish
-  none of them; the hardware checks in plan section 5.1 do.
+  none of them; the [hardware checks](docs/testing.md#hardware-acceptance) do.
 
 ## Layout of flash
 

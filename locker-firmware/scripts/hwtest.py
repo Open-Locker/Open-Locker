@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Hardware acceptance for the locker firmware (plan section 5.1), in one session.
+"""Hardware acceptance for the locker firmware (docs/testing.md), in one session.
 
     python scripts/hwtest.py run --port COM4 --image build/locker-firmware.bin --operator "Name"
     python scripts/hwtest.py run --port COM4 --image ... --operator ... --only A,B3

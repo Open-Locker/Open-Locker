@@ -5,7 +5,7 @@
 #include "lc_domain/text.h"
 #include "unity.h"
 
-/* Rules of the domain beyond the plan's list: refusals and edges. */
+/* Rules of the domain beyond the test catalogue: refusals and edges. */
 
 #define WINDOW_MS 15000
 

@@ -57,8 +57,8 @@ drive onboard relays or Waveshare Modbus boards.
 
 The D1 mini and the converter are bench hardware, not a production board
 selection. The selection above stays a proposal and is revisited once the
-firmware has passed its hardware tests. The implementation plan is
-`docs/plans/esp32-rs485-hexagonal-client.md`.
+firmware has passed its hardware tests. The firmware is described in
+`locker-firmware/docs/architecture.md`.
 
 ## Rationale
 
@@ -151,7 +151,7 @@ Mitigations:
   - `https://github.com/Open-Locker/Open-Locker/issues/47`
   - `https://github.com/Open-Locker/Open-Locker/issues/56`
 - Related docs:
-  - `docs/plans/esp32-rs485-hexagonal-client.md`
+  - `locker-firmware/docs/architecture.md`
   - `docs/adr/0061-backend-managed-rs485-locker-board-profile.md`
   - `docs/Bill-of-Materials.md`
   - `docs/Bill-of-Materials.de.md`

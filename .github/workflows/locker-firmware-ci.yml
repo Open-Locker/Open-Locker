@@ -7,7 +7,7 @@ on:
     paths:
       - 'locker-firmware/**'
       - '!locker-firmware/**/*.md'
-      - 'docs/plans/esp32-rs485-hexagonal-client.md'
+      - 'locker-firmware/docs/testing.md'
       - 'docs/asyncapi/**'
       - '.github/workflows/locker-firmware-ci.yml'
   push:
@@ -16,7 +16,7 @@ on:
     paths:
       - 'locker-firmware/**'
       - '!locker-firmware/**/*.md'
-      - 'docs/plans/esp32-rs485-hexagonal-client.md'
+      - 'locker-firmware/docs/testing.md'
       - 'docs/asyncapi/**'
       - '.github/workflows/locker-firmware-ci.yml'
 

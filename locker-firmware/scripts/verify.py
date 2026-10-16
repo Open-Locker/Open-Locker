@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Static and host gates for the locker firmware.
 
-Runs every check a slice PR must pass without hardware; see section 4.1 of
-docs/plans/esp32-rs485-hexagonal-client.md.
+Runs every check a firmware change must pass without hardware; see
+docs/testing.md.
 
     python scripts/verify.py                 # everything
     python scripts/verify.py --skip-target   # without the ESP-IDF build
@@ -24,7 +24,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 REPO = ROOT.parent
-PLAN = REPO / "docs" / "plans" / "esp32-rs485-hexagonal-client.md"
+CATALOGUE = ROOT / "docs" / "testing.md"
 COMPONENTS = ROOT / "components"
 HOST_TESTS = ROOT / "tests" / "host"
 BUILD = ROOT / "build" / "verify"
@@ -34,7 +34,7 @@ SCHEMAS = REPO / "docs" / "asyncapi" / "schemas"
 # The host tests append every message they encode to this file.
 EMITTED_MESSAGES = BUILD / "emitted-messages.jsonl"
 
-# Slices whose plan IDs must all have a test. Extend it in each slice PR.
+# Test ID prefixes (S<n>) whose catalogue entries must all have a test.
 IMPLEMENTED_SLICES = [1, 2, 3, 4, 5]
 
 MIN_LINE_COVERAGE = 90.0
@@ -124,16 +124,16 @@ def plan_id(slice_number, hardware_number):
 
 
 def check_plan_ids():
-    """Every plan ID of an implemented slice has one test; no test invents one."""
+    """Every catalogued test ID of an implemented area has one test; no test invents one."""
     errors = []
-    plan = read(PLAN)
+    catalogue = read(CATALOGUE)
     listed, planned = set(), set()
-    for match in PLAN_ID.finditer(plan):
+    for match in PLAN_ID.finditer(catalogue):
         listed.add(match[1])
         if int(match[2]) in IMPLEMENTED_SLICES:
             planned.add(match[1])
     if not planned:
-        errors.append(f"no plan IDs found in {PLAN.name} for slices {IMPLEMENTED_SLICES}")
+        errors.append(f"no test IDs found in {CATALOGUE.name} for {IMPLEMENTED_SLICES}")
 
     tested = {}
     for source in files_below(HOST_TESTS, r"^test_.*\.c$"):
@@ -158,7 +158,7 @@ def check_plan_ids():
                 errors.append(f"{test_plan_id} is tested twice: {tested[test_plan_id]} and {test}")
             tested[test_plan_id] = test
             if test_plan_id not in listed:
-                errors.append(f"{source.name}: {test} carries an ID the plan does not list")
+                errors.append(f"{source.name}: {test} carries an ID the catalogue does not list")
 
     for source in files_below(SCRIPTS, r"^test_.*\.py$"):
         for match in TOOL_TEST_ID.finditer(read(source)):
@@ -167,12 +167,12 @@ def check_plan_ids():
                 errors.append(f"{test_plan_id} is tested twice: {tested[test_plan_id]} and {source.name}")
             tested[test_plan_id] = source.name
             if test_plan_id not in listed:
-                errors.append(f"{source.name}: {test_plan_id} is a test ID the plan does not list")
+                errors.append(f"{source.name}: {test_plan_id} is a test ID the catalogue does not list")
 
     for missing in sorted(planned - set(tested)):
-        errors.append(f"{missing} is in the plan but has no test")
+        errors.append(f"{missing} is in the catalogue but has no test")
     if not errors:
-        print(f"  {len(planned)} plan IDs, each with one test")
+        print(f"  {len(planned)} test IDs, each with one test")
     return errors
 
 
@@ -445,7 +445,7 @@ def main(argv):
     sys.stdout.reconfigure(line_buffering=True)
     BUILD.mkdir(parents=True, exist_ok=True)
     checks = [
-        ("plan IDs", check_plan_ids),
+        ("test IDs", check_plan_ids),
         ("layer includes", check_layers),
         ("static analysis", check_static_analysis),
         ("host tests", check_host_tests),
