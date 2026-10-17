@@ -240,6 +240,22 @@ foreach (\App\Models\LockerBank::whereIn("name", ["sim-main"])->get() as $b) {
 
 ## Troubleshooting
 
+**"Still waiting for initial MQTT connection" or "MQTT connection error"**
+The watchdog reports a pending initial connection; connection errors can also
+occur after startup. These diagnostics include the broker URL, the error when
+available, and the reconnect attempt count. Check the broker
+address, whether the broker is running, and the MQTT credentials. With automatic
+reconnect enabled, the simulator keeps retrying and completes startup when the
+connection succeeds; the startup watchdog only reports the delay. Repeated error
+messages are rate limited. Stop the simulator with Ctrl+C if you need to correct
+its configuration.
+
+This is also the production client's default behavior, following
+[ADR-0014](adr/0014-locker-client-mqtt-session-and-reconnect.md). Explicitly disabling
+reconnects or reaching a configured retry cap stops the connection and fails a
+pending startup. Missing provisioning credentials and rejected provisioning
+replies still fail explicitly.
+
 **"Locker bank is already provisioned."**
 The bank provisioned before, and the credential cache is missing. Reset it as
 above, or restore the cache file.
@@ -252,8 +268,9 @@ set `CONFIG_DIR`.
 Step 3 — the bootstrap credentials are not in your environment.
 
 **"Provisioning timed out"**
-The broker is unreachable or the token is wrong. Check `broker_url` (from the
-host it is `localhost:1883`; from inside the compose network it is `mqtt:1883`)
+The broker connection succeeded, but no provisioning reply arrived in time.
+Check `broker_url` (from the host it is `localhost:1883`; from inside the compose
+network it is `mqtt:1883`)
 and that the token matches a bank in the database you are running against.
 
 **Heartbeats arrive but `connection_status` stays `unknown`**
