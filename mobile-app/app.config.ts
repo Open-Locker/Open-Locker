@@ -75,7 +75,6 @@ export default ({ config }: ConfigContext): ExpoConfig => {
     icon: './assets/images/icon.png',
     scheme: 'open-locker',
     userInterfaceStyle: 'automatic',
-    newArchEnabled: true,
     runtimeVersion: runtimeVersion ?? {
       policy: 'appVersion',
     },
@@ -96,7 +95,6 @@ export default ({ config }: ConfigContext): ExpoConfig => {
         foregroundImage: './assets/images/adaptive-icon.png',
         backgroundColor: '#ffffff',
       },
-      edgeToEdgeEnabled: true,
       predictiveBackGestureEnabled: false,
       intentFilters: [
         {
@@ -112,6 +110,9 @@ export default ({ config }: ConfigContext): ExpoConfig => {
     },
     plugins: [
       'expo-router',
+      'expo-font',
+      'expo-secure-store',
+      'expo-web-browser',
       [
         'expo-splash-screen',
         {
