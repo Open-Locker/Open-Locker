@@ -14,6 +14,7 @@ class UserRole extends Model
 {
     protected $fillable = [
         'user_id',
+        'organization_id',
         'role',
         'granted_by_user_id',
         'granted_at',

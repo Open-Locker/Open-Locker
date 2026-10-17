@@ -10,6 +10,7 @@ use App\StorableEvents\CompartmentOpeningFailed;
 use App\StorableEvents\CompartmentOpeningRequested;
 use App\StorableEvents\LockerConfigAckFailed;
 use App\StorableEvents\LockerConfigAcknowledged;
+use App\Support\EventSourcing\OrganizationStamp;
 use App\Support\EventSourcing\StoredEventDispatcher;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Support\Facades\Log;
@@ -35,6 +36,11 @@ class CommandResponseReactor extends Reactor implements ShouldQueue
      * already exists before emitting it.
      */
     public function onCommandResponseReceived(CommandResponseReceived $event): void
+    {
+        OrganizationStamp::runWithin($event, fn () => $this->deriveResponse($event));
+    }
+
+    private function deriveResponse(CommandResponseReceived $event): void
     {
         $action = (string) ($event->action ?? '');
         $result = (string) ($event->result ?? '');

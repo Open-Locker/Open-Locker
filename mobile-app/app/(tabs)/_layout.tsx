@@ -43,10 +43,10 @@ export default function TabLayout() {
   const theme = useTheme();
   const headerShown = useClientOnlyValue(false, true);
   const insets = useSafeAreaInsets();
-  const { data: user, isLoading: isLoadingUser } = useGetUserQuery({});
+  const { data: user, isLoading: isLoadingUser, isFetching: isFetchingUser } = useGetUserQuery({});
   const [sendVerificationEmail, sendVerificationEmailState] =
     usePostEmailVerificationNotificationMutation();
-  const needsTermsAcceptance = !!user && !user.terms_current_accepted;
+  const needsTermsAcceptance = !isFetchingUser && !!user && !user.terms_current_accepted;
   const needsVerification = !!user && !user.email_verified_at;
   const [verificationMessage, setVerificationMessage] = React.useState<string | null>(null);
   const accountInitial = (
