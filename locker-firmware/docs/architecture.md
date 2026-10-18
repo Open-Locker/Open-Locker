@@ -30,7 +30,7 @@ locker-firmware/
     lc_mqtt_espidf/       esp-mqtt transport; implements the outbound and provisioning ports
     lc_rs485_lock_board/  frame codec and bus adapter; implements the locker bus port
     lc_serial_uart/       UART transaction transport for the bus adapter
-    lc_journal/           command journal over a flash I/O struct (ADR-0068)
+    lc_journal/           command journal over a flash I/O struct (ADR-0070)
     lc_storage_nvs/       settings, identity and runtime config stores; journal partition I/O
     lc_net_wifi/          Wi-Fi station and SNTP
     lc_usb_console/       driving adapter: serial line protocol to the commissioning use case
@@ -169,12 +169,12 @@ A torn last record counts as never written; any other damage stops all
 actuation until the partition is erased. Open transactions are never forgotten,
 and the newest 256 delivered ones are kept across compaction. The record
 format, retention and compaction are decided in
-[ADR-0068](../../docs/adr/0068-esp32-command-journal-record-format-and-retention.md).
+[ADR-0070](../../docs/adr/0070-esp32-command-journal-record-format-and-retention.md).
 
 ## Safety rules
 
 Each rule follows from an accepted decision (ADR-0040, ADR-0041, ADR-0046,
-ADR-0048, ADR-0050, ADR-0061) or from ADR-0067 and ADR-0068. Each is held by
+ADR-0048, ADR-0050, ADR-0061) or from ADR-0067 and ADR-0070. Each is held by
 the host tests with the given prefix in [testing.md](testing.md).
 
 | Rule | Tests |
@@ -186,7 +186,7 @@ the host tests with the given prefix in [testing.md](testing.md).
 | The claim is durable before the unlock is sent; the result is durable before it is published; delivery is recorded only after PUBACK | S2 |
 | A repeated transaction ID replays the stored response with a fresh message ID and sends nothing to the panel | S2 |
 | A claim left incomplete by a restart becomes an unknown-outcome response, never a second unlock | S2 |
-| A corrupt journal record disables actuation; a torn last record counts as never written (ADR-0068) | S2 |
+| A corrupt journal record disables actuation; a torn last record counts as never written (ADR-0070) | S2 |
 | Running out of memory after transmission still leaves a durable final outcome | S2 |
 | Journal capacity exhaustion refuses new work and keeps stored responses | S2 |
 | `apply_config` cannot run during an in-flight unlock | S2 |

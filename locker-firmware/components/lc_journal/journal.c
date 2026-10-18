@@ -4,7 +4,7 @@
 
 /*
  * Format, version 1. See
- * docs/adr/0068-esp32-command-journal-record-format-and-retention.md.
+ * docs/adr/0070-esp32-command-journal-record-format-and-retention.md.
  *
  * Each of the two regions starts with a header, written after its records:
  *

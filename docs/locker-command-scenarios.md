@@ -62,11 +62,11 @@ ends deduplicate:
 
 | Side | Deduplicates by | Kept for | Code |
 | --- | --- | --- | --- |
-| Client, inbound commands | `message_id`, then `transaction_id` | 30 days (Pi), newest 256 delivered (ESP32, ADR-0068) | `locker-client/src/adapters/mqtt/inbound-protocol-guard.ts`, `dedup-store.ts` |
+| Client, inbound commands | `message_id`, then `transaction_id` | 30 days (Pi), newest 256 delivered (ESP32, ADR-0070) | `locker-client/src/adapters/mqtt/inbound-protocol-guard.ts`, `dedup-store.ts` |
 | Backend, inbound messages | `message_id` | 24 hours | `locker-backend/app/Mqtt/InboundMqttProtocolGuard.php` |
 | Backend, command responses | `(locker, transaction_id)`, first response wins | Permanently | `locker-backend/app/Services/CommandResponseInboxService.php` |
 
-Every client keeps a **command journal** (ADR-0041, ADR-0046, ADR-0068): a
+Every client keeps a **command journal** (ADR-0041, ADR-0046, ADR-0070): a
 command is *claimed* before the hardware is touched, *completed* with its
 response before the response is published, and *delivered* once the broker has
 acknowledged the response.
@@ -337,7 +337,7 @@ The copies sit next to each other in the broker's queue, so a client that
 remembers recent transactions always catches them. An operator running
 `php artisan queue:retry` on a failed publish job can republish an old command
 much later. That is the only path known today that can outlast the ESP32's
-256-transaction memory (ADR-0068).
+256-transaction memory (ADR-0070).
 
 ### 8. The client restarts while executing
 
@@ -627,7 +627,7 @@ What the system does not handle today. A new client cannot fix these alone.
 - ADR-0002 (message ID and transaction ID), ADR-0040 (acknowledgement vs door
   detection), ADR-0041 (response recovery), ADR-0046 (client persistence),
   ADR-0048 (one-time provisioning),
-  [ADR-0068](adr/0068-esp32-command-journal-record-format-and-retention.md)
+  [ADR-0070](adr/0070-esp32-command-journal-record-format-and-retention.md)
   (ESP32 journal)
 - Backend: `app/Reactors/MqttReactor.php`, `app/Mqtt/Handlers/`,
   `app/Services/CommandResponseInboxService.php`,

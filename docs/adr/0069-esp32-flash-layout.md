@@ -11,7 +11,7 @@ Proposed
 ## Context
 
 `locker-firmware/` ran from one `factory` app partition, with the command
-journal (ADR-0068) right after it at `0x190000`. OTA (#59) needs two app slots
+journal (ADR-0070) right after it at `0x190000`. OTA (#59) needs two app slots
 and an `otadata` partition, and later secure boot, flash encryption and NVS
 encryption need room in the bootloader region and an `nvs_keys` partition.
 
@@ -54,7 +54,7 @@ journal,   data, 0x40,     0x3C0000, 0x40000,
 - `nvs_keys` is reserved and unused until flash encryption and NVS encryption
   are turned on.
 - The journal moves to the end of flash and is **not** flash-encrypted: its
-  byte-granular appends and separate commit-marker writes (ADR-0068) do not fit
+  byte-granular appends and separate commit-marker writes (ADR-0070) do not fit
   the 16-byte blocks of encrypted writes, and it holds no secrets.
 - The table ends exactly at 4 MB.
 
@@ -85,7 +85,7 @@ revision belong to the OTA ADR (#59).
 
 ### Alternative B: Keep the journal at `0x190000`, with `ota_1` after it
 
-- Pros: ADR-0068 and the README erase command stay as they were.
+- Pros: ADR-0070 and the README erase command stay as they were.
 - Cons: the app slots are split around the journal and cannot grow; still no
   bootloader room without moving NVS.
 - Why not chosen: a clean layout costs nothing before deployment.
@@ -129,14 +129,14 @@ unit and a new ADR.
 
 ## Supersedes / Superseded By
 
-- Supersedes: none. Amends the journal location assumed in ADR-0068.
+- Supersedes: none. Amends the journal location assumed in ADR-0070.
 - Superseded by: none
 
 ## References
 
 - Related PRs: #321
 - Related issues: #56, #59
-- Related docs: `locker-firmware/docs/architecture.md`, ADR-0005, ADR-0068;
+- Related docs: `locker-firmware/docs/architecture.md`, ADR-0005, ADR-0070;
   OTA planning in #59
 - ESP-IDF v5.4: [Partition Tables](https://docs.espressif.com/projects/esp-idf/en/v5.4/esp32/api-guides/partition-tables.html),
   [Over The Air Updates](https://docs.espressif.com/projects/esp-idf/en/v5.4/esp32/api-reference/system/ota.html),

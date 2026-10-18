@@ -1,4 +1,4 @@
-# ADR-0068: ESP32 command journal record format and retention
+# ADR-0070: ESP32 command journal record format and retention
 
 ## Status
 

@@ -72,7 +72,7 @@ CHECKS = [
     ("E3", "Move an enrolled unit to another network: identity, mapping, journal kept", "needs a second network. Hardware-example PR"),
     ("E4", "Unplug USB during a save, ten times", "ten manual unplugs. Hardware-example PR"),
     ("E5", "Reset: old credentials fail, a fresh token enrolls", "manual"),
-    ("G1", "72 h run with an open every ten minutes", "432 commands against a journal of 64 (ADR-0068); needs a retention ADR"),
+    ("G1", "72 h run with an open every ten minutes", "432 commands against a journal of 64 (ADR-0070); needs a retention ADR"),
     ("G2", "Return the bank to the Pi client", "tests the Pi client's provisioning reset, not this firmware"),
 ]
 IDS = [c[0] for c in CHECKS]

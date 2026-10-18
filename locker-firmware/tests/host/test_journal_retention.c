@@ -6,7 +6,7 @@
 #include "unity.h"
 
 /*
- * Retention and compaction of the journal (ADR-0068): two regions, the newest
+ * Retention and compaction of the journal (ADR-0070): two regions, the newest
  * delivered transactions kept, open ones never forgotten, and a power cut at
  * any byte or erase of a compaction losing nothing that is needed. Tests
  * without a test ID, as docs/testing.md allows; HW-B6 checks the same on a device.

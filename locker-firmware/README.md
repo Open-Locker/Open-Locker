@@ -10,7 +10,7 @@ This is bench firmware. Read [Limits](#limits) before you put a lock on it.
 
 - Architecture: [`docs/architecture.md`](docs/architecture.md)
 - Tests and hardware acceptance: [`docs/testing.md`](docs/testing.md)
-- Journal format and retention: [ADR-0068](../docs/adr/0068-esp32-command-journal-record-format-and-retention.md)
+- Journal format and retention: [ADR-0070](../docs/adr/0070-esp32-command-journal-record-format-and-retention.md)
 - Hardware: [ADR-0005](../docs/adr/0005-esp-build-controller-board-selection.md)
 
 ## Hardware
@@ -161,7 +161,7 @@ token.
 
 ## Limits
 
-- **The journal remembers the newest 256 delivered commands** (ADR-0068).
+- **The journal remembers the newest 256 delivered commands** (ADR-0070).
   `apply_config` counts. An older copy of a command arriving later is executed
   again; this closes when commands carry an age (#134).
 - **At most 32 responses can wait for the broker.** While 32 are unacknowledged,
@@ -178,7 +178,7 @@ token.
   does not. The console shows it in the boot log. To recover, erase the
   `journal` partition by name, for example
   `parttool.py --port COM3 --partition-table-offset 0xC000 erase_partition --partition-name journal`,
-  and commission again. Bench boards with a journal from before ADR-0068 was
+  and commission again. Bench boards with a journal from before ADR-0070 was
   revised need the same erase.
 - **One panel per bus.** A second board address is rejected, and so is any
   `adapter_type` other than `rs485_lock_board`.
