@@ -334,6 +334,12 @@ a libFuzzer target in `tests/fuzz/`, built by hand with clang):
 | S6-H02 | An oversized payload, a missing field or a malformed encoding is rejected and nothing is saved |
 | S6-H04 | No response contains a submitted value: the reply is one status byte, the same for every refusal |
 
+Host suite `test_console_protocol`:
+
+| ID | Test |
+| --- | --- |
+| S6-H14 | A production build has no `configure`, `unlock`, `command` or `reset-network`: the console answers them like any unknown word |
+
 ## Hardware acceptance
 
 Everything that needs the real board, converter, panel, lock, Wi-Fi or broker

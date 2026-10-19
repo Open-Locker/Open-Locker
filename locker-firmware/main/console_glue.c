@@ -3,6 +3,7 @@
 
 #include "console_glue.h"
 #include "lc_mqtt_codec/codec.h"
+#include "sdkconfig.h"
 
 /*
  * The console's connections to the rest of the device. Called on the console
@@ -84,6 +85,9 @@ void console_glue_init(lc_console_t *console, const lc_locker_bus_port_t *bus,
         .submit_setup = submit_setup,
         .request_reset = request_reset,
         .provisioning_state = provisioning_state,
+#ifndef CONFIG_LC_BENCH_CONSOLE
+        .production = true,
+#endif
     };
 }
 

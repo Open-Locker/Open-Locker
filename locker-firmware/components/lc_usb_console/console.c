@@ -140,9 +140,20 @@ static void configure(const lc_console_t *console, const char *json)
     memset(&request, 0, sizeof(request));
 }
 
+/* The commands that change state or move a lock: bench builds only. */
+static bool is_bench_only(lc_console_kind_t kind)
+{
+    return kind == LC_CONSOLE_CONFIGURE || kind == LC_CONSOLE_UNLOCK ||
+           kind == LC_CONSOLE_COMMAND || kind == LC_CONSOLE_RESET_NETWORK;
+}
+
 void lc_console_execute(const lc_console_t *console, const char *line)
 {
     lc_console_command_t command = lc_console_parse(line);
+
+    if (console->production && is_bench_only(command.kind)) {
+        command.kind = LC_CONSOLE_INVALID;
+    }
 
     switch (command.kind) {
     case LC_CONSOLE_STATUS:

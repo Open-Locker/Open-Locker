@@ -96,6 +96,13 @@ to the codec, so no adapter depends on another.
 
 ## Commissioning over USB
 
+The console commands below (`configure`, `unlock`, `command`, `reset-network`)
+exist in bench and development builds only. A production build is made with
+`idf.py -D SDKCONFIG_DEFAULTS="sdkconfig.defaults;sdkconfig.production" build`
+and has none of them (`CONFIG_LC_BENCH_CONSOLE=n`); it is commissioned through
+the setup network (ADR-0074). Neither build has flash or NVS encryption yet, so
+no production unit may ship (ADR-0074).
+
 A new board has no network settings. Give it some with the tool:
 
 ```bash

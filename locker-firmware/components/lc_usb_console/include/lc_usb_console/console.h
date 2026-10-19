@@ -47,6 +47,12 @@ typedef struct {
      * settings are stored. Shown by `status`. May be NULL.
      */
     bool (*provisioning_state)(void *ctx, bool *enrolled, bool *pending, bool *configured);
+    /*
+     * A production build (ADR-0074): `configure`, `unlock`, `command` and
+     * `reset-network` do not exist and answer like any unknown word. What
+     * remains only reads. The default, false, is the bench console.
+     */
+    bool production;
 } lc_console_t;
 
 void lc_console_execute(const lc_console_t *console, const char *line);
