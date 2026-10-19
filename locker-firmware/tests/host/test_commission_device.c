@@ -340,7 +340,7 @@ void test_S5_H06_pending_enrollment_refuses_new_settings_until_reset(void)
     assert_nothing_stored();
     TEST_ASSERT_EQUAL_STRING("spent-token", identity.identity.token);
 
-    TEST_ASSERT_TRUE(lc_commission_reset(&commission));
+    TEST_ASSERT_EQUAL_INT(LC_RESET_DONE, lc_commission_reset(&commission));
     TEST_ASSERT_FALSE(identity.identity.enrollment_pending);
 }
 
@@ -348,7 +348,7 @@ void test_S5_H07_reset_clears_identity_and_mapping_and_keeps_the_journal(void)
 {
     enroll();
 
-    TEST_ASSERT_TRUE(lc_commission_reset(&commission));
+    TEST_ASSERT_EQUAL_INT(LC_RESET_DONE, lc_commission_reset(&commission));
 
     TEST_ASSERT_FALSE(identity.identity.enrolled);
     TEST_ASSERT_FALSE(identity.identity.enrollment_pending);
@@ -369,8 +369,36 @@ void test_S5_H07_reset_clears_identity_and_mapping_and_keeps_the_journal(void)
     setUp();
     enroll();
     identity.save_ok = false;
-    TEST_ASSERT_FALSE(lc_commission_reset(&commission));
+    TEST_ASSERT_EQUAL_INT(LC_RESET_FAILED, lc_commission_reset(&commission));
     TEST_ASSERT_EQUAL_UINT(0, device.restart_count);
+}
+
+void test_S6_H15_reset_wipes_everything_keeps_the_journal_publishes_nothing_and_reports_a_partial_wipe(void)
+{
+    enroll();
+    TEST_ASSERT_EQUAL_INT(LC_RESET_DONE, lc_commission_reset(&commission));
+    TEST_ASSERT_FALSE(identity.identity.enrolled);
+    TEST_ASSERT_FALSE(config.has);
+    TEST_ASSERT_FALSE(settings.has);
+    /* Offline, so nothing is published; the journal is not reachable from here at all. */
+    TEST_ASSERT_EQUAL_UINT(0, outbound.id_count);
+
+    /* The mapping cannot be cleared: the unit still restarts, and says it was partial. */
+    setUp();
+    enroll();
+    config.clear_ok = false;
+    TEST_ASSERT_EQUAL_INT(LC_RESET_PARTIAL, lc_commission_reset(&commission));
+    TEST_ASSERT_FALSE(identity.identity.enrolled);
+    TEST_ASSERT_FALSE(settings.has);
+    TEST_ASSERT_EQUAL_UINT(1, device.restart_count);
+
+    /* So when the settings cannot be cleared; both clears are still tried. */
+    setUp();
+    enroll();
+    settings.clear_ok = false;
+    TEST_ASSERT_EQUAL_INT(LC_RESET_PARTIAL, lc_commission_reset(&commission));
+    TEST_ASSERT_EQUAL_UINT(1, config.clear_count);
+    TEST_ASSERT_EQUAL_UINT(1, device.restart_count);
 }
 
 void test_S5_H08_offline_message_is_published_before_the_restart_when_online(void)
@@ -396,7 +424,7 @@ void test_S5_H08_offline_message_is_published_before_the_restart_when_online(voi
     setUp();
     enroll();
     lc_commission_set_online(&commission, true);
-    TEST_ASSERT_TRUE(lc_commission_reset(&commission));
+    TEST_ASSERT_EQUAL_INT(LC_RESET_DONE, lc_commission_reset(&commission));
     TEST_ASSERT_EQUAL_UINT(1, outbound.accepted[FAKE_OFFLINE]);
     TEST_ASSERT_TRUE(fake_trace_first("outbound.offline") < fake_trace_first("system.restart"));
 }
@@ -416,7 +444,7 @@ void test_S5_H09_new_commands_are_refused_from_the_moment_settings_are_accepted(
 
     setUp();
     enroll();
-    TEST_ASSERT_TRUE(lc_commission_reset(&commission));
+    TEST_ASSERT_EQUAL_INT(LC_RESET_DONE, lc_commission_reset(&commission));
     TEST_ASSERT_EQUAL_UINT(1, stop_count);
     TEST_ASSERT_TRUE(fake_trace_first("commission.stop_commands") >
                      fake_trace_first("identity.save"));
@@ -440,7 +468,7 @@ void test_a_failed_save_does_not_leave_the_device_refusing_commands(void)
     setUp();
     enroll();
     identity.save_ok = false;
-    TEST_ASSERT_FALSE(lc_commission_reset(&commission));
+    TEST_ASSERT_EQUAL_INT(LC_RESET_FAILED, lc_commission_reset(&commission));
     TEST_ASSERT_EQUAL_UINT(0, stop_count);
 }
 
@@ -461,6 +489,7 @@ int main(void)
     RUN_TEST(test_S5_H05_enrollment_fields_are_ignored_on_an_enrolled_device);
     RUN_TEST(test_S5_H06_pending_enrollment_refuses_new_settings_until_reset);
     RUN_TEST(test_S5_H07_reset_clears_identity_and_mapping_and_keeps_the_journal);
+    RUN_TEST(test_S6_H15_reset_wipes_everything_keeps_the_journal_publishes_nothing_and_reports_a_partial_wipe);
     RUN_TEST(test_S5_H08_offline_message_is_published_before_the_restart_when_online);
     RUN_TEST(test_S5_H09_new_commands_are_refused_from_the_moment_settings_are_accepted);
     return UNITY_END();

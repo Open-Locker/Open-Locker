@@ -57,8 +57,21 @@ void lc_commission_allow_plaintext_broker(lc_commission_t *commission, bool allo
 lc_commission_result_t lc_commission_apply(lc_commission_t *commission,
                                            const lc_setup_request_t *request);
 
+typedef enum {
+    /* Identity, mapping and settings are all gone. */
+    LC_RESET_DONE = 0,
+    /* The empty identity could not be stored; nothing was wiped, no restart. */
+    LC_RESET_FAILED,
+    /*
+     * The identity is empty but the mapping or the settings could not be cleared.
+     * The restart is requested anyway; the boot repair finishes the wipe.
+     */
+    LC_RESET_PARTIAL,
+} lc_reset_result_t;
+
 /*
- * Clears network settings, identity and mapping, then requests a restart. The
- * command journal is kept.
+ * Clears identity, mapping and network settings, then requests a restart. The
+ * command journal is kept. The identity goes first: if that cannot be stored,
+ * nothing is wiped.
  */
-bool lc_commission_reset(lc_commission_t *commission);
+lc_reset_result_t lc_commission_reset(lc_commission_t *commission);

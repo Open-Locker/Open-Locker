@@ -144,7 +144,7 @@ lc_commission_result_t lc_commission_apply(lc_commission_t *commission,
     return LC_COMMISSION_SAVED;
 }
 
-bool lc_commission_reset(lc_commission_t *commission)
+lc_reset_result_t lc_commission_reset(lc_commission_t *commission)
 {
     const lc_commission_ports_t *ports = &commission->ports;
     lc_identity_t cleared;
@@ -152,13 +152,14 @@ bool lc_commission_reset(lc_commission_t *commission)
     /* The identity goes first: without it the rest is a device waiting to be set up. */
     memset(&cleared, 0, sizeof(cleared));
     if (!ports->identity_store.save(ports->identity_store.ctx, &cleared)) {
-        return false;
+        return LC_RESET_FAILED;
     }
     ports->stop_commands(ports->ctx);
-    (void)ports->config_store.clear(ports->config_store.ctx);
-    (void)ports->settings_store.clear(ports->settings_store.ctx);
+    /* Both are tried even if the first fails: a partial wipe is reported, not hidden. */
+    bool config_cleared = ports->config_store.clear(ports->config_store.ctx);
+    bool settings_cleared = ports->settings_store.clear(ports->settings_store.ctx);
 
     say_goodbye(commission);
     ports->system.restart(ports->system.ctx);
-    return true;
+    return config_cleared && settings_cleared ? LC_RESET_DONE : LC_RESET_PARTIAL;
 }

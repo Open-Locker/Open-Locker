@@ -207,8 +207,15 @@ static void handle(owner_event_t *event)
         refresh_device_state();
         break;
     case OWNER_RESET:
-        if (!lc_commission_reset(owner.commission)) {
+        switch (lc_commission_reset(owner.commission)) {
+        case LC_RESET_DONE:
+            break;
+        case LC_RESET_FAILED:
             ESP_LOGE(TAG, "the reset could not be stored and was not done");
+            break;
+        case LC_RESET_PARTIAL:
+            ESP_LOGE(TAG, "the reset is partial: mapping or settings were not cleared");
+            break;
         }
         break;
     }

@@ -288,6 +288,7 @@ Rows are added in the commit that writes each test (ADR-0074). Host suite
 | --- | --- |
 | S6-H10 | `configure` on an enrolled unit keeps the stored broker URL (S5-H01 to H09 still pass, with S5-H04 changed accordingly) |
 | S6-H11 | On an enrolled unit, broker and token fields are ignored and Wi-Fi settings alone are accepted |
+| S6-H15 | Factory reset wipes identity, mapping and settings, keeps the journal, publishes nothing. A failed later clear returns the "partial" result |
 
 ## Hardware acceptance
 
