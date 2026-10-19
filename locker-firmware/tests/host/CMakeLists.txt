@@ -158,13 +158,6 @@ lc_host_test(test_console_command)
 # S3: network, MQTT and enrollment
 lc_host_test(test_provision_device)
 lc_host_test(test_session)
-# The esp-mqtt adapter against stand-in SDK headers; not a pure component, so outside lc_under_test.
-lc_host_test(test_mqtt_transport)
-target_sources(test_mqtt_transport PRIVATE ${LC_COMPONENTS}/lc_mqtt_espidf/transport.c)
-target_include_directories(test_mqtt_transport PRIVATE
-  ${LC_COMPONENTS}/lc_mqtt_espidf/include
-  ${CMAKE_CURRENT_SOURCE_DIR}/fakes/esp_idf
-)
 # S4: state and door events
 lc_host_test(test_door_detection)
 lc_host_test(test_publish_state)

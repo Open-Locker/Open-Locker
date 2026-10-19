@@ -5,12 +5,12 @@ Runs every check a firmware change must pass without hardware; see
 docs/testing.md.
 
     python scripts/verify.py                 # everything
-    python scripts/verify.py --skip-target   # without the ESP-IDF build
+    python scripts/verify.py --skip-target   # without the ESP-IDF checks
 
 Needs `jsonschema` (`pip install -r requirements-dev.txt`), CMake and a C
-compiler. The target build needs an ESP-IDF shell. The host build uses the
-default CMake generator and C compiler. Set the CMAKE_GENERATOR and CC
-environment variables to choose others.
+compiler. The ESP-IDF checks (target build, IDF host tests) need an ESP-IDF
+shell. The host build uses the default CMake generator and C compiler. Set the
+CMAKE_GENERATOR and CC environment variables to choose others.
 """
 
 import json
@@ -29,6 +29,8 @@ COMPONENTS = ROOT / "components"
 HOST_TESTS = ROOT / "tests" / "host"
 BUILD = ROOT / "build" / "verify"
 HOST_BUILD = BUILD / "host"
+IDF_HOST_TESTS = ROOT / "tests" / "idf_host"
+IDF_HOST_BUILD = BUILD / "idf_host"
 SCRIPTS = ROOT / "scripts"
 SCHEMAS = REPO / "docs" / "asyncapi" / "schemas"
 # The host tests append every message they encode to this file.
@@ -434,12 +436,26 @@ def check_target_build():
     return [] if run([sys.executable, tool, "build"]) else ["target build failed"]
 
 
+def check_idf_host_tests():
+    """The ESP-IDF adapters on the Linux target, against CMock mocks generated from the SDK headers."""
+    tool = shutil.which("idf.py")
+    if tool is None:
+        return ["idf.py not found; run from an ESP-IDF shell or pass --skip-target"]
+    # No component manager: it would write a dependencies.lock into the test project.
+    os.environ["IDF_COMPONENT_MANAGER"] = "0"
+    build = [sys.executable, tool, "--preview", "-C", IDF_HOST_TESTS, "-B", IDF_HOST_BUILD,
+             f"-DSDKCONFIG={IDF_HOST_BUILD / 'sdkconfig'}", "-DIDF_TARGET=linux", "build"]
+    if not run(build):
+        return ["IDF host test build failed"]
+    return [] if run([IDF_HOST_BUILD / "idf_host_test.elf"]) else ["IDF host tests failed"]
+
+
 def main(argv):
     unknown = [option for option in argv if option != "--skip-target"]
     if unknown:
         print(f"usage: python scripts/verify.py [--skip-target]\nunknown: {' '.join(unknown)}", file=sys.stderr)
         return 2
-    # The target build then counts as not run, and the summary says so.
+    # The ESP-IDF checks then count as not run, and the summary says so.
     skip_target = "--skip-target" in argv
 
     sys.stdout.reconfigure(line_buffering=True)
@@ -454,6 +470,7 @@ def main(argv):
         ("line coverage", check_coverage),
     ]
     if not skip_target:
+        checks.append(("IDF host tests", check_idf_host_tests))
         checks.append(("target build", check_target_build))
 
     failed = []
@@ -472,7 +489,7 @@ def main(argv):
     if failed:
         print("FAILED: " + ", ".join(failed))
         return 1
-    print("PASSED, target build NOT RUN" if skip_target else "PASSED")
+    print("PASSED, ESP-IDF checks NOT RUN" if skip_target else "PASSED")
     return 0
 
 

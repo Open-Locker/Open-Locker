@@ -15,6 +15,7 @@ image in a separate step.
 | --- | --- |
 | **Static** | Target build with warnings as errors; layer include check; compiler static analysis of the pure components |
 | **Host** | Every host suite, built with AddressSanitizer and UndefinedBehaviorSanitizer; schema validation of every emitted MQTT message; the Python tests of the tools; line coverage |
+| **IDF host** | The ESP-IDF adapters on ESP-IDF's Linux target, with the SDK below them replaced by CMock mocks generated from its real headers (`tests/idf_host/`). Needs ESP-IDF, like the target build |
 
 Rules:
 

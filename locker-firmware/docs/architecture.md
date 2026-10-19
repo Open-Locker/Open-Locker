@@ -36,6 +36,7 @@ locker-firmware/
     lc_usb_console/       driving adapter: serial line protocol to the commissioning use case
   main/                   composition root: app_main.c wires adapters to ports; owner_task.c
   tests/host/             host build: fakes and one suite per use case and pure adapter
+  tests/idf_host/         ESP-IDF Linux target: SDK adapters against CMock mocks of the SDK
   scripts/                verify gate, commissioning, broker check, hardware acceptance
 ```
 
