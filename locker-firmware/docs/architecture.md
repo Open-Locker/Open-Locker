@@ -34,6 +34,7 @@ locker-firmware/
     lc_journal/           command journal over a flash I/O struct (ADR-0070)
     lc_storage_nvs/       settings, identity and runtime config stores; journal partition I/O
     lc_net_wifi/          Wi-Fi station and SNTP
+    lc_button/            reset gesture state machine (pure C, ADR-0074)
     lc_usb_console/       driving adapter: serial line protocol to the commissioning use case
   main/                   composition root: app_main.c wires adapters to ports; owner_task.c
   tests/host/             host build: fakes and one suite per use case and pure adapter
@@ -55,7 +56,7 @@ An adapter never requires another adapter. Where two must cooperate, the
 composition root passes one into the other through a small struct, as the bus
 adapter gets its serial transport. That seam is also what lets the bus adapter
 run on a host against a scripted serial fake. The pure components (`lc_domain`,
-`lc_application`, `lc_mqtt_codec`, `lc_rs485_lock_board`, `lc_journal`) include
+`lc_application`, `lc_mqtt_codec`, `lc_rs485_lock_board`, `lc_journal`, `lc_button`) include
 no SDK or RTOS header and build on a host unchanged.
 
 ### Mapping from the Pi client

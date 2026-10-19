@@ -299,6 +299,20 @@ Host suite `test_boot_mode`:
 | S6-H24 | Boot with an empty identity and settings present finishes the wipe (settings and mapping), then decides the mode |
 | S6-H26 | Boot with an empty identity, a mapping and no settings leaves the mapping alone (bench mode, HW-B3) |
 
+Host suite `test_button`:
+
+| ID | Test |
+| --- | --- |
+| S6-H16 | A press under 10 s does nothing |
+| S6-H17 | A press from 10 s to under 30 s resets, once, on release |
+| S6-H18 | A press of 30 s or more is void |
+| S6-H19 | A button held at power-up does nothing until it has been released for a second |
+| S6-H20 | A stuck pin never arms |
+| S6-H21 | A gap between samples voids the press and the arming |
+| S6-H22 | A floating pin reads released (pull-up) and does nothing |
+| S6-H23 | Bounce under 50 ms is ignored |
+| S6-H25 | A reset the owner task refused is offered again on the next samples for 2 s, then reported once |
+
 ## Hardware acceptance
 
 Everything that needs the real board, converter, panel, lock, Wi-Fi or broker

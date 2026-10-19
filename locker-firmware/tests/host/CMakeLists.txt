@@ -51,6 +51,7 @@ add_library(lc_under_test STATIC
   ${LC_COMPONENTS}/lc_mqtt_codec/provisioning.c
   ${LC_COMPONENTS}/lc_mqtt_codec/events.c
   ${LC_COMPONENTS}/lc_journal/journal.c
+  ${LC_COMPONENTS}/lc_button/button.c
   ${LC_COMPONENTS}/lc_rs485_lock_board/codec.c
   ${LC_COMPONENTS}/lc_rs485_lock_board/bus.c
   ${LC_COMPONENTS}/lc_rs485_lock_board/self_test.c
@@ -67,6 +68,7 @@ target_include_directories(lc_under_test PUBLIC
   ${LC_COMPONENTS}/lc_application/include
   ${LC_COMPONENTS}/lc_mqtt_codec/include
   ${LC_COMPONENTS}/lc_journal/include
+  ${LC_COMPONENTS}/lc_button/include
 )
 target_link_libraries(lc_under_test PUBLIC cjson)
 
@@ -166,3 +168,4 @@ lc_host_test(test_commission_device)
 lc_host_test(test_console_protocol)
 # S6: SoftAP provisioning
 lc_host_test(test_boot_mode)
+lc_host_test(test_button)

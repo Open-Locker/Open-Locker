@@ -45,6 +45,7 @@ MIN_LINE_COVERAGE = 95.0
 # named here is an adapter. `main` is the composition root and is not checked.
 ALLOWED_DEPENDENCIES = {
     "lc_domain": [],
+    "lc_button": [],
     "lc_ports": ["lc_domain"],
     "lc_application": ["lc_domain", "lc_ports"],
 }
@@ -58,6 +59,7 @@ PURE_COMPONENTS = [
     "lc_mqtt_codec",
     "lc_rs485_lock_board",
     "lc_journal",
+    "lc_button",
 ]
 HEADER_ONLY_PURE_COMPONENTS = ["lc_ports"]
 # Components that wrap the SDK and are not measured by the host gate. A new
