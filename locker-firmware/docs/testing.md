@@ -35,7 +35,9 @@ Rules:
   this file does not list. Tests for details the catalogue does not list carry
   no ID; most live in the `*_edge` suites.
 - Line coverage of `lc_domain`, `lc_application` and the pure adapters
-  (`lc_mqtt_codec`, `lc_rs485_lock_board`, `lc_journal`) must be at least 90 %.
+  (`lc_mqtt_codec`, `lc_rs485_lock_board`, `lc_journal`) must be at least 95 %.
+  Every component is listed in `verify.py` as pure, header-only or adapter; the
+  gate fails on a component in none of them.
 - A test that fails intermittently is a failing test. No test is removed or
   skipped without a line in the PR saying why. Changing a listed test needs a
   line in the PR description saying what changed and why.

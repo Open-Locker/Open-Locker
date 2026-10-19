@@ -63,7 +63,7 @@ gates, and an ESP-IDF shell for the IDF host tests and the target build. Flashin
 checks the test IDs against [the catalogue](docs/testing.md), the layer rules (see below), static
 analysis of the pure components, the host suites with AddressSanitizer and
 UndefinedBehaviorSanitizer, every encoded MQTT message against its AsyncAPI
-schema, the Python tests of the tools, and line coverage of at least 90 % for the
+schema, the Python tests of the tools, and line coverage of at least 95 % for the
 pure components.
 
 ## How it is laid out
