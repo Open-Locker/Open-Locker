@@ -216,6 +216,12 @@ smaller choices that have no ADR.
   other `adapter_type` and a second board address are rejected. Development
   runs on an ESP32 D1 mini with an XY-485 automatic-direction converter; no
   DE/RE pin is driven. The board selection of ADR-0005 is not used yet.
+- **Commissioning.** Over USB serial with `scripts/commission.py` on the bench.
+  A SoftAP setup network is the second driving adapter over the same use case
+  (#57, [ADR-0074](../../docs/adr/0074-esp32-softap-provisioning.md)): it opens
+  only on a unit without settings, for 10 minutes, and is re-entered by a button
+  held for 10 s. Its decisions are the pure `lc_softap_portal` and `lc_button`
+  components; the radio adapter is not written yet.
 - **Port naming.** The locker bus port is protocol-neutral: unlock a
   compartment, read compartment states, board address.
 - **Tooling in Python.** ESP-IDF is driven by Python (`idf.py`), so the

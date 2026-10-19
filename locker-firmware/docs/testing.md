@@ -419,6 +419,23 @@ Rules:
 | HW-E4 | Unplug USB during a save, ten times: the device has either the old or the new settings, never a mix |
 | HW-E5 | Reset the unit: the old credentials no longer work, and a fresh token enrolls it |
 
+### Group F: SoftAP commissioning
+
+Needs the setup-network code wired in (the device-side adapter), a laptop with
+`esp_prov` and a production-configured build for HW-F6. Run against a backend
+with the token-expiry change deployed for HW-F8 (ADR-0074).
+
+| ID | Check |
+| --- | --- |
+| HW-F1 | **Actuates.** Commission an erased unit from a laptop with no cable, through to an open from the admin panel. Success is read in the panel |
+| HW-F2 | Wrong Wi-Fi password: the unit keeps retrying, the 10 s button hold resets it, and within 24 h of issue the same unused token enrolls it. Checked in the panel |
+| HW-F3 | On an enrolled unit, scan for the access point and probe the port: neither is reachable |
+| HW-F4 | Button: under 10 s does nothing, 10 s resets, held at power-up does nothing, a jumper stuck down does nothing |
+| HW-F5 | A second station is refused. The window closes after 10 minutes. A wrong setup password fails the session, and 5 failures close the window |
+| HW-F6 | A production build refuses `configure` and `unlock` over USB |
+| HW-F7 | A traffic capture shows neither the Wi-Fi password nor the token in clear, including on `ol-config` |
+| HW-F8 | Against a backend with the token-expiry change deployed: a token older than 24 hours is refused, and a fresh one works |
+
 ### Group G: Endurance and rollback
 
 | ID | Check |
