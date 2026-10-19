@@ -54,13 +54,14 @@ jobs:
       - name: Run static and host gates
         run: python scripts/verify.py --skip-target
 
-      # Fails when locker-firmware/ changed since the bench run, or a check failed.
-      - name: Check the hardware record
-        run: python scripts/hwtest.py check
-
+      # Before the hardware record, so a stale record does not hide a broken build.
       - name: Build the firmware with ESP-IDF
         uses: espressif/esp-idf-ci-action@v1
         with:
           esp_idf_version: v5.4
           target: esp32
           path: locker-firmware
+
+      # Fails when locker-firmware/ changed since the bench run, or a check failed.
+      - name: Check the hardware record
+        run: python scripts/hwtest.py check

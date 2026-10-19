@@ -70,7 +70,9 @@ void lc_provision_on_reply(lc_provision_t *provision, const lc_provisioning_repl
 {
     const lc_identity_store_port_t *store = &provision->ports.identity_store;
 
-    if (provision->state != LC_PROVISION_WAITING_FOR_REPLY) {
+    /* A late reply is still taken: the backend spent the token when it answered. */
+    if (provision->state != LC_PROVISION_WAITING_FOR_REPLY &&
+        provision->state != LC_PROVISION_OUTCOME_UNKNOWN) {
         return;
     }
 

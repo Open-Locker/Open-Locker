@@ -204,6 +204,23 @@ void test_S3_H06_missing_reply_is_not_retried_and_leaves_the_pending_flag_set(vo
     TEST_ASSERT_TRUE(store.identity.enrollment_pending);
 }
 
+/* The backend spent the token when it answered; a reply after the wait is still taken. */
+void test_a_reply_that_arrives_after_the_wait_still_enrolls_the_device(void)
+{
+    register_and_wait();
+    clock.now_ms += LC_PROVISION_REPLY_TIMEOUT_MS + 1;
+    lc_provision_tick(&provision);
+    TEST_ASSERT_EQUAL_INT(LC_PROVISION_OUTCOME_UNKNOWN, state());
+
+    deliver_reply(SUCCESS_REPLY);
+
+    TEST_ASSERT_EQUAL_INT(LC_PROVISION_ENROLLED, state());
+    TEST_ASSERT_TRUE(store.identity.enrolled);
+    TEST_ASSERT_FALSE(store.identity.enrollment_pending);
+    TEST_ASSERT_EQUAL_STRING(LOCKER_UUID, store.identity.locker_uuid);
+    TEST_ASSERT_EQUAL_UINT(1, gateway.registration_count);
+}
+
 void test_S3_H07_device_that_boots_with_the_pending_flag_never_registers(void)
 {
     store.identity.enrollment_pending = true;
@@ -325,6 +342,7 @@ int main(void)
     RUN_TEST(test_S3_H04_success_reply_stores_the_identity_in_one_write);
     RUN_TEST(test_S3_H05_rejected_or_expired_token_is_reported_and_not_retried);
     RUN_TEST(test_S3_H06_missing_reply_is_not_retried_and_leaves_the_pending_flag_set);
+    RUN_TEST(test_a_reply_that_arrives_after_the_wait_still_enrolls_the_device);
     RUN_TEST(test_S3_H07_device_that_boots_with_the_pending_flag_never_registers);
     RUN_TEST(test_S3_H08_malformed_and_misdirected_replies_are_ignored);
     RUN_TEST(test_S3_H09_device_is_not_enrolled_if_saving_the_credentials_fails);

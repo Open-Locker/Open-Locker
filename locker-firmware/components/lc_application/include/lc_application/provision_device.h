@@ -24,7 +24,7 @@ typedef enum {
     LC_PROVISION_ENROLLED,
     /* The backend refused the token. */
     LC_PROVISION_REJECTED,
-    /* The token was sent and no usable reply was stored. Needs a reset. */
+    /* The token was sent and no usable reply was stored. Needs a reset, unless a late reply comes. */
     LC_PROVISION_OUTCOME_UNKNOWN,
     /* The identity could not be stored. */
     LC_PROVISION_STORE_FAILED,
