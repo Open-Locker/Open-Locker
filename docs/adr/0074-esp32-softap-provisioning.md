@@ -134,6 +134,22 @@ into this ADR before it is accepted; where one fails, the plan says what to do.
 | ESP-IDF 5.4.x patch notes on the lwIP DHCP-server advisory? | Pin the fixed patch release and use that image for target builds |
 | Does a jumper from GPIO 4 to GND held for 10 s read as a press? | Check wiring and pin choice |
 
+### Implementation status
+
+The decision logic is built and host-tested: boot mode and repair, the reset
+gesture, the portal session rules, the `ol-config` parser and collector, and the
+production console. The radio adapter (`lc_softap_espidf`), its wiring in
+`app_main` and the laptop tool (`commission_softap.py`) are written against the
+ESP-IDF 5.4 headers and compile-checked in the `espressif/idf:v5.4` image only
+(default and production configuration, and the IDF host tests). **They have not
+run on a board.** The adapter uses protocomm directly, not the provisioning
+manager, so that failed Security 2 sessions are countable through the protocomm
+session events and the endpoint whitelist is ours; whether `esp_prov` talks to
+it, and whether the open points above hold, is for the bench spike. The Security
+2 salt and verifier are derived on the device from the label's setup password at
+each start (`esp_srp_gen_salt_verifier`), which keeps that password on the unit.
+The owner queue's memory budget is a host measurement.
+
 ## Alternatives Considered
 
 - **Open (unencrypted) SoftAP with an HTTP form.** Rejected: secrets would cross
