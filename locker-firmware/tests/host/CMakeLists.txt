@@ -45,6 +45,7 @@ add_library(lc_under_test STATIC
   ${LC_COMPONENTS}/lc_application/publish_state.c
   ${LC_COMPONENTS}/lc_application/provision_device.c
   ${LC_COMPONENTS}/lc_application/commission_device.c
+  ${LC_COMPONENTS}/lc_application/boot_mode.c
   ${LC_COMPONENTS}/lc_mqtt_codec/codec.c
   ${LC_COMPONENTS}/lc_mqtt_codec/topics.c
   ${LC_COMPONENTS}/lc_mqtt_codec/provisioning.c
@@ -163,3 +164,5 @@ lc_host_test(test_publish_state)
 # S5: USB commissioning
 lc_host_test(test_commission_device)
 lc_host_test(test_console_protocol)
+# S6: SoftAP provisioning
+lc_host_test(test_boot_mode)

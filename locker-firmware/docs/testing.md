@@ -290,6 +290,15 @@ Rows are added in the commit that writes each test (ADR-0074). Host suite
 | S6-H11 | On an enrolled unit, broker and token fields are ignored and Wi-Fi settings alone are accepted |
 | S6-H15 | Factory reset wipes identity, mapping and settings, keeps the journal, publishes nothing. A failed later clear returns the "partial" result |
 
+Host suite `test_boot_mode`:
+
+| ID | Test |
+| --- | --- |
+| S6-H05 | The setup network starts when no settings are stored |
+| S6-H06 | The setup network never starts when settings are stored or the unit is enrolled, whatever else is true |
+| S6-H24 | Boot with an empty identity and settings present finishes the wipe (settings and mapping), then decides the mode |
+| S6-H26 | Boot with an empty identity, a mapping and no settings leaves the mapping alone (bench mode, HW-B3) |
+
 ## Hardware acceptance
 
 Everything that needs the real board, converter, panel, lock, Wi-Fi or broker
