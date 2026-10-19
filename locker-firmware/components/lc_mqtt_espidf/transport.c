@@ -57,6 +57,12 @@ static void on_event(void *args, esp_event_base_t base, int32_t id, void *data)
         }
         break;
     case MQTT_EVENT_SUBSCRIBED:
+        /* esp-mqtt raises this for a refused SUBACK (0x80) too, and only flags it here. */
+        if (event->error_handle != NULL &&
+            event->error_handle->error_type == MQTT_ERROR_TYPE_SUBSCRIBE_FAILED) {
+            ESP_LOGE(TAG, "the broker refused subscription %d (check its ACL)", event->msg_id);
+            break;
+        }
         if (handlers.on_subscribed != NULL) {
             handlers.on_subscribed(handlers.ctx, event->msg_id);
         }
