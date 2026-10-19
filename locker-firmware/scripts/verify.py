@@ -46,6 +46,8 @@ MIN_LINE_COVERAGE = 95.0
 ALLOWED_DEPENDENCIES = {
     "lc_domain": [],
     "lc_button": [],
+    # The setup network can reach identity types and nothing else: no ports, so no bus.
+    "lc_softap_portal": ["lc_domain"],
     "lc_ports": ["lc_domain"],
     "lc_application": ["lc_domain", "lc_ports"],
 }
@@ -60,6 +62,7 @@ PURE_COMPONENTS = [
     "lc_rs485_lock_board",
     "lc_journal",
     "lc_button",
+    "lc_softap_portal",
 ]
 HEADER_ONLY_PURE_COMPONENTS = ["lc_ports"]
 # Components that wrap the SDK and are not measured by the host gate. A new
