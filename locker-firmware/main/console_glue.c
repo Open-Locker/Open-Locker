@@ -43,6 +43,7 @@ static bool submit_setup(void *ctx, const lc_setup_request_t *request)
 
     memset(&event, 0, sizeof(event));
     event.kind = OWNER_SETUP;
+    event.channel = LC_COMMISSION_CHANNEL_CONSOLE;
     event.u.setup = *request;
     bool posted = owner_post(&event);
     /* The queue holds its own copy; this one held a token. */
@@ -86,9 +87,22 @@ void console_glue_init(lc_console_t *console, const lc_locker_bus_port_t *bus,
     };
 }
 
-void console_glue_reply(void *ctx, lc_commission_result_t result)
+static void (*portal_reply)(lc_commission_result_t result);
+
+void console_glue_set_portal_reply(void (*reply)(lc_commission_result_t result))
+{
+    portal_reply = reply;
+}
+
+void console_glue_reply(void *ctx, lc_commission_channel_t channel, lc_commission_result_t result)
 {
     (void)ctx;
+    if (channel == LC_COMMISSION_CHANNEL_PORTAL) {
+        if (portal_reply != NULL) {
+            portal_reply(result);
+        }
+        return;
+    }
     /* One line, one outcome, and never a value that was submitted. */
     switch (result) {
     case LC_COMMISSION_SAVED:

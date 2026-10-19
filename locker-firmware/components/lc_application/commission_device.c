@@ -64,9 +64,10 @@ static bool enrollment_is_valid(const lc_setup_request_t *request)
            request->token[0] != '\0';
 }
 
-static lc_commission_result_t answer(lc_commission_t *commission, lc_commission_result_t result)
+static lc_commission_result_t answer(lc_commission_t *commission, lc_commission_channel_t channel,
+                                     lc_commission_result_t result)
 {
-    commission->ports.reply(commission->ports.ctx, result);
+    commission->ports.reply(commission->ports.ctx, channel, result);
     return result;
 }
 
@@ -82,6 +83,13 @@ static void say_goodbye(lc_commission_t *commission)
 lc_commission_result_t lc_commission_apply(lc_commission_t *commission,
                                            const lc_setup_request_t *request)
 {
+    return lc_commission_apply_from(commission, LC_COMMISSION_CHANNEL_CONSOLE, request);
+}
+
+lc_commission_result_t lc_commission_apply_from(lc_commission_t *commission,
+                                                lc_commission_channel_t channel,
+                                                const lc_setup_request_t *request)
+{
     const lc_commission_ports_t *ports = &commission->ports;
     lc_identity_t identity;
 
@@ -91,7 +99,7 @@ lc_commission_result_t lc_commission_apply(lc_commission_t *commission,
 
     /* The token has left the device and its fate is unknown: only a reset helps. */
     if (identity.enrollment_pending) {
-        return answer(commission, LC_COMMISSION_RESET_REQUIRED);
+        return answer(commission, channel, LC_COMMISSION_RESET_REQUIRED);
     }
 
     /* Kept so a failed identity save can put the network back: old or new, never a mix. */
@@ -105,7 +113,7 @@ lc_commission_result_t lc_commission_apply(lc_commission_t *commission,
     bool keep_broker = identity.enrolled && had_previous && previous.broker_url[0] != '\0';
     if (!wifi_is_valid(request) || (!keep_broker && !broker_is_valid(commission, request)) ||
         (!identity.enrolled && !enrollment_is_valid(request))) {
-        return answer(commission, LC_COMMISSION_INVALID);
+        return answer(commission, channel, LC_COMMISSION_INVALID);
     }
 
     lc_network_settings_t settings;
@@ -117,7 +125,7 @@ lc_commission_result_t lc_commission_apply(lc_commission_t *commission,
     (void)lc_text_copy(settings.broker_url, sizeof(settings.broker_url),
                        keep_broker ? previous.broker_url : request->broker_url);
     if (!ports->settings_store.save(ports->settings_store.ctx, &settings)) {
-        return answer(commission, LC_COMMISSION_SAVE_FAILED);
+        return answer(commission, channel, LC_COMMISSION_SAVE_FAILED);
     }
 
     if (!identity.enrolled) {
@@ -132,13 +140,13 @@ lc_commission_result_t lc_commission_apply(lc_commission_t *commission,
             } else {
                 (void)ports->settings_store.clear(ports->settings_store.ctx);
             }
-            return answer(commission, LC_COMMISSION_SAVE_FAILED);
+            return answer(commission, channel, LC_COMMISSION_SAVE_FAILED);
         }
     }
 
     /* Only once everything is stored: a failed save must leave the device taking commands. */
     ports->stop_commands(ports->ctx);
-    (void)answer(commission, LC_COMMISSION_SAVED);
+    (void)answer(commission, channel, LC_COMMISSION_SAVED);
     say_goodbye(commission);
     ports->system.restart(ports->system.ctx);
     return LC_COMMISSION_SAVED;

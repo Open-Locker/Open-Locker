@@ -16,6 +16,7 @@ static lc_commission_t commission;
 static unsigned stop_count;
 static unsigned reply_count;
 static lc_commission_result_t last_reply;
+static lc_commission_channel_t last_channel;
 
 static void stop_commands(void *ctx)
 {
@@ -24,12 +25,13 @@ static void stop_commands(void *ctx)
     ++stop_count;
 }
 
-static void reply(void *ctx, lc_commission_result_t result)
+static void reply(void *ctx, lc_commission_channel_t channel, lc_commission_result_t result)
 {
     (void)ctx;
     fake_trace("commission.reply");
     ++reply_count;
     last_reply = result;
+    last_channel = channel;
 }
 
 void setUp(void)
@@ -401,6 +403,28 @@ void test_S6_H15_reset_wipes_everything_keeps_the_journal_publishes_nothing_and_
     TEST_ASSERT_EQUAL_UINT(1, device.restart_count);
 }
 
+/* Beyond the catalogue: the one reply goes out on the channel the request came in on. */
+void test_the_reply_goes_to_the_requesting_channel(void)
+{
+    lc_setup_request_t setup = request();
+
+    TEST_ASSERT_EQUAL_INT(LC_COMMISSION_SAVED,
+                          lc_commission_apply_from(&commission, LC_COMMISSION_CHANNEL_PORTAL, &setup));
+    TEST_ASSERT_EQUAL_UINT(1, reply_count);
+    TEST_ASSERT_EQUAL_INT(LC_COMMISSION_CHANNEL_PORTAL, last_channel);
+
+    setUp();
+    snprintf(setup.broker_url, sizeof(setup.broker_url), "http://not-mqtts");
+    TEST_ASSERT_EQUAL_INT(LC_COMMISSION_INVALID,
+                          lc_commission_apply_from(&commission, LC_COMMISSION_CHANNEL_PORTAL, &setup));
+    TEST_ASSERT_EQUAL_INT(LC_COMMISSION_CHANNEL_PORTAL, last_channel);
+
+    setUp();
+    setup = request();
+    TEST_ASSERT_EQUAL_INT(LC_COMMISSION_SAVED, lc_commission_apply(&commission, &setup));
+    TEST_ASSERT_EQUAL_INT(LC_COMMISSION_CHANNEL_CONSOLE, last_channel);
+}
+
 void test_S5_H08_offline_message_is_published_before_the_restart_when_online(void)
 {
     enroll();
@@ -490,6 +514,7 @@ int main(void)
     RUN_TEST(test_S5_H06_pending_enrollment_refuses_new_settings_until_reset);
     RUN_TEST(test_S5_H07_reset_clears_identity_and_mapping_and_keeps_the_journal);
     RUN_TEST(test_S6_H15_reset_wipes_everything_keeps_the_journal_publishes_nothing_and_reports_a_partial_wipe);
+    RUN_TEST(test_the_reply_goes_to_the_requesting_channel);
     RUN_TEST(test_S5_H08_offline_message_is_published_before_the_restart_when_online);
     RUN_TEST(test_S5_H09_new_commands_are_refused_from_the_moment_settings_are_accepted);
     return UNITY_END();

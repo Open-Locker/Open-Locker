@@ -21,6 +21,12 @@ typedef enum {
     LC_COMMISSION_SAVE_FAILED,
 } lc_commission_result_t;
 
+/* Where a request came from, and so where its one reply goes. */
+typedef enum {
+    LC_COMMISSION_CHANNEL_CONSOLE = 0,
+    LC_COMMISSION_CHANNEL_PORTAL,
+} lc_commission_channel_t;
+
 typedef struct {
     lc_settings_store_port_t settings_store;
     lc_identity_store_port_t identity_store;
@@ -30,8 +36,8 @@ typedef struct {
     void *ctx;
     /* The application must refuse commands from now on. */
     void (*stop_commands)(void *ctx);
-    /* Tells the installer the outcome. Never carries a submitted value. */
-    void (*reply)(void *ctx, lc_commission_result_t result);
+    /* Tells the installer the outcome, on the channel the request came in on. Never carries a submitted value. */
+    void (*reply)(void *ctx, lc_commission_channel_t channel, lc_commission_result_t result);
 } lc_commission_ports_t;
 
 /* Caller-allocated. Fields are private; the implementation may add to them. */
@@ -54,6 +60,11 @@ void lc_commission_allow_plaintext_broker(lc_commission_t *commission, bool allo
  * enrolled device only the network settings are taken; identity, mapping and
  * journal are left alone.
  */
+lc_commission_result_t lc_commission_apply_from(lc_commission_t *commission,
+                                                lc_commission_channel_t channel,
+                                                const lc_setup_request_t *request);
+
+/* The same, for a request from the USB console. */
 lc_commission_result_t lc_commission_apply(lc_commission_t *commission,
                                            const lc_setup_request_t *request);
 

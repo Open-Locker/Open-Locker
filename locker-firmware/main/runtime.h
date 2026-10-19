@@ -39,6 +39,8 @@ typedef enum {
 
 typedef struct {
     owner_event_kind_t kind;
+    /* For OWNER_SETUP: where the one reply goes. */
+    lc_commission_channel_t channel;
     union {
         lc_event_t app;
         int message_id;

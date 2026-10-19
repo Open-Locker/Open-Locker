@@ -29,9 +29,10 @@ static void stop_commands(void *ctx)
     (void)ctx;
 }
 
-static void reply(void *ctx, lc_commission_result_t result)
+static void reply(void *ctx, lc_commission_channel_t channel, lc_commission_result_t result)
 {
     (void)ctx;
+    (void)channel;
     ++reply_count;
     last_reply = result;
 }

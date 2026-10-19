@@ -203,7 +203,7 @@ static void handle(owner_event_t *event)
         on_provision_reply(&event->u.reply);
         break;
     case OWNER_SETUP:
-        (void)lc_commission_apply(owner.commission, &event->u.setup);
+        (void)lc_commission_apply_from(owner.commission, event->channel, &event->u.setup);
         refresh_device_state();
         break;
     case OWNER_RESET:
