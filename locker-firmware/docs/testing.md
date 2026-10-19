@@ -252,7 +252,7 @@ Host suite `test_commission_device`:
 | S5-H01 | Valid settings are saved, then acknowledged, then the restart is requested, in that order |
 | S5-H02 | An SSID or Wi-Fi password of invalid length, or a broker URL that is not `mqtts://`, is rejected and nothing is saved (release build) |
 | S5-H03 | A store failure produces no acknowledgement and no restart |
-| S5-H04 | On an enrolled device, a network change keeps credentials, locker UUID, mapping, and journal |
+| S5-H04 | On an enrolled device, a network change keeps credentials, locker UUID, mapping, and journal (the stored broker URL stays too, S6-H10) |
 | S5-H05 | On an enrolled device, token and bootstrap fields in the input are ignored |
 | S5-H06 | A device with the pending flag set refuses new settings until it is reset |
 | S5-H07 | Reset clears identity, credentials, and mapping, and keeps the journal |
@@ -278,6 +278,16 @@ Tool suite `test_commission.py` (unittest, runs in the host gate):
 | S5-H16 | Secrets are read without echo and never written to disk or to output |
 | S5-H17 | A lost serial connection after sending is reported; the tool does not resend |
 | S5-H18 | The tool never issues a reset on its own |
+
+### SoftAP provisioning (S6)
+
+Rows are added in the commit that writes each test (ADR-0074). Host suite
+`test_commission_device`:
+
+| ID | Test |
+| --- | --- |
+| S6-H10 | `configure` on an enrolled unit keeps the stored broker URL (S5-H01 to H09 still pass, with S5-H04 changed accordingly) |
+| S6-H11 | On an enrolled unit, broker and token fields are ignored and Wi-Fi settings alone are accepted |
 
 ## Hardware acceptance
 

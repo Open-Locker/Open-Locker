@@ -89,6 +89,8 @@ static void enroll(void)
     settings.has = true;
     settings.settings.configured = true;
     snprintf(settings.settings.ssid, sizeof(settings.settings.ssid), "old-network");
+    snprintf(settings.settings.broker_url, sizeof(settings.settings.broker_url),
+             "mqtts://enrolled-with.example");
 }
 
 static void assert_nothing_stored(void)
@@ -267,6 +269,41 @@ void test_S5_H04_network_change_on_an_enrolled_device_keeps_identity_and_mapping
     TEST_ASSERT_TRUE(config.has);
 }
 
+void test_S6_H10_configure_on_an_enrolled_device_keeps_the_stored_broker_url(void)
+{
+    enroll();
+    const lc_setup_request_t setup = request(); /* names another broker */
+
+    TEST_ASSERT_EQUAL_INT(LC_COMMISSION_SAVED, lc_commission_apply(&commission, &setup));
+
+    TEST_ASSERT_EQUAL_STRING("workshop", settings.settings.ssid);
+    TEST_ASSERT_EQUAL_STRING("mqtts://enrolled-with.example", settings.settings.broker_url);
+}
+
+void test_S6_H11_wifi_alone_is_accepted_on_an_enrolled_device(void)
+{
+    enroll();
+    lc_setup_request_t wifi_only;
+    memset(&wifi_only, 0, sizeof(wifi_only));
+    snprintf(wifi_only.ssid, sizeof(wifi_only.ssid), "third-network");
+    snprintf(wifi_only.wifi_password, sizeof(wifi_only.wifi_password), "correct horse");
+
+    TEST_ASSERT_EQUAL_INT(LC_COMMISSION_SAVED, lc_commission_apply(&commission, &wifi_only));
+    TEST_ASSERT_EQUAL_STRING("third-network", settings.settings.ssid);
+    TEST_ASSERT_EQUAL_STRING("mqtts://enrolled-with.example", settings.settings.broker_url);
+
+    /* A broker given with it is ignored, even one that would be invalid on a fresh unit. */
+    snprintf(wifi_only.broker_url, sizeof(wifi_only.broker_url), "http://not-mqtts");
+    snprintf(wifi_only.token, sizeof(wifi_only.token), "ignored");
+    TEST_ASSERT_EQUAL_INT(LC_COMMISSION_SAVED, lc_commission_apply(&commission, &wifi_only));
+    TEST_ASSERT_EQUAL_STRING("mqtts://enrolled-with.example", settings.settings.broker_url);
+
+    /* The Wi-Fi itself is still checked. */
+    wifi_only.ssid[0] = '\0';
+    TEST_ASSERT_EQUAL_INT(LC_COMMISSION_INVALID, lc_commission_apply(&commission, &wifi_only));
+    TEST_ASSERT_EQUAL_STRING("third-network", settings.settings.ssid);
+}
+
 void test_S5_H05_enrollment_fields_are_ignored_on_an_enrolled_device(void)
 {
     enroll();
@@ -419,6 +456,8 @@ int main(void)
     RUN_TEST(test_a_failed_save_does_not_leave_the_device_refusing_commands);
     RUN_TEST(test_a_device_whose_identity_cannot_be_loaded_is_set_up_as_not_enrolled);
     RUN_TEST(test_S5_H04_network_change_on_an_enrolled_device_keeps_identity_and_mapping);
+    RUN_TEST(test_S6_H10_configure_on_an_enrolled_device_keeps_the_stored_broker_url);
+    RUN_TEST(test_S6_H11_wifi_alone_is_accepted_on_an_enrolled_device);
     RUN_TEST(test_S5_H05_enrollment_fields_are_ignored_on_an_enrolled_device);
     RUN_TEST(test_S5_H06_pending_enrollment_refuses_new_settings_until_reset);
     RUN_TEST(test_S5_H07_reset_clears_identity_and_mapping_and_keeps_the_journal);

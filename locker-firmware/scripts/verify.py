@@ -37,7 +37,7 @@ SCHEMAS = REPO / "docs" / "asyncapi" / "schemas"
 EMITTED_MESSAGES = BUILD / "emitted-messages.jsonl"
 
 # Test ID prefixes (S<n>) whose catalogue entries must all have a test.
-IMPLEMENTED_SLICES = [1, 2, 3, 4, 5]
+IMPLEMENTED_SLICES = [1, 2, 3, 4, 5, 6]
 
 MIN_LINE_COVERAGE = 95.0
 
