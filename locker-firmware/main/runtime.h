@@ -78,6 +78,9 @@ typedef struct {
 /* Creates the queue and starts the owner task. */
 bool owner_start(const owner_context_t *context);
 
+/* Starts the reset button task (button_task.c); it posts OWNER_RESET. */
+bool button_task_start(void);
+
 /* ---- The MQTT session (mqtt_session.c) ---- */
 
 typedef struct {

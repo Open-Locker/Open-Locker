@@ -2,6 +2,7 @@
 #include <stdint.h>
 
 #include "lc_button/button.h"
+#include "lc_button/pin.h"
 #include "unity.h"
 
 #define SAMPLE_MS 20
@@ -215,6 +216,28 @@ void test_S6_H25_a_refused_reset_is_offered_again_for_2_seconds_then_reported(vo
     TEST_ASSERT_EQUAL_UINT(accepted_at, posts);
 }
 
+/* Beyond the catalogue: the pin check the build uses. */
+void test_the_pin_check_rejects_strapping_flash_input_only_console_and_rs485_pins(void)
+{
+#define REJECTED(pin) LC_BUTTON_PIN_REJECTED(pin, 17, 16, 1, 3)
+    static const int rejected[] = {-1, 0, 1, 2, 3, 5, 6, 7, 8, 9, 10, 11, 12, 15, 16, 17,
+                                   20, 24, 28, 29, 30, 31, 34, 35, 36, 39, 40};
+    static const int usable[] = {4, 13, 14, 18, 19, 21, 22, 23, 25, 26, 27, 32, 33};
+
+    for (unsigned i = 0; i < sizeof(rejected) / sizeof(rejected[0]); ++i) {
+        TEST_ASSERT_TRUE_MESSAGE(REJECTED(rejected[i]), "a pin that must be rejected was not");
+    }
+    for (unsigned i = 0; i < sizeof(usable) / sizeof(usable[0]); ++i) {
+        TEST_ASSERT_FALSE_MESSAGE(REJECTED(usable[i]), "a usable pin was rejected");
+    }
+    /* The configured console pins count too. */
+    TEST_ASSERT_TRUE(LC_BUTTON_PIN_REJECTED(25, 17, 16, 25, 26));
+    TEST_ASSERT_TRUE(LC_BUTTON_PIN_REJECTED(26, 17, 16, 25, 26));
+    /* The default pin is fine with the default wiring. */
+    TEST_ASSERT_FALSE(REJECTED(4));
+#undef REJECTED
+}
+
 int main(void)
 {
     UNITY_BEGIN();
@@ -226,6 +249,7 @@ int main(void)
     RUN_TEST(test_S6_H21_a_gap_between_samples_voids_the_press);
     RUN_TEST(test_S6_H22_a_floating_pin_reads_released);
     RUN_TEST(test_S6_H23_bounce_under_50_ms_is_ignored);
+    RUN_TEST(test_the_pin_check_rejects_strapping_flash_input_only_console_and_rs485_pins);
     RUN_TEST(test_S6_H25_a_refused_reset_is_offered_again_for_2_seconds_then_reported);
     return UNITY_END();
 }
