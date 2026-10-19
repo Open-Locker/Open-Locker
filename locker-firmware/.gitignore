@@ -2,4 +2,6 @@ build/
 sdkconfig
 sdkconfig.*
 !sdkconfig.defaults
+# The host tests' stand-in for the SDK's generated header.
+!tests/host/fakes/esp_idf/sdkconfig.h
 __pycache__/
