@@ -94,6 +94,14 @@ overlapping an unlock.
 The MQTT transport only moves topics and bytes. `main/mqtt_session.c` joins it
 to the codec, so no adapter depends on another.
 
+## Commissioning over the setup network
+
+Not verified on a board yet. A unit with no network settings opens a setup Wi-Fi
+for 10 minutes after power-up (name and password on its label). Join it from a
+laptop and run `python scripts/commission_softap.py --esp-prov <ESP-IDF>/tools/esp_prov`
+(see its docstring and ADR-0074). `scripts/device_secrets.py` makes the label
+secrets for a new unit. Hold the unit's reset button for 10 s to wipe it.
+
 ## Commissioning over USB
 
 The console commands below (`configure`, `unlock`, `command`, `reset-network`)

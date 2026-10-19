@@ -251,6 +251,36 @@ void test_S6_H04_no_response_contains_a_submitted_value(void)
     }
 }
 
+/*
+ * Beyond the catalogue: the payload scripts/commission_softap.py builds for the
+ * values above, byte for byte. test_commission_softap.py checks this same string,
+ * so the laptop tool and the device cannot drift apart unseen.
+ */
+static const char GOLDEN_HEX[] = "01011b6d717474733a2f2f62726f6b65722e6578616d706c653a383838330209626f6f7473747261700310626f6f7473747261702d736563726574040e6f6e652d74696d652d746f6b656e";
+
+void test_the_payload_of_the_laptop_tool_is_accepted(void)
+{
+    uint8_t bytes[LC_OL_CONFIG_MAX];
+    size_t length = strlen(GOLDEN_HEX) / 2;
+
+    TEST_ASSERT_TRUE(length <= sizeof(bytes));
+    for (size_t i = 0; i < length; ++i) {
+        unsigned value;
+        TEST_ASSERT_EQUAL_INT(1, sscanf(GOLDEN_HEX + 2 * i, "%2x", &value));
+        bytes[i] = (uint8_t)value;
+    }
+    lc_collector_t collector;
+    lc_collector_init(&collector);
+    TEST_ASSERT_TRUE(collect(&collector, bytes, length));
+
+    lc_setup_request_t request;
+    TEST_ASSERT_TRUE(lc_collector_take(&collector, &request));
+    TEST_ASSERT_EQUAL_STRING(BROKER, request.broker_url);
+    TEST_ASSERT_EQUAL_STRING(BOOTSTRAP_USER, request.bootstrap_user);
+    TEST_ASSERT_EQUAL_STRING(BOOTSTRAP_PASSWORD, request.bootstrap_password);
+    TEST_ASSERT_EQUAL_STRING(TOKEN, request.token);
+}
+
 /* A fixed-seed stream of garbage and mutated payloads: no crash, no overflow, nothing half-taken. */
 void test_ol_config_survives_random_and_mutated_input(void)
 {
@@ -300,6 +330,7 @@ int main(void)
     RUN_TEST(test_S6_H01_a_valid_submission_reaches_commissioning_with_the_values_of_a_usb_one);
     RUN_TEST(test_S6_H02_an_oversized_incomplete_or_malformed_submission_is_refused_and_nothing_is_saved);
     RUN_TEST(test_S6_H04_no_response_contains_a_submitted_value);
+    RUN_TEST(test_the_payload_of_the_laptop_tool_is_accepted);
     RUN_TEST(test_ol_config_survives_random_and_mutated_input);
     return UNITY_END();
 }

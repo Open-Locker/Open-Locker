@@ -4,6 +4,12 @@
 
     python scripts/device_secrets.py                # prints a label to the terminal
     python scripts/device_secrets.py --label out.txt  # also writes it, owner-only
+    python scripts/device_secrets.py --nvs-csv s.csv  # input for the unit's NVS image
+
+The NVS image is made with ESP-IDF's nvs_partition_gen.py (`generate s.csv nvs.bin
+0x6000`) and flashed to the `nvs` partition of a unit that has no settings yet,
+then s.csv is deleted. The firmware reads the three values from the `lc_setup`
+namespace; a reset never touches it.
 
 Every unit gets its own access-point passphrase (WPA2) and its own setup
 password (the Security 2 session). Both are generated here from the operating
@@ -53,6 +59,19 @@ def label_text(device_secrets):
     ).format(**device_secrets)
 
 
+def nvs_csv_text(device_secrets):
+    """The unit's secrets as an input for ESP-IDF's nvs_partition_gen.py: the namespace and keys
+    the firmware reads (lc_storage_load_setup_secrets). Secret: write it owner-only and delete it
+    after the image is made."""
+    return (
+        "key,type,encoding,value\n"
+        "lc_setup,namespace,,\n"
+        "ssid,data,string,{ssid}\n"
+        "ap_pass,data,string,{ap_passphrase}\n"
+        "setup_pw,data,string,{setup_password}\n"
+    ).format(**device_secrets)
+
+
 def verifier_for(device_secrets):
     raise NotImplementedError(
         "the Security 2 salt and verifier depend on the parameters confirmed by the bench spike "
@@ -60,25 +79,32 @@ def verifier_for(device_secrets):
     )
 
 
-def write_label(path, device_secrets):
+def write_secret_file(path, text):
     """Creates the file readable by its owner only, and refuses to overwrite one."""
     descriptor = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
-    with os.fdopen(descriptor, "w", encoding="utf8") as file:
-        file.write(label_text(device_secrets))
+    with os.fdopen(descriptor, "w", encoding="utf8", newline="\n") as file:
+        file.write(text)
+
+
+def write_label(path, device_secrets):
+    write_secret_file(path, label_text(device_secrets))
 
 
 def main(argv):
     parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     parser.add_argument("--label", help="also write the label to this new file")
+    parser.add_argument("--nvs-csv", help="also write the input for nvs_partition_gen.py to this new file")
     arguments = parser.parse_args(argv)
 
     device_secrets = new_device_secrets()
-    if arguments.label:
-        try:
+    try:
+        if arguments.label:
             write_label(arguments.label, device_secrets)
-        except FileExistsError:
-            print("Refusing to overwrite " + arguments.label, file=sys.stderr)
-            return 1
+        if arguments.nvs_csv:
+            write_secret_file(arguments.nvs_csv, nvs_csv_text(device_secrets))
+    except FileExistsError as error:
+        print("Refusing to overwrite " + str(error.filename), file=sys.stderr)
+        return 1
     sys.stdout.write(label_text(device_secrets))
     return 0
 
