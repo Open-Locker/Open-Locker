@@ -48,6 +48,8 @@ ALLOWED_DEPENDENCIES = {
     "lc_button": [],
     # The setup network can reach identity types and nothing else: no ports, so no bus.
     "lc_softap_portal": ["lc_domain"],
+    # The setup network's radio adapter drives the portal's decisions: the one adapter that may.
+    "lc_softap_espidf": ["lc_domain", "lc_softap_portal"],
     "lc_ports": ["lc_domain"],
     "lc_application": ["lc_domain", "lc_ports"],
 }
@@ -71,6 +73,7 @@ ADAPTER_COMPONENTS = [
     "lc_mqtt_espidf",
     "lc_net_wifi",
     "lc_serial_uart",
+    "lc_softap_espidf",
     "lc_storage_nvs",
     "lc_usb_console",
 ]
