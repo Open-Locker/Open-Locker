@@ -53,6 +53,7 @@ add_library(lc_under_test STATIC
   ${LC_COMPONENTS}/lc_journal/journal.c
   ${LC_COMPONENTS}/lc_button/button.c
   ${LC_COMPONENTS}/lc_softap_portal/portal.c
+  ${LC_COMPONENTS}/lc_softap_portal/ol_config.c
   ${LC_COMPONENTS}/lc_rs485_lock_board/codec.c
   ${LC_COMPONENTS}/lc_rs485_lock_board/bus.c
   ${LC_COMPONENTS}/lc_rs485_lock_board/self_test.c
@@ -172,3 +173,8 @@ lc_host_test(test_console_protocol)
 lc_host_test(test_boot_mode)
 lc_host_test(test_button)
 lc_host_test(test_softap_portal)
+lc_host_test(test_ol_config)
+
+# The libFuzzer target is only compiled here, so it cannot rot; see the file.
+add_library(fuzz_ol_config_check OBJECT ${CMAKE_CURRENT_SOURCE_DIR}/../fuzz/fuzz_ol_config.c)
+target_link_libraries(fuzz_ol_config_check PRIVATE lc_under_test)

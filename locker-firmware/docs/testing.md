@@ -325,6 +325,15 @@ layer rule:
 | S6-H12 | No code path from the portal reaches the bus port (enforced by the layer rule in `verify.py`) |
 | S6-H13 | A second station is refused while one is connected |
 
+Host suite `test_ol_config` (the collector also has a fixed-seed random test and
+a libFuzzer target in `tests/fuzz/`, built by hand with clang):
+
+| ID | Test |
+| --- | --- |
+| S6-H01 | A valid `ol-config` submission reaches `commission_device` with the same values as a USB one |
+| S6-H02 | An oversized payload, a missing field or a malformed encoding is rejected and nothing is saved |
+| S6-H04 | No response contains a submitted value: the reply is one status byte, the same for every refusal |
+
 ## Hardware acceptance
 
 Everything that needs the real board, converter, panel, lock, Wi-Fi or broker

@@ -1,5 +1,5 @@
 idf_component_register(
-  SRCS portal.c
+  SRCS portal.c ol_config.c
   INCLUDE_DIRS include
   REQUIRES lc_domain
 )
