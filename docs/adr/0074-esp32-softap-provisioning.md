@@ -141,14 +141,26 @@ gesture, the portal session rules, the `ol-config` parser and collector, and the
 production console. The radio adapter (`lc_softap_espidf`), its wiring in
 `app_main` and the laptop tool (`commission_softap.py`) are written against the
 ESP-IDF 5.4 headers and compile-checked in the `espressif/idf:v5.4` image only
-(default and production configuration, and the IDF host tests). **They have not
-run on a board.** The adapter uses protocomm directly, not the provisioning
+(default and production configuration, and the IDF host tests). They have run on
+a board once (see the bench result below). The adapter uses protocomm directly, not the provisioning
 manager, so that failed Security 2 sessions are countable through the protocomm
 session events and the endpoint whitelist is ours; whether `esp_prov` talks to
 it, and whether the open points above hold, is for the bench spike. The Security
 2 salt and verifier are derived on the device from the label's setup password at
 each start (`esp_srp_gen_salt_verifier`), which keeps that password on the unit.
 The owner queue's memory budget is a host measurement.
+
+Bench result (2026-10-21): a unit built with ESP-IDF 5.4.4 in the development
+configuration (plain MQTT) was commissioned with `commission_softap.py` from an
+Android phone (Termux). It took the `ol-config` part and the Wi-Fi part, joined
+the Wi-Fi and connected to the broker, so the first open point holds for this
+build. Two findings: ESP-IDF 5.4.4's Security 2 runs patch level 1, a nonce
+counter per message, where 5.4.0 has none, so `esp_prov` must come from the
+same ESP-IDF release as the firmware; and the firmware's `proto-ver` still
+reports `sec_patch_ver` 0, so the tool sets 1 itself until the device reports
+the real level. CI builds with the 5.4.0 image while this bench build used
+5.4.4: the ESP-IDF release has to be pinned (see the lwIP open point). The
+other open points and HW-F1 to HW-F8 are not done.
 
 ## Alternatives Considered
 

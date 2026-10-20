@@ -14,15 +14,16 @@ settings are sent once and never resent after a lost connection.
 The device only says "saved". Whether it then joins the Wi-Fi and enrolls is
 read in the admin panel (ADR-0074, decision 8).
 
-UNVERIFIED: the logic in `commission_softap()` is tested without a device. The
-`EspProvSession` that talks to the unit is written from memory of ESP-IDF's
-`tools/esp_prov` and has never run against one; the bench spike decides whether
-it works or has to change (ADR-0074, open points). It needs ESP-IDF's
-`tools/esp_prov` on disk and its Python dependencies installed.
+It needs `tools/esp_prov` from the ESP-IDF the firmware was built with, IDF_PATH
+pointing at that ESP-IDF, and esp_prov's Python dependencies (cryptography,
+protobuf). It has commissioned one bench unit built with ESP-IDF 5.4.4
+(ADR-0074, bench result); the group F hardware checks are still open.
 """
 
 import argparse
+import asyncio
 import getpass
+import inspect
 import sys
 
 # The limits of the device's fields (lc_domain/identity.h).
@@ -32,6 +33,7 @@ BROKER_URL_MAX = 192
 CREDENTIAL_MAX = 128
 OL_CONFIG_VERSION = 1
 SRP_USERNAME = "wifiprov"
+SEC2_PATCH_VER = 1
 DEFAULT_ADDRESS = "192.168.4.1:80"
 
 MESSAGES = {
@@ -139,11 +141,12 @@ def commission_softap(session, prompt, output):
     return "saved" if saved else "refused"
 
 
-# ---- The session with the unit (UNVERIFIED) ----
+# ---- The session with the unit ----
 
 
 class EspProvSession:
-    """Talks to the unit through ESP-IDF's tools/esp_prov Python modules."""
+    """Talks to the unit through ESP-IDF's tools/esp_prov Python modules. esp_prov reads the
+    protobuf modules from $IDF_PATH/components, so IDF_PATH must be set."""
 
     def __init__(self, esp_prov_path, address=DEFAULT_ADDRESS):
         sys.path.insert(0, esp_prov_path)
@@ -151,49 +154,56 @@ class EspProvSession:
         self._transport = None
         self._security = None
 
+    def _send(self, endpoint, data):
+        """esp_prov's send_data is a coroutine and reports every failure as RuntimeError."""
+        try:
+            reply = asyncio.run(self._transport.send_data(endpoint, data))
+        except RuntimeError as error:
+            raise ConnectionError(str(error)) from error
+        if reply is None:
+            raise ConnectionError("no reply")
+        return reply
+
     def open(self, setup_password):
         from security import security2  # esp_prov
         from transport import transport_http  # esp_prov
 
-        self._transport = transport_http.Transport_HTTP(self._address, None)
-        self._security = security2.Security2(0, SRP_USERNAME, setup_password, False)
         try:
-            request = self._security.security_session(None)
-            while request is not None:
-                response = self._transport.send_data("prov-session", request)
-                if response is None:
-                    raise SessionRefused()
-                request = self._security.security_session(response)
-        except SessionRefused:
-            raise
-        except OSError as error:
+            self._transport = transport_http.Transport_HTTP(self._address, None)
+        except RuntimeError as error:
             raise ConnectionError(str(error)) from error
+        # shortcut: the firmware's proto-ver says sec_patch_ver 0, but protocomm in ESP-IDF 5.4.4
+        # runs patch 1 (a nonce counter per message); read it from the device once that is fixed.
+        if "sec_patch_ver" in inspect.signature(security2.Security2).parameters:
+            self._security = security2.Security2(SEC2_PATCH_VER, SRP_USERNAME, setup_password, False)
+        else:
+            self._security = security2.Security2(SRP_USERNAME, setup_password, False)
+        try:
+            response = None
+            while True:
+                request = self._security.security_session(response)
+                if request is None:
+                    break
+                response = self._send("prov-session", request)
+        except ConnectionError as error:
+            # A wrong password ends in an HTTP error from the device, not a lost link.
+            if "Connection Failure" in str(error):
+                raise
+            raise SessionRefused() from error
         except Exception as error:
-            # A wrong password fails the proof inside esp_prov.
+            # A wrong password fails the device's proof inside esp_prov.
             raise SessionRefused() from error
 
-    def _exchange(self, endpoint, data):
-        try:
-            reply = self._transport.send_data(endpoint, self._security.encrypt_data(data))
-        except OSError as error:
-            raise ConnectionError(str(error)) from error
-        if reply is None:
-            raise ConnectionError("no reply")
-        return self._security.decrypt_data(reply)
-
     def send_ol_config(self, payload):
-        return self._exchange("ol-config", payload) == b"\x00"
+        request = self._security.encrypt_data(payload).decode("latin-1")
+        reply = self._send("ol-config", request).encode("latin-1")
+        return self._security.decrypt_data(reply) == b"\x00"
 
     def send_wifi(self, ssid, password):
         from prov import wifi_prov  # esp_prov
 
         request = wifi_prov.config_set_config_request(self._security, ssid, password)
-        try:
-            response = self._transport.send_data("prov-config", request)
-        except OSError as error:
-            raise ConnectionError(str(error)) from error
-        if response is None:
-            raise ConnectionError("no reply")
+        response = self._send("prov-config", request)
         return wifi_prov.config_set_config_response(self._security, response) == 0
 
 
@@ -215,8 +225,8 @@ def main(argv):
 
     try:
         return 0 if commission_softap(EspProvSession(args.esp_prov, args.address), Terminal(), sys.stdout) == "saved" else 1
-    except ImportError:
-        print("esp_prov or its dependencies were not found. Check --esp-prov and install its requirements.", file=sys.stderr)
+    except ImportError as error:
+        print(f"esp_prov or its dependencies were not found ({error}). Check --esp-prov and install its requirements.", file=sys.stderr)
         return 2
     except KeyboardInterrupt:
         print("\nCancelled.")

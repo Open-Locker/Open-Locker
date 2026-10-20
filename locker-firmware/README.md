@@ -96,7 +96,7 @@ to the codec, so no adapter depends on another.
 
 ## Commissioning over the setup network
 
-Not verified on a board yet. A unit with no network settings opens a setup Wi-Fi
+Tried on one bench unit so far (ADR-0074, bench result). A unit with no network settings opens a setup Wi-Fi
 for 10 minutes after power-up (name and password on its label). Join it from a
 laptop and run `python scripts/commission_softap.py --esp-prov <ESP-IDF>/tools/esp_prov`
 (see its docstring and ADR-0074). `scripts/device_secrets.py` makes the label
@@ -212,9 +212,10 @@ token.
   (for example the Let's Encrypt certificate of ADR-0053). Certificate and host
   name verification cannot be turned off. A broker with a private CA needs the
   CA added to the build.
-- **No OTA, no working SoftAP portal yet.** OTA is #59. The setup network's
-  decisions, the button gesture and the `ol-config` parser are in and tested
-  (ADR-0074); the radio adapter and its wiring wait for the bench spike.
+- **No OTA yet, and the setup network is barely tried.** OTA is #59. The setup
+  network has commissioned one bench unit; the hardware checks of group F are
+  open (ADR-0074). Its `esp_prov` must come from the ESP-IDF release the
+  firmware was built with.
 - **Unconfirmed hardware facts:** panel model, supply voltage, channel count,
   lock model, board flash size (the partition table assumes 4 MB), UART pins,
   serial parameters, DIP address and feedback polarity. The host tests establish
