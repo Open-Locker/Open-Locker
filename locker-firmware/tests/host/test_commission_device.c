@@ -160,6 +160,24 @@ void test_S5_H02_invalid_settings_are_rejected_and_nothing_is_saved(void)
     TEST_ASSERT_EQUAL_INT(LC_COMMISSION_SAVED, lc_commission_apply(&commission, &open_network));
 }
 
+void test_S5_H19_a_development_build_also_accepts_a_plain_mqtt_broker(void)
+{
+    lc_commission_allow_plaintext_broker(&commission, true);
+
+    lc_setup_request_t empty_host = request();
+    snprintf(empty_host.broker_url, sizeof(empty_host.broker_url), "mqtt://");
+    lc_setup_request_t other_scheme = request();
+    snprintf(other_scheme.broker_url, sizeof(other_scheme.broker_url), "tcp://broker.example");
+    TEST_ASSERT_EQUAL_INT(LC_COMMISSION_INVALID, lc_commission_apply(&commission, &empty_host));
+    TEST_ASSERT_EQUAL_INT(LC_COMMISSION_INVALID, lc_commission_apply(&commission, &other_scheme));
+    assert_nothing_stored();
+
+    lc_setup_request_t plain = request();
+    snprintf(plain.broker_url, sizeof(plain.broker_url), "mqtt://broker.example:1883");
+    TEST_ASSERT_EQUAL_INT(LC_COMMISSION_SAVED, lc_commission_apply(&commission, &plain));
+    TEST_ASSERT_EQUAL_STRING("mqtt://broker.example:1883", settings.settings.broker_url);
+}
+
 void test_S5_H03_store_failure_produces_no_acknowledgement_and_no_restart(void)
 {
     const lc_setup_request_t setup = request();
@@ -394,6 +412,7 @@ int main(void)
     UNITY_BEGIN();
     RUN_TEST(test_S5_H01_valid_settings_are_saved_then_acknowledged_then_the_restart_is_requested);
     RUN_TEST(test_S5_H02_invalid_settings_are_rejected_and_nothing_is_saved);
+    RUN_TEST(test_S5_H19_a_development_build_also_accepts_a_plain_mqtt_broker);
     RUN_TEST(test_S5_H03_store_failure_produces_no_acknowledgement_and_no_restart);
     RUN_TEST(test_failed_identity_save_leaves_the_old_network_and_the_old_bootstrap);
     RUN_TEST(test_failed_identity_save_on_a_blank_device_leaves_it_unconfigured);

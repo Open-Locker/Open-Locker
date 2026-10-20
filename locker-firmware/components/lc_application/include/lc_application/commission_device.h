@@ -38,12 +38,16 @@ typedef struct {
 typedef struct {
     lc_commission_ports_t ports;
     bool online;
+    bool allow_plaintext_broker;
 } lc_commission_t;
 
 void lc_commission_init(lc_commission_t *commission, const lc_commission_ports_t *ports);
 
 /* Whether the device is connected with its issued identity. */
 void lc_commission_set_online(lc_commission_t *commission, bool online);
+
+/* Development builds only: also accept an mqtt:// broker URL (ADR-0071). Off by default. */
+void lc_commission_allow_plaintext_broker(lc_commission_t *commission, bool allow);
 
 /*
  * Validates, stores, replies, then requests a restart, in that order. On an

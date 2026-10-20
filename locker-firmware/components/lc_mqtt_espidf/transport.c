@@ -114,12 +114,22 @@ bool lc_mqtt_transport_start(const lc_mqtt_transport_config_t *config,
     if (client != NULL) {
         return false;
     }
+    bool plaintext = strncmp(config->broker_uri, "mqtts://", 8) != 0;
+    if (plaintext) {
+#if defined(CONFIG_LC_ALLOW_PLAINTEXT_MQTT)
+        ESP_LOGW(TAG, "DEVELOPMENT BUILD: connecting without TLS, credentials travel in clear");
+#else
+        /* Also catches a URL a development build stored before a release was flashed. */
+        ESP_LOGE(TAG, "refusing a broker URL that is not mqtts://");
+        return false;
+#endif
+    }
     handlers = *event_handlers;
 
     const esp_mqtt_client_config_t mqtt = {
         .broker = {
             .address.uri = config->broker_uri,
-            .verification.crt_bundle_attach = esp_crt_bundle_attach,
+            .verification.crt_bundle_attach = plaintext ? NULL : esp_crt_bundle_attach,
         },
         .credentials = {
             .username = config->username,

@@ -72,6 +72,12 @@ jobs:
           target: esp32
           path: locker-firmware
 
+      # The default build is the release configuration: plain MQTT must stay out (ADR-0071).
+      - name: Check plain MQTT is off in the default build
+        run: |
+          test -f sdkconfig
+          ! grep -q '^CONFIG_LC_ALLOW_PLAINTEXT_MQTT=y' sdkconfig
+
       # Fails when locker-firmware/ changed since the bench run, or a check failed.
       - name: Check the hardware record
         run: python scripts/hwtest.py check

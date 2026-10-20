@@ -103,8 +103,8 @@ python scripts/commission.py --port COM3     # or /dev/ttyUSB0
 ```
 
 It asks for the Wi-Fi network name and password, the broker URL (`mqtts://`
-only), and, for a device that is not enrolled yet, the bootstrap user and
-password and the one-time provisioning token that the backend shows (#58). The
+only; a development build also takes `mqtt://`, see below), and, for a
+device that is not enrolled yet, the bootstrap user and password and the one-time provisioning token that the backend shows (#58). The
 secrets are read without echo, go to the device and nowhere else, and are never
 printed or stored. The device saves them, restarts, joins the network and
 enrolls: it presents the token once, receives its own MQTT identity, and
@@ -120,6 +120,11 @@ Things to know:
   password and broker. Identity, mapping and journal are kept.
 - If the connection to the tool is lost after the settings were sent, nothing
   is resent. Run `status` in the console, then try again.
+- **Plain `mqtt://` against a local broker** needs a development build
+  (ADR-0071). Delete `sdkconfig`, then
+  `idf.py -D SDKCONFIG_DEFAULTS="sdkconfig.defaults;sdkconfig.dev" build`.
+  A plain `idf.py build` is the release configuration and refuses `mqtt://`,
+  including a URL stored earlier by a development build.
 
 ### Console commands
 

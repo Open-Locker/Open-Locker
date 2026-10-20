@@ -195,7 +195,7 @@ the host tests with the given prefix in [testing.md](testing.md).
 | A pending-enrollment flag is persisted before the token is published | S3 |
 | A lost or rejected enrollment reply never triggers a second registration | S3 |
 | Bootstrap credentials and token are cleared once issued credentials are saved | S3 |
-| TLS certificate and hostname verification cannot be disabled | S3 |
+| TLS certificate and hostname verification cannot be disabled; plain `mqtt://` exists only in development builds (ADR-0071) | S3 |
 | Missing status bits become `unknown`; repeated failed polls report `unknown` | S4 |
 | Reconnect and `apply_config` force a snapshot without false door events | S4 |
 | Malformed, oversized, NUL, or stalled commissioning input never saves partial settings | S5 |

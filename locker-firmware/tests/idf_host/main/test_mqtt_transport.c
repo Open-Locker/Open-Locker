@@ -79,6 +79,19 @@ void tearDown(void)
 {
 }
 
+/* This suite builds without CONFIG_LC_ALLOW_PLAINTEXT_MQTT, as a release does. */
+static void test_a_release_build_refuses_a_plain_mqtt_broker(void)
+{
+    const lc_mqtt_transport_config_t config = {.broker_uri = "mqtt://broker.test:1883",
+                                               .client_id = "client-abc"};
+    const lc_mqtt_handlers_t handlers = {.on_subscribed = on_subscribed};
+
+    Mockmqtt_client_Init();
+    /* No esp-mqtt call is expected: a client is never created. */
+    TEST_ASSERT_FALSE(lc_mqtt_transport_start(&config, &handlers));
+    Mockmqtt_client_Verify();
+}
+
 static void test_the_client_is_started_and_its_handler_registered(void)
 {
     start();
@@ -103,6 +116,7 @@ static void test_a_refused_subscription_is_not_reported(void)
 void app_main(void)
 {
     UNITY_BEGIN();
+    RUN_TEST(test_a_release_build_refuses_a_plain_mqtt_broker);
     RUN_TEST(test_the_client_is_started_and_its_handler_registered);
     RUN_TEST(test_a_granted_subscription_is_reported);
     RUN_TEST(test_a_refused_subscription_is_not_reported);

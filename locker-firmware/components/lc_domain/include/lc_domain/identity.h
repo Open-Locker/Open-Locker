@@ -31,7 +31,7 @@ typedef struct {
     bool configured;
     char ssid[LC_SSID_MAX + 1];
     char wifi_password[LC_WIFI_PASSWORD_MAX + 1];
-    /* Must start with mqtts://. */
+    /* Must start with mqtts://; mqtt:// only on a development build (ADR-0071). */
     char broker_url[LC_BROKER_URL_MAX + 1];
 } lc_network_settings_t;
 

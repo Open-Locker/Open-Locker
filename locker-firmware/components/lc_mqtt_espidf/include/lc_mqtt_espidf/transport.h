@@ -37,7 +37,7 @@ typedef struct {
 } lc_mqtt_handlers_t;
 
 typedef struct {
-    /* mqtts://host:port */
+    /* mqtts://host:port; mqtt:// only with CONFIG_LC_ALLOW_PLAINTEXT_MQTT. */
     const char *broker_uri;
     const char *client_id;
     const char *username;

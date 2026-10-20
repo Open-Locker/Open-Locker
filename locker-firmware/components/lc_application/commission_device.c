@@ -4,8 +4,6 @@
 
 #include "lc_domain/text.h"
 
-#define BROKER_SCHEME "mqtts://"
-
 void lc_commission_init(lc_commission_t *commission, const lc_commission_ports_t *ports)
 {
     memset(commission, 0, sizeof(*commission));
@@ -17,17 +15,28 @@ void lc_commission_set_online(lc_commission_t *commission, bool online)
     commission->online = online;
 }
 
+void lc_commission_allow_plaintext_broker(lc_commission_t *commission, bool allow)
+{
+    commission->allow_plaintext_broker = allow;
+}
+
 /* A text field that fits its buffer, with room for the terminator. */
 static bool terminated(const char *field, size_t capacity)
 {
     return memchr(field, '\0', capacity) != NULL;
 }
 
-static bool network_is_valid(const lc_setup_request_t *request)
+/* The URL starts with the scheme and names something after it. */
+static bool has_scheme(const char *url, const char *scheme)
+{
+    size_t length = strlen(scheme);
+    return strncmp(url, scheme, length) == 0 && url[length] != '\0';
+}
+
+static bool network_is_valid(const lc_commission_t *commission, const lc_setup_request_t *request)
 {
     size_t ssid = strlen(request->ssid);
     size_t password = strlen(request->wifi_password);
-    size_t scheme = strlen(BROKER_SCHEME);
 
     if (!terminated(request->ssid, sizeof(request->ssid)) ||
         !terminated(request->wifi_password, sizeof(request->wifi_password)) ||
@@ -37,9 +46,10 @@ static bool network_is_valid(const lc_setup_request_t *request)
     /* An open network has no password; otherwise WPA2 bounds apply. */
     bool password_ok = password == 0 || (password >= LC_WIFI_PASSWORD_MIN &&
                                          password <= LC_WIFI_PASSWORD_MAX);
-    /* Plain mqtt:// is not an option: certificate and hostname checks are not optional. */
-    bool broker_ok = strncmp(request->broker_url, BROKER_SCHEME, scheme) == 0 &&
-                     request->broker_url[scheme] != '\0';
+    /* Plain mqtt:// is for development builds only; mqtts:// is always verified. */
+    bool broker_ok = has_scheme(request->broker_url, "mqtts://") ||
+                     (commission->allow_plaintext_broker &&
+                      has_scheme(request->broker_url, "mqtt://"));
     return ssid >= 1 && ssid <= LC_SSID_MAX && password_ok && broker_ok;
 }
 
@@ -82,7 +92,7 @@ lc_commission_result_t lc_commission_apply(lc_commission_t *commission,
         return answer(commission, LC_COMMISSION_RESET_REQUIRED);
     }
     /* An enrolled device takes the network only; token and bootstrap fields are ignored. */
-    if (!network_is_valid(request) || (!identity.enrolled && !enrollment_is_valid(request))) {
+    if (!network_is_valid(commission, request) || (!identity.enrolled && !enrollment_is_valid(request))) {
         return answer(commission, LC_COMMISSION_INVALID);
     }
 

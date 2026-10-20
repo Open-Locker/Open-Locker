@@ -239,6 +239,9 @@ void app_main(void)
         .reply = console_glue_reply,
     };
     lc_commission_init(&commission, &commission_ports);
+#if CONFIG_LC_ALLOW_PLAINTEXT_MQTT
+    lc_commission_allow_plaintext_broker(&commission, true);
+#endif
 
     const owner_context_t owner = {
         .app = &app,

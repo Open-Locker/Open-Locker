@@ -245,7 +245,7 @@ Host suite `test_commission_device`:
 | ID | Test |
 | --- | --- |
 | S5-H01 | Valid settings are saved, then acknowledged, then the restart is requested, in that order |
-| S5-H02 | An SSID or Wi-Fi password of invalid length, or a broker URL that is not `mqtts://`, is rejected and nothing is saved |
+| S5-H02 | An SSID or Wi-Fi password of invalid length, or a broker URL that is not `mqtts://`, is rejected and nothing is saved (release build) |
 | S5-H03 | A store failure produces no acknowledgement and no restart |
 | S5-H04 | On an enrolled device, a network change keeps credentials, locker UUID, mapping, and journal |
 | S5-H05 | On an enrolled device, token and bootstrap fields in the input are ignored |
@@ -253,6 +253,7 @@ Host suite `test_commission_device`:
 | S5-H07 | Reset clears identity, credentials, and mapping, and keeps the journal |
 | S5-H08 | When online, the offline message is published before the restart is requested |
 | S5-H09 | New commands are refused once the settings are stored, before the restart; a failed save leaves the device taking commands |
+| S5-H19 | A development build (`CONFIG_LC_ALLOW_PLAINTEXT_MQTT`) also accepts an `mqtt://` broker URL with a host, and still rejects other schemes (ADR-0071) |
 
 Host suite `test_console_protocol`:
 

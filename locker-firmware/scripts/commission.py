@@ -31,7 +31,7 @@ MESSAGES = {
     "saved": "Settings saved. The device restarts, joins the network and connects to the broker.",
     "invalid_settings": (
         "The device refused the settings: check the network name, the Wi-Fi password length "
-        "(8 to 64, or empty), the broker URL (mqtts://...) and that all three enrollment "
+        "(8 to 64, or empty), the broker URL (mqtts://..., or mqtt://... on a development build) and that all three enrollment "
         "values are given."
     ),
     "reset_required": (
