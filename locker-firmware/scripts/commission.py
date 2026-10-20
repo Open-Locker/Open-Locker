@@ -130,7 +130,12 @@ class SerialLink:
     def __init__(self, port, baud):
         import serial  # pyserial
 
-        self._port = serial.Serial(port, baud, timeout=0.2)
+        self._port = serial.Serial()
+        self._port.port, self._port.baudrate, self._port.timeout = port, baud, 0.2
+        # Asserted DTR/RTS (pyserial's default) holds the ESP32 in reset via the auto-reset circuit.
+        self._port.dtr = False
+        self._port.rts = False
+        self._port.open()
 
     def exchange(self, line):
         self._port.reset_input_buffer()
