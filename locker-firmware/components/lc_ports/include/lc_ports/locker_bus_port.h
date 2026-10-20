@@ -18,6 +18,8 @@ typedef enum {
     LC_UNLOCK_NOT_SENT,
     /* The request may have reached the controller. The lock may have moved. */
     LC_UNLOCK_OUTCOME_UNKNOWN,
+    /* The controller answered that the unlock failed. */
+    LC_UNLOCK_REFUSED,
 } lc_unlock_result_t;
 
 typedef struct {

@@ -57,7 +57,7 @@ Host suite `test_rs485_codec`:
 | S1-H02 | Query-all for board 1 encodes as `80 01 00 33 B2` |
 | S1-H03 | Board addresses 0 and 32 are rejected |
 | S1-H04 | Address 255 is rejected; no input produces wire channel zero |
-| S1-H05 | Unlock acknowledgement with status `00` and with status `11` is accepted |
+| S1-H05 | Unlock reply status `00`/`11` means succeeded/failed with door-closing feedback, and the reverse with door-opening feedback (ADR-0072) |
 | S1-H06 | Unlock acknowledgement with any other status is rejected |
 | S1-H07 | Unlock acknowledgement for another board or channel is rejected |
 | S1-H08 | The verified response `80 01 00 00 00 33 B2` decodes |
@@ -87,6 +87,10 @@ Host suite `test_rs485_bus`, against a scripted serial fake:
 | S1-H29 | A reply that arrives while the write is still completing (a UART returns only after the last bit left) is accepted: an unlock is `ACKNOWLEDGED`, a status query is answered |
 | S1-H30 | An unlock requested during the settle period waits for it to end and is then sent once |
 | S1-H31 | A late status reply to a timed-out query is not used as the answer to the next query |
+| S1-H32 | An unlock acknowledgement followed in the same burst by the panel's door event (`82`) is `ACKNOWLEDGED` |
+| S1-H33 | A status reply followed in the same burst by a door event is read, and the bus stays connected |
+| S1-H34 | An unlock reply with the failure status is `REFUSED`, and the bus stays connected |
+| S1-H35 | A miswired bus that only echoes requests never acknowledges an unlock (documents that its status echo reads as all doors open) |
 
 Host suite `test_console_line`:
 

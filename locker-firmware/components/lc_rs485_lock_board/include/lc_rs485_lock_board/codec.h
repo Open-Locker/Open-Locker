@@ -24,9 +24,22 @@
 bool lc_rs485_encode_unlock(uint8_t board, unsigned address, uint8_t out[LC_RS485_REQUEST_SIZE]);
 bool lc_rs485_encode_query_all(uint8_t board, uint8_t out[LC_RS485_REQUEST_SIZE]);
 
-/* True only for a well-formed acknowledgement of this board and address. */
-bool lc_rs485_decode_unlock_ack(const uint8_t *frame, size_t length, uint8_t board,
-                                unsigned address);
+typedef enum {
+    /* No well-formed unlock reply for this board and address. */
+    LC_RS485_UNLOCK_NO_ANSWER = 0,
+    LC_RS485_UNLOCK_SUCCEEDED,
+    LC_RS485_UNLOCK_FAILED,
+} lc_rs485_unlock_answer_t;
+
+/*
+ * The panel's answer to an unlock, found among the messages received (door
+ * events may follow it in the same burst). Its status byte depends on the lock
+ * type: door-closing feedback 00 = succeeded, 11 = failed; door-opening the
+ * reverse (ADR-0072).
+ */
+lc_rs485_unlock_answer_t lc_rs485_decode_unlock_ack(const uint8_t *frame, size_t length,
+                                                    uint8_t board, unsigned address,
+                                                    lc_feedback_t feedback);
 
 /*
  * Decodes a query-all response. The number of status bytes is taken from the

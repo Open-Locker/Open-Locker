@@ -200,7 +200,7 @@ reflect bolt position.
   backend handling may remain)
 - Supersedes: the branch draft `docs/adr/0058-backend-managed-rs485-locker-board-profile.md`
   (not merged under number 0058 due to collision with unrelated history on `main`)
-- Superseded by: none
+- Superseded by: ADR-0072 in part (reply framing and unlock status)
 
 ADR-0004 remains authoritative for Waveshare hardware flash. ADR-0035 and
 ADR-0051 remain authoritative for inter-frame timing and unreachable recovery;

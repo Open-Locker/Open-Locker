@@ -28,6 +28,8 @@ static const char *unlock_result_name(lc_unlock_result_t result)
         return "ok unlock acknowledged\n";
     case LC_UNLOCK_NOT_SENT:
         return "error unlock not_sent\n";
+    case LC_UNLOCK_REFUSED:
+        return "error unlock refused\n";
     case LC_UNLOCK_OUTCOME_UNKNOWN:
     default:
         return "error unlock outcome_unknown\n";

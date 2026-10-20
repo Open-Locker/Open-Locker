@@ -75,13 +75,23 @@ void test_S1_H04_address_255_is_rejected_and_wire_channel_zero_is_never_produced
     }
 }
 
-void test_S1_H05_unlock_ack_with_status_00_and_11_is_accepted(void)
+#define CLOSING LC_FEEDBACK_DOOR_CLOSING
+#define OPENING LC_FEEDBACK_DOOR_OPENING
+
+/* Seller protocol (ADR-0072): the status byte means success or failure by lock type. */
+void test_S1_H05_unlock_status_00_and_11_mean_success_or_failure_by_feedback_type(void)
 {
     const uint8_t status_00[] = {0x8A, 0x01, 0x01, 0x00, 0x8A};
     const uint8_t status_11[] = {0x8A, 0x01, 0x01, 0x11, 0x9B};
 
-    TEST_ASSERT_TRUE(lc_rs485_decode_unlock_ack(status_00, sizeof(status_00), 1, 0));
-    TEST_ASSERT_TRUE(lc_rs485_decode_unlock_ack(status_11, sizeof(status_11), 1, 0));
+    TEST_ASSERT_EQUAL_INT(LC_RS485_UNLOCK_SUCCEEDED,
+                          lc_rs485_decode_unlock_ack(status_00, sizeof(status_00), 1, 0, CLOSING));
+    TEST_ASSERT_EQUAL_INT(LC_RS485_UNLOCK_FAILED,
+                          lc_rs485_decode_unlock_ack(status_11, sizeof(status_11), 1, 0, CLOSING));
+    TEST_ASSERT_EQUAL_INT(LC_RS485_UNLOCK_SUCCEEDED,
+                          lc_rs485_decode_unlock_ack(status_11, sizeof(status_11), 1, 0, OPENING));
+    TEST_ASSERT_EQUAL_INT(LC_RS485_UNLOCK_FAILED,
+                          lc_rs485_decode_unlock_ack(status_00, sizeof(status_00), 1, 0, OPENING));
 }
 
 void test_S1_H06_unlock_ack_with_another_status_is_rejected(void)
@@ -89,8 +99,10 @@ void test_S1_H06_unlock_ack_with_another_status_is_rejected(void)
     const uint8_t status_01[] = {0x8A, 0x01, 0x01, 0x01, 0x8B};
     const uint8_t status_ff[] = {0x8A, 0x01, 0x01, 0xFF, 0x75};
 
-    TEST_ASSERT_FALSE(lc_rs485_decode_unlock_ack(status_01, sizeof(status_01), 1, 0));
-    TEST_ASSERT_FALSE(lc_rs485_decode_unlock_ack(status_ff, sizeof(status_ff), 1, 0));
+    TEST_ASSERT_EQUAL_INT(LC_RS485_UNLOCK_NO_ANSWER,
+                          lc_rs485_decode_unlock_ack(status_01, sizeof(status_01), 1, 0, CLOSING));
+    TEST_ASSERT_EQUAL_INT(LC_RS485_UNLOCK_NO_ANSWER,
+                          lc_rs485_decode_unlock_ack(status_ff, sizeof(status_ff), 1, 0, CLOSING));
 }
 
 void test_S1_H07_unlock_ack_for_another_board_or_channel_is_rejected(void)
@@ -99,15 +111,21 @@ void test_S1_H07_unlock_ack_for_another_board_or_channel_is_rejected(void)
     const uint8_t channel_2[] = {0x8A, 0x01, 0x02, 0x00, 0x89};
     const uint8_t bad_checksum[] = {0x8A, 0x01, 0x01, 0x00, 0x8B};
     const uint8_t query_header[] = {0x80, 0x01, 0x01, 0x00, 0x80};
+    const lc_rs485_unlock_answer_t none = LC_RS485_UNLOCK_NO_ANSWER;
 
-    TEST_ASSERT_FALSE(lc_rs485_decode_unlock_ack(board_2, sizeof(board_2), 1, 0));
-    TEST_ASSERT_FALSE(lc_rs485_decode_unlock_ack(channel_2, sizeof(channel_2), 1, 0));
-    TEST_ASSERT_FALSE(lc_rs485_decode_unlock_ack(bad_checksum, sizeof(bad_checksum), 1, 0));
-    TEST_ASSERT_FALSE(lc_rs485_decode_unlock_ack(query_header, sizeof(query_header), 1, 0));
-    TEST_ASSERT_FALSE(lc_rs485_decode_unlock_ack(board_2, 4, 2, 0));
+    TEST_ASSERT_EQUAL_INT(none, lc_rs485_decode_unlock_ack(board_2, sizeof(board_2), 1, 0, CLOSING));
+    TEST_ASSERT_EQUAL_INT(none,
+                          lc_rs485_decode_unlock_ack(channel_2, sizeof(channel_2), 1, 0, CLOSING));
+    TEST_ASSERT_EQUAL_INT(
+        none, lc_rs485_decode_unlock_ack(bad_checksum, sizeof(bad_checksum), 1, 0, CLOSING));
+    TEST_ASSERT_EQUAL_INT(
+        none, lc_rs485_decode_unlock_ack(query_header, sizeof(query_header), 1, 0, CLOSING));
+    TEST_ASSERT_EQUAL_INT(none, lc_rs485_decode_unlock_ack(board_2, 4, 2, 0, CLOSING));
 
-    TEST_ASSERT_TRUE(lc_rs485_decode_unlock_ack(board_2, sizeof(board_2), 2, 0));
-    TEST_ASSERT_TRUE(lc_rs485_decode_unlock_ack(channel_2, sizeof(channel_2), 1, 1));
+    TEST_ASSERT_EQUAL_INT(LC_RS485_UNLOCK_SUCCEEDED,
+                          lc_rs485_decode_unlock_ack(board_2, sizeof(board_2), 2, 0, CLOSING));
+    TEST_ASSERT_EQUAL_INT(LC_RS485_UNLOCK_SUCCEEDED,
+                          lc_rs485_decode_unlock_ack(channel_2, sizeof(channel_2), 1, 1, CLOSING));
 }
 
 void test_S1_H08_verified_query_all_response_decodes(void)
@@ -222,7 +240,7 @@ int main(void)
     RUN_TEST(test_S1_H02_query_all_board_1_encodes_golden_frame);
     RUN_TEST(test_S1_H03_board_addresses_0_and_32_are_rejected);
     RUN_TEST(test_S1_H04_address_255_is_rejected_and_wire_channel_zero_is_never_produced);
-    RUN_TEST(test_S1_H05_unlock_ack_with_status_00_and_11_is_accepted);
+    RUN_TEST(test_S1_H05_unlock_status_00_and_11_mean_success_or_failure_by_feedback_type);
     RUN_TEST(test_S1_H06_unlock_ack_with_another_status_is_rejected);
     RUN_TEST(test_S1_H07_unlock_ack_for_another_board_or_channel_is_rejected);
     RUN_TEST(test_S1_H08_verified_query_all_response_decodes);

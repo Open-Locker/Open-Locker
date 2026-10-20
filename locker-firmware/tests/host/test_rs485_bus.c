@@ -384,6 +384,60 @@ void test_read_error_while_waiting_for_the_reply_is_outcome_unknown_after_one_wr
     TEST_ASSERT_TRUE(port.connection_state(port.ctx) != LC_BUS_CONNECTED);
 }
 
+/* Captured from an SY-800R panel: the ack, then its active door-opened event, in one burst. */
+void test_S1_H32_unlock_ack_followed_by_a_door_event_is_acknowledged(void)
+{
+    static const uint8_t ACK_THEN_EVENT[] = {0x8A, 0x01, 0x01, 0x00, 0x8A,
+                                             0x82, 0x01, 0x01, 0x00, 0x82};
+    fake_serial_reply_to_write(&serial, 0, REPLY_MS, ACK_THEN_EVENT, sizeof(ACK_THEN_EVENT));
+
+    TEST_ASSERT_EQUAL_INT(LC_UNLOCK_ACKNOWLEDGED, unlock());
+    TEST_ASSERT_EQUAL_INT(LC_BUS_CONNECTED, port.connection_state(port.ctx));
+}
+
+/* Captured from an SY-800R panel: the status reply, then a door-closed event, in one burst. */
+void test_S1_H33_status_reply_followed_by_a_door_event_is_read(void)
+{
+    static const uint8_t STATUS_THEN_EVENT[] = {0x80, 0x01, 0x00, 0x00, 0x00, 0x33,
+                                                0xB2, 0x82, 0x01, 0x01, 0x11, 0x93};
+    fake_serial_reply_to_write(&serial, 0, REPLY_MS, STATUS_THEN_EVENT, sizeof(STATUS_THEN_EVENT));
+
+    TEST_ASSERT_TRUE(read_doors());
+    for (size_t i = 0; i < ADDRESS_COUNT; ++i) {
+        TEST_ASSERT_EQUAL_INT(LC_DOOR_OPEN, doors[i]);
+    }
+    TEST_ASSERT_EQUAL_INT(LC_BUS_CONNECTED, port.connection_state(port.ctx));
+}
+
+/* Seller protocol (ADR-0072): with door-closing feedback, status 11 means the unlock failed. */
+void test_S1_H34_unlock_failure_status_is_refused_and_the_bus_stays_connected(void)
+{
+    static const uint8_t UNLOCK_FAILED[] = {0x8A, 0x01, 0x01, 0x11, 0x9B};
+    fake_serial_reply_to_write(&serial, 0, REPLY_MS, UNLOCK_FAILED, sizeof(UNLOCK_FAILED));
+
+    TEST_ASSERT_EQUAL_INT(LC_UNLOCK_REFUSED, unlock());
+    TEST_ASSERT_EQUAL_INT(LC_BUS_CONNECTED, port.connection_state(port.ctx));
+}
+
+/*
+ * A miswired bus (seen on the bench) reflects every request back unchanged and
+ * the panel never answers. Documented, not handled: the unlock echo reads as a
+ * failed unlock, so it is never reported as done, but the status echo reads as
+ * a valid reply with every door open.
+ */
+void test_S1_H35_a_bus_that_only_echoes_requests_never_acknowledges_an_unlock(void)
+{
+    static const uint8_t QUERY_ECHO[] = {0x80, 0x01, 0x00, 0x33, 0xB2};
+    fake_serial_reply_to_write(&serial, 0, 0, UNLOCK_REQUEST, sizeof(UNLOCK_REQUEST));
+    fake_serial_reply_to_write(&serial, 1, 0, QUERY_ECHO, sizeof(QUERY_ECHO));
+
+    TEST_ASSERT_EQUAL_INT(LC_UNLOCK_REFUSED, unlock());
+    TEST_ASSERT_TRUE(read_doors());
+    for (size_t i = 0; i < ADDRESS_COUNT; ++i) {
+        TEST_ASSERT_EQUAL_INT(LC_DOOR_OPEN, doors[i]);
+    }
+}
+
 void test_unsupported_feedback_profile_is_refused(void)
 {
     const lc_hardware_profile_t profile = {.feedback = (lc_feedback_t)7};
@@ -421,5 +475,9 @@ int main(void)
     RUN_TEST(test_read_error_before_transmission_is_not_sent_and_writes_nothing);
     RUN_TEST(test_read_error_while_waiting_for_the_reply_is_outcome_unknown_after_one_write);
     RUN_TEST(test_unsupported_feedback_profile_is_refused);
+    RUN_TEST(test_S1_H32_unlock_ack_followed_by_a_door_event_is_acknowledged);
+    RUN_TEST(test_S1_H33_status_reply_followed_by_a_door_event_is_read);
+    RUN_TEST(test_S1_H34_unlock_failure_status_is_refused_and_the_bus_stays_connected);
+    RUN_TEST(test_S1_H35_a_bus_that_only_echoes_requests_never_acknowledges_an_unlock);
     return UNITY_END();
 }
