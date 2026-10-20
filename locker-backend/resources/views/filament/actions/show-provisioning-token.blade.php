@@ -2,7 +2,7 @@
     class="space-y-2"
     x-data="window.provisioningTokenCopy(@js($token), {
         errorTitle: @js(__('Could not copy provisioning token')),
-        errorBody: @js(__('Clipboard access requires HTTPS or localhost. Select the token, then press Ctrl+C (or Cmd+C on macOS) to copy it manually.')),
+        errorBody: @js(__('Copying was blocked. Select the token, then press Ctrl+C (or Cmd+C on macOS) to copy it manually.')),
         copyLabel: @js(__('Copy token')),
         copiedLabel: @js(__('Copied')),
     })"
@@ -17,7 +17,11 @@
                 data-testid="one-time-provisioning-token"
             >{{ $token }}</code>
         </div>
-        <div class="fi-input-wrp-suffix">
+        <div
+            class="fi-input-wrp-suffix"
+            x-cloak
+            x-show="canCopy"
+        >
             <button
                 class="fi-icon-btn fi-size-md"
                 type="button"
@@ -40,5 +44,12 @@
             </button>
         </div>
     </div>
+    <p
+        class="text-sm text-gray-600 dark:text-gray-400"
+        x-cloak
+        x-show="!canCopy"
+    >
+        {{ __('Automatic copying is unavailable. Select the token, then press Ctrl+C (or Cmd+C on macOS) to copy it.') }}
+    </p>
     <p class="fi-sr-only" role="status" aria-live="polite" x-text="copied ? copiedLabel : ''"></p>
 </div>
