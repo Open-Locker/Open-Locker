@@ -46,7 +46,7 @@ void lc_commission_init(lc_commission_t *commission, const lc_commission_ports_t
 /* Whether the device is connected with its issued identity. */
 void lc_commission_set_online(lc_commission_t *commission, bool online);
 
-/* Development builds only: also accept an mqtt:// broker URL (ADR-0071). Off by default. */
+/* Development builds only: also accept an mqtt:// broker URL (ADR-0069). Off by default. */
 void lc_commission_allow_plaintext_broker(lc_commission_t *commission, bool allow);
 
 /*

@@ -409,7 +409,7 @@ void test_S1_H33_status_reply_followed_by_a_door_event_is_read(void)
     TEST_ASSERT_EQUAL_INT(LC_BUS_CONNECTED, port.connection_state(port.ctx));
 }
 
-/* Seller protocol (ADR-0072): with door-closing feedback, status 11 means the unlock failed. */
+/* Seller protocol (ADR-0071): with door-closing feedback, status 11 means the unlock failed. */
 void test_S1_H34_unlock_failure_status_is_refused_and_the_bus_stays_connected(void)
 {
     static const uint8_t UNLOCK_FAILED[] = {0x8A, 0x01, 0x01, 0x11, 0x9B};

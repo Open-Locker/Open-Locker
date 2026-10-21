@@ -78,7 +78,7 @@ void test_S1_H04_address_255_is_rejected_and_wire_channel_zero_is_never_produced
 #define CLOSING LC_FEEDBACK_DOOR_CLOSING
 #define OPENING LC_FEEDBACK_DOOR_OPENING
 
-/* Seller protocol (ADR-0072): the status byte means success or failure by lock type. */
+/* Seller protocol (ADR-0071): the status byte means success or failure by lock type. */
 void test_S1_H05_unlock_status_00_and_11_mean_success_or_failure_by_feedback_type(void)
 {
     const uint8_t status_00[] = {0x8A, 0x01, 0x01, 0x00, 0x8A};

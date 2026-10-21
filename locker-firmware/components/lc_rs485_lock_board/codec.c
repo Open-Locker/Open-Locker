@@ -2,7 +2,7 @@
 
 #define UNLOCK_HEADER 0x8A
 #define QUERY_HEADER 0x80
-/* Active feedback: the panel reports a door change on its own (ADR-0072). */
+/* Active feedback: the panel reports a door change on its own (ADR-0071). */
 #define EVENT_HEADER 0x82
 #define UNLOCK_COMMAND 0x11
 #define QUERY_COMMAND 0x33
@@ -61,7 +61,7 @@ bool lc_rs485_encode_query_all(uint8_t board, uint8_t out[LC_RS485_REQUEST_SIZE]
 /*
  * Finds the next complete message in a burst, starting at *pos: a five-byte
  * unlock reply (8A) or door event (82), or a status reply (80 ... 33 XOR). The
- * panel may send a door event right behind a reply, with no gap (ADR-0072).
+ * panel may send a door event right behind a reply, with no gap (ADR-0071).
  * Bytes that start no valid message are skipped.
  */
 static bool next_message(const uint8_t *bytes, size_t length, size_t *pos, const uint8_t **message,

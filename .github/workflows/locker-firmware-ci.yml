@@ -72,7 +72,7 @@ jobs:
           path: locker-firmware/tests/idf_host
           command: idf.py --preview build && ./build/idf_host_test.elf
 
-      # The default build is the release configuration: plain MQTT must stay out (ADR-0071).
+      # The default build is the release configuration: plain MQTT must stay out (ADR-0069).
       - name: Check plain MQTT is off in the default build
         run: |
           test -f sdkconfig

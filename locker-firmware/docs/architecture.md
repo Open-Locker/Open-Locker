@@ -2,7 +2,8 @@
 
 How `locker-firmware/` is built: its layers and components, the ports between
 them, the task model, the command journal, the safety rules the code is held
-to, and the design decisions that have no ADR of their own. For wiring,
+to, and how the decisions of
+[ADR-0069](../../docs/adr/0069-esp32-locker-firmware.md) are implemented. For wiring,
 building and commissioning, see the [README](../README.md). For tests, see
 [testing.md](testing.md).
 
@@ -92,7 +93,7 @@ Ports are structs of function pointers with a context pointer, one struct per
 responsibility. The two that carry the most policy:
 
 ```c
-/* lc_ports/locker_bus_port.h: protocol-neutral, names follow ADR-0067 */
+/* lc_ports/locker_bus_port.h: protocol-neutral */
 typedef struct {
     void *ctx;
     bool (*apply_profile)(void *ctx, const lc_hardware_profile_t *profile);
@@ -175,7 +176,7 @@ format, retention and compaction are decided in
 ## Safety rules
 
 Each rule follows from an accepted decision (ADR-0040, ADR-0041, ADR-0046,
-ADR-0048, ADR-0050, ADR-0061) or from ADR-0067 and ADR-0070. Each is held by
+ADR-0048, ADR-0050, ADR-0061) or from ADR-0069, ADR-0070 and ADR-0071. Each is held by
 the host tests with the given prefix in [testing.md](testing.md).
 
 | Rule | Tests |
@@ -195,7 +196,7 @@ the host tests with the given prefix in [testing.md](testing.md).
 | A pending-enrollment flag is persisted before the token is published | S3 |
 | A lost or rejected enrollment reply never triggers a second registration | S3 |
 | Bootstrap credentials and token are cleared once issued credentials are saved | S3 |
-| TLS certificate and hostname verification cannot be disabled; plain `mqtt://` exists only in development builds (ADR-0071) | S3 |
+| TLS certificate and hostname verification cannot be disabled; plain `mqtt://` exists only in development builds (ADR-0069) | S3 |
 | Missing status bits become `unknown`; repeated failed polls report `unknown` | S4 |
 | Reconnect and `apply_config` force a snapshot without false door events | S4 |
 | Malformed, oversized, NUL, or stalled commissioning input never saves partial settings | S5 |
@@ -203,27 +204,91 @@ the host tests with the given prefix in [testing.md](testing.md).
 
 ## Design decisions
 
-These are recorded here; none has an ADR of its own.
+The decisions are in ADR-0069 (firmware), ADR-0070 (journal) and ADR-0071
+(panel replies). This section records how they are implemented, and the
+smaller choices that have no ADR.
 
 - **Hardware scope.** The RS485 lock panel (`adapter_type = rs485_lock_board`,
   ADR-0061) is the only supported locker protocol, with one panel per bus. Any
-  other `adapter_type` and a second board address are rejected.
-- **Commissioning.** Over USB serial with `scripts/commission.py`. A SoftAP
-  portal is planned as a second driving adapter over the same use case (#57),
-  with its own ADR.
-- **Port naming.** The locker bus port uses the names of ADR-0067: unlock a
+  other `adapter_type` and a second board address are rejected. Development
+  runs on an ESP32 D1 mini with an XY-485 automatic-direction converter; no
+  DE/RE pin is driven. The board selection of ADR-0005 is not used yet.
+- **Port naming.** The locker bus port is protocol-neutral: unlock a
   compartment, read compartment states, board address.
-- **Language.** C on ESP-IDF 6.1, built with `idf.py`. Rust was considered and
-  not chosen: the official Espressif Rust SDK does not yet cover Wi-Fi, MQTT,
-  storage and OTA, and the wrappers that do are community-maintained.
-- **No shared core.** The Pi client stays TypeScript; the two share the MQTT
-  schemas and the RS485 golden frames, not code.
 - **Tooling in Python.** ESP-IDF is driven by Python (`idf.py`), so the
   project's tools are Python too: `verify.py`, `commission.py`,
   `broker_check.py` and `hwtest.py`.
-- **Flash layout.** Two OTA slots, reserved `nvs_keys`, the journal at the end
-  of flash, partition table at `0xC000` (ADR-0069). OTA itself is not
-  implemented yet (#59).
+
+### Flash layout
+
+`partitions.csv`, with `CONFIG_PARTITION_TABLE_OFFSET=0xC000` in
+`sdkconfig.defaults`:
+
+```csv
+# Name,    Type, SubType,  Offset,   Size,     Flags
+nvs,       data, nvs,      0xD000,   0x6000,
+otadata,   data, ota,      0x13000,  0x2000,
+phy_init,  data, phy,      0x15000,  0x1000,
+nvs_keys,  data, nvs_keys, 0x16000,  0x1000,   encrypted
+ota_0,     app,  ota_0,    0x20000,  0x1D0000,
+ota_1,     app,  ota_1,    0x1F0000, 0x1D0000,
+journal,   data, 0x40,     0x3C0000, 0x40000,
+```
+
+- The bootloader gets `0x1000` to `0xC000` (44 KB) instead of about 2.7 KB of
+  headroom below the default `0x8000`; rollback, signature checks and secure
+  boot make it larger.
+- With empty `otadata` the bootloader boots `ota_0`, so `idf.py flash` works
+  as with a single app and the first OTA writes `ota_1`.
+- Each app slot is 0x1D0000 (1.8 MB). The default build measured 0xfe540
+  bytes on ESP-IDF 6.1, leaving 45 % of the slot free. The 36 KB from
+  `0x17000` to `0x20000` are unused.
+- `nvs_keys` is reserved and unused until flash and NVS encryption are turned
+  on with the SoftAP change (#57). Whether its `encrypted` flag behaves as
+  expected is verified only then.
+- The journal is found by its label (`lc_storage_nvs/partition_flash.c`), not
+  its offset, and is never flash-encrypted (ADR-0070). The table ends exactly
+  at 4 MB.
+- Rollback, image signing and the minimum chip revision belong to OTA (#59).
+
+### Toolchain
+
+- ESP-IDF `v6.1` exactly, in `idf.py`, CI, the Docker image
+  (`espressif/idf:v6.1`) and the README. Bench boards are flashed in full
+  (`idf.py flash -a`), which also writes the bootloader.
+- The component manager is on and `dependencies.lock` is committed.
+  Components outside ESP-IDF come from it: `espressif/mqtt`, `espressif/cjson`,
+  and `espressif/network_provisioning` once SoftAP lands (#331). The laptop's
+  `esp_prov` must come from the same release.
+- The IDF host tests mock `espressif/mqtt` from the headers of the resolved
+  copy in `managed_components/`, so the firmware build runs before them.
+- Language: C. Rust was considered and not chosen (ADR-0069).
+
+### Release and development builds
+
+- `CONFIG_LC_ALLOW_PLAINTEXT_MQTT` (component `lc_mqtt_espidf`) is `default n`.
+  `sdkconfig.dev` turns it on; developers build with
+  `idf.py -D SDKCONFIG_DEFAULTS="sdkconfig.defaults;sdkconfig.dev" build`. A
+  plain `idf.py build` is the release configuration. Switching needs a deleted
+  `sdkconfig`, or the old values stay.
+- Commissioning (`lc_application/commission_device.c`) accepts `mqtt://` only
+  when the composition root calls `lc_commission_allow_plaintext_broker`, which
+  `main/` does only under the option. The pure component never reads
+  `CONFIG_*`, so both behaviours are host-tested (S5-H02, S5-H19).
+- The transport (`lc_mqtt_espidf/transport.c`) refuses an `mqtt://` URI when
+  the option is off. This also covers a URL stored in NVS by a development
+  build before a release was flashed over it. With the option on it logs a
+  warning on every connect.
+- `ESP_TLS_INSECURE` and `ESP_TLS_SKIP_SERVER_CERT_VERIFY` are a build error in
+  every configuration.
+- CI builds the default configuration and fails if
+  `CONFIG_LC_ALLOW_PLAINTEXT_MQTT=y` ends up in its `sdkconfig`.
+
+### Commissioning
+
+Over USB serial with `scripts/commission.py`. A SoftAP portal is planned as a
+second driving adapter over the same use case (#57), with its own ADR, which
+also turns on flash and NVS encryption.
 
 ## Risks
 

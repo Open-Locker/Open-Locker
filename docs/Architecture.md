@@ -42,6 +42,10 @@ deduplication, local runtime configuration, and hardware state reporting.
 - **`locker-client/`** — TypeScript service deployed on a Raspberry Pi. It
   provisions over MQTT and translates validated commands into serialized
   Modbus RTU operations. It also provides a hardware-free fleet simulator.
+- **`locker-firmware/`** — C firmware on ESP-IDF that replaces the Raspberry Pi
+  for one RS485 lock panel. It speaks the same MQTT contract, so the backend
+  cannot tell the two clients apart; a bank is driven by one or the other,
+  never both (ADR-0069).
 - **Mosquitto** — MQTT broker with HTTP authentication and authorization
   delegated to backend endpoints.
 - **`website/`** — Astro site for the public project presence and published
@@ -107,10 +111,15 @@ Modbus RTU access to Waveshare relay boards and uses hardware-timed relay pulses
 for safe compartment opening. Hardware observations return through MQTT rather
 than through backend-side polling.
 
+The ESP32 firmware drives the proprietary RS485 lock panel (ADR-0061,
+ADR-0071) instead of Modbus relay boards. It records every command in a flash
+journal before touching the panel (ADR-0070).
+
 ## Sources of truth
 
 - [Backend component documentation](../locker-backend/README.md)
 - [Locker client component documentation](../locker-client/README.md)
+- [ESP32 firmware architecture](../locker-firmware/docs/architecture.md)
 - [Installation and deployment](Installation.md)
 - [REST and realtime app communication](app_communication.md)
 - [MQTT AsyncAPI contract](asyncapi/mqtt.yaml)

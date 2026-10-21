@@ -1,6 +1,6 @@
 menu "Locker MQTT transport"
 
-    # Production builds leave this off; sdkconfig.dev turns it on (ADR-0071).
+    # Production builds leave this off; sdkconfig.dev turns it on (ADR-0069).
     config LC_ALLOW_PLAINTEXT_MQTT
         bool "Allow plain mqtt:// brokers (development and test only)"
         default n

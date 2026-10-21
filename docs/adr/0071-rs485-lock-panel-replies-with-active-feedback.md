@@ -1,4 +1,4 @@
-# ADR-0072: RS485 lock panel replies with active door feedback
+# ADR-0071: RS485 lock panel replies with active door feedback
 
 ## Status
 

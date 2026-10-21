@@ -8,7 +8,7 @@
 
 /*
  * Protocol-neutral locker controller boundary. Wire protocol, channel
- * numbering and feedback polarity stay in the adapter. Names follow ADR-0067.
+ * numbering and feedback polarity stay in the adapter.
  */
 
 typedef enum {

@@ -35,7 +35,7 @@ typedef enum {
  * The panel's answer to an unlock, found among the messages received (door
  * events may follow it in the same burst). Its status byte depends on the lock
  * type: door-closing feedback 00 = succeeded, 11 = failed; door-opening the
- * reverse (ADR-0072).
+ * reverse (ADR-0071).
  */
 lc_rs485_unlock_answer_t lc_rs485_decode_unlock_ack(const uint8_t *frame, size_t length,
                                                     uint8_t board, unsigned address,

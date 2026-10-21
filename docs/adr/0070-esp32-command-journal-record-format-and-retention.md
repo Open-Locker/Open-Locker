@@ -6,7 +6,7 @@ Proposed
 
 ## Date
 
-2026-10-16 (first draft 2026-10-12)
+2026-10-16
 
 ## Context
 
@@ -36,12 +36,10 @@ The journal has to give the application three guarantees (the safety rules in
 and one rule about failure: a corrupt journal must stop all actuation, because
 the firmware can no longer know which commands it has run.
 
-The first draft of this ADR never pruned: after 64 commands for the life of the
-device it refused every new command, and any damaged record, including one torn
-by an ordinary power cut, stopped actuation until an operator erased the
-partition. Both make the firmware unusable outside a bench. This version keeps
-the record format and the guarantees and replaces the torn-write handling and
-the retention. The sources behind each decision are listed under References.
+Two things would make the journal unusable outside a bench: a log that is never
+pruned fills up and refuses every command, and treating a record torn by an
+ordinary power cut as corruption stops actuation until an operator erases the
+partition. The sources behind each decision are listed under References.
 
 How late a duplicate can arrive decides what may be forgotten:
 
@@ -324,11 +322,11 @@ reset (`reset-network`, see the firmware README) keeps.
   would be executed again.
 - Why not chosen: it breaks guarantee 1 outright.
 
-### Alternative E: Never prune (the first draft of this ADR)
+### Alternative E: Never prune
 
 - Pros: forgets nothing.
-- Cons: the unit refuses all commands after 64, and the only remedy, erasing
-  the partition, forgets everything at once.
+- Cons: the unit refuses all commands once the partition is full, and the only
+  remedy, erasing the partition, forgets everything at once.
 - Why not chosen: bounded retention with a named residual risk forgets less in
   practice than the operator erase it replaces.
 
@@ -397,15 +395,14 @@ reset (`reset-network`, see the firmware README) keeps.
   typical figure is published). Erasing one sector per idle tick keeps the
   owner task well inside the 5 s task watchdog. At start the erases run in a
   loop that yields to the scheduler after each one.
-- Whether the `espressif/mqtt` component (ADR-0075) sends the PUBACK after
+- Whether the `espressif/mqtt` component (ADR-0069) sends the PUBACK after
   the handler, as upstream does, is not verified. Either way it decides only
   whether a crash loses a command, never whether it is executed twice.
 
 ## Rollout / Migration
 
-No unit is deployed, and this ADR was never accepted, so version 1 of the
-format is redefined rather than versioned. Bench boards need a full erase,
-which ADR-0069 already requires. A device with a journal of an unknown version
+No unit is deployed. Bench boards with a journal from an earlier draft need a
+full erase, which ADR-0069 already requires. A device with a journal of an unknown version
 reports it unhealthy and does not actuate. There is no migration from the Pi
 client's files: a Pi client and an ESP32 never share a bank at the same time
 (hardware check HW-G2 in `locker-firmware/docs/testing.md`).

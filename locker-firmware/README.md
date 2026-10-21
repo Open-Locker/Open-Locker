@@ -10,6 +10,7 @@ This is bench firmware. Read [Limits](#limits) before you put a lock on it.
 
 - Architecture: [`docs/architecture.md`](docs/architecture.md)
 - Tests and hardware acceptance: [`docs/testing.md`](docs/testing.md)
+- Firmware decisions: [ADR-0069](../docs/adr/0069-esp32-locker-firmware.md)
 - Journal format and retention: [ADR-0070](../docs/adr/0070-esp32-command-journal-record-format-and-retention.md)
 - Hardware: [ADR-0005](../docs/adr/0005-esp-build-controller-board-selection.md)
 
@@ -122,7 +123,7 @@ Things to know:
 - If the connection to the tool is lost after the settings were sent, nothing
   is resent. Run `status` in the console, then try again.
 - **Plain `mqtt://` against a local broker** needs a development build
-  (ADR-0071). Delete `sdkconfig`, then
+  (ADR-0069). Delete `sdkconfig`, then
   `idf.py -D SDKCONFIG_DEFAULTS="sdkconfig.defaults;sdkconfig.dev" build`.
   A plain `idf.py build` is the release configuration and refuses `mqtt://`,
   including a URL stored earlier by a development build.

@@ -1,4 +1,4 @@
-# Development and test overlay, never for a release (ADR-0071):
+# Development and test overlay, never for a release (ADR-0069):
 #   idf.py -D SDKCONFIG_DEFAULTS="sdkconfig.defaults;sdkconfig.dev" build
 # Delete a local sdkconfig first when switching, or the old values stay.
 CONFIG_LC_ALLOW_PLAINTEXT_MQTT=y
