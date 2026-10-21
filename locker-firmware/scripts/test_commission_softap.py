@@ -1,5 +1,5 @@
-"""Tests for scripts/commission_softap.py (the logic; the esp_prov session is not tested).
-Run with `python -m unittest discover -s scripts`."""
+"""Tests for the setup-network link of scripts/commission.py (the logic; the esp_prov
+session is not tested). Run with `python -m unittest discover -s scripts`."""
 
 import builtins
 import pathlib
@@ -7,10 +7,11 @@ import re
 import unittest
 from unittest import mock
 
-from commission_softap import (
-    MESSAGES,
+from commission import (
+    SOFTAP_MESSAGES,
     SessionRefused,
-    commission_softap,
+    SoftapLink,
+    commission,
     ol_config_payload,
     sec_patch_version,
 )
@@ -45,7 +46,7 @@ class Prompt:
             return self.answers["broker"]
         return self.answers["bootstrap_user"]
 
-    def ask(self, label):
+    def ask(self, label, default):
         self.shown.append(label)
         return self._value(label)
 
@@ -53,12 +54,15 @@ class Prompt:
         self.hidden.append(label)
         return self._value(label)
 
+    def confirm(self, label):
+        return True
+
 
 class Output:
     def __init__(self):
         self.text = ""
 
-    def write(self, text):
+    def write(self, text, style=None):
         self.text += text
 
 
@@ -85,10 +89,11 @@ class Session:
         return self.wifi
 
 
-def run(session, prompt=None):
+def run(session, prompt=None, unit_answers=True):
     output = Output()
     prompt = prompt or Prompt()
-    return commission_softap(session, prompt, output), output.text, prompt
+    link = SoftapLink(session, lambda: unit_answers)
+    return commission(link, prompt, output, reachable=lambda host, port: True), output.text, prompt
 
 
 class CommissionSoftapTest(unittest.TestCase):
@@ -116,13 +121,20 @@ class CommissionSoftapTest(unittest.TestCase):
         result, text, _ = run(session)
         self.assertEqual("refused", result)
         self.assertEqual(["open"], [call[0] for call in session.calls])
-        self.assertIn(MESSAGES["bad_password"], text)
+        self.assertIn(SOFTAP_MESSAGES["bad_password"], text)
 
     def test_no_reply_is_reported_without_sending(self):
         session = Session(open_error=ConnectionError("down"))
         result, text, _ = run(session)
         self.assertEqual("no_reply", result)
         self.assertEqual(1, len(session.calls))
+        self.assertIn("setup Wi-Fi", text)
+
+    def test_a_unit_that_never_shows_up_on_its_setup_network_gets_no_session(self):
+        session = Session()
+        result, text, _ = run(session, unit_answers=False)
+        self.assertEqual("no_reply", result)
+        self.assertEqual([], session.calls)
         self.assertIn("setup Wi-Fi", text)
 
     def test_a_refused_custom_part_stops_before_the_wifi(self):
@@ -142,7 +154,7 @@ class CommissionSoftapTest(unittest.TestCase):
     def test_the_device_refusing_the_wifi_part_is_refused_not_saved(self):
         result, text, _ = run(Session(wifi=False))
         self.assertEqual("refused", result)
-        self.assertIn(MESSAGES["refused"], text)
+        self.assertIn(SOFTAP_MESSAGES["refused"], text)
 
     def test_a_value_the_device_would_refuse_is_caught_before_anything_is_sent(self):
         for key, bad in (("ssid", ""), ("ssid", "x" * 33), ("token", ""), ("broker", "x" * 193),
@@ -172,10 +184,6 @@ class PayloadTest(unittest.TestCase):
         self.assertIn(self.GOLDEN, re.sub(r'"\s*\n\s*"', "", source.read_text(encoding="utf8")))
 
 
-if __name__ == "__main__":
-    unittest.main()
-
-
 class SecPatchVersionTest(unittest.TestCase):
     def test_reads_the_level_the_unit_reports(self):
         for level in (0, 1):
@@ -185,3 +193,7 @@ class SecPatchVersionTest(unittest.TestCase):
     def test_a_reply_without_a_level_is_an_error(self):
         with self.assertRaises(KeyError):
             sec_patch_version('{"prov":{"ver":"v1.1","sec_ver":2,"cap":[]}}')
+
+
+if __name__ == "__main__":
+    unittest.main()

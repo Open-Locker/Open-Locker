@@ -139,7 +139,7 @@ into this ADR before it is accepted; where one fails, the plan says what to do.
 The decision logic is built and host-tested: boot mode and repair, the reset
 gesture, the portal session rules, the `ol-config` parser and collector, and the
 production console. The radio adapter (`lc_softap_espidf`), its wiring in
-`app_main` and the laptop tool (`commission_softap.py`) are written against the
+`app_main` and the laptop tool (`commission.py --softap`) are written against the
 ESP-IDF 6.1 headers and compile-checked in the `espressif/idf:v6.1` image only (ADR-0075)
 (default and production configuration, and the IDF host tests). They have not run
 on a board. The adapter uses protocomm directly, not the provisioning

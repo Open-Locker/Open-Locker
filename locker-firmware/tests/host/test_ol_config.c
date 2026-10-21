@@ -252,7 +252,7 @@ void test_S6_H04_no_response_contains_a_submitted_value(void)
 }
 
 /*
- * Beyond the catalogue: the payload scripts/commission_softap.py builds for the
+ * Beyond the catalogue: the payload scripts/commission.py --softap builds for the
  * values above, byte for byte. test_commission_softap.py checks this same string,
  * so the laptop tool and the device cannot drift apart unseen.
  */

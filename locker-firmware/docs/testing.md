@@ -271,7 +271,7 @@ Host suite `test_console_protocol`:
 | S5-H14 | No reply contains any submitted value |
 | S5-H15 | Input processed per pass is bounded, so a flood cannot starve the owner task |
 
-Tool suite `test_commission.py` (unittest, runs in the host gate):
+Tool suites `test_commission.py` and `test_commission_softap.py` (unittest, run in the host gate):
 
 | ID | Test |
 | --- | --- |

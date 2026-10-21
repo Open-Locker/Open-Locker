@@ -97,8 +97,8 @@ to the codec, so no adapter depends on another.
 ## Commissioning over the setup network
 
 Not yet tried on a bench unit (ADR-0074). A unit with no network settings opens a setup Wi-Fi
-for 10 minutes after power-up (name and password on its label). Join it from a
-laptop and run `python scripts/commission_softap.py` (after a firmware build, which fetches its `esp_prov`)
+for 10 minutes after power-up (name and password on its label). From a
+laptop, run `python scripts/commission.py --softap` (after a firmware build, which fetches its `esp_prov`); it says when to join that network
 (see its docstring and ADR-0074). `scripts/device_secrets.py` makes the label
 secrets for a new unit. Hold the unit's reset button for 10 s to wipe it.
 
@@ -114,8 +114,8 @@ no production unit may ship (ADR-0074).
 A new board has no network settings. Give it some with the tool:
 
 ```bash
-pip install -r requirements.txt              # once: pyserial, paho-mqtt
-python scripts/commission.py --port COM3     # or /dev/ttyUSB0
+pip install -r requirements.txt              # once: pyserial, paho-mqtt, questionary
+python scripts/commission.py --usb           # finds the board; or --usb COM3, /dev/ttyUSB0
 ```
 
 It asks for the Wi-Fi network name and password, the broker URL (`mqtts://`
