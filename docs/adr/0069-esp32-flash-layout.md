@@ -52,7 +52,7 @@ journal,   data, 0x40,     0x3C0000, 0x40000,
 - No `factory` partition.
 - The bootloader gets `0x1000` to `0xC000` (44 KB).
 - `nvs_keys` is reserved and unused until flash encryption and NVS encryption
-  are turned on.
+  are turned on, planned with the SoftAP commissioning (#57).
 - The journal moves to the end of flash and is **not** flash-encrypted: its
   byte-granular appends and separate commit-marker writes (ADR-0070) do not fit
   the 16-byte blocks of encrypted writes, and it holds no secrets.

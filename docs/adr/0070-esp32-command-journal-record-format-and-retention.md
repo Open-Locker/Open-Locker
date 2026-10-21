@@ -379,7 +379,9 @@ reset (`reset-network`, see the firmware README) keeps.
   read of the region; a used one 32 sector erases, about 1.5 s typically and up
   to 16 s, and as much again if the start compacts.
 - The partition stays unencrypted when flash encryption is turned on: encrypted
-  writes go in 16-byte blocks, which records of any length do not fit. The
+  writes go in 16-byte blocks, which records of any length do not fit, and
+  reads of an encrypted partition are decrypted, so erased bytes would no longer
+  read as `0xFF`, which torn-tail and blank-spare detection rely on. The
   journal holds no secrets.
 
 ### Risks

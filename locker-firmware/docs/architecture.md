@@ -246,9 +246,11 @@ These are recorded here; none has an ADR of its own.
   size, the serial parameters and DIP address, and the feedback polarity. The
   build defaults stay assumptions until recorded on the bench; HW-A4 captures
   the polarity.
-- **Plaintext credentials.** Until flash encryption is decided, Wi-Fi and MQTT
-  credentials sit unencrypted in flash. This limits the firmware to an attended
-  bench.
+- **Plaintext credentials.** Wi-Fi and MQTT credentials sit unencrypted in NVS
+  until the SoftAP pull request
+  ([plan in #57](https://github.com/Open-Locker/Open-Locker/issues/57#issuecomment-6214674877)),
+  which turns on flash encryption and NVS encryption. Until then the firmware is
+  for an attended bench only.
 
 ## Glossary
 

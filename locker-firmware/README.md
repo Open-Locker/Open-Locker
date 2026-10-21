@@ -188,8 +188,11 @@ token.
   revised need the same erase.
 - **One panel per bus.** A second board address is rejected, and so is any
   `adapter_type` other than `rs485_lock_board`.
-- **Credentials are stored unencrypted** in flash until flash encryption is
-  decided. Do not leave a unit unattended in a place anyone can reach.
+- **Credentials are stored unencrypted** in NVS in this release. Flash
+  encryption and NVS encryption (with the reserved `nvs_keys` partition) ship
+  with the SoftAP pull request
+  ([plan in #57](https://github.com/Open-Locker/Open-Locker/issues/57#issuecomment-6214674877)).
+  Until then, do not leave a unit unattended in a place anyone can reach.
 - **The broker certificate must chain to a public CA** in the built-in bundle
   (for example the Let's Encrypt certificate of ADR-0053). Certificate and host
   name verification cannot be turned off. A broker with a private CA needs the
@@ -211,7 +214,7 @@ The partition table sits at `0xC000`, so the bootloader has room to grow.
 | `nvs` | `0xD000` | 24 KiB | Settings, identity and mapping |
 | `otadata` | `0x13000` | 8 KiB | Which app slot boots (empty: `ota_0`) |
 | `phy_init` | `0x15000` | 4 KiB | Radio calibration |
-| `nvs_keys` | `0x16000` | 4 KiB | Reserved for NVS encryption, unused today |
+| `nvs_keys` | `0x16000` | 4 KiB | Reserved for NVS encryption; used from the SoftAP pull request (#57) |
 | `ota_0` | `0x20000` | 1.8 MiB | The firmware; `idf.py flash` writes it here |
 | `ota_1` | `0x1F0000` | 1.8 MiB | Second slot, used by OTA (#59) |
 | `journal` | `0x3C0000` | 256 KiB | The command journal (raw, subtype `0x40`) |
