@@ -421,9 +421,12 @@ Rules:
 
 ### Group F: SoftAP commissioning
 
-Needs the setup-network code wired in (the device-side adapter), a laptop with
-`esp_prov` and a production-configured build for HW-F6. Run against a backend
-with the token-expiry change deployed for HW-F8 (ADR-0074).
+Needs a unit with its setup secrets in NVS (`scripts/device_secrets.py --nvs-csv`),
+a laptop running `scripts/commission.py --softap` from the same build, and a
+production-configured build for HW-F6. Run against a backend with the
+token-expiry change deployed for HW-F8 (ADR-0074). None has run yet: the radio
+adapter is only compile-checked on ESP-IDF 6.1, and the open points of ADR-0074
+are settled on the same bench run.
 
 | ID | Check |
 | --- | --- |

@@ -6,7 +6,7 @@ Working note behind ADR-0074. Not a decision record.
 
 | Option | Verdict |
 | --- | --- |
-| ESP-IDF provisioning manager over SoftAP, Security 2 | Chosen. SRP6a key exchange, AES-256-GCM, supported tooling (`esp_prov`), one authenticated session |
+| ESP-IDF provisioning manager over SoftAP, Security 2 | Chosen. SRP6a key exchange, AES-256-GCM, supported tooling (`esp_prov`), one authenticated session. The firmware later used protocomm directly instead of the manager (ADR-0074 decision 5) |
 | Provisioning manager over BLE | Same protocol, other radio. More RAM and an extra stack; no benefit for a fixed unit |
 | Own HTTP server and HTML form on an open AP | Rejected. Secrets in clear, own parsing code on the device |
 | Security 0 or 1 | Rejected. No authentication (0) or a weaker proof of possession (1) |

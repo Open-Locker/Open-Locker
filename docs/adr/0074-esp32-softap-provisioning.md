@@ -54,9 +54,14 @@ Constraints:
 
 ### Transport and secrets
 
-5. Espressif's provisioning manager with **Security 2** (SRP6a, AES-256-GCM) on
-   a WPA2 access point with a per-device passphrase. The setup password and the
-   access-point passphrase are generated per device and printed on a label.
+5. **Security 2** (SRP6a, AES-256-GCM) over ESP-IDF's protocomm, used directly
+   rather than through the provisioning manager, on a WPA2 access point with a
+   per-device passphrase. Using protocomm directly makes failed sessions
+   countable through its security events and keeps the endpoint whitelist ours.
+   The setup password and the access-point passphrase are generated per device
+   and printed on a label. The device derives the Security 2 salt and verifier
+   from the setup password at each start (`esp_srp_gen_salt_verifier`), so that
+   password never leaves the unit.
 6. Wi-Fi settings and `ol-config` (broker URL, bootstrap login, token) are
    collected, validated and saved **together, or not at all**, through the same
    `commission_device` use case as USB.
@@ -73,9 +78,13 @@ Constraints:
 
 ### Installer tool
 
-11. For the pilot, installers use a laptop with `esp_prov`. The mobile app is a
-    later issue. The commissioning tool reads secrets without echo, never writes
-    them to disk and never resends after a lost connection.
+11. For the pilot, installers use a laptop with `scripts/commission.py --softap`.
+    The mobile app is a later issue. The tool uses the `esp_prov` of the
+    `network_provisioning` copy in the firmware's `managed_components/`, so tool
+    and firmware always come from the same build, and reads the Security 2 patch
+    level from the unit's `proto-ver` reply (`protocomm_get_sec_version()`). It
+    reads secrets without echo, never writes them to disk and never resends after
+    a lost connection.
 
 ### Backend: 24-hour token
 
@@ -127,35 +136,12 @@ into this ADR before it is accepted; where one fails, the plan says what to do.
 
 | Question | If it fails |
 | --- | --- |
-| Does a provisioning-manager session carry a custom `ol-config` payload, and can our Python tool send it? | Write the client against the `esp_prov` library, or change the transport |
+| Does `esp_prov` talk to our protocomm endpoints and carry the custom `ol-config` payload? | Change the transport |
 | Is `ol-config` encrypted by the session (packet capture)? | Stop and redo this ADR; do not build on it |
 | Free heap and largest allocation with the portal running, in AP+STA and AP-only? | The portal applies credentials itself, so AP-only may be enough |
 | Real sizes of `owner_event_t` and the queue on the chip? | Lower the queue depth or queue pointers; the result sets the `_Static_assert` budget |
 | ESP-IDF 6.1 on the lwIP DHCP-server advisory? | Pin the fixed patch release and use that image for target builds (ADR-0069) |
 | Does a jumper from GPIO 4 to GND held for 10 s read as a press? | Check wiring and pin choice |
-
-### Implementation status
-
-The decision logic is built and host-tested: boot mode and repair, the reset
-gesture, the portal session rules, the `ol-config` parser and collector, and the
-production console. The radio adapter (`lc_softap_espidf`), its wiring in
-`app_main` and the laptop tool (`commission.py --softap`) are written against the
-ESP-IDF 6.1 headers and compile-checked in the `espressif/idf:v6.1` image only (ADR-0069)
-(default and production configuration, and the IDF host tests). They have not run
-on a board. The adapter uses protocomm directly, not the provisioning
-manager, so that failed Security 2 sessions are countable through the protocomm
-session events and the endpoint whitelist is ours; whether `esp_prov` talks to
-it, and whether the open points above hold, is for the bench spike. The Security
-2 salt and verifier are derived on the device from the label's setup password at
-each start (`esp_srp_gen_salt_verifier`), which keeps that password on the unit.
-The owner queue's memory budget is a host measurement. The laptop tool defaults to
-the `esp_prov` of the `network_provisioning` copy in the firmware's
-`managed_components/`, so tool and firmware always match, and reads the Security 2
-patch level from the unit's `proto-ver` reply, which the firmware builds from
-`protocomm_get_sec_version()`.
-
-There is no bench result on the pinned build (ADR-0069) yet: the open points above
-and HW-F1 to HW-F8 are all open.
 
 ## Alternatives Considered
 
@@ -189,21 +175,18 @@ and HW-F1 to HW-F8 are all open.
 - Plaintext credentials in flash limit the firmware to an attended bench until
   flash and NVS encryption are enabled (decision 18).
 
-## Planned tests
+## Supersedes / Superseded By
 
-The host catalogue gets slice S6 (see `locker-firmware/docs/testing.md`; rows
-are added with the commit that writes each test): S6-H01 to H26 and hardware
-checks HW-F1 to HW-F8. Backend tests extend `RegistrationHandlerTest` and
-`LockerBankProvisioningResetTest`: fresh token accepted; token past 24 h
-refused; boundary (valid while `now < issued_at + 24 h`); re-issue restarts the
-clock; a used token and an enrolled locker are unaffected after 24 h; a token
-hash with no issue time counts as expired; a replay of
-`LockerProvisioningTokenIssued` sets the time from the event, not `now()`.
+- Supersedes: ADR-0069 point 10 (plaintext credentials). Decision 18 keeps them
+  for bench builds and makes flash and NVS encryption a release blocker.
+- Superseded by: none
 
 ## References
 
-- Issue #57; PR #321 (firmware)
+- Issue #57; PR #321 (firmware), PR #331 (this change)
 - [ADR-0069](0069-esp32-locker-firmware.md), [ADR-0070](0070-esp32-command-journal-record-format-and-retention.md)
 - [Flow diagrams](../softap-provisioning-flows.md)
 - [Research note](../research/softap-provisioning.md)
-- `locker-firmware/docs/architecture.md`, `locker-firmware/docs/testing.md`
+- `locker-firmware/docs/architecture.md`; tests in `locker-firmware/docs/testing.md`
+  (slice S6, hardware group F) and the backend's `RegistrationHandlerTest` and
+  `LockerBankProvisioningResetTest`
