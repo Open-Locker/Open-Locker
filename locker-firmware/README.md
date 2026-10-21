@@ -47,10 +47,10 @@ idf.py -p COM3 flash                  # flash the board
 idf.py -p COM3 monitor                # console and log, 115200 baud
 ```
 
-Run the `idf.py` commands from an ESP-IDF 5.4 shell (see Espressif's
-[getting started guide](https://docs.espressif.com/projects/esp-idf/en/v5.4/esp32/get-started/)),
+Run the `idf.py` commands from an ESP-IDF 6.1 shell (see Espressif's
+[getting started guide](https://docs.espressif.com/projects/esp-idf/en/v6.1/esp32/get-started/)),
 or without installing it, in Docker:
-`docker run --rm -v "$PWD:/project" -w /project espressif/idf:v5.4 idf.py build`.
+`docker run --rm -v "$PWD:/project" -w /project espressif/idf:v6.1 idf.py build`.
 
 `verify.py` is the one command for the gates. CI runs it with `--skip-target`
 and runs the IDF host tests and the target build in separate steps with the

@@ -397,7 +397,7 @@ reset (`reset-network`, see the firmware README) keeps.
   typical figure is published). Erasing one sector per idle tick keeps the
   owner task well inside the 5 s task watchdog. At start the erases run in a
   loop that yields to the scheduler after each one.
-- Whether the esp-mqtt version bundled with ESP-IDF v5.4 sends the PUBACK after
+- Whether the `espressif/mqtt` component (ADR-0075) sends the PUBACK after
   the handler, as upstream does, is not verified. Either way it decides only
   whether a crash loses a command, never whether it is executed twice.
 
@@ -432,7 +432,7 @@ client's files: a Pi client and an ESP32 never share a bank at the same time
   [PostgreSQL xlogrecovery.c](https://github.com/postgres/postgres/blob/master/src/backend/access/transam/xlogrecovery.c)
 - Two regions and compaction: [littlefs DESIGN.md](https://github.com/littlefs-project/littlefs/blob/master/DESIGN.md)
   and [SPEC.md](https://github.com/littlefs-project/littlefs/blob/master/SPEC.md),
-  [ESP-IDF v5.4 NVS](https://docs.espressif.com/projects/esp-idf/en/v5.4/esp32/api-reference/storage/nvs_flash.html),
+  [ESP-IDF v6.1 NVS](https://docs.espressif.com/projects/esp-idf/en/v6.1/esp32/api-reference/storage/nvs_flash.html),
   [Zephyr NVS](https://docs.zephyrproject.org/latest/services/storage/nvs/nvs.html),
   [Zephyr ZMS](https://docs.zephyrproject.org/latest/services/storage/zms/zms.html),
   [Espressif flash endurance FAQ](https://docs.espressif.com/projects/esp-faq/en/latest/software-framework/storage/nvs.html)
@@ -442,5 +442,5 @@ client's files: a Pi client and an ESP32 never share a bank at the same time
   [MQTT 3.1.1](https://docs.oasis-open.org/mqtt/mqtt/v3.1.1/os/mqtt-v3.1.1-os.html),
   [mosquitto.conf](https://mosquitto.org/man/mosquitto-conf-5.html),
   [esp-mqtt client](https://github.com/espressif/esp-mqtt/blob/master/mqtt_client.c)
-- Erase timing and watchdog: [ESP-IDF v5.4 spi_flash_chip_generic.c](https://github.com/espressif/esp-idf/blob/release/v5.4/components/spi_flash/spi_flash_chip_generic.c),
-  [ESP-IDF v5.4 esp_system Kconfig](https://github.com/espressif/esp-idf/blob/release/v5.4/components/esp_system/Kconfig)
+- Erase timing and watchdog: [ESP-IDF v6.1 spi_flash_chip_generic.c](https://github.com/espressif/esp-idf/blob/release/v6.1/components/spi_flash/spi_flash_chip_generic.c),
+  [ESP-IDF v6.1 esp_system Kconfig](https://github.com/espressif/esp-idf/blob/release/v6.1/components/esp_system/Kconfig)

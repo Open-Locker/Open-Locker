@@ -15,7 +15,7 @@ journal (ADR-0070) right after it at `0x190000`. OTA (#59) needs two app slots
 and an `otadata` partition, and later secure boot, flash encryption and NVS
 encryption need room in the bootloader region and an `nvs_keys` partition.
 
-ESP-IDF v5.4 cannot replace the bootloader or the partition table over the air,
+ESP-IDF cannot replace the bootloader or the partition table over the air,
 so whatever layout a unit is flashed with stays for its life unless someone
 reflashes it over USB. No unit is deployed yet, so the layout can still be
 chosen freely. Doing it in the first firmware PR means that PR's hardware tests
@@ -138,6 +138,6 @@ unit and a new ADR.
 - Related issues: #56, #59
 - Related docs: `locker-firmware/docs/architecture.md`, ADR-0005, ADR-0070;
   OTA planning in #59
-- ESP-IDF v5.4: [Partition Tables](https://docs.espressif.com/projects/esp-idf/en/v5.4/esp32/api-guides/partition-tables.html),
-  [Over The Air Updates](https://docs.espressif.com/projects/esp-idf/en/v5.4/esp32/api-reference/system/ota.html),
-  [NVS Encryption](https://docs.espressif.com/projects/esp-idf/en/v5.4/esp32/api-reference/storage/nvs_encryption.html)
+- ESP-IDF v6.1: [Partition Tables](https://docs.espressif.com/projects/esp-idf/en/v6.1/esp32/api-guides/partition-tables.html),
+  [Over The Air Updates](https://docs.espressif.com/projects/esp-idf/en/v6.1/esp32/api-reference/system/ota.html),
+  [NVS Encryption](https://docs.espressif.com/projects/esp-idf/en/v6.1/esp32/api-reference/storage/nvs_encryption.html)

@@ -213,7 +213,7 @@ These are recorded here; none has an ADR of its own.
   with its own ADR.
 - **Port naming.** The locker bus port uses the names of ADR-0067: unlock a
   compartment, read compartment states, board address.
-- **Language.** C on ESP-IDF 5.4, built with `idf.py`. Rust was considered and
+- **Language.** C on ESP-IDF 6.1, built with `idf.py`. Rust was considered and
   not chosen: the official Espressif Rust SDK does not yet cover Wi-Fi, MQTT,
   storage and OTA, and the wrappers that do are community-maintained.
 - **No shared core.** The Pi client stays TypeScript; the two share the MQTT
