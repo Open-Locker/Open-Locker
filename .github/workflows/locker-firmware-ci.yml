@@ -4,6 +4,7 @@ name: Locker Firmware Quality
 # firmware PR's branch until that one merges, and must be checked too.
 on:
   pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
     paths:
       - 'locker-firmware/**'
       - '!locker-firmware/**/*.md'
@@ -27,6 +28,8 @@ concurrency:
 jobs:
   locker-firmware-ci:
     name: Static and host gates
+    # Drafts skip CI; ready_for_review runs it.
+    if: github.event.pull_request.draft != true
     runs-on: ubuntu-latest
     permissions:
       contents: read
