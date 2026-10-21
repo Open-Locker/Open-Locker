@@ -233,6 +233,26 @@ void test_S3_H07_device_that_boots_with_the_pending_flag_never_registers(void)
     TEST_ASSERT_TRUE(store.identity.enrollment_pending);
 }
 
+/* A restart between the token and the reply: the broker may still hold the reply for this client. */
+void test_a_device_that_boots_with_the_pending_flag_waits_for_a_late_reply(void)
+{
+    store.identity.enrollment_pending = true;
+    start();
+
+    TEST_ASSERT_TRUE(lc_provision_wants_session(&provision));
+    lc_provision_on_connected(&provision);
+    TEST_ASSERT_EQUAL_UINT(1, gateway.subscribe_count);
+    lc_provision_on_subscribed(&provision);
+    TEST_ASSERT_EQUAL_UINT(0, gateway.registration_count);
+    TEST_ASSERT_EQUAL_INT(LC_PROVISION_OUTCOME_UNKNOWN, state());
+
+    deliver_reply(SUCCESS_REPLY);
+
+    TEST_ASSERT_EQUAL_INT(LC_PROVISION_ENROLLED, state());
+    TEST_ASSERT_TRUE(store.identity.enrolled);
+    TEST_ASSERT_EQUAL_UINT(0, gateway.registration_count);
+}
+
 void test_S3_H08_malformed_and_misdirected_replies_are_ignored(void)
 {
     static const char *const MALFORMED[] = {
@@ -344,6 +364,7 @@ int main(void)
     RUN_TEST(test_S3_H06_missing_reply_is_not_retried_and_leaves_the_pending_flag_set);
     RUN_TEST(test_a_reply_that_arrives_after_the_wait_still_enrolls_the_device);
     RUN_TEST(test_S3_H07_device_that_boots_with_the_pending_flag_never_registers);
+    RUN_TEST(test_a_device_that_boots_with_the_pending_flag_waits_for_a_late_reply);
     RUN_TEST(test_S3_H08_malformed_and_misdirected_replies_are_ignored);
     RUN_TEST(test_S3_H09_device_is_not_enrolled_if_saving_the_credentials_fails);
     RUN_TEST(test_S3_H10_enrolled_device_never_publishes_a_registration);

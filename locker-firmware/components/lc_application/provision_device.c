@@ -22,6 +22,15 @@ void lc_provision_init(lc_provision_t *provision, const lc_provision_ports_t *po
     }
 }
 
+bool lc_provision_wants_session(const lc_provision_t *provision)
+{
+    const lc_identity_t *identity = &provision->identity;
+    bool enroll = provision->state == LC_PROVISION_IDLE && identity->token[0] != '\0';
+    /* A late reply may be waiting at the broker; listening sends nothing. */
+    bool late_reply = provision->state == LC_PROVISION_OUTCOME_UNKNOWN && identity->client_id[0] != '\0';
+    return identity->enrolled || enroll || late_reply;
+}
+
 void lc_provision_on_connected(lc_provision_t *provision)
 {
     const lc_provisioning_gateway_port_t *gateway = &provision->ports.gateway;
@@ -37,6 +46,10 @@ void lc_provision_on_connected(lc_provision_t *provision)
         provision->state = gateway->subscribe_reply(gateway->ctx, provision->identity.client_id)
                                ? LC_PROVISION_WAITING_FOR_SUBSCRIPTION
                                : LC_PROVISION_IDLE;
+    }
+    if (provision->state == LC_PROVISION_OUTCOME_UNKNOWN) {
+        /* Only listening: on_subscribed ignores this state, so no token is sent. */
+        (void)gateway->subscribe_reply(gateway->ctx, provision->identity.client_id);
     }
 }
 

@@ -47,6 +47,9 @@ typedef struct {
 /* Loads the stored identity. Publishes nothing. */
 void lc_provision_init(lc_provision_t *provision, const lc_provision_ports_t *ports);
 
+/* Whether the device needs an MQTT session: enrolled, or enrolling, or waiting for a late reply. */
+bool lc_provision_wants_session(const lc_provision_t *provision);
+
 /* Connected with the bootstrap credentials. Asks for the reply subscription. */
 void lc_provision_on_connected(lc_provision_t *provision);
 /* The reply subscription is confirmed. Stores the pending flag, then registers. */

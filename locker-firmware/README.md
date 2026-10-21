@@ -114,7 +114,8 @@ Things to know:
 
 - **The token is used once.** The device stores "enrollment pending" before it
   sends the token. If the reply is lost or never comes, the device does **not**
-  try again and refuses new settings until it is reset. The tool never resets
+  try again and refuses new settings until it is reset. After a restart it
+  still listens for a late reply and enrolls if one arrives. The tool never resets
   by itself.
 - **A network change on an enrolled device** only needs the network name,
   password and broker. Identity, mapping and journal are kept.

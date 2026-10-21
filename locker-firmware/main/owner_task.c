@@ -88,13 +88,11 @@ static void maybe_start_session(void)
         return;
     }
 
-    const lc_identity_t *identity = lc_provision_identity(owner.provision);
-    bool enroll = !identity->enrolled && lc_provision_state(owner.provision) == LC_PROVISION_IDLE &&
-                  identity->token[0] != '\0';
     /* Nothing to enroll with, or an enrollment that needs a reset: no reason to connect. */
-    if (!identity->enrolled && !enroll) {
+    if (!lc_provision_wants_session(owner.provision)) {
         return;
     }
+    const lc_identity_t *identity = lc_provision_identity(owner.provision);
 
     lc_network_settings_t settings;
     if (!owner.settings_store.load(owner.settings_store.ctx, &settings)) {
