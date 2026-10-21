@@ -64,9 +64,10 @@ hardware tests.
    local Mosquitto. Skipping TLS verification is a build error in every
    configuration.
 10. **Plaintext credentials are accepted for the bench only.** Wi-Fi and MQTT
-    credentials sit unencrypted in NVS until the SoftAP change turns on flash
-    and NVS encryption. Until then the firmware is not for a cabinet in the
-    field. The SoftAP ADR supersedes this point.
+    credentials sit unencrypted in NVS until flash and NVS encryption are
+    turned on. Until then the firmware is not for a cabinet in the field.
+    Superseded by ADR-0074 decision 18, which keeps this for bench builds and
+    makes encryption a release blocker.
 
 How each point is implemented (partition table, Kconfig options, component
 list, mapping from the Pi client) is in `locker-firmware/docs/architecture.md`.
@@ -135,7 +136,8 @@ list, mapping from the Pi client) is in `locker-firmware/docs/architecture.md`.
 - Pros: field-ready from the start.
 - Cons: a much larger first change, with flash encryption hard to undo on a
   bench board.
-- Why not chosen: the bench needs neither; both come in the next change (#57).
+- Why not chosen: the bench needs neither. SoftAP comes in #57 (ADR-0074);
+  encryption is a release blocker there (ADR-0074 decision 18).
 
 ## Consequences
 
@@ -157,8 +159,8 @@ list, mapping from the Pi client) is in `locker-firmware/docs/architecture.md`.
   board with `esptool.py flash_id`.
 - A development build flashed onto a deployed unit allows plain MQTT. The log
   warns on every connect; signed releases (secure boot, #59) close this.
-- Credentials in plaintext NVS can be read from a stolen unit until the SoftAP
-  change.
+- Credentials in plaintext NVS can be read from a stolen unit until flash and
+  NVS encryption are turned on (ADR-0074 decision 18).
 - ESP-IDF 6.1 supports no static-RSA or finite-field DHE key exchange; one
   `mqtts://` handshake against the real broker is still to be done on the bench.
 
@@ -172,7 +174,7 @@ provisioning in the backend and enroll the Pi with a new token.
 ## Supersedes / Superseded By
 
 - Supersedes: none
-- Superseded by: none. Point 10 is to be superseded by the SoftAP ADR (#57).
+- Superseded by: ADR-0074 supersedes point 10 (decision 18).
 
 ## References
 

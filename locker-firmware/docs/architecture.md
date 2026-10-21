@@ -247,8 +247,8 @@ journal,   data, 0x40,     0x3C0000, 0x40000,
   bytes on ESP-IDF 6.1, leaving 45 % of the slot free. The 36 KB from
   `0x17000` to `0x20000` are unused.
 - `nvs_keys` is reserved and unused until flash and NVS encryption are turned
-  on with the SoftAP change (#57). Whether its `encrypted` flag behaves as
-  expected is verified only then.
+  on (a release blocker, ADR-0074 decision 18). Whether its `encrypted` flag
+  behaves as expected is verified only then.
 - The journal is found by its label (`lc_storage_nvs/partition_flash.c`), not
   its offset, and is never flash-encrypted (ADR-0070). The table ends exactly
   at 4 MB.
@@ -318,11 +318,9 @@ minutes, and is re-entered by a button held for 10 s. Its decisions are the pure
   size, the serial parameters and DIP address, and the feedback polarity. The
   build defaults stay assumptions until recorded on the bench; HW-A4 captures
   the polarity.
-- **Plaintext credentials.** Wi-Fi and MQTT credentials sit unencrypted in NVS
-  until the SoftAP pull request
-  ([plan in #57](https://github.com/Open-Locker/Open-Locker/issues/57#issuecomment-6214674877)),
-  which turns on flash encryption and NVS encryption. Until then the firmware is
-  for an attended bench only.
+- **Plaintext credentials.** Wi-Fi and MQTT credentials, and the setup
+  password, sit unencrypted in NVS until flash and NVS encryption are turned on
+  (ADR-0074 decision 18). Until then the firmware is for an attended bench only.
 
 ## Glossary
 
