@@ -185,8 +185,7 @@ token.
   does not. The console shows it in the boot log. To recover, erase the
   `journal` partition by name, for example
   `parttool.py --port COM3 --partition-table-offset 0xC000 erase_partition --partition-name journal`,
-  and commission again. Bench boards with a journal from before ADR-0070 was
-  revised need the same erase.
+  and commission again.
 - **One panel per bus.** A second board address is rejected, and so is any
   `adapter_type` other than `rs485_lock_board`.
 - **Credentials are stored unencrypted** in NVS in this release. Flash
@@ -219,8 +218,3 @@ The partition table sits at `0xC000`, so the bootloader has room to grow.
 | `ota_0` | `0x20000` | 1.8 MiB | The firmware; `idf.py flash` writes it here |
 | `ota_1` | `0x1F0000` | 1.8 MiB | Second slot, used by OTA (#59) |
 | `journal` | `0x3C0000` | 256 KiB | The command journal (raw, subtype `0x40`) |
-
-A board flashed before this layout must be erased completely
-(`idf.py -p COM3 erase-flash flash`) and commissioned again. A local
-`sdkconfig` created before it keeps the old table offset; delete it so
-`sdkconfig.defaults` applies.

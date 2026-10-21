@@ -401,9 +401,9 @@ reset (`reset-network`, see the firmware README) keeps.
 
 ## Rollout / Migration
 
-No unit is deployed. Bench boards with a journal from an earlier draft need a
-full erase, which ADR-0069 already requires. A device with a journal of an unknown version
-reports it unhealthy and does not actuate. There is no migration from the Pi
+No unit is deployed and no board has been flashed, so no journal migrates. A
+device with a journal of an unknown version reports it unhealthy and does not
+actuate. There is no migration from the Pi
 client's files: a Pi client and an ESP32 never share a bank at the same time
 (hardware check HW-G2 in `locker-firmware/docs/testing.md`).
 

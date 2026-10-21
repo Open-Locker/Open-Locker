@@ -150,8 +150,6 @@ list, mapping from the Pi client) is in `locker-firmware/docs/architecture.md`.
 - Two implementations of one contract to keep in step.
 - Two build configurations; switching needs a deleted `sdkconfig`.
 - The first build needs network access to the component registry.
-- Bench boards flashed with an earlier layout must be erased fully and
-  commissioned again.
 
 ### Risks
 
@@ -166,9 +164,9 @@ list, mapping from the Pi client) is in `locker-firmware/docs/architecture.md`.
 
 ## Rollout / Migration
 
-No unit is deployed. Bench boards: `idf.py -p <port> erase-flash flash`, then
-commission again. After this, changing the flash layout means a USB reflash of
-every unit and a new ADR. To hand a bank back to the Pi client, reset
+No unit is deployed and no board has been flashed, so nothing migrates. Once
+units are flashed, changing the flash layout means a USB reflash of every unit
+and a new ADR. To hand a bank back to the Pi client, reset
 provisioning in the backend and enroll the Pi with a new token.
 
 ## Supersedes / Superseded By
