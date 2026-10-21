@@ -48,7 +48,7 @@ static void button_task(void *arg)
     TickType_t last_wake = xTaskGetTickCount();
 
     for (;;) {
-        vTaskDelayUntil(&last_wake, pdMS_TO_TICKS(SAMPLE_PERIOD_MS));
+        xTaskDelayUntil(&last_wake, pdMS_TO_TICKS(SAMPLE_PERIOD_MS));
         switch (lc_button_sample(&button, now_ms(), gpio_get_level(CONFIG_LC_RESET_BUTTON_GPIO) != 0)) {
         case LC_BUTTON_POST_RESET: {
             owner_event_t event;
