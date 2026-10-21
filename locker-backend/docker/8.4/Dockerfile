@@ -1,4 +1,4 @@
-FROM serversideup/php:8.4-fpm-nginx
+FROM serversideup/php:8.4.27-fpm-nginx
 
 LABEL maintainer="Open Locker"
 
