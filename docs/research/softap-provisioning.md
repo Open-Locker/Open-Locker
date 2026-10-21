@@ -29,8 +29,8 @@ Working note behind ADR-0074. Not a decision record.
 - A button is the only re-entry path, so no remote command can reopen it.
 - Plaintext flash: bench builds only until flash and NVS encryption are enabled
   (release blocker, ADR-0074 decision 18).
-- ESP-IDF 5.4.x carries an lwIP DHCP-server advisory. The spike reads the patch
-  notes and pins the fixed release for target builds.
+- ESP-IDF carried an lwIP DHCP-server advisory. The spike checks that the pinned
+  release (ADR-0075) has the fix.
 - Memory in AP+STA mode is unmeasured. The portal applies credentials itself, so
   AP-only may be enough.
 

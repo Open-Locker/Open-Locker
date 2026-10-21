@@ -1,5 +1,6 @@
 #include "lc_softap_espidf/softap.h"
 
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -17,7 +18,7 @@
 #include "protocomm_httpd.h"
 #include "protocomm_security.h"
 #include "protocomm_security2.h"
-#include "wifi_provisioning/wifi_config.h"
+#include "network_provisioning/network_config.h"
 
 /*
  * Thin by design: ESP-IDF calls in, lc_softap_portal decides, lc_ol_config
@@ -39,8 +40,9 @@
 /* Longest an endpoint waits for the owner task to commission the unit. */
 #define RESULT_WAIT_MS 8000
 
-/* What esp_prov reads first. The shape follows the provisioning manager's. */
-#define VERSION_INFO "{\"prov\":{\"ver\":\"v1.1\",\"sec_ver\":2,\"sec_patch_ver\":0,\"cap\":[]}}"
+/* What esp_prov reads first. The shape follows the provisioning manager's; the patch level is
+ * the one protocomm runs, since esp_prov must match it. */
+#define VERSION_INFO_FORMAT "{\"prov\":{\"ver\":\"v1.1\",\"sec_ver\":2,\"sec_patch_ver\":%u,\"cap\":[]}}"
 
 static const char *TAG = "lc_softap";
 
@@ -54,7 +56,7 @@ static esp_timer_handle_t window_timer;
 static char *srp_salt;
 static char *srp_verifier;
 static protocomm_security2_params_t security_params;
-static wifi_prov_config_handlers_t wifi_handlers;
+static network_prov_config_handlers_t wifi_handlers;
 static uint16_t current_aid;
 static volatile bool commission_saved;
 static bool running;
@@ -214,7 +216,7 @@ static esp_err_t ol_config_handler(uint32_t session_id, const uint8_t *inbuf, ss
     return ESP_OK;
 }
 
-static esp_err_t wifi_set_config(const wifi_prov_config_set_data_t *request, wifi_prov_ctx_t **ctx)
+static esp_err_t wifi_set_config(const network_prov_config_set_wifi_data_t *request, network_prov_ctx_t **ctx)
 {
     (void)ctx;
 
@@ -234,18 +236,18 @@ static esp_err_t wifi_set_config(const wifi_prov_config_set_data_t *request, wif
 }
 
 /* The settings are applied by the commissioning use case, not here. */
-static esp_err_t wifi_apply_config(wifi_prov_ctx_t **ctx)
+static esp_err_t wifi_apply_config(network_prov_ctx_t **ctx)
 {
     (void)ctx;
     return ESP_OK;
 }
 
 /* The portal exposes no status: this is the same answer whatever is going on. */
-static esp_err_t wifi_get_status(wifi_prov_config_get_data_t *response, wifi_prov_ctx_t **ctx)
+static esp_err_t wifi_get_status(network_prov_config_get_wifi_data_t *response, network_prov_ctx_t **ctx)
 {
     (void)ctx;
     memset(response, 0, sizeof(*response));
-    response->wifi_state = WIFI_PROV_STA_CONNECTING;
+    response->wifi_state = NETWORK_PROV_WIFI_STA_CONNECTING;
     return ESP_OK;
 }
 
@@ -276,6 +278,19 @@ static bool start_access_point(const lc_setup_secrets_t *secrets)
     return err == ESP_OK;
 }
 
+static bool set_version_endpoint(void)
+{
+    int sec_version = 0;
+    uint8_t patch_version = 0;
+    char info[96];
+
+    if (protocomm_get_sec_version(comm, &sec_version, &patch_version) != ESP_OK) {
+        return false;
+    }
+    snprintf(info, sizeof(info), VERSION_INFO_FORMAT, (unsigned)patch_version);
+    return protocomm_set_version(comm, VERSION_ENDPOINT, info) == ESP_OK;
+}
+
 static bool start_protocomm(const lc_setup_secrets_t *secrets)
 {
     int verifier_length = 0;
@@ -291,10 +306,10 @@ static bool start_protocomm(const lc_setup_secrets_t *secrets)
         .verifier = srp_verifier,
         .verifier_len = (uint16_t)verifier_length,
     };
-    wifi_handlers = (wifi_prov_config_handlers_t){
-        .get_status_handler = wifi_get_status,
-        .set_config_handler = wifi_set_config,
-        .apply_config_handler = wifi_apply_config,
+    wifi_handlers = (network_prov_config_handlers_t){
+        .wifi_get_status_handler = wifi_get_status,
+        .wifi_set_config_handler = wifi_set_config,
+        .wifi_apply_config_handler = wifi_apply_config,
         .ctx = NULL,
     };
 
@@ -304,8 +319,8 @@ static bool start_protocomm(const lc_setup_secrets_t *secrets)
     return comm != NULL && protocomm_httpd_start(comm, &http) == ESP_OK &&
            protocomm_set_security(comm, SESSION_ENDPOINT, &protocomm_security2, &security_params) ==
                ESP_OK &&
-           protocomm_set_version(comm, VERSION_ENDPOINT, VERSION_INFO) == ESP_OK &&
-           protocomm_add_endpoint(comm, WIFI_ENDPOINT, wifi_prov_config_data_handler,
+           set_version_endpoint() &&
+           protocomm_add_endpoint(comm, WIFI_ENDPOINT, network_prov_config_data_handler,
                                   &wifi_handlers) == ESP_OK &&
            protocomm_add_endpoint(comm, OL_ENDPOINT, ol_config_handler, NULL) == ESP_OK;
 }

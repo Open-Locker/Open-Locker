@@ -12,6 +12,7 @@ from commission_softap import (
     SessionRefused,
     commission_softap,
     ol_config_payload,
+    sec_patch_version,
 )
 
 ANSWERS = {
@@ -173,3 +174,14 @@ class PayloadTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class SecPatchVersionTest(unittest.TestCase):
+    def test_reads_the_level_the_unit_reports(self):
+        for level in (0, 1):
+            reply = '{"prov":{"ver":"v1.1","sec_ver":2,"sec_patch_ver":%d,"cap":[]}}' % level
+            self.assertEqual(sec_patch_version(reply), level)
+
+    def test_a_reply_without_a_level_is_an_error(self):
+        with self.assertRaises(KeyError):
+            sec_patch_version('{"prov":{"ver":"v1.1","sec_ver":2,"cap":[]}}')

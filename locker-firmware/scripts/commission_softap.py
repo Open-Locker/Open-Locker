@@ -3,7 +3,7 @@
 settings, broker URL and one-time provisioning token from a laptop, with no
 cable.
 
-    python scripts/commission_softap.py --esp-prov /path/to/esp-idf/tools/esp_prov
+    python scripts/commission_softap.py
 
 Join the unit's setup Wi-Fi first (name and password from its label), then run
 this. It asks for the label's setup password and the settings. Secrets are read
@@ -14,16 +14,18 @@ settings are sent once and never resent after a lost connection.
 The device only says "saved". Whether it then joins the Wi-Fi and enrolls is
 read in the admin panel (ADR-0074, decision 8).
 
-It needs `tools/esp_prov` from the ESP-IDF the firmware was built with, IDF_PATH
-pointing at that ESP-IDF, and esp_prov's Python dependencies (cryptography,
-protobuf). It has commissioned one bench unit built with ESP-IDF 5.4.4
-(ADR-0074, bench result); the group F hardware checks are still open.
+It uses the esp_prov of the network_provisioning component the firmware was built
+with (managed_components/ in the firmware build tree, the default for --esp-prov):
+firmware and tool must come from the same build, because the Wi-Fi message differs
+between wifi_provisioning and network_provisioning. It needs esp_prov's Python
+dependencies (cryptography, protobuf). The group F hardware checks are still open.
 """
 
 import argparse
 import asyncio
 import getpass
-import inspect
+import json
+import pathlib
 import sys
 
 # The limits of the device's fields (lc_domain/identity.h).
@@ -33,8 +35,8 @@ BROKER_URL_MAX = 192
 CREDENTIAL_MAX = 128
 OL_CONFIG_VERSION = 1
 SRP_USERNAME = "wifiprov"
-SEC2_PATCH_VER = 1
 DEFAULT_ADDRESS = "192.168.4.1:80"
+DEFAULT_ESP_PROV = pathlib.Path(__file__).resolve().parent.parent / "managed_components" / "espressif__network_provisioning" / "tool" / "esp_prov"
 
 MESSAGES = {
     "saved": (
@@ -144,9 +146,13 @@ def commission_softap(session, prompt, output):
 # ---- The session with the unit ----
 
 
+def sec_patch_version(proto_ver):
+    """The Security 2 patch level the unit reports in its proto-ver reply."""
+    return int(json.loads(proto_ver)["prov"]["sec_patch_ver"])
+
+
 class EspProvSession:
-    """Talks to the unit through ESP-IDF's tools/esp_prov Python modules. esp_prov reads the
-    protobuf modules from $IDF_PATH/components, so IDF_PATH must be set."""
+    """Talks to the unit through the network_provisioning component's tool/esp_prov modules."""
 
     def __init__(self, esp_prov_path, address=DEFAULT_ADDRESS):
         sys.path.insert(0, esp_prov_path)
@@ -172,12 +178,8 @@ class EspProvSession:
             self._transport = transport_http.Transport_HTTP(self._address, None)
         except RuntimeError as error:
             raise ConnectionError(str(error)) from error
-        # shortcut: the firmware's proto-ver says sec_patch_ver 0, but protocomm in ESP-IDF 5.4.4
-        # runs patch 1 (a nonce counter per message); read it from the device once that is fixed.
-        if "sec_patch_ver" in inspect.signature(security2.Security2).parameters:
-            self._security = security2.Security2(SEC2_PATCH_VER, SRP_USERNAME, setup_password, False)
-        else:
-            self._security = security2.Security2(SRP_USERNAME, setup_password, False)
+        patch_version = sec_patch_version(self._send("proto-ver", "---"))
+        self._security = security2.Security2(patch_version, SRP_USERNAME, setup_password, False)
         try:
             response = None
             while True:
@@ -200,11 +202,11 @@ class EspProvSession:
         return self._security.decrypt_data(reply) == b"\x00"
 
     def send_wifi(self, ssid, password):
-        from prov import wifi_prov  # esp_prov
+        from prov import network_prov  # esp_prov
 
-        request = wifi_prov.config_set_config_request(self._security, ssid, password)
+        request = network_prov.config_set_config_request("wifi", self._security, ssid, password)
         response = self._send("prov-config", request)
-        return wifi_prov.config_set_config_response(self._security, response) == 0
+        return network_prov.config_set_config_response(self._security, response) == 0
 
 
 class Terminal:
@@ -219,7 +221,7 @@ class Terminal:
 
 def main(argv):
     parser = argparse.ArgumentParser(description="Commission a locker firmware device over its setup network.")
-    parser.add_argument("--esp-prov", required=True, help="path to ESP-IDF's tools/esp_prov")
+    parser.add_argument("--esp-prov", default=str(DEFAULT_ESP_PROV), help="path to the network_provisioning component's tool/esp_prov (default: the firmware build tree's)")
     parser.add_argument("--address", default=DEFAULT_ADDRESS, help="the unit's address on its setup network")
     args = parser.parse_args(argv)
 
