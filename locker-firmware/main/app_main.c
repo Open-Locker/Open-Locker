@@ -19,7 +19,7 @@
 #include "lc_serial_uart/serial_uart.h"
 #include "lc_storage_nvs/storage.h"
 #include "lc_usb_console/console.h"
-#include "mbedtls/sha256.h"
+#include "psa/crypto.h"
 #include "runtime.h"
 #include "sdkconfig.h"
 
@@ -69,7 +69,11 @@ static bool sha256_hex(void *ctx, const char *text, char out[LC_SHA256_HEX_SIZE]
     (void)ctx;
     uint8_t digest[32];
 
-    if (mbedtls_sha256((const unsigned char *)text, strlen(text), digest, 0) != 0) {
+    size_t digest_len = 0;
+
+    if (psa_hash_compute(PSA_ALG_SHA_256, (const uint8_t *)text, strlen(text), digest, sizeof(digest),
+                         &digest_len) != PSA_SUCCESS ||
+        digest_len != sizeof(digest)) {
         return false;
     }
     for (size_t i = 0; i < sizeof(digest); ++i) {
