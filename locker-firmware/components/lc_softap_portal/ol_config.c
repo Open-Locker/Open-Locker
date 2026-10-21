@@ -48,8 +48,9 @@ bool lc_collector_wifi(lc_collector_t *collector, const uint8_t *ssid, size_t ss
                        const uint8_t *password, size_t password_length)
 {
     lc_setup_request_t *request = &collector->request;
-    char ssid_copy[sizeof(request->ssid)];
-    char password_copy[sizeof(request->wifi_password)];
+    /* Zeroed: the whole buffer is copied, and nothing old may ride along after the NUL. */
+    char ssid_copy[sizeof(request->ssid)] = {0};
+    char password_copy[sizeof(request->wifi_password)] = {0};
 
     collector->have_wifi = false;
     bool fits = store_field(ssid_copy, sizeof(ssid_copy), ssid, ssid_length) &&
