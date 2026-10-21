@@ -214,7 +214,7 @@ token.
   CA added to the build.
 - **No OTA yet, and the setup network is barely tried.** OTA is #59. The setup
   network has not run on a bench unit; the hardware checks of group F are open
-  (ADR-0074). Its `esp_prov` comes from the firmware's own build tree (ADR-0075).
+  (ADR-0074). Its `esp_prov` comes from the firmware's own build tree (ADR-0074).
 - **Unconfirmed hardware facts:** panel model, supply voltage, channel count,
   lock model, board flash size (the partition table assumes 4 MB), UART pins,
   serial parameters, DIP address and feedback polarity. The host tests establish

@@ -131,7 +131,7 @@ into this ADR before it is accepted; where one fails, the plan says what to do.
 | Is `ol-config` encrypted by the session (packet capture)? | Stop and redo this ADR; do not build on it |
 | Free heap and largest allocation with the portal running, in AP+STA and AP-only? | The portal applies credentials itself, so AP-only may be enough |
 | Real sizes of `owner_event_t` and the queue on the chip? | Lower the queue depth or queue pointers; the result sets the `_Static_assert` budget |
-| ESP-IDF 6.1 on the lwIP DHCP-server advisory? | Pin the fixed patch release and use that image for target builds (ADR-0075) |
+| ESP-IDF 6.1 on the lwIP DHCP-server advisory? | Pin the fixed patch release and use that image for target builds (ADR-0069) |
 | Does a jumper from GPIO 4 to GND held for 10 s read as a press? | Check wiring and pin choice |
 
 ### Implementation status
@@ -140,7 +140,7 @@ The decision logic is built and host-tested: boot mode and repair, the reset
 gesture, the portal session rules, the `ol-config` parser and collector, and the
 production console. The radio adapter (`lc_softap_espidf`), its wiring in
 `app_main` and the laptop tool (`commission.py --softap`) are written against the
-ESP-IDF 6.1 headers and compile-checked in the `espressif/idf:v6.1` image only (ADR-0075)
+ESP-IDF 6.1 headers and compile-checked in the `espressif/idf:v6.1` image only (ADR-0069)
 (default and production configuration, and the IDF host tests). They have not run
 on a board. The adapter uses protocomm directly, not the provisioning
 manager, so that failed Security 2 sessions are countable through the protocomm
@@ -148,9 +148,13 @@ session events and the endpoint whitelist is ours; whether `esp_prov` talks to
 it, and whether the open points above hold, is for the bench spike. The Security
 2 salt and verifier are derived on the device from the label's setup password at
 each start (`esp_srp_gen_salt_verifier`), which keeps that password on the unit.
-The owner queue's memory budget is a host measurement.
+The owner queue's memory budget is a host measurement. The laptop tool defaults to
+the `esp_prov` of the `network_provisioning` copy in the firmware's
+`managed_components/`, so tool and firmware always match, and reads the Security 2
+patch level from the unit's `proto-ver` reply, which the firmware builds from
+`protocomm_get_sec_version()`.
 
-There is no bench result on the pinned build (ADR-0075) yet: the open points above
+There is no bench result on the pinned build (ADR-0069) yet: the open points above
 and HW-F1 to HW-F8 are all open.
 
 ## Alternatives Considered
@@ -199,7 +203,7 @@ hash with no issue time counts as expired; a replay of
 ## References
 
 - Issue #57; PR #321 (firmware)
-- [ADR-0069](0069-esp32-flash-layout.md), [ADR-0070](0070-esp32-command-journal-record-format-and-retention.md)
+- [ADR-0069](0069-esp32-locker-firmware.md), [ADR-0070](0070-esp32-command-journal-record-format-and-retention.md)
 - [Flow diagrams](../softap-provisioning-flows.md)
 - [Research note](../research/softap-provisioning.md)
 - `locker-firmware/docs/architecture.md`, `locker-firmware/docs/testing.md`
