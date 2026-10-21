@@ -2,6 +2,7 @@
 #include <string.h>
 
 #include "console_glue.h"
+#include "esp_heap_caps.h"
 #include "lc_mqtt_codec/codec.h"
 #include "sdkconfig.h"
 
@@ -71,6 +72,13 @@ static bool provisioning_state(void *ctx, bool *enrolled, bool *pending, bool *c
     return true;
 }
 
+static bool memory(void *ctx, uint32_t *min_free_heap, uint32_t *owner_stack)
+{
+    (void)ctx;
+    *min_free_heap = (uint32_t)heap_caps_get_minimum_free_size(MALLOC_CAP_8BIT);
+    return owner_stack_free(owner_stack);
+}
+
 void console_glue_init(lc_console_t *console, const lc_locker_bus_port_t *bus,
                        uint32_t (*unlock_transmissions)(void *ctx),
                        bool (*self_test)(void *ctx))
@@ -80,6 +88,7 @@ void console_glue_init(lc_console_t *console, const lc_locker_bus_port_t *bus,
         .ctx = NULL,
         .write = write_line,
         .unlock_transmissions = unlock_transmissions,
+        .memory = memory,
         .self_test = self_test,
         .submit_command = submit_command,
         .submit_setup = submit_setup,

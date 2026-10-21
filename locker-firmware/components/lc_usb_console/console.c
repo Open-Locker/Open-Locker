@@ -6,7 +6,8 @@
 #include "lc_usb_console/line.h"
 #include "lc_usb_console/setup_json.h"
 
-#define REPLY_MAX 96
+/* Room for `diagnostics` with every number at its widest. */
+#define REPLY_MAX 128
 
 static const char *bus_state_name(lc_bus_state_t state)
 {
@@ -65,10 +66,19 @@ static void status(const lc_console_t *console)
 static void diagnostics(const lc_console_t *console)
 {
     char text[REPLY_MAX];
+    uint32_t min_free_heap = 0;
+    uint32_t owner_stack_free = 0;
 
-    snprintf(text, sizeof(text), "ok bus=%s unlock_transmissions=%lu\n",
-             bus_state_name(console->bus.connection_state(console->bus.ctx)),
-             (unsigned long)console->unlock_transmissions(console->ctx));
+    int length = snprintf(text, sizeof(text), "ok bus=%s unlock_transmissions=%lu",
+                          bus_state_name(console->bus.connection_state(console->bus.ctx)),
+                          (unsigned long)console->unlock_transmissions(console->ctx));
+    if (console->memory != NULL &&
+        console->memory(console->ctx, &min_free_heap, &owner_stack_free)) {
+        length += snprintf(text + length, sizeof(text) - (size_t)length,
+                           " min_free_heap=%lu owner_stack_free=%lu",
+                           (unsigned long)min_free_heap, (unsigned long)owner_stack_free);
+    }
+    snprintf(text + length, sizeof(text) - (size_t)length, "\n");
     reply(console, text);
 }
 

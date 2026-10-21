@@ -26,6 +26,11 @@ typedef struct {
     void (*write)(void *ctx, const char *text);
     /* Unlock requests that reached the wire since boot. */
     uint32_t (*unlock_transmissions)(void *ctx);
+    /*
+     * The lowest free heap since boot and the owner task's unused stack, in
+     * bytes, for `diagnostics` (HW-C9). False when they cannot be read. May be NULL.
+     */
+    bool (*memory)(void *ctx, uint32_t *min_free_heap, uint32_t *owner_stack_free);
     /* Must not use the bus: `self-test` sends nothing to the panel. */
     bool (*self_test)(void *ctx);
     /*

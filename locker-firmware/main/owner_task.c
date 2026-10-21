@@ -37,6 +37,7 @@ static const char *TAG = "owner";
 device_state_t device_state;
 
 static QueueHandle_t queue;
+static TaskHandle_t task;
 static owner_context_t owner;
 static bool network_up;
 static int64_t network_up_ms;
@@ -265,5 +266,15 @@ bool owner_start(const owner_context_t *context)
         return false;
     }
     refresh_device_state();
-    return xTaskCreate(owner_task, "owner", STACK_SIZE, NULL, PRIORITY, NULL) == pdPASS;
+    return xTaskCreate(owner_task, "owner", STACK_SIZE, NULL, PRIORITY, &task) == pdPASS;
+}
+
+bool owner_stack_free(uint32_t *bytes)
+{
+    if (task == NULL) {
+        return false;
+    }
+    /* ESP-IDF counts stack in bytes, not words. */
+    *bytes = (uint32_t)uxTaskGetStackHighWaterMark(task);
+    return true;
 }

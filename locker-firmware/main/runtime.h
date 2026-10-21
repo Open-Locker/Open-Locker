@@ -78,6 +78,9 @@ typedef struct {
 /* Creates the queue and starts the owner task. */
 bool owner_start(const owner_context_t *context);
 
+/* The owner task's stack that was never used, in bytes. False before the task runs. */
+bool owner_stack_free(uint32_t *bytes);
+
 /* Starts the reset button task (button_task.c); it posts OWNER_RESET. */
 bool button_task_start(void);
 
