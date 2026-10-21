@@ -441,8 +441,6 @@ def check_idf_host_tests():
     tool = shutil.which("idf.py")
     if tool is None:
         return ["idf.py not found; run from an ESP-IDF shell or pass --skip-target"]
-    # No component manager: it would write a dependencies.lock into the test project.
-    os.environ["IDF_COMPONENT_MANAGER"] = "0"
     build = [sys.executable, tool, "--preview", "-C", IDF_HOST_TESTS, "-B", IDF_HOST_BUILD,
              f"-DSDKCONFIG={IDF_HOST_BUILD / 'sdkconfig'}", "-DIDF_TARGET=linux", "build"]
     if not run(build):
@@ -470,8 +468,9 @@ def main(argv):
         ("line coverage", check_coverage),
     ]
     if not skip_target:
-        checks.append(("IDF host tests", check_idf_host_tests))
+        # The target build first: it resolves the mqtt component the host tests mock.
         checks.append(("target build", check_target_build))
+        checks.append(("IDF host tests", check_idf_host_tests))
 
     failed = []
     for name, check in checks:

@@ -54,23 +54,23 @@ jobs:
       - name: Run static and host gates
         run: python scripts/verify.py --skip-target
 
-      # The ESP-IDF adapters on the Linux target, against CMock mocks of the SDK.
-      - name: Run the IDF host tests
-        uses: espressif/esp-idf-ci-action@v1
-        with:
-          esp_idf_version: v5.4
-          target: linux
-          path: locker-firmware/tests/idf_host
-          extra_docker_args: -e IDF_COMPONENT_MANAGER=0
-          command: idf.py --preview build && ./build/idf_host_test.elf
-
       # Before the hardware record, so a stale record does not hide a broken build.
       - name: Build the firmware with ESP-IDF
         uses: espressif/esp-idf-ci-action@v1
         with:
-          esp_idf_version: v5.4
+          esp_idf_version: v6.1
           target: esp32
           path: locker-firmware
+
+      # The ESP-IDF adapters on the Linux target, against CMock mocks of the SDK. After the firmware
+      # build: the mqtt mock takes its header from the firmware's resolved managed_components/.
+      - name: Run the IDF host tests
+        uses: espressif/esp-idf-ci-action@v1
+        with:
+          esp_idf_version: v6.1
+          target: linux
+          path: locker-firmware/tests/idf_host
+          command: idf.py --preview build && ./build/idf_host_test.elf
 
       # The default build is the release configuration: plain MQTT must stay out (ADR-0071).
       - name: Check plain MQTT is off in the default build

@@ -8,7 +8,7 @@
 /*
  * The esp-mqtt adapter against a CMock mock of the real mqtt_client.h. The
  * test plays the esp-mqtt task: it takes the handler the adapter registers and
- * hands it events built as esp-mqtt 5.4 builds them.
+ * hands it events built as espressif/mqtt 1.1.0 builds them.
  */
 
 static int fake_client;
@@ -34,7 +34,7 @@ static void on_subscribed(void *ctx, int message_id)
     subscribed_id = message_id;
 }
 
-/* A SUBACK as deliver_suback() in esp-mqtt 5.4 raises it: a refusal only sets error_type. */
+/* A SUBACK as deliver_suback() in espressif/mqtt 1.1.0 raises it: a refusal only sets error_type. */
 static void deliver_suback(int message_id, char return_code)
 {
     esp_mqtt_error_codes_t error;
