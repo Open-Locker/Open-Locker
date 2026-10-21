@@ -100,6 +100,7 @@ Host suite `test_console_line`:
 | --- | --- |
 | S1-H25 | `unlock` and `query` parse valid arguments and reject out-of-range ones |
 | S1-H26 | A line over the length limit is discarded through its newline and nothing is executed |
+| S1-H36 | A CR, an LF and a CRLF each end exactly one line (ESP-IDF's monitor sends CR) |
 
 ### Commands, journal and MQTT codec (S2)
 

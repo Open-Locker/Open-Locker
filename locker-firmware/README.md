@@ -147,6 +147,9 @@ Things to know:
 
 Type these into the serial monitor, one line each (up to 1 KiB). Every reply is
 one line starting with `ok` or `error`; a reply never repeats a value you sent.
+What you type is not echoed, so the screen stays blank until the reply. A line
+ends with CR, LF or CRLF, so Enter works in `idf.py monitor` (which sends CR) and
+in other terminals.
 
 | Command | What it does |
 | --- | --- |
