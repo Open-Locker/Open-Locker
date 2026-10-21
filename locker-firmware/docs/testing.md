@@ -348,6 +348,9 @@ is checked on the bench described in the [README](../README.md#hardware). A
 firmware PR merges only when its checks pass.
 `scripts/hwtest.py` runs the checks in one session and writes the record that
 CI checks.
+`hwtest.py list` shows every check with its status in the record, and
+`hwtest.py run --resume` runs only what is still missing, failed or not run;
+`--failed` reruns only the checks that failed.
 
 Rules:
 
@@ -381,7 +384,7 @@ Rules:
 | HW-B1 | **Actuates.** Feed `apply_config` then one open over the console: the lock releases once and the response is printed |
 | HW-B2 | Feed the same open again, once with the same message ID and once with a new one: the unlock transmission counter does not change |
 | HW-B3 | Restart with configuration applied: the mapping is still in effect |
-| HW-B4 | **Actuates.** Cut ESP32 power immediately after feeding an open, ten times: after each restart the transaction has a stored outcome and no unlock is sent during boot |
+| HW-B4 | **Actuates.** Cut ESP32 power immediately after feeding an open, five times: after each restart the transaction has a stored outcome and no unlock is sent during boot |
 | HW-B5 | **Actuates.** Cut ESP32 power at claim, after transmission, at completion, and before PUBACK: each case ends in a stored outcome and no second unlock |
 | HW-B6 | Send 600 commands on a dedicated test unit: the journal compacts at least once without refusing a command, the newest 256 delivered transactions are still replayed, and an older one is executed as new |
 
