@@ -326,6 +326,35 @@ void test_a_full_region_refuses_claims_until_the_spare_is_ready(void)
     TEST_ASSERT_TRUE(known(n - 1));
 }
 
+void test_a_burst_after_a_compaction_fits_without_any_idle_tick(void)
+{
+    fake_flash_init(&flash, 256 * 1024);
+    TEST_ASSERT_TRUE(reopen());
+    settle();
+
+    /* Fill the index with delivered commands, so the next compaction keeps the newest 256. */
+    unsigned n = 0;
+    for (; journal.generation < 2; ++n) {
+        run_command(n);
+    }
+    TEST_ASSERT_FALSE(journal.spare_ready);
+
+    /* No idle tick at all: the spare is not ready, so the room is what the compaction left. */
+    unsigned burst = 0;
+    char transaction_id[32];
+    for (;; ++burst) {
+        snprintf(transaction_id, sizeof(transaction_id), "burst-%u", burst);
+        if (!claim(transaction_id)) {
+            break;
+        }
+        TEST_ASSERT_TRUE(complete(transaction_id));
+        TEST_ASSERT_TRUE(port.mark_delivered(port.ctx, transaction_id));
+    }
+    /* A locker takes a command every few seconds; 30 in a row is far beyond that. */
+    TEST_ASSERT_GREATER_OR_EQUAL_UINT(30, burst);
+    TEST_ASSERT_TRUE(port.healthy(port.ctx));
+}
+
 void test_the_open_limit_clears_as_responses_are_delivered(void)
 {
     char transaction_id[32];
@@ -378,6 +407,7 @@ int main(void)
     RUN_TEST(test_a_start_erases_the_spare_only_when_it_is_not_blank);
     RUN_TEST(test_an_empty_journal_is_told_apart_from_a_corrupt_one);
     RUN_TEST(test_a_full_region_refuses_claims_until_the_spare_is_ready);
+    RUN_TEST(test_a_burst_after_a_compaction_fits_without_any_idle_tick);
     RUN_TEST(test_the_open_limit_clears_as_responses_are_delivered);
     RUN_TEST(test_open_message_ids_past_the_copy_budget_are_dropped);
     return UNITY_END();
