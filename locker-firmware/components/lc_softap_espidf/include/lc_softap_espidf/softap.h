@@ -12,9 +12,10 @@
  * through its collector and out to the owner task, which runs the same
  * commissioning use case as the USB console.
  *
- * UNVERIFIED: written against the ESP-IDF 6.1 headers and compile-checked only.
- * It has not run on a board and has not been used with esp_prov (ADR-0074, open
- * points). Do not rely on it until the bench spike has confirmed it.
+ * Confirmed on a board with ESP-IDF 6.1 and the network_provisioning esp_prov
+ * (ADR-0074, open points): the session, both endpoints, an encrypted
+ * `ol-config` and the commissioning through to enrollment. The group F
+ * hardware checks still run against the final commit.
  */
 
 typedef struct {

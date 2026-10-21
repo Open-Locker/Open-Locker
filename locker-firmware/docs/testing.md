@@ -397,7 +397,7 @@ Rules:
 | HW-C6 | Switch the access point off for one minute, then the broker for one minute: the device reconnects unaided and a response pending at the time is delivered |
 | HW-C7 | Use an invalid token: the device reports rejection and does not retry; after a backend provisioning reset and a fresh token it enrolls |
 | HW-C8 | Pull power from the ESP32: the broker publishes the Last Will, and the backend shows the bank offline once the heartbeat times out (it does not act on the Last Will yet, #43) |
-| HW-C9 | Record minimum free heap and owner task stack headroom after HW-C6 |
+| HW-C9 | Record minimum free heap and owner task stack headroom after HW-C6 (`diagnostics` reports both) |
 
 ### Group D: State and door events
 
@@ -425,9 +425,9 @@ Rules:
 Needs a unit with its setup secrets in NVS (`scripts/device_secrets.py --nvs-csv`),
 a laptop running `scripts/commission.py --softap` from the same build, and a
 production-configured build for HW-F6. Run against a backend with the
-token-expiry change deployed for HW-F8 (ADR-0074). None has run yet: the radio
-adapter is only compile-checked on ESP-IDF 6.1, and the open points of ADR-0074
-are settled on the same bench run.
+token-expiry change deployed for HW-F8 (ADR-0074). None has run against the
+final commit yet. The bench spike of 2026-10-21 (ADR-0074, open points) already
+went through the HW-F1 path and the HW-F7 capture on a development build.
 
 | ID | Check |
 | --- | --- |
@@ -436,7 +436,7 @@ are settled on the same bench run.
 | HW-F3 | On an enrolled unit, scan for the access point and probe the port: neither is reachable |
 | HW-F4 | Button: under 10 s does nothing, 10 s resets, held at power-up does nothing, a jumper stuck down does nothing |
 | HW-F5 | A second station is refused. The window closes after 10 minutes. A wrong setup password fails the session, and 5 failures close the window |
-| HW-F6 | A production build refuses `configure` and `unlock` over USB |
+| HW-F6 | A production build refuses `configure`, `unlock`, `command` and `reset-network` over USB |
 | HW-F7 | A traffic capture shows neither the Wi-Fi password nor the token in clear, including on `ol-config` |
 | HW-F8 | Against a backend with the token-expiry change deployed: a token older than 24 hours is refused, and a fresh one works |
 

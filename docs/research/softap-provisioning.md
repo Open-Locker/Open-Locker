@@ -19,8 +19,8 @@ Working note behind ADR-0074. Not a decision record.
   passphrase on the access point keeps casual joiners out; the setup password
   protects the session itself.
 - The provisioning manager's custom endpoint is expected to run inside the same
-  session. **Unverified:** that this holds for our `ol-config` payload. The spike
-  must capture traffic and look for the Wi-Fi password and token in clear.
+  session. The bench spike confirmed this for our `ol-config` payload: a capture
+  shows neither the Wi-Fi password nor the token in clear (ADR-0074, open points).
 
 ## Risks found while planning
 
@@ -29,10 +29,11 @@ Working note behind ADR-0074. Not a decision record.
 - A button is the only re-entry path, so no remote command can reopen it.
 - Plaintext flash: bench builds only until flash and NVS encryption are enabled
   (release blocker, ADR-0074 decision 18).
-- ESP-IDF carried an lwIP DHCP-server advisory. The spike checks that the pinned
-  release (ADR-0069) has the fix.
-- Memory in AP+STA mode is unmeasured. The portal applies credentials itself, so
-  AP-only may be enough.
+- ESP-IDF carried an lwIP DHCP-server advisory (GHSA-g764-gwc3-75m5). The pinned
+  release, 6.1 (ADR-0069), has the fix.
+- Memory in AP+STA mode: measured at the spike, about 1.7 KB more than AP-only,
+  with over 97 KB free in both. AP-only is enough, because the portal applies the
+  credentials itself.
 
 ## Spike checklist (bench, throwaway branch)
 

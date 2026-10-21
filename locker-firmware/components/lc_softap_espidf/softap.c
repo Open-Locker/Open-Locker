@@ -24,8 +24,6 @@
  * Thin by design: ESP-IDF calls in, lc_softap_portal decides, lc_ol_config
  * collects. All shared state is behind one mutex, because the HTTP server, the
  * event loop, the timer and the owner task all reach it.
- *
- * UNVERIFIED (see softap.h).
  */
 
 #define SESSION_ENDPOINT "prov-session"

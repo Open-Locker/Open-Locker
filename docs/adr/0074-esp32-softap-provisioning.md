@@ -134,14 +134,18 @@ Constraints:
 The decisions above assume facts that need a board to confirm. The results go
 into this ADR before it is accepted; where one fails, the plan says what to do.
 
-| Question | If it fails |
-| --- | --- |
-| Does `esp_prov` talk to our protocomm endpoints and carry the custom `ol-config` payload? | Change the transport |
-| Is `ol-config` encrypted by the session (packet capture)? | Stop and redo this ADR; do not build on it |
-| Free heap and largest allocation with the portal running, in AP+STA and AP-only? | The portal applies credentials itself, so AP-only may be enough |
-| Real sizes of `owner_event_t` and the queue on the chip? | Lower the queue depth or queue pointers; the result sets the `_Static_assert` budget |
-| ESP-IDF 6.1 on the lwIP DHCP-server advisory? | Pin the fixed patch release and use that image for target builds (ADR-0069) |
-| Does a jumper from GPIO 4 to GND held for 10 s read as a press? | Check wiring and pin choice |
+The spike ran on 2026-10-21 with ESP-IDF 6.1, network_provisioning 3.0.0 and
+an ESP32 rev 3.1 with 4 MB flash, on a bench (development) build. Five of the
+six points hold; the button is still open.
+
+| Question | If it fails | Result |
+| --- | --- | --- |
+| Does `esp_prov` talk to our protocomm endpoints and carry the custom `ol-config` payload? | Change the transport | **Holds.** `commission.py --softap` with the component's `esp_prov` ran `proto-ver`, the Security 2 session (patch level 1), `ol-config` and `prov-config` against an erased unit. The unit saved, joined the Wi-Fi, enrolled with the token, applied its config and opened a compartment from the admin panel |
+| Is `ol-config` encrypted by the session (packet capture)? | Stop and redo this ADR; do not build on it | **Holds.** Every TCP byte the tool sent and received was recorded on the client, with made-up values. None of the seven values appears, as UTF-8 or UTF-16. `ol-config` is 90 bytes for a 74-byte payload (a 16-byte tag) and does not start with the payload's version and tag bytes; its reply is 17 bytes. Only `proto-ver` is in clear. The capture was taken above WPA2, which adds a second layer on the air |
+| Free heap and largest allocation with the portal running, in AP+STA and AP-only? | The portal applies credentials itself, so AP-only may be enough | **Enough in both; AP-only stays.** Portal open and idle: 108,932 bytes free in AP-only, 107,228 in AP+STA. Lowest over a full session: 99,268 and 97,600. Largest free block 98,304 throughout. Sampled every 2 s, so the last seconds before the restart are not covered |
+| Real sizes of `owner_event_t` and the queue on the chip? | Lower the queue depth or queue pointers; the result sets the `_Static_assert` budget | **Holds.** With the ESP32 toolchain `owner_event_t` is 688 bytes (678 of them the setup request), as on the host. 32 deep is 22,016 bytes plus 84 for the queue control block: 22,100, under the 24 KiB budget, which stays |
+| ESP-IDF 6.1 on the lwIP DHCP-server advisory? | Pin the fixed patch release and use that image for target builds (ADR-0069) | **Fixed in 6.1.** The advisory (GHSA-g764-gwc3-75m5, CVE-2026-45160) lists v5.2.7 to v6.0.1 as affected, and 6.1's `parse_options()` has every bounds check of the fix. No further pin |
+| Does a jumper from GPIO 4 to GND held for 10 s read as a press? | Check wiring and pin choice | **Not run yet** |
 
 ## Alternatives Considered
 
@@ -164,8 +168,12 @@ into this ADR before it is accepted; where one fails, the plan says what to do.
 ## Consequences
 
 - A unit that was commissioned with wrong Wi-Fi settings keeps retrying and
-  cannot be fixed without the button, a reset and a new token. The same unused
-  token still enrolls it within 24 hours of issue.
+  cannot be fixed without the button and a reset. The same unused token still
+  enrolls it within 24 hours of issue; after that it needs a new one.
+- A unit sends its token once. If the broker drops the registration (seen on the
+  bench when the broker's auth check timed out), the unit only listens for a late
+  reply and needs a reset; the token was not spent, so it enrolls the unit again
+  within 24 hours of issue.
 - An unused token that was issued before the deploy works for a further 24 hours
   after it. Bounded; mention it in the release notes.
 - The backend change is backward compatible with old units, so the backend and
@@ -187,6 +195,8 @@ into this ADR before it is accepted; where one fails, the plan says what to do.
 - [ADR-0069](0069-esp32-locker-firmware.md), [ADR-0070](0070-esp32-command-journal-record-format-and-retention.md)
 - [Flow diagrams](../softap-provisioning-flows.md)
 - [Research note](../research/softap-provisioning.md)
+- [GHSA-g764-gwc3-75m5](https://github.com/espressif/esp-idf/security/advisories/GHSA-g764-gwc3-75m5),
+  the lwIP DHCP-server advisory
 - `locker-firmware/docs/architecture.md`; tests in `locker-firmware/docs/testing.md`
   (slice S6, hardware group F) and the backend's `RegistrationHandlerTest` and
   `LockerBankProvisioningResetTest`

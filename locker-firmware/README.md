@@ -20,7 +20,7 @@ This is bench firmware. Read [Limits](#limits) before you put a lock on it.
 | --- | --- |
 | ESP32 D1 mini | ESP-IDF target `esp32`, USB data cable |
 | XY-485 converter | Automatic direction: no DE/RE pin to drive. Powered from the ESP32's 3V3 |
-| RS485 lock panel | Own supply; check the seller's documentation for the voltage |
+| RS485 lock panel | SY-800R, 8 channels, board address 1, with door feedback (ADR-0071). Own supply; check the seller's documentation for the voltage |
 | A lock on channel 1 | The panel times the release pulse; the firmware only sends commands |
 
 Wiring, with the build defaults from `components/lc_serial_uart/Kconfig`:
@@ -34,8 +34,9 @@ Wiring, with the build defaults from `components/lc_serial_uart/Kconfig`:
 
 A and B of the converter go to A and B of the panel. UART 0 is the USB console
 and cannot be used for the bus. The serial parameters default to 9600 baud, 8N1
-and the timing to `components/lc_rs485_lock_board/Kconfig`; **none of these has
-been confirmed against the panel yet** ([Risks](docs/architecture.md#risks)). Change them with
+and the timing to `components/lc_rs485_lock_board/Kconfig`. The bench panel
+answers at 9600 8N1, in about 265 ms against the 1500 ms reply deadline
+(ADR-0071); other panels may differ ([Risks](docs/architecture.md#risks)). Change them with
 `idf.py menuconfig`.
 
 ## Build and test
@@ -154,7 +155,7 @@ in other terminals.
 | Command | What it does |
 | --- | --- |
 | `status` | Bus state, and whether the device is enrolled, an enrollment is pending, and settings are stored |
-| `diagnostics` | Bus state and the number of unlock requests that reached the wire since boot |
+| `diagnostics` | Bus state, the number of unlock requests that reached the wire since boot, the lowest free heap since boot and the owner task's unused stack (bytes) |
 | `self-test` | Checks the frame encoder. Sends nothing to the panel |
 | `query <board>` | Reads the door state of addresses 0 to 31 of a panel (`c` closed, `o` open, `?` unknown) |
 | `unlock <board> <address>` | **Releases the lock** at that address, once. Bench use: it bypasses the journal, so it is refused once the device is enrolled or has network settings |

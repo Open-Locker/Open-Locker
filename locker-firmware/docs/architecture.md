@@ -313,11 +313,12 @@ minutes, and is re-entered by a button held for 10 s. Its decisions are the pure
 - **Drift from the Pi client.** Two implementations of one contract. The
   shared schemas, the shared golden frames and the ported test names are the
   controls.
-- **Unverified hardware facts.** None of these is confirmed: the panel's supply
-  voltage and exact model, its channel count, the lock model, the board's flash
-  size, the serial parameters and DIP address, and the feedback polarity. The
-  build defaults stay assumptions until recorded on the bench; HW-A4 captures
-  the polarity.
+- **Hardware facts.** Confirmed on the bench: an SY-800R panel with 8 channels
+  at board address 1, 9600 8N1, door-closing feedback with active `82` events
+  (ADR-0071), and 4 MB of flash on the ESP32 (`esptool.py flash_id`,
+  2026-10-21). Still unconfirmed: the panel's supply voltage and the lock model.
+  Other panels and boards may differ, so every bench run records the polarity
+  again in HW-A4.
 - **Plaintext credentials.** Wi-Fi and MQTT credentials, and the setup
   password, sit unencrypted in NVS until flash and NVS encryption are turned on
   (ADR-0074 decision 18). Until then the firmware is for an attended bench only.

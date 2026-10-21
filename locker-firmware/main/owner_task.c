@@ -19,8 +19,8 @@
 #define QUEUE_DEPTH 32
 /*
  * The queue holds QUEUE_DEPTH copies of owner_event_t, and a setup request is
- * the largest of them. UNVERIFIED budget: measured on the host (688 bytes per
- * event, 32 deep); the bench spike sets the real one (ADR-0074, open points).
+ * the largest of them. On the ESP32 an event is 688 bytes, so the queue takes
+ * 22,100 bytes with its control block (bench spike, ADR-0074 open points).
  */
 #define QUEUE_BUDGET_BYTES (24 * 1024)
 _Static_assert(sizeof(owner_event_t) * QUEUE_DEPTH <= QUEUE_BUDGET_BYTES,
