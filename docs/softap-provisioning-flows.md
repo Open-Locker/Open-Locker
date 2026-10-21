@@ -3,6 +3,14 @@
 Diagrams for [ADR-0074](adr/0074-esp32-softap-provisioning.md). The durations are
 design parameters.
 
+## Commissioning over the setup network
+
+Who does what in `commission.py --softap`: the operator, the tool on the laptop
+or phone, and the unit. The setup password is proven by both sides and never
+sent; `ol-config` and the Wi-Fi settings travel inside the Security 2 session.
+
+![SoftAP commissioning activity: operator, tool and unit](softap-commissioning-activity.svg)
+
 ## Boot mode
 
 ```mermaid
