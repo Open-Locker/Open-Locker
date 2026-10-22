@@ -6,6 +6,7 @@ namespace Tests\Feature;
 
 use App\Mqtt\Publishers\UpdateFirmwareCommandPublisher;
 use App\StorableEvents\FirmwareUpdateAccepted;
+use App\StorableEvents\FirmwareUpdateCompleted;
 use App\StorableEvents\FirmwareUpdateFailed;
 use App\StorableEvents\FirmwareUpdateRequested;
 use App\Support\Audit\AuditEventPresenter;
@@ -66,5 +67,25 @@ class FirmwareUpdateAuditTest extends TestCase
         $failed = $this->describe(FirmwareUpdateFailed::class);
         $this->assertStringContainsString('North wall', $failed);
         $this->assertStringContainsString('UPDATE_VERIFY_FAILED', $failed);
+    }
+
+    public function test_completion_rollback_and_timeout_read_as_sentences(): void
+    {
+        $bank = LockerBankFactory::new()->create(['name' => 'North wall']);
+
+        event(new FirmwareUpdateCompleted(lockerBankUuid: (string) $bank->id, transactionId: 'txn-1', version: '0.2.0'));
+        $completed = $this->describe(FirmwareUpdateCompleted::class);
+        $this->assertStringContainsString('North wall', $completed);
+        $this->assertStringContainsString('0.2.0', $completed);
+
+        event(new FirmwareUpdateFailed(lockerBankUuid: (string) $bank->id, transactionId: 'txn-1', reason: 'rollback'));
+        $rollback = $this->describe(FirmwareUpdateFailed::class);
+        $this->assertStringContainsString('North wall', $rollback);
+        $this->assertStringContainsString('zurückgesetzt', $rollback);
+
+        event(new FirmwareUpdateFailed(lockerBankUuid: (string) $bank->id, transactionId: 'txn-2', reason: 'timeout'));
+        $timeout = $this->describe(FirmwareUpdateFailed::class);
+        $this->assertStringContainsString('North wall', $timeout);
+        $this->assertStringContainsString('rechtzeitig', $timeout);
     }
 }

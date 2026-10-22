@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Support\Audit;
 
+use App\Enums\FirmwareUpdateFailureReason;
 use App\Models\Compartment;
 use App\Models\Group;
 use App\Models\LockerBank;
@@ -268,9 +269,22 @@ class AuditEventPresenter
             'FirmwareUpdateAccepted' => __('Locker bank :bank accepted the firmware update and started downloading', [
                 'bank' => $this->lockerBank($p['lockerBankUuid'] ?? null),
             ]),
-            'FirmwareUpdateFailed' => __('Firmware update of locker bank :bank failed (:error)', [
+            // The device's code, or, when the backend ended the update itself, the reason (ADR-0077).
+            'FirmwareUpdateFailed' => match (FirmwareUpdateFailureReason::tryFrom((string) ($p['reason'] ?? ''))) {
+                FirmwareUpdateFailureReason::Rollback => __('Locker bank :bank rolled the new firmware back, so the update failed', [
+                    'bank' => $this->lockerBank($p['lockerBankUuid'] ?? null),
+                ]),
+                FirmwareUpdateFailureReason::Timeout => __('Firmware update of locker bank :bank had no result in time', [
+                    'bank' => $this->lockerBank($p['lockerBankUuid'] ?? null),
+                ]),
+                default => __('Firmware update of locker bank :bank failed (:error)', [
+                    'bank' => $this->lockerBank($p['lockerBankUuid'] ?? null),
+                    'error' => $p['errorCode'] ?? $p['message'] ?? '-',
+                ]),
+            },
+            'FirmwareUpdateCompleted' => __('Locker bank :bank now runs firmware :version', [
                 'bank' => $this->lockerBank($p['lockerBankUuid'] ?? null),
-                'error' => $p['errorCode'] ?? $p['message'] ?? '-',
+                'version' => $p['version'] ?? '-',
             ]),
             'GroupCreated' => __(':actor created group :group', [
                 'actor' => $this->user($p['actorUserId'] ?? null),

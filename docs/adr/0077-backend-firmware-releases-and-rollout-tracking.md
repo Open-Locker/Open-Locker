@@ -80,15 +80,46 @@ uploaded signed.
    ADR-0040.
 5. **Completion only on a heartbeat.** The update is *completed* when a
    heartbeat reports `firmware_version` equal to the target and `trial: false`;
-   a heartbeat with `trial` missing or true never completes it (ADR-0076). A
-   heartbeat reporting a different version after acceptance, with
-   `last_rollback_version` set to the target, marks it *failed*.
-6. **Timeout.** A scheduled command (like `DetectOfflineLockers`) fails an
-   update with no completion 30 minutes after the request, by recording a
-   failure event. The timeout is the backstop for everything the device cannot
-   report: a lost failure event (the device sends it once and does not retry), and
-   a restart after acceptance but before the download ended, which leaves nothing
-   on the device to report (ADR-0075).
+   a heartbeat with `trial` missing or true never completes it (ADR-0076), and
+   one with the target version on trial leaves the update in flight (there is no
+   "on trial" status; the trial flag is stored for display). A heartbeat
+   reporting `last_rollback_version` equal to the target marks the update
+   *failed* after acceptance, that is while it is *downloading*. Before
+   acceptance a unit that rolled this version back earlier still reports it, and
+   the device refuses the version itself (`UPDATE_VERSION_REJECTED`), which is
+   what fails a retry. Completion and rollback are events
+   (`FirmwareUpdateCompleted`, `FirmwareUpdateFailed`), derived by
+   `FirmwareUpdateOutcomeService`; the event moves the
+   status, so a later heartbeat records nothing again. The heartbeat fields
+   themselves are not event-sourced: `LockerHeartbeatHandler` writes them to
+   `locker_banks` (`firmware_version`, `firmware_trial`, `firmware_running_slot`,
+   `firmware_last_rollback_version`, `firmware_reported_at`, and
+   `firmware_update_capable` from `capabilities`), as it does `modbus_connected`.
+   A heartbeat without them leaves the stored values alone; a report replaces
+   all of them; `capabilities` without `firmware_update` clears the capability.
+   The firmware fields are telemetry and are validated apart from the heartbeat
+   itself (`modbus_connected` stays as it was): if any is malformed, including
+   `trial` missing with `firmware_version`, `trial` not a real JSON boolean, or
+   `capabilities` not a list of strings, the heartbeat is accepted anyway (last
+   heartbeat, connection state and Modbus fields are updated), a warning names the
+   fields but not the payload, and the whole firmware part is ignored: nothing
+   stored, no completion, no rollback. A bad report must not make a locker look
+   offline. The reason `FirmwareUpdateFailed` carries when the
+   backend ends an update itself is a `reason` field (`rollback`, `timeout`,
+   the values of `FirmwareUpdateFailureReason`) beside `errorCode`, which keeps
+   the device's `UPDATE_*` codes; the projector stores them in separate columns,
+   `firmware_update_error_code` and `firmware_update_failure_reason`. An update
+   that already timed out stays failed even if its heartbeat arrives later; the
+   reported version is still shown.
+6. **Timeout.** A scheduled command (`locker:expire-firmware-updates`, every
+   minute without overlap, like `DetectOfflineLockers`) fails an update still in
+   flight 30 minutes after the request, by recording `FirmwareUpdateFailed` with
+   reason `timeout`. It reads each bank again before recording, and a failed
+   update is no longer in flight, so each update times out once. The timeout is
+   the backstop for everything the device cannot report: a lost failure event
+   (the device sends it once and does not retry), and a restart after acceptance
+   but before the download ended, which leaves nothing on the device to report
+   (ADR-0075).
 7. **One update at a time per locker, and one locker per action.** A new request
    is refused while one is pending. No bulk or automatic rollout. The aggregate
    cannot hold this state: the *accepted* and *failed* events come from the

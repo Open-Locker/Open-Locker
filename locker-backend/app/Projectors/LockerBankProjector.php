@@ -4,10 +4,12 @@ declare(strict_types=1);
 
 namespace App\Projectors;
 
+use App\Enums\FirmwareUpdateFailureReason;
 use App\Enums\FirmwareUpdateStatus;
 use App\Models\LockerBank;
 use App\StorableEvents\CompartmentStateChangesApplied;
 use App\StorableEvents\FirmwareUpdateAccepted;
+use App\StorableEvents\FirmwareUpdateCompleted;
 use App\StorableEvents\FirmwareUpdateFailed;
 use App\StorableEvents\FirmwareUpdateRequested;
 use App\StorableEvents\LockerConfigAcknowledged;
@@ -149,6 +151,7 @@ class LockerBankProjector extends Projector
             'firmware_update_release_id' => $event->releaseId,
             'firmware_update_target_version' => $event->version,
             'firmware_update_error_code' => null,
+            'firmware_update_failure_reason' => null,
             'firmware_update_requested_at' => Carbon::parse($event->requestedAtIso8601),
         ])->save();
     }
@@ -173,15 +176,29 @@ class LockerBankProjector extends Projector
     public function onFirmwareUpdateFailed(FirmwareUpdateFailed $event): void
     {
         $lockerBank = LockerBank::find($event->lockerBankUuid);
-        if (! $lockerBank
-            || $lockerBank->firmware_update_transaction_id !== $event->transactionId
-            || ! $lockerBank->firmware_update_status?->isInFlight()) {
+        if (! $lockerBank || $lockerBank->inFlightTransactionId() !== $event->transactionId) {
             return;
         }
 
         $lockerBank->forceFill([
             'firmware_update_status' => FirmwareUpdateStatus::Failed,
+            // The device's own code, or, when the backend ended the update itself, its reason.
             'firmware_update_error_code' => $event->errorCode,
+            'firmware_update_failure_reason' => $event->reason !== null ? FirmwareUpdateFailureReason::tryFrom($event->reason) : null,
+        ])->save();
+    }
+
+    public function onFirmwareUpdateCompleted(FirmwareUpdateCompleted $event): void
+    {
+        $lockerBank = LockerBank::find($event->lockerBankUuid);
+        if (! $lockerBank || $lockerBank->inFlightTransactionId() !== $event->transactionId) {
+            return;
+        }
+
+        $lockerBank->forceFill([
+            'firmware_update_status' => FirmwareUpdateStatus::Completed,
+            'firmware_update_error_code' => null,
+            'firmware_update_failure_reason' => null,
         ])->save();
     }
 

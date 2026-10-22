@@ -11,7 +11,9 @@ use Spatie\EventSourcing\StoredEvents\ShouldBeStored;
 /**
  * The update ended without a new image: the locker refused the command (an
  * error response), or failed after accepting it (the firmware_update_failed
- * device event). Both carry one of the UPDATE_* codes of ADR-0076.
+ * device event), both with one of the UPDATE_* codes of ADR-0076 in `errorCode`.
+ * When the backend ends the update itself, `errorCode` is empty and `reason`
+ * says why: a rollback seen in a heartbeat, or a timeout (ADR-0077).
  */
 #[Audited(AuditCategory::Devices, 'Firmware update failed')]
 class FirmwareUpdateFailed extends ShouldBeStored
@@ -22,5 +24,6 @@ class FirmwareUpdateFailed extends ShouldBeStored
         public readonly ?string $errorCode = null,
         public readonly ?string $message = null,
         public readonly ?string $timestamp = null,
+        public readonly ?string $reason = null,
     ) {}
 }

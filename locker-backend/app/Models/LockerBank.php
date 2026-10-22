@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Enums\FirmwareUpdateFailureReason;
 use App\Enums\FirmwareUpdateStatus;
 use App\Enums\LockerAdapterType;
 use App\Enums\LockerFeedbackType;
@@ -33,11 +34,17 @@ use Illuminate\Database\Eloquent\Relations\HasManyThrough;
  * @property-read CarbonImmutable|null $connection_status_changed_at
  * @property-read CarbonImmutable|null $last_compartment_state_change_at
  * @property-read bool $firmware_update_capable
+ * @property-read string|null $firmware_version
+ * @property-read bool|null $firmware_trial
+ * @property-read string|null $firmware_running_slot
+ * @property-read string|null $firmware_last_rollback_version
+ * @property-read CarbonImmutable|null $firmware_reported_at
  * @property-read FirmwareUpdateStatus|null $firmware_update_status
  * @property-read string|null $firmware_update_release_id
  * @property-read string|null $firmware_update_transaction_id
  * @property-read string|null $firmware_update_target_version
  * @property-read string|null $firmware_update_error_code
+ * @property-read FirmwareUpdateFailureReason|null $firmware_update_failure_reason
  * @property-read CarbonImmutable|null $firmware_update_requested_at
  * @property-read Collection<int, Compartment> $compartments
  * @property-read int|null $compartments_count
@@ -80,7 +87,13 @@ class LockerBank extends Model
         'firmware_update_release_id',
         'firmware_update_target_version',
         'firmware_update_error_code',
+        'firmware_update_failure_reason',
         'firmware_update_requested_at',
+        'firmware_version',
+        'firmware_trial',
+        'firmware_running_slot',
+        'firmware_last_rollback_version',
+        'firmware_reported_at',
     ];
 
     protected $casts = [
@@ -97,8 +110,21 @@ class LockerBank extends Model
         'last_config_ack_at' => 'datetime',
         'firmware_update_capable' => 'boolean',
         'firmware_update_status' => FirmwareUpdateStatus::class,
+        'firmware_update_failure_reason' => FirmwareUpdateFailureReason::class,
         'firmware_update_requested_at' => 'datetime',
+        'firmware_trial' => 'boolean',
+        'firmware_reported_at' => 'datetime',
     ];
+
+    /**
+     * The transaction of the firmware update this bank is busy with, or null when none is in flight.
+     */
+    public function inFlightTransactionId(): ?string
+    {
+        return $this->firmware_update_status?->isInFlight() === true
+            ? $this->firmware_update_transaction_id
+            : null;
+    }
 
     /**
      * @return HasMany<Compartment, $this>
