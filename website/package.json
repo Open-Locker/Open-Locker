@@ -12,7 +12,9 @@
   "dependencies": {
     "@astrojs/starlight": "^0.36.3",
     "@lucide/astro": "^0.563.0",
-    "astro": "^5.17.1"
+    "astro": "^5.17.1",
+    "astro-mermaid": "^2.1.0",
+    "mermaid": "^11.17.2"
   },
   "devDependencies": {
     "@astrojs/mdx": "^4.3.13",

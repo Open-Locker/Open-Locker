@@ -3,6 +3,7 @@ import { defineConfig } from 'astro/config';
 import mdx from '@astrojs/mdx';
 import sitemap from '@astrojs/sitemap';
 import starlight from '@astrojs/starlight';
+import mermaid from 'astro-mermaid';
 import tailwindcss from '@tailwindcss/vite';
 
 // https://astro.build/config
@@ -26,6 +27,8 @@ export default defineConfig({
 		routing: { prefixDefaultLocale: false },
 	},
 	integrations: [
+		// Must come before Starlight so it sees the mermaid code blocks.
+		mermaid({ autoTheme: true }),
 		starlight({
 			title: 'Open Locker',
 			logo: { src: './public/logo-open-locker.svg' },
