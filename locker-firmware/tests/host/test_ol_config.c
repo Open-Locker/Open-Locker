@@ -130,6 +130,8 @@ void test_S6_H01_a_valid_submission_reaches_commissioning_with_the_values_of_a_u
     TEST_ASSERT_EQUAL_STRING(BOOTSTRAP_PASSWORD, identity.identity.bootstrap_password);
     TEST_ASSERT_EQUAL_STRING(TOKEN, identity.identity.token);
     TEST_ASSERT_EQUAL_UINT(1, device.restart_count);
+    TEST_ASSERT_EQUAL_UINT(1, reply_count);
+    TEST_ASSERT_EQUAL_INT(LC_COMMISSION_SAVED, last_reply);
 }
 
 void test_S6_H02_an_oversized_incomplete_or_malformed_submission_is_refused_and_nothing_is_saved(void)
