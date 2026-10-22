@@ -26,9 +26,9 @@
           "properties": {
             "version": {
               "type": "string",
-              "pattern": "^[0-9]+[.][0-9]+[.][0-9]+(-[0-9A-Za-z.-]+)?$",
+              "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)(-(0|[1-9][0-9]*|[0-9]*[A-Za-z-][0-9A-Za-z-]*)(\\.(0|[1-9][0-9]*|[0-9]*[A-Za-z-][0-9A-Za-z-]*))*)?$",
               "maxLength": 31,
-              "description": "Version the image at `url` must report in its app description (`PROJECT_VER`). The device compares it with the image header before writing anything and refuses the update on a mismatch."
+              "description": "Version the image at `url` must report in its app description (`PROJECT_VER`). The download task compares it with the image header before writing anything; a mismatch ends the update as a failed verification (firmware_update_failed)."
             },
             "url": {
               "type": "string",

@@ -16,6 +16,7 @@ extern fake_bus_t fx_bus;
 extern fake_journal_t fx_journal;
 extern fake_outbound_t fx_outbound;
 extern fake_config_store_t fx_config_store;
+extern fake_update_t fx_update;
 extern lc_app_t fx_app;
 
 /* Heartbeat interval of the configuration fx_configure() applies. */
@@ -29,6 +30,8 @@ void fx_connect(void);
 
 lc_command_t fx_open(const char *transaction_id, const char *message_id,
                      uint16_t compartment_number);
+lc_command_t fx_update_firmware(const char *transaction_id, const char *message_id,
+                                const char *version, const char *url, bool allow_downgrade);
 /* An apply_config whose hash is correct for the given mappings. */
 lc_command_t fx_apply(const char *transaction_id, const char *message_id,
                       const lc_mapping_t *mappings, size_t count, lc_feedback_t feedback,

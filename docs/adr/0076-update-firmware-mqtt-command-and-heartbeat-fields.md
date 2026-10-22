@@ -40,9 +40,10 @@ id are separate (ADR-0002); a command response only acknowledges the command
    stable `error_code`: `UPDATE_INVALID` (malformed command, non-HTTPS or
    over-long URL), `UPDATE_BUSY` (a command is in flight or an update is
    running), `UPDATE_NOT_READY` (unhealthy journal, bus disconnected, image on
-   trial), `UPDATE_SAME_VERSION`, `UPDATE_DOWNGRADE`, `UPDATE_VERSION_REJECTED`
-   (the image header differs from `version`, or that version was rolled back
-   before). Both responses narrow the generic response to this action
+   trial; also the catch-all for any other error on this action),
+   `UPDATE_SAME_VERSION`, `UPDATE_DOWNGRADE`, `UPDATE_VERSION_REJECTED` (that
+   version was rolled back before). A refusal comes before any download. Both
+   responses narrow the generic response to this action
    (`response-update-firmware-success.json`, `response-update-firmware-error.json`).
    The backend's inbox keeps one response per transaction, and ADR-0070 allows
    one completion per transaction, so there is never a second response.
@@ -50,7 +51,11 @@ id are separate (ADR-0002); a command response only acknowledges the command
    `firmware_update_failed` on `locker/{locker_uuid}/event`, following
    ADR-0040, with `data.transaction_id` and `data.error_code`
    (`UPDATE_DOWNLOAD_FAILED` or `UPDATE_VERIFY_FAILED`). The running image is
-   unchanged.
+   unchanged. Unlike the detections of ADR-0040, the event is sent once and not
+   republished if the broker is not reachable at that moment; the backend's
+   timeout (ADR-0077) covers a lost event, and so a restart during the download.
+   An image whose header version differs from `version` is a failed
+   verification, because the header is read after the command was answered.
 4. **New optional heartbeat fields** on `locker/{locker_uuid}/state/heartbeat`:
    - `firmware_version` (string): the running image's version.
    - `trial` (boolean): true until the running image has marked itself valid.

@@ -369,7 +369,8 @@ void test_S7_H05_malformed_non_https_and_over_long_updates_are_update_invalid(vo
 
     /* A version that is not x.y.z with an optional suffix, or that does not fit. */
     static const char *const BAD_VERSIONS[] = {"", "1", "1.0", "v1.0.0", "1.0.0.0", "1.0.0-",
-                                               "1.0.0 beta", "1.0.0-a_b",
+                                               "1.0.0 beta", "1.0.0-a_b", "01.2.3", "1.02.3",
+                                               "1.0.0-01", "1.0.0-rc.", "1.0.0-a..b",
                                                "1.0.0-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"};
     for (size_t i = 0; i < sizeof(BAD_VERSIONS) / sizeof(BAD_VERSIONS[0]); ++i) {
         snprintf(data, sizeof(data), "{\"version\":\"%s\",\"url\":\"https://e.com/a\"}",

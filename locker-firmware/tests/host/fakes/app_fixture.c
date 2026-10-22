@@ -9,6 +9,7 @@ fake_bus_t fx_bus;
 fake_journal_t fx_journal;
 fake_outbound_t fx_outbound;
 fake_config_store_t fx_config_store;
+fake_update_t fx_update;
 lc_app_t fx_app;
 
 #define STEP_MS 100
@@ -22,6 +23,7 @@ static lc_app_ports_t ports(void)
         .config_store = fake_config_store_port(&fx_config_store),
         .hasher = fake_hasher_port(),
         .clock = fake_clock_port(&fx_clock),
+        .firmware_update = fake_update_port(&fx_update),
     };
 }
 
@@ -33,6 +35,7 @@ void fx_init(void)
     fake_journal_init(&fx_journal);
     fake_outbound_init(&fx_outbound);
     fake_config_store_init(&fx_config_store);
+    fake_update_init(&fx_update);
     fx_restart();
 }
 
@@ -65,6 +68,17 @@ lc_command_t fx_open(const char *transaction_id, const char *message_id,
     lc_command_t result =
         command(transaction_id, message_id, "open_compartment", LC_ACTION_OPEN_COMPARTMENT);
     result.compartment_number = compartment_number;
+    return result;
+}
+
+lc_command_t fx_update_firmware(const char *transaction_id, const char *message_id,
+                                const char *version, const char *url, bool allow_downgrade)
+{
+    lc_command_t result =
+        command(transaction_id, message_id, "update_firmware", LC_ACTION_UPDATE_FIRMWARE);
+    snprintf(result.firmware.version, sizeof(result.firmware.version), "%s", version);
+    snprintf(result.firmware.url, sizeof(result.firmware.url), "%s", url);
+    result.firmware.allow_downgrade = allow_downgrade;
     return result;
 }
 
@@ -146,6 +160,10 @@ void fx_reset_counts(void)
     fx_outbound.detection_count = 0;
     fx_outbound.uncommanded_count = 0;
     fx_outbound.snapshot_count = 0;
+    fx_outbound.failure_count = 0;
+    fx_update.start_count = 0;
+    fx_update.abort_count = 0;
+    fx_update.select_count = 0;
     fx_config_store.save_count = 0;
     fx_config_store.clear_count = 0;
 }

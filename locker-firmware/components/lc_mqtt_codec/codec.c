@@ -4,6 +4,7 @@
 
 #include "cJSON.h"
 #include "lc_domain/text.h"
+#include "lc_domain/version.h"
 #include "lc_mqtt_codec/internal.h"
 #include "lc_mqtt_codec/json_writer.h"
 
@@ -225,44 +226,6 @@ static lc_error_t parse_apply(const cJSON *data, lc_command_t *out)
     return LC_ERROR_NONE;
 }
 
-/* Digits, dot, digits, dot, digits, then an optional "-" and [0-9A-Za-z.-]+. */
-static bool is_release_version(const char *text)
-{
-    for (int part = 0; part < 3; ++part) {
-        size_t digits_seen = 0;
-        while (text[digits_seen] >= '0' && text[digits_seen] <= '9') {
-            ++digits_seen;
-        }
-        if (digits_seen == 0) {
-            return false;
-        }
-        text += digits_seen;
-        if (part < 2 && *text++ != '.') {
-            return false;
-        }
-    }
-    if (*text == '\0') {
-        return true;
-    }
-    if (*text++ != '-' || *text == '\0') {
-        return false;
-    }
-    for (; *text != '\0'; ++text) {
-        bool allowed = (*text >= '0' && *text <= '9') || (*text >= 'A' && *text <= 'Z') ||
-                       (*text >= 'a' && *text <= 'z') || *text == '.' || *text == '-';
-        if (!allowed) {
-            return false;
-        }
-    }
-    return true;
-}
-
-static bool is_version(const char *version)
-{
-    return version != NULL && strlen(version) <= LC_FIRMWARE_VERSION_MAX &&
-           is_release_version(version);
-}
-
 /* HTTPS only (the scheme is lower case), with a host, and nothing a URL cannot hold. */
 static bool is_https_url(const char *url)
 {
@@ -278,7 +241,7 @@ static lc_error_t parse_update(const cJSON *data, lc_command_t *out)
     const char *url = lc_codec_get_string(data, "url");
     const cJSON *downgrade = cJSON_GetObjectItemCaseSensitive(data, "allow_downgrade");
 
-    if (!is_version(version) || !is_https_url(url) ||
+    if (version == NULL || !lc_version_is_valid(version) || !is_https_url(url) ||
         (downgrade != NULL && !cJSON_IsBool(downgrade))) {
         return LC_ERROR_UPDATE_INVALID;
     }

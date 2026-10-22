@@ -28,4 +28,5 @@ typedef struct {
     lc_publish_id_t (*open_detection)(void *ctx, const lc_open_detection_t *event);
     lc_publish_id_t (*uncommanded_open)(void *ctx, const lc_uncommanded_open_t *event);
     lc_publish_id_t (*connection_offline)(void *ctx, lc_offline_reason_t reason);
+    lc_publish_id_t (*firmware_update_failed)(void *ctx, const lc_firmware_update_failure_t *event);
 } lc_outbound_port_t;

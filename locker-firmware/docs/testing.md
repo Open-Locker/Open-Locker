@@ -355,6 +355,19 @@ Host suite `test_mqtt_codec`:
 | S7-H05 | A malformed `update_firmware` command, a non-HTTPS URL and a URL over 256 characters are `UPDATE_INVALID` |
 | S7-H13 | The `update_firmware` responses, the `firmware_update_failed` event and the firmware heartbeat fields validate against their schemas |
 
+Host suite `test_firmware_update`, through `lc_app_handle_command`, `lc_app_dispatch` and
+`lc_app_tick` with a fake update port:
+
+| ID | Test |
+| --- | --- |
+| S7-H01 | An update command reaches the update port with the URL and version from the command |
+| S7-H02 | An update is refused (`UPDATE_BUSY`) while an unlock's door is still being watched, and a new one starts once the unit is idle |
+| S7-H03 | An update is `UPDATE_NOT_READY` on an unhealthy journal, a bus that is not connected and an image on trial |
+| S7-H04 | The running version, a downgrade without the flag and the last version rolled back are refused |
+| S7-H06 | A failed download or verification is reported once as the `firmware_update_failed` event, with no second response, and the next slot stays unselected |
+| S7-H07 | The next slot is selected only after the image is verified |
+| S7-H11 | A repeated command with the same transaction ID does not download twice; the stored response is sent again |
+
 ## Hardware acceptance
 
 Everything that needs the real board, converter, panel, lock, Wi-Fi or broker

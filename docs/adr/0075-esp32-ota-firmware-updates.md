@@ -108,13 +108,17 @@ board yet: the signature verification path itself (HW-H4).
 
 ### Version policy
 
-10. `PROJECT_VER` comes from the release tag. The device reads the image header
-    through `esp_https_ota_get_img_desc()` after `begin` and **before any
-    byte is written** to the other slot, and refuses: a version different from
-    the command's, equal to the running version, lower without
-    `allow_downgrade`, and a version this unit rolled back before. The refusal
-    codes are in ADR-0076. The last rolled-back version is kept in one NVS key
-    that an older image ignores.
+10. `PROJECT_VER` comes from the release tag. The application refuses, before it
+    starts a download and with the one response: a version equal to the running
+    version, lower without `allow_downgrade`, or one this unit rolled back
+    before; and a running version it cannot compare. The comparison is semantic
+    versioning (`lc_domain/version.h`) and the codes are in ADR-0076. The last
+    rolled-back version is kept in one NVS key that an older image ignores.
+    The download task then reads the image header through
+    `esp_https_ota_get_img_desc()` after `begin` and **before any byte is
+    written** to the other slot; a header version different from the command's
+    ends the update as a failed verification (the event of ADR-0076), because
+    the command has been answered by then.
 11. No eFuse anti-rollback: it is irreversible per board and adds nothing while
     secure boot is off.
 
@@ -122,17 +126,30 @@ board yet: the signature verification path itself (HW-H4).
 
 12. The owner task starts an update only when it is idle: no command in flight,
     journal healthy, bus connected, no update already running, and the running
-    image not on trial. Otherwise the command is refused (ADR-0076 gives the
-    codes); the backend may send it again.
+    image not on trial. Otherwise the command is refused, not queued (ADR-0076
+    gives the codes); the backend may send it again. The owner task runs one
+    command at a time, so "in flight" means an unlock whose door is still being
+    watched (ADR-0040), the one thing a restart would lose. An update that was
+    accepted counts as running until it fails or the unit restarts. Any other
+    error on the update path (closing, a journal that cannot claim, a restart
+    before the answer was stored) is reported as `UPDATE_NOT_READY`, because the
+    error schema of this action allows only `UPDATE_*` codes.
 13. The update command is journaled like any other command, so a repeat with the
-    same transaction id does not download twice.
+    same transaction id does not download twice. If the journal cannot store the
+    answer after the download was started, the application aborts the download
+    (the port's `abort`): nothing is published that the journal does not hold,
+    and nothing keeps running that nobody knows about.
 14. The new image is selected as the next boot slot
     (`esp_ota_set_boot_partition`) **only after** `esp_https_ota_finish` returned
     success, i.e. the image is verified. Any failure aborts and leaves the
     running slot selected.
-15. The restart waits for idleness again. Opens arriving during the download are
-    served by the owner task as usual; an open is handled exactly once, never
-    twice and never lost, across the update and the trial.
+15. A restart after the command was accepted but before the download ends leaves
+    nothing on the device to report: the half-written slot is never selected,
+    the stored answer stays "accepted", and no failure event is sent. The
+    backend's timeout marks the update failed (ADR-0077).
+    The restart after a verified image waits for idleness again. Opens arriving
+    during the download are served by the owner task as usual; an open is handled
+    exactly once, never twice and never lost, across the update and the trial.
 16. No update code path calls the bus unlock.
 
 ### Trial boot and rollback

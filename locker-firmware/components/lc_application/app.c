@@ -79,7 +79,7 @@ void lc_app_recover(lc_app_t *app)
         (void)lc_text_copy(result.transaction_id, sizeof(result.transaction_id),
                            entry.transaction_id);
         (void)lc_text_copy(result.action_name, sizeof(result.action_name), entry.action_name);
-        result.error = LC_ERROR_UNKNOWN_ERROR;
+        result.error = lc_app_error_for(entry.action_name, LC_ERROR_UNKNOWN_ERROR);
         (void)journal->complete(journal->ctx, &result);
     }
 }
@@ -224,6 +224,12 @@ void lc_app_dispatch(lc_app_t *app, const lc_event_t *event)
         break;
     case LC_EVENT_TICK:
         lc_app_tick(app);
+        break;
+    case LC_EVENT_FIRMWARE_VERIFIED:
+        lc_app_firmware_verified(app);
+        break;
+    case LC_EVENT_FIRMWARE_FAILED:
+        lc_app_firmware_failed(app, event->error);
         break;
     }
 }

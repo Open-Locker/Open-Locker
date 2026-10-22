@@ -13,6 +13,12 @@ bool lc_app_track(lc_app_t *app, lc_publish_id_t id, lc_app_publish_kind_t kind,
 bool lc_app_has_slot(const lc_app_t *app);
 bool lc_app_in_flight(const lc_app_t *app, const char *transaction_id);
 
+/*
+ * The error schema of update_firmware allows only UPDATE_* codes, so any other
+ * error of that action is reported as UPDATE_NOT_READY (ADR-0076).
+ */
+lc_error_t lc_app_error_for(const char *action_name, lc_error_t error);
+
 /* A result that is not in the journal, sent once and forgotten. */
 void lc_app_respond_transient(lc_app_t *app, const lc_command_t *command, lc_error_t error);
 /* A journalled result. True when the publish was accepted. */
@@ -22,6 +28,12 @@ void lc_app_flush_responses(lc_app_t *app);
 
 lc_command_result_t lc_app_open_compartment(lc_app_t *app, const lc_command_t *command);
 lc_command_result_t lc_app_apply_config(lc_app_t *app, const lc_command_t *command);
+lc_command_result_t lc_app_update_firmware(lc_app_t *app, const lc_command_t *command);
+/* Stops the download of an update that was accepted but cannot be answered. */
+void lc_app_abort_update(lc_app_t *app);
+/* The download task's outcome. */
+void lc_app_firmware_verified(lc_app_t *app);
+void lc_app_firmware_failed(lc_app_t *app, lc_error_t error);
 
 /* The work of the periodic tick, in publish_state.c. */
 void lc_app_service(lc_app_t *app, int64_t now_ms);

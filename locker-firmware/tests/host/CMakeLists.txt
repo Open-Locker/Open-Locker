@@ -38,10 +38,12 @@ get_filename_component(LC_REPO_ROOT ${CMAKE_CURRENT_SOURCE_DIR}/../../.. ABSOLUT
 add_library(lc_under_test STATIC
   ${LC_COMPONENTS}/lc_domain/config.c
   ${LC_COMPONENTS}/lc_domain/door_detection.c
+  ${LC_COMPONENTS}/lc_domain/version.c
   ${LC_COMPONENTS}/lc_application/app.c
   ${LC_COMPONENTS}/lc_application/handle_command.c
   ${LC_COMPONENTS}/lc_application/open_compartment.c
   ${LC_COMPONENTS}/lc_application/apply_config.c
+  ${LC_COMPONENTS}/lc_application/update_firmware.c
   ${LC_COMPONENTS}/lc_application/publish_state.c
   ${LC_COMPONENTS}/lc_application/provision_device.c
   ${LC_COMPONENTS}/lc_application/commission_device.c
@@ -151,6 +153,7 @@ lc_host_test(test_config)
 lc_host_test(test_journal)
 lc_host_test(test_handle_command)
 lc_host_test(test_open_compartment)
+lc_host_test(test_firmware_update)
 lc_host_test(test_apply_config)
 lc_host_test(test_app_dispatch)
 # Beyond the test catalogue

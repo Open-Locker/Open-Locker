@@ -10,6 +10,7 @@
 #include "lc_domain/events.h"
 #include "lc_ports/clock_port.h"
 #include "lc_ports/command_journal_port.h"
+#include "lc_ports/firmware_update_port.h"
 #include "lc_ports/hasher_port.h"
 #include "lc_ports/locker_bus_port.h"
 #include "lc_ports/outbound_port.h"
@@ -28,6 +29,8 @@ typedef struct {
     lc_config_store_port_t config_store;
     lc_hasher_port_t hasher;
     lc_clock_port_t clock;
+    /* Zeroed on a build without OTA: updates are then refused. */
+    lc_firmware_update_port_t firmware_update;
 } lc_app_ports_t;
 
 /* Publishes whose acknowledgement is still outstanding. */
@@ -75,6 +78,9 @@ typedef struct {
     int64_t next_heartbeat_ms;
     lc_app_compartment_t compartments[LC_COMPARTMENTS_MAX];
     lc_app_outstanding_t outstanding[LC_APP_OUTSTANDING_MAX];
+    /* The update this unit accepted and that has not failed yet (ADR-0075). */
+    bool update_running;
+    char update_transaction_id[LC_ID_MAX + 1];
 } lc_app_t;
 
 /* Loads the stored configuration, if any. Calls neither the bus nor outbound. */
@@ -116,12 +122,17 @@ typedef enum {
     LC_EVENT_PUBLISH_ACKNOWLEDGED,
     LC_EVENT_PUBLISH_FAILED,
     LC_EVENT_TICK,
+    /* The download task: the image is verified, or the download or verification failed. */
+    LC_EVENT_FIRMWARE_VERIFIED,
+    LC_EVENT_FIRMWARE_FAILED,
 } lc_event_kind_t;
 
 typedef struct {
     lc_event_kind_t kind;
     /* LC_EVENT_PUBLISH_ACKNOWLEDGED, LC_EVENT_PUBLISH_FAILED */
     lc_publish_id_t publish_id;
+    /* LC_EVENT_FIRMWARE_FAILED: UPDATE_DOWNLOAD_FAILED or UPDATE_VERIFY_FAILED. */
+    lc_error_t error;
     /* LC_EVENT_COMMAND */
     lc_command_t command;
 } lc_event_t;

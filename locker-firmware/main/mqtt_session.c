@@ -181,6 +181,19 @@ static lc_publish_id_t out_connection_offline(void *ctx, lc_offline_reason_t rea
                    lc_mqtt_encode_connection_offline(reason, &stamp, encoded, sizeof(encoded)));
 }
 
+static lc_publish_id_t out_firmware_update_failed(void *ctx, const lc_firmware_update_failure_t *event)
+{
+    (void)ctx;
+    const lc_mqtt_envelope_t stamp = envelope();
+    lc_publish_id_t id = publish(
+        LC_TOPIC_EVENT, lc_mqtt_encode_firmware_update_failed(event, &stamp, encoded, sizeof(encoded)));
+    if (id == LC_PUBLISH_REFUSED) {
+        /* Not sent again; the backend's timeout fails the update (ADR-0076). */
+        ESP_LOGW(TAG, "firmware update failure event dropped");
+    }
+    return id;
+}
+
 lc_outbound_port_t mqtt_session_outbound(void)
 {
     return (lc_outbound_port_t){
@@ -191,6 +204,7 @@ lc_outbound_port_t mqtt_session_outbound(void)
         .open_detection = out_open_detection,
         .uncommanded_open = out_uncommanded_open,
         .connection_offline = out_connection_offline,
+        .firmware_update_failed = out_firmware_update_failed,
     };
 }
 

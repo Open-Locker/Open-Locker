@@ -50,7 +50,10 @@ uploaded signed.
    `last_rollback_version` set to the target, marks it *failed*.
 6. **Timeout.** A scheduled command (like `DetectOfflineLockers`) fails an
    update with no completion 30 minutes after the request, by recording a
-   failure event. A lost failure event is therefore found by the timeout.
+   failure event. The timeout is the backstop for everything the device cannot
+   report: a lost failure event (the device sends it once and does not retry), and
+   a restart after acceptance but before the download ended, which leaves nothing
+   on the device to report (ADR-0075).
 7. **One update at a time per locker, and one locker per action.** A new request
    is refused while one is pending. No bulk or automatic rollout.
 8. **The URL is a secret on the backend too.** It must not appear in logs,
