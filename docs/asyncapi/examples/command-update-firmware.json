@@ -1,0 +1,11 @@
+{
+  "message_id": "msg-cmd-fw-001",
+  "transaction_id": "txn-fw-001",
+  "action": "update_firmware",
+  "timestamp": "2026-10-22T09:00:00Z",
+  "data": {
+    "version": "0.2.0",
+    "url": "https://open-locker.cloud/firmware/releases/0.2.0/download?expires=1792659600&signature=0000000000000000000000000000000000000000000000000000000000000000",
+    "allow_downgrade": false
+  }
+}

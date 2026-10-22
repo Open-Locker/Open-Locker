@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "./response-update-firmware-error.json",
+  "title": "Failed update_firmware response",
+  "description": "Sent when the device refuses an update_firmware command. A failure after acceptance is not a second response; it is the firmware_update_failed event. Narrows the generic error response to this action and its refusal codes.",
+  "allOf": [
+    {
+      "$ref": "./response-command-error.json"
+    },
+    {
+      "type": "object",
+      "properties": {
+        "action": {
+          "const": "update_firmware"
+        },
+        "error_code": {
+          "enum": [
+            "UPDATE_INVALID",
+            "UPDATE_BUSY",
+            "UPDATE_NOT_READY",
+            "UPDATE_SAME_VERSION",
+            "UPDATE_DOWNGRADE",
+            "UPDATE_VERSION_REJECTED"
+          ]
+        }
+      }
+    }
+  ]
+}
