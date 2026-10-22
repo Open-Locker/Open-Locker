@@ -59,8 +59,8 @@ static lc_publish_id_t out_heartbeat(void *ctx, uint32_t uptime_seconds, bool bu
 {
     (void)ctx;
     const lc_mqtt_envelope_t stamp = envelope();
-    return emit("heartbeat", lc_mqtt_encode_heartbeat(uptime_seconds, bus_connected, &stamp,
-                                                      encoded, sizeof(encoded)));
+    return emit("heartbeat", lc_mqtt_encode_heartbeat(uptime_seconds, bus_connected, NULL,
+                                                      &stamp, encoded, sizeof(encoded)));
 }
 
 static lc_publish_id_t out_snapshot(void *ctx, const lc_compartment_state_t *states, size_t count)

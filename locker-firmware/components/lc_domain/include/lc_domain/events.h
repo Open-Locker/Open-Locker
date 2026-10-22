@@ -35,6 +35,13 @@ typedef struct {
     uint32_t ms_since_last_unlock;
 } lc_uncommanded_open_t;
 
+/* An update that was accepted failed before it replaced the running image. */
+typedef struct {
+    char transaction_id[LC_ID_MAX + 1];
+    /* LC_ERROR_UPDATE_DOWNLOAD_FAILED or LC_ERROR_UPDATE_VERIFY_FAILED. */
+    lc_error_t error;
+} lc_firmware_update_failure_t;
+
 typedef enum {
     LC_OFFLINE_SHUTDOWN = 0,
     LC_OFFLINE_LAST_WILL,

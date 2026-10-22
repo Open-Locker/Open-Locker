@@ -28,7 +28,8 @@ id are separate (ADR-0002); a command response only acknowledges the command
    `data`). `data`:
    - `version` (required): the semantic version the image must report, at most
      31 characters (the size of the image's version field).
-   - `url` (required): `https://` only, at most 512 characters. Its query string
+   - `url` (required): `https://` only, at most 256 characters (the owner queue
+     of the firmware holds copies of every command). Its query string
      carries a short-lived download token.
    - `allow_downgrade` (optional, default `false`).
 
@@ -59,7 +60,9 @@ id are separate (ADR-0002); a command response only acknowledges the command
    - `last_rollback_version` (string): the version this device rolled back from,
      present until the next update.
    - `capabilities` (array of strings): optional features, `firmware_update`
-     for now.
+     for now, sent only by a device whose update adapter is wired.
+
+   A device sends the firmware fields only when it knows its version.
 
    All are optional as a group, so the Pi client and old firmware stay valid.
    The backend sends `update_firmware` only to lockers whose heartbeat lists

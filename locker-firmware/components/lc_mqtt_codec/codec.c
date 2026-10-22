@@ -225,6 +225,69 @@ static lc_error_t parse_apply(const cJSON *data, lc_command_t *out)
     return LC_ERROR_NONE;
 }
 
+/* Digits, dot, digits, dot, digits, then an optional "-" and [0-9A-Za-z.-]+. */
+static bool is_release_version(const char *text)
+{
+    for (int part = 0; part < 3; ++part) {
+        size_t digits_seen = 0;
+        while (text[digits_seen] >= '0' && text[digits_seen] <= '9') {
+            ++digits_seen;
+        }
+        if (digits_seen == 0) {
+            return false;
+        }
+        text += digits_seen;
+        if (part < 2 && *text++ != '.') {
+            return false;
+        }
+    }
+    if (*text == '\0') {
+        return true;
+    }
+    if (*text++ != '-' || *text == '\0') {
+        return false;
+    }
+    for (; *text != '\0'; ++text) {
+        bool allowed = (*text >= '0' && *text <= '9') || (*text >= 'A' && *text <= 'Z') ||
+                       (*text >= 'a' && *text <= 'z') || *text == '.' || *text == '-';
+        if (!allowed) {
+            return false;
+        }
+    }
+    return true;
+}
+
+static bool is_version(const char *version)
+{
+    return version != NULL && strlen(version) <= LC_FIRMWARE_VERSION_MAX &&
+           is_release_version(version);
+}
+
+/* HTTPS only (the scheme is lower case), with a host, and nothing a URL cannot hold. */
+static bool is_https_url(const char *url)
+{
+    static const char SCHEME[] = "https://";
+    bool has_scheme = url != NULL && strncmp(url, SCHEME, sizeof(SCHEME) - 1) == 0;
+    bool has_host = has_scheme && url[sizeof(SCHEME) - 1] != '\0';
+    return has_host && lc_codec_is_identifier(url, LC_FIRMWARE_URL_MAX) && strchr(url, ' ') == NULL;
+}
+
+static lc_error_t parse_update(const cJSON *data, lc_command_t *out)
+{
+    const char *version = lc_codec_get_string(data, "version");
+    const char *url = lc_codec_get_string(data, "url");
+    const cJSON *downgrade = cJSON_GetObjectItemCaseSensitive(data, "allow_downgrade");
+
+    if (!is_version(version) || !is_https_url(url) ||
+        (downgrade != NULL && !cJSON_IsBool(downgrade))) {
+        return LC_ERROR_UPDATE_INVALID;
+    }
+    out->firmware.allow_downgrade = cJSON_IsTrue(downgrade);
+    (void)lc_text_copy(out->firmware.version, sizeof(out->firmware.version), version);
+    (void)lc_text_copy(out->firmware.url, sizeof(out->firmware.url), url);
+    return LC_ERROR_NONE;
+}
+
 static lc_error_t parse_body(const cJSON *root, lc_command_t *out)
 {
     const char *message_id = lc_codec_get_string(root, "message_id");
@@ -266,6 +329,10 @@ static lc_error_t parse_body(const cJSON *root, lc_command_t *out)
         out->action = LC_ACTION_APPLY_CONFIG;
         return parse_apply(data, out);
     }
+    if (strcmp(action, "update_firmware") == 0) {
+        out->action = LC_ACTION_UPDATE_FIRMWARE;
+        return parse_update(data, out);
+    }
     return LC_ERROR_UNKNOWN_ACTION;
 }
 
@@ -296,6 +363,10 @@ bool lc_mqtt_decode_command(const char *payload, size_t length, lc_command_t *ou
     if (usable) {
         (void)lc_text_copy(out->transaction_id, sizeof(out->transaction_id), transaction_id);
         out->defect = parse_body(root, out);
+        /* The error schema of update_firmware allows only UPDATE_* codes. */
+        if (out->defect != LC_ERROR_NONE && strcmp(out->action_name, "update_firmware") == 0) {
+            out->defect = LC_ERROR_UPDATE_INVALID;
+        }
     }
     cJSON_Delete(root);
     return usable;
@@ -399,6 +470,22 @@ const char *lc_mqtt_error_code(lc_error_t error)
         return "HARDWARE_ERROR";
     case LC_ERROR_SHUTTING_DOWN:
         return "SHUTTING_DOWN";
+    case LC_ERROR_UPDATE_INVALID:
+        return "UPDATE_INVALID";
+    case LC_ERROR_UPDATE_BUSY:
+        return "UPDATE_BUSY";
+    case LC_ERROR_UPDATE_NOT_READY:
+        return "UPDATE_NOT_READY";
+    case LC_ERROR_UPDATE_SAME_VERSION:
+        return "UPDATE_SAME_VERSION";
+    case LC_ERROR_UPDATE_DOWNGRADE:
+        return "UPDATE_DOWNGRADE";
+    case LC_ERROR_UPDATE_VERSION_REJECTED:
+        return "UPDATE_VERSION_REJECTED";
+    case LC_ERROR_UPDATE_DOWNLOAD_FAILED:
+        return "UPDATE_DOWNLOAD_FAILED";
+    case LC_ERROR_UPDATE_VERIFY_FAILED:
+        return "UPDATE_VERIFY_FAILED";
     case LC_ERROR_NONE:
     case LC_ERROR_UNKNOWN_ERROR:
     default:
@@ -425,6 +512,22 @@ static const char *error_message(lc_error_t error)
         return "The locker hardware did not confirm the unlock.";
     case LC_ERROR_SHUTTING_DOWN:
         return "The device is shutting down.";
+    case LC_ERROR_UPDATE_INVALID:
+        return "The update command is malformed.";
+    case LC_ERROR_UPDATE_BUSY:
+        return "A command is in flight or an update is running.";
+    case LC_ERROR_UPDATE_NOT_READY:
+        return "The device is not ready to update.";
+    case LC_ERROR_UPDATE_SAME_VERSION:
+        return "The device already runs this version.";
+    case LC_ERROR_UPDATE_DOWNGRADE:
+        return "The version is lower than the running one.";
+    case LC_ERROR_UPDATE_VERSION_REJECTED:
+        return "The image version is not accepted.";
+    case LC_ERROR_UPDATE_DOWNLOAD_FAILED:
+        return "The image could not be downloaded.";
+    case LC_ERROR_UPDATE_VERIFY_FAILED:
+        return "The image could not be verified.";
     case LC_ERROR_NONE:
     case LC_ERROR_UNKNOWN_ERROR:
     default:
@@ -443,6 +546,15 @@ void lc_codec_begin_message(lc_json_writer_t *writer, char *out, size_t capacity
     lc_json_string(writer, envelope->timestamp);
 }
 
+static const char *success_message(const lc_command_result_t *result)
+{
+    if (result->applied_config_hash[0] != '\0') {
+        return "Config applied.";
+    }
+    return strcmp(result->action_name, "update_firmware") == 0 ? "Update accepted; download started."
+                                                               : "Command executed.";
+}
+
 size_t lc_mqtt_encode_response(const lc_command_result_t *result,
                                const lc_mqtt_envelope_t *envelope, char *out, size_t capacity)
 {
@@ -458,8 +570,7 @@ size_t lc_mqtt_encode_response(const lc_command_result_t *result,
     lc_json_string(&writer, success ? "success" : "error");
     if (success) {
         lc_json_key(&writer, "message", false);
-        lc_json_string(&writer, result->applied_config_hash[0] != '\0' ? "Config applied."
-                                                                       : "Command executed.");
+        lc_json_string(&writer, success_message(result));
         if (result->applied_config_hash[0] != '\0') {
             lc_json_key(&writer, "applied_config_hash", false);
             lc_json_string(&writer, result->applied_config_hash);
@@ -475,6 +586,7 @@ size_t lc_mqtt_encode_response(const lc_command_result_t *result,
 }
 
 size_t lc_mqtt_encode_heartbeat(uint32_t uptime_seconds, bool bus_connected,
+                                const lc_firmware_status_t *firmware,
                                 const lc_mqtt_envelope_t *envelope, char *out, size_t capacity)
 {
     lc_json_writer_t writer;
@@ -485,6 +597,22 @@ size_t lc_mqtt_encode_heartbeat(uint32_t uptime_seconds, bool bus_connected,
     /* The key name is the contract's; the bus here is RS485, not Modbus. */
     lc_json_key(&writer, "modbus_connected", false);
     lc_json_bool(&writer, bus_connected);
+    if (firmware != NULL && firmware->version[0] != '\0') {
+        lc_json_key(&writer, "firmware_version", false);
+        lc_json_string(&writer, firmware->version);
+        lc_json_key(&writer, "trial", false);
+        lc_json_bool(&writer, firmware->trial);
+        lc_json_key(&writer, "running_slot", false);
+        lc_json_string(&writer, firmware->slot == LC_OTA_SLOT_1 ? "ota_1" : "ota_0");
+        if (firmware->last_rollback_version[0] != '\0') {
+            lc_json_key(&writer, "last_rollback_version", false);
+            lc_json_string(&writer, firmware->last_rollback_version);
+        }
+        if (firmware->update_capable) {
+            lc_json_key(&writer, "capabilities", false);
+            lc_json_raw(&writer, "[\"firmware_update\"]");
+        }
+    }
     lc_json_raw(&writer, "}");
     return lc_json_finish(&writer);
 }

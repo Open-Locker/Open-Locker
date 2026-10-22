@@ -273,7 +273,7 @@ void test_S2_H09_outbound_messages_carry_a_uuid_message_id_and_utc_timestamp(voi
     TEST_ASSERT_EQUAL_STRING("2026-04-14T19:31:00Z", envelope.timestamp);
     TEST_ASSERT_EQUAL_STRING("2026-04-14T19:32:01Z", other.timestamp);
 
-    TEST_ASSERT_TRUE(lc_mqtt_encode_heartbeat(60, true, &envelope, encoded, sizeof(encoded)) > 0);
+    TEST_ASSERT_TRUE(lc_mqtt_encode_heartbeat(60, true, NULL, &envelope, encoded, sizeof(encoded)) > 0);
     cJSON *message = emit_message("payloads/state-heartbeat.json", encoded);
     TEST_ASSERT_EQUAL_STRING(envelope.message_id, emitted_string(message, "message_id"));
     TEST_ASSERT_EQUAL_STRING(envelope.timestamp, emitted_string(message, "timestamp"));
@@ -340,6 +340,145 @@ void test_S2_H10_responses_match_their_schemas(void)
     TEST_ASSERT_EQUAL_UINT(0, lc_mqtt_encode_response(&result, &envelope, encoded, 16));
 }
 
+/* The defect of an update_firmware command whose `data` is `data_json`. */
+static lc_error_t update_defect(const char *data_json)
+{
+    char text[LC_MQTT_PAYLOAD_MAX];
+    snprintf(text, sizeof(text),
+             "{\"message_id\":\"m\",\"transaction_id\":\"t\",\"action\":\"update_firmware\","
+             "\"timestamp\":\"2026-10-22T09:00:00Z\",\"data\":%s}",
+             data_json);
+    TEST_ASSERT_TRUE(decode(text));
+    return command.defect;
+}
+
+void test_S7_H05_malformed_non_https_and_over_long_updates_are_update_invalid(void)
+{
+    char data[LC_MQTT_PAYLOAD_MAX];
+    char url[300];
+
+    TEST_ASSERT_EQUAL_INT(LC_ERROR_UPDATE_INVALID, update_defect("{}"));
+    TEST_ASSERT_EQUAL_INT(LC_ERROR_UPDATE_INVALID, update_defect("{\"version\":\"1.0.0\"}"));
+    TEST_ASSERT_EQUAL_INT(LC_ERROR_UPDATE_INVALID,
+                          update_defect("{\"url\":\"https://example.com/a.bin\"}"));
+    TEST_ASSERT_EQUAL_INT(LC_ERROR_UPDATE_INVALID,
+                          update_defect("{\"version\":1,\"url\":\"https://example.com/a.bin\"}"));
+    TEST_ASSERT_EQUAL_INT(LC_ERROR_UPDATE_INVALID,
+                          update_defect("{\"version\":\"1.0.0\",\"url\":\"https://e.com/a\","
+                                        "\"allow_downgrade\":\"yes\"}"));
+
+    /* A version that is not x.y.z with an optional suffix, or that does not fit. */
+    static const char *const BAD_VERSIONS[] = {"", "1", "1.0", "v1.0.0", "1.0.0.0", "1.0.0-",
+                                               "1.0.0 beta", "1.0.0-a_b",
+                                               "1.0.0-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"};
+    for (size_t i = 0; i < sizeof(BAD_VERSIONS) / sizeof(BAD_VERSIONS[0]); ++i) {
+        snprintf(data, sizeof(data), "{\"version\":\"%s\",\"url\":\"https://e.com/a\"}",
+                 BAD_VERSIONS[i]);
+        TEST_ASSERT_EQUAL_INT_MESSAGE(LC_ERROR_UPDATE_INVALID, update_defect(data), BAD_VERSIONS[i]);
+    }
+
+    /* Only HTTPS, with a host, in printable ASCII. */
+    static const char *const BAD_URLS[] = {"", "http://e.com/a.bin", "HTTP://e.com/a.bin",
+                                           "ftp://e.com/a.bin", "https:/e.com", "https://",
+                                           "//e.com/a.bin", "e.com/a.bin", "https://e.com/a b",
+                                           "https://e.com/a\\u0001b", "HTTPS://e.com/a.bin"};
+    for (size_t i = 0; i < sizeof(BAD_URLS) / sizeof(BAD_URLS[0]); ++i) {
+        snprintf(data, sizeof(data), "{\"version\":\"1.0.0\",\"url\":\"%s\"}", BAD_URLS[i]);
+        TEST_ASSERT_EQUAL_INT_MESSAGE(LC_ERROR_UPDATE_INVALID, update_defect(data), BAD_URLS[i]);
+    }
+
+    /* 256 characters fit; one more does not. */
+    memset(url, 'a', sizeof(url));
+    memcpy(url, "https://e.com/", 14);
+    url[256] = '\0';
+    snprintf(data, sizeof(data), "{\"version\":\"1.0.0\",\"url\":\"%s\"}", url);
+    TEST_ASSERT_EQUAL_INT(LC_ERROR_NONE, update_defect(data));
+    TEST_ASSERT_EQUAL_STRING(url, command.firmware.url);
+    url[256] = 'a';
+    url[257] = '\0';
+    snprintf(data, sizeof(data), "{\"version\":\"1.0.0\",\"url\":\"%s\"}", url);
+    TEST_ASSERT_EQUAL_INT(LC_ERROR_UPDATE_INVALID, update_defect(data));
+
+    /* The error schema allows only UPDATE_* codes, so a bad envelope is UPDATE_INVALID too. */
+    static const char *const BAD_ENVELOPES[] = {
+        "{\"transaction_id\":\"t\",\"message_id\":\"m\",\"action\":\"update_firmware\","
+        "\"timestamp\":\"2026-10-22T09:00:00Z\"}",
+        "{\"transaction_id\":\"t\",\"message_id\":\"m\",\"action\":\"update_firmware\","
+        "\"timestamp\":\"2026-10-22T09:00:00Z\",\"data\":[]}",
+        "{\"transaction_id\":\"t\",\"message_id\":\"m\",\"action\":\"update_firmware\","
+        "\"timestamp\":\"yesterday\",\"data\":{}}",
+        "{\"transaction_id\":\"t\",\"action\":\"update_firmware\","
+        "\"timestamp\":\"2026-10-22T09:00:00Z\",\"data\":{}}",
+    };
+    for (size_t i = 0; i < sizeof(BAD_ENVELOPES) / sizeof(BAD_ENVELOPES[0]); ++i) {
+        TEST_ASSERT_TRUE_MESSAGE(decode(BAD_ENVELOPES[i]), BAD_ENVELOPES[i]);
+        TEST_ASSERT_EQUAL_INT_MESSAGE(LC_ERROR_UPDATE_INVALID, command.defect, BAD_ENVELOPES[i]);
+    }
+}
+
+void test_S7_H13_update_messages_match_their_schemas(void)
+{
+    static const struct {
+        lc_error_t error;
+        const char *code;
+    } REFUSALS[] = {
+        {LC_ERROR_UPDATE_INVALID, "UPDATE_INVALID"},
+        {LC_ERROR_UPDATE_BUSY, "UPDATE_BUSY"},
+        {LC_ERROR_UPDATE_NOT_READY, "UPDATE_NOT_READY"},
+        {LC_ERROR_UPDATE_SAME_VERSION, "UPDATE_SAME_VERSION"},
+        {LC_ERROR_UPDATE_DOWNGRADE, "UPDATE_DOWNGRADE"},
+        {LC_ERROR_UPDATE_VERSION_REJECTED, "UPDATE_VERSION_REJECTED"},
+    };
+
+    lc_command_result_t result = result_for("update_firmware", LC_ERROR_NONE);
+    TEST_ASSERT_TRUE(lc_mqtt_encode_response(&result, &envelope, encoded, sizeof(encoded)) > 0);
+    cJSON *message = emit_message("payloads/response-update-firmware-success.json", encoded);
+    TEST_ASSERT_EQUAL_STRING("update_firmware", emitted_string(message, "action"));
+    TEST_ASSERT_EQUAL_STRING("Update accepted; download started.", emitted_string(message, "message"));
+    cJSON_Delete(message);
+
+    for (size_t i = 0; i < sizeof(REFUSALS) / sizeof(REFUSALS[0]); ++i) {
+        result = result_for("update_firmware", REFUSALS[i].error);
+        TEST_ASSERT_TRUE(lc_mqtt_encode_response(&result, &envelope, encoded, sizeof(encoded)) > 0);
+        message = emit_message("payloads/response-update-firmware-error.json", encoded);
+        TEST_ASSERT_EQUAL_STRING(REFUSALS[i].code, emitted_string(message, "error_code"));
+        cJSON_Delete(message);
+    }
+
+    /* A failure after acceptance is an event, not a second response. */
+    static const lc_error_t FAILURES[] = {LC_ERROR_UPDATE_DOWNLOAD_FAILED,
+                                          LC_ERROR_UPDATE_VERIFY_FAILED};
+    static const char *const FAILURE_CODES[] = {"UPDATE_DOWNLOAD_FAILED", "UPDATE_VERIFY_FAILED"};
+    for (size_t i = 0; i < sizeof(FAILURES) / sizeof(FAILURES[0]); ++i) {
+        lc_firmware_update_failure_t failure = {.error = FAILURES[i]};
+        snprintf(failure.transaction_id, sizeof(failure.transaction_id), "txn-fw-001");
+        TEST_ASSERT_TRUE(lc_mqtt_encode_firmware_update_failed(&failure, &envelope, encoded,
+                                                               sizeof(encoded)) > 0);
+        message = emit_message("payloads/event-firmware-update-failed.json", encoded);
+        TEST_ASSERT_EQUAL_STRING("firmware_update_failed", emitted_string(message, "event"));
+        const cJSON *data = cJSON_GetObjectItemCaseSensitive(message, "data");
+        TEST_ASSERT_EQUAL_STRING("txn-fw-001", emitted_string(data, "transaction_id"));
+        TEST_ASSERT_EQUAL_STRING(FAILURE_CODES[i], emitted_string(data, "error_code"));
+        cJSON_Delete(message);
+    }
+
+    /* The firmware fields of the heartbeat, with `trial` whenever the version is there. */
+    lc_firmware_status_t firmware = {.slot = LC_OTA_SLOT_1, .trial = true, .update_capable = true};
+    snprintf(firmware.version, sizeof(firmware.version), "0.2.0");
+    snprintf(firmware.last_rollback_version, sizeof(firmware.last_rollback_version), "0.1.9");
+    TEST_ASSERT_TRUE(lc_mqtt_encode_heartbeat(120, true, &firmware, &envelope, encoded,
+                                              sizeof(encoded)) > 0);
+    message = emit_message("payloads/state-heartbeat.json", encoded);
+    TEST_ASSERT_EQUAL_STRING("0.2.0", emitted_string(message, "firmware_version"));
+    TEST_ASSERT_EQUAL_STRING("ota_1", emitted_string(message, "running_slot"));
+    TEST_ASSERT_TRUE(cJSON_IsTrue(cJSON_GetObjectItemCaseSensitive(message, "trial")));
+    TEST_ASSERT_EQUAL_STRING("0.1.9", emitted_string(message, "last_rollback_version"));
+    const cJSON *capabilities = cJSON_GetObjectItemCaseSensitive(message, "capabilities");
+    TEST_ASSERT_EQUAL_INT(1, cJSON_GetArraySize(capabilities));
+    TEST_ASSERT_EQUAL_STRING("firmware_update", cJSON_GetArrayItem(capabilities, 0)->valuestring);
+    cJSON_Delete(message);
+}
+
 int main(void)
 {
     UNITY_BEGIN();
@@ -353,5 +492,7 @@ int main(void)
     RUN_TEST(test_S2_H08_gap_overlap_or_oversize_discards_the_message);
     RUN_TEST(test_S2_H09_outbound_messages_carry_a_uuid_message_id_and_utc_timestamp);
     RUN_TEST(test_S2_H10_responses_match_their_schemas);
+    RUN_TEST(test_S7_H05_malformed_non_https_and_over_long_updates_are_update_invalid);
+    RUN_TEST(test_S7_H13_update_messages_match_their_schemas);
     return UNITY_END();
 }

@@ -341,6 +341,20 @@ Host suite `test_console_protocol`:
 | --- | --- |
 | S6-H14 | A production build has no `configure`, `unlock`, `command` or `reset-network`: the console answers them like any unknown word |
 
+### Over-the-air updates (S7)
+
+Not implemented as a whole yet: `IMPLEMENTED_SLICES` gains 7 with the last
+slice. IDs of this area whose test exists are already checked against this
+list. The decisions are in ADR-0075 and ADR-0076. S7-H14 (S1 to S5 pass
+unchanged) is the existing suites staying green, not a test of its own.
+
+Host suite `test_mqtt_codec`:
+
+| ID | Test |
+| --- | --- |
+| S7-H05 | A malformed `update_firmware` command, a non-HTTPS URL and a URL over 256 characters are `UPDATE_INVALID` |
+| S7-H13 | The `update_firmware` responses, the `firmware_update_failed` event and the firmware heartbeat fields validate against their schemas |
+
 ## Hardware acceptance
 
 Everything that needs the real board, converter, panel, lock, Wi-Fi or broker

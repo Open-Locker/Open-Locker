@@ -33,7 +33,9 @@ uploaded signed.
    calls the aggregate, which records `FirmwareUpdateRequested` (locker, release
    id, version, transaction id, `allow_downgrade`). The event holds **no URL**.
    A reactor builds the signed URL and publishes `update_firmware` through a
-   typed publisher in `app/Mqtt/Publishers/` (ADR-0008). The action is offered
+   typed publisher in `app/Mqtt/Publishers/` (ADR-0008). The signed URL must fit
+   in **256 characters**, the limit of the command (ADR-0076); the example is
+   about 152, so the host, path and signature leave little room to grow. The action is offered
    only for a locker whose heartbeat lists `firmware_update`.
 4. **Rollout status is event-sourced.** The command response and the
    `firmware_update_failed` event move the state: success to *downloading*, an
