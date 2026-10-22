@@ -22,27 +22,62 @@ uploaded signed.
 
 ## Decision
 
-1. **`firmware_releases` table** (model, no event): version (unique), stored
-   image file, size, SHA-256, an `invalid` flag, uploader and upload time.
-   Operators upload an already signed image in the Filament panel and can mark a
-   release invalid, which hides it from the update action.
-2. **Download route.** A signed GET route serves a release's image to a locker.
-   The link is made with `URL::temporarySignedRoute`, valid 15 minutes, naming
-   one release and one locker. An expired or tampered link returns 403.
+1. **`firmware_releases` table** (model, no event): uuid, version (unique,
+   semantic versioning, checked when it is saved), stored image file on the
+   app's default disk, size, SHA-256, an `invalid` flag, uploader and upload time
+   (`created_at`). Operators upload an already signed image in the Filament panel
+   and can mark a release invalid, which hides it from the update action and
+   stops its download.
+2. **Download route.** `GET /api/firmware/{release}/{lockerBank}` with the
+   `signed` middleware serves a release's image to a locker. The link is made
+   with `URL::temporarySignedRoute`, valid 15 minutes, naming one release and one
+   locker bank. An expired or tampered link returns 403.
+   - **The signed link is the credential.** There is no auth guard and no
+     Policy, because the device has no user; the signature stands for the
+     decision made when the update was requested. A deleted bank gives 404.
+   - **A valid link is not enough.** The image is served only while that bank
+     has this release in flight (*requested* or *downloading*); otherwise 403. A
+     link that outlives its update, or was made for another update, is refused
+     like any bad link. An invalid release or a missing file is 404.
+   - **Rate limit.** 10 requests a minute per bank (a named limiter, not per
+     address), which leaves room for the one download and a few retries of a
+     device whose connection dropped, and does not make lockers behind one
+     address compete.
+   - The route is left out of the OpenAPI document: only lockers use it.
 3. **Requesting an update.** The admin action "Update firmware" on a locker bank
-   calls the aggregate, which records `FirmwareUpdateRequested` (locker, release
-   id, version, transaction id, `allow_downgrade`). The event holds **no URL**.
-   A reactor builds the signed URL and publishes `update_firmware` through a
-   typed publisher in `app/Mqtt/Publishers/` (ADR-0008). The signed URL must fit
-   in **256 characters**, the limit of the command (ADR-0076); the example is
-   about 152, so the host, path and signature leave little room to grow. The action is offered
-   only for a locker whose heartbeat lists `firmware_update`.
+   calls `LockerService::requestFirmwareUpdate()`, which reads the bank again
+   under a lock and asks the aggregate, which records `FirmwareUpdateRequested`
+   (locker, release id, version, transaction id, `allow_downgrade`, actor). The
+   event holds **no URL**. A reactor builds the signed URL and publishes
+   `update_firmware` through a typed publisher in `app/Mqtt/Publishers/`
+   (ADR-0008).
+   - **Refusals.** A bank that is not provisioned, whose heartbeat did not
+     advertise `firmware_update` (`firmware_update_capable`), with an update
+     already in flight, an invalid release, or a download link the firmware
+     would refuse: not an `https://` URL, or longer than **256 characters**, the
+     limit of the command (ADR-0076). The last is checked when the request is
+     made, because the public URL decides it; a signed link is about 190
+     characters with a normal host, so a very long host leaves no room. The
+     publisher checks again before it sends and then logs the length, not the
+     link, and sends nothing.
+   - **A refusal is not stored as an event.** It changes nothing in the system,
+     and the operator who asked sees the reason at once; an event would only
+     put a failed attempt into the audit log and the event history, and the
+     request can simply be made again.
 4. **Rollout status is event-sourced.** The command response and the
    `firmware_update_failed` event move the state: success to *downloading*, an
    error response or the failure event to *failed* (with the error code). A
    projector writes the state onto firmware columns of `locker_banks`
-   (target version, status, transaction id, requested time, and the version the
-   latest heartbeat reported).
+   (`firmware_update_status`, transaction id, release id, target version, error
+   code, requested time; the capability and the reported version come from the
+   heartbeat). It acts only for the transaction the bank tracks, so a late or
+   old event for another transaction is history. The response is derived in
+   `CommandResponseReactor`, behind the inbox's one-response rule, and only for
+   an update this backend requested from that bank: a response from another bank
+   that carries the same transaction id changes nothing and does not use up the
+   real one. The failure event is derived in `FirmwareUpdateReactor`, once per
+   transaction and under the same single-worker `events` queue condition as
+   ADR-0040.
 5. **Completion only on a heartbeat.** The update is *completed* when a
    heartbeat reports `firmware_version` equal to the target and `trial: false`;
    a heartbeat with `trial` missing or true never completes it (ADR-0076). A
@@ -55,7 +90,13 @@ uploaded signed.
    a restart after acceptance but before the download ended, which leaves nothing
    on the device to report (ADR-0075).
 7. **One update at a time per locker, and one locker per action.** A new request
-   is refused while one is pending. No bulk or automatic rollout.
+   is refused while one is pending. No bulk or automatic rollout. The aggregate
+   cannot hold this state: the *accepted* and *failed* events come from the
+   device, outside its stream, so it would never learn that an update ended.
+   The service therefore reads the bank under `lockForUpdate` in the same
+   transaction that persists the event, and the projector (which runs in that
+   transaction) writes the status before the lock is released, so two requests
+   at once cannot both see an idle bank.
 8. **The URL is a secret on the backend too.** It must not appear in logs,
    stored events, queued job payloads or traces (see Risks).
 9. Admin UI: release list and upload form, the "Update firmware" action, and the
@@ -99,21 +140,28 @@ timeout is needed because the command inbox and ADR-0070 allow no second respons
 ### Negative
 
 - Large uploads and a signed route in a backend that was API-only for devices.
+- The one-at-a-time rule depends on a database that honours row locks
+  (PostgreSQL does). On a database that does not, two simultaneous requests could
+  both pass; the second command is then refused by the device (`UPDATE_BUSY`).
 - Operators must upload signed images; the backend cannot sign for them.
 
 ### Risks
 
-- **Open: URL logging in the backend (slice 6 must handle).** Checked on this
-  branch, no backend code changed: span attributes never carry payload bodies
-  (`MqttSpanAttributes`), `MqttTraceContext` only adds `traceparent`, and
-  `MqttTopicRedactor` redacts topics only. But the existing outbound publishers
-  log their own chosen fields (`ApplyConfigCommandPublisher`) so the new
-  publisher must not log the URL, and the generic inbound handler
-  (`AbstractInboundMqttHandler`) logs the whole received message and rejected
-  payloads. The command goes out on the command topic, not inbound, so the URL
-  is safe unless a device echoes it. The reactor's queued job and any failed-job
-  record also serialize the event; the event holds no URL, but the publisher
-  must not pass the URL through a queued job either.
+- **URL logging in the backend.** Span attributes never
+  carry payload bodies (`MqttSpanAttributes`; a test covers an
+  `update_firmware` payload), `MqttTraceContext` only adds `traceparent`, and
+  `MqttTopicRedactor` redacts topics only. `UpdateFirmwareCommandPublisher` logs
+  the transaction, release id and version, never the URL, and a test fails if
+  any log line it writes holds the signature, `expires=` or `https://`. The
+  generic inbound handler (`AbstractInboundMqttHandler`) logs whole received
+  messages, which is safe because the URL goes out on the command topic and a
+  device does not echo it. The reactor is queued and its job holds only the
+  `FirmwareUpdateRequested` event, which carries the release id; the URL is made
+  inside the job and never leaves it, so failed-job records hold none. The
+  php-mqtt client logs every published message, link included, at debug level
+  when `MQTT_ENABLE_LOGGING` is true (it is false in every example env file); a
+  test fails if any MQTT connection turns it on by default. Anyone who enables
+  it for debugging in production logs live download links for 15 minutes each.
 - **Open: backend signature check at upload.** Whether the backend verifies the
   image signature with the public key to reject a bad upload early (proposal:
   later; the device always checks).
@@ -124,9 +172,8 @@ timeout is needed because the command inbox and ADR-0070 allow no second respons
 ## Rollout / Migration
 
 New migrations for `firmware_releases` and the `locker_banks` firmware columns.
-Backend slices: release table, request, publish and download; then heartbeat,
-completion and timeout; then admin UI. Existing lockers report no
-`firmware_version` and stay as they are.
+Existing lockers report no `firmware_version` or capability and stay as they are
+until a firmware that does is installed.
 
 ## Supersedes / Superseded By
 
@@ -139,4 +186,5 @@ completion and timeout; then admin UI. Existing lockers report no
 - Related docs: [ADR-0075](0075-esp32-ota-firmware-updates.md),
   [ADR-0076](0076-update-firmware-mqtt-command-and-heartbeat-fields.md),
   [ADR-0070](0070-esp32-command-journal-record-format-and-retention.md),
+  [ADR-0040](0040-separate-command-acknowledgement-from-door-open-detection.md),
   ADR-0054, ADR-0008

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Enums\FirmwareUpdateStatus;
 use App\Enums\LockerAdapterType;
 use App\Enums\LockerFeedbackType;
 use Carbon\CarbonImmutable;
@@ -31,6 +32,13 @@ use Illuminate\Database\Eloquent\Relations\HasManyThrough;
  * @property-read string $connection_status
  * @property-read CarbonImmutable|null $connection_status_changed_at
  * @property-read CarbonImmutable|null $last_compartment_state_change_at
+ * @property-read bool $firmware_update_capable
+ * @property-read FirmwareUpdateStatus|null $firmware_update_status
+ * @property-read string|null $firmware_update_release_id
+ * @property-read string|null $firmware_update_transaction_id
+ * @property-read string|null $firmware_update_target_version
+ * @property-read string|null $firmware_update_error_code
+ * @property-read CarbonImmutable|null $firmware_update_requested_at
  * @property-read Collection<int, Compartment> $compartments
  * @property-read int|null $compartments_count
  */
@@ -66,6 +74,13 @@ class LockerBank extends Model
         'last_config_sent_hash',
         'last_config_ack_at',
         'last_config_ack_hash',
+        'firmware_update_capable',
+        'firmware_update_status',
+        'firmware_update_transaction_id',
+        'firmware_update_release_id',
+        'firmware_update_target_version',
+        'firmware_update_error_code',
+        'firmware_update_requested_at',
     ];
 
     protected $casts = [
@@ -80,6 +95,9 @@ class LockerBank extends Model
         'last_compartment_state_change_at' => 'datetime',
         'last_config_sent_at' => 'datetime',
         'last_config_ack_at' => 'datetime',
+        'firmware_update_capable' => 'boolean',
+        'firmware_update_status' => FirmwareUpdateStatus::class,
+        'firmware_update_requested_at' => 'datetime',
     ];
 
     /**

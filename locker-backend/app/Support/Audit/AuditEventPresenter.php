@@ -259,6 +259,19 @@ class AuditEventPresenter
                 'bank' => $this->lockerBank($p['lockerBankUuid'] ?? null),
                 'error' => $p['errorCode'] ?? $p['message'] ?? '-',
             ]),
+            // Names the release by its version; the event holds no download link, which is a credential.
+            'FirmwareUpdateRequested' => __(':actor requested firmware :version for locker bank :bank', [
+                'actor' => $this->user($p['actorUserId'] ?? null),
+                'version' => $p['version'] ?? '-',
+                'bank' => $this->lockerBank($p['lockerBankUuid'] ?? null),
+            ]),
+            'FirmwareUpdateAccepted' => __('Locker bank :bank accepted the firmware update and started downloading', [
+                'bank' => $this->lockerBank($p['lockerBankUuid'] ?? null),
+            ]),
+            'FirmwareUpdateFailed' => __('Firmware update of locker bank :bank failed (:error)', [
+                'bank' => $this->lockerBank($p['lockerBankUuid'] ?? null),
+                'error' => $p['errorCode'] ?? $p['message'] ?? '-',
+            ]),
             'GroupCreated' => __(':actor created group :group', [
                 'actor' => $this->user($p['actorUserId'] ?? null),
                 'group' => $p['name'] ?? $this->group($p['groupUuid'] ?? null),
