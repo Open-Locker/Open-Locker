@@ -14,6 +14,7 @@
 #include "lc_application/provision_device.h"
 #include "lc_journal/journal.h"
 #include "lc_net_wifi/wifi.h"
+#include "lc_ota_espidf/ota.h"
 #include "lc_rs485_lock_board/bus.h"
 #include "lc_rs485_lock_board/codec.h"
 #include "lc_serial_uart/serial_uart.h"
@@ -88,6 +89,21 @@ static void restart_device(void *ctx)
     (void)ctx;
     vTaskDelay(pdMS_TO_TICKS(RESTART_DELAY_MS));
     esp_restart();
+}
+
+/* The download task reports to the owner task, which runs the use case. */
+static void ota_verified(void *ctx)
+{
+    (void)ctx;
+    const lc_event_t event = {.kind = LC_EVENT_FIRMWARE_VERIFIED};
+    (void)owner_post_app(&event);
+}
+
+static void ota_failed(void *ctx, lc_error_t error)
+{
+    (void)ctx;
+    const lc_event_t event = {.kind = LC_EVENT_FIRMWARE_FAILED, .error = error};
+    (void)owner_post_app(&event);
 }
 
 static void stop_commands(void *ctx)
@@ -261,6 +277,10 @@ void app_main(void)
     const bool configured = settings_store.load(settings_store.ctx, &settings);
 
     const lc_system_port_t system = {.ctx = NULL, .restart = restart_device};
+    const lc_ota_config_t ota_config = {
+        .on_verified = ota_verified,
+        .on_failed = ota_failed,
+    };
 
     /* Without network settings there is no broker: the console stands in for it. */
     const lc_app_ports_t app_ports = {
@@ -270,6 +290,7 @@ void app_main(void)
         .config_store = config_store,
         .hasher = {.ctx = NULL, .sha256_hex = sha256_hex},
         .clock = clock_port,
+        .firmware_update = lc_ota_port(&ota_config),
         .system = system,
     };
     lc_app_init(&app, &app_ports);

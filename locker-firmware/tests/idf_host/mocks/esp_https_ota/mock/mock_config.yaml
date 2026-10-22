@@ -1,0 +1,13 @@
+        :cmock:
+          :enforce_strict_ordering: 1
+          # The event base is a macro the header parser cannot read as a declaration.
+          :strippables:
+            - 'ESP_EVENT_DECLARE_BASE\([^)]*\);?'
+          :plugins:
+            - expect
+            - expect_any_args
+            - return_thru_ptr
+            - array
+            - ignore
+            - ignore_arg
+            - callback

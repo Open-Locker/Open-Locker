@@ -15,7 +15,8 @@ image in a separate step.
 | --- | --- |
 | **Static** | Target build with warnings as errors; layer include check; compiler static analysis of the pure components |
 | **Host** | Every host suite, built with AddressSanitizer and UndefinedBehaviorSanitizer; schema validation of every emitted MQTT message; the Python tests of the tools; line coverage |
-| **IDF host** | The ESP-IDF adapters on ESP-IDF's Linux target, with the SDK below them replaced by CMock mocks generated from its real headers (`tests/idf_host/`). Needs ESP-IDF, like the target build |
+| **IDF host** | The ESP-IDF adapters on ESP-IDF's Linux target, with the SDK below them replaced by CMock mocks generated from its real headers (`tests/idf_host/`): the MQTT transport and the OTA adapter. Needs ESP-IDF, like the target build |
+| **OTA settings** | The build fails when any sdkconfig file sets `CONFIG_ESP_HTTPS_OTA_ALLOW_HTTP`, and, after the target build, when the app image (plus a 4 KiB signature block) outgrows the smaller OTA slot or the bootloader outgrows its space |
 
 Rules:
 
@@ -343,10 +344,20 @@ Host suite `test_console_protocol`:
 
 ### Over-the-air updates (S7)
 
-Not implemented as a whole yet: `IMPLEMENTED_SLICES` gains 7 with the last
-slice. IDs of this area whose test exists are already checked against this
-list. The decisions are in ADR-0075 and ADR-0076. S7-H14 (S1 to S5 pass
-unchanged) is the existing suites staying green, not a test of its own.
+The decisions are in ADR-0075, ADR-0076 and ADR-0077. S7-H14 (S1 to S5 pass
+unchanged) is the existing suites staying green, and S7-H16 (an image on trial
+writes no journal or NVS format the previous image cannot read) is not a test:
+only one format of each exists, so it cannot fail. Both are left out of the
+tables. H16 is covered by ADR-0075 decision 20 and hardware check HW-H11.
+
+The ESP-IDF adapter `lc_ota_espidf` has thin tests of its own in
+`tests/idf_host/main/test_ota.c`, on CMock mocks of `esp_https_ota.h` and
+`esp_ota_ops.h` (no IDs): the header version is checked before the first
+`perform`; a mismatch, a failed transfer or a failed `finish` leaves no slot
+selected; the adapter never calls `esp_ota_set_boot_partition()` itself
+(`esp_https_ota_finish()` selects the slot, after it checked the image); an abort
+reports nothing; and no log line contains the download token (the log part of
+S7-H12). The gates of the build settings are in `scripts/test_verify.py`.
 
 Host suite `test_mqtt_codec`:
 
@@ -486,3 +497,35 @@ went through the HW-F1 path and the HW-F7 capture on a development build.
 | --- | --- |
 | HW-G1 | **Actuates.** Run for 72 hours with an open every ten minutes: no missed response, no reset, and minimum free heap is stable between the first and last hour |
 | HW-G2 | Return the bank to the Pi client with a provisioning reset and fresh credentials, with the ESP32 disconnected from the panel |
+
+### Group H: Over-the-air updates
+
+Needs a unit flashed over USB with a signed image (`scripts/sign_firmware.py`), a
+backend with firmware releases (ADR-0077), and a second signed release. None has run
+yet. Run after groups A to E and G pass on the head of the PR.
+
+Two checks differ from the plan in issue #59 on purpose:
+
+- HW-H1 says "bootloader with rollback", not "rollback and signature checks". With app
+  signing but hardware secure boot off, the bootloader does not verify signatures at boot
+  (`CONFIG_SECURE_SIGNED_ON_BOOT_NO_SECURE_BOOT` exists only with the ECDSA scheme, which this
+  firmware does not use, ADR-0075). The signature is checked by the running app when an update
+  arrives, and HW-H4 is the check for that.
+- HW-H5 asks that the backend shows the failure, not only that the old version keeps
+  running. A unit that restarts during a download has nothing to report, and a failure event
+  can be lost, so the backend learns of both only through its timeout (ADR-0077). The check
+  proves that path end to end.
+
+| ID | Check |
+| --- | --- |
+| HW-H1 | Flash a blank board with the signed image (bootloader with rollback), enroll it, and rerun HW-A1, HW-A6, HW-C4, HW-D2 and HW-D4 |
+| HW-H2 | Update an idle unit through the backend: it restarts into the new version and the backend shows it |
+| HW-H3 | **Actuates.** An open arriving during an update, and one during the trial window of a rollback, is handled once, never twice and never lost |
+| HW-H4 | An image with a bad signature, and one signed with another key, are refused; the old version keeps running |
+| HW-H5 | A truncated image, then Wi-Fi cut mid-download: the old version keeps running and the backend shows the update failed |
+| HW-H6 | A valid image that cannot reach the broker: after the trial window the unit returns to the old version unaided |
+| HW-H7 | Cut power during the write of the new image, ten times: the unit always boots a valid image |
+| HW-H8 | After an update and after a rollback: identity, mapping and every journal record are intact, and the update caused no unlock |
+| HW-H9 | Minimum free heap during a download with the MQTT TLS session open leaves the owner task stack headroom of HW-C9 |
+| HW-H10 | The bootloader flashed by this PR still boots an app built with the next ESP-IDF patch release |
+| HW-H11 | Roll back from an image on trial after it handled commands: the previous image reads the journal and keeps actuating |

@@ -99,7 +99,10 @@ board yet: the signature verification path itself (HW-H4).
 7. The download URL carries a **short-lived token** in its query string. It
    travels only on the device's private command topic and is **never logged or
    published**: not in a response, heartbeat, event, console line or error
-   message. The adapter logs the host and path only.
+   message. The adapter logs the version only, and silences the `HTTP_CLIENT`
+   log tag during a download, because the HTTP client prints the whole URL when
+   it cannot parse it. The adapter clears its copy of the URL when the download
+   ends.
 8. A failed download restarts from byte 0 on the next command. Resume
    (`ota_resumption`) is not used: it would need update state in NVS and a
    second path to test, and images are under 1.8 MB.
@@ -112,13 +115,22 @@ board yet: the signature verification path itself (HW-H4).
     starts a download and with the one response: a version equal to the running
     version, lower without `allow_downgrade`, or one this unit rolled back
     before; and a running version it cannot compare. The comparison is semantic
-    versioning (`lc_domain/version.h`) and the codes are in ADR-0076. The last
-    rolled-back version is kept in one NVS key that an older image ignores.
+    versioning (`lc_domain/version.h`) and the codes are in ADR-0076.
+    The version "this unit rolled back before" is not stored by the firmware. It
+    is the version of the slot the bootloader last marked invalid or aborted
+    (`esp_ota_get_last_invalid_partition()`, then the slot's app description).
+    That covers a crash, a watchdog reset or a power cut during a trial as well
+    as our own rollback, because the bootloader aborts a slot that is pending
+    verification on any reset. The record is gone once the next download erases
+    that slot; this is intended: the slot then holds a new image, and the same
+    version may be tried again.
     The download task then reads the image header through
     `esp_https_ota_get_img_desc()` after `begin` and **before any byte is
-    written** to the other slot; a header version different from the command's
-    ends the update as a failed verification (the event of ADR-0076), because
-    the command has been answered by then.
+    written** to the other slot. A header that cannot be read means the transfer
+    failed (`UPDATE_DOWNLOAD_FAILED`); a header version different from the
+    command's ends the update as a failed verification
+    (`UPDATE_VERIFY_FAILED`), both as the event of ADR-0076, because the command
+    has been answered by then.
 11. No eFuse anti-rollback: it is irreversible per board and adds nothing while
     secure boot is off.
 
@@ -139,10 +151,16 @@ board yet: the signature verification path itself (HW-H4).
     answer after the download was started, the application aborts the download
     (the port's `abort`): nothing is published that the journal does not hold,
     and nothing keeps running that nobody knows about.
-14. The new image is selected as the next boot slot
-    (`esp_ota_set_boot_partition`) **only after** `esp_https_ota_finish` returned
-    success, i.e. the image is verified. Any failure aborts and leaves the
-    running slot selected.
+14. The new image becomes the next boot slot **only** when
+    `esp_https_ota_finish` returns success, i.e. after the image and its
+    signature are verified. `esp_https_ota_finish` calls
+    `esp_ota_set_boot_partition` itself (checked in the ESP-IDF 6.1 source), so
+    the adapter never calls it, and the port's `select_next_slot` only says that
+    a verified image is staged. Any failure aborts before that point and leaves
+    the running slot selected. A power cut between `finish` and the restart boots
+    the new image on trial, which decision 18 covers. The application's `abort`
+    cannot undo a `finish`, but it is only used right after the download started,
+    when no download can have ended.
 15. A restart after the command was accepted but before the download ends leaves
     nothing on the device to report: the half-written slot is never selected,
     the stored answer stays "accepted", and no failure event is sent. The
@@ -279,9 +297,11 @@ image works.
   during the reboot.
 - **Open: release key custody.** Who holds the key and its offline backup, and
   whether an HSM is used. Needs an owner before the first release.
-- **Open: bench key.** Proposal: a repository-held bench key for dev builds, so
-  bench units update between bench images but never accept a release image, and
-  the reverse.
+- **Open: bench key.** Each bench makes its own bench key
+  (`scripts/sign_firmware.py --generate-key`, kept outside the repository, never
+  committed), so bench units update between bench images but never accept a
+  release image, and the reverse. Who keeps a shared bench key for a team is not
+  decided.
 - **Open: manifest polling.** Pull on command only (proposal) or also
   periodically.
 - **Open: secure boot and flash encryption timing** (irreversible), and how
@@ -294,6 +314,10 @@ image works.
   (#70).
 
 ## Rollout / Migration
+
+Measured with OTA linked (ESP-IDF 6.1): the app image is 0x120000 bytes in a
+0x1D0000 slot, the bootloader 26,288 bytes; `scripts/verify.py` fails the build
+when either outgrows its place, counting a 4 KiB signature block.
 
 Slices: contract and ADRs (this), codec, application logic, ESP-IDF adapter and
 build gates; the backend slices are in ADR-0077. Host tests S7-H01 to S7-H15 and hardware group H (HW-H1 to HW-H11) are

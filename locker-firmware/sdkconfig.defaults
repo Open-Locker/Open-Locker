@@ -27,3 +27,18 @@ CONFIG_MBEDTLS_CERTIFICATE_BUNDLE_DEFAULT_FULL=y
 # Tells the application when the library gives up on a message (MQTT_EVENT_DELETED),
 # so it can be sent again at once instead of after the application's own timeout.
 CONFIG_MQTT_REPORT_DELETED_MESSAGES=y
+
+# Over-the-air updates (ADR-0075).
+# A new image boots on trial: the application confirms it, or the unit goes back.
+CONFIG_BOOTLOADER_APP_ROLLBACK_ENABLE=y
+# Updates are checked against the RSA-3072 signature (Secure Boot v2 format) of the
+# running image, with hardware secure boot off. The format needs chip revision 3.0
+# or later. The bootloader itself does not check signatures at boot.
+CONFIG_ESP32_REV_MIN_3=y
+CONFIG_SECURE_SIGNED_APPS_NO_SECURE_BOOT=y
+CONFIG_SECURE_SIGNED_APPS_RSA_SCHEME=y
+CONFIG_SECURE_SIGNED_ON_UPDATE_NO_SECURE_BOOT=y
+# Images are signed after the build (scripts/sign_firmware.py), not by it.
+# CONFIG_SECURE_BOOT_BUILD_SIGNED_BINARIES is not set.
+# Plain HTTP is never allowed: CONFIG_ESP_HTTPS_OTA_ALLOW_HTTP stays unset, and
+# scripts/verify.py fails the build if any sdkconfig sets it.
