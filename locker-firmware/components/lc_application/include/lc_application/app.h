@@ -108,6 +108,27 @@ void lc_app_on_publish_failed(lc_app_t *app, lc_publish_id_t id);
  */
 void lc_app_tick(lc_app_t *app);
 
+/* What a driving adapter hands the owner task for the application. */
+typedef enum {
+    LC_EVENT_COMMAND = 0,
+    LC_EVENT_CONNECTED,
+    LC_EVENT_DISCONNECTED,
+    LC_EVENT_PUBLISH_ACKNOWLEDGED,
+    LC_EVENT_PUBLISH_FAILED,
+    LC_EVENT_TICK,
+} lc_event_kind_t;
+
+typedef struct {
+    lc_event_kind_t kind;
+    /* LC_EVENT_PUBLISH_ACKNOWLEDGED, LC_EVENT_PUBLISH_FAILED */
+    lc_publish_id_t publish_id;
+    /* LC_EVENT_COMMAND */
+    lc_command_t command;
+} lc_event_t;
+
+/* Runs the use case for one event. */
+void lc_app_dispatch(lc_app_t *app, const lc_event_t *event);
+
 /* New commands get LC_ERROR_SHUTTING_DOWN from now on. */
 void lc_app_begin_closing(lc_app_t *app);
 

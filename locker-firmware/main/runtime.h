@@ -6,7 +6,6 @@
 
 #include "lc_application/app.h"
 #include "lc_application/commission_device.h"
-#include "lc_application/inbox.h"
 #include "lc_application/provision_device.h"
 #include "lc_domain/identity.h"
 #include "lc_journal/journal.h"
@@ -66,7 +65,6 @@ typedef struct {
     lc_app_t *app;
     lc_provision_t *provision;
     lc_commission_t *commission;
-    lc_inbox_t *inbox;
     /* Its background work runs on idle ticks; the app reaches it only through its port. */
     lc_journal_t *journal;
     lc_settings_store_port_t settings_store;

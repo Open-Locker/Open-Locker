@@ -160,7 +160,7 @@ Host suite `test_handle_command`, with call-order recording fakes:
 | S2-H38 | With the response refused after the bus call, as when no memory is left to encode it, a final outcome is still committed; a journal that cannot commit it keeps the claim and never unlocks again |
 | S2-H39 | While closing, a new command yields `SHUTTING_DOWN` and no bus call |
 
-Suites `test_open_compartment`, `test_apply_config`, `test_owner_inbox`:
+Suites `test_open_compartment`, `test_apply_config`, `test_app_dispatch`:
 
 | ID | Test |
 | --- | --- |
@@ -174,9 +174,8 @@ Suites `test_open_compartment`, `test_apply_config`, `test_owner_inbox`:
 | S2-H47 | A valid `apply_config` is saved and acknowledged while the bus is disconnected |
 | S2-H48 | A store failure yields an error and the previous configuration stays in effect |
 | S2-H49 | A rejected `apply_config` leaves the previous configuration in effect |
-| S2-H50 | Inbox items run strictly one at a time, in arrival order; an `apply_config` queued behind an open runs only after the open has completed |
-| S2-H51 | A full inbox drops the new item with no bus call |
-| S2-H52 | While an acknowledgement is outstanding, the owner task goes on processing inbox items |
+| S2-H50 | Events run strictly one at a time, in arrival order; an `apply_config` arriving behind an open runs only after the open has completed |
+| S2-H52 | While an acknowledgement is outstanding, the owner task goes on processing events |
 | S2-H53 | An acknowledgement event for an unknown or already delivered response changes nothing |
 
 ### Network, MQTT and enrollment (S3)
@@ -268,7 +267,7 @@ Host suite `test_console_protocol`:
 | S5-H12 | A partial line idle past the timeout is discarded |
 | S5-H13 | An unknown command gets an error reply and changes nothing |
 | S5-H14 | No reply contains any submitted value |
-| S5-H15 | Input processed per pass is bounded, so a flood cannot starve the inbox |
+| S5-H15 | Input processed per pass is bounded, so a flood cannot starve the owner task |
 
 Tool suite `test_commission.py` (unittest, runs in the host gate):
 

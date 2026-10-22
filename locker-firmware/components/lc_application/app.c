@@ -204,6 +204,30 @@ void lc_app_begin_closing(lc_app_t *app)
     app->closing = true;
 }
 
+void lc_app_dispatch(lc_app_t *app, const lc_event_t *event)
+{
+    switch (event->kind) {
+    case LC_EVENT_COMMAND:
+        lc_app_handle_command(app, &event->command);
+        break;
+    case LC_EVENT_CONNECTED:
+        lc_app_on_connected(app);
+        break;
+    case LC_EVENT_DISCONNECTED:
+        lc_app_on_disconnected(app);
+        break;
+    case LC_EVENT_PUBLISH_ACKNOWLEDGED:
+        lc_app_on_publish_acknowledged(app, event->publish_id);
+        break;
+    case LC_EVENT_PUBLISH_FAILED:
+        lc_app_on_publish_failed(app, event->publish_id);
+        break;
+    case LC_EVENT_TICK:
+        lc_app_tick(app);
+        break;
+    }
+}
+
 const lc_config_t *lc_app_config(const lc_app_t *app)
 {
     return &app->config;

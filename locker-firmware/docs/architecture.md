@@ -125,8 +125,8 @@ typedef struct {
 
 Outbound calls never wait for the broker. A call returns a publish ID when the
 MQTT adapter accepted the message, or `LC_PUBLISH_REFUSED`. The broker's
-acknowledgement (PUBACK), a failure or a timeout arrive later as inbox events
-carrying that ID. Only the acknowledgement marks a command response as
+acknowledgement (PUBACK), a failure or a timeout arrive later as owner-queue
+events carrying that ID. Only the acknowledgement marks a command response as
 delivered in the journal, so "delivered" means the broker has it, and the owner
 task keeps polling doors in the meantime.
 
@@ -140,8 +140,9 @@ inside the MQTT adapter), `hasher_port.h` (SHA-256) and `system_port.h`
 ## Task model
 
 - One **owner task** runs every use case. Driving adapters never call a use
-  case directly; they post to a bounded inbox (MQTT message, connected,
-  subscribed, publish acknowledged, publish failed, console line, tick). This
+  case directly; they post to the owner task's bounded queue (MQTT message,
+  connected, subscribed, publish acknowledged, publish failed, console line,
+  tick). This
   is why `apply_config` cannot race an unlock, and it is the only concurrency
   rule the application relies on.
 - One **bus worker** behind the locker bus port owns the UART.
@@ -352,7 +353,7 @@ also turns on flash and NVS encryption.
 | Heartbeat | A periodic MQTT message saying the device is alive and whether it can reach the panel. |
 | Hexagonal architecture | A structure in which the domain and use cases sit in the middle and reach every technology only through ports. Also called ports and adapters. |
 | Host test | A test that compiles the firmware's C code for a normal computer and runs it there, with no ESP32 involved. |
-| Inbox | The fixed-size queue in front of the owner task. |
+| Owner queue | The fixed-size FreeRTOS queue in front of the owner task. |
 | Journal | The log in flash that records every command before and after it is acted on. See [Command journal](#command-journal). |
 | Kconfig | The build-time configuration system of ESP-IDF, used here for pins and serial settings. |
 | Last Will | A message a device registers with the broker in advance. The broker publishes it if the device disappears without saying goodbye. |

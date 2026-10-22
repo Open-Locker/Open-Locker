@@ -52,13 +52,13 @@ bool owner_post_app(const lc_event_t *event)
     return owner_post(&wrapped);
 }
 
-static void post_to_inbox(lc_event_kind_t kind)
+static void dispatch(lc_event_kind_t kind)
 {
     lc_event_t event;
 
     memset(&event, 0, sizeof(event));
     event.kind = kind;
-    (void)lc_inbox_post(owner.inbox, &event);
+    lc_app_dispatch(owner.app, &event);
 }
 
 static void refresh_device_state(void)
@@ -137,7 +137,7 @@ static void on_subscribed(int message_id)
     if (lc_provision_identity(owner.provision)->enrolled) {
         /* Commands are taken only from here on (S3-H11). */
         if (message_id == command_subscription) {
-            post_to_inbox(LC_EVENT_CONNECTED);
+            dispatch(LC_EVENT_CONNECTED);
             lc_commission_set_online(owner.commission, true);
         }
     } else if (message_id == mqtt_session_reply_subscription()) {
@@ -177,7 +177,7 @@ static void handle(owner_event_t *event)
 {
     switch (event->kind) {
     case OWNER_APP:
-        (void)lc_inbox_post(owner.inbox, &event->u.app);
+        lc_app_dispatch(owner.app, &event->u.app);
         break;
     case OWNER_NETWORK_UP:
         network_up = true;
@@ -192,7 +192,7 @@ static void handle(owner_event_t *event)
         break;
     case OWNER_TRANSPORT_DISCONNECTED:
         if (lc_provision_identity(owner.provision)->enrolled) {
-            post_to_inbox(LC_EVENT_DISCONNECTED);
+            dispatch(LC_EVENT_DISCONNECTED);
             lc_commission_set_online(owner.commission, false);
         }
         break;
@@ -236,11 +236,8 @@ static void owner_task(void *arg)
                 (void)lc_journal_maintain(owner.journal);
             }
             lc_provision_tick(owner.provision);
-            post_to_inbox(LC_EVENT_TICK);
+            dispatch(LC_EVENT_TICK);
             maybe_start_session();
-        }
-
-        while (lc_inbox_step(owner.inbox, owner.app)) {
         }
     }
 }

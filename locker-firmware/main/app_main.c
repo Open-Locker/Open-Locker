@@ -10,7 +10,6 @@
 #include "freertos/task.h"
 #include "lc_application/app.h"
 #include "lc_application/commission_device.h"
-#include "lc_application/inbox.h"
 #include "lc_application/provision_device.h"
 #include "lc_journal/journal.h"
 #include "lc_net_wifi/wifi.h"
@@ -51,7 +50,6 @@ static lc_rs485_bus_t rs485_bus;
 static lc_partition_t journal_partition;
 static lc_journal_t journal;
 static lc_app_t app;
-static lc_inbox_t inbox;
 static lc_provision_t provision;
 static lc_commission_t commission;
 static lc_console_t console;
@@ -216,7 +214,6 @@ void app_main(void)
         .hasher = {.ctx = NULL, .sha256_hex = sha256_hex},
         .clock = clock_port,
     };
-    lc_inbox_init(&inbox);
     lc_app_init(&app, &app_ports);
     /* A torn last record is compacted away before recovery appends to the journal. */
     while (lc_journal_maintain(&journal)) {
@@ -251,7 +248,6 @@ void app_main(void)
         .app = &app,
         .provision = &provision,
         .commission = &commission,
-        .inbox = &inbox,
         .journal = &journal,
         .settings_store = settings_store,
         .system = system,

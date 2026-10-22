@@ -3,7 +3,6 @@
 
 #include "fakes/app_fixture.h"
 #include "fakes/emitted.h"
-#include "lc_application/inbox.h"
 #include "lc_mqtt_codec/codec.h"
 #include "unity.h"
 
@@ -13,8 +12,8 @@
 
 static const uint8_t RANDOM[16] = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
 
-static lc_inbox_t inbox;
 static bool open_posted;
+static lc_event_t queued_open;
 static char encoded[2048];
 
 void setUp(void)
@@ -244,17 +243,15 @@ static void post_open_during_read(void *ctx)
         return;
     }
     open_posted = true;
-    lc_event_t event;
-    memset(&event, 0, sizeof(event));
-    event.kind = LC_EVENT_COMMAND;
-    event.command = fx_open("tx-during-read", "msg-during-read", 1);
-    TEST_ASSERT_TRUE(lc_inbox_post(&inbox, &event));
+    /* Queued like on the device: it runs once the current event is done. */
+    memset(&queued_open, 0, sizeof(queued_open));
+    queued_open.kind = LC_EVENT_COMMAND;
+    queued_open.command = fx_open("tx-during-read", "msg-during-read", 1);
 }
 
 void test_S4_H20_poll_and_unlock_never_overlap_on_the_bus(void)
 {
     settle();
-    lc_inbox_init(&inbox);
     open_posted = false;
     fx_bus.during_read = post_open_during_read;
 
@@ -262,9 +259,10 @@ void test_S4_H20_poll_and_unlock_never_overlap_on_the_bus(void)
     lc_event_t tick;
     memset(&tick, 0, sizeof(tick));
     tick.kind = LC_EVENT_TICK;
-    TEST_ASSERT_TRUE(lc_inbox_post(&inbox, &tick));
-    while (lc_inbox_step(&inbox, &fx_app)) {
-    }
+    lc_app_dispatch(&fx_app, &tick);
+    TEST_ASSERT_TRUE(open_posted);
+    TEST_ASSERT_EQUAL_UINT(0, fx_bus.unlock_count);
+    lc_app_dispatch(&fx_app, &queued_open);
 
     TEST_ASSERT_EQUAL_UINT(1, fx_bus.unlock_count);
     TEST_ASSERT_TRUE(fake_trace_first("bus.read") >= 0);
