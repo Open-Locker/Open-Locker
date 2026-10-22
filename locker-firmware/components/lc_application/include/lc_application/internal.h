@@ -29,6 +29,12 @@ void lc_app_flush_responses(lc_app_t *app);
 lc_command_result_t lc_app_open_compartment(lc_app_t *app, const lc_command_t *command);
 lc_command_result_t lc_app_apply_config(lc_app_t *app, const lc_command_t *command);
 lc_command_result_t lc_app_update_firmware(lc_app_t *app, const lc_command_t *command);
+/* What the heartbeat says about the firmware; NULL on a build without OTA. */
+const lc_firmware_status_t *lc_app_firmware_status(const lc_app_t *app, lc_firmware_status_t *out);
+/* Restarts into the selected image once no unlock is being watched. */
+void lc_app_check_restart(lc_app_t *app);
+/* Marks an image on trial valid once Wi-Fi, the broker and the bus have each worked. */
+void lc_app_check_trial(lc_app_t *app, int64_t now_ms);
 /* Stops the download of an update that was accepted but cannot be answered. */
 void lc_app_abort_update(lc_app_t *app);
 /* The download task's outcome. */

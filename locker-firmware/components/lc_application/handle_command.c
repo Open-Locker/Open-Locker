@@ -27,9 +27,9 @@ static bool is_update_refusal(lc_error_t error)
     case LC_ERROR_UPDATE_DOWNLOAD_FAILED:
     case LC_ERROR_UPDATE_VERIFY_FAILED:
     case LC_ERROR_UNKNOWN_ERROR:
-    default:
         return false;
     }
+    return false;
 }
 
 lc_error_t lc_app_error_for(const char *action_name, lc_error_t error)

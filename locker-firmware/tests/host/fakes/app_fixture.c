@@ -10,6 +10,7 @@ fake_journal_t fx_journal;
 fake_outbound_t fx_outbound;
 fake_config_store_t fx_config_store;
 fake_update_t fx_update;
+fake_system_t fx_system;
 lc_app_t fx_app;
 
 #define STEP_MS 100
@@ -24,6 +25,7 @@ static lc_app_ports_t ports(void)
         .hasher = fake_hasher_port(),
         .clock = fake_clock_port(&fx_clock),
         .firmware_update = fake_update_port(&fx_update),
+        .system = fake_system_port(&fx_system),
     };
 }
 
@@ -36,6 +38,7 @@ void fx_init(void)
     fake_outbound_init(&fx_outbound);
     fake_config_store_init(&fx_config_store);
     fake_update_init(&fx_update);
+    memset(&fx_system, 0, sizeof(fx_system));
     fx_restart();
 }
 
@@ -163,6 +166,9 @@ void fx_reset_counts(void)
     fx_outbound.failure_count = 0;
     fx_update.start_count = 0;
     fx_update.abort_count = 0;
+    fx_update.mark_valid_count = 0;
+    fx_update.rollback_count = 0;
+    fx_system.restart_count = 0;
     fx_update.select_count = 0;
     fx_config_store.save_count = 0;
     fx_config_store.clear_count = 0;

@@ -154,6 +154,7 @@ lc_host_test(test_journal)
 lc_host_test(test_handle_command)
 lc_host_test(test_open_compartment)
 lc_host_test(test_firmware_update)
+lc_host_test(test_trial_boot)
 lc_host_test(test_apply_config)
 lc_host_test(test_app_dispatch)
 # Beyond the test catalogue

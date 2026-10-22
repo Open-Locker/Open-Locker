@@ -147,19 +147,27 @@ board yet: the signature verification path itself (HW-H4).
     nothing on the device to report: the half-written slot is never selected,
     the stored answer stays "accepted", and no failure event is sent. The
     backend's timeout marks the update failed (ADR-0077).
-    The restart after a verified image waits for idleness again. Opens arriving
-    during the download are served by the owner task as usual; an open is handled
-    exactly once, never twice and never lost, across the update and the trial.
+    The restart after a verified and selected image waits for idleness again,
+    with the same meaning as in decision 12: no unlock whose door is still being
+    watched. Responses not yet acknowledged do not hold it back; the journal
+    sends them again after the restart. Opens arriving during the download are
+    served by the owner task as usual; an open is handled exactly once, never
+    twice and never lost, across the update and the trial.
 16. No update code path calls the bus unlock.
 
 ### Trial boot and rollback
 
 17. `CONFIG_BOOTLOADER_APP_ROLLBACK_ENABLE=y`. The new image marks itself valid
-    only after Wi-Fi, the broker and one bus query have all succeeded.
+    only after Wi-Fi, the broker (the command subscription is confirmed) and one
+    successful bus query have all happened. Each is remembered once it has
+    happened; they need not hold at the same moment. While the image is on trial
+    the heartbeat says `trial: true` (ADR-0076).
 18. The bootloader rolls back only on a reset, so the trial window is an
-    **app-side timer** (180 s, tunable at implementation). On expiry the app
-    calls `esp_ota_mark_app_invalid_rollback_and_reboot()`, and `esp_restart()`
-    if that call returns. After a USB flash `otadata` is empty and the first
+    **app-side timer**: 180 s (`LC_TRIAL_WINDOW_MS`) from the application's start
+    on the clock port. If the three have not happened by then, or the valid mark
+    cannot be stored, the app calls `esp_ota_mark_app_invalid_rollback_and_reboot()`,
+    which restarts the unit and returns only on failure; if it returns, the app
+    calls `esp_restart()`. After a USB flash `otadata` is empty and the first
     update works the same way (S7-H15).
 19. Opens are allowed during the trial. The journal keeps them exactly once
     across a rollback reboot.
@@ -262,6 +270,13 @@ image works.
 - Rollback and the format rule: mitigated by decision 20 and HW-H11.
 - Power cut during the write: the old slot is untouched; HW-H7 repeats it ten
   times.
+- A good image rolls back if Wi-Fi or the broker is down during the whole trial
+  window after the reboot. The old image then refuses that version
+  (`UPDATE_VERSION_REJECTED`); recovery is a new release with the next patch
+  version. The window deliberately keeps running without the network, because a
+  broken image may be exactly the one that cannot reach it. Readiness refuses an
+  update while the broker is not connected, so this needs an outage that starts
+  during the reboot.
 - **Open: release key custody.** Who holds the key and its offline backup, and
   whether an HSM is used. Needs an owner before the first release.
 - **Open: bench key.** Proposal: a repository-held bench key for dev builds, so

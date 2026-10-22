@@ -140,12 +140,13 @@ static lc_publish_id_t out_response(void *ctx, const lc_command_result_t *result
                    lc_mqtt_encode_response(result, &stamp, encoded, sizeof(encoded)));
 }
 
-static lc_publish_id_t out_heartbeat(void *ctx, uint32_t uptime_seconds, bool bus_connected)
+static lc_publish_id_t out_heartbeat(void *ctx, uint32_t uptime_seconds, bool bus_connected,
+                                     const lc_firmware_status_t *firmware)
 {
     (void)ctx;
     const lc_mqtt_envelope_t stamp = envelope();
     return publish(LC_TOPIC_HEARTBEAT, lc_mqtt_encode_heartbeat(uptime_seconds, bus_connected,
-                                                                NULL, &stamp, encoded,
+                                                                firmware, &stamp, encoded,
                                                                 sizeof(encoded)));
 }
 

@@ -260,6 +260,8 @@ void app_main(void)
     lc_network_settings_t settings;
     const bool configured = settings_store.load(settings_store.ctx, &settings);
 
+    const lc_system_port_t system = {.ctx = NULL, .restart = restart_device};
+
     /* Without network settings there is no broker: the console stands in for it. */
     const lc_app_ports_t app_ports = {
         .bus = create_bus(),
@@ -268,6 +270,7 @@ void app_main(void)
         .config_store = config_store,
         .hasher = {.ctx = NULL, .sha256_hex = sha256_hex},
         .clock = clock_port,
+        .system = system,
     };
     lc_app_init(&app, &app_ports);
     /* A torn last record is compacted away before recovery appends to the journal. */
@@ -283,7 +286,6 @@ void app_main(void)
     };
     lc_provision_init(&provision, &provision_ports);
 
-    const lc_system_port_t system = {.ctx = NULL, .restart = restart_device};
     const lc_commission_ports_t commission_ports = {
         .settings_store = settings_store,
         .identity_store = identity_store,

@@ -368,6 +368,16 @@ Host suite `test_firmware_update`, through `lc_app_handle_command`, `lc_app_disp
 | S7-H07 | The next slot is selected only after the image is verified |
 | S7-H11 | A repeated command with the same transaction ID does not download twice; the stored response is sent again |
 
+Host suite `test_trial_boot`, with fake update and system ports:
+
+| ID | Test |
+| --- | --- |
+| S7-H08 | After a restart into an image on trial, it is marked valid only once Wi-Fi, the broker and one bus query have all succeeded |
+| S7-H09 | An image not confirmed within the 180 s trial window is rolled back |
+| S7-H10 | No step of an update (start, failure, verification, slot selection, restart, trial, rollback) calls the bus unlock |
+| S7-H12 | No published message, and no stored answer, contains the download URL's query string or token |
+| S7-H15 | A rollback that returns (the first update after a USB flash, empty `otadata`) falls back to a restart |
+
 ## Hardware acceptance
 
 Everything that needs the real board, converter, panel, lock, Wi-Fi or broker

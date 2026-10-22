@@ -115,6 +115,9 @@ typedef struct {
     size_t response_count;
     uint32_t heartbeat_uptime_seconds;
     bool heartbeat_bus_connected;
+    /* The firmware status of the last heartbeat; has_firmware is false when it carried none. */
+    bool heartbeat_has_firmware;
+    lc_firmware_status_t heartbeat_firmware;
     lc_compartment_state_t snapshot[LC_COMPARTMENTS_MAX];
     size_t snapshot_count;
     lc_open_detection_t detections[FAKE_OUTBOUND_EVENTS];
@@ -201,10 +204,16 @@ lc_provisioning_gateway_port_t fake_gateway_port(fake_gateway_t *gateway);
 typedef struct {
     char running_version[LC_FIRMWARE_VERSION_MAX + 1];
     bool on_trial;
-    /* The version was_rolled_back() answers for. */
+    lc_ota_slot_t slot;
+    /* What last_rollback_version() answers. */
     char rolled_back_version[LC_FIRMWARE_VERSION_MAX + 1];
     bool start_ok;
     bool select_ok;
+    bool mark_valid_ok;
+    /* False: the rollback call returned, as it does when there is no previous image. */
+    bool rollback_ok;
+    unsigned mark_valid_count;
+    unsigned rollback_count;
     unsigned start_count;
     unsigned abort_count;
     unsigned select_count;

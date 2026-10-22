@@ -7,6 +7,8 @@
 /* The image's version field is 32 bytes with the terminator. */
 #define LC_FIRMWARE_VERSION_MAX 31
 #define LC_FIRMWARE_URL_MAX 256
+/* How long a new image has to prove itself before the unit goes back (ADR-0075). */
+#define LC_TRIAL_WINDOW_MS 180000
 
 /* An `update_firmware` command as received. Only the shape is checked. */
 typedef struct {

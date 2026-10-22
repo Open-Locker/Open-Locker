@@ -15,6 +15,7 @@
 #include "lc_ports/locker_bus_port.h"
 #include "lc_ports/outbound_port.h"
 #include "lc_ports/store_ports.h"
+#include "lc_ports/system_port.h"
 
 /*
  * The locker application: commands, configuration, door state and door
@@ -31,6 +32,8 @@ typedef struct {
     lc_clock_port_t clock;
     /* Zeroed on a build without OTA: updates are then refused. */
     lc_firmware_update_port_t firmware_update;
+    /* Always wired: the restart after an update and after a failed trial. */
+    lc_system_port_t system;
 } lc_app_ports_t;
 
 /* Publishes whose acknowledgement is still outstanding. */
@@ -81,6 +84,14 @@ typedef struct {
     /* The update this unit accepted and that has not failed yet (ADR-0075). */
     bool update_running;
     char update_transaction_id[LC_ID_MAX + 1];
+    /* The next slot is selected; the unit restarts when no unlock is being watched. */
+    bool restart_pending;
+    /* The running image has not been marked valid yet (ADR-0075). What it still needs: */
+    bool trial;
+    int64_t trial_deadline_ms;
+    bool network_seen;
+    bool broker_seen;
+    bool bus_seen;
 } lc_app_t;
 
 /* Loads the stored configuration, if any. Calls neither the bus nor outbound. */
@@ -125,6 +136,8 @@ typedef enum {
     /* The download task: the image is verified, or the download or verification failed. */
     LC_EVENT_FIRMWARE_VERIFIED,
     LC_EVENT_FIRMWARE_FAILED,
+    /* The station has an address. */
+    LC_EVENT_NETWORK_UP,
 } lc_event_kind_t;
 
 typedef struct {

@@ -18,14 +18,22 @@ typedef struct {
     void *ctx;
     /* Version of the running image. */
     const char *(*running_version)(void *ctx);
-    /* The running image has not marked itself valid yet. */
+    lc_ota_slot_t (*running_slot)(void *ctx);
+    /* The running image has not marked itself valid yet (pending verify). */
     bool (*on_trial)(void *ctx);
-    /* This unit rolled back from that version before. */
-    bool (*was_rolled_back)(void *ctx, const char *version);
+    /* The version this unit rolled back from last; empty when it never did. */
+    const char *(*last_rollback_version)(void *ctx);
     /* Starts the download. False when it could not be started. */
     bool (*start)(void *ctx, const lc_firmware_update_request_t *request);
     /* Stops a download that was started and discards what it wrote. No event follows. */
     void (*abort)(void *ctx);
     /* Makes the verified image the next boot slot. */
     bool (*select_next_slot)(void *ctx);
+    /* The running image on trial is good: it stays. False when that could not be stored. */
+    bool (*mark_valid)(void *ctx);
+    /*
+     * The running image on trial is bad: mark it invalid and restart into the previous one.
+     * Returns only when that did not work (false), for example with no previous image.
+     */
+    bool (*rollback)(void *ctx);
 } lc_firmware_update_port_t;

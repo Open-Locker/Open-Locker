@@ -51,7 +51,7 @@ lc_command_result_t lc_app_update_firmware(lc_app_t *app, const lc_command_t *co
         result.error = LC_ERROR_UPDATE_DOWNGRADE;
         return result;
     }
-    if (port->was_rolled_back(port->ctx, request->version)) {
+    if (strcmp(port->last_rollback_version(port->ctx), request->version) == 0) {
         result.error = LC_ERROR_UPDATE_VERSION_REJECTED;
         return result;
     }
@@ -106,8 +106,62 @@ void lc_app_firmware_verified(lc_app_t *app)
     if (!app->update_running) {
         return;
     }
-    if (!port->select_next_slot(port->ctx)) {
+    if (port->select_next_slot(port->ctx)) {
+        app->restart_pending = true;
+    } else {
         lc_app_firmware_failed(app, LC_ERROR_UPDATE_VERIFY_FAILED);
     }
+}
+
+static void restart(const lc_app_t *app)
+{
+    app->ports.system.restart(app->ports.system.ctx);
+}
+
+void lc_app_check_restart(lc_app_t *app)
+{
+    if (app->restart_pending && !command_in_flight(app)) {
+        app->restart_pending = false;
+        restart(app);
+    }
+}
+
+void lc_app_check_trial(lc_app_t *app, int64_t now_ms)
+{
+    const lc_firmware_update_port_t *port = &app->ports.firmware_update;
+
+    if (!app->trial) {
+        return;
+    }
+    if (app->network_seen && app->broker_seen && app->bus_seen && port->mark_valid(port->ctx)) {
+        app->trial = false;
+        return;
+    }
+    if (now_ms < app->trial_deadline_ms) {
+        return;
+    }
+    /* Once: the call restarts the unit; if it returns there is no image to go back to. */
+    app->trial = false;
+    if (!port->rollback(port->ctx)) {
+        restart(app);
+    }
+}
+
+const lc_firmware_status_t *lc_app_firmware_status(const lc_app_t *app, lc_firmware_status_t *out)
+{
+    const lc_firmware_update_port_t *port = &app->ports.firmware_update;
+
+    if (port->start == NULL) {
+        return NULL;
+    }
+    memset(out, 0, sizeof(*out));
+    (void)lc_text_copy(out->version, sizeof(out->version), port->running_version(port->ctx));
+    out->slot = port->running_slot(port->ctx);
+    /* From the port (the bootloader's state); app->trial only arms the checks of the trial. */
+    out->trial = port->on_trial(port->ctx);
+    (void)lc_text_copy(out->last_rollback_version, sizeof(out->last_rollback_version),
+                       port->last_rollback_version(port->ctx));
+    out->update_capable = true;
+    return out;
 }
 

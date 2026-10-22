@@ -17,6 +17,7 @@ extern fake_journal_t fx_journal;
 extern fake_outbound_t fx_outbound;
 extern fake_config_store_t fx_config_store;
 extern fake_update_t fx_update;
+extern fake_system_t fx_system;
 extern lc_app_t fx_app;
 
 /* Heartbeat interval of the configuration fx_configure() applies. */

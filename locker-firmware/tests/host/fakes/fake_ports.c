@@ -309,13 +309,18 @@ static lc_publish_id_t outbound_response(void *ctx, const lc_command_result_t *r
     return id;
 }
 
-static lc_publish_id_t outbound_heartbeat(void *ctx, uint32_t uptime_seconds, bool bus_connected)
+static lc_publish_id_t outbound_heartbeat(void *ctx, uint32_t uptime_seconds, bool bus_connected,
+                                          const lc_firmware_status_t *firmware)
 {
     fake_outbound_t *outbound = ctx;
     lc_publish_id_t id = outbound_publish(outbound, FAKE_HEARTBEAT);
     if (id != LC_PUBLISH_REFUSED) {
         outbound->heartbeat_uptime_seconds = uptime_seconds;
         outbound->heartbeat_bus_connected = bus_connected;
+        outbound->heartbeat_has_firmware = firmware != NULL;
+        if (firmware != NULL) {
+            outbound->heartbeat_firmware = *firmware;
+        }
     }
     return id;
 }
@@ -701,11 +706,34 @@ static bool update_on_trial(void *ctx)
     return update->on_trial;
 }
 
-static bool update_was_rolled_back(void *ctx, const char *version)
+static lc_ota_slot_t update_running_slot(void *ctx)
 {
     fake_update_t *update = ctx;
-    return update->rolled_back_version[0] != '\0' &&
-           strcmp(update->rolled_back_version, version) == 0;
+    return update->slot;
+}
+
+static const char *update_last_rollback_version(void *ctx)
+{
+    fake_update_t *update = ctx;
+    return update->rolled_back_version;
+}
+
+static bool update_mark_valid(void *ctx)
+{
+    fake_update_t *update = ctx;
+    ++update->mark_valid_count;
+    if (update->mark_valid_ok) {
+        update->on_trial = false;
+    }
+    return update->mark_valid_ok;
+}
+
+static bool update_rollback(void *ctx)
+{
+    fake_update_t *update = ctx;
+    fake_trace("update.rollback");
+    ++update->rollback_count;
+    return update->rollback_ok;
 }
 
 static bool update_start(void *ctx, const lc_firmware_update_request_t *request)
@@ -737,6 +765,7 @@ void fake_update_init(fake_update_t *update)
     memset(update, 0, sizeof(*update));
     update->start_ok = true;
     update->select_ok = true;
+    update->mark_valid_ok = true;
 }
 
 lc_firmware_update_port_t fake_update_port(fake_update_t *update)
@@ -745,7 +774,10 @@ lc_firmware_update_port_t fake_update_port(fake_update_t *update)
         .ctx = update,
         .running_version = update_running_version,
         .on_trial = update_on_trial,
-        .was_rolled_back = update_was_rolled_back,
+        .running_slot = update_running_slot,
+        .last_rollback_version = update_last_rollback_version,
+        .mark_valid = update_mark_valid,
+        .rollback = update_rollback,
         .start = update_start,
         .abort = update_abort,
         .select_next_slot = update_select_next_slot,
