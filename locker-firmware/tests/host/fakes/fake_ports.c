@@ -715,7 +715,7 @@ static lc_ota_slot_t update_running_slot(void *ctx)
 static const char *update_last_rollback_version(void *ctx)
 {
     fake_update_t *update = ctx;
-    return update->rolled_back_version;
+    return update->last_rollback_version;
 }
 
 static bool update_mark_valid(void *ctx)

@@ -131,6 +131,27 @@ class LockerServiceFirmwareUpdateTest extends TestCase
         $this->assertNull($this->requested());
     }
 
+    public function test_a_request_for_the_version_the_bank_already_reports_is_refused_and_nothing_is_recorded(): void
+    {
+        $this->mock(UpdateFirmwareCommandPublisher::class, function ($mock): void {
+            $mock->shouldReceive('publish')->never();
+        });
+        $bank = $this->updatableBank();
+        $bank->forceFill(['firmware_version' => '1.2.0'])->save();
+        $release = FirmwareReleaseFactory::new()->create(['version' => '1.2.0']);
+
+        try {
+            app(LockerService::class)->requestFirmwareUpdate($bank, $release, true);
+            $this->fail('The request was accepted.');
+        } catch (FirmwareUpdateRefused $refused) {
+            $this->assertSame('already_running', $refused->reason->value);
+            $this->assertSame('Das Gerät läuft bereits mit dieser Firmware-Version.', __($refused->reason->message()));
+        }
+
+        $this->assertNull($this->requested());
+        $this->assertNull($bank->refresh()->firmware_update_status);
+    }
+
     public function test_a_download_link_the_firmware_would_refuse_is_refused_before_anything_is_recorded(): void
     {
         $bank = $this->updatableBank();

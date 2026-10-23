@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Models;
 
-use App\Enums\FirmwareUpdateStatus;
 use Carbon\CarbonImmutable;
 use DateTimeInterface;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
@@ -46,6 +45,9 @@ class FirmwareRelease extends Model
      */
     public const MAX_IMAGE_BYTES = 0x1D0000;
 
+    /** The version field of the image and of the heartbeat holds at most this many characters (ADR-0076). */
+    public const VERSION_MAX_LENGTH = 31;
+
     /** Semantic versioning without build metadata, as in the AsyncAPI schema. */
     private const VERSION_PATTERN = '/^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(-(0|[1-9]\d*|\d*[A-Za-z-][0-9A-Za-z-]*)(\.(0|[1-9]\d*|\d*[A-Za-z-][0-9A-Za-z-]*))*)?$/';
 
@@ -73,7 +75,7 @@ class FirmwareRelease extends Model
 
         static::saving(static function (self $release): void {
             if (! self::isValidVersion((string) $release->version)) {
-                throw new InvalidArgumentException("'{$release->version}' is not a valid firmware version (semantic versioning, at most 31 characters).");
+                throw new InvalidArgumentException("'{$release->version}' is not a valid firmware version (semantic versioning, at most ".self::VERSION_MAX_LENGTH.' characters).');
             }
         });
     }
@@ -88,17 +90,14 @@ class FirmwareRelease extends Model
     public function isInUse(): bool
     {
         return LockerBank::query()
+            ->updateInFlight()
             ->where('firmware_update_release_id', $this->id)
-            ->whereIn('firmware_update_status', array_map(
-                static fn (FirmwareUpdateStatus $status): string => $status->value,
-                FirmwareUpdateStatus::inFlightCases(),
-            ))
             ->exists();
     }
 
     public static function isValidVersion(string $version): bool
     {
-        return strlen($version) <= 31 && preg_match(self::VERSION_PATTERN, $version) === 1;
+        return strlen($version) <= self::VERSION_MAX_LENGTH && preg_match(self::VERSION_PATTERN, $version) === 1;
     }
 
     /**

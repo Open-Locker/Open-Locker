@@ -156,7 +156,7 @@ const lc_firmware_status_t *lc_app_firmware_status(const lc_app_t *app, lc_firmw
     }
     memset(out, 0, sizeof(*out));
     (void)lc_text_copy(out->version, sizeof(out->version), port->running_version(port->ctx));
-    out->slot = port->running_slot(port->ctx);
+    out->running_slot = port->running_slot(port->ctx);
     /* From the port (the bootloader's state); app->trial only arms the checks of the trial. */
     out->trial = port->on_trial(port->ctx);
     (void)lc_text_copy(out->last_rollback_version, sizeof(out->last_rollback_version),

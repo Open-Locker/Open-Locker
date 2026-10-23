@@ -208,7 +208,9 @@ board yet: the signature verification path itself (HW-H4).
 
 22. The bootloader cannot be replaced over the air. It boots apps built with
     newer ESP-IDF versions but not older ones. The IDF version used to build the
-    bootloader is pinned (6.1 today); later IDF upgrades happen in the app only.
+    bootloader is the version pinned in
+    [ADR-0069](0069-esp32-locker-firmware.md); later IDF upgrades happen in the
+    app only.
     HW-H10 checks that the bootloader still boots the next patch release.
 
 ### Reporting

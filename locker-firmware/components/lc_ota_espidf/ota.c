@@ -19,7 +19,7 @@ static struct {
     lc_ota_config_t config;
     lc_firmware_update_request_t request;
     char running_version[LC_FIRMWARE_VERSION_MAX + 1];
-    char rolled_back_version[LC_FIRMWARE_VERSION_MAX + 1];
+    char last_rollback_version[LC_FIRMWARE_VERSION_MAX + 1];
     /*
      * Written by the owner task and the download task. `busy` is the download task's lock on
      * `request`: start() overwrites it as soon as `busy` is clear.
@@ -145,12 +145,12 @@ static const char *last_rollback_version(void *ctx)
     esp_app_desc_t description;
     const esp_partition_t *invalid = esp_ota_get_last_invalid_partition();
 
-    state.rolled_back_version[0] = '\0';
+    state.last_rollback_version[0] = '\0';
     if (invalid != NULL && esp_ota_get_partition_description(invalid, &description) == ESP_OK) {
-        (void)lc_text_copy(state.rolled_back_version, sizeof(state.rolled_back_version),
+        (void)lc_text_copy(state.last_rollback_version, sizeof(state.last_rollback_version),
                            description.version);
     }
-    return state.rolled_back_version;
+    return state.last_rollback_version;
 }
 
 static bool start(void *ctx, const lc_firmware_update_request_t *request)

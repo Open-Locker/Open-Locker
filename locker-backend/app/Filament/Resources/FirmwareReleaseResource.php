@@ -70,7 +70,7 @@ class FirmwareReleaseResource extends Resource
             TextInput::make('version')
                 ->label(__('Version'))
                 ->required()
-                ->maxLength(31)
+                ->maxLength(FirmwareRelease::VERSION_MAX_LENGTH)
                 ->unique(table: 'firmware_releases', column: 'version')
                 ->rule(static fn (): Closure => static function (string $attribute, mixed $value, Closure $fail): void {
                     if (! FirmwareRelease::isValidVersion((string) $value)) {

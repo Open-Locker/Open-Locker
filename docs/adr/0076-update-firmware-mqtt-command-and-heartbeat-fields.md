@@ -64,8 +64,9 @@ id are separate (ADR-0002); a command response only acknowledges the command
    - `running_slot` (`ota_0` or `ota_1`).
    - `last_rollback_version` (string): the version this device rolled back from,
      present until the next update.
-   - `capabilities` (array of strings): optional features, `firmware_update`
-     for now, sent only by a device whose update adapter is wired.
+   - `capabilities` (array of strings): optional features. The only value
+     defined is `firmware_update`, sent only by a device whose update adapter is
+     wired; a new feature adds a value here.
 
    A device sends the firmware fields only when it knows its version.
 

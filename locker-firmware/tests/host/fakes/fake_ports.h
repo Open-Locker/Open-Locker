@@ -206,7 +206,7 @@ typedef struct {
     bool on_trial;
     lc_ota_slot_t slot;
     /* What last_rollback_version() answers. */
-    char rolled_back_version[LC_FIRMWARE_VERSION_MAX + 1];
+    char last_rollback_version[LC_FIRMWARE_VERSION_MAX + 1];
     bool start_ok;
     bool select_ok;
     bool mark_valid_ok;

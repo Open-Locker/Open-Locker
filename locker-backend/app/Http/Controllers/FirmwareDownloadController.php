@@ -25,10 +25,7 @@ class FirmwareDownloadController extends Controller
     {
         // A valid link is not enough: the bank must be installing exactly this release. A link that
         // outlives its update, or was made for another bank's update, is refused like any bad link.
-        abort_unless(
-            $lockerBank->firmware_update_status?->isInFlight() && $lockerBank->firmware_update_release_id === $release->id,
-            403,
-        );
+        abort_unless($lockerBank->isDownloadingRelease($release), 403);
         abort_if($release->invalid || ! Storage::exists($release->file_path), 404);
 
         return Storage::download($release->file_path, "locker-firmware-{$release->version}.bin");

@@ -566,7 +566,7 @@ size_t lc_mqtt_encode_heartbeat(uint32_t uptime_seconds, bool bus_connected,
         lc_json_key(&writer, "trial", false);
         lc_json_bool(&writer, firmware->trial);
         lc_json_key(&writer, "running_slot", false);
-        lc_json_string(&writer, firmware->slot == LC_OTA_SLOT_1 ? "ota_1" : "ota_0");
+        lc_json_string(&writer, firmware->running_slot == LC_OTA_SLOT_1 ? "ota_1" : "ota_0");
         if (firmware->last_rollback_version[0] != '\0') {
             lc_json_key(&writer, "last_rollback_version", false);
             lc_json_string(&writer, firmware->last_rollback_version);

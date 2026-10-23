@@ -227,7 +227,9 @@ void test_update_firmware_example_parses_into_a_typed_command(void)
     TEST_ASSERT_EQUAL_STRING("update_firmware", command.action_name);
     TEST_ASSERT_EQUAL_STRING("txn-fw-001", command.transaction_id);
     TEST_ASSERT_EQUAL_STRING("0.2.0", command.firmware.version);
-    TEST_ASSERT_EQUAL_STRING("https://open-locker.cloud/firmware/releases/0.2.0/download?expires="
+    TEST_ASSERT_EQUAL_STRING("https://open-locker.cloud/api/firmware/"
+                             "0b6f5a52-0f2d-4c58-9a57-3f1e7f1c2a11/"
+                             "7d1c9e34-8a47-4b1e-b0a2-5c3d9e6f1a22?expires="
                              "1792659600&signature="
                              "0000000000000000000000000000000000000000000000000000000000000000",
                              command.firmware.url);
@@ -246,7 +248,7 @@ void test_update_firmware_reads_allow_downgrade(void)
 
 void test_heartbeat_reports_trial_false_and_leaves_out_what_is_absent(void)
 {
-    lc_firmware_status_t firmware = {.slot = LC_OTA_SLOT_0, .trial = false};
+    lc_firmware_status_t firmware = {.running_slot = LC_OTA_SLOT_0, .trial = false};
     snprintf(firmware.version, sizeof(firmware.version), "0.2.0");
     TEST_ASSERT_TRUE(lc_mqtt_encode_heartbeat(5, true, &firmware, &envelope, encoded,
                                               sizeof(encoded)) > 0);
@@ -268,7 +270,7 @@ void test_heartbeat_reports_trial_false_and_leaves_out_what_is_absent(void)
 
 void test_heartbeat_advertises_firmware_update_only_when_the_device_can_update(void)
 {
-    lc_firmware_status_t firmware = {.slot = LC_OTA_SLOT_0};
+    lc_firmware_status_t firmware = {.running_slot = LC_OTA_SLOT_0};
     snprintf(firmware.version, sizeof(firmware.version), "0.2.0");
 
     TEST_ASSERT_TRUE(lc_mqtt_encode_heartbeat(5, true, &firmware, &envelope, encoded,
@@ -289,7 +291,7 @@ void test_heartbeat_advertises_firmware_update_only_when_the_device_can_update(v
 
 void test_heartbeat_without_a_firmware_version_sends_no_firmware_fields(void)
 {
-    lc_firmware_status_t firmware = {.slot = LC_OTA_SLOT_1, .trial = true, .update_capable = true};
+    lc_firmware_status_t firmware = {.running_slot = LC_OTA_SLOT_1, .trial = true, .update_capable = true};
     snprintf(firmware.last_rollback_version, sizeof(firmware.last_rollback_version), "0.1.9");
 
     TEST_ASSERT_TRUE(lc_mqtt_encode_heartbeat(5, true, &firmware, &envelope, encoded,

@@ -149,6 +149,7 @@ class LockerBankAggregate extends TransactionalAggregateRoot
             ! $lockerBank->firmware_update_capable => FirmwareUpdateRefusal::NotCapable,
             $lockerBank->firmware_update_status?->isInFlight() => FirmwareUpdateRefusal::UpdateInFlight,
             $release->invalid => FirmwareUpdateRefusal::ReleaseInvalid,
+            $lockerBank->firmware_version === $release->version => FirmwareUpdateRefusal::AlreadyRunning,
             ! FirmwareRelease::isUsableDownloadUrl($release->signedDownloadUrl((string) $lockerBank->id)) => FirmwareUpdateRefusal::DownloadUrlUnusable,
             default => null,
         };

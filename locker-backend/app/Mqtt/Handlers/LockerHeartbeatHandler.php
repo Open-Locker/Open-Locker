@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Mqtt\Handlers;
 
+use App\Models\FirmwareRelease;
 use App\Models\LockerBank;
 use App\Mqtt\InboundMqttProtocolGuard;
 use App\Services\FirmwareUpdateOutcomeService;
@@ -72,7 +73,7 @@ class LockerHeartbeatHandler extends AbstractInboundMqttHandler
     private function firmwareRules(): array
     {
         return [
-            'firmware_version' => ['sometimes', 'string', 'min:1', 'max:31'],
+            'firmware_version' => ['sometimes', 'string', 'min:1', 'max:'.FirmwareRelease::VERSION_MAX_LENGTH],
             'trial' => [
                 'required_with:firmware_version',
                 static function (string $attribute, mixed $value, Closure $fail): void {
@@ -82,7 +83,7 @@ class LockerHeartbeatHandler extends AbstractInboundMqttHandler
                 },
             ],
             'running_slot' => ['sometimes', 'string', 'in:ota_0,ota_1'],
-            'last_rollback_version' => ['sometimes', 'string', 'min:1', 'max:31'],
+            'last_rollback_version' => ['sometimes', 'string', 'min:1', 'max:'.FirmwareRelease::VERSION_MAX_LENGTH],
             'capabilities' => ['sometimes', 'array', 'list'],
             'capabilities.*' => ['string', 'min:1'],
         ];

@@ -13,7 +13,7 @@ return new class extends Migration
         Schema::table('locker_banks', function (Blueprint $table): void {
             // Whether the heartbeat lists the `firmware_update` capability (ADR-0076).
             $table->boolean('firmware_update_capable')->default(false);
-            // The update in flight or last finished (ADR-0077): requested, downloading or failed.
+            // The update in flight or last finished (ADR-0077): requested, downloading, completed or failed.
             $table->string('firmware_update_status')->nullable();
             $table->string('firmware_update_transaction_id')->nullable();
             // The release being installed: only a bank updating to it may download its image.

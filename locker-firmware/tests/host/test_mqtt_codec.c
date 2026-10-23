@@ -464,7 +464,7 @@ void test_S7_H13_update_messages_match_their_schemas(void)
     }
 
     /* The firmware fields of the heartbeat, with `trial` whenever the version is there. */
-    lc_firmware_status_t firmware = {.slot = LC_OTA_SLOT_1, .trial = true, .update_capable = true};
+    lc_firmware_status_t firmware = {.running_slot = LC_OTA_SLOT_1, .trial = true, .update_capable = true};
     snprintf(firmware.version, sizeof(firmware.version), "0.2.0");
     snprintf(firmware.last_rollback_version, sizeof(firmware.last_rollback_version), "0.1.9");
     TEST_ASSERT_TRUE(lc_mqtt_encode_heartbeat(120, true, &firmware, &envelope, encoded,

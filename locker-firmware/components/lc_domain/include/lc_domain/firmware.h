@@ -25,7 +25,7 @@ typedef enum {
 /* What a device that can update itself reports in its heartbeat. */
 typedef struct {
     char version[LC_FIRMWARE_VERSION_MAX + 1];
-    lc_ota_slot_t slot;
+    lc_ota_slot_t running_slot;
     /* True until the running image has marked itself valid. */
     bool trial;
     /* Empty when the device has not rolled back. */

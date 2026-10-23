@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Console\Commands;
 
 use App\Enums\FirmwareUpdateFailureReason;
-use App\Enums\FirmwareUpdateStatus;
 use App\Models\LockerBank;
 use App\StorableEvents\FirmwareUpdateFailed;
 use App\Support\EventSourcing\StoredEventDispatcher;
@@ -42,7 +41,7 @@ class ExpireFirmwareUpdates extends Command
         $expiredBefore = now()->subMinutes(self::TIMEOUT_MINUTES);
 
         $candidates = LockerBank::query()
-            ->whereIn('firmware_update_status', array_map(static fn (FirmwareUpdateStatus $status): string => $status->value, FirmwareUpdateStatus::inFlightCases()))
+            ->updateInFlight()
             ->where('firmware_update_requested_at', '<=', $expiredBefore)
             ->get();
 

@@ -87,7 +87,11 @@ uploaded signed.
    *failed* after acceptance, that is while it is *downloading*. Before
    acceptance a unit that rolled this version back earlier still reports it, and
    the device refuses the version itself (`UPDATE_VERSION_REJECTED`), which is
-   what fails a retry. Completion and rollback are events
+   what fails a retry. Completion is also valid from *requested*, when the
+   device accepted and finished before the accepted message arrived. It is safe
+   because a request for the version the bank already reports is refused up
+   front (`already_running`), so a heartbeat with the target version and
+   `trial: false` can only mean the device really updated. Completion and rollback are events
    (`FirmwareUpdateCompleted`, `FirmwareUpdateFailed`), derived by
    `FirmwareUpdateOutcomeService`; the event moves the
    status, so a later heartbeat records nothing again. The heartbeat fields
@@ -166,7 +170,11 @@ timeout is needed because the command inbox and ADR-0070 allow no second respons
 - Cons: a second system to run and secure for a 1.8 MB file.
 - Why not chosen: the signed route needs nothing new.
 
-### Alternative B: Mutate the firmware columns directly on heartbeat
+### Alternative B: Mutate the rollout status columns directly on heartbeat
+
+This is about the update status columns (`firmware_update_status` and the
+fields next to it), not the reported heartbeat fields, which Decision 5 writes
+directly.
 
 - Pros: less code.
 - Cons: violates the event-sourcing rule and loses the rollout history.

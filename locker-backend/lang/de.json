@@ -554,6 +554,7 @@
     "Terms document created": "Bedingungsdokument erstellt",
     "Terms version activated": "Bedingungsversion aktiviert",
     "Terms version published": "Bedingungsversion veröffentlicht",
+    "The device already runs this firmware version.": "Das Gerät läuft bereits mit dieser Firmware-Version.",
     "The download link would not be an https URL of at most 256 characters; check the public URL of the backend.": "Der Download-Link wäre keine https-URL mit höchstens 256 Zeichen; prüfe die öffentliche URL des Backends.",
     "The email address :email is now verified. You can continue in the app.": "Die E-Mail-Adresse :email ist jetzt bestätigt. Du kannst in der App fortfahren.",
     "The file is not an ESP32 firmware image.": "Die Datei ist kein ESP32-Firmware-Image.",

@@ -9,6 +9,7 @@ use App\Enums\FirmwareUpdateStatus;
 use App\Enums\LockerAdapterType;
 use App\Enums\LockerFeedbackType;
 use Carbon\CarbonImmutable;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -124,6 +125,29 @@ class LockerBank extends Model
         return $this->firmware_update_status?->isInFlight() === true
             ? $this->firmware_update_transaction_id
             : null;
+    }
+
+    /**
+     * Whether this bank is in the middle of an update to exactly this release: the one test that
+     * lets it fetch the image.
+     */
+    public function isDownloadingRelease(FirmwareRelease $release): bool
+    {
+        return $this->firmware_update_status?->isInFlight() === true
+            && $this->firmware_update_release_id === $release->id;
+    }
+
+    /**
+     * Banks with a firmware update in flight (see {@see FirmwareUpdateStatus::inFlightCases()}).
+     *
+     * @param  Builder<LockerBank>  $query
+     */
+    public function scopeUpdateInFlight(Builder $query): void
+    {
+        $query->whereIn('firmware_update_status', array_map(
+            static fn (FirmwareUpdateStatus $status): string => $status->value,
+            FirmwareUpdateStatus::inFlightCases(),
+        ));
     }
 
     /**

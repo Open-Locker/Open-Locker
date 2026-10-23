@@ -119,7 +119,7 @@ void test_S7_H04_the_running_version_a_downgrade_and_a_rolled_back_version_are_r
 
     TEST_ASSERT_EQUAL_INT(LC_ERROR_UPDATE_DOWNGRADE, update("tx-3", "0.0.9", false));
 
-    snprintf(fx_update.rolled_back_version, sizeof(fx_update.rolled_back_version), "0.3.0");
+    snprintf(fx_update.last_rollback_version, sizeof(fx_update.last_rollback_version), "0.3.0");
     TEST_ASSERT_EQUAL_INT(LC_ERROR_UPDATE_VERSION_REJECTED, update("tx-4", "0.3.0", false));
     TEST_ASSERT_EQUAL_INT(LC_ERROR_UPDATE_VERSION_REJECTED, update("tx-5", "0.3.0", true));
 

@@ -222,7 +222,7 @@ void test_an_image_that_could_not_be_selected_does_not_restart_the_unit(void)
 void test_the_heartbeat_reports_the_trial_until_the_image_is_valid(void)
 {
     fx_update.slot = LC_OTA_SLOT_1;
-    snprintf(fx_update.rolled_back_version, sizeof(fx_update.rolled_back_version), "0.1.9");
+    snprintf(fx_update.last_rollback_version, sizeof(fx_update.last_rollback_version), "0.1.9");
     boot_on_trial();
     network_up();
     fx_bus.read_ok = true;
@@ -232,7 +232,7 @@ void test_the_heartbeat_reports_the_trial_until_the_image_is_valid(void)
     TEST_ASSERT_TRUE(fx_outbound.heartbeat_has_firmware);
     TEST_ASSERT_TRUE(fx_outbound.heartbeat_firmware.trial);
     TEST_ASSERT_EQUAL_STRING("0.2.0", fx_outbound.heartbeat_firmware.version);
-    TEST_ASSERT_EQUAL_INT(LC_OTA_SLOT_1, fx_outbound.heartbeat_firmware.slot);
+    TEST_ASSERT_EQUAL_INT(LC_OTA_SLOT_1, fx_outbound.heartbeat_firmware.running_slot);
     TEST_ASSERT_EQUAL_STRING("0.1.9", fx_outbound.heartbeat_firmware.last_rollback_version);
     TEST_ASSERT_TRUE(fx_outbound.heartbeat_firmware.update_capable);
 

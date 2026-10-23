@@ -13,6 +13,8 @@ enum FirmwareUpdateRefusal: string
     case NotCapable = 'not_capable';
     case UpdateInFlight = 'update_in_flight';
     case ReleaseInvalid = 'release_invalid';
+    /** The bank already reports the target version, so a heartbeat could never tell an update from no update. */
+    case AlreadyRunning = 'already_running';
     /** The link would not start with https:// or would not fit the 256 characters the firmware accepts. */
     case DownloadUrlUnusable = 'download_url_unusable';
 
@@ -23,6 +25,7 @@ enum FirmwareUpdateRefusal: string
             self::NotCapable => 'The locker bank did not report the firmware_update capability.',
             self::UpdateInFlight => 'A firmware update of this locker bank is already in progress.',
             self::ReleaseInvalid => 'The firmware release is marked invalid.',
+            self::AlreadyRunning => 'The device already runs this firmware version.',
             self::DownloadUrlUnusable => 'The download link would not be an https URL of at most 256 characters; check the public URL of the backend.',
         };
     }
