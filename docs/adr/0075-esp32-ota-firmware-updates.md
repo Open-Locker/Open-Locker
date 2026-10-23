@@ -319,8 +319,8 @@ Measured with OTA linked (ESP-IDF 6.1): the app image is 0x120000 bytes in a
 0x1D0000 slot, the bootloader 26,288 bytes; `scripts/verify.py` fails the build
 when either outgrows its place, counting a 4 KiB signature block.
 
-Slices: contract and ADRs (this), codec, application logic, ESP-IDF adapter and
-build gates; the backend slices are in ADR-0077. Host tests S7-H01 to S7-H15 and hardware group H (HW-H1 to HW-H11) are
+The backend side (releases, requests, download links, completion, admin UI) is
+ADR-0077. Host tests S7-H01 to S7-H15 and hardware group H (HW-H1 to HW-H11) are
 catalogued in `locker-firmware/docs/testing.md`. The first image of any bench or
 pilot unit is flashed over USB, signed.
 

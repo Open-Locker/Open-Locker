@@ -133,8 +133,9 @@ fields keep the contract backward compatible.
 ### Risks
 
 - A URL logged by a broker or backend leaks a token. It expires in minutes and
-  names one image, and ADR-0075 requires that no component logs it. **Open:** slice 6 must check that
-  no backend log line or stored event carries the URL (ADR-0077).
+  names one image, and ADR-0075 requires that no component logs it. ADR-0077 (Risks) records that
+  no backend log line, stored event or queued job payload carries the URL, and
+  which tests guard it.
 
 ## Rollout / Migration
 

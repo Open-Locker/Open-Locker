@@ -31,6 +31,26 @@ enum FirmwareUpdateStatus: string
         return [self::Requested, self::Downloading];
     }
 
+    public function label(): string
+    {
+        return match ($this) {
+            self::Requested => __('Requested'),
+            self::Downloading => __('Downloading'),
+            self::Completed => __('Completed'),
+            self::Failed => __('Failed'),
+        };
+    }
+
+    /** Filament badge colour for this status. */
+    public function color(): string
+    {
+        return match ($this) {
+            self::Completed => 'success',
+            self::Failed => 'danger',
+            self::Requested, self::Downloading => 'warning',
+        };
+    }
+
     public function isInFlight(): bool
     {
         return in_array($this, self::inFlightCases(), true);

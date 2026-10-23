@@ -130,9 +130,26 @@ uploaded signed.
    at once cannot both see an idle bank.
 8. **The URL is a secret on the backend too.** It must not appear in logs,
    stored events, queued job payloads or traces (see Risks).
-9. Admin UI: release list and upload form, the "Update firmware" action, and the
-   firmware version and update status in the locker bank view. Audit presenter
-   entries and translations cover the new events.
+9. Admin UI, admin-only (`lockerbank.configure`, like the locker bank
+   settings; managers do not see it). The release resource uploads a signed
+   `.bin` with its version (semantic versioning, unique) and refuses an image
+   larger than an OTA slot (`FirmwareRelease::MAX_IMAGE_BYTES`, 0x1D0000, from
+   `locker-firmware/partitions.csv`) or whose first byte is not `0xE9`, the
+   ESP32 app image magic (this is not the signature check, which stays with
+   the device). `FirmwareReleaseService` does the work, so the pages only call
+   it: the server computes the SHA-256 and size from the stored bytes, inserts
+   the row (its unique version decides a race) and writes
+   `firmware/{version}.bin` in the same transaction, never over an existing
+   file, and removes the temporary upload on every path. A release can be
+   marked invalid, and one that a bank is still updating to cannot be deleted
+   (the action is hidden, the service refuses, and the model refuses as a
+   backstop). The locker
+   bank list shows the reported version and the update status; the edit view
+   shows slot, trial, last rollback version, target, error code and failure
+   reason. "Update firmware" (a release picker and an `allow_downgrade` toggle)
+   appears only for banks that reported the capability, and a refusal is a
+   translated notification. Audit presenter entries and translations cover the
+   new events.
 
 ## Rationale
 

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Enums\FirmwareUpdateStatus;
 use Carbon\CarbonImmutable;
 use DateTimeInterface;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
@@ -11,6 +12,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\URL;
 use InvalidArgumentException;
+use LogicException;
 
 /**
  * A signed firmware image that lockers can be updated to (ADR-0077). The
@@ -38,6 +40,12 @@ class FirmwareRelease extends Model
     /** The firmware accepts a URL of at most this many characters (ADR-0076). */
     public const DOWNLOAD_URL_MAX_LENGTH = 256;
 
+    /**
+     * The largest image an OTA slot holds: 0x1D0000 bytes, the size of ota_0 and ota_1 in
+     * locker-firmware/partitions.csv. A larger image could never be written.
+     */
+    public const MAX_IMAGE_BYTES = 0x1D0000;
+
     /** Semantic versioning without build metadata, as in the AsyncAPI schema. */
     private const VERSION_PATTERN = '/^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(-(0|[1-9]\d*|\d*[A-Za-z-][0-9A-Za-z-]*)(\.(0|[1-9]\d*|\d*[A-Za-z-][0-9A-Za-z-]*))*)?$/';
 
@@ -57,6 +65,12 @@ class FirmwareRelease extends Model
 
     protected static function booted(): void
     {
+        static::deleting(static function (self $release): void {
+            if ($release->isInUse()) {
+                throw new LogicException('A firmware release that a locker bank is updating to cannot be deleted.');
+            }
+        });
+
         static::saving(static function (self $release): void {
             if (! self::isValidVersion((string) $release->version)) {
                 throw new InvalidArgumentException("'{$release->version}' is not a valid firmware version (semantic versioning, at most 31 characters).");
@@ -68,6 +82,18 @@ class FirmwareRelease extends Model
     public static function isUsableDownloadUrl(string $url): bool
     {
         return str_starts_with($url, 'https://') && strlen($url) <= self::DOWNLOAD_URL_MAX_LENGTH;
+    }
+
+    /** Whether a locker bank is still fetching or installing this release (an update in flight). */
+    public function isInUse(): bool
+    {
+        return LockerBank::query()
+            ->where('firmware_update_release_id', $this->id)
+            ->whereIn('firmware_update_status', array_map(
+                static fn (FirmwareUpdateStatus $status): string => $status->value,
+                FirmwareUpdateStatus::inFlightCases(),
+            ))
+            ->exists();
     }
 
     public static function isValidVersion(string $version): bool

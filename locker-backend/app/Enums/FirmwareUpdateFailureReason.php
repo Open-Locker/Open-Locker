@@ -16,4 +16,12 @@ enum FirmwareUpdateFailureReason: string
 
     /** No outcome arrived in time: a lost failure event, or a restart during the download. */
     case Timeout = 'timeout';
+
+    public function label(): string
+    {
+        return match ($this) {
+            self::Rollback => __('Rollback'),
+            self::Timeout => __('Timeout'),
+        };
+    }
 }
