@@ -19,7 +19,16 @@ export const regions = (node: MemoryNode): MemoryNode[] => node.id === 'flash'
 
 export function imageFill(node: MemoryNode): string {
 	if (node.children?.every((child) => child.kind === 'headroom')) return 'background:var(--tile-headroom)';
-	if (!node.children?.some((child) => child.kind === 'image')) return '';
+	if (!node.children) return '';
+	if (!node.children.every((child) => child.kind === 'image' || child.kind === 'headroom')) {
+		let offset = 0;
+		const stops = node.children.map((child) => {
+			const start = offset;
+			offset += child.bytes / node.bytes * 100;
+			return `var(--tile-${child.kind}) ${start}% ${offset}%`;
+		});
+		return `background:linear-gradient(90deg,${stops.join(',')})`;
+	}
 	const share = node.children.filter((child) => child.kind === 'image').reduce((sum, child) => sum + child.bytes, 0) / node.bytes * 100;
 	return `background:linear-gradient(90deg,var(--tile-image) ${share}%,var(--tile-headroom) ${share}%)`;
 }

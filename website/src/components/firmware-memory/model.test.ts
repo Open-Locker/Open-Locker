@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
 import { flashTree, signedImageBytes, snapshot } from './data.ts';
+import { ramTree } from './ram.ts';
 import { imageFill, layout, regions, type MemoryNode } from './model.ts';
 
 const flatten = (node: MemoryNode): MemoryNode[] => [node, ...(node.children ?? []).flatMap(flatten)];
@@ -32,7 +33,7 @@ test('both scenarios account for every flash byte and match the real partition t
 });
 
 test('treemap has proportional, bounded, non-overlapping tiles at every zoom', () => {
-	for (const node of flatten(flashTree(true)).filter((node) => node.children)) {
+	for (const node of [...flatten(flashTree(true)), ...flatten(ramTree())].filter((node) => node.children)) {
 		const tiles = layout(regions(node));
 		assert.ok(Math.abs(tiles.reduce((sum, tile) => sum + tile.width * tile.height, 0) - 6000) < 1e-7);
 		for (const tile of tiles) {
@@ -54,6 +55,24 @@ test('overview exposes both OTA partitions and signing is included in the image 
 	assert.deepEqual(regions(tree).map((node) => node.id), ['ota-0', 'ota-1', 'journal', 'system']);
 	const slot = regions(tree)[0];
 	assert.ok(imageFill(slot).includes(String(signedImageBytes() / slot.bytes * 100)));
-	assert.equal(imageFill(regions(tree)[2]), '');
+	assert.ok(imageFill(regions(tree)[2]).includes('--tile-dynamic'));
 	assert.equal(imageFill(regions(tree)[1]), 'background:var(--tile-headroom)');
+});
+
+test('RAM accounts for physical SRAM and RTC without double-counting static or runtime allocations', () => {
+	const tree = ramTree();
+	const nodes = flatten(tree);
+	assert.equal(tree.bytes, (520 + 16) * 1024);
+	assert.equal(new Set(nodes.map((node) => node.id)).size, nodes.length);
+	for (const node of nodes) {
+		assert.ok(node.bytes > 0);
+		if (node.children) assert.equal(node.bytes, node.children.reduce((sum, child) => sum + child.bytes, 0));
+	}
+	const get = (id: string) => nodes.find((node) => node.id === id)!;
+	assert.equal(get('ram-statics').bytes, 72008 + 17839);
+	assert.equal(get('ram-code').bytes, 90211 + 1028);
+	assert.equal(get('ram-runtime').bytes, 57940);
+	assert.equal(get('ram-unmeasured').kind, 'dynamic');
+	assert.ok(imageFill(get('ram-dram')).includes('--tile-dynamic'));
+	assert.ok(imageFill(get('ram-iram')).includes('--tile-reserved'));
 });

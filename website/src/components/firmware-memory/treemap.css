@@ -1,10 +1,6 @@
 firmware-memory {
 	display: block;
-	margin-block: 1.5rem;
-	padding: clamp(.75rem, 3vw, 1.5rem);
-	border: 1px solid var(--sl-color-gray-5);
-	border-radius: .75rem;
-	background: var(--sl-color-black);
+	margin-block: 1.5rem 2.5rem;
 	font-size: .875rem;
 	--tile-group: #e0eaff;
 	--tile-image: #b6cffb;
@@ -14,24 +10,17 @@ firmware-memory {
 	--tile-reserved: #e7eaf0;
 }
 firmware-memory * { box-sizing: border-box; }
-firmware-memory :is(p, ul, h3, table, nav, div) { margin-block: 0; }
+firmware-memory :is(p, ul, h2, nav, div, button) { margin-block: 0; }
 firmware-memory button, firmware-memory select { font: inherit; color: inherit; }
-firmware-memory button { cursor: pointer; margin: 0; }
-firmware-memory button:focus-visible, firmware-memory select:focus-visible { outline: 3px solid var(--sl-color-accent); outline-offset: 2px; z-index: 1; }
-firmware-memory .memory-heading { display: flex; flex-wrap: wrap; gap: 1rem; justify-content: space-between; align-items: end; }
-firmware-memory .memory-eyebrow { color: var(--sl-color-gray-2); font-size: .75rem; letter-spacing: .06em; text-transform: uppercase; }
-firmware-memory h3 { font-size: 1.35rem; }
-firmware-memory label { display: grid; gap: .25rem; font-size: .75rem; }
-firmware-memory select { max-width: 100%; padding: .5rem; border: 1px solid var(--sl-color-gray-4); border-radius: .3rem; background: white; }
-firmware-memory .memory-caption, firmware-memory .memory-source { margin-block: 1rem; color: var(--sl-color-gray-2); }
-firmware-memory .memory-stats { display: flex; flex-wrap: wrap; gap: 1.5rem; padding-block: .75rem 1rem; }
-firmware-memory .memory-stats div { display: grid; gap: .25rem; }
-firmware-memory .memory-stats span { font-size: .75rem; color: var(--sl-color-gray-2); }
-firmware-memory .memory-scopes { display: flex; flex-wrap: wrap; gap: .4rem; }
-firmware-memory .memory-scopes button { border: 1px solid var(--sl-color-gray-5); border-radius: .3rem; padding: .45rem .7rem; background: white; }
-firmware-memory .memory-scopes button[aria-pressed="true"] { border-color: var(--sl-color-accent); background: var(--tile-group); }
-firmware-memory .memory-breadcrumb { display: flex; flex-wrap: wrap; gap: .4rem; padding-block: 1rem .65rem; }
-firmware-memory .memory-breadcrumb button { padding: .15rem 0; border: 0; background: none; color: var(--sl-color-text-accent); }
+firmware-memory button { cursor: pointer; }
+firmware-memory :is(button, select):focus-visible { outline: 3px solid var(--sl-color-accent); outline-offset: 2px; z-index: 1; }
+firmware-memory :is(.memory-heading, .memory-controls) { display: flex; flex-wrap: wrap; gap: .5rem 1rem; justify-content: space-between; align-items: center; }
+firmware-memory h2 { font-size: 1.2rem; }
+firmware-memory select { max-width: 100%; padding: .4rem; border: 1px solid var(--sl-color-gray-4); border-radius: .3rem; background: white; }
+firmware-memory .memory-controls { padding-block: .65rem; }
+firmware-memory [data-region] { max-width: min(100%, 19rem); }
+firmware-memory .memory-breadcrumb { display: flex; flex-wrap: wrap; gap: .4rem; }
+firmware-memory .memory-breadcrumb button { padding: .25rem 0; border: 0; background: none; color: var(--sl-color-text-accent); }
 firmware-memory .memory-breadcrumb button + button::before { content: '/'; padding-inline: .25rem .6rem; color: var(--sl-color-gray-3); }
 firmware-memory .memory-breadcrumb [aria-current] { font-weight: 700; }
 firmware-memory .memory-map { position: relative; width: 100%; aspect-ratio: 5 / 3; min-height: 17rem; }
@@ -44,24 +33,17 @@ firmware-memory [data-kind="reserved"] { --tile: var(--tile-reserved); }
 firmware-memory .memory-tile { position: absolute; display: flex; flex-direction: column; align-items: start; justify-content: center; gap: .25rem; overflow: hidden; padding: .75rem; border: 2px solid white; background: var(--tile); text-align: left; }
 firmware-memory .memory-tile:hover { box-shadow: inset 0 0 0 2px var(--sl-color-accent); }
 firmware-memory .memory-tile strong { max-width: 100%; font-size: clamp(.75rem, 1.7vw, 1rem); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-firmware-memory .memory-tile span, firmware-memory .memory-tile small { font-size: .75rem; }
+firmware-memory .memory-tile span { font-size: .75rem; }
 firmware-memory .memory-tile[data-small="true"] { padding: .25rem; }
-firmware-memory .memory-tile[data-small="true"] :is(span, small) { display: none; }
+firmware-memory .memory-tile[data-small="true"] span { display: none; }
 firmware-memory .memory-tile[data-tiny="true"] { padding: 0; }
 firmware-memory .memory-tile[data-tiny="true"] > * { visibility: hidden; }
-firmware-memory .memory-legend { display: flex; flex-wrap: wrap; gap: .5rem 1rem; padding: .75rem 0; list-style: none; font-size: .75rem; }
+firmware-memory .memory-legend { display: flex; flex-wrap: wrap; gap: .5rem 1rem; padding: .5rem 0; list-style: none; font-size: .75rem; }
 firmware-memory .memory-legend li { display: inline-flex; align-items: center; gap: .35rem; margin: 0; }
 firmware-memory .memory-legend li::before { content: ''; width: .8rem; height: .8rem; background: var(--tile); border: 1px solid #94a3b8; }
-firmware-memory .memory-detail { padding: 1rem; border-left: 3px solid var(--sl-color-accent); background: #f8fafc; }
-firmware-memory .memory-detail p { margin-top: .35rem; }
-firmware-memory .memory-table-wrap { overflow-x: auto; margin-top: 1rem; }
-firmware-memory .memory-table { width: 100%; font-size: .8rem; }
-firmware-memory caption { text-align: left; font-weight: 700; padding-block: .5rem; }
-firmware-memory :is(th, td) { padding: .6rem .4rem; text-align: left; }
-firmware-memory th button { border: 0; background: none; padding: .25rem 0; text-align: left; color: var(--sl-color-text-accent); }
-firmware-memory .memory-source { font-size: .75rem; overflow-wrap: anywhere; }
+firmware-memory :is(.memory-caption, .memory-detail) { font-size: .75rem; color: var(--sl-color-gray-2); }
+firmware-memory .memory-detail:empty { display: none; }
 @media (max-width: 30rem) {
 	firmware-memory .memory-tile { padding: .4rem; }
 	firmware-memory .memory-tile span { display: none; }
-	firmware-memory .memory-stats { gap: .75rem; }
 }

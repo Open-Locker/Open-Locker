@@ -1,7 +1,9 @@
 import type { MemoryNode } from './model';
 
 // Snapshot of 25c7e82b, ESP-IDF 6.1, sdkconfig.defaults + sdkconfig.production.
-// Refresh with the procedure on the memory documentation page; never infer NVS/journal fullness.
+// Refresh: idf.py -D SDKCONFIG_DEFAULTS="sdkconfig.defaults;sdkconfig.production" build
+// in a clean ESP-IDF 6.1 build. Record .bin lengths; signing adds sector padding + 4 KiB.
+// Never infer NVS/journal fullness from partition capacity.
 export const snapshot = {
 	commit: '25c7e82b',
 	date: '2026-10-23',

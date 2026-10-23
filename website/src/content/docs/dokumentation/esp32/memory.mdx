@@ -1,92 +1,14 @@
 ---
-title: Flash & memory
-description: Explore the ESP32 flash partitions, production-config image footprint, and the difference between reserved capacity and measured usage.
+title: Flash & RAM
+description: Interactive ESP32 flash and RAM allocation charts.
+tableOfContents: false
+prev: false
+next: false
 sidebar:
   order: 11
 ---
 
 import FirmwareMemory from '../../../../components/FirmwareMemory.astro';
 
-The controller has **4 MiB of flash** for firmware and persistent data. The map
-below accounts for every byte of that address space. Select a region to zoom
-in, then use the breadcrumb to go back. The list below the map also reaches
-regions too small to label clearly.
-
 <FirmwareMemory />
-
-## What “used” means here
-
-- **Image bytes** are the lengths of files from a production-config build of
-  commit `25c7e82b`, using ESP-IDF 6.1 on 23 October 2026. They include binary
-  padding, rather than attempting to count only non-erased bytes.
-- **Signing overhead** is calculated using the Secure Boot v2 format used by
-  `scripts/sign_firmware.py`: round the unsigned image up to a 4 KiB boundary,
-  then add a 4 KiB signature sector. The chart models a signed deployed image;
-  it does not require or contain a signing key.
-- **Headroom** belongs to a specific image slot or boot region. Empty bytes
-  inside `ota_1` cannot extend NVS, the journal, or RAM.
-- **Known NVS payload** assumes a commissioned controller: identity is 728 B,
-  configuration is 344 B, and network settings are 296 B, including each
-  record's four-byte version. These fixed records reserve their full buffers,
-  including all 64 compartment mappings, even with only 36 configured.
-- **Variable / unmeasured** is deliberately not shown as free space. NVS adds
-  entry metadata, setup strings, radio data, and old entries. Journal occupancy
-  changes with command history. Neither has a measured production fill level.
-
-The **fresh install** scenario assumes a full-chip erase and a signed image in
-`ota_0`. **After OTA** illustrates two images of the same measured size; a real
-previous version can be larger or smaller. During an update, the inactive slot
-temporarily contains a partial image. See [flashing](/dokumentation/esp32/flashing/)
-for which partitions each operation writes.
-
-:::caution[Production configuration is not a production release]
-This snapshot disables the bench console and uses verified TLS, but flash and
-NVS encryption are still disabled. The reserved `nvs_keys` partition does not
-mean encryption is active. Final release hardening can change image size.
-:::
-
-## How the journal uses its space
-
-The journal's 256 KiB is split into two 128 KiB regions. One receives records;
-the other receives the retained records during compaction. Their roles switch.
-The spare is part of the persistence algorithm, not another 128 KiB available
-for commands. Records have checksums and a commit marker; the region header is
-written last so an interrupted compaction does not replace the valid region.
-
-The journal keeps up to 32 open transactions and targets the newest 256
-delivered transactions, subject to a 64 KiB compaction-copy budget. Open
-transactions are not pruned. A corrupt journal stops unlocking.
-
-## Flash is separate from RAM
-
-The treemap is **not a RAM budget**. Queues, task stacks, Wi-Fi, TLS, and the
-journal's in-memory index consume RAM. Increasing a queue does not consume
-unused space in an OTA partition. Runtime heap usage also depends on whether
-the controller is provisioning, connected to MQTT, or downloading an update.
-
-## Reproduce or refresh the snapshot
-
-In an ESP-IDF 6.1 shell, run from `locker-firmware/` with a fresh build directory
-and a separate configuration file:
-
-```bash
-idf.py -B build -D SDKCONFIG=sdkconfig.treemap -D "SDKCONFIG_DEFAULTS=sdkconfig.defaults;sdkconfig.production" build
-idf.py -B build -D SDKCONFIG=sdkconfig.treemap size
-```
-
-Record the byte lengths of `build/locker-firmware.bin`,
-`build/bootloader/bootloader.bin`, and
-`build/partition_table/partition-table.bin`, plus the source commit and build
-configuration. Update the snapshot in
-`website/src/components/firmware-memory/data.ts`. The model's tests compare the
-partition capacities and offsets with `partitions.csv` and check that treemap
-areas sum correctly. To measure actual NVS or journal occupancy, instrument a
-device running the workload; do not substitute their reserved partition sizes.
-
-The unsigned image used here has SHA-256
-`11f876dc15fa2eea6f2b32c6e048610136c96cb14bc45cee7fc2b9964ac849f0`.
-
-Sources: [partition table](https://github.com/Open-Locker/Open-Locker/blob/25c7e82b/locker-firmware/partitions.csv),
-[NVS records](https://github.com/Open-Locker/Open-Locker/blob/25c7e82b/locker-firmware/components/lc_storage_nvs/nvs_stores.c),
-[journal design](https://github.com/Open-Locker/Open-Locker/blob/25c7e82b/docs/adr/0070-esp32-command-journal-record-format-and-retention.md),
-[production configuration](https://github.com/Open-Locker/Open-Locker/blob/25c7e82b/locker-firmware/sdkconfig.production).
+<FirmwareMemory kind="ram" />
