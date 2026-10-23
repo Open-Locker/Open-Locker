@@ -6,6 +6,7 @@ namespace App\Aggregates;
 
 use App\StorableEvents\UserRoleGranted;
 use App\StorableEvents\UserRoleRevoked;
+use App\Support\Organizations\DefaultOrganization;
 use Carbon\CarbonInterface;
 use Ramsey\Uuid\Uuid;
 
@@ -15,7 +16,7 @@ use Ramsey\Uuid\Uuid;
  */
 class UserRoleAggregate extends TransactionalAggregateRoot
 {
-    /** @var array<string, true> currently-held roles, rebuilt from events */
+    /** @var array<string, true> currently-held (organization, role) pairs, rebuilt from events */
     private array $roles = [];
 
     public static function aggregateUuidFor(int $userId): string
@@ -24,10 +25,15 @@ class UserRoleAggregate extends TransactionalAggregateRoot
         return Uuid::uuid5(Uuid::NAMESPACE_URL, "user-role:{$userId}")->toString();
     }
 
-    public function grantRole(int $userId, string $role, ?int $actorUserId, CarbonInterface $grantedAt): self
-    {
-        if (isset($this->roles[$role])) {
-            return $this; // idempotent: already granted
+    public function grantRole(
+        int $userId,
+        string $role,
+        ?int $actorUserId,
+        CarbonInterface $grantedAt,
+        ?string $organizationId = null,
+    ): self {
+        if (isset($this->roles[self::heldKey($organizationId, $role)])) {
+            return $this; // idempotent: already granted in this organization
         }
 
         $this->recordThat(new UserRoleGranted(
@@ -35,15 +41,21 @@ class UserRoleAggregate extends TransactionalAggregateRoot
             role: $role,
             actorUserId: $actorUserId,
             grantedAt: $grantedAt->toIso8601String(),
+            organizationId: $organizationId,
         ));
 
         return $this;
     }
 
-    public function revokeRole(int $userId, string $role, ?int $actorUserId, CarbonInterface $revokedAt): self
-    {
-        if (! isset($this->roles[$role])) {
-            return $this; // idempotent: not held
+    public function revokeRole(
+        int $userId,
+        string $role,
+        ?int $actorUserId,
+        CarbonInterface $revokedAt,
+        ?string $organizationId = null,
+    ): self {
+        if (! isset($this->roles[self::heldKey($organizationId, $role)])) {
+            return $this; // idempotent: not held in this organization
         }
 
         $this->recordThat(new UserRoleRevoked(
@@ -51,18 +63,29 @@ class UserRoleAggregate extends TransactionalAggregateRoot
             role: $role,
             actorUserId: $actorUserId,
             revokedAt: $revokedAt->toIso8601String(),
+            organizationId: $organizationId,
         ));
 
         return $this;
     }
 
+    /**
+     * Events recorded before organizations existed carry none, and replay must
+     * still answer for them: they belong to the default organization, and the
+     * held-set has to agree with the projector or replay turns idempotent.
+     */
+    private static function heldKey(?string $organizationId, string $role): string
+    {
+        return ($organizationId ?? DefaultOrganization::id() ?? 'none').'|'.$role;
+    }
+
     protected function applyUserRoleGranted(UserRoleGranted $event): void
     {
-        $this->roles[$event->role] = true;
+        $this->roles[self::heldKey($event->organizationId, $event->role)] = true;
     }
 
     protected function applyUserRoleRevoked(UserRoleRevoked $event): void
     {
-        unset($this->roles[$event->role]);
+        unset($this->roles[self::heldKey($event->organizationId, $event->role)]);
     }
 }

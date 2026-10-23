@@ -11,11 +11,14 @@ use App\StorableEvents\TermsDocumentCreated;
 use App\StorableEvents\TermsVersionActivated;
 use App\StorableEvents\TermsVersionPublished;
 use App\StorableEvents\UserAcceptedTermsVersion;
+use App\Support\EventSourcing\ProjectsWithinEventOrganization;
 use Illuminate\Support\Carbon;
 use Spatie\EventSourcing\EventHandlers\Projectors\Projector;
 
 class TermsProjector extends Projector
 {
+    use ProjectsWithinEventOrganization;
+
     public function onTermsDocumentCreated(TermsDocumentCreated $event): void
     {
         TermsDocument::query()->updateOrCreate(

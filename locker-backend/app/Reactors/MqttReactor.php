@@ -14,6 +14,7 @@ use App\StorableEvents\LockerConfigApplyRequested;
 use App\StorableEvents\LockerProvisioningFailed;
 use App\StorableEvents\LockerProvisioningReplyFailed;
 use App\StorableEvents\LockerWasProvisioned;
+use App\Support\EventSourcing\OrganizationStamp;
 use App\Support\EventSourcing\StoredEventDispatcher;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Support\Facades\DB;
@@ -113,11 +114,16 @@ class MqttReactor extends Reactor implements ShouldQueue
                 'exception' => $e->getMessage(),
             ]);
 
-            // Record a failure event so we have a durable audit trail
-            $this->storedEventDispatcher->dispatch(new LockerProvisioningReplyFailed(
-                lockerBankUuid: $event->lockerBankUuid,
-                replyToTopic: $event->replyToTopic,
-                reason: $e->getMessage(),
+            // Record a failure event so we have a durable audit trail, in the
+            // organization that owns the bank — this reactor is queued, so
+            // without inheriting it the failure lands in the default
+            // organization's history instead of the operator's.
+            OrganizationStamp::runWithin($event, fn () => $this->storedEventDispatcher->dispatch(
+                new LockerProvisioningReplyFailed(
+                    lockerBankUuid: $event->lockerBankUuid,
+                    replyToTopic: $event->replyToTopic,
+                    reason: $e->getMessage(),
+                )
             ));
 
             // Rethrow to trigger queue retry strategy
@@ -127,7 +133,13 @@ class MqttReactor extends Reactor implements ShouldQueue
 
     private function lockCurrentGeneration(LockerWasProvisioned $event): bool
     {
-        $lockerBank = LockerBank::query()
+        // Unscoped: reactors run queued, with no request behind them, so
+        // nothing has established an organization. The uuid comes from the
+        // event this handler is processing rather than from a user, and a bank
+        // uuid is globally unique — so there is nothing here for a scope to
+        // protect. Scoped, every provisioning reply is silently dropped as a
+        // stale event.
+        $lockerBank = LockerBank::withoutGlobalScope('organization')
             ->whereKey($event->lockerBankUuid)
             ->lockForUpdate()
             ->first();

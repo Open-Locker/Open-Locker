@@ -9,6 +9,7 @@ import RenderHtml from 'react-native-render-html';
 import { baseApi } from '@/src/store/baseApi';
 import { clearPersistedAuth } from '@/src/store/authStorage';
 import { clearCredentials } from '@/src/store/authSlice';
+import { clearActiveOrganization } from '@/src/store/organizationSlice';
 import {
   openLockerApi,
   useGetTermsCurrentQuery,
@@ -46,10 +47,11 @@ export default function TermsScreen() {
   const dispatch = useAppDispatch();
   const [acceptTerms, acceptTermsState] = usePostTermsAcceptMutation();
   const [logoutCurrentSession] = usePostLogoutMutation();
-  const { data: user, isLoading: isLoadingUser } = useGetUserQuery({});
+  const { data: user, isLoading: isLoadingUser, isFetching: isFetchingUser } = useGetUserQuery({});
   const {
     data: currentTerms,
     isLoading: isLoadingTerms,
+    isFetching: isFetchingTerms,
     error: termsError,
   } = useGetTermsCurrentQuery({});
   const [submitError, setSubmitError] = React.useState<string | null>(null);
@@ -62,6 +64,10 @@ export default function TermsScreen() {
     await clearPersistedAuth();
     dispatch(baseApi.util.resetApiState());
     dispatch(clearCredentials());
+    // The chosen organization belongs to the session that chose it. Left
+    // behind, the next person to sign in on this device starts acting in a
+    // stranger's choice instead of being asked.
+    dispatch(clearActiveOrganization());
   }, [dispatch]);
 
   const hasAcceptedCurrentTerms = !!user?.terms_current_accepted;
@@ -70,22 +76,24 @@ export default function TermsScreen() {
   const hasNoActiveTerms = isNotFoundError(termsError);
 
   React.useEffect(() => {
-    if (!isLoadingUser && termsAlreadyAccepted) {
+    if (!isLoadingUser && !isFetchingUser && termsAlreadyAccepted) {
       navigateToTabs();
     }
-  }, [isLoadingUser, navigateToTabs, termsAlreadyAccepted]);
+  }, [isFetchingUser, isLoadingUser, navigateToTabs, termsAlreadyAccepted]);
 
   React.useEffect(() => {
-    if (!isLoadingTerms && hasNoActiveTerms) {
+    if (!isLoadingTerms && !isFetchingTerms && hasNoActiveTerms) {
       navigateToTabs();
     }
-  }, [hasNoActiveTerms, isLoadingTerms, navigateToTabs]);
+  }, [hasNoActiveTerms, isFetchingTerms, isLoadingTerms, navigateToTabs]);
 
   const onAccept = React.useCallback(async () => {
     setSubmitError(null);
     try {
       await acceptTerms({}).unwrap();
-      dispatch(openLockerApi.util.invalidateTags(['Auth', 'Terms']));
+      // `Compartment` too: an organization's lockers are loaded up front and
+      // refused until its terms are accepted, so that refusal is still cached.
+      dispatch(openLockerApi.util.invalidateTags(['Auth', 'Terms', 'Compartment']));
       navigateToTabs();
     } catch (error) {
       setSubmitError(getApiErrorMessage(error, t));
@@ -106,7 +114,7 @@ export default function TermsScreen() {
     navigateToTabs();
   }, [navigateToTabs]);
 
-  if (isLoadingUser || isLoadingTerms) {
+  if (isLoadingUser || isLoadingTerms || isFetchingUser || isFetchingTerms) {
     const loadingDocumentName = currentTerms?.document_name ?? t('terms.currentDocument');
     return (
       <SafeAreaView
