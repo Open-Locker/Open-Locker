@@ -1,0 +1,67 @@
+---
+import { flashTree, snapshot, signedImageBytes } from './firmware-memory/data';
+import { formatBytes, imageFill, layout, regions } from './firmware-memory/model';
+import './firmware-memory/treemap.css';
+
+const root = flashTree();
+---
+
+<firmware-memory aria-label="ESP32 flash partition explorer">
+	<div class="memory-heading">
+		<div><span class="memory-eyebrow">ESP32 · 4 MiB SPI flash</span><h3>Where the bytes go</h3></div>
+		<label>Device state
+			<select data-scenario>
+				<option value="fresh">Fresh install</option>
+				<option value="ota">After OTA · same-size images</option>
+			</select>
+		</label>
+	</div>
+	<p class="memory-caption">Tile area = capacity; the blue fill inside an image region includes signing overhead. Click a tile to explore, or use the list for small regions. This is a snapshot, not live telemetry.</p>
+	<div class="memory-stats">
+		<div><span>Total flash</span><strong>4,194,304 B</strong></div>
+		<div><span>Signed image footprint</span><strong>{formatBytes(signedImageBytes())}</strong></div>
+		<div><span>Per-slot capacity</span><strong>1,900,544 B</strong></div>
+	</div>
+	<nav class="memory-scopes" aria-label="Flash regions">
+		<button type="button" data-select="flash" aria-pressed="true">All flash</button>
+		<button type="button" data-select="firmware" aria-pressed="false">Firmware</button>
+		<button type="button" data-select="journal" aria-pressed="false">Journal</button>
+		<button type="button" data-select="system" aria-pressed="false">System & settings</button>
+	</nav>
+	<nav class="memory-breadcrumb" aria-label="Treemap location" data-breadcrumb><span>4 MiB flash</span></nav>
+	<div class="memory-map" data-map aria-label="Flash capacity treemap">
+		{layout(regions(root)).map(({ node, x, y, width, height }) => (
+			<button type="button" data-select={node.id} data-kind={node.id === 'journal' ? 'dynamic' : node.kind} class="memory-tile"
+				data-small={String(width < 20 || height < 14)}
+				data-tiny={String(width < 5 || height < 3)}
+				style={`left:${x}%;top:${y / 60 * 100}%;width:${width}%;height:${height / 60 * 100}%;${imageFill(node)}`}
+				title={`${node.label}: ${formatBytes(node.bytes)}`}>
+				<strong>{node.label}</strong><span>{formatBytes(node.bytes)}</span><small>Explore →</small>
+			</button>
+		))}
+	</div>
+	<ul class="memory-legend" aria-label="Tile meanings">
+		<li data-kind="group">Partition group</li>
+		<li data-kind="image">Image bytes</li><li data-kind="headroom">Image headroom / empty slot</li>
+		<li data-kind="dynamic">Variable / unmeasured</li><li data-kind="payload">Known payload</li><li data-kind="reserved">Reserved</li>
+	</ul>
+	<div class="memory-detail" aria-live="polite" aria-atomic="true" data-detail>
+		<strong>{root.label} · {formatBytes(root.bytes)}</strong><p>{root.note}</p>
+	</div>
+	<div class="memory-table-wrap">
+		<table class="memory-table">
+			<caption data-caption>Regions in {root.label}</caption>
+			<thead><tr><th scope="col">Region</th><th scope="col">Capacity</th><th scope="col">Share of view</th></tr></thead>
+			<tbody data-rows>{regions(root).map((node) => (
+				<tr><th scope="row"><button type="button" data-select={node.id}>{node.label} →</button></th>
+					<td>{formatBytes(node.bytes)}</td><td>{(node.bytes / root.bytes * 100).toFixed(2)}%</td></tr>
+			))}</tbody>
+		</table>
+	</div>
+	<p class="memory-source">Production-config snapshot · ESP-IDF 6.1 · <code>{snapshot.commit}</code> · {snapshot.date}. NVS and journal occupancy are deliberately unmeasured. Flash/NVS encryption is still disabled.</p>
+	<noscript><p>Enable JavaScript to zoom into partitions. The capacity overview above remains available; see the figures and source notes below for usage details.</p></noscript>
+</firmware-memory>
+
+<script>
+	import './firmware-memory/explorer';
+</script>
