@@ -6,9 +6,13 @@ namespace App\Services;
 
 use App\Aggregates\LockerBankAggregate;
 use App\Enums\LockerAdapterType;
+use App\Exceptions\FirmwareUpdateRefused;
 use App\Models\Compartment;
+use App\Models\FirmwareRelease;
 use App\Models\LockerBank;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 
 class LockerService
 {
@@ -35,6 +39,41 @@ class LockerService
         LockerBankAggregate::retrieve($lockerBankUuid)
             ->requestCompartmentOpening($compartment, $commandId)
             ->persist();
+    }
+
+    /**
+     * Request a firmware update of one locker bank (the reactor publishes
+     * update_firmware). Returns the transaction id of the command.
+     *
+     * @throws FirmwareUpdateRefused when the bank cannot take an update now
+     */
+    public function requestFirmwareUpdate(
+        LockerBank $lockerBank,
+        FirmwareRelease $release,
+        bool $allowDowngrade = false,
+        ?int $actorUserId = null,
+    ): string {
+        $commandId = (string) Str::uuid();
+
+        Log::info('LockerService::requestFirmwareUpdate requested', [
+            'lockerBankUuid' => (string) $lockerBank->id,
+            'releaseId' => (string) $release->id,
+            'version' => $release->version,
+            'commandId' => $commandId,
+        ]);
+
+        // The bank is read again under a lock: two requests at once must not both see it idle, and the
+        // model the caller holds may be stale. The projector runs inside the aggregate's transaction,
+        // so the second request waits for the first one's state.
+        DB::transaction(function () use ($lockerBank, $release, $commandId, $allowDowngrade, $actorUserId): void {
+            $current = LockerBank::query()->whereKey($lockerBank->id)->lockForUpdate()->firstOrFail();
+
+            LockerBankAggregate::retrieve((string) $current->id)
+                ->requestFirmwareUpdate($current, $release, $commandId, $allowDowngrade, $actorUserId)
+                ->persist();
+        });
+
+        return $commandId;
     }
 
     /**

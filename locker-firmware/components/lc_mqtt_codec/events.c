@@ -95,3 +95,18 @@ size_t lc_mqtt_encode_uncommanded_open(const lc_uncommanded_open_t *event,
     lc_json_raw(&writer, "}}");
     return lc_json_finish(&writer);
 }
+
+size_t lc_mqtt_encode_firmware_update_failed(const lc_firmware_update_failure_t *event,
+                                             const lc_mqtt_envelope_t *envelope, char *out,
+                                             size_t capacity)
+{
+    lc_json_writer_t writer;
+
+    begin_event(&writer, out, capacity, envelope, "firmware_update_failed");
+    lc_json_key(&writer, "transaction_id", true);
+    lc_json_string(&writer, event->transaction_id);
+    lc_json_key(&writer, "error_code", false);
+    lc_json_string(&writer, lc_mqtt_error_code(event->error));
+    lc_json_raw(&writer, "}}");
+    return lc_json_finish(&writer);
+}

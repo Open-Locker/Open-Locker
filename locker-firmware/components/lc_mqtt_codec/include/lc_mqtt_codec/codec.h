@@ -6,6 +6,7 @@
 
 #include "lc_domain/command.h"
 #include "lc_domain/events.h"
+#include "lc_domain/firmware.h"
 #include "lc_domain/identity.h"
 
 /*
@@ -93,7 +94,9 @@ const char *lc_mqtt_error_code(lc_error_t error);
  */
 size_t lc_mqtt_encode_response(const lc_command_result_t *result,
                                const lc_mqtt_envelope_t *envelope, char *out, size_t capacity);
+/* `firmware` is NULL for a device that reports none; `trial` goes out with the version. */
 size_t lc_mqtt_encode_heartbeat(uint32_t uptime_seconds, bool bus_connected,
+                                const lc_firmware_status_t *firmware,
                                 const lc_mqtt_envelope_t *envelope, char *out, size_t capacity);
 size_t lc_mqtt_encode_snapshot(const lc_compartment_state_t *states, size_t count,
                                const lc_mqtt_envelope_t *envelope, char *out, size_t capacity);
@@ -103,6 +106,9 @@ size_t lc_mqtt_encode_open_detection(const lc_open_detection_t *event,
 size_t lc_mqtt_encode_uncommanded_open(const lc_uncommanded_open_t *event,
                                        const lc_mqtt_envelope_t *envelope, char *out,
                                        size_t capacity);
+size_t lc_mqtt_encode_firmware_update_failed(const lc_firmware_update_failure_t *event,
+                                             const lc_mqtt_envelope_t *envelope, char *out,
+                                             size_t capacity);
 size_t lc_mqtt_encode_connection_offline(lc_offline_reason_t reason,
                                          const lc_mqtt_envelope_t *envelope, char *out,
                                          size_t capacity);

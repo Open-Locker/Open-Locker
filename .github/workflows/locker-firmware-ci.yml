@@ -65,6 +65,11 @@ jobs:
           target: esp32
           path: locker-firmware
 
+      # The images must still fit their partitions once signed; verify.py cannot see them when it
+      # runs with --skip-target.
+      - name: Check the image sizes
+        run: python scripts/verify.py --check-image-sizes build
+
       # The ESP-IDF adapters on the Linux target, against CMock mocks of the SDK. After the firmware
       # build: the mqtt mock takes its header from the firmware's resolved managed_components/.
       - name: Run the IDF host tests

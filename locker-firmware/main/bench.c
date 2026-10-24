@@ -55,12 +55,13 @@ static lc_publish_id_t out_response(void *ctx, const lc_command_result_t *result
     return emit("response", lc_mqtt_encode_response(result, &stamp, encoded, sizeof(encoded)));
 }
 
-static lc_publish_id_t out_heartbeat(void *ctx, uint32_t uptime_seconds, bool bus_connected)
+static lc_publish_id_t out_heartbeat(void *ctx, uint32_t uptime_seconds, bool bus_connected,
+                                     const lc_firmware_status_t *firmware)
 {
     (void)ctx;
     const lc_mqtt_envelope_t stamp = envelope();
-    return emit("heartbeat", lc_mqtt_encode_heartbeat(uptime_seconds, bus_connected, &stamp,
-                                                      encoded, sizeof(encoded)));
+    return emit("heartbeat", lc_mqtt_encode_heartbeat(uptime_seconds, bus_connected, firmware,
+                                                      &stamp, encoded, sizeof(encoded)));
 }
 
 static lc_publish_id_t out_snapshot(void *ctx, const lc_compartment_state_t *states, size_t count)
@@ -92,6 +93,13 @@ static lc_publish_id_t out_connection_offline(void *ctx, lc_offline_reason_t rea
                                                                 sizeof(encoded)));
 }
 
+static lc_publish_id_t out_firmware_update_failed(void *ctx, const lc_firmware_update_failure_t *event)
+{
+    (void)ctx;
+    const lc_mqtt_envelope_t stamp = envelope();
+    return emit("event", lc_mqtt_encode_firmware_update_failed(event, &stamp, encoded, sizeof(encoded)));
+}
+
 lc_outbound_port_t bench_outbound(void)
 {
     return (lc_outbound_port_t){
@@ -102,5 +110,6 @@ lc_outbound_port_t bench_outbound(void)
         .open_detection = out_open_detection,
         .uncommanded_open = out_uncommanded_open,
         .connection_offline = out_connection_offline,
+        .firmware_update_failed = out_firmware_update_failed,
     };
 }

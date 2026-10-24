@@ -282,8 +282,9 @@ the bus. It repairs itself in no way. With the torn-tail rule above, it means
 damage a power cut cannot cause: a failed flash operation, a bit error, or a
 software bug. Recovery is an operator action: erase the partition with
 `parttool.py --port <port> --partition-table-offset 0xC000 erase_partition --partition-name journal`
-and commission the device again. The journal is the only state that a network
-reset (`reset-network`, see the firmware README) keeps.
+and commission the device again. The journal is the only state that a reset
+keeps: the 10 s button (ADR-0074) and, in bench builds, `reset-network` (see
+the firmware README).
 
 ## Alternatives Considered
 
@@ -401,9 +402,11 @@ reset (`reset-network`, see the firmware README) keeps.
 
 ## Rollout / Migration
 
-No unit is deployed and no board has been flashed, so no journal migrates. A
-device with a journal of an unknown version reports it unhealthy and does not
-actuate. There is no migration from the Pi
+No unit is deployed, so no journal migrates; a bench board's journal is erased
+with `parttool.py` when the format changes. A device with a journal of an
+unknown version reports it unhealthy and does not actuate. OTA rollback (#59)
+must therefore never leave a journal the previous image cannot read. There is
+no migration from the Pi
 client's files: a Pi client and an ESP32 never share a bank at the same time
 (hardware check HW-G2 in `locker-firmware/docs/testing.md`).
 

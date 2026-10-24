@@ -18,6 +18,7 @@ class EditLockerBank extends EditRecord
     protected function getHeaderActions(): array
     {
         return [
+            LockerBankResource::updateFirmwareAction(),
             LockerBankResource::restartProvisioningAction(),
             Actions\DeleteAction::make(),
         ];

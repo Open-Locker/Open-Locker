@@ -4,6 +4,9 @@ sdkconfig.*
 !sdkconfig.defaults
 !sdkconfig.dev
 !sdkconfig.production
+# Signing keys and signed images (scripts/sign_firmware.py): never committed.
+*.pem
+*-signed.bin
 __pycache__/
 managed_components/
 tests/idf_host/dependencies.lock

@@ -29,6 +29,7 @@ locker-firmware/
     lc_application/       use cases; requires lc_domain and lc_ports only
     lc_mqtt_codec/        JSON <-> domain values, envelope, fragment assembly (pure C + cJSON)
     lc_mqtt_espidf/       esp-mqtt transport; implements the outbound and provisioning ports
+    lc_ota_espidf/        esp_https_ota and esp_ota_ops; implements the firmware update port (ADR-0075)
     lc_rs485_lock_board/  frame codec and bus adapter; implements the locker bus port
     lc_serial_uart/       UART transaction transport for the bus adapter
     lc_journal/           command journal over a flash I/O struct (ADR-0070)
@@ -149,6 +150,9 @@ inside the MQTT adapter), `hasher_port.h` (SHA-256) and `system_port.h`
   rule the application relies on.
 - One **bus worker** behind the locker bus port owns the UART.
 - The esp-mqtt task belongs to `lc_mqtt_espidf` and only copies and enqueues.
+- The **download task** belongs to `lc_ota_espidf`. It exists only while an image is
+  downloaded, and reports how it ended to the owner queue (verified or failed); the
+  owner task never waits for it.
 
 The owner task never waits for the network. The only thing it waits for is a
 reply from the panel, bounded by the bus deadline, and during that wait nothing
@@ -243,8 +247,13 @@ journal,   data, 0x40,     0x3C0000, 0x40000,
   boot make it larger.
 - With empty `otadata` the bootloader boots `ota_0`, so `idf.py flash` works
   as with a single app and the first OTA writes `ota_1`.
-- Each app slot is 0x1D0000 (1.8 MB). The default build measured 0xfe540
-  bytes on ESP-IDF 6.1, leaving 45 % of the slot free. The 36 KB from
+- Each app slot is 0x1D0000 (1.8 MB). Before OTA the default build measured
+  0xfe540 bytes on ESP-IDF 6.1, leaving 45 % of the slot free. With OTA linked
+  (`esp_https_ota`, rollback, RSA signature checking and the HTTP client) it
+  measures 0x120000 bytes (1,179,648, padded for signing), leaving 38 % free;
+  the bootloader is 26,288 bytes of its 44 KB. A signature adds a 4 KiB block.
+  `verify.py` fails the build when the app image plus that block outgrows the
+  smaller OTA slot, or the bootloader outgrows its space. The 36 KB from
   `0x17000` to `0x20000` are unused.
 - `nvs_keys` is reserved and unused until flash and NVS encryption are turned
   on (a release blocker, ADR-0074 decision 18). Whether its `encrypted` flag
@@ -252,7 +261,9 @@ journal,   data, 0x40,     0x3C0000, 0x40000,
 - The journal is found by its label (`lc_storage_nvs/partition_flash.c`), not
   its offset, and is never flash-encrypted (ADR-0070). The table ends exactly
   at 4 MB.
-- Rollback, image signing and the minimum chip revision belong to OTA (#59).
+- Rollback (`CONFIG_BOOTLOADER_APP_ROLLBACK_ENABLE`), RSA app signing without
+  secure boot and the minimum chip revision 3.0 are set in `sdkconfig.defaults`
+  (ADR-0075).
 
 ### Toolchain
 
