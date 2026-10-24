@@ -67,6 +67,10 @@ Join our weekly meeting every Tuesday at **19:30 CET / 18:30 UTC** on
 pull requests, and feedback. New contributors are welcome to listen in, ask
 questions, or choose a component that interests them.
 
+The repository is also mirrored on
+[openCode](https://gitlab.opencode.de/OC000075481431/open-locker) for Public
+Money, Public Code publication.
+
 We also welcome organizations interested in sponsoring or adopting open digital
 infrastructure for community resource sharing. Contact the project through
 Discord or open a GitHub issue.
