@@ -20,7 +20,7 @@ This is bench firmware. Read [Limits](#limits) before you put a lock on it.
 | --- | --- |
 | ESP32 D1 mini | ESP-IDF target `esp32`, USB data cable |
 | XY-485 converter | Automatic direction: no DE/RE pin to drive. Powered from the ESP32's 3V3 |
-| RS485 lock panel | Own supply; check the seller's documentation for the voltage |
+| RS485 lock panel | SY-800R, 8 channels, board address 1, with door feedback (ADR-0071). Own supply; check the seller's documentation for the voltage |
 | A lock on channel 1 | The panel times the release pulse; the firmware only sends commands |
 
 Wiring, with the build defaults from `components/lc_serial_uart/Kconfig`:
@@ -34,8 +34,9 @@ Wiring, with the build defaults from `components/lc_serial_uart/Kconfig`:
 
 A and B of the converter go to A and B of the panel. UART 0 is the USB console
 and cannot be used for the bus. The serial parameters default to 9600 baud, 8N1
-and the timing to `components/lc_rs485_lock_board/Kconfig`; **none of these has
-been confirmed against the panel yet** ([Risks](docs/architecture.md#risks)). Change them with
+and the timing to `components/lc_rs485_lock_board/Kconfig`. The bench panel
+answers at 9600 8N1, in about 265 ms against the 1500 ms reply deadline
+(ADR-0071); other panels may differ ([Risks](docs/architecture.md#risks)). Change them with
 `idf.py menuconfig`.
 
 ## Build and test
@@ -63,7 +64,7 @@ gates, and an ESP-IDF shell for the IDF host tests and the target build. Flashin
 checks the test IDs against [the catalogue](docs/testing.md), the layer rules (see below), static
 analysis of the pure components, the host suites with AddressSanitizer and
 UndefinedBehaviorSanitizer, every encoded MQTT message against its AsyncAPI
-schema, the Python tests of the tools, and line coverage of at least 90 % for the
+schema, the Python tests of the tools, and line coverage of at least 95 % for the
 pure components.
 
 ## How it is laid out
@@ -94,13 +95,28 @@ overlapping an unlock.
 The MQTT transport only moves topics and bytes. `main/mqtt_session.c` joins it
 to the codec, so no adapter depends on another.
 
+## Commissioning over the setup network
+
+Not yet tried on a bench unit (ADR-0074). A unit with no network settings opens a setup Wi-Fi
+for 10 minutes after power-up (name and password on its label). From a
+laptop, run `python scripts/commission.py --softap` (after a firmware build, which fetches its `esp_prov`); it says when to join that network
+(see its docstring and ADR-0074). `scripts/device_secrets.py` makes the label
+secrets for a new unit. Hold the unit's reset button for 10 s to wipe it.
+
 ## Commissioning over USB
+
+The console commands below (`configure`, `unlock`, `command`, `reset-network`)
+exist in bench and development builds only. A production build is made with
+`idf.py -D SDKCONFIG_DEFAULTS="sdkconfig.defaults;sdkconfig.production" build`
+and has none of them (`CONFIG_LC_BENCH_CONSOLE=n`); it is commissioned through
+the setup network (ADR-0074). Neither build has flash or NVS encryption yet, so
+no production unit may ship (ADR-0074).
 
 A new board has no network settings. Give it some with the tool:
 
 ```bash
-pip install -r requirements.txt              # once: pyserial, paho-mqtt
-python scripts/commission.py --port COM3     # or /dev/ttyUSB0
+pip install -r requirements.txt              # once: pyserial, paho-mqtt, questionary
+python scripts/commission.py --usb           # finds the board; or --usb COM3, /dev/ttyUSB0
 ```
 
 It asks for the Wi-Fi network name and password, the broker URL (`mqtts://`
@@ -132,11 +148,14 @@ Things to know:
 
 Type these into the serial monitor, one line each (up to 1 KiB). Every reply is
 one line starting with `ok` or `error`; a reply never repeats a value you sent.
+What you type is not echoed, so the screen stays blank until the reply. A line
+ends with CR, LF or CRLF, so Enter works in `idf.py monitor` (which sends CR) and
+in other terminals.
 
 | Command | What it does |
 | --- | --- |
 | `status` | Bus state, and whether the device is enrolled, an enrollment is pending, and settings are stored |
-| `diagnostics` | Bus state and the number of unlock requests that reached the wire since boot |
+| `diagnostics` | Bus state, the number of unlock requests that reached the wire since boot, the lowest free heap since boot and the owner task's unused stack (bytes) |
 | `self-test` | Checks the frame encoder. Sends nothing to the panel |
 | `query <board>` | Reads the door state of addresses 0 to 31 of a panel (`c` closed, `o` open, `?` unknown) |
 | `unlock <board> <address>` | **Releases the lock** at that address, once. Bench use: it bypasses the journal, so it is refused once the device is enrolled or has network settings |
@@ -189,16 +208,17 @@ token.
 - **One panel per bus.** A second board address is rejected, and so is any
   `adapter_type` other than `rs485_lock_board`.
 - **Credentials are stored unencrypted** in NVS in this release. Flash
-  encryption and NVS encryption (with the reserved `nvs_keys` partition) ship
-  with the SoftAP pull request
-  ([plan in #57](https://github.com/Open-Locker/Open-Locker/issues/57#issuecomment-6214674877)).
-  Until then, do not leave a unit unattended in a place anyone can reach.
+  encryption and NVS encryption (with the reserved `nvs_keys` partition) are
+  not turned on yet; no production unit may ship before they are (ADR-0074
+  decision 18). Until then, do not leave a unit unattended in a place anyone
+  can reach.
 - **The broker certificate must chain to a public CA** in the built-in bundle
   (for example the Let's Encrypt certificate of ADR-0053). Certificate and host
   name verification cannot be turned off. A broker with a private CA needs the
   CA added to the build.
-- **No OTA, no SoftAP portal.** OTA is #59. The SoftAP portal is the next pull
-  request.
+- **No OTA yet, and the setup network is barely tried.** OTA is #59. The setup
+  network has not run on a bench unit; the hardware checks of group F are open
+  (ADR-0074). Its `esp_prov` comes from the firmware's own build tree (ADR-0074).
 - **Unconfirmed hardware facts:** panel model, supply voltage, channel count,
   lock model, board flash size (the partition table assumes 4 MB), UART pins,
   serial parameters, DIP address and feedback polarity. The host tests establish
@@ -214,7 +234,7 @@ The partition table sits at `0xC000`, so the bootloader has room to grow.
 | `nvs` | `0xD000` | 24 KiB | Settings, identity and mapping |
 | `otadata` | `0x13000` | 8 KiB | Which app slot boots (empty: `ota_0`) |
 | `phy_init` | `0x15000` | 4 KiB | Radio calibration |
-| `nvs_keys` | `0x16000` | 4 KiB | Reserved for NVS encryption; used from the SoftAP pull request (#57) |
+| `nvs_keys` | `0x16000` | 4 KiB | Reserved for NVS encryption; unused until it is turned on (ADR-0074 decision 18) |
 | `ota_0` | `0x20000` | 1.8 MiB | The firmware; `idf.py flash` writes it here |
 | `ota_1` | `0x1F0000` | 1.8 MiB | Second slot, used by OTA (#59) |
 | `journal` | `0x3C0000` | 256 KiB | The command journal (raw, subtype `0x40`) |

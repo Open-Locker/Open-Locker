@@ -44,6 +44,7 @@ class LockerBankProjector extends Projector
             $lockerBank->forceFill([
                 'provisioned_at' => $event->createdAt() ?? now(),
                 'provisioning_token_hmac' => null,
+                'provisioning_token_issued_at' => null,
                 'provisioning_generation' => $event->provisioningGeneration,
             ])->save();
         }
@@ -59,6 +60,7 @@ class LockerBankProjector extends Projector
 
         $lockerBank->forceFill([
             'provisioning_token_hmac' => $event->provisioningTokenHmac,
+            'provisioning_token_issued_at' => Carbon::parse($event->issuedAtIso8601),
             'provisioning_generation' => $event->provisioningGeneration,
         ])->save();
     }
@@ -85,6 +87,7 @@ class LockerBankProjector extends Projector
 
         $lockerBank->forceFill([
             'provisioning_token_hmac' => null,
+            'provisioning_token_issued_at' => null,
             'provisioning_generation' => null,
             'provisioned_at' => null,
             'connection_status' => 'offline',

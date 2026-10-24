@@ -2,7 +2,9 @@
 #include <string.h>
 
 #include "console_glue.h"
+#include "esp_heap_caps.h"
 #include "lc_mqtt_codec/codec.h"
+#include "sdkconfig.h"
 
 /*
  * The console's connections to the rest of the device. Called on the console
@@ -43,6 +45,7 @@ static bool submit_setup(void *ctx, const lc_setup_request_t *request)
 
     memset(&event, 0, sizeof(event));
     event.kind = OWNER_SETUP;
+    event.channel = LC_COMMISSION_CHANNEL_CONSOLE;
     event.u.setup = *request;
     bool posted = owner_post(&event);
     /* The queue holds its own copy; this one held a token. */
@@ -69,6 +72,13 @@ static bool provisioning_state(void *ctx, bool *enrolled, bool *pending, bool *c
     return true;
 }
 
+static bool memory(void *ctx, uint32_t *min_free_heap, uint32_t *owner_stack)
+{
+    (void)ctx;
+    *min_free_heap = (uint32_t)heap_caps_get_minimum_free_size(MALLOC_CAP_8BIT);
+    return owner_stack_free(owner_stack);
+}
+
 void console_glue_init(lc_console_t *console, const lc_locker_bus_port_t *bus,
                        uint32_t (*unlock_transmissions)(void *ctx),
                        bool (*self_test)(void *ctx))
@@ -78,17 +88,34 @@ void console_glue_init(lc_console_t *console, const lc_locker_bus_port_t *bus,
         .ctx = NULL,
         .write = write_line,
         .unlock_transmissions = unlock_transmissions,
+        .memory = memory,
         .self_test = self_test,
         .submit_command = submit_command,
         .submit_setup = submit_setup,
         .request_reset = request_reset,
         .provisioning_state = provisioning_state,
+#ifndef CONFIG_LC_BENCH_CONSOLE
+        .production = true,
+#endif
     };
 }
 
-void console_glue_reply(void *ctx, lc_commission_result_t result)
+static void (*portal_reply)(lc_commission_result_t result);
+
+void console_glue_set_portal_reply(void (*reply)(lc_commission_result_t result))
+{
+    portal_reply = reply;
+}
+
+void console_glue_reply(void *ctx, lc_commission_channel_t channel, lc_commission_result_t result)
 {
     (void)ctx;
+    if (channel == LC_COMMISSION_CHANNEL_PORTAL) {
+        if (portal_reply != NULL) {
+            portal_reply(result);
+        }
+        return;
+    }
     /* One line, one outcome, and never a value that was submitted. */
     switch (result) {
     case LC_COMMISSION_SAVED:

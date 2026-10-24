@@ -290,6 +290,42 @@ void test_S5_H15_input_processed_per_pass_is_bounded(void)
     TEST_ASSERT_EQUAL_UINT(0, lc_console_feed_bytes(&console, &input, flood, 0));
 }
 
+void test_S6_H14_a_production_build_has_no_configure_unlock_command_or_reset_network(void)
+{
+    console.production = true;
+    static const char *const BENCH_ONLY[] = {
+        CONFIGURE,
+        "unlock 1 0",
+        "command {\"action\":\"open_compartment\"}",
+        "reset-network",
+    };
+
+    for (size_t i = 0; i < sizeof(BENCH_ONLY) / sizeof(BENCH_ONLY[0]); ++i) {
+        replies[0] = '\0';
+        reply_count = 0;
+        lc_console_execute(&console, BENCH_ONLY[i]);
+        TEST_ASSERT_EQUAL_UINT_MESSAGE(1, reply_count, BENCH_ONLY[i]);
+        /* The same reply as for any word the console does not know. */
+        TEST_ASSERT_EQUAL_STRING_MESSAGE("error invalid command\n", replies, BENCH_ONLY[i]);
+    }
+    assert_nothing_happened();
+
+    /* What only reads is still there. */
+    replies[0] = '\0';
+    lc_console_execute(&console, "self-test");
+    TEST_ASSERT_EQUAL_STRING("ok self-test passed\n", replies);
+    replies[0] = '\0';
+    lc_console_execute(&console, "diagnostics");
+    TEST_ASSERT_EQUAL_STRING_LEN("ok bus=", replies, 7);
+
+    /* The bench console, the default, still has all four. */
+    console.production = false;
+    replies[0] = '\0';
+    lc_console_execute(&console, "reset-network");
+    TEST_ASSERT_EQUAL_STRING("ok reset requested\n", replies);
+    TEST_ASSERT_EQUAL_UINT(1, reset_count);
+}
+
 int main(void)
 {
     UNITY_BEGIN();
@@ -299,5 +335,6 @@ int main(void)
     RUN_TEST(test_S5_H13_unknown_command_gets_an_error_reply_and_changes_nothing);
     RUN_TEST(test_S5_H14_no_reply_contains_a_submitted_value);
     RUN_TEST(test_S5_H15_input_processed_per_pass_is_bounded);
+    RUN_TEST(test_S6_H14_a_production_build_has_no_configure_unlock_command_or_reset_network);
     return UNITY_END();
 }

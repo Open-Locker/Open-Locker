@@ -6,11 +6,13 @@ setup-mqtt:
     #!/usr/bin/env bash
     set -e
     
-    # Load variables from .env if present
-    if [ -f locker-backend/.env ]; then
-        export $(grep -v '^#' locker-backend/.env | xargs)
+    # Read only MOSQ_HTTP_PASS from .env: other lines may hold spaces or comments
+    # that a shell export would choke on. Surrounding quotes and a trailing comment are dropped.
+    if [ -z "${MOSQ_HTTP_PASS:-}" ] && [ -f locker-backend/.env ]; then
+        MOSQ_HTTP_PASS="$(grep -E '^MOSQ_HTTP_PASS=' locker-backend/.env | tail -n 1 | cut -d= -f2- \
+            | sed -e 's/[[:space:]]#.*$//' -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//' \
+                  -e 's/^"\(.*\)"$/\1/' -e "s/^'\(.*\)'\$/\1/" | tr -d '\r')"
     fi
-
 
     PASS="${MOSQ_HTTP_PASS:-secret}"
 
@@ -31,12 +33,18 @@ setup-mqtt:
         exit 1
     fi
 
+    # Docker creates an empty directory when the file was missing at container start.
+    if [ -d "$TARGET" ]; then
+        rmdir "$TARGET"
+    fi
+
     # Replace __AUTH_PASS__ in template and write to target
     sed "s|__AUTH_PASS__|$PASS|g" "$TEMPLATE" > "$TARGET"
 
     echo "Config generated at $TARGET"
-    echo "Restarting MQTT container..."
-    docker compose -f locker-backend/docker-compose.yml restart mqtt
+    echo "Recreating MQTT container..."
+    # Recreated, not restarted: a container started without the file keeps the directory mount.
+    docker compose -f locker-backend/docker-compose.yml up -d --force-recreate --no-deps mqtt
 
 # Install git hooks
 install-hooks:

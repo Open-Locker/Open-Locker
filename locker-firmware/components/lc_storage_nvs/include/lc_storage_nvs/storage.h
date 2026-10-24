@@ -3,6 +3,7 @@
 #include <stdbool.h>
 #include <stddef.h>
 
+#include "lc_domain/identity.h"
 #include "lc_ports/store_ports.h"
 
 /*
@@ -17,6 +18,13 @@
 
 /* Initialises NVS. An NVS partition that cannot be read is erased, which un-enrolls the device. */
 bool lc_storage_init(void);
+
+/*
+ * The setup network's secrets, from their own NVS namespace. False when they
+ * were never written or do not fit: there is then no setup network, and no
+ * default password stands in for them.
+ */
+bool lc_storage_load_setup_secrets(lc_setup_secrets_t *out);
 
 lc_config_store_port_t lc_storage_config_store(void);
 lc_identity_store_port_t lc_storage_identity_store(void);

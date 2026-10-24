@@ -35,7 +35,9 @@ Rules:
   this file does not list. Tests for details the catalogue does not list carry
   no ID; most live in the `*_edge` suites.
 - Line coverage of `lc_domain`, `lc_application` and the pure adapters
-  (`lc_mqtt_codec`, `lc_rs485_lock_board`, `lc_journal`) must be at least 90 %.
+  (`lc_mqtt_codec`, `lc_rs485_lock_board`, `lc_journal`) must be at least 95 %.
+  Every component is listed in `verify.py` as pure, header-only or adapter; the
+  gate fails on a component in none of them.
 - A test that fails intermittently is a failing test. No test is removed or
   skipped without a line in the PR saying why. Changing a listed test needs a
   line in the PR description saying what changed and why.
@@ -98,6 +100,7 @@ Host suite `test_console_line`:
 | --- | --- |
 | S1-H25 | `unlock` and `query` parse valid arguments and reject out-of-range ones |
 | S1-H26 | A line over the length limit is discarded through its newline and nothing is executed |
+| S1-H36 | A CR, an LF and a CRLF each end exactly one line (ESP-IDF's monitor sends CR) |
 
 ### Commands, journal and MQTT codec (S2)
 
@@ -250,7 +253,7 @@ Host suite `test_commission_device`:
 | S5-H01 | Valid settings are saved, then acknowledged, then the restart is requested, in that order |
 | S5-H02 | An SSID or Wi-Fi password of invalid length, or a broker URL that is not `mqtts://`, is rejected and nothing is saved (release build) |
 | S5-H03 | A store failure produces no acknowledgement and no restart |
-| S5-H04 | On an enrolled device, a network change keeps credentials, locker UUID, mapping, and journal |
+| S5-H04 | On an enrolled device, a network change keeps credentials, locker UUID, mapping, and journal (the stored broker URL stays too, S6-H10) |
 | S5-H05 | On an enrolled device, token and bootstrap fields in the input are ignored |
 | S5-H06 | A device with the pending flag set refuses new settings until it is reset |
 | S5-H07 | Reset clears identity, credentials, and mapping, and keeps the journal |
@@ -269,13 +272,74 @@ Host suite `test_console_protocol`:
 | S5-H14 | No reply contains any submitted value |
 | S5-H15 | Input processed per pass is bounded, so a flood cannot starve the owner task |
 
-Tool suite `test_commission.py` (unittest, runs in the host gate):
+Tool suites `test_commission.py` and `test_commission_softap.py` (unittest, run in the host gate):
 
 | ID | Test |
 | --- | --- |
 | S5-H16 | Secrets are read without echo and never written to disk or to output |
 | S5-H17 | A lost serial connection after sending is reported; the tool does not resend |
 | S5-H18 | The tool never issues a reset on its own |
+
+### SoftAP provisioning (S6)
+
+Rows are added in the commit that writes each test (ADR-0074). Host suite
+`test_commission_device`:
+
+| ID | Test |
+| --- | --- |
+| S6-H10 | `configure` on an enrolled unit keeps the stored broker URL (S5-H01 to H09 still pass, with S5-H04 changed accordingly) |
+| S6-H11 | On an enrolled unit, broker and token fields are ignored and Wi-Fi settings alone are accepted |
+| S6-H15 | Factory reset wipes identity, mapping and settings, keeps the journal, publishes nothing. A failed later clear returns the "partial" result |
+
+Host suite `test_boot_mode`:
+
+| ID | Test |
+| --- | --- |
+| S6-H05 | The setup network starts when no settings are stored |
+| S6-H06 | The setup network never starts when settings are stored or the unit is enrolled, whatever else is true |
+| S6-H24 | Boot with an empty identity and settings present finishes the wipe (settings and mapping), then decides the mode |
+| S6-H26 | Boot with an empty identity, a mapping and no settings leaves the mapping alone (bench mode, HW-B3) |
+
+Host suite `test_button`:
+
+| ID | Test |
+| --- | --- |
+| S6-H16 | A press under 10 s does nothing |
+| S6-H17 | A press from 10 s to under 30 s resets, once, on release |
+| S6-H18 | A press of 30 s or more is void |
+| S6-H19 | A button held at power-up does nothing until it has been released for a second |
+| S6-H20 | A stuck pin never arms |
+| S6-H21 | A gap between samples voids the press and the arming |
+| S6-H22 | A floating pin reads released (pull-up) and does nothing |
+| S6-H23 | Bounce under 50 ms is ignored |
+| S6-H25 | A reset the owner task refused is offered again on the next samples for 2 s, then reported once |
+
+Host suite `test_softap_portal`, and the tool suite `test_verify.py` for the
+layer rule:
+
+| ID | Test |
+| --- | --- |
+| S6-H03 | A failed Security 2 session reaches no endpoint, and 5 failures close the window |
+| S6-H07 | The portal closes after saving and after 10 minutes. A unit with no settings reopens it on the next boot |
+| S6-H08 | Nothing reopens a closed portal during the run, so a Wi-Fi failure after commissioning never does (the token is kept by S5, `commission_device`) |
+| S6-H09 | The portal never exposes status, diagnostics or stored settings: only the handshake, the Wi-Fi endpoint and `ol-config` exist, the last two behind an established session |
+| S6-H12 | No code path from the portal reaches the bus port (enforced by the layer rule in `verify.py`) |
+| S6-H13 | A second station is refused while one is connected |
+
+Host suite `test_ol_config` (the collector also has a fixed-seed random test and
+a libFuzzer target in `tests/fuzz/`, built by hand with clang):
+
+| ID | Test |
+| --- | --- |
+| S6-H01 | A valid `ol-config` submission reaches `commission_device` with the same values as a USB one |
+| S6-H02 | An oversized payload, a missing field or a malformed encoding is rejected and nothing is saved |
+| S6-H04 | No response contains a submitted value: the reply is one status byte, the same for every refusal |
+
+Host suite `test_console_protocol`:
+
+| ID | Test |
+| --- | --- |
+| S6-H14 | A production build has no `configure`, `unlock`, `command` or `reset-network`: the console answers them like any unknown word |
 
 ## Hardware acceptance
 
@@ -284,6 +348,9 @@ is checked on the bench described in the [README](../README.md#hardware). A
 firmware PR merges only when its checks pass.
 `scripts/hwtest.py` runs the checks in one session and writes the record that
 CI checks.
+`hwtest.py list` shows every check with its status in the record, and
+`hwtest.py run --resume` runs only what is still missing, failed or not run;
+`--failed` reruns only the checks that failed.
 
 Rules:
 
@@ -317,7 +384,7 @@ Rules:
 | HW-B1 | **Actuates.** Feed `apply_config` then one open over the console: the lock releases once and the response is printed |
 | HW-B2 | Feed the same open again, once with the same message ID and once with a new one: the unlock transmission counter does not change |
 | HW-B3 | Restart with configuration applied: the mapping is still in effect |
-| HW-B4 | **Actuates.** Cut ESP32 power immediately after feeding an open, ten times: after each restart the transaction has a stored outcome and no unlock is sent during boot |
+| HW-B4 | **Actuates.** Cut ESP32 power immediately after feeding an open, five times: after each restart the transaction has a stored outcome and no unlock is sent during boot |
 | HW-B5 | **Actuates.** Cut ESP32 power at claim, after transmission, at completion, and before PUBACK: each case ends in a stored outcome and no second unlock |
 | HW-B6 | Send 600 commands on a dedicated test unit: the journal compacts at least once without refusing a command, the newest 256 delivered transactions are still replayed, and an older one is executed as new |
 
@@ -333,7 +400,7 @@ Rules:
 | HW-C6 | Switch the access point off for one minute, then the broker for one minute: the device reconnects unaided and a response pending at the time is delivered |
 | HW-C7 | Use an invalid token: the device reports rejection and does not retry; after a backend provisioning reset and a fresh token it enrolls |
 | HW-C8 | Pull power from the ESP32: the broker publishes the Last Will, and the backend shows the bank offline once the heartbeat times out (it does not act on the Last Will yet, #43) |
-| HW-C9 | Record minimum free heap and owner task stack headroom after HW-C6 |
+| HW-C9 | Record minimum free heap and owner task stack headroom after HW-C6 (`diagnostics` reports both) |
 
 ### Group D: State and door events
 
@@ -355,6 +422,26 @@ Rules:
 | HW-E3 | Move an enrolled unit to another Wi-Fi network: identity, mapping, and journal are kept |
 | HW-E4 | Unplug USB during a save, ten times: the device has either the old or the new settings, never a mix |
 | HW-E5 | Reset the unit: the old credentials no longer work, and a fresh token enrolls it |
+
+### Group F: SoftAP commissioning
+
+Needs a unit with its setup secrets in NVS (`scripts/device_secrets.py --nvs-csv`),
+a laptop running `scripts/commission.py --softap` from the same build, and a
+production-configured build for HW-F6. Run against a backend with the
+token-expiry change deployed for HW-F8 (ADR-0074). None has run against the
+final commit yet. The bench spike of 2026-10-21 (ADR-0074, open points) already
+went through the HW-F1 path and the HW-F7 capture on a development build.
+
+| ID | Check |
+| --- | --- |
+| HW-F1 | **Actuates.** Commission an erased unit from a laptop with no cable, through to an open from the admin panel. Success is read in the panel |
+| HW-F2 | Wrong Wi-Fi password: the unit keeps retrying, the 10 s button hold resets it, and within 24 h of issue the same unused token enrolls it. Checked in the panel |
+| HW-F3 | On an enrolled unit, scan for the access point and probe the port: neither is reachable |
+| HW-F4 | Button: under 10 s does nothing, 10 s resets, held at power-up does nothing, a jumper stuck down does nothing |
+| HW-F5 | A second station is refused. The window closes after 10 minutes. A wrong setup password fails the session, and 5 failures close the window |
+| HW-F6 | A production build refuses `configure`, `unlock`, `command` and `reset-network` over USB |
+| HW-F7 | A traffic capture shows neither the Wi-Fi password nor the token in clear, including on `ol-config` |
+| HW-F8 | Against a backend with the token-expiry change deployed: a token older than 24 hours is refused, and a fresh one works |
 
 ### Group G: Endurance and rollback
 
