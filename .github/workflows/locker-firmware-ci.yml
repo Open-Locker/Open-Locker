@@ -1,0 +1,86 @@
+name: Locker Firmware Quality
+
+# No branch filter on pull_request: the SoftAP PR may target the first
+# firmware PR's branch until that one merges, and must be checked too.
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    paths:
+      - 'locker-firmware/**'
+      - '!locker-firmware/**/*.md'
+      - 'locker-firmware/docs/testing.md'
+      - 'docs/asyncapi/**'
+      - '.github/workflows/locker-firmware-ci.yml'
+  push:
+    branches:
+      - main
+    paths:
+      - 'locker-firmware/**'
+      - '!locker-firmware/**/*.md'
+      - 'locker-firmware/docs/testing.md'
+      - 'docs/asyncapi/**'
+      - '.github/workflows/locker-firmware-ci.yml'
+
+concurrency:
+  group: ${{ github.workflow }}-quality-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  locker-firmware-ci:
+    name: Static and host gates
+    # Drafts skip CI; ready_for_review runs it.
+    if: github.event.pull_request.draft != true
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    defaults:
+      run:
+        working-directory: locker-firmware
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+        with:
+          # The hardware record names the tree of the PR head, not of the merge commit.
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+
+      - name: Setup Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: locker-firmware/requirements-dev.txt
+
+      - name: Install gate dependencies
+        run: pip install -r requirements-dev.txt
+
+      - name: Run static and host gates
+        run: python scripts/verify.py --skip-target
+
+      # Before the hardware record, so a stale record does not hide a broken build.
+      - name: Build the firmware with ESP-IDF
+        uses: espressif/esp-idf-ci-action@v1
+        with:
+          esp_idf_version: v6.1
+          target: esp32
+          path: locker-firmware
+
+      # The ESP-IDF adapters on the Linux target, against CMock mocks of the SDK. After the firmware
+      # build: the mqtt mock takes its header from the firmware's resolved managed_components/.
+      - name: Run the IDF host tests
+        uses: espressif/esp-idf-ci-action@v1
+        with:
+          esp_idf_version: v6.1
+          target: linux
+          path: locker-firmware/tests/idf_host
+          command: idf.py --preview build && ./build/idf_host_test.elf
+
+      # The default build is the release configuration: plain MQTT must stay out (ADR-0069).
+      - name: Check plain MQTT is off in the default build
+        run: |
+          test -f sdkconfig
+          ! grep -q '^CONFIG_LC_ALLOW_PLAINTEXT_MQTT=y' sdkconfig
+
+      # Fails when locker-firmware/ changed since the bench run, or a check failed.
+      - name: Check the hardware record
+        run: python scripts/hwtest.py check

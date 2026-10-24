@@ -1,0 +1,13 @@
+menu "Locker MQTT transport"
+
+    # Production builds leave this off; sdkconfig.dev turns it on (ADR-0069).
+    config LC_ALLOW_PLAINTEXT_MQTT
+        bool "Allow plain mqtt:// brokers (development and test only)"
+        default n
+        help
+            Accepts an unencrypted mqtt:// broker URL at commissioning and
+            connects to it without TLS. Credentials and commands then cross
+            the network in clear text. Never enable this in a release build.
+            mqtts:// is verified either way.
+
+endmenu
