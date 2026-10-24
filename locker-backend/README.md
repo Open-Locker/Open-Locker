@@ -104,4 +104,4 @@ There is no backend Modbus status poller.
 
 ## License
 
-Open-Locker is available under the [MIT License](../LICENSE).
+Open-Locker is available under the [AGPL v3](../LICENSE.md).
