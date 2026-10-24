@@ -1,0 +1,53 @@
+---
+import { flashTree, snapshot } from './firmware-memory/data';
+import { ramTree } from './firmware-memory/ram';
+import { formatBytes, imageFill, layout, regions } from './firmware-memory/model';
+import './firmware-memory/treemap.css';
+
+interface Props { kind?: 'flash' | 'ram' }
+const { kind = 'flash' } = Astro.props;
+const root = kind === 'ram' ? ramTree() : flashTree();
+const children = regions(root);
+---
+
+<firmware-memory data-memory={kind} aria-label={`${kind === 'ram' ? 'RAM' : 'Flash'} explorer`}>
+	<div class="memory-heading">
+		<h2 title={`Production config · ESP-IDF 6.1 · ${snapshot.commit}`}>
+			{kind === 'ram' ? 'RAM · 520 KiB + 16 KiB RTC' : 'Flash · 4 MiB'}
+		</h2>
+		{kind === 'flash' && <select data-scenario aria-label="Flash scenario">
+			<option value="fresh">Fresh install</option><option value="ota">After OTA · same-size images</option>
+		</select>}
+	</div>
+	<div class="memory-controls">
+		<nav class="memory-breadcrumb" aria-label={`${kind} location`} data-breadcrumb>
+			<button type="button" data-select={root.id}>{kind === 'ram' ? 'RAM' : 'Flash'}</button>
+		</nav>
+		<select data-region aria-label={`${kind} region`}>
+			<option value="">Explore region…</option>
+			{children.map((node) => <option value={node.id}>{node.label} · {formatBytes(node.bytes)}</option>)}
+		</select>
+	</div>
+	<div class="memory-map" data-map aria-label={`${kind} treemap`}>
+		{layout(children).map(({ node, x, y, width, height }) => (
+			<button type="button" data-select={node.id} data-kind={node.id === 'journal' ? 'dynamic' : node.kind} class="memory-tile"
+				data-small={String(width < 20 || height < 14)} data-tiny={String(width < 5 || height < 3)}
+				style={`left:${x}%;top:${y / 60 * 100}%;width:${width}%;height:${height / 60 * 100}%;${imageFill(node)}`}
+				title={`${node.label}: ${formatBytes(node.bytes)}. ${node.note}`}>
+				<strong>{node.label}</strong><span>{formatBytes(node.bytes)}</span>
+			</button>
+		))}
+	</div>
+	<ul class="memory-legend" aria-label="Colors">
+		<li data-kind="image">{kind === 'ram' ? 'Code' : 'Image'}</li>
+		<li data-kind="payload">{kind === 'ram' ? 'Data / budget' : 'Data'}</li>
+		{kind === 'flash' && <li data-kind="headroom">Headroom</li>}
+		<li data-kind="dynamic">Unmeasured</li><li data-kind="reserved">Reserved</li>
+	</ul>
+	<output class="memory-detail" aria-live="polite" data-detail></output>
+	<p class="memory-caption">{kind === 'ram' ? 'Allocation model; unmeasured ≠ free heap.' : 'NVS / journal fill unmeasured. Click to zoom.'}</p>
+</firmware-memory>
+
+<script>
+	import './firmware-memory/explorer';
+</script>

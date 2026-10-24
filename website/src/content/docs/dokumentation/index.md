@@ -33,6 +33,7 @@ How the parts play together is described in the
 
 - [Getting started](/dokumentation/getting-started/) — set up a local development environment
 - [Operations](/dokumentation/operations/) — production deployment and hosting
+- [ESP32 controller](/dokumentation/esp32/) — build, flash, and commission an ESP32 locker controller (draft)
 - [Contributing](/dokumentation/contributing/) — contribute to the project
 
 ## Community
