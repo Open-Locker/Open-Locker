@@ -21,7 +21,9 @@ sidebar:
 
 ## Flash layout
 
-<!-- partitions.csv table. -->
+Explore the [interactive flash and memory map](/dokumentation/esp32/memory/)
+for the partition layout, a production-config image footprint, and the
+difference between reserved capacity and measured usage.
 
 ## For developers
 
