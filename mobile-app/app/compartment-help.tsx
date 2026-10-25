@@ -8,10 +8,8 @@ import { HelperText, Text, useTheme } from 'react-native-paper';
 
 import { SupportCallButton } from '@/src/features/compartmentHelp';
 import { getApiErrorMessage } from '@/src/store/apiErrorMessage';
-import {
-  useGetCompartmentsAccessibleQuery,
-  usePostCompartmentsByCompartmentHelpRequestsMutation,
-} from '@/src/store/generatedApi';
+import { useGetOrganizationCompartmentsQuery } from '@/src/features/organizations';
+import { usePostCompartmentsByCompartmentHelpRequestsMutation } from '@/src/store/generatedApi';
 import { useAppSelector } from '@/src/store/hooks';
 import { OPEN_LOCKER_DESIGN_TOKENS } from '@/src/theme/tokens';
 import { AppButton, AppTextInput } from '@/src/ui';
@@ -25,7 +23,12 @@ export default function CompartmentHelpScreen() {
   const theme = useTheme();
   const token = useAppSelector((state) => state.auth.token);
   const { compartmentId } = useLocalSearchParams<{ compartmentId: string }>();
-  const { data } = useGetCompartmentsAccessibleQuery(token ? {} : skipToken);
+  const activeOrganizationId = useAppSelector((state) => state.organization.activeOrganizationId);
+  // The same cached list the home screen shows, so the bank and its support
+  // phone are there without a request.
+  const { data } = useGetOrganizationCompartmentsQuery(
+    token ? { organizationId: activeOrganizationId } : skipToken,
+  );
   const [sendHelpRequest, sendHelpRequestState] =
     usePostCompartmentsByCompartmentHelpRequestsMutation();
   const [message, setMessage] = React.useState('');

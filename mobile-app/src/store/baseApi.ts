@@ -1,8 +1,15 @@
-import type { BaseQueryFn, FetchArgs, FetchBaseQueryError } from '@reduxjs/toolkit/query';
+import type {
+  BaseQueryFn,
+  FetchArgs,
+  FetchBaseQueryError,
+  FetchBaseQueryMeta,
+} from '@reduxjs/toolkit/query';
 import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react';
 
 import { getApiBaseUrl } from '@/src/api/baseUrl';
 import { isTermsNotAcceptedError } from './termsGate';
+import { isOrganizationForbiddenError } from './organizationGate';
+import { clearActiveOrganization } from '@/src/store/organizationSlice';
 import { getCurrentAppLanguage } from '@/src/i18n';
 import { markSessionExpired } from '@/src/store/authSlice';
 import { clearPersistedAuth } from '@/src/store/authStorage';
@@ -24,6 +31,17 @@ const rawBaseQuery = fetchBaseQuery({
     const token = state.auth.token;
     if (token) {
       headers.set('authorization', `Bearer ${token}`);
+    }
+
+    // Which organization the app is acting in. One place, like the token, so
+    // no generated endpoint has to know the concept exists. Omitted when the
+    // user has a single membership: the server resolves that itself, which is
+    // what keeps single-organization installations unaware of any of this.
+    // A request that names its own organization keeps it: the locker lists of
+    // every organization are fetched up front so switching is instant.
+    const activeOrganizationId = state.organization.activeOrganizationId;
+    if (activeOrganizationId && !headers.has('x-organization')) {
+      headers.set('x-organization', activeOrganizationId);
     }
 
     headers.set('accept', 'application/json');
@@ -68,6 +86,10 @@ const baseQueryWithSessionExpiry: BaseQueryFn<
       try {
         await clearPersistedAuth();
         api.dispatch(markSessionExpired());
+        // The chosen organization belongs to the session that chose it, so an
+        // expiring session forgets it too — otherwise the next person to sign
+        // in on this device starts acting in a stranger's choice.
+        api.dispatch(clearActiveOrganization());
         api.dispatch(baseApi.util.resetApiState());
       } finally {
         sessionExpiryInFlight = false;
@@ -81,6 +103,23 @@ const baseQueryWithSessionExpiry: BaseQueryFn<
   // never appears and every action fails for no visible reason.
   if (result.error?.status === 403 && isTermsNotAcceptedError(result.error.data)) {
     api.dispatch(baseApi.util.invalidateTags(['Auth']));
+  }
+
+  // An organization the user may no longer act in: revoked membership, or a
+  // stale value from another account. Its lockers are cached like every
+  // organization's and its tab comes from a cached list, so both are dropped
+  // and fetched again rather than left on screen. The stored choice is cleared
+  // too when it named that organization; a list loaded up front for another
+  // one says nothing about the choice. /organizations and this refusal both
+  // answer from membership, so the refetch cannot offer it again.
+  if (result.error?.status === 403 && isOrganizationForbiddenError(result.error.data)) {
+    const refusedOrganizationId = (
+      result.meta as FetchBaseQueryMeta | undefined
+    )?.request.headers.get('x-organization');
+    if (refusedOrganizationId === (api.getState() as RootState).organization.activeOrganizationId) {
+      api.dispatch(clearActiveOrganization());
+    }
+    api.dispatch(baseApi.util.resetApiState());
   }
 
   return result;

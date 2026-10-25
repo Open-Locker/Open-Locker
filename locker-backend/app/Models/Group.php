@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToOrganization;
 use Database\Factories\GroupFactory;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
@@ -15,11 +16,14 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Group extends Model
 {
+    use BelongsToOrganization;
+
     /** @use HasFactory<GroupFactory> */
     use HasFactory, HasUuids;
 
     protected $fillable = [
         'id',
+        'organization_id',
         'name',
         'description',
         'created_by_user_id',

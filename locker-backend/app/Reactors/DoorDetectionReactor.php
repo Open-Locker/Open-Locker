@@ -12,6 +12,7 @@ use App\StorableEvents\CompartmentOpeningRequested;
 use App\StorableEvents\CompartmentOpenNotDetected;
 use App\StorableEvents\CompartmentUncommandedOpenDetected;
 use App\StorableEvents\DeviceEventReceived;
+use App\Support\EventSourcing\OrganizationStamp;
 use App\Support\EventSourcing\StoredEventDispatcher;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Support\Facades\Log;
@@ -46,12 +47,19 @@ class DoorDetectionReactor extends Reactor implements ShouldQueue
 
     public function onDeviceEventReceived(DeviceEventReceived $event): void
     {
-        match ($event->event) {
-            self::OPEN_DETECTED => $this->handleOpenDetected($event),
-            self::OPEN_FAILED => $this->handleOpenFailed($event),
-            self::UNCOMMANDED_OPEN => $this->handleUncommandedOpen($event),
-            default => null,
-        };
+        // Everything recorded below is caused by this event and belongs where
+        // it happened. Queued, there is no request to say where that is, so the
+        // organization is inherited from the event itself — otherwise a jam on
+        // one operator's bank alerts another operator's managers and never
+        // reaches its own.
+        OrganizationStamp::runWithin($event, function () use ($event): void {
+            match ($event->event) {
+                self::OPEN_DETECTED => $this->handleOpenDetected($event),
+                self::OPEN_FAILED => $this->handleOpenFailed($event),
+                self::UNCOMMANDED_OPEN => $this->handleUncommandedOpen($event),
+                default => null,
+            };
+        });
     }
 
     private function handleOpenDetected(DeviceEventReceived $event): void
@@ -143,7 +151,9 @@ class DoorDetectionReactor extends Reactor implements ShouldQueue
             return;
         }
 
-        $lockerBank = LockerBank::query()->find($event->lockerBankUuid);
+        // Queued, so no organization is in context; the uuid comes from the
+        // event rather than from a request.
+        $lockerBank = LockerBank::withoutGlobalScope('organization')->find($event->lockerBankUuid);
         if (! $lockerBank) {
             Log::warning('Uncommanded open event for unknown locker bank.', [
                 'lockerBankUuid' => $event->lockerBankUuid,
@@ -152,7 +162,10 @@ class DoorDetectionReactor extends Reactor implements ShouldQueue
             return;
         }
 
-        $compartment = Compartment::query()
+        // Same reasoning: reached through a bank already resolved from the
+        // event, so the organization is settled by the bank rather than by a
+        // scope that has nothing to read.
+        $compartment = Compartment::withoutGlobalScope('organization')
             ->where('locker_bank_id', $lockerBank->id)
             ->where('number', $compartmentNumber)
             ->first();

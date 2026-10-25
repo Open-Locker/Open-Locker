@@ -3,7 +3,7 @@ import type { GetCompartmentsAccessibleApiResponse } from '@/src/store/generated
 import type { CompartmentNoteUpdatedPayload } from './echo';
 
 /**
- * Patches a content-note event into the `getCompartmentsAccessible` cache draft:
+ * Patches a content-note event into the cached locker list (one per organization, `getOrganizationCompartments`) draft:
  * finds the matching compartment across locker banks and updates its
  * `content_note` / `content_note_updated_at` / `content_note_updated_by_user_id`
  * in place. No-op if the compartment is not in the current cache (e.g. it is not

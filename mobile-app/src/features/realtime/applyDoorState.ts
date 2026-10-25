@@ -3,7 +3,7 @@ import type { GetCompartmentsAccessibleApiResponse } from '@/src/store/generated
 import type { CompartmentDoorStateUpdatedPayload } from './echo';
 
 /**
- * Patches a door-state event into the `getCompartmentsAccessible` cache draft:
+ * Patches a door-state event into the cached locker list (one per organization, `getOrganizationCompartments`) draft:
  * finds the matching compartment across locker banks and updates its
  * `door_state` / `door_state_changed_at` in place. No-op if the compartment is
  * not in the current cache (e.g. it is not accessible to this user).

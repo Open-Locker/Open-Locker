@@ -9,6 +9,7 @@ enum Role: string
     case User = 'user';
     case Manager = 'manager';
     case Admin = 'admin';
+    case PlatformAdmin = 'platform_admin';
 
     public function label(): string
     {
@@ -16,6 +17,7 @@ enum Role: string
             self::User => __('User'),
             self::Manager => __('Manager'),
             self::Admin => __('Administrator'),
+            self::PlatformAdmin => __('Platform administrator'),
         };
     }
 
@@ -35,6 +37,10 @@ enum Role: string
                 Permission::SystemConfigure,
             ],
             self::Admin => Permission::cases(),
+            // Everything an organization admin can do, in whichever
+            // organization is currently being acted in, plus managing the
+            // organizations themselves.
+            self::PlatformAdmin => Permission::cases(),
         };
     }
 
