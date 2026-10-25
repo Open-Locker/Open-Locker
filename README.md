@@ -52,6 +52,26 @@ that live contract.
 
 ## Getting started
 
+Repository commands use Just 1.56+ and Node 22+ for MQTT setup and tracing.
+Install the pinned script dependencies with `just script-deps` (pnpm 11.25.0).
+The TypeScript workflows use tsx, Execa and dotenv in a separate `scripts/` package.
+Docker and Git are needed by their respective commands;
+the simulator also needs pnpm and the locker-client dependencies.
+
+```text
+just --list
+just start
+just status
+just trace-up
+```
+
+`just --dry-run trace-up` previews the pnpm invocation. To preview the workflow's
+internal actions without writing files or starting services, use
+`pnpm --dir scripts trace up --dry-run`. The same script runs on Windows, Linux
+and macOS. Run `pnpm --dir scripts check` for type checking and
+`pnpm --dir scripts test` for tests. See [the script guide](scripts/README.md)
+and [ADR-0060](docs/adr/0060-just-node-repository-workflows.md).
+
 Use [the installation guide](docs/Installation.md) for backend and Raspberry Pi
 setup. Component-specific details live in:
 
