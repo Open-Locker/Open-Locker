@@ -23,14 +23,24 @@
     collapsing if a future release changes it.
 --}}
 {{--
-    Filament sizes group headers tighter than data rows (36px against 57px),
-    which reads as a cramped strip rather than a row of the same table — most
-    visible when every bank is collapsed and the headers are all you see. Match
-    the row height so the collapsed list looks like an even stack.
+    Name + location already make a two-line header. The old 3.5rem min-height
+    was for a single-line title matching data rows; stacked with Filament's
+    py-2 it left a large empty band above and below the text.
 --}}
 <style>
     .fi-ta-group-header {
-        min-height: 3.5rem;
+        min-height: 0;
+        padding-block: 0.375rem;
+    }
+
+    .fi-ta-group-header .fi-ta-group-heading,
+    .fi-ta-group-header .fi-ta-group-description {
+        margin: 0;
+        line-height: 1.25;
+    }
+
+    .fi-ta-group-header .fi-ta-group-description {
+        margin-top: 0.125rem;
     }
 </style>
 
