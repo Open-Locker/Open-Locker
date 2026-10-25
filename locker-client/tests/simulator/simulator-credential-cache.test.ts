@@ -55,17 +55,23 @@ test('keeps entries for several banks side by side', () => {
   });
 });
 
-test('is written owner-only, since it holds real broker credentials', () => {
-  withTempDir((directory) => {
-    const filePath = path.join(directory, 'creds.json');
-    new SimulatorCredentialCache(filePath).set('token-a', {
-      username: 'uuid-a',
-      password: 'secret-a',
-    });
+const supportsUnixModes = process.platform !== 'win32';
 
-    assert.equal(fs.statSync(filePath).mode & 0o777, 0o600);
-  });
-});
+test(
+  'is written owner-only, since it holds real broker credentials',
+  { skip: !supportsUnixModes },
+  () => {
+    withTempDir((directory) => {
+      const filePath = path.join(directory, 'creds.json');
+      new SimulatorCredentialCache(filePath).set('token-a', {
+        username: 'uuid-a',
+        password: 'secret-a',
+      });
+
+      assert.equal(fs.statSync(filePath).mode & 0o777, 0o600);
+    });
+  },
+);
 
 test('a corrupt cache costs a re-provision attempt rather than a crash', () => {
   withTempDir((directory) => {
@@ -92,7 +98,10 @@ test('the cache lands beside the scenario file, never under DATA_DIR', () => {
   try {
     const cache = SimulatorCredentialCache.forScenario('/tmp/scenarios/my-scenario.yml');
 
-    assert.equal(cache.location, path.join('/tmp/scenarios', '.simulator-credentials.json'));
+    assert.equal(
+      cache.location,
+      path.join(path.resolve('/tmp/scenarios'), '.simulator-credentials.json'),
+    );
   } finally {
     if (previous === undefined) {
       delete process.env.SIMULATOR_CREDENTIALS_FILE;

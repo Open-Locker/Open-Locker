@@ -28,6 +28,7 @@ export class MqttTransportAdapter implements MessageTransportPort {
   private reconnectExhausted = false;
   private reconnectAttempts = 0;
   private connectInFlight: Promise<void> | null = null;
+  private cancelInitialConnection: ((error: Error) => void) | null = null;
   private messageHandler: ((topic: string, payload: Buffer) => void) | null = null;
   private readonly connectedHandlers: Array<() => void | Promise<void>> = [];
   private readonly transport: MqttTransportSettings;
@@ -68,9 +69,9 @@ export class MqttTransportAdapter implements MessageTransportPort {
     return new Promise((resolve) => {
       this.intentionalShutdown = true;
       this.connectionState = 'disconnected';
+      this.cancelInitialConnection?.(new Error('MQTT disconnected before startup completed'));
       this.client!.end(false, () => {
         this.client = null;
-        this.intentionalShutdown = false;
         resolve();
       });
     });
@@ -125,67 +126,159 @@ export class MqttTransportAdapter implements MessageTransportPort {
   private connectInternal(brokerUrl: string, options: Record<string, unknown>): Promise<void> {
     this.intentionalShutdown = false;
     this.reconnectExhausted = false;
+    this.reconnectAttempts = 0;
     this.connectionState = 'connecting';
 
+    const clientOptions = withVerifiedMqttTls(brokerUrl, {
+      keepalive: this.transport.keepalive,
+      clean: this.transport.clean,
+      reconnectPeriod: this.transport.reconnectPeriod,
+      connectTimeout: this.transport.connectTimeout,
+      ...options,
+    });
+
+    let client: MqttClient;
+    try {
+      client = mqtt.connect(brokerUrl, clientOptions);
+    } catch (error) {
+      this.connectionState = 'disconnected';
+      throw error;
+    }
+    this.client = client;
+    if (this.messageHandler) {
+      client.on('message', this.messageHandler);
+    }
+
+    const connectTimeout =
+      typeof clientOptions.connectTimeout === 'number'
+        ? clientOptions.connectTimeout
+        : this.transport.connectTimeout;
+    const reconnectPeriod =
+      typeof clientOptions.reconnectPeriod === 'number'
+        ? clientOptions.reconnectPeriod
+        : this.transport.reconnectPeriod;
+    return this.waitForInitialConnection(client, brokerUrl, connectTimeout, reconnectPeriod);
+  }
+
+  private waitForInitialConnection(
+    client: MqttClient,
+    brokerUrl: string,
+    timeoutMs: number,
+    reconnectPeriod: number,
+  ): Promise<void> {
     return new Promise((resolve, reject) => {
-      const clientOptions = withVerifiedMqttTls(brokerUrl, {
-        keepalive: this.transport.keepalive,
-        clean: this.transport.clean,
-        reconnectPeriod: this.transport.reconnectPeriod,
-        connectTimeout: this.transport.connectTimeout,
-        ...options,
-      });
+      let settled = false;
+      let connectTimeout: NodeJS.Timeout;
+      let lastErrorLoggedAt: number | undefined;
+      const isActive = (): boolean =>
+        this.client === client && !this.intentionalShutdown && !this.reconnectExhausted;
+      const settle = (error?: Error): void => {
+        if (settled) {
+          return;
+        }
 
-      this.client = mqtt.connect(brokerUrl, clientOptions);
-      let initialConnectSettled = false;
+        settled = true;
+        clearTimeout(connectTimeout);
+        this.cancelInitialConnection = null;
+        if (error) {
+          reject(error);
+          return;
+        }
 
-      if (this.messageHandler) {
-        this.client.on('message', this.messageHandler);
-      }
+        resolve();
+      };
+      this.cancelInitialConnection = settle;
 
-      this.client.on('connect', () => {
+      const stop = (error: Error): void => {
+        this.intentionalShutdown = true;
+        this.connectionState = 'disconnected';
+        settle(error);
+        logger.error('MQTT connection stopped', {
+          brokerUrl,
+          error: error.message,
+          reconnectAttempts: this.reconnectAttempts,
+        });
+        client.end(true);
+      };
+
+      // ADR-0014: startup diagnostics must not stop automatic broker recovery.
+      connectTimeout = setTimeout(() => {
+        if (!isActive()) {
+          return;
+        }
+        if (reconnectPeriod === 0) {
+          stop(new Error(`MQTT connection timed out after ${timeoutMs}ms`));
+          return;
+        }
+        logger.warn('Still waiting for initial MQTT connection; automatic retries remain enabled', {
+          brokerUrl,
+          timeoutMs,
+          reconnectAttempts: this.reconnectAttempts,
+        });
+      }, timeoutMs);
+
+      client.on('connect', () => {
+        if (!isActive()) {
+          return;
+        }
         this.reconnectAttempts = 0;
         this.connectionState = 'connected';
-        initialConnectSettled = true;
-        resolve();
+        settle();
         this.notifyConnected();
       });
 
-      this.client.on('error', (error) => {
-        if (!initialConnectSettled) {
-          this.connectionState = 'disconnected';
-          reject(error);
+      client.on('error', (error) => {
+        if (!isActive()) {
+          return;
         }
+        if (reconnectPeriod === 0) {
+          stop(error);
+          return;
+        }
+        const now = Date.now();
+        if (
+          lastErrorLoggedAt !== undefined &&
+          now - lastErrorLoggedAt < Math.max(1000, timeoutMs)
+        ) {
+          return;
+        }
+        lastErrorLoggedAt = now;
+        logger.warn('MQTT connection error; automatic retries remain enabled', {
+          brokerUrl,
+          error: error.message,
+          reconnectAttempts: this.reconnectAttempts,
+        });
       });
 
-      this.client.on('reconnect', () => {
+      client.on('reconnect', () => {
+        if (!isActive()) {
+          return;
+        }
         this.connectionState = 'reconnecting';
         this.reconnectAttempts++;
         const max = this.transport.maxReconnectAttempts;
         if (max > 0 && this.reconnectAttempts >= max) {
           this.reconnectExhausted = true;
-          this.client?.end(true);
+          stop(new Error(`MQTT reconnect limit reached after ${max} attempts`));
         }
       });
 
-      this.client.on('close', () => {
-        if (this.intentionalShutdown) {
-          this.connectionState = 'disconnected';
+      client.on('close', () => {
+        if (!isActive()) {
           return;
         }
-        if (this.reconnectExhausted) {
-          this.connectionState = 'disconnected';
-          return;
-        }
-        if (this.transport.reconnectPeriod === 0) {
-          this.connectionState = 'disconnected';
+        if (reconnectPeriod === 0) {
+          stop(new Error('MQTT connection closed with automatic reconnect disabled'));
           return;
         }
         this.connectionState = 'reconnecting';
       });
 
-      this.client.on('offline', () => {
-        this.connectionState = 'reconnecting';
+      client.on('offline', () => {
+        if (!isActive()) {
+          return;
+        }
+        this.connectionState = reconnectPeriod === 0 ? 'disconnected' : 'reconnecting';
       });
     });
   }
