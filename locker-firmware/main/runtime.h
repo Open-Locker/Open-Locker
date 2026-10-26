@@ -14,44 +14,12 @@
 #include "lc_ports/provisioning_gateway_port.h"
 #include "lc_ports/store_ports.h"
 #include "lc_ports/system_port.h"
+#include "owner_queue.h"
 
 /*
  * What the files of the composition root share. Every use case runs on one
- * task, the owner task; everything else posts events to it.
+ * task, the owner task; everything else posts to its inputs (owner_queue.h).
  */
-
-typedef enum {
-    /* An event of the application: a command, an acknowledgement, a connection change. */
-    OWNER_APP = 0,
-    /* The station has an address. */
-    OWNER_NETWORK_UP,
-    OWNER_NETWORK_DOWN,
-    /* The MQTT connection to the broker is up or down. */
-    OWNER_TRANSPORT_CONNECTED,
-    OWNER_TRANSPORT_DISCONNECTED,
-    /* The broker confirmed a subscription. */
-    OWNER_SUBSCRIBED,
-    OWNER_PROVISION_REPLY,
-    /* From the console: `configure`, `reset-network`. */
-    OWNER_SETUP,
-    OWNER_RESET,
-} owner_event_kind_t;
-
-typedef struct {
-    owner_event_kind_t kind;
-    /* For OWNER_SETUP: where the one reply goes. */
-    lc_commission_channel_t channel;
-    union {
-        lc_event_t app;
-        int message_id;
-        lc_provisioning_reply_t reply;
-        lc_setup_request_t setup;
-    } u;
-} owner_event_t;
-
-/* From any task. False, and the event is lost, when the queue is full. */
-bool owner_post(const owner_event_t *event);
-bool owner_post_app(const lc_event_t *event);
 
 /* What the console says about the device. Written by the owner task. */
 typedef struct {
@@ -75,7 +43,7 @@ typedef struct {
     bool bench_mode;
 } owner_context_t;
 
-/* Creates the queue and starts the owner task. */
+/* Creates its inputs and starts the owner task. */
 bool owner_start(const owner_context_t *context);
 
 /* The owner task's stack that was never used, in bytes. False before the task runs. */

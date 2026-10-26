@@ -17,7 +17,7 @@ export function ramTree(): MemoryNode {
 		item('ram-other-statics', 'Other globals', 42847, 'payload', 'Remaining ELF DRAM static data.'),
 	]);
 	const runtime = group('ram-runtime', 'Known runtime budgets', 'Normal MQTT mode; excludes allocator overhead, task control blocks and variable library allocations.', [
-		item('ram-queue', 'Owner queue', 22100, 'payload', '32 × 688-byte events + 84-byte queue control block.'),
+		item('ram-queue', 'Owner task inputs', 22168, 'payload', '32 × 648-byte command slots, 32 × 12-byte control events, setup and reply mailboxes (980 bytes) and 68 bytes of slot indices. Excludes the FreeRTOS control blocks of its 7 queues and semaphore.'),
 		item('ram-owner-stack', 'Owner stack', 12288, 'payload', 'Allocated stack capacity; high-water usage unmeasured.'),
 		item('ram-mqtt-stack', 'MQTT stack', 8192, 'payload', 'Configured stack capacity.'),
 		item('ram-console-stack', 'Console stack', 8192, 'payload', 'Console task runs even with bench commands disabled.'),

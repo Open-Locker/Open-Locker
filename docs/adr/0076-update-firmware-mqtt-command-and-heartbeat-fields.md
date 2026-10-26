@@ -28,8 +28,8 @@ id are separate (ADR-0002); a command response only acknowledges the command
    `data`). `data`:
    - `version` (required): the semantic version the image must report, at most
      31 characters (the size of the image's version field).
-   - `url` (required): `https://` only, at most 256 characters (the owner queue
-     of the firmware holds copies of every command). Its query string
+   - `url` (required): `https://` only, at most 256 characters (the command
+     slots of the firmware's owner task hold a full command each). Its query string
      carries a short-lived download token.
    - `allow_downgrade` (optional, default `false`).
 

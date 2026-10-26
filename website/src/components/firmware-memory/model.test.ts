@@ -71,7 +71,7 @@ test('RAM accounts for physical SRAM and RTC without double-counting static or r
 	const get = (id: string) => nodes.find((node) => node.id === id)!;
 	assert.equal(get('ram-statics').bytes, 72008 + 17839);
 	assert.equal(get('ram-code').bytes, 90211 + 1028);
-	assert.equal(get('ram-runtime').bytes, 57940);
+	assert.equal(get('ram-runtime').bytes, 58008);
 	assert.equal(get('ram-unmeasured').kind, 'dynamic');
 	assert.ok(imageFill(get('ram-dram')).includes('--tile-dynamic'));
 	assert.ok(imageFill(get('ram-iram')).includes('--tile-reserved'));
