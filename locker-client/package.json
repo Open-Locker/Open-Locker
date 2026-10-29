@@ -2,7 +2,7 @@
   "name": "locker-client",
   "version": "1.0.0",
   "description": "Open Locker hexagonal MQTT/Modbus bridge",
-  "license": "MIT",
+  "license": "AGPL-3.0-only",
   "scripts": {
     "dev": "ts-node src/main.ts",
     "sim": "ts-node src/main-simulator.ts",

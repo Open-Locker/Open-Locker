@@ -67,10 +67,22 @@ Join our weekly meeting every Tuesday at **19:30 CET / 18:30 UTC** on
 pull requests, and feedback. New contributors are welcome to listen in, ask
 questions, or choose a component that interests them.
 
+The repository is also mirrored on
+[openCode](https://gitlab.opencode.de/OC000075481431/open-locker) for Public
+Money, Public Code publication.
+
 We also welcome organizations interested in sponsoring or adopting open digital
 infrastructure for community resource sharing. Contact the project through
 Discord or open a GitHub issue.
 
+Please check out the [Code of Conduct](CODE_OF_CONDUCT.md) to see how to properly interact with our community.
+
+If you want to contact us, you can reach out via
+[Discord](https://discord.gg/rZ74RYKN3H) or email us at
+[moin@merona.de](mailto:moin@merona.de).
+
+To report a security vulnerability, see [SECURITY.md](SECURITY.md).
+
 ## License
 
-Open-Locker is available under the [MIT License](LICENSE).
+Open-Locker is available under the [AGPL v3](LICENSE.md).
