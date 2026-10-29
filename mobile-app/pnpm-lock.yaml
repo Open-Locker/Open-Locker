@@ -53,7 +53,7 @@ overrides:
   svgo@>=3.0.0 <3.3.4: '>=3.3.4'
   fast-uri@>=3.0.0 <=3.1.3: '>=3.1.4'
   fast-uri@>=3.0.0 <3.1.3: '>=3.1.3'
-  fast-uri: '>=4.2.1 <5.0.0'
+  fast-uri: '>=4.2.3 <5.0.0'
   brace-expansion@>=3.0.0 <5.0.12: '>=5.0.12 <6.0.0'
   shell-quote: '>=1.11.0 <2.0.0'
 
@@ -3049,8 +3049,8 @@ packages:
   fast-safe-stringify@2.1.1:
     resolution: {integrity: sha512-W+KJc2dmILlPplD/H4K9l9LcAHAfPtP6BY84uVLXQ6Evcz9Lcg33Y2z1IVblT6xdY54PXYVHEv+0Wpq8Io6zkA==}
 
-  fast-uri@4.2.1:
-    resolution: {integrity: sha512-TmHQgewjHtMq1E5QKA0tOE0yeYGQs25KZC/ziJpubRtWI15W92e6vPFydWOeZBVROSHBYw/QhD9d5OefdD6LDg==}
+  fast-uri@4.2.3:
+    resolution: {integrity: sha512-I1PXwP5eAhlNlcdpjt9CgB59op2ZvZfxw+BkqGFVIUOgNpCVTcTqp3HhTX7brxj5vsip+nSY4nTvff+eIA76hg==}
 
   fb-dotslash@0.5.8:
     resolution: {integrity: sha512-XHYLKk9J4BupDxi9bSEhkfss0m+Vr9ChTrjhf9l2iw3jB5C7BnY4GVPoMcqbrTutsKJso6yj2nAB6BI/F2oZaA==}
@@ -7809,7 +7809,7 @@ snapshots:
   ajv@8.18.0:
     dependencies:
       fast-deep-equal: 3.1.3
-      fast-uri: 4.2.1
+      fast-uri: 4.2.3
       json-schema-traverse: 1.0.0
       require-from-string: 2.0.2
 
@@ -9139,7 +9139,7 @@ snapshots:
 
   fast-safe-stringify@2.1.1: {}
 
-  fast-uri@4.2.1: {}
+  fast-uri@4.2.3: {}
 
   fb-dotslash@0.5.8: {}
 
