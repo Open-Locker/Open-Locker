@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted
+Superseded by [ADR-0078](0078-mobile-expo-58.md)
 
 ## Date
 

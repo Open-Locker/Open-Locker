@@ -217,3 +217,27 @@ client image architectures, and the live API/MQTT simulator unlock flow also
 passed. Those results do not establish native mobile or physical Modbus hardware
 compatibility; native device, deep-link, gesture and WebSocket reconnection smoke
 tests remain release validation requirements.
+
+## Expo SDK 58 and security follow-up (2026-10-29)
+
+The mobile app moved to Expo 58.0.21 (React Native 0.88.1, React 19.3.0,
+Router 58.0.28, Jest 30, jest-expo 58.0.13, Testing Library 14) to clear the
+advisories held in [issue #319](https://github.com/Open-Locker/Open-Locker/issues/319).
+See [ADR-0078](adr/0078-mobile-expo-58.md). The iOS 16.4+/Xcode 26.4+ floor is
+unchanged.
+
+- `decode-uri-component` and `query-string` are no longer in the lockfile.
+  Router 58 parses queries with `URL.searchParams`. Normal, Unicode,
+  escaped-percent and malformed queries decode through Router's
+  `parseQueryParams` without throwing. A 50,000-character malformed query
+  parsed in 3 ms.
+- `node-forge` resolves to 1.4.2, outside GHSA-86w9-cpqp-85rv's `<= 1.4.0`
+  range. The braces advisory GHSA-vfj7-8cjw-p6xm was withdrawn on 2026-10-23.
+- Two advisories remain in Expo CLI tooling: `zod` 3.25.76 (`@expo/cli` 58
+  pins `^3.25.76`) and `deepmerge` 4.3.1 (no patched release).
+
+Validation: frozen install, `expo install --check`, typecheck, formatting,
+lint (6 warnings, no errors) and 100 tests in 19 suites pass. Android and iOS
+JavaScript exports succeed. Expo Doctor passes 19/20 checks; the only failure
+is the existing unmaintained `react-native-render-html`. Native Android/iOS
+builds and device smoke tests remain outstanding.

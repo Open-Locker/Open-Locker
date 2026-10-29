@@ -19,7 +19,7 @@ import {
   OPEN_LOCKER_PRIMARY,
 } from '@/src/theme/tokens';
 
-export function createPaperTheme(colorScheme: ColorSchemeName) {
+export function createPaperTheme(colorScheme: ColorSchemeName | null) {
   if (colorScheme === 'dark') {
     return {
       ...MD3DarkTheme,
@@ -96,7 +96,7 @@ export function createPaperTheme(colorScheme: ColorSchemeName) {
 }
 
 export function createNavigationTheme(
-  colorScheme: ColorSchemeName,
+  colorScheme: ColorSchemeName | null,
   paperTheme: ReturnType<typeof createPaperTheme>,
 ): NavigationTheme {
   if (colorScheme === 'dark') {
