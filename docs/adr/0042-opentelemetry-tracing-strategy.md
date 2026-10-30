@@ -4,7 +4,7 @@
 
 ## Status
 
-Proposed
+Implemented (2026-07-28, `ef0bafd2`), backend and locker client.
 
 ## Date
 
@@ -525,3 +525,10 @@ today. If `keepsuit` proves inadequate or unmaintained, Alternative A replaces �
   - OpenTelemetry Node.js instrumentation —
     https://signoz.io/docs/instrumentation/javascript/opentelemetry-nodejs/
   - W3C Trace Context — https://www.w3.org/TR/trace-context/
+
+## Appendix: Why this is marked Implemented
+
+Marked `Implemented` in the October 2026 ADR cleanup because the code was merged
+into `main` in `ef0bafd2` on 2026-07-28 and has been there for three months. The
+code was checked for each decision except 6 and 10. Telemetry was not run against
+a collector.

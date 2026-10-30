@@ -85,15 +85,9 @@ just install-hooks   # Set core.hooksPath to .githooks (per-project pre-commit d
 
 ## Project-Specific Rules
 
-**ADRs are mandatory for architecture-significant changes** (enforced via Cursor rules in `.cursor/rules/general/`). Create or update an ADR in `docs/adr/` — *even without an explicit request* — when a change touches any of:
-- API contract / schema / external integration boundary
-- MQTT topic structure or payload contract
-- Modbus protocol, register mapping, or hardware communication strategy
-- Infrastructure / hosting / runtime strategy
-- Security, performance, reliability, or operability trade-offs
-- Cross-component decisions (backend + mobile + IoT)
-
-ADR format: numeric kebab-case (`docs/adr/NNNN-title.md`), one decision per ADR, sections in order: Title, Status, Date, Context, Decision, Alternatives Considered, Consequences, References. Never rewrite an accepted ADR — supersede it with a new one and link them. Reference the ADR path in commit/PR notes. `0000-template.md` is the starting point. This ADR requirement **overrides** the general "don't create docs unless asked" default.
+**ADRs:** full ADR, PR plan section or nothing, depending on the change. Follow
+`adr-decision-required.mdc` and `adr-format-and-lifecycle.mdc`, even when no
+documentation was requested.
 
 ### Backend conventions
 - `declare(strict_types=1);` in all PHP files; PSR-12; full class imports (no inline FQCNs).
@@ -113,7 +107,6 @@ Repo-wide rules:
 @.cursor/rules/general/monorepo-architecture.mdc
 @.cursor/rules/general/adr-decision-required.mdc
 @.cursor/rules/general/adr-format-and-lifecycle.mdc
-@.cursor/rules/general/documentation-precedence.mdc
 
 Component-specific rules load from `locker-backend/CLAUDE.md` and
 `mobile-app/CLAUDE.md` when you work in those directories.

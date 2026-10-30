@@ -2,7 +2,7 @@
 
 ## Status
 
-Proposed
+Implemented (2026-08-20, `f1ae99fe`).
 
 ## Date
 

@@ -3,38 +3,43 @@ description: Require ADRs for architecture-significant decisions
 alwaysApply: true
 ---
 
-# ADR Requirement for Architecture Decisions
+# When to Write an ADR
 
-When a task introduces or changes architecture-significant behavior, create
-or update an ADR in `docs/adr/`.
+Ask: if this decision changed later, would other components, deployed devices or
+stored data break? Choose the first tier that fits.
 
-## Trigger Conditions
+## 1. Full ADR
 
-Create or update an ADR when at least one of these applies:
+- Breaking changes to the API contract or schema
+- Breaking changes to MQTT topics or payloads
+- Modbus or RS-485 register maps and hardware communication
+- Stored event or other persisted formats
+- Security boundaries: authentication, authorization, secrets, TLS
+- New infrastructure, hosting or runtime dependencies
 
-- API contract, schema, or external integration boundary changes
-- MQTT topic structure or payload contract changes
-- Modbus protocol, register mapping, or hardware communication strategy changes
-- New infrastructure, platform dependency, or hosting/runtime strategy changes
-- Security, performance, reliability, or operability trade-offs
-- Cross-component decisions affecting backend, mobile app, and/or IoT flows
+Write it even if nobody asked for documentation, and open it as its own PR before
+the implementation.
 
-## Required Agent Behavior
+## 2. Plan section in the PR description
 
-- Do not silently implement architecture-significant changes.
-- Check whether an ADR already exists for the decision.
-- If none exists, create a new ADR before or alongside implementation.
-- If an existing ADR is outdated, create a new ADR that supersedes it.
-- Reference the ADR path in the final summary or PR/task notes.
+Design with real trade-offs that stays inside one component: internal structure,
+test tooling, build or CI tuning, refactors. State the choice and the alternatives
+you rejected.
 
-## Minimum ADR Content
+## 3. Nothing
 
-- Status (`proposed`, `accepted`, `superseded`, `deprecated`)
-- Context and problem statement
-- Decision and rationale
-- Alternatives considered
-- Consequences (benefits, drawbacks, risks)
-- Rollout or migration notes when relevant
+No real trade-off: bug fixes, dependency bumps, small features following an
+existing pattern.
+
+If unsure whether a change needs a Full ADR, write the Full ADR.
+If unsure between the Plan section and Nothing, pick the lower one and say so in the PR.
+
+## Working with existing ADRs
+
+- Check whether an ADR already covers the decision.
+- If it is outdated, edit it while it is editable; otherwise supersede it. See
+  `adr-format-and-lifecycle.mdc`.
+- Reference the ADR path in the PR description.
 
 If running in ask/read-only mode, draft ADR content in the response and ask to
 switch to agent mode for file creation.
