@@ -40,8 +40,10 @@ passed its hardware tests.
    application, one ESP-IDF component per adapter, and `main/` as composition
    root. The core includes no SDK, RTOS or JSON header and builds on a host; a
    script in the verify gate enforces it.
-3. **One owner task.** Every use case runs on one task that takes events from a
-   bounded queue, so commands and `apply_config` never interleave. Overflow
+3. **One owner task.** Every use case runs on one task that takes events from its
+   bounded inputs (a control queue, a command pool and one-slot mailboxes; see
+   `locker-firmware/docs/architecture.md`), so commands and `apply_config`
+   never interleave. Overflow
    never actuates: a dropped command is never claimed and the backend times
    out.
 4. **One RS485 lock panel per bank.** `rs485_lock_board` is the only supported

@@ -51,10 +51,7 @@ static void button_task(void *arg)
         xTaskDelayUntil(&last_wake, pdMS_TO_TICKS(SAMPLE_PERIOD_MS));
         switch (lc_button_sample(&button, now_ms(), gpio_get_level(CONFIG_LC_RESET_BUTTON_GPIO) != 0)) {
         case LC_BUTTON_POST_RESET: {
-            owner_event_t event;
-            memset(&event, 0, sizeof(event));
-            event.kind = OWNER_RESET;
-            lc_button_post_result(&button, owner_post(&event));
+            lc_button_post_result(&button, owner_post(&(owner_control_t){.kind = OWNER_RESET}));
             break;
         }
         case LC_BUTTON_RESET_ABANDONED:

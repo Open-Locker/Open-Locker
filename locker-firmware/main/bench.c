@@ -40,11 +40,7 @@ static lc_publish_id_t emit(const char *kind, size_t length)
     if (++last_id == LC_PUBLISH_REFUSED) {
         ++last_id;
     }
-    lc_event_t acknowledged;
-    memset(&acknowledged, 0, sizeof(acknowledged));
-    acknowledged.kind = LC_EVENT_PUBLISH_ACKNOWLEDGED;
-    acknowledged.publish_id = last_id;
-    (void)owner_post_app(&acknowledged);
+    (void)owner_post_app(LC_EVENT_PUBLISH_ACKNOWLEDGED, last_id);
     return last_id;
 }
 

@@ -3,28 +3,19 @@
 #include "esp_log.h"
 #include "esp_timer.h"
 #include "freertos/FreeRTOS.h"
-#include "freertos/queue.h"
 #include "freertos/task.h"
 #include "lc_net_wifi/wifi.h"
 #include "runtime.h"
 
 /*
  * The owner task: the one place the use cases run. Driving adapters (the MQTT
- * transport, the console, the Wi-Fi events) post events to its queue; this
- * task takes them one at a time, so no two commands, and no configuration and
- * unlock, can ever interleave.
+ * transport, the console, the Wi-Fi events) post to its inputs (owner_queue.h);
+ * this task takes them one at a time, so no two commands, and no configuration
+ * and unlock, can ever interleave. A slow bus exchange blocks it for over a
+ * second while events keep arriving; they wait in their own queues, so a burst
+ * of acknowledgements cannot push a command out.
  */
 
-/* A slow bus exchange blocks the task for over a second while events keep arriving. */
-#define QUEUE_DEPTH 32
-/*
- * The queue holds QUEUE_DEPTH copies of owner_event_t, and a setup request is
- * the largest of them. On the ESP32 an event is 688 bytes, so the queue takes
- * 22,100 bytes with its control block (bench spike, ADR-0074 open points).
- */
-#define QUEUE_BUDGET_BYTES (24 * 1024)
-_Static_assert(sizeof(owner_event_t) * QUEUE_DEPTH <= QUEUE_BUDGET_BYTES,
-               "the owner queue outgrew its memory budget; lower QUEUE_DEPTH or queue pointers");
 #define TICK_MS 100
 /* How long the network may be up without a valid time before it is reported. */
 #define TIME_WARNING_MS 30000
@@ -36,7 +27,6 @@ static const char *TAG = "owner";
 
 device_state_t device_state;
 
-static QueueHandle_t queue;
 static TaskHandle_t task;
 static owner_context_t owner;
 static bool network_up;
@@ -44,22 +34,6 @@ static int64_t network_up_ms;
 static bool time_warned;
 static bool session_started;
 static int command_subscription = -1;
-
-bool owner_post(const owner_event_t *event)
-{
-    /* Never waits: a full queue loses the event, and a lost command gets no unlock. */
-    return queue != NULL && xQueueSend(queue, event, 0) == pdTRUE;
-}
-
-bool owner_post_app(const lc_event_t *event)
-{
-    owner_event_t wrapped;
-
-    memset(&wrapped, 0, sizeof(wrapped));
-    wrapped.kind = OWNER_APP;
-    wrapped.u.app = *event;
-    return owner_post(&wrapped);
-}
 
 static void dispatch(lc_event_kind_t kind)
 {
@@ -182,12 +156,35 @@ static void on_provision_reply(const lc_provisioning_reply_t *reply)
 
 /* ---- The loop ---- */
 
-static void handle(owner_event_t *event)
+static void on_control(const owner_control_t *event)
 {
     switch (event->kind) {
-    case OWNER_APP:
-        lc_app_dispatch(owner.app, &event->u.app);
+    case OWNER_APP: {
+        lc_event_t app_event;
+
+        /* The command stays empty: commands do not come through here. */
+        memset(&app_event, 0, sizeof(app_event));
+        app_event.kind = event->app_kind;
+        switch (event->app_kind) {
+        case LC_EVENT_PUBLISH_ACKNOWLEDGED:
+        case LC_EVENT_PUBLISH_FAILED:
+            app_event.publish_id = (lc_publish_id_t)event->value;
+            break;
+        case LC_EVENT_FIRMWARE_FAILED:
+            app_event.error = (lc_error_t)event->value;
+            break;
+        case LC_EVENT_COMMAND:
+        case LC_EVENT_CONNECTED:
+        case LC_EVENT_DISCONNECTED:
+        case LC_EVENT_TICK:
+        case LC_EVENT_FIRMWARE_VERIFIED:
+        case LC_EVENT_NETWORK_UP:
+        default:
+            break;
+        }
+        lc_app_dispatch(owner.app, &app_event);
         break;
+    }
     case OWNER_NETWORK_UP:
         network_up = true;
         network_up_ms = esp_timer_get_time() / 1000;
@@ -207,14 +204,7 @@ static void handle(owner_event_t *event)
         }
         break;
     case OWNER_SUBSCRIBED:
-        on_subscribed(event->u.message_id);
-        break;
-    case OWNER_PROVISION_REPLY:
-        on_provision_reply(&event->u.reply);
-        break;
-    case OWNER_SETUP:
-        (void)lc_commission_apply_from(owner.commission, event->channel, &event->u.setup);
-        refresh_device_state();
+        on_subscribed((int)event->value);
         break;
     case OWNER_RESET:
         switch (lc_commission_reset(owner.commission)) {
@@ -229,21 +219,35 @@ static void handle(owner_event_t *event)
         }
         break;
     }
-    /* Settings and tokens do not outlive the event they came in. */
-    memset(event, 0, sizeof(*event));
 }
+
+static void on_command(const lc_command_t *command)
+{
+    /* The slot is the command's only copy; handle_command reads it in place. */
+    lc_app_handle_command(owner.app, command);
+}
+
+static void on_setup(const owner_setup_t *setup)
+{
+    (void)lc_commission_apply_from(owner.commission, setup->channel, &setup->request);
+    refresh_device_state();
+}
+
+static const owner_handlers_t handlers = {
+    .control = on_control,
+    .command = on_command,
+    .setup = on_setup,
+    .reply = on_provision_reply,
+};
 
 static void owner_task(void *arg)
 {
     (void)arg;
-    owner_event_t event;
     int64_t last_tick_ms = esp_timer_get_time() / 1000;
 
     for (;;) {
-        bool idle = xQueueReceive(queue, &event, pdMS_TO_TICKS(TICK_MS)) != pdTRUE;
-        if (!idle) {
-            handle(&event);
-        }
+        /* Idle means nothing at all was handled. */
+        bool idle = !owner_queue_step(&handlers, TICK_MS);
 
         int64_t now_ms = esp_timer_get_time() / 1000;
         if (now_ms - last_tick_ms >= TICK_MS) {
@@ -262,8 +266,7 @@ static void owner_task(void *arg)
 bool owner_start(const owner_context_t *context)
 {
     owner = *context;
-    queue = xQueueCreate(QUEUE_DEPTH, sizeof(owner_event_t));
-    if (queue == NULL) {
+    if (!owner_queue_init()) {
         return false;
     }
     refresh_device_state();
