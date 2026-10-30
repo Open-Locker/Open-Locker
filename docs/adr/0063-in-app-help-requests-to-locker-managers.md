@@ -2,7 +2,7 @@
 
 ## Status
 
-Proposed
+Implemented (2026-09-24, `37e56da8`; the call-back phone in `34d14c40`).
 
 ## Date
 

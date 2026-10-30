@@ -4,7 +4,7 @@
 
 ## Status
 
-Proposed
+Implemented (2026-08-12, `3780984a`) for the `production` and `store` profiles. Since ADR-0055, `main` and PR builds use `preview`, which lacks the ABI, lint and build-cache flags.
 
 ## Date
 

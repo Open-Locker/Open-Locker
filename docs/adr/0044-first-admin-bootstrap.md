@@ -4,7 +4,7 @@
 
 ## Status
 
-Proposed
+Implemented (2026-08-03, `8e5852ca`). Decision 1 and the `ADMIN_EMAIL` risk were corrected on 2026-10-30 to match the code: once any admin exists, `ADMIN_EMAIL` does nothing.
 
 ## Date
 
@@ -51,17 +51,15 @@ team wants first-admin setup to be possible **without shell access to the server
 order.**
 
 An `ADMIN_EMAIL` environment variable names the intended administrator. On deployment, if
-no user with that address exists, one is created and granted the admin role through the
-existing event-sourced flow. The account is created without a usable password; the
-administrator obtains access through the normal password-reset flow.
+no administrator exists yet, that account is created if needed and granted the admin role
+through the existing event-sourced flow. A new account is created without a usable
+password; the administrator obtains access through the normal password-reset flow.
 
 Running it again is a no-op, so it is safe on every deploy rather than only the first.
 
-Unlike the command in decision 3, this path is not blocked once an admin exists: pointing
-`ADMIN_EMAIL` at a new address on a live instance will create that administrator. That is
-intentional. Deployment configuration is already a trusted channel — whoever can set it
-can also reach the database — so the restriction would add friction without adding a
-guarantee.
+This path runs the command from decision 3, so it has the same limit: once any admin
+exists, nothing happens. Pointing `ADMIN_EMAIL` at a new address on a live instance creates
+no administrator. Further administrators are granted from the admin panel.
 
 **2. Both existing mechanisms are removed.**
 
@@ -163,8 +161,8 @@ covers the failure mode that would otherwise be unrecoverable without database a
 - **Tests may depend on the removed hook.** Anything that creates a user and assumes
   administrator rights will start failing. This is desirable — those tests were relying
   on the behaviour this ADR removes — but it makes the change larger than it looks.
-- **`ADMIN_EMAIL` changed later** does not demote the previous administrator; it only
-  ensures the named account exists. Role changes remain a panel operation.
+- **`ADMIN_EMAIL` changed later** has no effect: it neither demotes the previous
+  administrator nor creates the new one. Role changes remain a panel operation.
 
 ## Rollout / Migration
 

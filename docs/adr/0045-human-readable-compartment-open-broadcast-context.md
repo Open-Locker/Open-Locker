@@ -4,7 +4,7 @@
 
 ## Status
 
-Proposed
+Implemented (2026-08-11, `b1e6bc85`); the payload fields came earlier in `c4e4ec61` (2026-07-18). The reactor and client sentences were corrected on 2026-10-30 to match the code.
 
 ## Date
 
@@ -31,12 +31,12 @@ Add `compartment_number` and `locker_name` to the
 - Both keys are always present and nullable, preserving compatibility with
   clients that ignore unknown fields.
 - The queued broadcast reactor resolves both values from the current read model
-  for terminal `opened`, `denied`, and `failed` statuses.
+  for device-reported outcomes and denials. `accepted` and `sent` carry neither.
 - If the read model is unavailable, both values remain `null`; clients fall
   back to the compartment UUID or a neutral placeholder.
 - Denial reasons remain stable machine-readable codes in `message`. Each client
-  maps known codes to localized user-facing text and uses a generic denial
-  message for unknown codes.
+  that displays the denial reason maps known codes to localized user-facing text
+  and uses a generic denial message for unknown codes.
 
 This keeps localization in the receiving client while avoiding an extra network
 request for human-readable context. It builds on the private channel and event
@@ -70,7 +70,7 @@ contract established by ADR-0016 and ADR-0023.
 - Filament can show useful terminal notifications without another request.
 - Existing consumers remain compatible because the change is additive.
 - Consumers must tolerate nullable context and unknown denial reason codes.
-- Terminal broadcasts perform one read-model lookup including the locker-bank
+- These broadcasts perform one read-model lookup including the locker-bank
   relationship.
 - Names reflect the current read model rather than the value at event creation.
 
