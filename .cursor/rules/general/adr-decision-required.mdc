@@ -31,7 +31,8 @@ you rejected.
 No real trade-off: bug fixes, dependency bumps, small features following an
 existing pattern.
 
-If unsure between tiers, pick the lower one and say so in the PR.
+If unsure whether a change needs a Full ADR, write the Full ADR.
+If unsure between the Plan section and Nothing, pick the lower one and say so in the PR.
 
 ## Working with existing ADRs
 
