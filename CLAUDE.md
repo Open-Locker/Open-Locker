@@ -93,7 +93,7 @@ just install-hooks   # Set core.hooksPath to .githooks (per-project pre-commit d
 - Security, performance, reliability, or operability trade-offs
 - Cross-component decisions (backend + mobile + IoT)
 
-ADR format: numeric kebab-case (`docs/adr/NNNN-title.md`), one decision per ADR, sections in order: Title, Status, Date, Context, Decision, Alternatives Considered, Consequences, References. Never rewrite an accepted ADR — supersede it with a new one and link them. Reference the ADR path in commit/PR notes. `0000-template.md` is the starting point. This ADR requirement **overrides** the general "don't create docs unless asked" default.
+ADR format: numeric kebab-case (`docs/adr/NNNN-title.md`), one decision per ADR, sections in order: Title, Status, Date, Context, Decision, Alternatives Considered, Consequences, References. An `accepted` ADR stays editable until it is implemented or released; after that, set it to `implemented` and only supersede it with a new one, linking them. Reference the ADR path in commit/PR notes. `0000-template.md` is the starting point. This ADR requirement **overrides** the general "don't create docs unless asked" default.
 
 ### Backend conventions
 - `declare(strict_types=1);` in all PHP files; PSR-12; full class imports (no inline FQCNs).

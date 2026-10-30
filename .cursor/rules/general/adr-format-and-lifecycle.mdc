@@ -27,8 +27,15 @@ Use this section order:
 ## Lifecycle Rules
 
 - Keep one architecture decision per ADR.
-- Do not rewrite accepted ADR history.
-- When direction changes, create a new ADR and mark the old one superseded.
+- `accepted` ADRs stay editable until the decision is implemented or released,
+  even if the status has not been updated yet. Note each change in the ADR.
+- Set the status to `implemented` once the decision is implemented or released.
+  From then on it can only be superseded.
+- When an implemented ADR's direction changes, create a new ADR and mark the old
+  one superseded.
+- ADRs accepted before this rule (0068 and lower, except 0053 and 0067) can only
+  be superseded, whatever their status says. Their status line may still be
+  updated.
 - Link old and new ADRs for traceability.
 
 ## Traceability Rules

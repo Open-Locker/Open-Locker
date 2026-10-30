@@ -24,12 +24,14 @@ Create or update an ADR when at least one of these applies:
 - Do not silently implement architecture-significant changes.
 - Check whether an ADR already exists for the decision.
 - If none exists, create a new ADR before or alongside implementation.
-- If an existing ADR is outdated, create a new ADR that supersedes it.
+- If an existing ADR is outdated, edit it while it is still editable (see the
+  lifecycle rules in `adr-format-and-lifecycle.mdc`); otherwise create a new ADR
+  that supersedes it.
 - Reference the ADR path in the final summary or PR/task notes.
 
 ## Minimum ADR Content
 
-- Status (`proposed`, `accepted`, `superseded`, `deprecated`)
+- Status (`proposed`, `accepted`, `implemented`, `superseded`, `deprecated`)
 - Context and problem statement
 - Decision and rationale
 - Alternatives considered
