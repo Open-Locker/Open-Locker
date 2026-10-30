@@ -8,8 +8,10 @@ use App\Models\LockerBank;
 use App\Mqtt\Publishers\ApplyConfigCommandPublisher;
 use App\Mqtt\Publishers\OpenCompartmentCommandPublisher;
 use App\Mqtt\Publishers\ProvisioningReplyPublisher;
+use App\Mqtt\Publishers\UpdateFirmwareCommandPublisher;
 use App\Services\MqttUserService;
 use App\StorableEvents\CompartmentOpeningRequested;
+use App\StorableEvents\FirmwareUpdateRequested;
 use App\StorableEvents\LockerConfigApplyRequested;
 use App\StorableEvents\LockerProvisioningFailed;
 use App\StorableEvents\LockerProvisioningReplyFailed;
@@ -26,6 +28,7 @@ class MqttReactor extends Reactor implements ShouldQueue
     public function __construct(
         private readonly OpenCompartmentCommandPublisher $openCompartmentCommandPublisher,
         private readonly ApplyConfigCommandPublisher $applyConfigCommandPublisher,
+        private readonly UpdateFirmwareCommandPublisher $updateFirmwareCommandPublisher,
         private readonly ProvisioningReplyPublisher $provisioningReplyPublisher,
         private readonly MqttUserService $mqttUserService,
         private readonly StoredEventDispatcher $storedEventDispatcher,
@@ -47,6 +50,11 @@ class MqttReactor extends Reactor implements ShouldQueue
     public function onLockerConfigApplyRequested(LockerConfigApplyRequested $event): void
     {
         $this->applyConfigCommandPublisher->publish($event);
+    }
+
+    public function onFirmwareUpdateRequested(FirmwareUpdateRequested $event): void
+    {
+        $this->updateFirmwareCommandPublisher->publish($event);
     }
 
     public function onLockerWasProvisioned(LockerWasProvisioned $event): void

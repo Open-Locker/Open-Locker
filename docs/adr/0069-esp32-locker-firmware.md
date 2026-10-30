@@ -17,16 +17,18 @@ no unlock is sent twice for one request, a power cut never causes a second
 unlock, and the one-time provisioning token is sent at most once.
 
 An ESP32 has no operating system in the PC sense, a few hundred kilobytes of
-RAM and a 4 MB flash that the board selection (ADR-0005) assumes but that is not
-confirmed yet. Some choices made now cannot be changed later without a USB
-reflash of every unit: ESP-IDF cannot replace the bootloader or the partition
-table over the air. No unit is deployed, so all of them are still free.
+RAM and a 4 MB flash that the board selection (ADR-0005) assumes. The bench
+board has 4 MB (confirmed 2026-10-21); production boards are not chosen yet.
+Some choices made now cannot be changed later without a USB reflash of every
+unit: ESP-IDF cannot replace the bootloader or the partition table over the
+air. No unit is deployed, so all of them are still free.
 
 The first firmware is developed against the proprietary RS485 lock panel
-(`adapter_type = rs485_lock_board`, ADR-0061) on an ESP32 D1 mini with an
-XY-485 automatic-direction converter. That is bench hardware, not a production
-board selection; ADR-0005 stays a proposal until the firmware has passed its
-hardware tests.
+(`adapter_type = rs485_lock_board`, ADR-0061), confirmed on the bench as an
+SY-800R with 8 channels at board address 1, on an ESP32 D1 mini (chip revision
+3.1) with an XY-485 automatic-direction converter. That is bench hardware, not
+a production board selection; ADR-0005 stays a proposal until the firmware has
+passed its hardware tests.
 
 ## Decision
 
@@ -54,9 +56,11 @@ hardware tests.
    Firmware, CI, Docker image, README and host tools that speak the firmware's
    protocols use the same release. A patch release is adopted through a pull
    request and a bench run, never by floating a tag.
-8. **USB commissioning first.** Wi-Fi, broker and token are set over the USB
-   serial console with `scripts/commission.py`. A SoftAP portal follows as a
-   second driving adapter over the same use case (#57), with its own ADR.
+8. **USB commissioning for the bench.** Wi-Fi, broker and token are set over
+   the USB serial console with `scripts/commission.py --usb`. The SoftAP portal
+   (#57, ADR-0074) is a second driving adapter over the same use case and the
+   only commissioning path in production builds, which have no `configure`
+   command (`CONFIG_LC_BENCH_CONSOLE` off).
 9. **TLS only in release builds.** A release binary accepts only `mqtts://`,
    always verifies certificate and host name, and has no path to a plaintext
    connection. Plain `mqtt://` exists only behind the build-time option
@@ -158,7 +162,8 @@ list, mapping from the Pi client) is in `locker-firmware/docs/architecture.md`.
 - If a board has less than 4 MB of flash the layout does not fit; check every
   board with `esptool.py flash_id`.
 - A development build flashed onto a deployed unit allows plain MQTT. The log
-  warns on every connect; signed releases (secure boot, #59) close this.
+  warns on every connect. Signed images (#59) stop such a build arriving over
+  the air; only secure boot, which is not planned yet, stops it over USB.
 - Credentials in plaintext NVS can be read from a stolen unit until flash and
   NVS encryption are turned on (ADR-0074 decision 18).
 - ESP-IDF 6.1 supports no static-RSA or finite-field DHE key exchange; one
@@ -166,9 +171,9 @@ list, mapping from the Pi client) is in `locker-firmware/docs/architecture.md`.
 
 ## Rollout / Migration
 
-No unit is deployed and no board has been flashed, so nothing migrates. Once
-units are flashed, changing the flash layout means a USB reflash of every unit
-and a new ADR. To hand a bank back to the Pi client, reset
+No unit is deployed, so nothing migrates; bench boards are reflashed over USB.
+Once units are deployed, changing the flash layout means a USB reflash of every
+unit and a new ADR. To hand a bank back to the Pi client, reset
 provisioning in the backend and enroll the Pi with a new token.
 
 ## Supersedes / Superseded By
@@ -178,7 +183,7 @@ provisioning in the backend and enroll the Pi with a new token.
 
 ## References
 
-- Related PRs: Open-Locker/Open-Locker#321
+- Related PRs: Open-Locker/Open-Locker#321, Open-Locker/Open-Locker#331
 - Related issues: #56, #57, #58, #59
 - Related docs: `locker-firmware/docs/architecture.md`,
   `locker-firmware/README.md`, ADR-0005, ADR-0024, ADR-0053 (public MQTT TLS at

@@ -6,7 +6,12 @@ cmake_minimum_required(VERSION 3.16)
 set(COMPONENTS main)
 list(APPEND EXTRA_COMPONENT_DIRS
      "${CMAKE_CURRENT_LIST_DIR}/../../components/lc_mqtt_espidf"
+     "${CMAKE_CURRENT_LIST_DIR}/../../components/lc_ota_espidf"
+     "${CMAKE_CURRENT_LIST_DIR}/../../components/lc_domain"
+     "${CMAKE_CURRENT_LIST_DIR}/../../components/lc_ports"
      "${CMAKE_CURRENT_LIST_DIR}/mocks/espressif__mqtt"
+     "${CMAKE_CURRENT_LIST_DIR}/mocks/esp_https_ota"
+     "${CMAKE_CURRENT_LIST_DIR}/mocks/app_update"
      "$ENV{IDF_PATH}/tools/mocks/esp_event/"
      "$ENV{IDF_PATH}/tools/mocks/esp-tls/"
      "$ENV{IDF_PATH}/tools/mocks/tcp_transport/")

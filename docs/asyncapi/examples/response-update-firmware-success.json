@@ -1,0 +1,8 @@
+{
+  "message_id": "msg-resp-fw-001",
+  "transaction_id": "txn-fw-001",
+  "action": "update_firmware",
+  "result": "success",
+  "timestamp": "2026-10-22T09:00:01Z",
+  "message": "Update accepted, downloading."
+}

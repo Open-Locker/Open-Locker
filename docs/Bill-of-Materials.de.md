@@ -71,6 +71,11 @@ Auf Schrankseite bleiben voraussichtlich weitgehend gleich:
 Der Controller-Stack wird sich voraussichtlich ändern. Deshalb ist die
 controller-spezifische Stückliste für die ESP-Variante noch `TBD`.
 
+Kaufanforderungen für jede ESP32-Einheit, die Over-the-Air-Updates erhalten soll
+([ADR-0075](adr/0075-esp32-ota-firmware-updates.md)): 4 MB Flash und eine
+Chip-Revision v3.0 oder neuer. Eine gelieferte Einheit vor dem Einbau mit
+`esptool flash_id` (Flash-Größe) und `esptool chip_id` (Revision) prüfen.
+
 ## Empfohlenes Connection Board
 
 Wir empfehlen das Open-Locker-Connection-Board aus dem Repository, um die

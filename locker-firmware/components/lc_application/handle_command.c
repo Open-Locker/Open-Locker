@@ -4,6 +4,43 @@
 #include "lc_application/internal.h"
 #include "lc_domain/text.h"
 
+/* The codes the error schema of update_firmware allows, listed one by one. */
+static bool is_update_refusal(lc_error_t error)
+{
+    switch (error) {
+    case LC_ERROR_UPDATE_INVALID:
+    case LC_ERROR_UPDATE_BUSY:
+    case LC_ERROR_UPDATE_NOT_READY:
+    case LC_ERROR_UPDATE_SAME_VERSION:
+    case LC_ERROR_UPDATE_DOWNGRADE:
+    case LC_ERROR_UPDATE_VERSION_REJECTED:
+        return true;
+    case LC_ERROR_NONE:
+    case LC_ERROR_MISSING_MESSAGE_ID:
+    case LC_ERROR_INVALID_COMMAND:
+    case LC_ERROR_UNKNOWN_ACTION:
+    case LC_ERROR_INVALID_CONFIG:
+    case LC_ERROR_RUNTIME_CONFIG_NOT_APPLIED:
+    case LC_ERROR_COMPARTMENT_NOT_FOUND:
+    case LC_ERROR_HARDWARE_ERROR:
+    case LC_ERROR_SHUTTING_DOWN:
+    case LC_ERROR_UPDATE_DOWNLOAD_FAILED:
+    case LC_ERROR_UPDATE_VERIFY_FAILED:
+    case LC_ERROR_UNKNOWN_ERROR:
+        return false;
+    }
+    return false;
+}
+
+lc_error_t lc_app_error_for(const char *action_name, lc_error_t error)
+{
+    if (strcmp(action_name, "update_firmware") == 0 && error != LC_ERROR_NONE &&
+        !is_update_refusal(error)) {
+        return LC_ERROR_UPDATE_NOT_READY;
+    }
+    return error;
+}
+
 static lc_command_result_t result_for(const lc_command_t *command, lc_error_t error)
 {
     lc_command_result_t result;
@@ -11,7 +48,7 @@ static lc_command_result_t result_for(const lc_command_t *command, lc_error_t er
     (void)lc_text_copy(result.transaction_id, sizeof(result.transaction_id),
                        command->transaction_id);
     (void)lc_text_copy(result.action_name, sizeof(result.action_name), command->action_name);
-    result.error = error;
+    result.error = lc_app_error_for(command->action_name, error);
     return result;
 }
 
@@ -67,6 +104,8 @@ static lc_command_result_t execute(lc_app_t *app, const lc_command_t *command)
         return lc_app_open_compartment(app, command);
     case LC_ACTION_APPLY_CONFIG:
         return lc_app_apply_config(app, command);
+    case LC_ACTION_UPDATE_FIRMWARE:
+        return lc_app_update_firmware(app, command);
     case LC_ACTION_UNKNOWN:
     default:
         return result_for(command, LC_ERROR_UNKNOWN_ACTION);
@@ -128,6 +167,10 @@ void lc_app_handle_command(lc_app_t *app, const lc_command_t *command)
      * run again; nothing is published that the journal does not hold.
      */
     if (!journal->complete(journal->ctx, &result)) {
+        /* An accepted update would download with no answer stored, and install. */
+        if (command->action == LC_ACTION_UPDATE_FIRMWARE && result.error == LC_ERROR_NONE) {
+            lc_app_abort_update(app);
+        }
         return;
     }
     (void)lc_app_publish_response(app, &result);

@@ -8,6 +8,9 @@ use App\StorableEvents\CommandResponseReceived;
 use App\StorableEvents\CompartmentOpenAcknowledged;
 use App\StorableEvents\CompartmentOpeningFailed;
 use App\StorableEvents\CompartmentOpeningRequested;
+use App\StorableEvents\FirmwareUpdateAccepted;
+use App\StorableEvents\FirmwareUpdateFailed;
+use App\StorableEvents\FirmwareUpdateRequested;
 use App\StorableEvents\LockerConfigAckFailed;
 use App\StorableEvents\LockerConfigAcknowledged;
 use App\Support\EventSourcing\StoredEventDispatcher;
@@ -70,6 +73,42 @@ class CommandResponseReactor extends Reactor implements ShouldQueue
             }
 
             $this->storedEventDispatcher->dispatch(new LockerConfigAckFailed(
+                lockerBankUuid: $event->lockerBankUuid,
+                transactionId: $event->transactionId,
+                errorCode: $event->errorCode,
+                message: $event->message,
+                timestamp: $event->timestamp,
+            ));
+
+            return;
+        }
+
+        // An update_firmware command has one response (ADR-0076): accepted, or refused with a code.
+        // A failure after acceptance is a device event, derived by FirmwareUpdateReactor.
+        if ($action === 'update_firmware' && ! $this->firmwareUpdateWasRequested($event)) {
+            return;
+        }
+
+        if ($action === 'update_firmware' && $result === 'success') {
+            if ($this->derivedEventExists(FirmwareUpdateAccepted::class, $event->transactionId)) {
+                return;
+            }
+
+            $this->storedEventDispatcher->dispatch(new FirmwareUpdateAccepted(
+                lockerBankUuid: $event->lockerBankUuid,
+                transactionId: $event->transactionId,
+                timestamp: $event->timestamp,
+            ));
+
+            return;
+        }
+
+        if ($action === 'update_firmware' && $result === 'error') {
+            if ($this->derivedEventExists(FirmwareUpdateFailed::class, $event->transactionId)) {
+                return;
+            }
+
+            $this->storedEventDispatcher->dispatch(new FirmwareUpdateFailed(
                 lockerBankUuid: $event->lockerBankUuid,
                 transactionId: $event->transactionId,
                 errorCode: $event->errorCode,
@@ -143,6 +182,29 @@ class CommandResponseReactor extends Reactor implements ShouldQueue
                 timestamp: $event->timestamp,
             ));
         }
+    }
+
+    /**
+     * Only a response for an update this backend asked this bank for is history. A response from
+     * another bank carrying the same transaction id is ignored, and its inbox row (keyed by bank)
+     * does not stand in the way of the real one.
+     */
+    private function firmwareUpdateWasRequested(CommandResponseReceived $event): bool
+    {
+        $requested = EloquentStoredEvent::query()
+            ->where('event_class', FirmwareUpdateRequested::class)
+            ->where('event_properties->commandId', $event->transactionId)
+            ->where('event_properties->lockerBankUuid', $event->lockerBankUuid)
+            ->exists();
+
+        if (! $requested) {
+            Log::warning('No FirmwareUpdateRequested found for this bank and update_firmware response; ignored.', [
+                'lockerBankUuid' => $event->lockerBankUuid,
+                'transactionId' => $event->transactionId,
+            ]);
+        }
+
+        return $requested;
     }
 
     private function derivedEventExists(string $eventClass, string $transactionId): bool

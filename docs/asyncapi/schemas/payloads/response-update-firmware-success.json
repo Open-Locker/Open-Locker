@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "./response-update-firmware-success.json",
+  "title": "Successful update_firmware response",
+  "description": "The update was accepted and the download started. It does not mean the device is updated: completion is a heartbeat with the target firmware_version and trial not true (ADR-0076).",
+  "allOf": [
+    {
+      "$ref": "./response-command-success.json"
+    },
+    {
+      "type": "object",
+      "properties": {
+        "action": {
+          "const": "update_firmware"
+        }
+      }
+    }
+  ]
+}
