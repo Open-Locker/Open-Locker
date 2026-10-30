@@ -17,51 +17,51 @@ describe('useUserName', () => {
     jest.clearAllMocks();
   });
 
-  it('prefers the name the API returns over the one stored at login', () => {
+  it('prefers the name the API returns over the one stored at login', async () => {
     // The bug this replaces: the account screen showed the login-time name while
     // its own input field showed the updated one.
     mockUseAppSelector.mockReturnValue('Old Name');
     mockUseGetUserQuery.mockReturnValue({ data: { first_name: 'New', last_name: 'Name' } });
 
-    const { result } = renderHook(() => useUserName());
+    const { result } = await renderHook(() => useUserName());
 
     expect(result.current).toBe('New Name');
   });
 
-  it('falls back to the stored name until the query resolves', () => {
+  it('falls back to the stored name until the query resolves', async () => {
     // On a cold start there is no query result yet. Showing nothing would trade a
     // stale name for a blank one.
     mockUseAppSelector.mockReturnValue('Stored Name');
     mockUseGetUserQuery.mockReturnValue({ data: undefined });
 
-    const { result } = renderHook(() => useUserName());
+    const { result } = await renderHook(() => useUserName());
 
     expect(result.current).toBe('Stored Name');
   });
 
-  it('reports no name rather than an empty string when the user has none', () => {
+  it('reports no name rather than an empty string when the user has none', async () => {
     mockUseAppSelector.mockReturnValue('Stored Name');
     mockUseGetUserQuery.mockReturnValue({ data: { first_name: '', last_name: null } });
 
-    const { result } = renderHook(() => useUserName());
+    const { result } = await renderHook(() => useUserName());
 
     expect(result.current).toBeNull();
   });
 
-  it.each([null, '', '   '])('reports no name for a blank stored name (%p)', (storedName) => {
+  it.each([null, '', '   '])('reports no name for a blank stored name (%p)', async (storedName) => {
     mockUseAppSelector.mockReturnValue(storedName);
     mockUseGetUserQuery.mockReturnValue({ data: undefined });
 
-    const { result } = renderHook(() => useUserName());
+    const { result } = await renderHook(() => useUserName());
 
     expect(result.current).toBeNull();
   });
 
-  it('trims the stored name until the query resolves', () => {
+  it('trims the stored name until the query resolves', async () => {
     mockUseAppSelector.mockReturnValue('  Stored Name  ');
     mockUseGetUserQuery.mockReturnValue({ data: undefined });
 
-    const { result } = renderHook(() => useUserName());
+    const { result } = await renderHook(() => useUserName());
 
     expect(result.current).toBe('Stored Name');
   });

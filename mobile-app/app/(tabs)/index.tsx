@@ -7,7 +7,6 @@ import {
   BottomSheetView,
 } from '@gorhom/bottom-sheet';
 import { CircleHelp, Lock, LockOpen, WifiOff } from 'lucide-react-native';
-import type { FetchBaseQueryError } from '@reduxjs/toolkit/query';
 import { skipToken } from '@reduxjs/toolkit/query';
 import { router } from 'expo-router';
 import { useTranslation } from 'react-i18next';
@@ -153,11 +152,15 @@ export default function CompartmentsScreen() {
   const isOpenInFlight =
     requestOpenState.isLoading || (openProgress !== null && !isOpenFinished(openProgress));
   const [openProblems, setOpenProblems] = React.useState(NO_OPEN_PROBLEMS);
-  React.useEffect(() => {
+  // Tally each progress change once, during render rather than in an effect.
+  const openOutcomeKey = openCommandId && openProgress ? `${openCommandId}:${openProgress}` : null;
+  const [talliedOutcomeKey, setTalliedOutcomeKey] = React.useState<string | null>(null);
+  if (openOutcomeKey !== talliedOutcomeKey) {
+    setTalliedOutcomeKey(openOutcomeKey);
     if (openCommandId && openProgress) {
       setOpenProblems((tally) => tallyOpenOutcome(tally, openCommandId, openProgress));
     }
-  }, [openCommandId, openProgress]);
+  }
   const [isEditingNote, setIsEditingNote] = React.useState(false);
   const [noteDraft, setNoteDraft] = React.useState('');
   const compartmentSheetRef = React.useRef<BottomSheetModal>(null);
@@ -238,12 +241,6 @@ export default function CompartmentsScreen() {
     const hasSelected = lockerBanks.some((section) => section.id === selectedLockerBankId);
     return hasSelected ? selectedLockerBankId : lockerBanks[0].id;
   }, [lockerBanks, selectedLockerBankId]);
-
-  React.useEffect(() => {
-    if (selectedLockerBankId !== effectiveLockerBankId) {
-      setSelectedLockerBankId(effectiveLockerBankId);
-    }
-  }, [effectiveLockerBankId, selectedLockerBankId]);
 
   if (isLoading && !data) {
     return (
