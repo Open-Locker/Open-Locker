@@ -15,7 +15,18 @@
 /* Called from the system event task when the station gains or loses its address. */
 typedef void (*lc_wifi_state_cb)(void *ctx, bool up);
 
-/* Starts the station. Returns false when it cannot be started at all. */
+/*
+ * Brings up the network stack and the Wi-Fi driver, once. Neither the station
+ * nor an access point is started: the caller picks one (lc_wifi_start_station()
+ * here, or the setup network, which sets the mode itself). False when it cannot
+ * be done at all.
+ */
+bool lc_wifi_init(lc_wifi_state_cb callback, void *ctx);
+
+/* Starts the station on an initialised driver. */
+bool lc_wifi_start_station(const lc_network_settings_t *settings);
+
+/* lc_wifi_init() and lc_wifi_start_station(). */
 bool lc_wifi_start(const lc_network_settings_t *settings, lc_wifi_state_cb callback, void *ctx);
 
 /* The clock has been set by SNTP. */

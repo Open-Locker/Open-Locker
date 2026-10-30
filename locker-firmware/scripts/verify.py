@@ -37,14 +37,19 @@ SCHEMAS = REPO / "docs" / "asyncapi" / "schemas"
 EMITTED_MESSAGES = BUILD / "emitted-messages.jsonl"
 
 # Test ID prefixes (S<n>) whose catalogue entries must all have a test.
-IMPLEMENTED_SLICES = [1, 2, 3, 4, 5]
+IMPLEMENTED_SLICES = [1, 2, 3, 4, 5, 6]
 
-MIN_LINE_COVERAGE = 90.0
+MIN_LINE_COVERAGE = 95.0
 
 # What each component may include and require besides itself. A component not
 # named here is an adapter. `main` is the composition root and is not checked.
 ALLOWED_DEPENDENCIES = {
     "lc_domain": [],
+    "lc_button": [],
+    # The setup network can reach identity types and nothing else: no ports, so no bus.
+    "lc_softap_portal": ["lc_domain"],
+    # The setup network's radio adapter drives the portal's decisions: the one adapter that may.
+    "lc_softap_espidf": ["lc_domain", "lc_softap_portal"],
     "lc_ports": ["lc_domain"],
     "lc_application": ["lc_domain", "lc_ports"],
 }
@@ -58,8 +63,20 @@ PURE_COMPONENTS = [
     "lc_mqtt_codec",
     "lc_rs485_lock_board",
     "lc_journal",
+    "lc_button",
+    "lc_softap_portal",
 ]
 HEADER_ONLY_PURE_COMPONENTS = ["lc_ports"]
+# Components that wrap the SDK and are not measured by the host gate. A new
+# component must be added here or to a pure list, or the layer check fails.
+ADAPTER_COMPONENTS = [
+    "lc_mqtt_espidf",
+    "lc_net_wifi",
+    "lc_serial_uart",
+    "lc_softap_espidf",
+    "lc_storage_nvs",
+    "lc_usb_console",
+]
 STANDARD_HEADERS = {
     "assert.h",
     "ctype.h",
@@ -178,9 +195,18 @@ def check_plan_ids():
     return errors
 
 
+def unclassified_components(names):
+    """Components that are in none of the pure, header-only or adapter lists."""
+    known = {*PURE_COMPONENTS, *HEADER_ONLY_PURE_COMPONENTS, *ADAPTER_COMPONENTS}
+    return sorted(set(names) - known)
+
+
 def check_layers():
     """Includes and component requirements follow the allowed dependencies."""
-    errors = []
+    errors = [
+        f"components/{name} is in no component list in verify.py (pure or adapter)"
+        for name in unclassified_components(component.name for component in components())
+    ]
     checked = 0
     for component in components():
         name = component.name

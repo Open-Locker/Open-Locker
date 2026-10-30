@@ -143,6 +143,7 @@ typedef struct {
     bool has;
     lc_config_t config;
     bool save_ok;
+    bool clear_ok;
     unsigned save_count;
     unsigned clear_count;
 } fake_config_store_t;
@@ -164,6 +165,7 @@ typedef struct {
     bool has;
     lc_network_settings_t settings;
     bool save_ok;
+    bool clear_ok;
     unsigned save_count;
     unsigned clear_count;
 } fake_settings_store_t;

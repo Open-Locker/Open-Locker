@@ -31,6 +31,33 @@ bool lc_storage_init(void)
     return err == ESP_OK;
 }
 
+#define SETUP_NAMESPACE "lc_setup"
+
+static bool load_text(nvs_handle_t handle, const char *key, char *out, size_t capacity)
+{
+    size_t length = capacity;
+    return nvs_get_str(handle, key, out, &length) == ESP_OK && length > 1 && length <= capacity;
+}
+
+bool lc_storage_load_setup_secrets(lc_setup_secrets_t *out)
+{
+    nvs_handle_t handle;
+    memset(out, 0, sizeof(*out));
+    if (nvs_open(SETUP_NAMESPACE, NVS_READONLY, &handle) != ESP_OK) {
+        return false;
+    }
+    bool found = load_text(handle, "ssid", out->ssid, sizeof(out->ssid)) &&
+                 load_text(handle, "ap_pass", out->passphrase, sizeof(out->passphrase)) &&
+                 load_text(handle, "setup_pw", out->setup_password, sizeof(out->setup_password));
+    nvs_close(handle);
+    /* WPA2 needs 8 to 63 characters; a shorter passphrase would not start the access point. */
+    if (!found || strlen(out->passphrase) < 8 || strlen(out->setup_password) < 8) {
+        memset(out, 0, sizeof(*out));
+        return false;
+    }
+    return true;
+}
+
 /* Largest value stored here, with room for the version. */
 #define BUFFER_MAX 1024
 

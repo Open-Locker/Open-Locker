@@ -17,6 +17,14 @@
 
 /* A slow bus exchange blocks the task for over a second while events keep arriving. */
 #define QUEUE_DEPTH 32
+/*
+ * The queue holds QUEUE_DEPTH copies of owner_event_t, and a setup request is
+ * the largest of them. On the ESP32 an event is 688 bytes, so the queue takes
+ * 22,100 bytes with its control block (bench spike, ADR-0074 open points).
+ */
+#define QUEUE_BUDGET_BYTES (24 * 1024)
+_Static_assert(sizeof(owner_event_t) * QUEUE_DEPTH <= QUEUE_BUDGET_BYTES,
+               "the owner queue outgrew its memory budget; lower QUEUE_DEPTH or queue pointers");
 #define TICK_MS 100
 /* How long the network may be up without a valid time before it is reported. */
 #define TIME_WARNING_MS 30000
@@ -29,6 +37,7 @@ static const char *TAG = "owner";
 device_state_t device_state;
 
 static QueueHandle_t queue;
+static TaskHandle_t task;
 static owner_context_t owner;
 static bool network_up;
 static int64_t network_up_ms;
@@ -203,12 +212,19 @@ static void handle(owner_event_t *event)
         on_provision_reply(&event->u.reply);
         break;
     case OWNER_SETUP:
-        (void)lc_commission_apply(owner.commission, &event->u.setup);
+        (void)lc_commission_apply_from(owner.commission, event->channel, &event->u.setup);
         refresh_device_state();
         break;
     case OWNER_RESET:
-        if (!lc_commission_reset(owner.commission)) {
+        switch (lc_commission_reset(owner.commission)) {
+        case LC_RESET_DONE:
+            break;
+        case LC_RESET_FAILED:
             ESP_LOGE(TAG, "the reset could not be stored and was not done");
+            break;
+        case LC_RESET_PARTIAL:
+            ESP_LOGE(TAG, "the reset is partial: mapping or settings were not cleared");
+            break;
         }
         break;
     }
@@ -250,5 +266,15 @@ bool owner_start(const owner_context_t *context)
         return false;
     }
     refresh_device_state();
-    return xTaskCreate(owner_task, "owner", STACK_SIZE, NULL, PRIORITY, NULL) == pdPASS;
+    return xTaskCreate(owner_task, "owner", STACK_SIZE, NULL, PRIORITY, &task) == pdPASS;
+}
+
+bool owner_stack_free(uint32_t *bytes)
+{
+    if (task == NULL) {
+        return false;
+    }
+    /* ESP-IDF counts stack in bytes, not words. */
+    *bytes = (uint32_t)uxTaskGetStackHighWaterMark(task);
+    return true;
 }

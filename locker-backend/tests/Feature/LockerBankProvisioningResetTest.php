@@ -133,6 +133,116 @@ class LockerBankProvisioningResetTest extends TestCase
         $this->assertStringNotContainsString($token, $databaseState);
     }
 
+    public function test_fresh_provisioning_token_is_accepted(): void
+    {
+        $lockerBank = LockerBank::factory()->create();
+        $token = app(LockerProvisioningService::class)->restart($lockerBank, $this->admin());
+
+        $this->assertTrue(app(LockerProvisioningService::class)->acceptRegistration($token, 'locker/provisioning/reply/fresh'));
+        $this->assertNotNull($lockerBank->fresh()->provisioned_at);
+    }
+
+    public function test_provisioning_token_past_24_hours_is_refused_and_logged_as_expired(): void
+    {
+        $lockerBank = LockerBank::factory()->create();
+        $token = app(LockerProvisioningService::class)->restart($lockerBank, $this->admin());
+        Log::spy();
+
+        $this->travel(25)->hours();
+
+        $this->assertFalse(app(LockerProvisioningService::class)->acceptRegistration($token, 'locker/provisioning/reply/late'));
+        $this->assertNull($lockerBank->fresh()->provisioned_at);
+        Log::shouldHaveReceived('warning')
+            ->withArgs(fn (string $message, array $context = []): bool => ($context['reason'] ?? null) === 'expired')
+            ->once();
+    }
+
+    public function test_provisioning_token_expires_at_exactly_24_hours(): void
+    {
+        $this->travelTo(CarbonImmutable::parse('2026-10-19T10:00:00+00:00'));
+        $lockerBank = LockerBank::factory()->create();
+        $token = app(LockerProvisioningService::class)->restart($lockerBank, $this->admin());
+
+        $this->travelTo(CarbonImmutable::parse('2026-10-20T10:00:00+00:00'));
+        $this->assertFalse(app(LockerProvisioningService::class)->acceptRegistration($token, 'locker/provisioning/reply/boundary'));
+
+        $this->travelTo(CarbonImmutable::parse('2026-10-20T09:59:59+00:00'));
+        $this->assertTrue(app(LockerProvisioningService::class)->acceptRegistration($token, 'locker/provisioning/reply/boundary'));
+    }
+
+    public function test_reissuing_a_provisioning_token_restarts_the_clock(): void
+    {
+        $lockerBank = LockerBank::factory()->create();
+        $admin = $this->admin();
+        $service = app(LockerProvisioningService::class);
+        $service->restart($lockerBank, $admin);
+
+        $this->travel(20)->hours();
+        $token = $service->restart($lockerBank, $admin);
+
+        $this->travel(20)->hours();
+        $this->assertTrue($service->acceptRegistration($token, 'locker/provisioning/reply/reissue'));
+    }
+
+    public function test_provisioning_token_without_issue_time_counts_as_expired(): void
+    {
+        $lockerBank = LockerBank::factory()->create();
+        $token = app(LockerProvisioningService::class)->restart($lockerBank, $this->admin());
+        $lockerBank->forceFill(['provisioning_token_issued_at' => null])->save();
+
+        $this->assertFalse(app(LockerProvisioningService::class)->acceptRegistration($token, 'locker/provisioning/reply/no-time'));
+    }
+
+    public function test_used_token_and_enrolled_bank_are_unaffected_after_24_hours(): void
+    {
+        $lockerBank = LockerBank::factory()->create();
+        $service = app(LockerProvisioningService::class);
+        $token = $service->restart($lockerBank, $this->admin());
+        $this->assertTrue($service->acceptRegistration($token, 'locker/provisioning/reply/used'));
+
+        $this->travel(48)->hours();
+
+        $lockerBank->refresh();
+        $this->assertNotNull($lockerBank->provisioned_at);
+        $this->assertNull($lockerBank->provisioning_token_hmac);
+        $this->assertNull($lockerBank->provisioning_token_issued_at);
+        $this->assertFalse($service->acceptRegistration($token, 'locker/provisioning/reply/used'));
+        $this->assertNotNull($lockerBank->fresh()->provisioned_at);
+    }
+
+    public function test_reset_clears_the_token_issue_time(): void
+    {
+        $lockerBank = LockerBank::factory()->create();
+        app(LockerProvisioningService::class)->restart($lockerBank, $this->admin());
+        $this->assertNotNull($lockerBank->fresh()->provisioning_token_issued_at);
+
+        $event = new LockerProvisioningReset(
+            lockerBankUuid: (string) $lockerBank->id,
+            actorUserId: 1,
+            resetAtIso8601: now()->toIso8601String(),
+        );
+        app(LockerBankProjector::class)->onLockerProvisioningReset($event);
+
+        $this->assertNull($lockerBank->fresh()->provisioning_token_issued_at);
+    }
+
+    public function test_replayed_token_issue_sets_the_issue_time_from_the_event(): void
+    {
+        $lockerBank = LockerBank::factory()->create();
+        $issuedAt = CarbonImmutable::parse('2026-08-17T10:15:30+00:00');
+        $event = new LockerProvisioningTokenIssued(
+            lockerBankUuid: (string) $lockerBank->id,
+            provisioningTokenHmac: str_repeat('b', 64),
+            provisioningGeneration: '33333333-3333-3333-3333-333333333333',
+            actorUserId: 1,
+            issuedAtIso8601: $issuedAt->toIso8601String(),
+        );
+
+        app(LockerBankProjector::class)->onLockerProvisioningTokenIssued($event);
+
+        $this->assertTrue($lockerBank->fresh()->provisioning_token_issued_at?->equalTo($issuedAt) ?? false);
+    }
+
     public function test_restart_requires_actor_permission(): void
     {
         $lockerBank = LockerBank::factory()->create();

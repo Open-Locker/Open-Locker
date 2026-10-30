@@ -16,6 +16,8 @@ typedef struct {
     size_t length;
     bool discarding;
     bool finished;
+    /* The last byte was a CR, so an LF now is the second half of a CRLF. */
+    bool after_cr;
     /* Continuation bytes still owed to the UTF-8 sequence in progress. */
     uint8_t utf8_remaining;
     /* The range the next byte of that sequence has to be in. */
@@ -35,9 +37,10 @@ typedef enum {
 } lc_console_feed_t;
 
 /*
- * Feeds one received byte. Start from a zeroed struct. A carriage return is
- * ignored. After READY or REJECTED the next byte starts a new line. A line is
- * ASCII or well-formed UTF-8 (a network name may not be ASCII).
+ * Feeds one received byte. Start from a zeroed struct. A CR, an LF or a CRLF
+ * ends a line (ESP-IDF's monitor sends a bare CR). After READY or REJECTED the
+ * next byte starts a new line. A line is ASCII or well-formed UTF-8 (a network
+ * name may not be ASCII).
  */
 lc_console_feed_t lc_console_line_feed(lc_console_line_t *input, char byte);
 
