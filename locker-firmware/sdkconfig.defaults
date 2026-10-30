@@ -1,0 +1,29 @@
+CONFIG_ESPTOOLPY_FLASHSIZE_4MB=y
+CONFIG_PARTITION_TABLE_CUSTOM=y
+CONFIG_PARTITION_TABLE_CUSTOM_FILENAME="partitions.csv"
+# Room for the bootloader to grow with rollback and secure boot (ADR-0069).
+CONFIG_PARTITION_TABLE_OFFSET=0xC000
+
+# Millisecond ticks: the bus adapter's quiet interval is tens of milliseconds.
+CONFIG_FREERTOS_HZ=1000
+
+# A hung task restarts the chip instead of leaving the bank unresponsive.
+CONFIG_ESP_TASK_WDT_EN=y
+CONFIG_ESP_TASK_WDT_INIT=y
+CONFIG_ESP_TASK_WDT_PANIC=y
+CONFIG_ESP_INT_WDT=y
+
+# The main task builds the objects of the application and opens the journal.
+CONFIG_ESP_MAIN_TASK_STACK_SIZE=6144
+
+# MQTT 3.1.1 over TLS, verified against the CA bundle built into the firmware.
+# The broker certificate and its host name are always checked: ESP_TLS_INSECURE
+# stays unset, and the MQTT transport refuses to build if it is set.
+CONFIG_MQTT_PROTOCOL_311=y
+CONFIG_MQTT_TRANSPORT_SSL=y
+CONFIG_MBEDTLS_CERTIFICATE_BUNDLE=y
+CONFIG_MBEDTLS_CERTIFICATE_BUNDLE_DEFAULT_FULL=y
+
+# Tells the application when the library gives up on a message (MQTT_EVENT_DELETED),
+# so it can be sent again at once instead of after the application's own timeout.
+CONFIG_MQTT_REPORT_DELETED_MESSAGES=y

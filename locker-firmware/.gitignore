@@ -1,0 +1,8 @@
+build/
+sdkconfig
+sdkconfig.*
+!sdkconfig.defaults
+!sdkconfig.dev
+__pycache__/
+managed_components/
+tests/idf_host/dependencies.lock

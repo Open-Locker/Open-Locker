@@ -1,0 +1,15 @@
+#pragma once
+
+/* Why a command failed. The wire strings live in the MQTT codec. */
+typedef enum {
+    LC_ERROR_NONE = 0,
+    LC_ERROR_MISSING_MESSAGE_ID,
+    LC_ERROR_INVALID_COMMAND,
+    LC_ERROR_UNKNOWN_ACTION,
+    LC_ERROR_INVALID_CONFIG,
+    LC_ERROR_RUNTIME_CONFIG_NOT_APPLIED,
+    LC_ERROR_COMPARTMENT_NOT_FOUND,
+    LC_ERROR_HARDWARE_ERROR,
+    LC_ERROR_SHUTTING_DOWN,
+    LC_ERROR_UNKNOWN_ERROR,
+} lc_error_t;
