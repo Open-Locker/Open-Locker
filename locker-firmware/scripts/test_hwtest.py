@@ -83,6 +83,10 @@ class ResumeTest(unittest.TestCase):
         self.assertEqual(checks_to_run(results, None, resume=True), ["B1", "B2"])
         self.assertEqual(checks_to_run({}, ["B2"]), ["B1", "B2"])
 
+    def test_c9_runs_right_after_c6_with_no_restart_between(self):
+        self.assertEqual(checks_to_run({}, ["C9"]), ["C6", "C9"])
+        self.assertEqual(IDS.index("C9"), IDS.index("C6") + 1)
+
     def test_failed_runs_only_the_checks_that_failed(self):
         results = record()["results"]
         del results["C1"]
