@@ -3,6 +3,7 @@ import { defineConfig } from 'astro/config';
 import mdx from '@astrojs/mdx';
 import sitemap from '@astrojs/sitemap';
 import starlight from '@astrojs/starlight';
+import starlightLinksValidator from 'starlight-links-validator';
 import mermaid from 'astro-mermaid';
 import tailwindcss from '@tailwindcss/vite';
 
@@ -28,12 +29,19 @@ export default defineConfig({
 	},
 	integrations: [
 		// Must come before Starlight so it sees the mermaid code blocks.
-		// The site is always light, so the diagrams are too.
-		mermaid({ theme: 'default', autoTheme: false }),
+		mermaid({ theme: 'default', autoTheme: true }),
 		starlight({
 			title: 'Open Locker',
 			logo: { src: './public/logo-open-locker.svg' },
 			customCss: ['./src/styles/starlight-custom.css'],
+			// The homepages are custom pages, which the validator can't see.
+			plugins: [starlightLinksValidator({ exclude: ['/', '/#*', '/de/', '/de/#*'] })],
+			editLink: { baseUrl: 'https://github.com/Open-Locker/Open-Locker/edit/main/website/' },
+			lastUpdated: true,
+			expressiveCode: {
+				themes: ['github-dark', 'github-light'],
+				defaultProps: { frame: 'none' },
+			},
 			// Slugs, not folders, so existing URLs and the German mirror stay unchanged.
 			sidebar: [
 				'dokumentation',
@@ -71,8 +79,7 @@ export default defineConfig({
 			],
 			components: {
 				Header: './src/components/Header.astro',
-				ThemeProvider: './src/components/ThemeProvider.astro',
-				ThemeSelect: './src/components/EmptyThemeSelect.astro',
+				ThemeSelect: './src/components/ThemeSwitch.astro',
 				LanguageSelect: './src/components/LanguageSelect.astro',
 				SocialIcons: './src/components/SocialIcons.astro',
 				SiteTitle: './src/components/StarlightSiteTitle.astro',
