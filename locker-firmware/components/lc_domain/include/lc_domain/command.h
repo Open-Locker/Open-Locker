@@ -29,7 +29,7 @@ typedef struct {
     lc_error_t defect;
     /* LC_ACTION_OPEN_COMPARTMENT */
     uint16_t compartment_number;
-    /* One command is one action, so these share memory (the owner queue holds copies);
+    /* One command is one action, so these share memory (the owner task's command pool holds 32 of them);
      * `action` decides which member is valid. */
     union {
         /* LC_ACTION_APPLY_CONFIG */

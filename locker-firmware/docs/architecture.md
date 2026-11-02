@@ -128,7 +128,7 @@ typedef struct {
 
 Outbound calls never wait for the broker. A call returns a publish ID when the
 MQTT adapter accepted the message, or `LC_PUBLISH_REFUSED`. The broker's
-acknowledgement (PUBACK), a failure or a timeout arrive later as owner-queue
+acknowledgement (PUBACK), a failure or a timeout arrive later as control
 events carrying that ID. Only the acknowledgement marks a command response as
 delivered in the journal, so "delivered" means the broker has it, and the owner
 task keeps polling doors in the meantime.
@@ -143,15 +143,32 @@ inside the MQTT adapter), `hasher_port.h` (SHA-256) and `system_port.h`
 ## Task model
 
 - One **owner task** runs every use case. Driving adapters never call a use
-  case directly; they post to the owner task's bounded queue (MQTT message,
-  connected, subscribed, publish acknowledged, publish failed, console line,
-  tick). This
+  case directly; they post to one of the owner task's four bounded inputs
+  (`main/owner_queue.h`):
+  - a **control queue** of small events (12 bytes, 32 deep): network up or down,
+    transport connected or disconnected, subscribed, publish acknowledged or
+    failed, download verified or failed, reset;
+  - a **command pool** of 32 `lc_command_t` slots. The producer takes a free
+    slot without waiting, decodes the command into it, and posts the slot's
+    index; the owner task hands the slot back after the use case returned,
+    whatever it did. No command is copied;
+  - two **one-slot mailboxes** for the rare large events: the setup request (from
+    the console or the setup network, with the channel its reply goes to) and the
+    provisioning reply. A second post is refused until the first was handled.
+
+  The owner task handles at most 32 control events first (acknowledgements free
+  tracking slots and journal entries), then the mailboxes (a setup request or a
+  provisioning reply goes before a waiting command), then one command, then its
+  tick. Every post gives one binary semaphore that the idle task takes; the task
+  counts as idle only when a whole wait passed with nothing posted. A burst of acknowledgements cannot push out a command,
+  and a full pool cannot lose an acknowledgement. This
   is why `apply_config` cannot race an unlock, and it is the only concurrency
   rule the application relies on.
 - One **bus worker** behind the locker bus port owns the UART.
-- The esp-mqtt task belongs to `lc_mqtt_espidf` and only copies and enqueues.
+- The esp-mqtt task belongs to `lc_mqtt_espidf`; it decodes a command straight
+  into a pool slot and posts the slot.
 - The **download task** belongs to `lc_ota_espidf`. It exists only while an image is
-  downloaded, and reports how it ended to the owner queue (verified or failed); the
+  downloaded, and reports how it ended to the control queue (verified or failed); the
   owner task never waits for it.
 
 The owner task never waits for the network. The only thing it waits for is a
@@ -160,8 +177,30 @@ else could use the bus anyway. On idle ticks it also does the journal's
 background work, one sector erase or one compaction at a time.
 
 Every queue and buffer has a fixed capacity and a stated overflow policy.
-Overflow never actuates: a dropped command gets no unlock, and the backend
-times out.
+Overflow never actuates, and a producer never waits:
+
+- **A command** with no free slot is dropped and logged before anything is
+  claimed, so it never unlocks. The backend times out. The broker redelivers an
+  unacknowledged command only until the device's PUBACK, which the MQTT stack
+  sends when the message is received, so a dropped command is not redelivered
+  after that.
+- **A control event** that finds the control queue full is lost and logged,
+  never retried. A lost publish acknowledgement leaves the response undelivered
+  in the journal. The publish stays outstanding until
+  `LC_APP_PUBLISH_TIMEOUT_MS` (60 s) after it was sent; the tick then frees its
+  tracking slot (`expire_outstanding`), and the next service pass (about every
+  poll interval) publishes the response again. A lost detection event or
+  snapshot acknowledgement is published again the same way. A lost network or
+  transport up or down event leaves the owner task's view of that state stale
+  until the next change of it. A refused reset is not lost silently: the console
+  answers "error reset not accepted", and the button offers it again for 2 s.
+- **A setup request or a provisioning reply** that finds its mailbox busy is
+  refused, and the sender is told.
+
+The four inputs hold 22,168 bytes in all: the control events, the pool (20,736),
+the two mailboxes and one byte per slot index. The FreeRTOS control blocks of
+the seven queues and the semaphore are not counted. A `_Static_assert` in
+`owner_queue.h` fails the build when a type outgrows the 24 KiB budget.
 
 ## Command journal
 
@@ -369,7 +408,7 @@ minutes, and is re-entered by a button held for 10 s. Its decisions are the pure
 | Heartbeat | A periodic MQTT message saying the device is alive and whether it can reach the panel. |
 | Hexagonal architecture | A structure in which the domain and use cases sit in the middle and reach every technology only through ports. Also called ports and adapters. |
 | Host test | A test that compiles the firmware's C code for a normal computer and runs it there, with no ESP32 involved. |
-| Owner queue | The fixed-size FreeRTOS queue in front of the owner task. |
+| Owner queue | The owner task's inputs: a control queue, a pool of command slots and two one-slot mailboxes, all of fixed size. |
 | Journal | The log in flash that records every command before and after it is acted on. See [Command journal](#command-journal). |
 | Kconfig | The build-time configuration system of ESP-IDF, used here for pins and serial settings. |
 | Last Will | A message a device registers with the broker in advance. The broker publishes it if the device disappears without saying goodbye. |

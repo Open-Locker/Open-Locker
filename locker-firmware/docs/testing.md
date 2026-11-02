@@ -182,6 +182,23 @@ Suites `test_open_compartment`, `test_apply_config`, `test_app_dispatch`:
 | S2-H52 | While an acknowledgement is outstanding, the owner task goes on processing events |
 | S2-H53 | An acknowledgement event for an unknown or already delivered response changes nothing |
 
+Host suite `test_owner_queue`: `main/owner_queue.c` over a fake FreeRTOS (queues
+that hold copies and never block, in `tests/host/fakes/rtos/`), with the real
+application as the command handler. Whether the target wires the real queues the
+same way is checked on the bench, not here. Tests without an ID: the step is
+idle only when a whole wait passed with nothing posted, and does not sleep when
+work waits; a stale wake after a burst is not idle and waits again; a late wake
+waits only for the rest of the budget; a flood of control events cannot starve a
+command (at most 32 per step); a refused setup submit releases the mailbox.
+
+| ID | Test |
+| --- | --- |
+| S2-H54 | A burst of acknowledgements and other control events, far past the control queue's depth, cannot push out a command |
+| S2-H55 | With every command slot in use, the next command is dropped and logged, is never claimed in the journal, and never reaches the bus |
+| S2-H56 | Command slots are returned after dispatch, including after a duplicate and after a not-connected refusal: the pool is whole again |
+| S2-H57 | The setup and the provisioning-reply mailboxes refuse a second post while busy, and accept one once the first was handled or discarded |
+| S2-H58 | Control events are handled before a waiting command, one command per step |
+
 ### Network, MQTT and enrollment (S3)
 
 Host suite `test_provision_device`:
