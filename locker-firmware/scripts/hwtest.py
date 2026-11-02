@@ -71,9 +71,9 @@ CHECKS = [
     ("C4", "ACTUATES. One open from the admin panel releases the lock once", "manual"),
     ("C5", "ACTUATES. `broker_check.py --actuate`: one open and two duplicates, counter +1", "manual"),
     ("C6", "Access point off 1 min, then broker off 1 min: reconnects, pending response delivered", "manual"),
+    ("C9", "After C6, `diagnostics` shows minimum free heap and owner task stack headroom: record both", "manual"),
     ("C7", "Invalid token: rejected, no retry; after a provisioning reset and a fresh token it enrolls", "manual"),
     ("C8", "Pull power: the backend shows the bank offline", "manual"),
-    ("C9", "After C6, `diagnostics` shows minimum free heap and owner task stack headroom: record both", "manual"),
     ("D1", "Door by hand: admin panel and app follow within two seconds", "manual"),
     ("D2", "ACTUATES. Open through the backend and pull the door: `opened` arrives", "manual"),
     ("D3", "ACTUATES. Open through the backend and hold the door: `door_jammed` arrives", "manual"),
@@ -236,8 +236,9 @@ def selected(only, check_id):
     return only is None or any(check_id == x or (len(x) == 1 and check_id[0] == x) for x in only)
 
 
-# A check that only works in the same session as another one: B2 repeats B1's open.
-NEEDS = {"B2": "B1"}
+# A check that only works in the same session as another one: B2 repeats B1's open, and C9
+# reads values counted since boot, so no restart may come between C6's outages and C9.
+NEEDS = {"B2": "B1", "C9": "C6"}
 GROUPS = {
     "A": "Serial bus and panel", "B": "Commands and journal", "C": "Network, MQTT, and enrollment",
     "D": "State and door events", "E": "USB commissioning", "F": "SoftAP commissioning",

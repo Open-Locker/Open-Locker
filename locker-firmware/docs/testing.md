@@ -463,9 +463,9 @@ Rules:
 | HW-C4 | **Actuates.** One open from the admin panel releases the lock once |
 | HW-C5 | **Actuates.** `broker_check.py` with the actuation flag: one open and two duplicates raise the unlock transmission counter by one |
 | HW-C6 | Switch the access point off for one minute, then the broker for one minute: the device reconnects unaided and a response pending at the time is delivered |
+| HW-C9 | Right after HW-C6, with no restart between them, record minimum free heap and owner task stack headroom (`diagnostics` reports both, counted since boot) |
 | HW-C7 | Use an invalid token: the device reports rejection and does not retry; after a backend provisioning reset and a fresh token it enrolls |
 | HW-C8 | Pull power from the ESP32: the broker publishes the Last Will, and the backend shows the bank offline once the heartbeat times out (it does not act on the Last Will yet, #43) |
-| HW-C9 | Record minimum free heap and owner task stack headroom after HW-C6 (`diagnostics` reports both) |
 
 ### Group D: State and door events
 
