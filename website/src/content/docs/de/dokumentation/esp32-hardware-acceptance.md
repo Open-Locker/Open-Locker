@@ -119,7 +119,7 @@ Für HW-C5 `--actuate --compartment 1` ergänzen und `unlock_transmissions` in `
 
 | ID | Prüfung | Art |
 | --- | --- | --- |
-| HW-E1 | **Löst aus.** Eine gelöschte Einheit mit `commission.py` bis zum Öffnen in Betrieb nehmen | manuell |
+| HW-E1 | **Löst aus.** Eine Einheit ohne Einstellungen mit `commission.py` bis zum Öffnen in Betrieb nehmen | manuell |
 | HW-E2 | Falsche WLAN-Zugangsdaten, über USB ohne Reset korrigiert: Die Identität bleibt | manuell |
 | HW-E3 | Eine registrierte Einheit in ein anderes Netz umziehen: Identität, Zuordnung und Journal bleiben | zurückgestellt |
 | HW-E4 | Zehnmal USB während des Speicherns trennen: alte oder neue Einstellungen, nie eine Mischung | zurückgestellt |
@@ -131,7 +131,7 @@ Benötigt eine Einheit mit Setup-Secrets, einen Laptop mit `commission.py --soft
 
 | ID | Prüfung | Art |
 | --- | --- | --- |
-| HW-F1 | **Löst aus.** Eine gelöschte Einheit über das Setup-Netzwerk bis zum Öffnen aus dem Admin-Panel in Betrieb nehmen | manuell |
+| HW-F1 | **Löst aus.** Eine Einheit ohne Einstellungen über das Setup-Netzwerk bis zum Öffnen aus dem Admin-Panel in Betrieb nehmen | manuell |
 | HW-F2 | Falsches WLAN-Passwort: Sie versucht es weiter, 10 s Tasterdruck setzt sie zurück, und dasselbe unbenutzte Token registriert sie | manuell |
 | HW-F3 | Registrierte Einheit: Access Point und sein Port sind nicht erreichbar | manuell |
 | HW-F4 | Taster: unter 10 s nichts, 10 s setzt zurück, beim Einschalten gehalten nichts, ein festsitzender Jumper nichts | manuell |
@@ -153,7 +153,7 @@ Benötigt eine per USB mit einem signierten Image geflashte Einheit, ein Backend
 
 | ID | Prüfung | Art |
 | --- | --- | --- |
-| HW-H1 | Leeres Board mit dem signierten Image flashen: Es registriert sich, dann erneut HW-A1, HW-A6, HW-C4, HW-D2 und HW-D4 | manuell |
+| HW-H1 | Der gesamte Lauf begann auf einem leeren, mit dem signierten Image geflashten Board: das bestätigen, ohne erneuten Lauf | manuell |
 | HW-H2 | Eine untätige Einheit über das Backend aktualisieren: Sie startet in die neue Version, und das Backend zeigt sie | manuell |
 | HW-H3 | **Löst aus.** Ein Öffnen während eines Updates und eines im Probefenster eines Rollbacks: einmal behandelt, nie verloren | manuell |
 | HW-H4 | Eine fehlerhafte Signatur und ein mit anderem Schlüssel signiertes Image werden abgelehnt: Die alte Version läuft weiter | manuell |
@@ -193,22 +193,51 @@ grep -o 'uptime_seconds[^,]*' storage/logs/laravel.log | tail -3
 
 **Auf Online warten.** Vom Registrieren bis **Online** im Admin-Panel kann etwa eine Minute vergehen. Vor einer Broker-Prüfung darauf warten.
 
+**Eine Aktion kann mehrere Prüfungen beantworten.** `hwtest.py` listet sie dann zusammen auf, fragt einmal und speichert die Antwort für alle. Ist nur eine davon fehlgeschlagen, **Fail** wählen und sie in der Notiz nennen. Es fragt in dieser Reihenfolge, die von den Tabellen oben abweicht:
+
+| Schritt | Prüfungen |
+| --- | --- |
+| Bench-Modus | Gruppen A und B |
+| In Betrieb nehmen und öffnen | HW-C1, HW-C4, HW-D2, HW-E1 |
+| Broker-Kommandos | HW-C3, HW-C5 |
+| Ausfälle | HW-C6, dann HW-C9, dann HW-D5 |
+| Tokens | HW-C7, HW-E5 |
+| Strom | HW-C8 |
+| Tür | HW-D1, HW-D4, dann HW-D3 |
+| WLAN über USB | HW-E2 |
+| Setup-Netzwerk | HW-F8, HW-F1, HW-F7, dann HW-F4, HW-F2, HW-F3, dann HW-F5, dann HW-F6 |
+| Updates | HW-H1, dann HW-H2, HW-H9, dann HW-H6, HW-H8, dann HW-H3, HW-H11, dann HW-H4, HW-H5, HW-H7, HW-H10 |
+
 ### Gruppe C Schritt für Schritt
 
-#### HW-C1: Frische Einheit registrieren
+#### HW-C1, HW-C4, HW-D2 und HW-E1: Einheit in Betrieb nehmen und öffnen
 
-1. Die Einheit [über USB](/de/dokumentation/esp32/commissioning/#über-usb-release--und-development-builds) in Betrieb nehmen.
-2. **Schließfachschränke** im Admin-Panel öffnen.
+`hwtest.py` fragt einmal und speichert die Antwort für alle vier. Das gibt das Schloss frei, also am Schrank bleiben.
 
-**Bestanden:** Der **Status** des Schranks zeigt innerhalb von etwa einer Minute Online.
+1. Hat die Einheit Einstellungen, `reset-network` in der Konsole ausführen. Das Journal bleibt erhalten, was in Ordnung ist: Die Prüfung braucht eine Einheit ohne Einstellungen, kein vollständiges Löschen.
+2. Im Admin-Panel **Provisionierung neu starten** beim Schrank wählen und das Token kopieren.
+3. Die Einheit [über USB](/de/dokumentation/esp32/commissioning/#über-usb-release--und-development-builds) in Betrieb nehmen.
+4. **Schließfachschränke** öffnen und warten, bis **Status** Online zeigt. Das dauert etwa eine Minute.
+5. `diagnostics` in der Konsole ausführen und `unlock_transmissions` notieren.
+6. Den Schrank bearbeiten und **Öffnen** für Fach 1 wählen.
+7. Die Tür aufziehen.
+8. `diagnostics` erneut ausführen und nach dem Türereignis suchen:
 
-#### HW-C3: Konfiguration über den Broker anwenden
+   ```bash
+   grep 'Device event received' storage/logs/laravel.log | tail -3
+   ```
 
-Das sendet der Einheit über den Broker eine Konfiguration und prüft, ob sie dieselbe gespeichert hat. Kein Schloss bewegt sich, aber Zuordnung und Heartbeat-Intervall der Einheit werden ersetzt. `--compartments` muss also zur Verdrahtung passen.
+**Bestanden:** Der Schrank geht online, das Schloss gibt einmal frei, der Zähler steigt um 1, das Log zeigt `compartment_open_detected`, und das **Audit-Protokoll** zeigt **Tür geöffnet**.
 
-1. Die [Broker-Prüfung](#gruppe-c-netzwerk-mqtt-und-enrollment) ohne `--actuate` ausführen. Beim lokalen Backend sind `BROKER_USER` und `BROKER_PASSWORD` die Werte `MQTT_USERNAME` und `MQTT_PASSWORD` aus `locker-backend/.env`, und die URL ist `mqtt://<Adresse des eigenen PCs>:1883`.
+#### HW-C3 und HW-C5: Kommandos über den Broker prüfen
 
-**Bestanden:** Die Ausgabe endet mit `PASS apply_config acknowledged with the matching hash` und `PASSED`.
+Ein Lauf der Broker-Prüfung beantwortet beide, und `hwtest.py` fragt einmal. Er sendet der Einheit eine Konfiguration und prüft, ob sie dieselbe gespeichert hat, und sendet dann ein Öffnen und zwei Duplikate. Zuordnung und Heartbeat-Intervall der Einheit werden ersetzt, `--compartments` muss also zur Verdrahtung passen. Das gibt das Schloss frei, also am Schrank bleiben.
+
+1. `diagnostics` in der Konsole ausführen und `unlock_transmissions` notieren.
+2. Die [Broker-Prüfung](#gruppe-c-netzwerk-mqtt-und-enrollment) mit `--actuate --compartment 1` ausführen. Beim lokalen Backend sind `BROKER_USER` und `BROKER_PASSWORD` die Werte `MQTT_USERNAME` und `MQTT_PASSWORD` aus `locker-backend/.env`, und die URL ist `mqtt://<Adresse des eigenen PCs>:1883`.
+3. `diagnostics` erneut ausführen.
+
+**Bestanden:** Die Ausgabe zeigt `PASS apply_config acknowledged with the matching hash`, `the duplicates produced 1 response(s)` und `PASSED`, das Schloss bewegt sich einmal, und der Zähler steigt um 1.
 
 | Ausgabe | Bedeutung |
 | --- | --- |
@@ -217,26 +246,6 @@ Das sendet der Einheit über den Broker eine Konfiguration und prüft, ob sie di
 | `FAIL apply_config: the applied hash differs...` | Die Einheit hat etwas anderes gespeichert. Fehlschlag |
 | `FAIL could not connect to the broker` | Anmeldung oder URL sind falsch. Beheben und erneut ausführen |
 
-#### HW-C4: Aus dem Admin-Panel öffnen
-
-Das gibt das Schloss frei, also am Schrank bleiben.
-
-1. `diagnostics` in der Konsole ausführen und `unlock_transmissions` notieren.
-2. Den Schrank bearbeiten und **Öffnen** für Fach 1 wählen.
-3. `diagnostics` erneut ausführen.
-
-**Bestanden:** Das Schloss gibt einmal frei, und der Zähler steigt um 1.
-
-#### HW-C5: Doppelte Kommandos über den Broker
-
-Das gibt das Schloss frei, also am Schrank bleiben.
-
-1. `diagnostics` ausführen und `unlock_transmissions` notieren.
-2. Die [Broker-Prüfung](#gruppe-c-netzwerk-mqtt-und-enrollment) mit `--actuate --compartment 1` ausführen.
-3. `diagnostics` erneut ausführen.
-
-**Bestanden:** Die Ausgabe enthält `the duplicates produced 1 response(s)` und `PASSED`, das Schloss bewegt sich einmal, und der Zähler steigt um 1.
-
 #### HW-C6: Netzausfälle überstehen
 
 Das trennt erst den Access Point, dann den Broker. Die Einheit muss sich selbst erholen und eine Antwort nachliefern, die sie nicht senden konnte. Den ESP32 dabei nicht neu starten oder ausstecken, weil HW-C9 seit dem Boot gezählte Werte liest.
@@ -244,7 +253,7 @@ Das trennt erst den Access Point, dann den Broker. Die Einheit muss sich selbst 
 Für eine offene Antwort dem Panel den Strom nehmen: Eine Freigabe braucht dann einige Sekunden bis zum Fehlschlag, statt fast sofort fertig zu sein, und das Schloss kann sich nicht bewegen.
 
 1. Prüfen, dass der Schrank online ist.
-2. Den Strom des Panels ausschalten, nicht den des ESP32.
+2. Den Strom des Panels ausschalten, nicht den des ESP32. **Hardware** und die Türen kurz beobachten, weil HW-D5 danach fragt.
 3. **Öffnen** für Fach 1 im Admin-Panel wählen.
 4. Etwa 2 Sekunden warten, dann dem Access Point den Strom nehmen. Das Warten gibt dem Backend Zeit, das Kommando zu senden. Zu früh getrennt, erhält die Einheit es nie, zu spät getrennt, ist die Antwort schon zugestellt.
 5. 1 Minute warten, dann den Access Point wieder einschalten und den Panelstrom wiederherstellen.
@@ -282,35 +291,43 @@ Ein fehlgeschlagenes Öffnen nicht mit `queue:retry` wiederholen. Das würde das
 
 **Bestanden:** Die Antwort zeigt `min_free_heap` und `owner_stack_free`, und `uptime_seconds` ist seit HW-C6 weiter gestiegen. Beide Zahlen in die Notiz schreiben, weil HW-H9 damit vergleicht.
 
-#### HW-C7: Ungültiges Token ablehnen
+#### HW-C7 und HW-E5: Ungültiges Token ablehnen und neu registrieren
 
-Ein falsches Token muss genau eine Ablehnung und keine Wiederholung auslösen, und ein echtes Token muss danach weiterhin registrieren.
+`hwtest.py` fragt einmal und speichert die Antwort für beide. Ein falsches Token muss genau eine Ablehnung und keine Wiederholung auslösen. Nach einem Reset muss der alte MQTT-Benutzer widerrufen sein, und ein echtes Token muss die Einheit registrieren.
 
-1. Ist die Einheit registriert, `reset-network` in der Konsole ausführen.
-2. Ein Token im richtigen Format erzeugen, das das Backend nicht kennt:
+1. Den aktuellen MQTT-Benutzer notieren, mit `DB_USERNAME` und `DB_DATABASE` aus `.env`:
+
+   ```bash
+   docker compose exec db psql -U sail -d locker -Atc "select username,enabled,revoked_at from mqtt_users where locker_bank_id='<uuid>'"
+   ```
+
+2. `reset-network` in der Konsole ausführen.
+3. Ein Token im richtigen Format erzeugen, das das Backend nicht kennt:
 
    ```bash
    python -c "import secrets; print(secrets.token_hex(32))"
    ```
 
-3. Damit in Betrieb nehmen, mit dem normalen WLAN und Broker. Beim lokalen Backend sind Bootstrap-Benutzer und -Passwort `MQTT_PROVISIONING_USERNAME` und `MQTT_PROVISIONING_PASSWORD` aus `locker-backend/.env`.
+4. Damit in Betrieb nehmen, mit dem normalen WLAN und Broker. Beim lokalen Backend sind Bootstrap-Benutzer und -Passwort `MQTT_PROVISIONING_USERNAME` und `MQTT_PROVISIONING_PASSWORD` aus `locker-backend/.env`.
 
    ```bash
    python scripts/commission.py --usb COM3
    ```
 
-4. Nach etwa einer Minute nach einer Ablehnung suchen:
+5. Nach etwa einer Minute nach einer Ablehnung suchen:
 
    ```bash
    grep -E 'No LockerBank found|Publishing invalid token' storage/logs/laravel.log | tail -4
    ```
 
-5. 2 weitere Minuten warten und denselben Befehl ausführen. Es sollten keine neuen Zeilen erscheinen.
-6. `status` in der Konsole ausführen. Es sollte `enrolled=0 pending=0 configured=1` zeigen.
-7. Den Schrank im Admin-Panel bearbeiten, **Provisionierung neu starten** wählen und das Token kopieren. Es wird einmal angezeigt und gilt 24 Stunden.
-8. `commission.py` mit diesem Token erneut ausführen.
+6. 2 weitere Minuten warten und denselben Befehl ausführen. Es sollten keine neuen Zeilen erscheinen.
+7. `status` in der Konsole ausführen. Es sollte `enrolled=0 pending=0 configured=1` zeigen.
+8. Den Schrank im Admin-Panel bearbeiten, **Provisionierung neu starten** wählen und das Token kopieren. Es wird einmal angezeigt und gilt 24 Stunden.
+9. Die Abfrage aus Schritt 1 ausführen. Der alte Benutzer sollte jetzt deaktiviert sein und eine `revoked_at`-Zeit haben.
+10. `commission.py` mit diesem Token erneut ausführen und auf Online warten.
+11. Die Abfrage erneut ausführen.
 
-**Bestanden:** eine Ablehnung, keine Wiederholung, `pending=0`, und der Schrank geht mit dem echten Token online.
+**Bestanden:** eine Ablehnung, keine Wiederholung, `pending=0`, der alte Benutzer ist widerrufen, ein neuer ist aktiv, und der Schrank geht online. Die Einheit zeigt ihr Passwort nie, deshalb liest diese Prüfung den Widerruf aus der Datenbank, statt eine Anmeldung zu versuchen.
 
 **Fehlgeschlagen:** weitere Ablehnungen aus demselben Versuch, `pending=1` oder ein echtes Token, das nicht registriert. `pending=1` bedeutet, dass die Einheit die Ablehnung nie verarbeitet hat.
 
@@ -326,26 +343,20 @@ Ein falsches Token muss genau eine Ablehnung und keine Wiederholung auslösen, u
 
 Die App-Prüfungen brauchen ein Konto mit Zugriff auf das Fach.
 
-#### HW-D1: Tür von Hand verfolgen
+#### HW-D1 und HW-D4: Tür von Hand öffnen
+
+`hwtest.py` fragt einmal und speichert die Antwort für beide.
 
 1. Die Fächer des Schranks im Admin-Panel und das Fach in der Mobile App öffnen.
-2. Die Tür von Hand öffnen und wieder schließen.
-
-**Bestanden:** Panel und App folgen jeweils innerhalb von zwei Sekunden.
-
-#### HW-D2: Geöffnete Tür melden
-
-Das gibt das Schloss frei, also am Schrank bleiben.
-
-1. **Öffnen** für Fach 1 im Admin-Panel wählen.
-2. Die Tür aufziehen.
-3. Nach dem Ereignis suchen:
+2. Kein Kommando senden und die Tür von Hand öffnen. Hält das Schloss sie geschlossen, die Falle von Hand lösen.
+3. Die Tür schließen.
+4. Nach dem Ereignis suchen:
 
    ```bash
    grep 'Device event received' storage/logs/laravel.log | tail -3
    ```
 
-**Bestanden:** Das Log zeigt `compartment_open_detected`, und das **Audit-Protokoll** zeigt **Tür geöffnet**.
+**Bestanden:** Panel und App folgen jeweils innerhalb von zwei Sekunden, das Log zeigt `compartment_uncommanded_open`, und das **Audit-Protokoll** zeigt **Türöffnung ohne Befehl**.
 
 #### HW-D3: Klemmende Tür melden
 
@@ -353,18 +364,17 @@ Das gibt das Schloss frei, also die Tür zuhalten.
 
 1. **Öffnen** für Fach 1 im Admin-Panel wählen.
 2. Die Tür länger als das **Heartbeat-Intervall** des Schranks geschlossen halten, das ist das Erkennungsfenster.
-3. Das `grep` aus HW-D2 ausführen.
+3. Nach dem Ereignis suchen:
+
+   ```bash
+   grep 'Device event received' storage/logs/laravel.log | tail -3
+   ```
 
 **Bestanden:** Das Log zeigt `compartment_open_failed`, und das **Audit-Protokoll** zeigt **Tür hat nicht geöffnet**.
 
-#### HW-D4: Öffnen ohne Befehl melden
-
-1. Kein Kommando senden und die Tür von Hand aufdrücken. Hält das Schloss sie geschlossen, die Falle von Hand lösen.
-2. Das `grep` aus HW-D2 ausführen.
-
-**Bestanden:** Das Log zeigt `compartment_uncommanded_open`, und das **Audit-Protokoll** zeigt **Türöffnung ohne Befehl**.
-
 #### HW-D5: Panelstrom verlieren und zurückbekommen
+
+`hwtest.py` fragt das direkt nach HW-C9, das Gesehene aus der Panel-Trennung in HW-C6 lässt sich also melden. Wurde es dort nicht beobachtet oder läuft es allein:
 
 1. Den Strom des Panels ausschalten, nicht den des ESP32.
 2. Den nächsten Heartbeat abwarten und den Schrank im Admin-Panel beobachten.
@@ -373,18 +383,6 @@ Das gibt das Schloss frei, also die Tür zuhalten.
 **Bestanden:** Ohne Strom zeigt **Hardware** Nicht erreichbar, und die Türen zeigen Unbekannt. Mit Strom erholt sich beides ohne Neustart.
 
 ### Gruppe E Schritt für Schritt
-
-#### HW-E1: Gelöschte Einheit in Betrieb nehmen
-
-Das gibt das Schloss frei, also am Schrank bleiben.
-
-1. [Die Einheit vollständig löschen](/de/dokumentation/esp32/maintenance/#einheit-vollständig-löschen).
-2. [Die Firmware flashen](/de/dokumentation/esp32/flashing/#firmware-flashen).
-3. Im Admin-Panel **Provisionierung neu starten** beim Schrank wählen und das Token kopieren.
-4. [Über USB](/de/dokumentation/esp32/commissioning/#über-usb-release--und-development-builds) in Betrieb nehmen.
-5. Auf Online warten, dann **Öffnen** für Fach 1 wählen.
-
-**Bestanden:** Der Schrank geht online, und das Schloss gibt einmal frei.
 
 #### HW-E2: Falsche WLAN-Einstellungen korrigieren
 
@@ -397,75 +395,79 @@ Mit einer registrierten, online befindlichen Einheit beginnen. Eine registrierte
 
 **Bestanden:** Der Schrank kommt als derselbe Schrank zurück, mit `enrolled=1` und ohne neues Token.
 
-#### HW-E5: Einheit zurücksetzen und neu registrieren
-
-1. Den aktuellen MQTT-Benutzer notieren, mit `DB_USERNAME` und `DB_DATABASE` aus `.env`:
-
-   ```bash
-   docker compose exec db psql -U sail -d locker -Atc "select username,enabled,revoked_at from mqtt_users where locker_bank_id='<uuid>'"
-   ```
-
-2. `reset-network` in der Konsole ausführen.
-3. Im Admin-Panel **Provisionierung neu starten** wählen und das Token kopieren.
-4. Die Abfrage erneut ausführen. Der alte Benutzer sollte jetzt deaktiviert sein oder eine `revoked_at`-Zeit haben.
-5. Mit dem neuen Token in Betrieb nehmen und auf Online warten.
-6. Die Abfrage erneut ausführen.
-
-**Bestanden:** Der alte Benutzer ist widerrufen, ein neuer ist aktiv, und der Schrank ist online. Die Einheit zeigt ihr Passwort nie, deshalb liest diese Prüfung den Widerruf aus der Datenbank, statt eine Anmeldung zu versuchen.
-
 ### Gruppe F Schritt für Schritt
 
 Jede Prüfung beginnt mit einer Einheit mit [Setup-Secrets](/de/dokumentation/esp32/flashing/#setup-secrets-schreiben), sofern nichts anderes steht. Zum Zurücksetzen `reset-network` ausführen oder den Taster 10 Sekunden halten. Ein Reset entfernt die Setup-Secrets nicht. Das Setup-Netzwerk öffnet sich nach dem Einschalten für 10 Minuten und nur auf einer Einheit ohne Einstellungen.
 
-#### HW-F1: Über das Setup-Netzwerk in Betrieb nehmen
+#### HW-F8, HW-F1 und HW-F7: Abgelaufenes Token ablehnen und über das Setup-Netzwerk in Betrieb nehmen
 
-Das gibt das Schloss frei, also am Schrank bleiben.
+`hwtest.py` fragt einmal und speichert die Antwort für alle drei, weil eine einzige Inbetriebnahme alle Ergebnisse liefert. Das gibt das Schloss frei, also am Schrank bleiben. Für den Mitschnitt ein Wegwerf-WLAN-Passwort und ein Wegwerf-Token verwenden.
 
-1. Die Einheit löschen, ihre Secrets schreiben und sie flashen.
-2. Im Admin-Panel **Provisionierung neu starten** wählen und das Token kopieren.
-3. Jede USB-Datenverbindung trennen und die Einheit mit Strom versorgen.
-4. [Über das Setup-WLAN](/de/dokumentation/esp32/commissioning/#über-das-setup-wlan-empfohlen) in Betrieb nehmen.
-5. Auf Online warten, dann **Öffnen** für Fach 1 wählen.
-
-**Bestanden:** Der Schrank geht online, und das Schloss gibt einmal frei. Das Werkzeug meldet nur „saved“, der Erfolg steht also im Panel.
-
-#### HW-F2: Falsches WLAN-Passwort überstehen
-
-1. `commission.py --softap` mit einem falschen WLAN-Passwort und einem unbenutzten Token ausführen.
-2. 2 Minuten warten. Der Schrank sollte offline bleiben, und die Konsole sollte wiederholte WLAN-Versuche zeigen.
-3. Den Taster 10 Sekunden halten und loslassen. Die Einheit löscht ihre Einstellungen und startet neu.
-4. `commission.py --softap` erneut mit dem richtigen Passwort und demselben Token ausführen, innerhalb von 24 Stunden nach dessen Ausstellung.
-
-**Bestanden:** Die Einheit versucht es weiter, der Taster setzt sie zurück, und dasselbe Token registriert sie.
-
-#### HW-F3: Access Point bei registrierter Einheit geschlossen halten
-
-1. Die WLANs in Reichweite auflisten:
+1. Die Einheit zurücksetzen, damit sie keine Einstellungen hat und ihr Setup-Netzwerk öffnet.
+2. Mit **Provisionierung neu starten** ein Token ausstellen und mehr als 24 Stunden aufbewahren. Nur auf einer Prüfaufbau-Datenbank lässt es sich stattdessen altern:
 
    ```bash
-   nmcli device wifi list
+   docker compose exec db psql -U sail -d locker -c "update locker_banks set provisioning_token_issued_at = now() - interval '25 hours' where id='<uuid>'"
    ```
 
-2. Die Adresse der Einheit im Router nachsehen und den Setup-Port prüfen:
+3. Damit in Betrieb nehmen und nach der Ablehnung suchen:
 
    ```bash
-   nc -zv -w 3 <Adresse der Einheit> 80
+   grep 'No LockerBank found' storage/logs/laravel.log | tail -2
    ```
 
-**Bestanden:** Kein `OpenLocker-`-Netz dieser Einheit erscheint, und die Verbindung wird abgelehnt oder läuft in ein Timeout.
+4. Die Einheit erneut zurücksetzen und **Provisionierung neu starten** für ein frisches Token wählen.
+5. WLAN-Passwort und frisches Token zeilenweise in eine private Datei schreiben:
 
-#### HW-F4: Taster-Zeiten
+   ```bash
+   install -m 600 /dev/null secrets.txt
+   ```
 
-Der Taster verbindet standardmäßig GPIO 4 mit GND.
+6. Einen Mitschnitt auf der WLAN-Schnittstelle starten:
 
-1. Bei einer registrierten Einheit den Taster etwa 5 Sekunden halten und loslassen. `status` sollte weiter `enrolled=1` zeigen.
-2. Den Taster 10 Sekunden halten und loslassen. Die Einheit sollte mit `enrolled=0 configured=0` neu starten.
-3. Sie erneut in Betrieb nehmen.
-4. Sie ausstecken, den Taster halten, einstecken und mehr als 10 Sekunden weiter halten, bevor er losgelassen wird. Sie sollte registriert bleiben.
-5. Sie ausstecken, GPIO 4 per Jumper mit GND verbinden, einstecken und mehr als 10 Sekunden warten. Sie sollte registriert bleiben.
-6. Den Jumper entfernen.
+   ```bash
+   sudo tcpdump -i <WLAN-Schnittstelle> -w setup.pcap
+   ```
 
-**Bestanden:** Nur Schritt 2 setzt die Einheit zurück.
+7. Jede USB-Datenverbindung trennen, die Einheit mit Strom versorgen und [über das Setup-WLAN](/de/dokumentation/esp32/commissioning/#über-das-setup-wlan-empfohlen) in Betrieb nehmen.
+8. Den Mitschnitt mit `Strg+C` beenden und nach den Secrets durchsuchen:
+
+   ```bash
+   strings -n 8 setup.pcap | grep -c -F -f secrets.txt
+   ```
+
+9. `secrets.txt` und `setup.pcap` löschen.
+10. Auf Online warten, dann **Öffnen** für Fach 1 wählen.
+
+**Bestanden:** Das alte Token wird abgelehnt, das frische registriert die Einheit, das Schloss gibt einmal frei, die Anzahl ist 0, und der Mitschnitt enthält Verkehr zu `192.168.4.1`, einschließlich `ol-config`. Das Werkzeug meldet nur „saved“, der Erfolg steht also im Panel.
+
+#### HW-F4, HW-F2 und HW-F3: Taster, falsches WLAN-Passwort und geschlossener Access Point
+
+`hwtest.py` fragt einmal und speichert die Antwort für alle drei. Mit einer registrierten Einheit beginnen. Der Taster verbindet standardmäßig GPIO 4 mit GND.
+
+1. Den Taster etwa 5 Sekunden halten und loslassen. `status` sollte weiter `enrolled=1` zeigen.
+2. Die Einheit ausstecken, den Taster halten, einstecken und mehr als 10 Sekunden weiter halten, bevor er losgelassen wird. Sie sollte registriert bleiben.
+3. Sie ausstecken, GPIO 4 per Jumper mit GND verbinden, einstecken und mehr als 10 Sekunden warten. Sie sollte registriert bleiben.
+4. Sie ausstecken, den Jumper entfernen und einstecken.
+5. Den Taster 10 Sekunden halten und loslassen. Die Einheit sollte mit `enrolled=0 configured=0` neu starten.
+6. Im Admin-Panel **Provisionierung neu starten** wählen und das Token kopieren.
+7. `commission.py --softap` mit einem falschen WLAN-Passwort und diesem Token ausführen.
+8. 2 Minuten warten. Der Schrank sollte offline bleiben, und die Konsole sollte wiederholte WLAN-Versuche zeigen.
+9. Den Taster 10 Sekunden halten und loslassen. Die Einheit löscht ihre Einstellungen und startet neu.
+10. `commission.py --softap` erneut mit dem richtigen Passwort und demselben Token ausführen, innerhalb von 24 Stunden nach dessen Ausstellung. Auf Online warten.
+11. Die WLANs in Reichweite auflisten:
+
+    ```bash
+    nmcli device wifi list
+    ```
+
+12. Die Adresse der Einheit im Router nachsehen und den Setup-Port prüfen:
+
+    ```bash
+    nc -zv -w 3 <Adresse der Einheit> 80
+    ```
+
+**Bestanden:** Nur die Schritte 5 und 9 setzen die Einheit zurück, sie versucht das falsche Passwort weiter, dasselbe Token registriert sie, kein `OpenLocker-`-Netz dieser Einheit erscheint, und die Verbindung wird abgelehnt oder läuft in ein Timeout.
 
 #### HW-F5: Setup-Fenster schützen
 
@@ -487,54 +489,6 @@ Das braucht einen eigenen Build. Danach das Test-Image erneut flashen, weil `--i
 
 **Bestanden:** Jeder antwortet `error invalid command`, und das Schloss bewegt sich nicht.
 
-#### HW-F7: Secrets aus dem Setup-Verkehr heraushalten
-
-Ein Wegwerf-WLAN-Passwort und ein Wegwerf-Token verwenden.
-
-1. Beide Secrets zeilenweise in eine private Datei schreiben:
-
-   ```bash
-   install -m 600 /dev/null secrets.txt
-   ```
-
-2. Einen Mitschnitt auf der WLAN-Schnittstelle starten:
-
-   ```bash
-   sudo tcpdump -i <WLAN-Schnittstelle> -w setup.pcap
-   ```
-
-3. `commission.py --softap` bis zum Ende ausführen, dann den Mitschnitt mit `Strg+C` beenden.
-4. Den Mitschnitt nach den Secrets durchsuchen. Die Anzahl sollte 0 sein:
-
-   ```bash
-   strings -n 8 setup.pcap | grep -c -F -f secrets.txt
-   ```
-
-5. `secrets.txt` und `setup.pcap` löschen.
-
-**Bestanden:** Die Anzahl ist 0, und der Mitschnitt enthält Verkehr zu `192.168.4.1`, einschließlich `ol-config`.
-
-#### HW-F8: Abgelaufenes Token ablehnen
-
-Tokens gelten 24 Stunden.
-
-1. Mit **Provisionierung neu starten** ein Token ausstellen und mehr als 24 Stunden aufbewahren. Nur auf einer Prüfaufbau-Datenbank lässt es sich stattdessen altern:
-
-   ```bash
-   docker compose exec db psql -U sail -d locker -c "update locker_banks set provisioning_token_issued_at = now() - interval '25 hours' where id='<uuid>'"
-   ```
-
-2. Damit in Betrieb nehmen.
-3. Nach der Ablehnung suchen:
-
-   ```bash
-   grep 'No LockerBank found' storage/logs/laravel.log | tail -2
-   ```
-
-4. Ein frisches Token ausstellen und damit in Betrieb nehmen.
-
-**Bestanden:** Das alte Token wird abgelehnt, das frische registriert die Einheit.
-
 ### Gruppe H Schritt für Schritt
 
 **Das Backend muss über HTTPS mit einem Zertifikat einer öffentlichen CA erreichbar sein.** Das Backend sendet keinen Link, der nicht mit `https://` beginnt, und die Firmware prüft das Zertifikat gegen ihr eingebautes CA-Bundle. Ein lokales `http://`-Backend kann diese Gruppe nicht ausführen.
@@ -554,41 +508,40 @@ Ein Update startet mit **Firmware aktualisieren** beim Schrank. Das Backend prü
 
 Das Backend lehnt ein neues Update ab, solange eines läuft, und beendet ein Update ohne Rückmeldung nach 30 Minuten. Diese Wartezeit einplanen, wenn eine Prüfung Strom oder Netz trennt.
 
-#### HW-H1: Leeres Board mit dem signierten Image flashen
+#### HW-H1: Bestätigen, dass der Lauf mit einem signierten Image begann
 
-`unlock` wird abgelehnt, sobald die Einheit registriert ist, deshalb HW-A1 und HW-A6 vor der Inbetriebnahme ausführen.
+Es gibt keinen erneuten Lauf, weil der Rest des Laufs das auf diesem Image bereits abdeckt.
 
-1. [Die Einheit löschen](/de/dokumentation/esp32/maintenance/#einheit-vollständig-löschen) und [das signierte Image flashen](/de/dokumentation/esp32/flashing/#firmware-flashen).
-2. Die Bench-Prüfungen ausführen:
+1. Prüfen, dass dieser Lauf auf einem gelöschten und mit dem signierten Image geflashten Board begann und `--image` `build/locker-firmware-signed.bin` ist.
+2. Prüfen, dass **Firmware** beim Schrank die Version dieses Images zeigt.
 
-   ```bash
-   python scripts/hwtest.py run --port COM3 --image build/locker-firmware-signed.bin --only A1,A6
-   ```
+**Bestanden:** Beides trifft zu. Wurde während des Laufs etwas anderes geflasht, mit einem leeren Board neu beginnen.
 
-3. Die Einheit in Betrieb nehmen.
-4. HW-C4, HW-D2 und HW-D4 erneut ausführen.
+#### HW-H2 und HW-H9: Untätige Einheit aktualisieren und Speicher prüfen
 
-**Bestanden:** Alle bestehen, und der Schrank zeigt die Version des signierten Images.
-
-#### HW-H2: Untätige Einheit aktualisieren
+`hwtest.py` fragt einmal und speichert die Antwort für beide. `min_free_heap` ist der niedrigste Wert seit dem Boot, ein Wert nach einem Download schließt diesen also ein.
 
 1. Ein neues Release erstellen und hochladen.
-2. Das Update starten und den Neustart der Einheit abwarten.
+2. Das Update starten.
+3. `diagnostics` ausführen, wenn die Konsole `verified` zeigt, bevor die Einheit neu startet.
+4. Den Neustart der Einheit abwarten.
 
-**Bestanden:** **Firmware** zeigt die neue Version, und **Firmware-Update** zeigt nach der Probephase Abgeschlossen.
+**Bestanden:** **Firmware** zeigt die neue Version, **Firmware-Update** zeigt nach der Probephase Abgeschlossen, und `owner_stack_free` ist mindestens der in HW-C9 festgehaltene Wert. Beide `diagnostics`-Werte in die Notiz schreiben.
 
-#### HW-H3: Öffnen während eines Updates und einer Probephase
+#### HW-H3 und HW-H11: Öffnen während eines Updates und Journal nach einem Rollback lesen
 
-Das gibt das Schloss frei, also am Schrank bleiben. Der Weg zum Rollback in Teil 2 ist ein Vorschlag, weil die Prüfung ihn nicht festlegt.
+`hwtest.py` fragt einmal und speichert die Antwort für beide. Das gibt das Schloss frei, also am Schrank bleiben. Der Weg zum Rollback ist ein Vorschlag, weil die Prüfung ihn nicht festlegt.
 
 1. Ein Update starten und auf `downloading firmware` warten.
 2. **Öffnen** für Fach 1 wählen. Das Schloss sollte einmal freigeben, und die Antwort sollte im Log stehen.
 3. Das Update abschließen lassen.
 4. Ein weiteres Update starten. Zeigt die Konsole den Neustart, den Panelstrom ausschalten, damit das neue Image den Bus nicht erreicht.
 5. Ist der Schrank wieder online, innerhalb der 180-sekündigen Probephase **Öffnen** für Fach 1 wählen.
-6. Den Rollback abwarten, dann den Panelstrom wiederherstellen.
+6. Den Rollback abwarten und die `transaction_id` dieses Öffnens im Log suchen.
+7. [Es erneut senden](#hw-h6-und-hw-h8-zurückrollen-und-identität-zuordnung-und-journal-behalten). Das ältere Image sollte sein gespeichertes Ergebnis antworten und nicht freigeben.
+8. Den Panelstrom wiederherstellen und **Öffnen** für Fach 1 wählen.
 
-**Bestanden:** Jedes Öffnen erhält genau eine Antwort, und keines geht verloren. Das zweite Ergebnis ist ein Fehlschlag, weil das Panel keinen Strom hatte.
+**Bestanden:** Jedes Öffnen erhält genau eine Antwort, keines geht verloren, die Wiederholung gibt nicht frei, und das neue Öffnen gibt das Schloss einmal frei. Das Ergebnis in der Probephase ist ein Fehlschlag, weil das Panel keinen Strom hatte.
 
 #### HW-H4: Fehlerhafte Signaturen ablehnen
 
@@ -620,14 +573,28 @@ Das gibt das Schloss frei, also am Schrank bleiben. Der Weg zum Rollback in Teil
 
 **Bestanden:** Die alte Version läuft beide Male weiter, und das Backend zeigt beide Updates als fehlgeschlagen.
 
-#### HW-H6: Zurückrollen, wenn der Broker nicht erreichbar ist
+#### HW-H6 und HW-H8: Zurückrollen und Identität, Zuordnung und Journal behalten
 
-1. Ein neues Release hochladen und das Update starten.
-2. Sobald die Konsole `verified` zeigt, den Broker mit `docker compose stop mqtt` stoppen.
-3. Nach dem Neustart der Einheit mehr als 180 Sekunden warten. Sie sollte erneut neu starten, in die alte Version.
-4. Den Broker mit `docker compose start mqtt` starten.
+`hwtest.py` fragt einmal und speichert die Antwort für beide. HW-H8 deckt ein Update und einen Rollback ab, die Schritte 2 bis 6 laufen also zweimal: einmal nach HW-H2, bevor es hier losgeht, und einmal am Ende. Das gibt das Schloss frei, also am Schrank bleiben.
 
-**Bestanden:** Die Einheit ist selbst zurückgekehrt, **Firmware** zeigt die alte Version, und **Firmware-Update** zeigt Fehlgeschlagen mit dem Grund Rollback.
+1. Die MQTT-Benutzer-Abfrage aus HW-C7 ausführen und den Benutzer notieren. Die `transaction_id` eines abgeschlossenen Öffnens im Log suchen.
+2. `status` ausführen. Es sollte `enrolled=1` zeigen.
+3. Die Abfrage erneut ausführen. Der MQTT-Benutzer sollte derselbe sein.
+4. `diagnostics` ausführen und `unlock_transmissions` notieren.
+5. Dieses Öffnen mit einer neuen `message_id` erneut senden. Die Einheit sollte ihr gespeichertes Ergebnis antworten und nicht freigeben.
+
+   ```bash
+   docker compose exec mqtt mosquitto_pub -h localhost -u laravel_backend -P "$BROKER_PASSWORD" -q 1 -t locker/<uuid>/command -m '{"message_id":"<neue uuid>","transaction_id":"<transaction id>","action":"open_compartment","timestamp":"<jetzt, ISO 8601>","data":{"compartment_number":1}}'
+   ```
+
+6. `diagnostics` erneut ausführen, dann **Öffnen** für Fach 1 wählen.
+7. Ein neues Release hochladen und das Update starten.
+8. Sobald die Konsole `verified` zeigt, den Broker mit `docker compose stop mqtt` stoppen.
+9. Nach dem Neustart der Einheit mehr als 180 Sekunden warten. Sie sollte erneut neu starten, in die alte Version.
+10. Den Broker mit `docker compose start mqtt` starten und auf Online warten.
+11. Die Schritte 2 bis 6 erneut ausführen.
+
+**Bestanden:** Die Einheit ist selbst zurückgekehrt, **Firmware** zeigt die alte Version, **Firmware-Update** zeigt Fehlgeschlagen mit dem Grund Rollback. Beide Male ist der Benutzer derselbe, eine gespeicherte Antwort kommt zurück, der Zähler stieg durch die Wiederholung nicht, und das Fach öffnet weiterhin.
 
 #### HW-H7: Strom während des Image-Schreibens trennen
 
@@ -641,35 +608,6 @@ Das Backend lehnt eine Wiederholung ab, bis das vorige Update abgelaufen ist, ze
 
 **Bestanden:** Er bootet jedes Mal ein gültiges Image und geht online.
 
-#### HW-H8: Identität, Zuordnung und Journal behalten
-
-Nach HW-H2 und erneut nach HW-H6 ausführen.
-
-1. Vor dem Update die Abfrage aus HW-E5 ausführen und den MQTT-Benutzer notieren.
-2. Die `transaction_id` eines abgeschlossenen Öffnens im Log suchen.
-3. Nach dem Update `status` ausführen. Es sollte `enrolled=1` zeigen.
-4. Die Abfrage aus HW-E5 ausführen. Der MQTT-Benutzer sollte derselbe sein. Dann `diagnostics` ausführen und `unlock_transmissions` notieren.
-5. Dieses Öffnen mit einer neuen `message_id` erneut senden. Die Einheit sollte ihr gespeichertes Ergebnis antworten und nicht freigeben.
-
-   ```bash
-   docker compose exec mqtt mosquitto_pub -h localhost -u laravel_backend -P "$BROKER_PASSWORD" -q 1 -t locker/<uuid>/command -m '{"message_id":"<neue uuid>","transaction_id":"<transaction id>","action":"open_compartment","timestamp":"<jetzt, ISO 8601>","data":{"compartment_number":1}}'
-   ```
-
-6. `diagnostics` ausführen. `unlock_transmissions` zählt seit dem Boot, also mit dem Wert direkt vor Schritt 5 vergleichen.
-7. **Öffnen** für Fach 1 wählen. Das gibt das Schloss frei, also am Schrank bleiben.
-
-**Bestanden:** Der Benutzer ist derselbe, eine gespeicherte Antwort kommt zurück, der Zähler stieg durch die Wiederholung nicht, und das zugeordnete Fach öffnet weiterhin.
-
-#### HW-H9: Speicher während eines Downloads prüfen
-
-`min_free_heap` ist der niedrigste Wert seit dem Boot, ein Wert nach einem Download schließt diesen also ein.
-
-1. Die Einheit neu starten und auf Online warten.
-2. Ein Update starten.
-3. `diagnostics` ausführen, wenn die Konsole `verified` zeigt, bevor die Einheit neu startet.
-
-**Bestanden:** `owner_stack_free` ist mindestens der in HW-C9 festgehaltene Wert. Beide `diagnostics`-Werte in die Notiz schreiben.
-
 #### HW-H10: App aus dem nächsten ESP-IDF-Patch booten
 
 Die Einheit behält den per USB geflashten Bootloader.
@@ -680,15 +618,6 @@ Die Einheit behält den per USB geflashten Bootloader.
 **Bestanden:** Die Einheit bootet das neue Image, und **Firmware** zeigt seine Version.
 
 Gibt es noch kein neueres Patch-Release, **Not run** wählen und das im PR vermerken. `hwtest.py check` schlägt weiter fehl, bis diese Prüfung besteht oder zurückgestellt ist.
-
-#### HW-H11: Journal nach einem Rollback lesen
-
-1. HW-H3 Teil 2 ausführen, damit ein Image in der Probephase ein Öffnen behandelt und dann zurückrollt.
-2. Die `transaction_id` dieses Öffnens im Log suchen.
-3. Es wie in HW-H8 erneut senden.
-4. Den Panelstrom wiederherstellen und **Öffnen** für Fach 1 wählen.
-
-**Bestanden:** Das ältere Image antwortet mit dem gespeicherten Ergebnis und gibt nicht frei, dann gibt ein neues Öffnen das Schloss einmal frei.
 
 ## Warum die zurückgestellten Prüfungen zurückgestellt sind
 
