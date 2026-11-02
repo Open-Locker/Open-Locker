@@ -126,12 +126,17 @@ The `commission.py` limits on values:
 - **The broker certificate must chain to a public CA** in the built-in bundle. Certificate and host name checks
   cannot be turned off. A private CA has to be added to the build.
 - **A command with no free slot is dropped and logged** when all 32 slots are in use, and the backend times out.
-- **Not confirmed on hardware:** the panel's supply voltage and the lock model.
+- **Not established:** the lock model, and the model and ratings of the power converter.
+
+The command, response and compartment counts above are firmware settings, not chip limits, so a chip with more
+flash or RAM would not raise them by itself. Commands also run one at a time, so a longer queue would only make the
+last command later.
 
 ## Flash layout
 
 The layout is fixed ([ADR-0078](https://github.com/Open-Locker/Open-Locker/blob/main/docs/adr/0078-esp32-flash-layout.md))
-and cannot change over the air. The partition table sits at `0xC000`, and the bootloader starts at `0x1000`.
+and cannot change over the air. It uses the first 4 MB of flash. A larger chip should run it with the rest unused, but
+this has not been tried on a board. The partition table sits at `0xC000`, and the bootloader starts at `0x1000`.
 
 | Partition | Offset | Size | Holds |
 | --- | --- | --- | --- |

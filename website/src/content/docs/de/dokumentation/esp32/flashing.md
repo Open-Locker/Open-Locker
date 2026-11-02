@@ -42,9 +42,9 @@ flowchart TD
 
 ## Vorbereitung
 
-- **Das Board:** ein ESP32 D1 mini oder ein anderer ESP32 (Target `esp32`) mit **4 MB Flash** und Chip
-  **Revision 3.0 oder neuer**. Das Flash-Layout setzt genau 4 MB voraus, die Image-Signierung der Firmware
-  braucht diese Revision.
+- **Das Board:** ein ESP32 D1 mini oder ein anderer ESP32 (Target `esp32`) mit **mindestens 4 MB Flash** und Chip
+  **Revision 3.0 oder neuer**. Das Flash-Layout nutzt die ersten 4 MB, die Image-Signierung der Firmware
+  braucht diese Revision. Siehe [Chip wählen](/de/dokumentation/esp32/parts/#chip-wählen).
 - **Ein USB-Datenkabel.** Viele günstige Kabel laden nur. Erscheint beim Einstecken kein neuer serieller
   Port, zuerst ein anderes Kabel versuchen.
 - **Ein USB-Seriell-Treiber**, falls das System einen braucht. Das Bench-Board nutzt einen CH9102-Chip.
@@ -190,7 +190,7 @@ python -m esptool --port COM3 flash-id
 ```
 
 Die Ausgabe sollte unter `Chip type:` `revision v3.0` oder neuer zeigen, außerdem
-`Detected flash size: 4MB`.
+`Detected flash size: 4MB` oder mehr.
 
 ## Flash löschen
 
@@ -324,7 +324,7 @@ flowchart LR
         idf["«artifact» Firmware-Image<br/>(ESP-IDF 6.1 oder Docker)"]
         esptool["«artifact» esptool oder idf.py"]
     end
-    subgraph esp["«device» ESP32, 4 MB Flash"]
+    subgraph esp["«device» ESP32, mindestens 4 MB Flash"]
         boot["Bootloader"]
         pt["Partitionstabelle @ 0xC000"]
         ota["otadata"]
@@ -360,7 +360,7 @@ Weil `otadata` leer geschrieben wird, bootet die Einheit `ota_0`. Zum Aktualisie
 | Kein neuer serieller Port erscheint | Reines Ladekabel oder fehlender USB-Seriell-Treiber | Anderes Kabel versuchen; Treiber für den Chip des Boards installieren |
 | `Permission denied` am Port (Linux) | Nicht in der Gruppe `dialout` | `sudo usermod -aG dialout $USER`, dann neu anmelden |
 | `Failed to connect to ESP32` | Board ging nicht in den Download-Modus | Beim Verbinden **BOOT** halten oder `-b 115200` verwenden |
-| Flash-Größe ist nicht 4 MB | Anderes Board | Board mit 4 MB Flash verwenden; das Layout lässt sich nicht ändern |
+| Flash-Größe liegt unter 4 MB | Anderes Board | Board mit mindestens 4 MB Flash verwenden; in weniger passt das Layout nicht |
 | Chip-Revision unter v3.0 | Älterer Chip | Neueres Board verwenden; das Minimum des Builds ist Revision 3.0 |
 | `is inside the repository; keep signing keys outside it` | Der Schlüsselpfad liegt im Repository | Schlüssel außerhalb des Repositorys ablegen |
 | `LC_FIRMWARE_VERSION is '...', which is not a version the firmware accepts.` | Zum Beispiel ein führendes `v` oder `0.2` | Eine Version wie `0.2.0` oder `0.2.0-rc.1` verwenden |

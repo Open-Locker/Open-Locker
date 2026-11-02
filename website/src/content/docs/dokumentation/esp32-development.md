@@ -179,6 +179,36 @@ file has the clang command to build it by hand.
 5. Test the use case through `lc_app_handle_command` with the fakes, as `tests/host/test_firmware_update.c` does, and pass encoded responses to `emit_message()`.
 6. In the backend, add a typed publisher in `app/Mqtt/Publishers/` and derive the state from the response.
 
+## Port to another chip
+
+The firmware runs only on the classic ESP32, and CI builds only for `esp32`. Changing the chip is an architecture
+decision, so it needs an ADR. More memory is not a reason to port: the firmware's
+[limits are its own settings](/dokumentation/esp32/reference/#limits), and the image leaves about 38 % of its slot free.
+See [Choose a chip](/dokumentation/esp32/parts/#choose-a-chip) for the candidates.
+
+A test build with ESP-IDF 6.1 and no code changes compiled for both of these targets. Neither has run on a chip, so
+this only shows that the code compiles.
+
+| Target | Build | Image size |
+| --- | --- | --- |
+| `esp32s3` | Passes | `0x120000` |
+| `esp32c3` | Passes | `0x140000` |
+
+Work known before the firmware could run on another chip:
+
+- **Flash commands:** the docs put the bootloader at `0x1000`. On the S3 and C3 it starts at `0x0`.
+- **Serial port:** `LC_RS485_UART_NUM` defaults to UART 2, which the
+  [C3](https://documentation.espressif.com/esp32-c3_datasheet_en.html) and
+  [C6](https://documentation.espressif.com/esp32-c6_datasheet_en.html) do not have. The build still passes, so this would
+  probably fail only at runtime.
+- **Pins:** the pin ranges in Kconfig and the reset pin check are written for the classic ESP32.
+- **Tooling:** the setup tool looks for a CH9102 USB-serial chip, and CI builds only for `esp32`.
+- **Acceptance:** repeat the [hardware checks](/dokumentation/esp32-hardware-acceptance/), especially RAM use with TLS
+  and all of group H. The RAM figures in these docs apply only to the classic ESP32.
+
+If a chip change also needs a larger journal, decide before units ship. A larger journal means fewer flash erases, but
+it needs a new flash layout, which cannot change over the air.
+
 ## Run a change against a local backend
 
 A development build can talk to the Mosquitto of your local stack over plain `mqtt://`. This path has not been run from these pages on a bench yet.

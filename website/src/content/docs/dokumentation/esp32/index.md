@@ -21,7 +21,7 @@ the unit can read them. Keep a flashed unit attended.
 | --- | --- | --- |
 | **Status** | The [validated build](/dokumentation/hardware/) | Bench firmware |
 | **Lock hardware** | Waveshare Modbus relay board or RS485 lock panel | RS485 lock panel only, one panel per bus |
-| **Runs as** | Docker image on Linux | Firmware flashed to a 4 MB ESP32 |
+| **Runs as** | Docker image on Linux | Firmware flashed to an ESP32 with at least 4 MB of flash |
 | **Connects with** | [Client configuration and a token](/dokumentation/operations/) | Setup Wi-Fi from a laptop, or USB on bench builds |
 | **Updates** | Pull a new image tag | Reflash over USB. Over-the-air updates exist in the code but have not run on a board |
 | **Credentials at rest** | On the host's file system | Unencrypted on the chip |

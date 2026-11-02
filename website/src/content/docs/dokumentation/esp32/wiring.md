@@ -17,7 +17,9 @@ flowchart LR
     button[Reset button] -- "GPIO 4 and GND" --> esp
     esp -- "GPIO 17 to RXD<br/>GPIO 16 to TXD<br/>3V3 to VCC, GND to GND" --> xy[XY-485 converter]
     xy -- "A to A, B to B" --> panel[SY-800R lock panel<br/>board address 1]
-    psu[Panel supply] --> panel
+    psu[12 V supply] -- "12 V" --> panel
+    psu -- "12 V" --> power[Power converter]
+    power -- "Permanent power" --> esp
     panel -- "channel 1" --> lock[Lock with door feedback]
 ```
 
@@ -51,17 +53,25 @@ The build refuses strapping, flash, input-only, console and RS485 pins.
 
 ## Power
 
-- **Panel and locks:** the panel has its own supply. Its voltage is not established in this
-  project, so take it from the seller's documentation.
-- **ESP32 and converter:** on the bench, the USB cable powers the ESP32, and the ESP32's 3V3
-  powers the converter. A permanent supply for the ESP32 has not been designed.
+- **Panel and locks:** the bench panel connects directly to a 12 V supply. If you use another
+  panel, check its voltage in the seller's documentation.
+- **ESP32:** on the bench, a power converter connects the ESP32 to the same 12 V supply. Never
+  connect 12 V directly to the ESP32 board: check that the converter's output suits the board's
+  power pin. The converter's model and ratings are not documented yet, and this is a bench
+  setup, not a designed supply for a cabinet.
+- **USB:** the flashing and bench test pages switch the panel supply off, so USB has to power
+  the ESP32 during those steps. Check your board's documentation before you connect USB and
+  the power converter at the same time.
+- **RS485 converter:** the ESP32's 3V3 powers the XY-485.
 - **Flyback diodes:** the [hardware list](/dokumentation/hardware/#common-components)
   recommends a 1N4007 across each 12 V lock on the Raspberry Pi build. Whether this panel
   needs them has not been tested.
 
 ## Before you power on
 
-- [ ] The panel supply voltage is right for the panel and the locks. Measure it.
+- [ ] The supply measures 12 V, and that is right for your panel and locks.
+- [ ] The power converter's output suits the ESP32 board's power pin. Measure it before you
+      connect the ESP32.
 - [ ] A goes to A and B to B.
 - [ ] RXD and TXD are not swapped. GPIO 17 goes to RXD.
 - [ ] The converter's VCC goes to 3V3 and its GND to the ESP32's GND.
