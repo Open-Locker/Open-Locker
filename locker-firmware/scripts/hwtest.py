@@ -80,12 +80,12 @@ CHECKS = [
     ("D4", "Force the door open with no command: uncommanded-open event", "manual"),
     ("D5", "Panel power removed: heartbeat says disconnected, states unknown; both recover", "manual"),
     ("D6", "Broker restart with the door open: no door event on reconnect", "an edge case. Hardware-example PR"),
-    ("E1", "ACTUATES. Commission an erased unit with commission.py through to an open", "manual"),
+    ("E1", "ACTUATES. Commission a unit with no settings with commission.py through to an open", "manual"),
     ("E2", "Wrong Wi-Fi credentials, corrected over USB without a reset: identity kept", "manual"),
     ("E3", "Move an enrolled unit to another network: identity, mapping, journal kept", "needs a second network. Hardware-example PR"),
     ("E4", "Unplug USB during a save, ten times", "ten manual unplugs. Hardware-example PR"),
     ("E5", "Reset: old credentials fail, a fresh token enrolls", "manual"),
-    ("F1", "ACTUATES. Commission an erased unit over the setup network through to an open from the admin panel", "manual"),
+    ("F1", "ACTUATES. Commission a unit with no settings over the setup network through to an open from the admin panel", "manual"),
     ("F2", "Wrong Wi-Fi password: retries, the 10 s button hold resets, the same unused token enrolls", "manual"),
     ("F3", "Enrolled unit: the access point and its port are not reachable", "manual"),
     ("F4", "Button: under 10 s nothing, 10 s resets, held at power-up nothing, stuck jumper nothing", "manual"),
@@ -96,7 +96,7 @@ CHECKS = [
     ("G1", "ACTUATES. 72 h run with an open every ten minutes: no missed response, no reset, stable heap",
      "a 72-hour run with 432 actuations; not done on the PR bench. Hardware-example PR"),
     ("G2", "Return the bank to the Pi client", "tests the Pi client's provisioning reset, not this firmware"),
-    ("H1", "Blank board flashed with the signed image: enrolls, then A1, A6, C4, D2 and D4 again", "manual"),
+    ("H1", "This whole run started on a blank board flashed with the signed image: confirm it, with no repeat run", "manual"),
     ("H2", "Update an idle unit through the backend: it restarts into the new version, the backend shows it", "manual"),
     ("H3", "ACTUATES. An open during an update and one during a rollback's trial window: handled once, never lost", "manual"),
     ("H4", "A bad signature and an image signed with another key are refused: the old version keeps running", "manual"),
@@ -239,6 +239,14 @@ def selected(only, check_id):
 # A check that only works in the same session as another one: B2 repeats B1's open, and C9
 # reads values counted since boot, so no restart may come between C6's outages and C9.
 NEEDS = {"B2": "B1", "C9": "C6"}
+# Checks one bench action answers: asked once, and the answer is recorded for all of them.
+SHARED = [("C1", "C4", "D2", "E1"), ("C3", "C5"), ("C7", "E5"), ("D1", "D4"), ("F8", "F1", "F7"),
+          ("F4", "F2", "F3"), ("H2", "H9"), ("H6", "H8"), ("H3", "H11")]
+# The order of a session, so shared checks sit together and D5 can be read during C6's panel cut.
+RUN_ORDER = ["A1", "A2", "A3", "A4", "A5", "A6", "A7", "A8", "A9", "B1", "B2", "B3", "B4", "B5", "B6",
+             "C1", "C4", "D2", "E1", "C2", "C3", "C5", "C6", "C9", "D5", "C7", "E5", "C8",
+             "D1", "D4", "D3", "D6", "E2", "E3", "E4", "F8", "F1", "F7", "F4", "F2", "F3", "F5", "F6",
+             "G1", "G2", "H1", "H2", "H9", "H6", "H8", "H3", "H11", "H4", "H5", "H7", "H10"]
 GROUPS = {
     "A": "Serial bus and panel", "B": "Commands and journal", "C": "Network, MQTT, and enrollment",
     "D": "State and door events", "E": "USB commissioning", "F": "SoftAP commissioning",
@@ -253,13 +261,15 @@ def settled(check_id, entry):
 
 
 def checks_to_run(results, only, resume=False, failed=False):
-    """The checks of this run in catalogue order: the selection, without what is settled when
-    resuming, or only what failed; plus what a chosen check needs in the same session."""
+    """The checks of this run in session order: the selection, without what is settled when
+    resuming, or only what failed; plus what a chosen check needs in the same session, and the
+    checks that share its bench action."""
     chosen = {i for i in IDS if selected(only, i)
               and not (resume and settled(i, results.get(i)))
               and not (failed and (results.get(i) or {}).get("status") != "fail")}
     chosen |= {NEEDS[i] for i in chosen if i in NEEDS}
-    return [i for i in IDS if i in chosen]
+    chosen |= {member for shared in SHARED if chosen & set(shared) for member in shared}
+    return [i for i in RUN_ORDER if i in chosen]
 
 
 def listing(record, width=100, colour=True):
@@ -610,10 +620,16 @@ def run(args):
     print(f"Operator: {operator}" + ("" if args.operator else " (from git config; --operator overrides)"))
     print("Runs: " + ", ".join(planned))
 
-    for check_id, title, how in CHECKS:
-        if check_id not in planned:
+    details = {c[0]: c[1:] for c in CHECKS}
+    answered = set()
+    for check_id in planned:
+        if check_id in answered:
             continue
-        print(f"\n{check_id}: {title}")
+        together = next((s for s in SHARED if check_id in s), (check_id,))
+        title, how = details[check_id]
+        print()
+        for member in together:
+            print(f"{member}: {details[member][0]}")
         if how == "auto":
             try:
                 status, note = AUTO[check_id](session)
@@ -624,7 +640,9 @@ def run(args):
         else:
             status, note = "not_run", "deferred: " + how
         print(f"  -> {status.upper()}: {note}")
-        record["results"][check_id] = {"status": status, "note": note, "at": now()}
+        for member in together:
+            record["results"][member] = {"status": status, "note": note, "at": now()}
+        answered.update(together)
         RECORD.write_text(json.dumps(record, indent=2) + "\n", encoding="utf8")
 
     bad = problems(record, tree)
