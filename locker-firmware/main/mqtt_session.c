@@ -29,40 +29,35 @@ static lc_inbound_t inbound_kind = LC_INBOUND_OTHER;
 
 /* ---- Inbound, on the esp-mqtt task ---- */
 
-static void post(const owner_event_t *event)
+static void post(const owner_control_t *event)
 {
     if (!owner_post(event)) {
-        /* Dropped: no unlock for a lost command, and the backend times out. */
-        ESP_LOGW(TAG, "owner queue full, event %d dropped", (int)event->kind);
+        /* Lost, not retried: what that costs depends on the event (architecture.md, task model). */
+        ESP_LOGW(TAG, "control queue full, event %d dropped", (int)event->kind);
     }
 }
 
 static void on_connected(void *ctx)
 {
     (void)ctx;
-    post(&(owner_event_t){.kind = OWNER_TRANSPORT_CONNECTED});
+    post(&(owner_control_t){.kind = OWNER_TRANSPORT_CONNECTED});
 }
 
 static void on_disconnected(void *ctx)
 {
     (void)ctx;
-    post(&(owner_event_t){.kind = OWNER_TRANSPORT_DISCONNECTED});
+    post(&(owner_control_t){.kind = OWNER_TRANSPORT_DISCONNECTED});
 }
 
 static void on_subscribed(void *ctx, int message_id)
 {
     (void)ctx;
-    owner_event_t event = {.kind = OWNER_SUBSCRIBED};
-    event.u.message_id = message_id;
-    post(&event);
+    post(&(owner_control_t){.kind = OWNER_SUBSCRIBED, .value = (uint32_t)message_id});
 }
 
 static void on_publish_result(lc_event_kind_t kind, int message_id)
 {
-    owner_event_t event = {.kind = OWNER_APP};
-    event.u.app.kind = kind;
-    event.u.app.publish_id = (lc_publish_id_t)message_id;
-    post(&event);
+    post(&(owner_control_t){.kind = OWNER_APP, .app_kind = kind, .value = (uint32_t)message_id});
 }
 
 static void on_published(void *ctx, int message_id)
@@ -75,6 +70,37 @@ static void on_dropped(void *ctx, int message_id)
 {
     (void)ctx;
     on_publish_result(LC_EVENT_PUBLISH_FAILED, message_id);
+}
+
+/* Decodes into a free slot of the owner task's pool and hands the slot on. */
+static void on_command_message(void)
+{
+    lc_command_t *slot = owner_command_acquire();
+
+    if (slot == NULL) {
+        /* Logged by the pool: no claim, no unlock, and the backend times out. */
+        return;
+    }
+    /* A payload nobody can answer is dropped here, as the codec defines. */
+    if (!lc_mqtt_decode_command(assembler.data, assembler.total, slot)) {
+        owner_command_discard(slot);
+        return;
+    }
+    (void)owner_command_submit(slot);
+}
+
+static void on_reply_message(void)
+{
+    lc_provisioning_reply_t *slot = owner_reply_acquire();
+
+    if (slot == NULL) {
+        return;
+    }
+    if (!lc_mqtt_decode_provisioning_reply(assembler.data, assembler.total, slot)) {
+        owner_reply_discard(slot);
+        return;
+    }
+    (void)owner_reply_submit();
 }
 
 static void on_data(void *ctx, const char *topic, const char *data, size_t length, size_t offset,
@@ -90,22 +116,11 @@ static void on_data(void *ctx, const char *topic, const char *data, size_t lengt
         return;
     }
 
-    owner_event_t event;
-    memset(&event, 0, sizeof(event));
     if (inbound_kind == LC_INBOUND_COMMAND) {
-        event.kind = OWNER_APP;
-        event.u.app.kind = LC_EVENT_COMMAND;
-        /* A payload nobody can answer is dropped here, as the codec defines. */
-        if (!lc_mqtt_decode_command(assembler.data, assembler.total, &event.u.app.command)) {
-            return;
-        }
+        on_command_message();
     } else {
-        event.kind = OWNER_PROVISION_REPLY;
-        if (!lc_mqtt_decode_provisioning_reply(assembler.data, assembler.total, &event.u.reply)) {
-            return;
-        }
+        on_reply_message();
     }
-    post(&event);
 }
 
 /* ---- Outbound, on the owner task ---- */
