@@ -210,6 +210,12 @@ A new unit starts from an empty chip:
 idf.py -p COM3 erase-flash
 ```
 
+With the Docker setup, use `esptool` on the laptop instead:
+
+```bash
+python -m esptool --port COM3 erase-flash
+```
+
 :::danger[Erasing an enrolled unit]
 Erasing removes everything: Wi-Fi settings, the unit's MQTT identity, the
 compartment mapping and the command journal. An enrolled unit can no longer
@@ -284,12 +290,8 @@ the unsigned image, so do not use it for such a unit.
 
 ```bash
 cd build
-python -m esptool --chip esp32 -p COM3 -b 460800 --before default-reset --after hard-reset write-flash \
-  --flash-mode dio --flash-size keep --flash-freq 40m \
-  0x1000 bootloader/bootloader.bin \
-  0xc000 partition_table/partition-table.bin \
-  0x13000 ota_data_initial.bin \
-  0x20000 locker-firmware-signed.bin
+python -m esptool --chip esp32 -p COM3 -b 460800 --before default-reset --after hard-reset write-flash --flash-mode dio --flash-size keep --flash-freq 40m 0x1000 bootloader/bootloader.bin 0xc000 partition_table/partition-table.bin 0x13000 ota_data_initial.bin 0x20000 locker-firmware-signed.bin
+cd ..
 ```
 
 **An unsigned image, for a bench unit only.** In an ESP-IDF shell, right after the
@@ -305,6 +307,7 @@ written by the build and lists every unsigned file with its address:
 ```bash
 cd build
 python -m esptool --chip esp32 -p COM3 -b 460800 write-flash "@flash_args"
+cd ..
 ```
 
 If it fails with `Failed to connect`, hold the board's **BOOT** button (if it

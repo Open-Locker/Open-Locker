@@ -296,7 +296,7 @@ Do not retry a failed open with `queue:retry`. It would send the old command aga
 
 `hwtest.py` asks once and records the answer for both. A wrong token must get one refusal and no retries. After a reset, the old MQTT user must be revoked and a real token must enroll the unit.
 
-1. Note the current MQTT user, using `DB_USERNAME` and `DB_DATABASE` from `.env`:
+1. Note the current MQTT user. The commands on this page use the default `DB_USERNAME` (`sail`) and `DB_DATABASE` (`locker`), so replace them if your `.env` differs:
 
    ```bash
    docker compose exec db psql -U sail -d locker -Atc "select username,enabled,revoked_at from mqtt_users where locker_bank_id='<uuid>'"
@@ -582,10 +582,11 @@ There is no repeat run, because the rest of the run already covers it on this im
 2. Run `status`. It should show `enrolled=1`.
 3. Run the query again. The MQTT user should be the same.
 4. Run `diagnostics` and note `unlock_transmissions`.
-5. Send that open again with a new `message_id`. The unit should answer with its stored result and not unlock.
+5. Send that open again with a new `message_id`. The unit should answer with its stored result and not unlock. Set the two values from `locker-backend/.env` in this shell first:
 
    ```bash
-   docker compose exec mqtt mosquitto_pub -h localhost -u laravel_backend -P "$BROKER_PASSWORD" -q 1 -t locker/<uuid>/command -m '{"message_id":"<new uuid>","transaction_id":"<transaction id>","action":"open_compartment","timestamp":"<now, ISO 8601>","data":{"compartment_number":1}}'
+   export BROKER_USER=<MQTT_USERNAME> BROKER_PASSWORD=<MQTT_PASSWORD>
+   docker compose exec mqtt mosquitto_pub -h localhost -u "$BROKER_USER" -P "$BROKER_PASSWORD" -q 1 -t locker/<uuid>/command -m '{"message_id":"<new uuid>","transaction_id":"<transaction id>","action":"open_compartment","timestamp":"<now, ISO 8601>","data":{"compartment_number":1}}'
    ```
 
 6. Run `diagnostics` again, then choose **Open** on compartment 1.
