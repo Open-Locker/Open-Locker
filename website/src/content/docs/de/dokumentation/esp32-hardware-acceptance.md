@@ -91,9 +91,9 @@ Der Nachweis ist die Aussage der Bedienperson, kein Beweis. Er verhindert nur, d
 | HW-C4 | **Löst aus.** Ein Öffnen aus dem Admin-Panel gibt das Schloss einmal frei | manuell |
 | HW-C5 | **Löst aus.** `broker_check.py --actuate`: Ein Öffnen und zwei Duplikate erhöhen den Zähler um 1 | manuell |
 | HW-C6 | Access Point 1 Minute aus, dann der Broker: Die Einheit verbindet sich neu, und eine offene Antwort wird zugestellt | manuell |
+| HW-C9 | Direkt nach HW-C6, ohne Neustart dazwischen, zeigt `diagnostics` den geringsten freien Heap und die Stack-Reserve des Owner-Tasks. Beides festhalten | manuell |
 | HW-C7 | Ungültiges Token: abgelehnt ohne Wiederholung. Nach einem Provisionierungs-Reset und einem frischen Token registriert sie sich | manuell |
 | HW-C8 | Strom trennen: Das Backend zeigt den Schrank offline | manuell |
-| HW-C9 | Nach HW-C6 zeigt `diagnostics` den geringsten freien Heap und die Stack-Reserve des Owner-Tasks. Beides festhalten | manuell |
 
 Die Broker-Prüfungen ausführen:
 
@@ -274,6 +274,14 @@ Steht die Antwort im Log, bevor der Strom getrennt wurde, war die Trennung zu sp
 
 Ein fehlgeschlagenes Öffnen nicht mit `queue:retry` wiederholen. Das würde das alte Kommando erneut senden und könnte das Schloss später freigeben, als jemand erwartet.
 
+#### HW-C9: Speicher nach den Ausfällen festhalten
+
+`hwtest.py` führt das direkt nach HW-C6 aus. Wer HW-C9 auswählt, führt auch HW-C6 aus, weil ein Neustart dazwischen die Werte zurücksetzt.
+
+1. `diagnostics` in der Konsole ausführen.
+
+**Bestanden:** Die Antwort zeigt `min_free_heap` und `owner_stack_free`, und `uptime_seconds` ist seit HW-C6 weiter gestiegen. Beide Zahlen in die Notiz schreiben, weil HW-H9 damit vergleicht.
+
 #### HW-C7: Ungültiges Token ablehnen
 
 Ein falsches Token muss genau eine Ablehnung und keine Wiederholung auslösen, und ein echtes Token muss danach weiterhin registrieren.
@@ -313,14 +321,6 @@ Ein falsches Token muss genau eine Ablehnung und keine Wiederholung auslösen, u
 3. Wieder einstecken.
 
 **Bestanden:** **Status** zeigt nach der Wartezeit Offline und etwa eine Minute nach dem Einstecken wieder Online. Das Backend wertet die Last-Will-Nachricht des Brokers noch nicht aus, den Status ändert also das Heartbeat-Timeout.
-
-#### HW-C9: Speicher nach den Ausfällen festhalten
-
-Direkt nach HW-C6 ausführen, ohne Neustart dazwischen.
-
-1. `diagnostics` in der Konsole ausführen.
-
-**Bestanden:** Die Antwort zeigt `min_free_heap` und `owner_stack_free`. Beide Zahlen in die Notiz schreiben, weil HW-H9 damit vergleicht.
 
 ### Gruppe D Schritt für Schritt
 

@@ -92,9 +92,9 @@ The record is the operator's statement, not proof. It only stops a change going 
 | HW-C4 | **Actuates.** One open from the admin panel releases the lock once | manual |
 | HW-C5 | **Actuates.** `broker_check.py --actuate`: one open and two duplicates raise the counter by 1 | manual |
 | HW-C6 | Access point off for 1 minute, then the broker: it reconnects, and a pending response is delivered | manual |
+| HW-C9 | Right after HW-C6, with no restart between them, `diagnostics` shows minimum free heap and owner task stack headroom. Record both | manual |
 | HW-C7 | Invalid token: rejected with no retry. After a provisioning reset and a fresh token, it enrolls | manual |
 | HW-C8 | Pull power: the backend shows the bank offline | manual |
-| HW-C9 | After HW-C6, `diagnostics` shows minimum free heap and owner task stack headroom. Record both | manual |
 
 To run the broker checks:
 
@@ -275,6 +275,14 @@ If the response is logged before you cut the power, you cut too late, so repeat 
 
 Do not retry a failed open with `queue:retry`. It would send the old command again and could release the lock later than anyone expects.
 
+#### HW-C9: Record memory after the outages
+
+`hwtest.py` runs this straight after HW-C6. Selecting HW-C9 also runs HW-C6, because a restart between them resets the values.
+
+1. Run `diagnostics` in the console.
+
+**Pass:** the reply shows `min_free_heap` and `owner_stack_free`, and `uptime_seconds` has kept rising since HW-C6. Write both numbers in the note, because HW-H9 compares against them.
+
 #### HW-C7: Refuse an invalid token
 
 A wrong token must get one refusal and no retries, and a real token must still enroll afterwards.
@@ -314,14 +322,6 @@ A wrong token must get one refusal and no retries, and a real token must still e
 3. Plug it back in.
 
 **Pass:** **Status** shows offline after the wait, and online again about a minute after you plug it back in. The backend does not act on the broker's Last Will message yet, so the heartbeat timeout is what changes the status.
-
-#### HW-C9: Record memory after the outages
-
-Do this straight after HW-C6, with no restart in between.
-
-1. Run `diagnostics` in the console.
-
-**Pass:** the reply shows `min_free_heap` and `owner_stack_free`. Write both numbers in the note, because HW-H9 compares against them.
 
 ### Group D step by step
 
