@@ -3,7 +3,8 @@
 import re
 import unittest
 
-from hwtest import DEFERRED, IDS, ROOT, Device, checks_to_run, git_operator, listing, problems, selected
+from hwtest import (CHECKS, DEFERRED, IDS, ROOT, RUN_ORDER, SHARED, Device, checks_to_run, git_operator, listing,
+                    problems, selected)
 
 TREE = "a" * 64
 
@@ -75,7 +76,7 @@ class ResumeTest(unittest.TestCase):
         del results["C1"]
         results["A6"] = {"status": "fail", "note": "x"}
         results["A3"] = {"status": "not_run", "note": "no time"}
-        self.assertEqual(checks_to_run(results, None, resume=True), ["A3", "A6", "C1"])
+        self.assertEqual(checks_to_run(results, None, resume=True), ["A3", "A6", "C1", "C4", "D2", "E1"])
 
     def test_b2_brings_b1_along_because_it_repeats_b1s_open(self):
         results = record()["results"]
@@ -85,7 +86,23 @@ class ResumeTest(unittest.TestCase):
 
     def test_c9_runs_right_after_c6_with_no_restart_between(self):
         self.assertEqual(checks_to_run({}, ["C9"]), ["C6", "C9"])
-        self.assertEqual(IDS.index("C9"), IDS.index("C6") + 1)
+        self.assertEqual(RUN_ORDER.index("C9"), RUN_ORDER.index("C6") + 1)
+
+    def test_a_shared_check_brings_the_others_of_its_action_along(self):
+        self.assertEqual(checks_to_run({}, ["E1"]), ["C1", "C4", "D2", "E1"])
+        results = record()["results"]
+        results["F7"] = {"status": "fail", "note": "x"}
+        self.assertEqual(checks_to_run(results, None, failed=True), ["F8", "F1", "F7"])
+
+    def test_the_run_order_holds_every_check_once(self):
+        self.assertEqual(sorted(RUN_ORDER), sorted(IDS))
+
+    def test_shared_checks_are_manual_and_side_by_side_in_the_run_order(self):
+        how = {c[0]: c[2] for c in CHECKS}
+        for shared in SHARED:
+            self.assertEqual({how[i] for i in shared}, {"manual"})
+            start = RUN_ORDER.index(shared[0])
+            self.assertEqual(tuple(RUN_ORDER[start:start + len(shared)]), shared)
 
     def test_failed_runs_only_the_checks_that_failed(self):
         results = record()["results"]
