@@ -120,7 +120,7 @@ Add `--actuate --compartment 1` for HW-C5, and compare `unlock_transmissions` in
 
 | ID | Check | How |
 | --- | --- | --- |
-| HW-E1 | **Actuates.** Commission an erased unit with `commission.py` through to an open | manual |
+| HW-E1 | **Actuates.** Commission a unit with no settings with `commission.py` through to an open | manual |
 | HW-E2 | Wrong Wi-Fi credentials, corrected over USB without a reset: identity is kept | manual |
 | HW-E3 | Move an enrolled unit to another network: identity, mapping and journal are kept | deferred |
 | HW-E4 | Unplug USB during a save, ten times: old or new settings, never a mix | deferred |
@@ -132,7 +132,7 @@ Needs a unit with setup secrets, a laptop running `commission.py --softap` from 
 
 | ID | Check | How |
 | --- | --- | --- |
-| HW-F1 | **Actuates.** Commission an erased unit over the setup network, through to an open from the admin panel | manual |
+| HW-F1 | **Actuates.** Commission a unit with no settings over the setup network, through to an open from the admin panel | manual |
 | HW-F2 | Wrong Wi-Fi password: it retries, the 10 s button hold resets it, and the same unused token enrolls | manual |
 | HW-F3 | Enrolled unit: the access point and its port are not reachable | manual |
 | HW-F4 | Button: under 10 s nothing, 10 s resets, held at power-up nothing, a stuck jumper nothing | manual |
@@ -154,7 +154,7 @@ Needs a unit flashed over USB with a signed image, a backend with firmware relea
 
 | ID | Check | How |
 | --- | --- | --- |
-| HW-H1 | Blank board flashed with the signed image: it enrolls, then HW-A1, HW-A6, HW-C4, HW-D2 and HW-D4 again | manual |
+| HW-H1 | The whole run started on a blank board flashed with the signed image: confirm it, with no repeat run | manual |
 | HW-H2 | Update an idle unit through the backend: it restarts into the new version, and the backend shows it | manual |
 | HW-H3 | **Actuates.** An open during an update and one during a rollback's trial window: handled once, never lost | manual |
 | HW-H4 | A bad signature and an image signed with another key are refused: the old version keeps running | manual |
@@ -194,22 +194,51 @@ grep -o 'uptime_seconds[^,]*' storage/logs/laravel.log | tail -3
 
 **Wait for online.** A unit can take about a minute from enrolling to **online** in the admin panel. Wait for it before you run a broker check.
 
+**One action can answer several checks.** `hwtest.py` then lists them together, asks once and records the answer for all of them. If only one of them failed, choose **Fail** and name it in the note. It asks in this order, which differs from the tables above:
+
+| Step | Checks |
+| --- | --- |
+| Bench mode | Groups A and B |
+| Commission and open | HW-C1, HW-C4, HW-D2, HW-E1 |
+| Broker commands | HW-C3, HW-C5 |
+| Outages | HW-C6, then HW-C9, then HW-D5 |
+| Tokens | HW-C7, HW-E5 |
+| Power | HW-C8 |
+| Door | HW-D1, HW-D4, then HW-D3 |
+| Wi-Fi over USB | HW-E2 |
+| Setup network | HW-F8, HW-F1, HW-F7, then HW-F4, HW-F2, HW-F3, then HW-F5, then HW-F6 |
+| Updates | HW-H1, then HW-H2, HW-H9, then HW-H6, HW-H8, then HW-H3, HW-H11, then HW-H4, HW-H5, HW-H7, HW-H10 |
+
 ### Group C step by step
 
-#### HW-C1: Enroll a fresh unit
+#### HW-C1, HW-C4, HW-D2 and HW-E1: Commission a unit and open it
 
-1. Commission the unit [over USB](/dokumentation/esp32/commissioning/#over-usb-release-and-development-builds).
-2. Open **Locker banks** in the admin panel.
+`hwtest.py` asks once and records the answer for all four. This releases the lock, so stay at the cabinet.
 
-**Pass:** the bank's **Status** shows online within about a minute.
+1. If the unit has settings, run `reset-network` in the console. This keeps the journal, which is fine: the check needs a unit with no settings, not a full erase.
+2. In the admin panel, choose **Restart provisioning** on the bank and copy the token.
+3. Commission the unit [over USB](/dokumentation/esp32/commissioning/#over-usb-release-and-development-builds).
+4. Open **Locker banks**, and wait for **Status** to show online. This takes about a minute.
+5. Run `diagnostics` in the console and note `unlock_transmissions`.
+6. Edit the bank, and choose **Open** on compartment 1.
+7. Pull the door open.
+8. Run `diagnostics` again, and look for the door event:
 
-#### HW-C3: Apply a configuration through the broker
+   ```bash
+   grep 'Device event received' storage/logs/laravel.log | tail -3
+   ```
 
-This sends the unit a configuration over the broker and checks that it stored the same one. No lock moves, but it replaces the unit's mapping and heartbeat interval, so `--compartments` must match your wiring.
+**Pass:** the bank goes online, the lock releases once, the counter rises by 1, the log shows `compartment_open_detected`, and the **Audit Log** shows **Door opened**.
 
-1. Run the [broker check](#group-c-network-mqtt-and-enrollment) without `--actuate`. For the local backend, `BROKER_USER` and `BROKER_PASSWORD` are `MQTT_USERNAME` and `MQTT_PASSWORD` from `locker-backend/.env`, and the URL is `mqtt://<your PC's address>:1883`.
+#### HW-C3 and HW-C5: Check commands through the broker
 
-**Pass:** the output ends with `PASS apply_config acknowledged with the matching hash` and `PASSED`.
+One run of the broker check answers both, and `hwtest.py` asks once. It sends the unit a configuration and checks that the unit stored the same one, then sends one open and two duplicates. It replaces the unit's mapping and heartbeat interval, so `--compartments` must match your wiring. This releases the lock, so stay at the cabinet.
+
+1. Run `diagnostics` in the console and note `unlock_transmissions`.
+2. Run the [broker check](#group-c-network-mqtt-and-enrollment) with `--actuate --compartment 1`. For the local backend, `BROKER_USER` and `BROKER_PASSWORD` are `MQTT_USERNAME` and `MQTT_PASSWORD` from `locker-backend/.env`, and the URL is `mqtt://<your PC's address>:1883`.
+3. Run `diagnostics` again.
+
+**Pass:** the output shows `PASS apply_config acknowledged with the matching hash`, `the duplicates produced 1 response(s)` and `PASSED`, the lock moves once, and the counter rises by 1.
 
 | Output | Meaning |
 | --- | --- |
@@ -218,26 +247,6 @@ This sends the unit a configuration over the broker and checks that it stored th
 | `FAIL apply_config: the applied hash differs...` | The unit stored something else. Fail |
 | `FAIL could not connect to the broker` | The login or URL is wrong. Fix it and run again |
 
-#### HW-C4: Open from the admin panel
-
-This releases the lock, so stay at the cabinet.
-
-1. Run `diagnostics` in the console and note `unlock_transmissions`.
-2. Edit the bank, and choose **Open** on compartment 1.
-3. Run `diagnostics` again.
-
-**Pass:** the lock releases once and the counter rises by 1.
-
-#### HW-C5: Duplicate commands through the broker
-
-This releases the lock, so stay at the cabinet.
-
-1. Run `diagnostics` and note `unlock_transmissions`.
-2. Run the [broker check](#group-c-network-mqtt-and-enrollment) with `--actuate --compartment 1`.
-3. Run `diagnostics` again.
-
-**Pass:** the output says `the duplicates produced 1 response(s)` and `PASSED`, the lock moves once, and the counter rises by 1.
-
 #### HW-C6: Recover from network outages
 
 This cuts the access point and then the broker. The unit must recover by itself and still deliver a response it could not send. Do not restart or unplug the ESP32, because HW-C9 reads values counted since boot.
@@ -245,7 +254,7 @@ This cuts the access point and then the broker. The unit must recover by itself 
 To leave a response pending, take away the panel's power: an unlock then takes a few seconds to fail instead of finishing almost at once, and the lock cannot move.
 
 1. Check that the bank shows online.
-2. Switch off the panel's power, not the ESP32's.
+2. Switch off the panel's power, not the ESP32's. Watch **Hardware** and the doors for a moment, because HW-D5 asks about them next.
 3. Choose **Open** on compartment 1 in the admin panel.
 4. Wait about 2 seconds, then cut the access point's power. Waiting gives the backend time to send the command. If you cut too early the unit never receives it, and if you cut too late the response is already delivered.
 5. Wait 1 minute, then switch the access point back on and restore the panel's power.
@@ -283,35 +292,43 @@ Do not retry a failed open with `queue:retry`. It would send the old command aga
 
 **Pass:** the reply shows `min_free_heap` and `owner_stack_free`, and `uptime_seconds` has kept rising since HW-C6. Write both numbers in the note, because HW-H9 compares against them.
 
-#### HW-C7: Refuse an invalid token
+#### HW-C7 and HW-E5: Refuse an invalid token, then enroll again
 
-A wrong token must get one refusal and no retries, and a real token must still enroll afterwards.
+`hwtest.py` asks once and records the answer for both. A wrong token must get one refusal and no retries. After a reset, the old MQTT user must be revoked and a real token must enroll the unit.
 
-1. If the unit is enrolled, run `reset-network` in the console.
-2. Make a token with the right format that the backend does not know:
+1. Note the current MQTT user, using `DB_USERNAME` and `DB_DATABASE` from `.env`:
+
+   ```bash
+   docker compose exec db psql -U sail -d locker -Atc "select username,enabled,revoked_at from mqtt_users where locker_bank_id='<uuid>'"
+   ```
+
+2. Run `reset-network` in the console.
+3. Make a token with the right format that the backend does not know:
 
    ```bash
    python -c "import secrets; print(secrets.token_hex(32))"
    ```
 
-3. Commission with it, using your normal Wi-Fi and broker. For the local backend, the bootstrap user and password are `MQTT_PROVISIONING_USERNAME` and `MQTT_PROVISIONING_PASSWORD` from `locker-backend/.env`.
+4. Commission with it, using your normal Wi-Fi and broker. For the local backend, the bootstrap user and password are `MQTT_PROVISIONING_USERNAME` and `MQTT_PROVISIONING_PASSWORD` from `locker-backend/.env`.
 
    ```bash
    python scripts/commission.py --usb COM3
    ```
 
-4. After about a minute, look for one refusal:
+5. After about a minute, look for one refusal:
 
    ```bash
    grep -E 'No LockerBank found|Publishing invalid token' storage/logs/laravel.log | tail -4
    ```
 
-5. Wait 2 more minutes and run the same command. There should be no new lines.
-6. Run `status` in the console. It should show `enrolled=0 pending=0 configured=1`.
-7. Edit the bank in the admin panel, choose **Restart provisioning**, and copy the token. It is shown once and is valid for 24 hours.
-8. Run `commission.py` again with that token.
+6. Wait 2 more minutes and run the same command. There should be no new lines.
+7. Run `status` in the console. It should show `enrolled=0 pending=0 configured=1`.
+8. Edit the bank in the admin panel, choose **Restart provisioning**, and copy the token. It is shown once and is valid for 24 hours.
+9. Run the query from step 1. The old user should now be disabled, with a `revoked_at` time.
+10. Run `commission.py` again with that token, and wait for online.
+11. Run the query again.
 
-**Pass:** one refusal, no retry, `pending=0`, and the bank goes online with the real token.
+**Pass:** one refusal, no retry, `pending=0`, the old user is revoked, a new user is active, and the bank goes online. The unit never shows its password, so this reads the revocation from the database instead of trying a login.
 
 **Fail:** extra refusals from the same attempt, `pending=1`, or a real token that does not enroll. `pending=1` means the unit never processed the refusal.
 
@@ -327,26 +344,20 @@ A wrong token must get one refusal and no retries, and a real token must still e
 
 The app checks need a user who has access to the compartment.
 
-#### HW-D1: Follow the door by hand
+#### HW-D1 and HW-D4: Open the door by hand
+
+`hwtest.py` asks once and records the answer for both.
 
 1. Open the bank's compartments in the admin panel, and the compartment in the mobile app.
-2. Open the door by hand, then close it.
-
-**Pass:** the panel and the app each follow within two seconds.
-
-#### HW-D2: Report an opened door
-
-This releases the lock, so stay at the cabinet.
-
-1. Choose **Open** on compartment 1 in the admin panel.
-2. Pull the door open.
-3. Look for the event:
+2. Send no command, and open the door by hand. If the lock holds it shut, release the latch by hand.
+3. Close the door.
+4. Look for the event:
 
    ```bash
    grep 'Device event received' storage/logs/laravel.log | tail -3
    ```
 
-**Pass:** the log shows `compartment_open_detected`, and the **Audit Log** shows **Door opened**.
+**Pass:** the panel and the app each follow within two seconds, the log shows `compartment_uncommanded_open`, and the **Audit Log** shows **Uncommanded door opening**.
 
 #### HW-D3: Report a jammed door
 
@@ -354,18 +365,17 @@ This releases the lock, so hold the door shut.
 
 1. Choose **Open** on compartment 1 in the admin panel.
 2. Keep the door shut for longer than the bank's **Heartbeat interval**, which is the detection window.
-3. Run the `grep` from HW-D2.
+3. Look for the event:
+
+   ```bash
+   grep 'Device event received' storage/logs/laravel.log | tail -3
+   ```
 
 **Pass:** the log shows `compartment_open_failed`, and the **Audit Log** shows **Door did not open**.
 
-#### HW-D4: Report an uncommanded open
-
-1. Send no command, and force the door open by hand. If the lock holds it shut, release the latch by hand.
-2. Run the `grep` from HW-D2.
-
-**Pass:** the log shows `compartment_uncommanded_open`, and the **Audit Log** shows **Uncommanded door opening**.
-
 #### HW-D5: Lose and recover panel power
+
+`hwtest.py` asks this right after HW-C9, so you can report what you saw during HW-C6's panel cut. If you did not watch it then, or run this alone:
 
 1. Switch off the panel's power, not the ESP32's.
 2. Wait for the next heartbeat, and watch the bank in the admin panel.
@@ -374,18 +384,6 @@ This releases the lock, so hold the door shut.
 **Pass:** without power, **Hardware** shows unreachable and the doors show unknown. With power back, both recover with no restart.
 
 ### Group E step by step
-
-#### HW-E1: Commission an erased unit
-
-This releases the lock, so stay at the cabinet.
-
-1. [Erase the unit completely](/dokumentation/esp32/maintenance/#erase-a-unit-completely).
-2. [Flash the firmware](/dokumentation/esp32/flashing/#flash-the-firmware).
-3. In the admin panel, choose **Restart provisioning** on the bank and copy the token.
-4. Commission [over USB](/dokumentation/esp32/commissioning/#over-usb-release-and-development-builds).
-5. Wait for online, then choose **Open** on compartment 1.
-
-**Pass:** the bank goes online, and the lock releases once.
 
 #### HW-E2: Correct wrong Wi-Fi settings
 
@@ -398,75 +396,79 @@ Start with an enrolled, online unit. An enrolled unit only takes new Wi-Fi setti
 
 **Pass:** the bank returns as the same bank, with `enrolled=1` and no new token.
 
-#### HW-E5: Reset a unit and enroll it again
-
-1. Note the current MQTT user, using `DB_USERNAME` and `DB_DATABASE` from `.env`:
-
-   ```bash
-   docker compose exec db psql -U sail -d locker -Atc "select username,enabled,revoked_at from mqtt_users where locker_bank_id='<uuid>'"
-   ```
-
-2. Run `reset-network` in the console.
-3. In the admin panel, choose **Restart provisioning** and copy the token.
-4. Run the query again. The old user should now be disabled or have a `revoked_at` time.
-5. Commission with the new token, and wait for online.
-6. Run the query again.
-
-**Pass:** the old user is revoked, a new user is active, and the bank is online. The unit never shows its password, so this reads the revocation from the database instead of trying a login.
-
 ### Group F step by step
 
 Each check starts from a unit with [setup secrets](/dokumentation/esp32/flashing/#write-the-setup-secrets), unless it says otherwise. To reset a unit, run `reset-network` or hold the button for 10 seconds. A reset does not remove the setup secrets. The setup network opens for 10 minutes after power-up, and only on a unit with no settings.
 
-#### HW-F1: Commission over the setup network
+#### HW-F8, HW-F1 and HW-F7: Refuse an expired token, then commission over the setup network
 
-This releases the lock, so stay at the cabinet.
+`hwtest.py` asks once and records the answer for all three, because a single commissioning gives all the results. This releases the lock, so stay at the cabinet. Use a throwaway Wi-Fi password and token for the capture.
 
-1. Erase the unit, write its secrets and flash it.
-2. In the admin panel, choose **Restart provisioning** and copy the token.
-3. Unplug any USB data connection, and power the unit.
-4. Commission [over the setup Wi-Fi](/dokumentation/esp32/commissioning/#over-the-setup-wi-fi-recommended).
-5. Wait for online, then choose **Open** on compartment 1.
-
-**Pass:** the bank goes online, and the lock releases once. The tool only reports "saved", so read success in the panel.
-
-#### HW-F2: Recover from a wrong Wi-Fi password
-
-1. Run `commission.py --softap` with a wrong Wi-Fi password and an unused token.
-2. Wait 2 minutes. The bank should stay offline, and the console should show repeated Wi-Fi retries.
-3. Hold the button for 10 seconds, then release it. The unit wipes its settings and restarts.
-4. Run `commission.py --softap` again with the right password and the same token, within 24 hours of issuing it.
-
-**Pass:** the unit keeps retrying, the button resets it, and the same token enrolls it.
-
-#### HW-F3: Close the access point on an enrolled unit
-
-1. List the Wi-Fi networks in range:
+1. Reset the unit, so it has no settings and its setup network opens.
+2. Issue a token with **Restart provisioning**, and keep it for more than 24 hours. On a bench database only, you can make it old instead:
 
    ```bash
-   nmcli device wifi list
+   docker compose exec db psql -U sail -d locker -c "update locker_banks set provisioning_token_issued_at = now() - interval '25 hours' where id='<uuid>'"
    ```
 
-2. Find the unit's address in your router, then probe the setup port:
+3. Commission with it, then look for the refusal:
 
    ```bash
-   nc -zv -w 3 <unit address> 80
+   grep 'No LockerBank found' storage/logs/laravel.log | tail -2
    ```
 
-**Pass:** no `OpenLocker-` network from this unit appears, and the connection is refused or times out.
+4. Reset the unit again, and choose **Restart provisioning** for a fresh token.
+5. Put the Wi-Fi password and the fresh token in a private file, one per line:
 
-#### HW-F4: Button timing
+   ```bash
+   install -m 600 /dev/null secrets.txt
+   ```
 
-The button connects GPIO 4 to GND by default.
+6. Start a capture on your Wi-Fi interface:
 
-1. On an enrolled unit, hold the button for about 5 seconds and release it. `status` should still show `enrolled=1`.
-2. Hold the button for 10 seconds and release it. The unit should restart with `enrolled=0 configured=0`.
-3. Commission it again.
-4. Unplug it, hold the button, plug it in, and keep holding for more than 10 seconds before you release it. It should stay enrolled.
-5. Unplug it, connect GPIO 4 to GND with a jumper, plug it in, and wait more than 10 seconds. It should stay enrolled.
-6. Remove the jumper.
+   ```bash
+   sudo tcpdump -i <wifi interface> -w setup.pcap
+   ```
 
-**Pass:** only step 2 resets the unit.
+7. Unplug any USB data connection, power the unit, and commission [over the setup Wi-Fi](/dokumentation/esp32/commissioning/#over-the-setup-wi-fi-recommended).
+8. Stop the capture with `Ctrl+C`, and search it for the secrets:
+
+   ```bash
+   strings -n 8 setup.pcap | grep -c -F -f secrets.txt
+   ```
+
+9. Delete `secrets.txt` and `setup.pcap`.
+10. Wait for online, then choose **Open** on compartment 1.
+
+**Pass:** the old token is refused, the fresh one enrolls the unit, the lock releases once, the count is 0, and the capture has traffic to `192.168.4.1`, including `ol-config`. The tool only reports "saved", so read success in the panel.
+
+#### HW-F4, HW-F2 and HW-F3: Button, wrong Wi-Fi password and closed access point
+
+`hwtest.py` asks once and records the answer for all three. Start with an enrolled unit. The button connects GPIO 4 to GND by default.
+
+1. Hold the button for about 5 seconds and release it. `status` should still show `enrolled=1`.
+2. Unplug the unit, hold the button, plug it in, and keep holding for more than 10 seconds before you release it. It should stay enrolled.
+3. Unplug it, connect GPIO 4 to GND with a jumper, plug it in, and wait more than 10 seconds. It should stay enrolled.
+4. Unplug it, remove the jumper, and plug it in.
+5. Hold the button for 10 seconds and release it. The unit should restart with `enrolled=0 configured=0`.
+6. In the admin panel, choose **Restart provisioning** and copy the token.
+7. Run `commission.py --softap` with a wrong Wi-Fi password and that token.
+8. Wait 2 minutes. The bank should stay offline, and the console should show repeated Wi-Fi retries.
+9. Hold the button for 10 seconds, then release it. The unit wipes its settings and restarts.
+10. Run `commission.py --softap` again with the right password and the same token, within 24 hours of issuing it. Wait for online.
+11. List the Wi-Fi networks in range:
+
+    ```bash
+    nmcli device wifi list
+    ```
+
+12. Find the unit's address in your router, then probe the setup port:
+
+    ```bash
+    nc -zv -w 3 <unit address> 80
+    ```
+
+**Pass:** only steps 5 and 9 reset the unit, the unit keeps retrying the wrong password, the same token enrolls it, no `OpenLocker-` network from this unit appears, and the connection is refused or times out.
 
 #### HW-F5: Protect the setup window
 
@@ -488,54 +490,6 @@ This needs a separate build. Flash your test image again before you continue, be
 
 **Pass:** each one answers `error invalid command`, and the lock does not move.
 
-#### HW-F7: Keep secrets out of the setup traffic
-
-Use a throwaway Wi-Fi password and token.
-
-1. Put both secrets in a private file, one per line:
-
-   ```bash
-   install -m 600 /dev/null secrets.txt
-   ```
-
-2. Start a capture on your Wi-Fi interface:
-
-   ```bash
-   sudo tcpdump -i <wifi interface> -w setup.pcap
-   ```
-
-3. Run `commission.py --softap` to the end, then stop the capture with `Ctrl+C`.
-4. Search the capture for the secrets. The count should be 0:
-
-   ```bash
-   strings -n 8 setup.pcap | grep -c -F -f secrets.txt
-   ```
-
-5. Delete `secrets.txt` and `setup.pcap`.
-
-**Pass:** the count is 0, and the capture has traffic to `192.168.4.1`, including `ol-config`.
-
-#### HW-F8: Refuse an expired token
-
-Tokens are valid for 24 hours.
-
-1. Issue a token with **Restart provisioning**, and keep it for more than 24 hours. On a bench database only, you can make it old instead:
-
-   ```bash
-   docker compose exec db psql -U sail -d locker -c "update locker_banks set provisioning_token_issued_at = now() - interval '25 hours' where id='<uuid>'"
-   ```
-
-2. Commission with it.
-3. Look for the refusal:
-
-   ```bash
-   grep 'No LockerBank found' storage/logs/laravel.log | tail -2
-   ```
-
-4. Issue a fresh token, and commission with it.
-
-**Pass:** the old token is refused, and the fresh one enrolls the unit.
-
 ### Group H step by step
 
 **The backend must be reachable over HTTPS with a certificate from a public CA.** The backend refuses to send a link that is not `https://`, and the firmware checks the certificate against its built-in CA bundle. A local `http://` backend cannot run this group.
@@ -555,41 +509,40 @@ To start an update, use **Update firmware** on the bank. The backend checks only
 
 The backend refuses a new update while one is in flight, and it times out an update that it hears nothing about after 30 minutes. Allow for that wait when a check cuts power or the network.
 
-#### HW-H1: Flash a blank board with the signed image
+#### HW-H1: Confirm the run started on a signed image
 
-`unlock` is refused once the unit is enrolled, so run HW-A1 and HW-A6 before you commission it.
+There is no repeat run, because the rest of the run already covers it on this image.
 
-1. [Erase the unit](/dokumentation/esp32/maintenance/#erase-a-unit-completely), and [flash the signed image](/dokumentation/esp32/flashing/#flash-the-firmware).
-2. Run the bench checks:
+1. Check that you started this run from a board you erased and flashed with the signed image, and that `--image` is `build/locker-firmware-signed.bin`.
+2. Check that the bank's **Firmware** shows that image's version.
 
-   ```bash
-   python scripts/hwtest.py run --port COM3 --image build/locker-firmware-signed.bin --only A1,A6
-   ```
+**Pass:** both are true. If you flashed anything else during the run, start again from a blank board.
 
-3. Commission the unit.
-4. Do HW-C4, HW-D2 and HW-D4 again.
+#### HW-H2 and HW-H9: Update an idle unit and check its memory
 
-**Pass:** all of them pass, and the bank shows the signed image's version.
-
-#### HW-H2: Update an idle unit
+`hwtest.py` asks once and records the answer for both. `min_free_heap` is the lowest value since boot, so a value read after a download includes it.
 
 1. Make and upload a new release.
-2. Start the update, and wait for the unit to restart.
+2. Start the update.
+3. Run `diagnostics` when the console shows `verified`, before the unit restarts.
+4. Wait for the unit to restart.
 
-**Pass:** **Firmware** shows the new version, and **Firmware update** shows completed after its trial.
+**Pass:** **Firmware** shows the new version, **Firmware update** shows completed after its trial, and `owner_stack_free` is at least the value recorded in HW-C9. Write both `diagnostics` values in the note.
 
-#### HW-H3: Open during an update and during a trial
+#### HW-H3 and HW-H11: Open during an update and read the journal after a rollback
 
-This releases the lock, so stay at the cabinet. The way to force a rollback in part 2 is a suggestion, because the check does not say how.
+`hwtest.py` asks once and records the answer for both. This releases the lock, so stay at the cabinet. The way to force a rollback is a suggestion, because the check does not say how.
 
 1. Start an update, and wait for `downloading firmware`.
 2. Choose **Open** on compartment 1. The lock should release once, and the response should be logged.
 3. Let the update finish.
 4. Start another update. When the console shows the restart, switch off the panel's power, so the new image cannot reach the bus.
 5. When the bank is online again, choose **Open** on compartment 1 during the 180-second trial.
-6. Wait for the rollback, then restore the panel's power.
+6. Wait for the rollback, and find that open's `transaction_id` in the log.
+7. [Send it again](#hw-h6-and-hw-h8-roll-back-and-keep-identity-mapping-and-journal). The older image should answer with its stored result and not unlock.
+8. Restore the panel's power, and choose **Open** on compartment 1.
 
-**Pass:** each open gets exactly one response, and none is lost. The second result is a failure, because the panel had no power.
+**Pass:** each open gets exactly one response and none is lost, the replay does not unlock, and the new open releases the lock once. The result during the trial is a failure, because the panel had no power.
 
 #### HW-H4: Refuse bad signatures
 
@@ -621,14 +574,28 @@ This releases the lock, so stay at the cabinet. The way to force a rollback in p
 
 **Pass:** the old version keeps running both times, and the backend shows both updates failed.
 
-#### HW-H6: Roll back when the broker is unreachable
+#### HW-H6 and HW-H8: Roll back and keep identity, mapping and journal
 
-1. Upload a new release, and start the update.
-2. As soon as the console shows `verified`, stop the broker with `docker compose stop mqtt`.
-3. Wait more than 180 seconds after the unit restarts. It should restart again, into the old version.
-4. Start the broker with `docker compose start mqtt`.
+`hwtest.py` asks once and records the answer for both. HW-H8 covers an update and a rollback, so do steps 2 to 6 twice: once after HW-H2 finished, before you start here, and once at the end. This releases the lock, so stay at the cabinet.
 
-**Pass:** the unit returned by itself, **Firmware** shows the old version, and **Firmware update** shows failed with reason rollback.
+1. Run the MQTT user query from HW-C7 and note the user. Find the `transaction_id` of a completed open in the log.
+2. Run `status`. It should show `enrolled=1`.
+3. Run the query again. The MQTT user should be the same.
+4. Run `diagnostics` and note `unlock_transmissions`.
+5. Send that open again with a new `message_id`. The unit should answer with its stored result and not unlock.
+
+   ```bash
+   docker compose exec mqtt mosquitto_pub -h localhost -u laravel_backend -P "$BROKER_PASSWORD" -q 1 -t locker/<uuid>/command -m '{"message_id":"<new uuid>","transaction_id":"<transaction id>","action":"open_compartment","timestamp":"<now, ISO 8601>","data":{"compartment_number":1}}'
+   ```
+
+6. Run `diagnostics` again, then choose **Open** on compartment 1.
+7. Upload a new release, and start the update.
+8. As soon as the console shows `verified`, stop the broker with `docker compose stop mqtt`.
+9. Wait more than 180 seconds after the unit restarts. It should restart again, into the old version.
+10. Start the broker with `docker compose start mqtt`, and wait for online.
+11. Do steps 2 to 6 again.
+
+**Pass:** the unit returned by itself, **Firmware** shows the old version, **Firmware update** shows failed with reason rollback. Both times, the user is the same, one stored response comes back, the counter did not rise from the replay, and the compartment still opens.
 
 #### HW-H7: Cut power while writing an image
 
@@ -642,35 +609,6 @@ The backend refuses a retry until the previous update times out, so ten rounds t
 
 **Pass:** it boots a valid image and goes online every time.
 
-#### HW-H8: Keep identity, mapping and journal
-
-Do this after HW-H2 and again after HW-H6.
-
-1. Before the update, run the query from HW-E5 and note the MQTT user.
-2. Find the `transaction_id` of a completed open in the log.
-3. After the update, run `status`. It should show `enrolled=1`.
-4. Run the query from HW-E5. The MQTT user should be the same. Then run `diagnostics` and note `unlock_transmissions`.
-5. Send that open again with a new `message_id`. The unit should answer with its stored result and not unlock.
-
-   ```bash
-   docker compose exec mqtt mosquitto_pub -h localhost -u laravel_backend -P "$BROKER_PASSWORD" -q 1 -t locker/<uuid>/command -m '{"message_id":"<new uuid>","transaction_id":"<transaction id>","action":"open_compartment","timestamp":"<now, ISO 8601>","data":{"compartment_number":1}}'
-   ```
-
-6. Run `diagnostics`. `unlock_transmissions` counts since boot, so compare it with its value just before step 5.
-7. Choose **Open** on compartment 1. This releases the lock, so stay at the cabinet.
-
-**Pass:** the user is the same, one stored response comes back, the counter did not rise from the replay, and the mapped compartment still opens.
-
-#### HW-H9: Check memory during a download
-
-`min_free_heap` is the lowest value since boot, so a value read after a download includes it.
-
-1. Restart the unit, and wait for online.
-2. Start an update.
-3. Run `diagnostics` when the console shows `verified`, before the unit restarts.
-
-**Pass:** `owner_stack_free` is at least the value recorded in HW-C9. Write both `diagnostics` values in the note.
-
 #### HW-H10: Boot an app from the next ESP-IDF patch
 
 The unit keeps the bootloader you flashed over USB.
@@ -681,15 +619,6 @@ The unit keeps the bootloader you flashed over USB.
 **Pass:** the unit boots the new image, and **Firmware** shows its version.
 
 If no newer patch release exists yet, choose **Not run** and say so in the PR. `hwtest.py check` keeps failing until this check passes or is deferred.
-
-#### HW-H11: Read the journal after a rollback
-
-1. Follow HW-H3 part 2, so that an image on trial handles an open and then rolls back.
-2. Find that open's `transaction_id` in the log.
-3. Send it again, as in HW-H8.
-4. Restore the panel's power, and choose **Open** on compartment 1.
-
-**Pass:** the older image answers with the stored result and does not unlock, then a new open releases the lock once.
 
 ## Why the deferred checks are deferred
 
