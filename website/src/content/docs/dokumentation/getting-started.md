@@ -99,6 +99,10 @@ The client needs a `config/locker-config.yml` and a `.env` with a
 `PROVISIONING_TOKEN`. Hardware details are listed in the
 [Bill of Materials](https://github.com/Open-Locker/Open-Locker/blob/main/docs/Bill-of-Materials.md).
 
+## ESP32 firmware
+
+See [Develop the ESP32 firmware](/dokumentation/esp32-development/).
+
 ## Website
 
 ```bash

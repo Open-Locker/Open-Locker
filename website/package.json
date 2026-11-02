@@ -7,12 +7,15 @@
     "dev": "astro dev",
     "build": "astro build",
     "preview": "astro preview",
-    "astro": "astro"
+    "astro": "astro",
+    "test:contrast": "node scripts/check-contrast.mjs"
   },
   "dependencies": {
     "@astrojs/starlight": "^0.36.3",
     "@lucide/astro": "^0.563.0",
-    "astro": "^5.17.1"
+    "astro": "^5.17.1",
+    "astro-mermaid": "^2.1.0",
+    "mermaid": "^11.17.2"
   },
   "devDependencies": {
     "@astrojs/mdx": "^4.3.13",
@@ -20,6 +23,8 @@
     "@tailwindcss/typography": "^0.5.19",
     "@tailwindcss/vite": "^4.1.18",
     "@types/node": "^25.2.0",
+    "axe-core": "^4.14.0",
+    "playwright-core": "^1.64.1",
     "tailwindcss": "^4.1.18"
   }
 }

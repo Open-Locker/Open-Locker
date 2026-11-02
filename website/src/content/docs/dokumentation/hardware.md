@@ -10,7 +10,7 @@ test cabinet build.
 
 It reflects the hardware used in the current Raspberry Pi based setup and
 documents the cabinet-independent electrical parts first. An ESP-based build is
-planned, but it is not yet built or validated.
+planned, but it is not yet validated.
 
 ## Scope
 
@@ -57,7 +57,9 @@ This is the currently used and validated build profile.
 
 ### ESP-Based Build
 
-This build profile is planned, but not yet built or validated.
+This build profile is planned, but not yet validated. Separate from the plan below, there is
+[bench firmware for an ESP32 with an RS485 lock panel](/dokumentation/esp32/), which uses other parts
+than this page lists.
 
 One reason for planning this variant is that the Raspberry Pi based setup was
 not always reliable in our tests and occasionally dropped out.

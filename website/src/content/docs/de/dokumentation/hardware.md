@@ -10,7 +10,7 @@ Open-Locker-Testschrank.
 
 Es basiert auf der aktuell eingesetzten Raspberry-Pi-Variante und dokumentiert
 zunächst die schrankunabhängigen elektrischen Komponenten. Eine ESP-basierte
-Variante ist geplant, aber noch nicht aufgebaut oder validiert.
+Variante ist geplant, aber noch nicht validiert.
 
 ## Geltungsbereich
 
@@ -60,7 +60,9 @@ Dies ist die derzeit eingesetzte und validierte Build-Variante.
 
 ### ESP-Variante
 
-Diese Build-Variante ist geplant, aber noch nicht aufgebaut oder validiert.
+Diese Build-Variante ist geplant, aber noch nicht validiert. Unabhängig vom folgenden
+Plan gibt es [Bench-Firmware für einen ESP32 mit RS485-Schlosspanel](/de/dokumentation/esp32/)
+die andere Teile verwendet, als diese Seite auflistet.
 
 Auf Schrankseite bleiben voraussichtlich weitgehend gleich:
 

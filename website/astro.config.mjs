@@ -3,6 +3,7 @@ import { defineConfig } from 'astro/config';
 import mdx from '@astrojs/mdx';
 import sitemap from '@astrojs/sitemap';
 import starlight from '@astrojs/starlight';
+import mermaid from 'astro-mermaid';
 import tailwindcss from '@tailwindcss/vite';
 
 // https://astro.build/config
@@ -26,15 +27,42 @@ export default defineConfig({
 		routing: { prefixDefaultLocale: false },
 	},
 	integrations: [
+		// Must come before Starlight so it sees the mermaid code blocks.
+		// The site is always light, so the diagrams are too.
+		mermaid({ theme: 'default', autoTheme: false }),
 		starlight({
 			title: 'Open Locker',
 			logo: { src: './public/logo-open-locker.svg' },
 			customCss: ['./src/styles/starlight-custom.css'],
+			// Slugs, not folders, so existing URLs and the German mirror stay unchanged.
 			sidebar: [
+				'dokumentation',
+				'dokumentation/vision',
 				{
-					label: 'Documentation',
-					translations: { de: 'Dokumentation' },
-					autogenerate: { directory: 'dokumentation' },
+					label: 'Build & run a locker',
+					translations: { de: 'Locker aufbauen & betreiben' },
+					items: [
+						'dokumentation/hardware',
+						{
+							label: 'ESP32 controller',
+							translations: { de: 'ESP32-Controller' },
+							autogenerate: { directory: 'dokumentation/esp32' },
+						},
+						'dokumentation/operations',
+					],
+				},
+				{
+					label: 'Develop',
+					translations: { de: 'Entwickeln' },
+					items: [
+						'dokumentation/getting-started',
+						'dokumentation/architecture',
+						'dokumentation/esp32-development',
+						'dokumentation/esp32-internals',
+						'dokumentation/esp32-hardware-acceptance',
+						'dokumentation/contributing',
+						'dokumentation/reference',
+					],
 				},
 			],
 			social: [
@@ -43,6 +71,7 @@ export default defineConfig({
 			],
 			components: {
 				Header: './src/components/Header.astro',
+				ThemeProvider: './src/components/ThemeProvider.astro',
 				ThemeSelect: './src/components/EmptyThemeSelect.astro',
 				LanguageSelect: './src/components/LanguageSelect.astro',
 				SocialIcons: './src/components/SocialIcons.astro',
