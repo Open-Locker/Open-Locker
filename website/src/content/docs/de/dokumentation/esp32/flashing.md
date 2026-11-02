@@ -200,6 +200,12 @@ Eine neue Einheit startet mit einem leeren Chip:
 idf.py -p COM3 erase-flash
 ```
 
+Mit dem Docker-Setup stattdessen `esptool` auf dem Laptop verwenden:
+
+```bash
+python -m esptool --port COM3 erase-flash
+```
+
 :::danger[Eine registrierte Einheit löschen]
 Löschen entfernt alles: WLAN-Einstellungen, die MQTT-Identität der Einheit, die Fachzuordnung und das
 Kommando-Journal. Eine registrierte Einheit kann sich danach nicht mehr verbinden. Die Provisionierung des
@@ -271,12 +277,8 @@ Image und ist für eine solche Einheit also ungeeignet.
 
 ```bash
 cd build
-python -m esptool --chip esp32 -p COM3 -b 460800 --before default-reset --after hard-reset write-flash \
-  --flash-mode dio --flash-size keep --flash-freq 40m \
-  0x1000 bootloader/bootloader.bin \
-  0xc000 partition_table/partition-table.bin \
-  0x13000 ota_data_initial.bin \
-  0x20000 locker-firmware-signed.bin
+python -m esptool --chip esp32 -p COM3 -b 460800 --before default-reset --after hard-reset write-flash --flash-mode dio --flash-size keep --flash-freq 40m 0x1000 bootloader/bootloader.bin 0xc000 partition_table/partition-table.bin 0x13000 ota_data_initial.bin 0x20000 locker-firmware-signed.bin
+cd ..
 ```
 
 **Ein unsigniertes Image, nur für eine Bench-Einheit.** In einer ESP-IDF-Shell direkt nach dem Build:
@@ -291,6 +293,7 @@ Datei nennt jede unsignierte Datei mit ihrer Adresse:
 ```bash
 cd build
 python -m esptool --chip esp32 -p COM3 -b 460800 write-flash "@flash_args"
+cd ..
 ```
 
 Schlägt es mit `Failed to connect` fehl, die **BOOT**-Taste des Boards (falls vorhanden) gedrückt halten,

@@ -10,7 +10,7 @@ const root = kind === 'ram' ? ramTree() : flashTree();
 const children = regions(root);
 ---
 
-<firmware-memory data-memory={kind} aria-label={`${kind === 'ram' ? 'RAM' : 'Flash'} explorer`}>
+<firmware-memory data-memory={kind} role="group" aria-label={`${kind === 'ram' ? 'RAM' : 'Flash'} explorer`}>
 	<div class="memory-heading">
 		<h2 title={`Production config · ESP-IDF 6.1 · ${snapshot.commit}`}>
 			{kind === 'ram' ? 'RAM · 520 KiB + 16 KiB RTC' : 'Flash · 4 MiB'}
@@ -28,7 +28,7 @@ const children = regions(root);
 			{children.map((node) => <option value={node.id}>{node.label} · {formatBytes(node.bytes)}</option>)}
 		</select>
 	</div>
-	<div class="memory-map" data-map aria-label={`${kind} treemap`}>
+	<div class="memory-map" data-map role="group" aria-label={`${kind} treemap`}>
 		{layout(children).map(({ node, x, y, width, height }) => (
 			<button type="button" data-select={node.id} data-kind={node.id === 'journal' ? 'dynamic' : node.kind} class="memory-tile"
 				data-small={String(width < 20 || height < 14)} data-tiny={String(width < 5 || height < 3)}

@@ -51,7 +51,7 @@ the log. To read the log, run `idf.py -p COM3 monitor` and restart the unit.
 
 | What you see | Cause | Fix |
 | --- | --- | --- |
-| Log: `the command journal is not healthy: commands are refused until it is erased` | A corrupt record, a failed flash write or erase, or a missing `journal` partition. A power cut does not cause this. Nothing actuates until it is fixed | Erase the partition, see below, and commission again |
+| Log: `the command journal is not healthy: commands are refused until it is erased` | A corrupt record, a failed flash write or erase, or a missing `journal` partition. A power cut does not cause this. Nothing actuates until it is fixed | Erase the partition, see below. Then [reset the unit](/dokumentation/esp32/maintenance/#reset-a-unit), choose **Restart provisioning** and commission it again |
 | Commands refused with `UNKNOWN_ERROR` | 32 responses are waiting for the broker | Fix the broker connection. Stored responses are delivered first, which clears the limit |
 
 To erase the journal:

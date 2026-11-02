@@ -295,7 +295,7 @@ Ein fehlgeschlagenes Öffnen nicht mit `queue:retry` wiederholen. Das würde das
 
 `hwtest.py` fragt einmal und speichert die Antwort für beide. Ein falsches Token muss genau eine Ablehnung und keine Wiederholung auslösen. Nach einem Reset muss der alte MQTT-Benutzer widerrufen sein, und ein echtes Token muss die Einheit registrieren.
 
-1. Den aktuellen MQTT-Benutzer notieren, mit `DB_USERNAME` und `DB_DATABASE` aus `.env`:
+1. Den aktuellen MQTT-Benutzer notieren. Die Befehle auf dieser Seite nutzen die Standardwerte für `DB_USERNAME` (`sail`) und `DB_DATABASE` (`locker`). Weicht die `.env` ab, diese ersetzen:
 
    ```bash
    docker compose exec db psql -U sail -d locker -Atc "select username,enabled,revoked_at from mqtt_users where locker_bank_id='<uuid>'"
@@ -581,10 +581,11 @@ Es gibt keinen erneuten Lauf, weil der Rest des Laufs das auf diesem Image berei
 2. `status` ausführen. Es sollte `enrolled=1` zeigen.
 3. Die Abfrage erneut ausführen. Der MQTT-Benutzer sollte derselbe sein.
 4. `diagnostics` ausführen und `unlock_transmissions` notieren.
-5. Dieses Öffnen mit einer neuen `message_id` erneut senden. Die Einheit sollte ihr gespeichertes Ergebnis antworten und nicht freigeben.
+5. Dieses Öffnen mit einer neuen `message_id` erneut senden. Die Einheit sollte ihr gespeichertes Ergebnis antworten und nicht freigeben. Zuerst die beiden Werte aus `locker-backend/.env` in dieser Shell setzen:
 
    ```bash
-   docker compose exec mqtt mosquitto_pub -h localhost -u laravel_backend -P "$BROKER_PASSWORD" -q 1 -t locker/<uuid>/command -m '{"message_id":"<neue uuid>","transaction_id":"<transaction id>","action":"open_compartment","timestamp":"<jetzt, ISO 8601>","data":{"compartment_number":1}}'
+   export BROKER_USER=<MQTT_USERNAME> BROKER_PASSWORD=<MQTT_PASSWORD>
+   docker compose exec mqtt mosquitto_pub -h localhost -u "$BROKER_USER" -P "$BROKER_PASSWORD" -q 1 -t locker/<uuid>/command -m '{"message_id":"<neue uuid>","transaction_id":"<transaction id>","action":"open_compartment","timestamp":"<jetzt, ISO 8601>","data":{"compartment_number":1}}'
    ```
 
 6. `diagnostics` erneut ausführen, dann **Öffnen** für Fach 1 wählen.

@@ -13,7 +13,8 @@ Accepted
 The firmware connects to the public broker, which terminates TLS at Traefik
 (ADR-0053). Bench work runs against a local Mosquitto with no certificate. A
 unit in the field must not be able to fall back to clear text, whoever has
-access to its USB console or setup network.
+access to its USB console or setup network, or through an over-the-air update.
+This does not cover someone who flashes another image over USB.
 
 ## Decision
 
@@ -69,7 +70,8 @@ portal; a runtime flag could.
 - A development build flashed onto a deployed unit allows plain MQTT. Signed
   images ([ADR-0084](0084-esp32-firmware-image-signing.md)) stop such a build
   arriving over the air; only secure boot, which is not planned yet, stops it
-  over USB.
+  over USB. Secure boot or equivalent control of USB flashing is therefore a
+  prerequisite for a production release.
 
 ## Rollout / Migration
 

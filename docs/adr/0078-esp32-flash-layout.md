@@ -42,7 +42,7 @@ moved to `0xC000` so the bootloader has 44 KB.
 The first firmware's hardware tests run on the layout that ships. Two OTA slots
 without a factory slot use the app space fully, and rollback never uses a
 factory image. The moved table gives the bootloader room for rollback, signature
-checks and secure boot: it has about 2.7 KB of headroom below the default
+checks and secure boot: it has about 2.3 KiB of headroom below the default
 `0x8000`.
 
 ## Alternatives Considered
@@ -51,7 +51,7 @@ checks and secure boot: it has about 2.7 KB of headroom below the default
 
 - Pros: a "last resort" image.
 - Cons: slots of about 1.1 MB, 9 % above the image at the time; the bootloader
-  keeps 2.7 KB of headroom; rollback never uses the factory image.
+  keeps 2.3 KiB of headroom; rollback never uses the factory image.
 - Why not chosen: no unit is deployed, so keeping offsets buys nothing.
 
 ## Consequences

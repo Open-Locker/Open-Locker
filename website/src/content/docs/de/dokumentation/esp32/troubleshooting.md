@@ -51,7 +51,7 @@ Das Beobachtete in den Tabellen unten suchen. Zitierter Text ist die genaue Meld
 
 | Beobachtung | Ursache | Lösung |
 | --- | --- | --- |
-| Log: `the command journal is not healthy: commands are refused until it is erased` | Ein beschädigter Eintrag, ein fehlgeschlagener Flash-Schreib- oder Löschvorgang oder eine fehlende `journal`-Partition. Ein Stromausfall verursacht das nicht. Bis zur Behebung wird nichts ausgelöst | Partition löschen, siehe unten, und erneut in Betrieb nehmen |
+| Log: `the command journal is not healthy: commands are refused until it is erased` | Ein beschädigter Eintrag, ein fehlgeschlagener Flash-Schreib- oder Löschvorgang oder eine fehlende `journal`-Partition. Ein Stromausfall verursacht das nicht. Bis zur Behebung wird nichts ausgelöst | Partition löschen, siehe unten. Dann die [Einheit zurücksetzen](/de/dokumentation/esp32/maintenance/#einheit-zurücksetzen), **Restart provisioning** wählen und sie erneut in Betrieb nehmen |
 | Kommandos werden mit `UNKNOWN_ERROR` abgelehnt | 32 Antworten warten auf den Broker | Broker-Verbindung reparieren. Gespeicherte Antworten werden zuerst zugestellt, das hebt die Grenze auf |
 
 Journal löschen:
