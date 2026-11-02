@@ -1,0 +1,18 @@
+---
+title: Flash & RAM
+description: Interactive ESP32 flash and RAM allocation charts.
+tableOfContents: false
+prev: false
+next: false
+sidebar:
+  order: 11
+---
+
+import FirmwareMemory from '../../../../components/FirmwareMemory.astro';
+
+Select a tile to see what takes up the chip's flash and RAM. The numbers come from one measured build of the
+production configuration, so a later build can differ. The [Reference](/dokumentation/esp32/reference/#flash-layout)
+lists the partitions as a table.
+
+<FirmwareMemory />
+<FirmwareMemory kind="ram" />
