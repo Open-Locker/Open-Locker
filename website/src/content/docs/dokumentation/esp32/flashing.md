@@ -44,8 +44,9 @@ flowchart TD
 ## Before you start
 
 - **The board:** an ESP32 D1 mini or another ESP32 (target `esp32`) with
-  **4 MB flash** and chip **revision 3.0 or later**. The flash layout assumes
-  exactly 4 MB, and the firmware's image signing needs that revision.
+  **at least 4 MB flash** and chip **revision 3.0 or later**. The flash layout
+  uses the first 4 MB, and the firmware's image signing needs that revision.
+  See [Choose a chip](/dokumentation/esp32/parts/#choose-a-chip).
 - **A USB data cable.** Many cheap cables only charge. If the laptop does not
   see a new serial port when you plug the board in, try another cable first.
 - **A USB-serial driver**, if your system needs one. The bench board uses a
@@ -199,7 +200,7 @@ python -m esptool --port COM3 flash-id
 ```
 
 The output should show `revision v3.0` or later under `Chip type:`, and
-`Detected flash size: 4MB`.
+`Detected flash size: 4MB` or larger.
 
 ## Erase the flash
 
@@ -340,7 +341,7 @@ flowchart LR
         idf["«artifact» firmware image<br/>(ESP-IDF 6.1 or Docker)"]
         esptool["«artifact» esptool or idf.py"]
     end
-    subgraph esp["«device» ESP32, 4 MB flash"]
+    subgraph esp["«device» ESP32, at least 4 MB flash"]
         boot["bootloader"]
         pt["partition table @ 0xC000"]
         ota["otadata"]
@@ -377,7 +378,7 @@ in service, see [Maintain and reset](/dokumentation/esp32/maintenance/#update-th
 | No new serial port appears | Charge-only cable, or missing USB-serial driver | Try another cable; install the driver for the board's chip |
 | `Permission denied` on the port (Linux) | Not in the `dialout` group | `sudo usermod -aG dialout $USER`, then log in again |
 | `Failed to connect to ESP32` | Board did not enter download mode | Hold **BOOT** while connecting, or use `-b 115200` |
-| Flash size is not 4 MB | Different board | Use a board with 4 MB flash; the layout cannot change |
+| Flash size is below 4 MB | Different board | Use a board with at least 4 MB flash; the layout does not fit in less |
 | Chip revision is below v3.0 | Older chip | Use a newer board; the build's minimum is revision 3.0 |
 | `is inside the repository; keep signing keys outside it` | The key path is in the repository | Move the key outside the repository |
 | `LC_FIRMWARE_VERSION is '...', which is not a version the firmware accepts.` | For example a leading `v`, or `0.2` | Use a version like `0.2.0` or `0.2.0-rc.1` |

@@ -127,12 +127,16 @@ Die Grenzen von `commission.py` für Werte:
 - **Das Broker-Zertifikat muss auf eine öffentliche CA** im eingebauten Bundle zurückgehen. Zertifikats- und Hostnamen-Prüfung lassen sich nicht
   abschalten. Eine private CA muss in den Build aufgenommen werden.
 - **Ein Kommando ohne freien Slot wird verworfen und protokolliert**, wenn alle 32 Slots belegt sind, und das Backend läuft in den Timeout.
-- **Nicht an Hardware bestätigt:** die Versorgungsspannung des Panels und das Schlossmodell.
+- **Nicht geklärt:** das Schlossmodell sowie Modell und Kenndaten des Spannungswandlers.
+
+Die Anzahlen für Kommandos, Antworten und Fächer oben sind Einstellungen der Firmware, keine Grenzen des Chips. Ein Chip mit mehr Flash oder RAM würde sie
+also nicht von selbst erhöhen. Kommandos laufen außerdem nacheinander, eine längere Warteschlange würde das letzte Kommando also nur später ausführen.
 
 ## Flash-Layout
 
 Das Layout ist fest ([ADR-0078](https://github.com/Open-Locker/Open-Locker/blob/main/docs/adr/0078-esp32-flash-layout.md)) und lässt sich nicht
-Over-the-Air ändern. Die Partitionstabelle liegt bei `0xC000`, der Bootloader beginnt bei `0x1000`.
+Over-the-Air ändern. Es nutzt die ersten 4 MB des Flash. Ein größerer Chip sollte es ausführen und den Rest ungenutzt lassen, an einem Board wurde das
+aber noch nicht ausprobiert. Die Partitionstabelle liegt bei `0xC000`, der Bootloader beginnt bei `0x1000`.
 
 | Partition | Offset | Größe | Inhalt |
 | --- | --- | --- | --- |

@@ -17,7 +17,9 @@ flowchart LR
     button[Reset-Taster] -- "GPIO 4 und GND" --> esp
     esp -- "GPIO 17 an RXD<br/>GPIO 16 an TXD<br/>3V3 an VCC, GND an GND" --> xy[XY-485-Wandler]
     xy -- "A an A, B an B" --> panel[SY-800R-Schlosspanel<br/>Board-Adresse 1]
-    psu[Panel-Netzteil] --> panel
+    psu[12-V-Netzteil] -- "12 V" --> panel
+    psu -- "12 V" --> power[Spannungswandler]
+    power -- "Dauerhafte Versorgung" --> esp
     panel -- "Kanal 1" --> lock[Schloss mit Türrückmeldung]
 ```
 
@@ -51,16 +53,24 @@ Der Build lehnt Strapping-, Flash-, Input-only-, Konsolen- und RS485-Pins ab.
 
 ## Stromversorgung
 
-- **Panel und Schlösser:** Das Panel hat eine eigene Versorgung. Ihre Spannung ist in diesem Projekt
-  nicht geklärt, also der Dokumentation des Verkäufers entnehmen.
-- **ESP32 und Wandler:** Am Prüfaufbau versorgt das USB-Kabel den ESP32, und 3V3 des ESP32 versorgt den
-  Wandler. Eine dauerhafte Versorgung für den ESP32 wurde noch nicht entworfen.
+- **Panel und Schlösser:** Das Panel des Prüfaufbaus hängt direkt an einem 12-V-Netzteil. Bei einem anderen Panel
+  die Spannung in der Dokumentation des Verkäufers prüfen.
+- **ESP32:** Am Prüfaufbau verbindet ein Spannungswandler den ESP32 mit demselben 12-V-Netzteil. Niemals
+  12 V direkt an das ESP32-Board anschließen: Prüfen, ob die Ausgangsspannung des Spannungswandlers zum
+  Versorgungspin des Boards passt. Modell und Kenndaten des Spannungswandlers sind noch nicht dokumentiert, und
+  dies ist ein Prüfaufbau, keine entworfene Versorgung für einen Schrank.
+- **USB:** Die Seiten zum Flashen und zum Bench-Test schalten die Panelversorgung aus, in diesen Schritten muss
+  also USB den ESP32 versorgen. Vor dem gleichzeitigen Anschluss von USB und Spannungswandler die Dokumentation
+  des Boards prüfen.
+- **RS485-Wandler:** 3V3 des ESP32 versorgt den XY-485.
 - **Freilaufdioden:** Die [Hardwareliste](/de/dokumentation/hardware/) empfiehlt beim Raspberry-Pi-Aufbau
   eine 1N4007 an jedem 12-V-Schloss. Ob dieses Panel sie braucht, wurde nicht getestet.
 
 ## Vor dem Einschalten
 
-- [ ] Die Spannung der Panelversorgung passt zu Panel und Schlössern. Nachmessen.
+- [ ] Das Netzteil liefert gemessen 12 V, und das passt zu Panel und Schlössern.
+- [ ] Die Ausgangsspannung des Spannungswandlers passt zum Versorgungspin des ESP32-Boards.
+      Vor dem Anschluss des ESP32 nachmessen.
 - [ ] A geht an A und B an B.
 - [ ] RXD und TXD sind nicht vertauscht. GPIO 17 geht an RXD.
 - [ ] VCC des Wandlers geht an 3V3, sein GND an GND des ESP32.

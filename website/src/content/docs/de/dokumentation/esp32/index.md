@@ -21,7 +21,7 @@ sie auslesen. Eine geflashte Einheit nicht unbeaufsichtigt lassen.
 | --- | --- | --- |
 | **Status** | Der [validierte Aufbau](/de/dokumentation/hardware/) | Bench-Firmware |
 | **Schlosshardware** | Waveshare-Modbus-Relaisboard oder RS485-Schlosspanel | Nur RS485-Schlosspanel, ein Panel pro Bus |
-| **Läuft als** | Docker-Image unter Linux | Firmware auf einem ESP32 mit 4 MB Flash |
+| **Läuft als** | Docker-Image unter Linux | Firmware auf einem ESP32 mit mindestens 4 MB Flash |
 | **Verbindet sich über** | [Client-Konfiguration und Token](/de/dokumentation/operations/) | Setup-WLAN vom Laptop aus, oder USB bei Bench-Builds |
 | **Updates** | Neues Image-Tag ziehen | Per USB neu flashen. Over-the-Air-Updates sind im Code vorhanden, liefen aber noch auf keinem Board |
 | **Zugangsdaten im Ruhezustand** | Im Dateisystem des Hosts | Unverschlüsselt auf dem Chip |

@@ -177,6 +177,35 @@ enthält den clang-Befehl, um es von Hand zu bauen.
 5. Den Use Case über `lc_app_handle_command` mit den Fakes testen, wie `tests/host/test_firmware_update.c`, und kodierte Antworten an `emit_message()` übergeben.
 6. Im Backend einen typisierten Publisher in `app/Mqtt/Publishers/` ergänzen und den Zustand aus der Antwort ableiten.
 
+## Auf einen anderen Chip portieren
+
+Die Firmware läuft nur auf dem klassischen ESP32, und die CI baut nur für `esp32`. Ein Chipwechsel ist eine Architekturentscheidung und braucht ein ADR. Mehr
+Speicher ist kein Grund zum Portieren: Die [Grenzen der Firmware sind ihre eigenen Einstellungen](/de/dokumentation/esp32/reference/#grenzen), und das Image lässt
+etwa 38 % seines Slots frei. Die Kandidaten stehen unter [Chip wählen](/de/dokumentation/esp32/parts/#chip-wählen).
+
+Ein Testbuild mit ESP-IDF 6.1 ohne Code-Änderungen ließ sich für beide dieser Targets kompilieren. Keiner lief auf einem Chip, das zeigt also nur, dass der Code
+kompiliert.
+
+| Target | Build | Image-Größe |
+| --- | --- | --- |
+| `esp32s3` | Erfolgreich | `0x120000` |
+| `esp32c3` | Erfolgreich | `0x140000` |
+
+Bekannte Arbeit, bevor die Firmware auf einem anderen Chip laufen könnte:
+
+- **Flash-Befehle:** Die Dokumentation legt den Bootloader auf `0x1000`. Auf S3 und C3 beginnt er bei `0x0`.
+- **Serieller Port:** `LC_RS485_UART_NUM` steht standardmäßig auf UART 2, den
+  [C3](https://documentation.espressif.com/esp32-c3_datasheet_en.html) und
+  [C6](https://documentation.espressif.com/esp32-c6_datasheet_en.html) nicht haben. Der Build läuft trotzdem durch, das würde also vermutlich erst zur Laufzeit
+  scheitern.
+- **Pins:** Die Pin-Bereiche in Kconfig und die Prüfung des Reset-Pins sind für den klassischen ESP32 geschrieben.
+- **Werkzeuge:** Das Setup-Werkzeug sucht einen CH9102-USB-Seriell-Chip, und die CI baut nur für `esp32`.
+- **Abnahme:** Die [Hardware-Prüfungen](/de/dokumentation/esp32-hardware-acceptance/) wiederholen, besonders die RAM-Nutzung mit TLS und die gesamte Gruppe H. Die
+  RAM-Angaben in dieser Dokumentation gelten nur für den klassischen ESP32.
+
+Braucht ein Chipwechsel auch ein größeres Journal, das vor der Auslieferung von Einheiten entscheiden. Ein größeres Journal bedeutet weniger Flash-Löschvorgänge,
+braucht aber ein neues Flash-Layout, das sich nicht Over-the-Air ändern lässt.
+
 ## Eine Änderung gegen ein lokales Backend ausführen
 
 Ein Development-Build kann über unverschlüsseltes `mqtt://` mit dem Mosquitto des lokalen Stacks sprechen. Dieser Weg lief von diesen Seiten aus noch nicht an einem
