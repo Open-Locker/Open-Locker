@@ -1,6 +1,7 @@
 ---
 import githubIcon from '../assets/GitHub_Invertocat_Black.svg';
 import discordIcon from '../assets/Discord-Symbol-Blurple.svg';
+import ThemeSwitch from './ThemeSwitch.astro';
 import { LINKS } from '../config/links';
 import { getLocaleFromUrl, localizePath, useTranslations, type Locale } from '../i18n';
 
@@ -19,7 +20,7 @@ const otherLocale: Locale = locale === 'de' ? 'en' : 'de';
 const switchHref = localizePath(Astro.url.pathname, otherLocale);
 ---
 
-<header class="sticky top-0 z-40 border-b border-slate-200/80 bg-white/80 backdrop-blur">
+<header class="sticky top-0 z-40 border-b border-line/80 bg-surface/80 backdrop-blur">
 	<div class="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3">
 		<a
 			href={home}
@@ -41,32 +42,32 @@ const switchHref = localizePath(Astro.url.pathname, otherLocale);
 				/>
 			</span>
 			<span class="flex flex-col leading-tight">
-				<span class="text-[15px] font-semibold tracking-[-0.02em] text-slate-900 md:text-base">
+				<span class="text-[15px] font-semibold tracking-[-0.02em] text-fg md:text-base">
 					Open Locker
 				</span>
-				<span class="hidden text-[11px] font-medium tracking-wide text-slate-500 sm:block md:text-xs">
+				<span class="hidden text-[11px] font-medium tracking-wide text-fg-subtle sm:block md:text-xs">
 					{copy.tagline}
 				</span>
 			</span>
 		</a>
 
 		<nav class="hidden items-center gap-1 text-sm md:flex" aria-label={copy.navAriaLabel}>
-			<a class="rounded-md px-3 py-2 text-slate-700 hover:text-slate-900 hover:bg-slate-100 focus-visible:ring-2 focus-visible:ring-blue-600" href={home}>
+			<a class="rounded-md px-3 py-2 text-fg-soft hover:text-fg hover:bg-surface-strong focus-visible:ring-2 focus-visible:ring-blue-600" href={home}>
 				{copy.start}
 			</a>
-			<a class="rounded-md px-3 py-2 text-slate-700 hover:text-slate-900 hover:bg-slate-100 focus-visible:ring-2 focus-visible:ring-blue-600" href={blogPath}>
+			<a class="rounded-md px-3 py-2 text-fg-soft hover:text-fg hover:bg-surface-strong focus-visible:ring-2 focus-visible:ring-blue-600" href={blogPath}>
 				{copy.blog}
 			</a>
-			<a class="rounded-md px-3 py-2 text-slate-700 hover:text-slate-900 hover:bg-slate-100 focus-visible:ring-2 focus-visible:ring-blue-600" href={docsPath}>
+			<a class="rounded-md px-3 py-2 text-fg-soft hover:text-fg hover:bg-surface-strong focus-visible:ring-2 focus-visible:ring-blue-600" href={docsPath}>
 				{copy.docs}
 			</a>
-			<a class="rounded-md px-3 py-2 text-slate-700 hover:text-slate-900 hover:bg-slate-100 focus-visible:ring-2 focus-visible:ring-blue-600" href={`${home}#mitmachen`}>
+			<a class="rounded-md px-3 py-2 text-fg-soft hover:text-fg hover:bg-surface-strong focus-visible:ring-2 focus-visible:ring-blue-600" href={`${home}#mitmachen`}>
 				{copy.join}
 			</a>
-			<a class="rounded-md px-3 py-2 text-slate-700 hover:text-slate-900 hover:bg-slate-100 focus-visible:ring-2 focus-visible:ring-blue-600" href={`${home}#kosten`}>
+			<a class="rounded-md px-3 py-2 text-fg-soft hover:text-fg hover:bg-surface-strong focus-visible:ring-2 focus-visible:ring-blue-600" href={`${home}#kosten`}>
 				{copy.pricing}
 			</a>
-			<a class="rounded-md px-3 py-2 text-slate-700 hover:text-slate-900 hover:bg-slate-100 focus-visible:ring-2 focus-visible:ring-blue-600" href={`${home}#kontakt`}>
+			<a class="rounded-md px-3 py-2 text-fg-soft hover:text-fg hover:bg-surface-strong focus-visible:ring-2 focus-visible:ring-blue-600" href={`${home}#kontakt`}>
 				{copy.contact}
 			</a>
 		</nav>
@@ -79,7 +80,7 @@ const switchHref = localizePath(Astro.url.pathname, otherLocale);
 				aria-controls="mobile-menu"
 				aria-label={copy.openMenuAriaLabel}
 				data-close-label={copy.closeMenuAriaLabel}
-				class="inline-flex h-10 w-10 items-center justify-center rounded-md text-slate-700 hover:bg-slate-100 hover:text-slate-900 focus-visible:ring-2 focus-visible:ring-blue-600 md:hidden"
+				class="inline-flex h-10 w-10 items-center justify-center rounded-md text-fg-soft hover:bg-surface-strong hover:text-fg focus-visible:ring-2 focus-visible:ring-blue-600 md:hidden"
 			>
 				<svg id="mobile-menu-icon-open" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
 					<path d="M4 6h16M4 12h16M4 18h16" />
@@ -89,11 +90,13 @@ const switchHref = localizePath(Astro.url.pathname, otherLocale);
 				</svg>
 			</button>
 
+			<ThemeSwitch />
+
 			<a
 				href={switchHref}
 				aria-label={copy.switchLabel}
 				title={copy.switchLabel}
-				class="inline-flex h-10 items-center justify-center rounded-md px-2 text-sm font-medium text-slate-700 hover:bg-slate-100 hover:text-slate-900 focus-visible:ring-2 focus-visible:ring-blue-600"
+				class="inline-flex h-10 items-center justify-center rounded-md px-2 text-sm font-medium text-fg-soft hover:bg-surface-strong hover:text-fg focus-visible:ring-2 focus-visible:ring-blue-600"
 			>
 				{otherLocale.toUpperCase()}
 			</a>
@@ -104,13 +107,13 @@ const switchHref = localizePath(Astro.url.pathname, otherLocale);
 				rel="noreferrer"
 				aria-label={copy.githubAriaLabel}
 				title="GitHub"
-				class="inline-flex h-10 w-10 items-center justify-center rounded-md text-slate-700 hover:bg-slate-100 hover:text-slate-900 focus-visible:ring-2 focus-visible:ring-blue-600"
+				class="inline-flex h-10 w-10 items-center justify-center rounded-md text-fg-soft hover:bg-surface-strong hover:text-fg focus-visible:ring-2 focus-visible:ring-blue-600"
 			>
 				<img
 					src={githubIcon.src}
 					width="20"
 					height="20"
-					class="h-5 w-5"
+					class="h-5 w-5 dark:invert"
 					alt=""
 					aria-hidden="true"
 					loading="lazy"
@@ -123,13 +126,13 @@ const switchHref = localizePath(Astro.url.pathname, otherLocale);
 				rel="noreferrer"
 				aria-label={copy.discordAriaLabel}
 				title="Discord"
-				class="inline-flex h-10 w-10 items-center justify-center rounded-md text-slate-700 hover:bg-slate-100 hover:text-slate-900 focus-visible:ring-2 focus-visible:ring-blue-600"
+				class="inline-flex h-10 w-10 items-center justify-center rounded-md text-fg-soft hover:bg-surface-strong hover:text-fg focus-visible:ring-2 focus-visible:ring-blue-600"
 			>
 				<img
 					src={discordIcon.src}
 					width="20"
 					height="20"
-					class="h-5 w-5 brightness-0"
+					class="h-5 w-5 brightness-0 dark:invert"
 					alt=""
 					aria-hidden="true"
 					loading="lazy"
@@ -140,25 +143,25 @@ const switchHref = localizePath(Astro.url.pathname, otherLocale);
 
 	<nav
 		id="mobile-menu"
-		class="hidden flex-col gap-1 border-t border-slate-200/80 bg-white px-4 py-3 md:hidden"
+		class="hidden flex-col gap-1 border-t border-line/80 bg-surface px-4 py-3 md:hidden"
 		aria-label={copy.navAriaLabel}
 	>
-		<a class="rounded-md px-3 py-2 text-slate-700 hover:text-slate-900 hover:bg-slate-100" href={home}>
+		<a class="rounded-md px-3 py-2 text-fg-soft hover:text-fg hover:bg-surface-strong" href={home}>
 			{copy.start}
 		</a>
-		<a class="rounded-md px-3 py-2 text-slate-700 hover:text-slate-900 hover:bg-slate-100" href={blogPath}>
+		<a class="rounded-md px-3 py-2 text-fg-soft hover:text-fg hover:bg-surface-strong" href={blogPath}>
 			{copy.blog}
 		</a>
-		<a class="rounded-md px-3 py-2 text-slate-700 hover:text-slate-900 hover:bg-slate-100" href={docsPath}>
+		<a class="rounded-md px-3 py-2 text-fg-soft hover:text-fg hover:bg-surface-strong" href={docsPath}>
 			{copy.docs}
 		</a>
-		<a class="rounded-md px-3 py-2 text-slate-700 hover:text-slate-900 hover:bg-slate-100" href={`${home}#mitmachen`}>
+		<a class="rounded-md px-3 py-2 text-fg-soft hover:text-fg hover:bg-surface-strong" href={`${home}#mitmachen`}>
 			{copy.join}
 		</a>
-		<a class="rounded-md px-3 py-2 text-slate-700 hover:text-slate-900 hover:bg-slate-100" href={`${home}#kosten`}>
+		<a class="rounded-md px-3 py-2 text-fg-soft hover:text-fg hover:bg-surface-strong" href={`${home}#kosten`}>
 			{copy.pricing}
 		</a>
-		<a class="rounded-md px-3 py-2 text-slate-700 hover:text-slate-900 hover:bg-slate-100" href={`${home}#kontakt`}>
+		<a class="rounded-md px-3 py-2 text-fg-soft hover:text-fg hover:bg-surface-strong" href={`${home}#kontakt`}>
 			{copy.contact}
 		</a>
 	</nav>
