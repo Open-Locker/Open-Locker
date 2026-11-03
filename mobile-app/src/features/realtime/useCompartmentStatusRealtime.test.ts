@@ -21,18 +21,26 @@ const mockConnection = {
 
 const mockChannel = { listen: () => mockChannel };
 
+const mockRealtime = { key: 'k', host: 'ws.locker.example.org', port: 443, scheme: 'https' };
+const mockIdentify: { data?: unknown; isLoading: boolean } = { isLoading: false };
+const mockCreateEcho = jest.fn();
+
 jest.mock('./echo', () => ({
-  createEcho: () => ({
-    private: () => mockChannel,
-    leave: () => undefined,
-    disconnect: () => calls.push('disconnect'),
-    connector: { pusher: { connection: mockConnection } },
-  }),
+  createEcho: (...args: unknown[]) => {
+    mockCreateEcho(...args);
+    return {
+      private: () => mockChannel,
+      leave: () => undefined,
+      disconnect: () => calls.push('disconnect'),
+      connector: { pusher: { connection: mockConnection } },
+    };
+  },
 }));
 
 jest.mock('@/src/store/generatedApi', () => ({
   openLockerApi: { util: { updateQueryData: jest.fn(), invalidateTags: jest.fn() } },
   useGetUserQuery: () => ({ data: { id: 7 } }),
+  useIdentifyQuery: () => mockIdentify,
 }));
 
 jest.mock('@/src/store/hooks', () => ({
@@ -46,6 +54,33 @@ describe('useCompartmentStatusRealtime', () => {
     calls.length = 0;
     handlers.clear();
     mockConnection.state = 'connecting';
+    mockIdentify.data = { realtime: mockRealtime };
+    mockIdentify.isLoading = false;
+  });
+
+  it('waits for the server to say where its Reverb runs before connecting', async () => {
+    mockIdentify.isLoading = true;
+
+    await renderHook(() => useCompartmentStatusRealtime());
+
+    expect(mockCreateEcho).not.toHaveBeenCalled();
+  });
+
+  it('connects to the Reverb server the selected server advertises', async () => {
+    await renderHook(() => useCompartmentStatusRealtime());
+
+    expect(mockCreateEcho).toHaveBeenCalledWith('token', mockRealtime);
+  });
+
+  it('shows live updates as paused instead of guessing a socket when none is advertised', async () => {
+    mockIdentify.data = { realtime: null };
+
+    await renderHook(() => useCompartmentStatusRealtime());
+
+    expect({
+      connected: mockCreateEcho.mock.calls.length,
+      dispatched: mockDispatch.mock.calls.at(-1)?.[0],
+    }).toEqual({ connected: 0, dispatched: realtimeConnectionChanged('unavailable') });
   });
 
   it('picks up a state the socket reached before the listener was bound', async () => {

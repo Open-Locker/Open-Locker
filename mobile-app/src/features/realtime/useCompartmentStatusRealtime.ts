@@ -2,7 +2,7 @@ import { skipToken } from '@reduxjs/toolkit/query';
 import { useEffect } from 'react';
 import { AppState } from 'react-native';
 
-import { openLockerApi, useGetUserQuery } from '@/src/store/generatedApi';
+import { openLockerApi, useGetUserQuery, useIdentifyQuery } from '@/src/store/generatedApi';
 import { useAppDispatch, useAppSelector } from '@/src/store/hooks';
 import { realtimeConnectionChanged, realtimeReset } from '@/src/store/realtimeSlice';
 
@@ -62,19 +62,33 @@ export function lockerBankChannelName(userId: number | string): string {
  * `door_state` is sourced only from the API and the door-state event, and
  * open-command feedback only from the open request's own status (ADR-0023) —
  * neither is derived from the other.
+ *
+ * The socket targets the Reverb server the selected API server advertises in
+ * `GET /identify`, so it waits for that answer. A server that advertises none
+ * gets no socket and the paused notice, never another server's Reverb (ADR-0087).
  */
 export function useCompartmentStatusRealtime(): void {
   const token = useAppSelector((state) => state.auth.token);
   const { data: user } = useGetUserQuery(token ? {} : skipToken);
   const userId = user?.id;
+  // Same `{}` args as the sign-in screen, so this is usually already cached.
+  const { data: identify, isLoading: isIdentifyLoading } = useIdentifyQuery(token ? {} : skipToken);
+  const advertisedReverb = identify?.realtime;
   const dispatch = useAppDispatch();
 
   useEffect(() => {
-    if (!token || userId == null) {
+    if (!token || userId == null || isIdentifyLoading) {
       return;
     }
 
-    const echo = createEcho(token);
+    if (!advertisedReverb) {
+      dispatch(realtimeConnectionChanged('unavailable'));
+      return () => {
+        dispatch(realtimeReset());
+      };
+    }
+
+    const echo = createEcho(token, advertisedReverb);
     const channelName = `users.${userId}.compartment-status`;
     // Account-level state rides the same socket. A second Echo instance would mean
     // a second websocket per session for one rare event.
@@ -172,7 +186,7 @@ export function useCompartmentStatusRealtime(): void {
       echo.disconnect();
       dispatch(realtimeReset());
     };
-  }, [token, userId, dispatch]);
+  }, [token, userId, isIdentifyLoading, advertisedReverb, dispatch]);
 }
 
 type PusherStateChangeHandler = (change: { current: string }) => void;

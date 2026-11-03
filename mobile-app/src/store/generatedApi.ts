@@ -264,6 +264,12 @@ export type IdentifyApiResponse = /** status 200  */ {
   identifier: "open-locker-backend";
   environment: string;
   timestamp: string;
+  realtime: {
+    key: string;
+    host: string;
+    port: number;
+    scheme: "https" | "http";
+  } | null;
 };
 export type IdentifyApiArg = {
   /** Preferred language for server-rendered strings (API messages, web pages, and request-triggered emails). Falls back to the application default when omitted or unsupported. */

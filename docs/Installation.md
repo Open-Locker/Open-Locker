@@ -383,13 +383,22 @@ pnpm test:ci
 ```
 
 Set `EXPO_PUBLIC_API_BASE_URL` in `.env` to the running backend, including the
-`/api` path. Reverb WebSocket scheme and port default from that URL (`http` →
-`:48080`, `https` → `wss` on `:443`) unless you set `EXPO_PUBLIC_REVERB_SCHEME`
-or `EXPO_PUBLIC_REVERB_PORT`. The socket host defaults to the API hostname; for
-production on `open-locker.cloud` set `EXPO_PUBLIC_REVERB_HOST=ws.open-locker.cloud`
-(Reverb is a separate Coolify service). Set `EXPO_PUBLIC_REVERB_KEY` to match
-backend `REVERB_APP_KEY` (use an EAS secret for store builds; do not commit it).
+`/api` path. The app needs no Reverb settings: it connects to the Reverb server
+the backend advertises in `GET /api/identify`, taken from the backend's
+`VITE_REVERB_APP_KEY`, `VITE_REVERB_HOST`, `VITE_REVERB_PORT` and
+`VITE_REVERB_SCHEME`. If those are unset, the app shows live updates as paused.
 Channel auth still uses the API host at `/broadcasting/auth`.
+
+The local Docker stack advertises `localhost` on the forwarded Reverb port
+(`FORWARD_REVERB_PORT`, default `8080`). An Android emulator or USB phone
+reaches it after forwarding that port, for example:
+
+```bash
+adb reverse tcp:8080 tcp:8080
+```
+
+For a phone on Wi-Fi without USB, set `VITE_REVERB_HOST` in the backend
+environment to the computer's LAN address instead.
 
 `pnpm start` targets an installed Expo development client. Build and launch one
 with `pnpm android` or `pnpm ios`. Use `pnpm start:go` only for the more limited

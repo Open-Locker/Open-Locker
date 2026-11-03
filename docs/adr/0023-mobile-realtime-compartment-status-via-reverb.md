@@ -170,7 +170,8 @@ ADR-0016) is not introduced.
 ## Supersedes / Superseded By
 
 - Supersedes: none.
-- Superseded by: none.
+- Superseded by: ADR-0087, item 2 "Connection config" only (the backend
+  advertises the Reverb settings; `EXPO_PUBLIC_REVERB_*` is removed).
 - Builds on: ADR-0016 (broadcast channel/events), ADR-0021 (recipient
   resolution).
 
