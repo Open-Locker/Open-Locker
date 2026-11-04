@@ -70,8 +70,7 @@ pnpm install
 ```
 
 Set `EXPO_PUBLIC_API_BASE_URL` in `.env` to the running backend, including
-`/api`. Live updates need no app setting: the app uses the Reverb server the
-backend advertises from its `VITE_REVERB_*` values.
+`/api`.
 
 `pnpm start` targets an installed **Expo development client**; build one with
 `pnpm android` or `pnpm ios`. Use `pnpm start:go` for the more limited

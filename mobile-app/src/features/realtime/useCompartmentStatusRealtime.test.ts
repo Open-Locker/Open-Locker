@@ -1,16 +1,21 @@
 import { renderHook } from '@testing-library/react-native';
 
-import { realtimeConnectionChanged, realtimeReset } from '@/src/store/realtimeSlice';
+import {
+  realtimeConnectionChanged,
+  realtimeReducer,
+  realtimeReset,
+  selectLivePaused,
+} from '@/src/store/realtimeSlice';
 
 import { useCompartmentStatusRealtime } from './useCompartmentStatusRealtime';
 
 const mockDispatch = jest.fn();
 const calls: string[] = [];
-const handlers = new Map<string, (change?: { current: string }) => void>();
+const handlers = new Map<string, (payload?: unknown) => void>();
 
 const mockConnection = {
   state: 'connecting',
-  bind: (event: string, handler: (change?: { current: string }) => void) => {
+  bind: (event: string, handler: (payload?: unknown) => void) => {
     handlers.set(event, handler);
   },
   unbind: (event: string) => {
@@ -19,7 +24,30 @@ const mockConnection = {
   },
 };
 
-const mockChannel = { listen: () => mockChannel };
+const channelErrorHandlers = new Map<string, (error: unknown) => void>();
+
+function mockChannel(name: string) {
+  const channel = {
+    listen: () => channel,
+    subscribed: () => channel,
+    error: (handler: (error: unknown) => void) => {
+      channelErrorHandlers.set(name, handler);
+      return channel;
+    },
+  };
+  return channel;
+}
+
+/** What the paused notice would show after everything the hook dispatched. */
+function livePausedAfterDispatches(): boolean {
+  let state = realtimeReducer(undefined, { type: '@@init' });
+  for (const [action] of mockDispatch.mock.calls) {
+    if (typeof action?.type === 'string' && action.type.startsWith('realtime/')) {
+      state = realtimeReducer(state, action);
+    }
+  }
+  return selectLivePaused({ realtime: state });
+}
 
 const mockRealtime = { key: 'k', host: 'ws.locker.example.org', port: 443, scheme: 'https' };
 const mockIdentify: { data?: unknown; isLoading: boolean } = { isLoading: false };
@@ -29,7 +57,7 @@ jest.mock('./echo', () => ({
   createEcho: (...args: unknown[]) => {
     mockCreateEcho(...args);
     return {
-      private: () => mockChannel,
+      private: (name: string) => mockChannel(name),
       leave: () => undefined,
       disconnect: () => calls.push('disconnect'),
       connector: { pusher: { connection: mockConnection } },
@@ -53,6 +81,7 @@ describe('useCompartmentStatusRealtime', () => {
     jest.clearAllMocks();
     calls.length = 0;
     handlers.clear();
+    channelErrorHandlers.clear();
     mockConnection.state = 'connecting';
     mockIdentify.data = { realtime: mockRealtime };
     mockIdentify.isLoading = false;
@@ -72,7 +101,7 @@ describe('useCompartmentStatusRealtime', () => {
     expect(mockCreateEcho).toHaveBeenCalledWith('token', mockRealtime);
   });
 
-  it('shows live updates as paused instead of guessing a socket when none is advertised', async () => {
+  it('shows live updates as paused when the server advertises no Reverb', async () => {
     mockIdentify.data = { realtime: null };
 
     await renderHook(() => useCompartmentStatusRealtime());
@@ -109,5 +138,37 @@ describe('useCompartmentStatusRealtime', () => {
       order: calls.slice(calls.indexOf('unbind:state_change')),
       lastDispatch: mockDispatch.mock.calls.at(-1)?.[0],
     }).toEqual({ order: ['unbind:state_change', 'disconnect'], lastDispatch: realtimeReset() });
+  });
+
+  // Both cases were reproduced against a real Reverb with pusher-js: the
+  // connection stays `connected` while the channel never subscribes.
+  it.each(['users.7.compartment-status', 'users.7.account', 'users.7.locker-banks'])(
+    'shows live updates as paused when the auth request for %s fails',
+    async (channel) => {
+      await renderHook(() => useCompartmentStatusRealtime());
+      handlers.get('state_change')?.({ current: 'connected' });
+
+      // What pusher-js emits when /broadcasting/auth answers 401 (expired token).
+      channelErrorHandlers.get(channel)?.({
+        type: 'AuthError',
+        error: 'broadcasting/auth failed: 401',
+        status: 401,
+      });
+
+      expect(livePausedAfterDispatches()).toBe(true);
+    },
+  );
+
+  it('shows live updates as paused when Reverb rejects the channel signature', async () => {
+    await renderHook(() => useCompartmentStatusRealtime());
+    handlers.get('state_change')?.({ current: 'connected' });
+
+    // What Reverb sends when the API signs with another REVERB_APP_SECRET.
+    handlers.get('error')?.({
+      type: 'PusherError',
+      data: { code: 4009, message: 'Connection is unauthorized' },
+    });
+
+    expect(livePausedAfterDispatches()).toBe(true);
   });
 });

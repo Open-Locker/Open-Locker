@@ -38,6 +38,15 @@ or `/identify` fails, the app opens no socket and shows live updates as paused;
 REST and pull-to-refresh keep working. This supersedes item 2 ("Connection
 config") of ADR-0023; the rest of ADR-0023 stands.
 
+"Live updates paused" also covers a refused channel subscription, on every
+private channel the app subscribes to, not only connection states. A refused
+subscription leaves the socket `connected` while that channel receives nothing.
+pusher-js reports a failed `/broadcasting/auth` as `pusher:subscription_error`
+on the channel; Reverb reports a signature it cannot verify (API and Reverb
+disagree on `REVERB_APP_SECRET`) as connection error 4009, which names no
+channel and so marks every channel refused. Either way the app refetches over
+REST once. Refusals clear when the channel subscribes or the socket reconnects.
+
 ## Rationale
 
 - `/identify` is unauthenticated and already the app's "is this an Open-Locker
@@ -96,12 +105,6 @@ config") of ADR-0023; the rest of ADR-0023 stands.
 - The local Docker stack advertises `localhost`, which the admin panel in the
   browser needs. Android dev builds reach it through `adb reverse`; before this
   change they derived `10.0.2.2` from the API URL.
-
-### Out of scope
-
-- Issue #353 also asks whether "Live updates paused" should cover a failed
-  channel subscription, not only connection states. This ADR leaves that to a
-  follow-up: the notice still reflects only the connection state.
 
 ### Risks
 

@@ -383,11 +383,7 @@ pnpm test:ci
 ```
 
 Set `EXPO_PUBLIC_API_BASE_URL` in `.env` to the running backend, including the
-`/api` path. The app needs no Reverb settings: it connects to the Reverb server
-the backend advertises in `GET /api/identify`, taken from the backend's
-`VITE_REVERB_APP_KEY`, `VITE_REVERB_HOST`, `VITE_REVERB_PORT` and
-`VITE_REVERB_SCHEME`. If those are unset, the app shows live updates as paused.
-Channel auth still uses the API host at `/broadcasting/auth`.
+`/api` path.
 
 The local Docker stack advertises `localhost` on the forwarded Reverb port
 (`FORWARD_REVERB_PORT`, default `8080`). An Android emulator or USB phone

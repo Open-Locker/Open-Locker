@@ -55,13 +55,6 @@ run, rerun the original tag-triggered workflow from the Actions UI.
 > ⚠️ `app.config.ts` **throws** for the `production` variant unless `APP_ID_BASE`
 > (or `APP_ID_BASE_IOS`/`APP_ID_BASE_ANDROID`) is set. CI sets it inline.
 
-### Reverb (realtime) in EAS builds
-
-Builds carry no Reverb settings. The app connects to the Reverb server the
-selected backend advertises in `GET /api/identify`, from the backend's
-`VITE_REVERB_*` values (ADR-0087). The former `EXPO_PUBLIC_REVERB_KEY` EAS
-secret is unused.
-
 ## Credentials — where they live & who owns them
 
 All signing material is stored on **EAS servers** (managed credentials). Nothing

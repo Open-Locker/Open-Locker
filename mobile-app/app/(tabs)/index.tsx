@@ -21,6 +21,7 @@ import {
   usePutCompartmentsByCompartmentContentNoteMutation,
 } from '@/src/store/generatedApi';
 import { useAppSelector } from '@/src/store/hooks';
+import { selectLivePaused } from '@/src/store/realtimeSlice';
 import { useUserName } from '@/src/auth/useUserName';
 import {
   GET_HELP_AFTER_PROBLEMS,
@@ -123,7 +124,7 @@ function getCompartmentStatusFromApi(
 export default function CompartmentsScreen() {
   const { t } = useTranslation();
   const token = useAppSelector((state) => state.auth.token);
-  const livePaused = useAppSelector((state) => state.realtime.livePaused);
+  const livePaused = useAppSelector(selectLivePaused);
   const userName = useUserName();
   const { refetch: refetchUser } = useGetUserQuery({});
   const [isPullRefreshing, setIsPullRefreshing] = React.useState(false);
