@@ -608,9 +608,6 @@ export default function CompartmentsScreen() {
                 ? t('compartments.openCompartmentRetry')
                 : t('compartments.openCompartment')}
           </Button>
-          <Button mode="text" onPress={closeCompartmentSheet}>
-            {t('common.close')}
-          </Button>
         </BottomSheetView>
       </BottomSheetModal>
     </SafeAreaView>
