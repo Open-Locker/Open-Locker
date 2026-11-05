@@ -64,4 +64,14 @@ class AppInfoControllerTest extends TestCase
             ->assertOk()
             ->assertJsonPath('realtime', null);
     }
+
+    public function test_identify_omits_realtime_without_a_public_reverb_key(): void
+    {
+        config()->set('filament.broadcasting.echo.key', null);
+        config()->set('filament.broadcasting.echo.wsHost', 'ws.example.com');
+
+        $this->getJson('/api/identify')
+            ->assertOk()
+            ->assertJsonPath('realtime', null);
+    }
 }

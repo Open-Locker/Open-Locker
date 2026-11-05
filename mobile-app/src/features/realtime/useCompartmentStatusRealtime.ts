@@ -90,9 +90,25 @@ export function useCompartmentStatusRealtime(): void {
       return;
     }
 
+    // Independent of the socket: a plain REST refetch to reconcile missed events.
+    // Runs when the app returns to the foreground (events sent while backgrounded
+    // are not replayed), with or without a socket, and when the socket drops or a
+    // channel is refused. `Auth` is included because the user's terms acceptance
+    // goes stale the same way compartment state does, and restarting the app was
+    // the only thing that refreshed it.
+    const refetchFallback = () => {
+      dispatch(openLockerApi.util.invalidateTags(['Compartment', 'Auth']));
+    };
+    const appStateSub = AppState.addEventListener('change', (state) => {
+      if (state === 'active') {
+        refetchFallback();
+      }
+    });
+
     if (!advertisedReverb) {
       dispatch(realtimeConnectionChanged('unavailable'));
       return () => {
+        appStateSub.remove();
         dispatch(realtimeReset());
       };
     }
@@ -140,15 +156,6 @@ export function useCompartmentStatusRealtime(): void {
           },
         ),
       );
-    };
-
-    // Independent of the socket: a plain REST refetch to reconcile missed events.
-    // Runs when the socket drops and when the app returns to the foreground.
-    // `Auth` is included because the user's terms acceptance goes stale the same
-    // way compartment state does, and restarting the app was the only thing that
-    // refreshed it.
-    const refetchFallback = () => {
-      dispatch(openLockerApi.util.invalidateTags(['Compartment', 'Auth']));
     };
 
     // The payload carries only a version; the profile is re-read rather than
@@ -200,12 +207,6 @@ export function useCompartmentStatusRealtime(): void {
     connection.bind('state_change', handleStateChange);
     // Pusher can reach `failed` inside `createEcho`, before anything was bound.
     dispatch(realtimeConnectionChanged(connection.state));
-
-    const appStateSub = AppState.addEventListener('change', (state) => {
-      if (state === 'active') {
-        refetchFallback();
-      }
-    });
 
     return () => {
       appStateSub.remove();

@@ -1,4 +1,5 @@
 import { renderHook } from '@testing-library/react-native';
+import { AppState, type AppStateStatus } from 'react-native';
 
 import {
   realtimeConnectionChanged,
@@ -25,11 +26,15 @@ const mockConnection = {
 };
 
 const channelErrorHandlers = new Map<string, (error: unknown) => void>();
+const channelSubscribedHandlers = new Map<string, () => void>();
 
 function mockChannel(name: string) {
   const channel = {
     listen: () => channel,
-    subscribed: () => channel,
+    subscribed: (handler: () => void) => {
+      channelSubscribedHandlers.set(name, handler);
+      return channel;
+    },
     error: (handler: (error: unknown) => void) => {
       channelErrorHandlers.set(name, handler);
       return channel;
@@ -49,6 +54,14 @@ function livePausedAfterDispatches(): boolean {
   return selectLivePaused({ realtime: state });
 }
 
+/** The action the mocked `invalidateTags` returns: the hook's REST refetch. */
+const restRefetch = { type: 'test/restRefetch', tags: ['Compartment', 'Auth'] };
+
+let appStateListener: ((state: AppStateStatus) => void) | undefined;
+function returnToForeground() {
+  appStateListener?.('active');
+}
+
 const mockRealtime = { key: 'k', host: 'ws.locker.example.org', port: 443, scheme: 'https' };
 const mockIdentify: { data?: unknown; isLoading: boolean } = { isLoading: false };
 const mockCreateEcho = jest.fn();
@@ -66,7 +79,12 @@ jest.mock('./echo', () => ({
 }));
 
 jest.mock('@/src/store/generatedApi', () => ({
-  openLockerApi: { util: { updateQueryData: jest.fn(), invalidateTags: jest.fn() } },
+  openLockerApi: {
+    util: {
+      updateQueryData: jest.fn(),
+      invalidateTags: (tags: string[]) => ({ type: 'test/restRefetch', tags }),
+    },
+  },
   useGetUserQuery: () => ({ data: { id: 7 } }),
   useIdentifyQuery: () => mockIdentify,
 }));
@@ -82,6 +100,12 @@ describe('useCompartmentStatusRealtime', () => {
     calls.length = 0;
     handlers.clear();
     channelErrorHandlers.clear();
+    channelSubscribedHandlers.clear();
+    appStateListener = undefined;
+    jest.spyOn(AppState, 'addEventListener').mockImplementation((_type, listener) => {
+      appStateListener = listener;
+      return { remove: () => (appStateListener = undefined) };
+    });
     mockConnection.state = 'connecting';
     mockIdentify.data = { realtime: mockRealtime };
     mockIdentify.isLoading = false;
@@ -110,6 +134,15 @@ describe('useCompartmentStatusRealtime', () => {
       connected: mockCreateEcho.mock.calls.length,
       dispatched: mockDispatch.mock.calls.at(-1)?.[0],
     }).toEqual({ connected: 0, dispatched: realtimeConnectionChanged('unavailable') });
+  });
+
+  it('refetches on returning to the foreground when the server advertises no Reverb', async () => {
+    mockIdentify.data = { realtime: null };
+    await renderHook(() => useCompartmentStatusRealtime());
+
+    returnToForeground();
+
+    expect(mockDispatch).toHaveBeenCalledWith(restRefetch);
   });
 
   it('picks up a state the socket reached before the listener was bound', async () => {
@@ -156,6 +189,7 @@ describe('useCompartmentStatusRealtime', () => {
       });
 
       expect(livePausedAfterDispatches()).toBe(true);
+      expect(mockDispatch).toHaveBeenCalledWith(restRefetch);
     },
   );
 
@@ -170,5 +204,22 @@ describe('useCompartmentStatusRealtime', () => {
     });
 
     expect(livePausedAfterDispatches()).toBe(true);
+    expect(mockDispatch).toHaveBeenCalledWith(restRefetch);
+  });
+
+  it('stays paused after a 4009 until every channel has subscribed', async () => {
+    await renderHook(() => useCompartmentStatusRealtime());
+    handlers.get('state_change')?.({ current: 'connected' });
+    handlers.get('error')?.({ type: 'PusherError', data: { code: 4009 } });
+
+    channelSubscribedHandlers.get('users.7.compartment-status')?.();
+    const pausedAfterOne = livePausedAfterDispatches();
+    channelSubscribedHandlers.get('users.7.account')?.();
+    channelSubscribedHandlers.get('users.7.locker-banks')?.();
+
+    expect({ pausedAfterOne, pausedAfterAll: livePausedAfterDispatches() }).toEqual({
+      pausedAfterOne: true,
+      pausedAfterAll: false,
+    });
   });
 });
