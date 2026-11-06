@@ -70,9 +70,7 @@ pnpm install
 ```
 
 Set `EXPO_PUBLIC_API_BASE_URL` in `.env` to the running backend, including
-`/api`. Realtime uses `EXPO_PUBLIC_REVERB_KEY`,
-`EXPO_PUBLIC_REVERB_PORT`, and `EXPO_PUBLIC_REVERB_SCHEME`;
-`EXPO_PUBLIC_REVERB_HOST` is optional when the API and Reverb hosts match.
+`/api`.
 
 `pnpm start` targets an installed **Expo development client**; build one with
 `pnpm android` or `pnpm ios`. Use `pnpm start:go` for the more limited

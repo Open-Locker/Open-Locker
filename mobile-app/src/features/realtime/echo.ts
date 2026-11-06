@@ -3,7 +3,7 @@ import * as PusherNS from 'pusher-js';
 import type { ChannelAuthorizationData } from 'pusher-js/types/src/core/auth/options';
 
 import { getApiBaseUrl } from '@/src/api/baseUrl';
-import { reverbConfig } from '@/src/features/realtime/reverbConfig';
+import type { IdentifyApiResponse } from '@/src/store/generatedApi';
 
 // pusher-js's React Native build exports the client as a NAMED `Pusher` export
 // (`module.exports.Pusher = ...`), while the web/node builds use the default
@@ -12,6 +12,9 @@ import { reverbConfig } from '@/src/features/realtime/reverbConfig';
 const Pusher = ((PusherNS as { Pusher?: unknown }).Pusher ??
   (PusherNS as { default?: unknown }).default ??
   PusherNS) as typeof import('pusher-js').default;
+
+/** Public Reverb settings the selected server advertises in `GET /identify` (ADR-0087). */
+export type AdvertisedReverbConfig = NonNullable<IdentifyApiResponse['realtime']>;
 
 export type CompartmentDoorStateUpdatedPayload = {
   compartment_id: string;
@@ -62,10 +65,10 @@ function broadcastingAuthUrl(): string {
  * Creates an Echo client authenticated with the same Sanctum bearer token the
  * REST API uses. The custom authorizer POSTs the handshake to the backend's
  * token-guarded `/broadcasting/auth` route so private channels authorize
- * without a web session.
+ * without a web session. The socket goes to the Reverb server the selected
+ * API server advertises; channel auth still goes to the API host.
  */
-export function createEcho(token: string): Echo<'reverb'> {
-  const { key, wsHost, wsPort, wssPort, forceTLS } = reverbConfig();
+export function createEcho(token: string, reverb: AdvertisedReverbConfig): Echo<'reverb'> {
   const authUrl = broadcastingAuthUrl();
 
   return new Echo({
@@ -73,11 +76,11 @@ export function createEcho(token: string): Echo<'reverb'> {
     // Pass the client explicitly; React Native has no global `window.Pusher`
     // for the connector to fall back to.
     Pusher,
-    key,
-    wsHost,
-    wsPort,
-    wssPort,
-    forceTLS,
+    key: reverb.key,
+    wsHost: reverb.host,
+    wsPort: reverb.port,
+    wssPort: reverb.port,
+    forceTLS: reverb.scheme === 'https',
     enabledTransports: ['ws', 'wss'],
     authorizer: (channel: { name: string }) => ({
       authorize: (

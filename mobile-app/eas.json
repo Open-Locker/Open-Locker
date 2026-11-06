@@ -16,8 +16,7 @@
       "distribution": "internal",
       "channel": "preview",
       "env": {
-        "APP_VARIANT": "preview",
-        "EXPO_PUBLIC_REVERB_HOST": "ws.open-locker.cloud"
+        "APP_VARIANT": "preview"
       }
     },
     "ios-simulator": {
@@ -34,8 +33,7 @@
         "gradleCommand": ":app:assembleRelease --build-cache -PreactNativeArchitectures=armeabi-v7a,arm64-v8a -x :app:lintVitalRelease"
       },
       "env": {
-        "APP_VARIANT": "production",
-        "EXPO_PUBLIC_REVERB_HOST": "ws.open-locker.cloud"
+        "APP_VARIANT": "production"
       }
     },
     "store": {

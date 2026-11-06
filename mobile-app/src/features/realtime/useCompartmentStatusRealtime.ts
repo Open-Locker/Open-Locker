@@ -2,9 +2,14 @@ import { skipToken } from '@reduxjs/toolkit/query';
 import { useEffect } from 'react';
 import { AppState } from 'react-native';
 
-import { openLockerApi, useGetUserQuery } from '@/src/store/generatedApi';
+import { openLockerApi, useGetUserQuery, useIdentifyQuery } from '@/src/store/generatedApi';
 import { useAppDispatch, useAppSelector } from '@/src/store/hooks';
-import { realtimeConnectionChanged, realtimeReset } from '@/src/store/realtimeSlice';
+import {
+  realtimeConnectionChanged,
+  realtimeReset,
+  realtimeSubscriptionFailed,
+  realtimeSubscriptionSucceeded,
+} from '@/src/store/realtimeSlice';
 
 import { applyBankConnection } from './applyBankConnection';
 import { applyContentNote } from './applyContentNote';
@@ -24,6 +29,8 @@ const CONTENT_NOTE_EVENT = '.compartment.content_note.updated';
 const OPEN_STATUS_EVENT = '.compartment.open.status.updated';
 /** Must match `LockerBankConnectionUpdated::broadcastAs()`. */
 export const BANK_CONNECTION_EVENT = '.locker_bank.connection.updated';
+/** Reverb's `pusher:error` code for a channel signature it cannot verify. */
+const UNAUTHORIZED_CONNECTION_ERROR = 4009;
 /** Must match `TermsAcceptanceRequired::broadcastAs()`. The leading dot stops Echo
  *  prefixing its namespace. */
 export const TERMS_ACCEPTANCE_EVENT = '.terms.acceptance-required';
@@ -58,23 +65,55 @@ export function lockerBankChannelName(userId: number | string): string {
  * - Mirrors the socket's state into the `realtime` slice, so the compartment
  *   screen can say when live updates are paused. That is the app's own
  *   connection, not a locker bank's.
+ * - Treats a refused channel subscription the same way: the socket stays
+ *   `connected` but that channel receives nothing, so it pauses and refetches.
  *
  * `door_state` is sourced only from the API and the door-state event, and
  * open-command feedback only from the open request's own status (ADR-0023) —
  * neither is derived from the other.
+ *
+ * The socket targets the Reverb server the selected API server advertises in
+ * `GET /identify`, so it waits for that answer. A server that advertises none
+ * gets no socket and the paused notice (ADR-0087).
  */
 export function useCompartmentStatusRealtime(): void {
   const token = useAppSelector((state) => state.auth.token);
   const { data: user } = useGetUserQuery(token ? {} : skipToken);
   const userId = user?.id;
+  // Same `{}` args as the sign-in screen, so this is usually already cached.
+  const { data: identify, isLoading: isIdentifyLoading } = useIdentifyQuery(token ? {} : skipToken);
+  const advertisedReverb = identify?.realtime;
   const dispatch = useAppDispatch();
 
   useEffect(() => {
-    if (!token || userId == null) {
+    if (!token || userId == null || isIdentifyLoading) {
       return;
     }
 
-    const echo = createEcho(token);
+    // Independent of the socket: a plain REST refetch to reconcile missed events.
+    // Runs when the app returns to the foreground (events sent while backgrounded
+    // are not replayed), with or without a socket, and when the socket drops or a
+    // channel is refused. `Auth` is included because the user's terms acceptance
+    // goes stale the same way compartment state does, and restarting the app was
+    // the only thing that refreshed it.
+    const refetchFallback = () => {
+      dispatch(openLockerApi.util.invalidateTags(['Compartment', 'Auth']));
+    };
+    const appStateSub = AppState.addEventListener('change', (state) => {
+      if (state === 'active') {
+        refetchFallback();
+      }
+    });
+
+    if (!advertisedReverb) {
+      dispatch(realtimeConnectionChanged('unavailable'));
+      return () => {
+        appStateSub.remove();
+        dispatch(realtimeReset());
+      };
+    }
+
+    const echo = createEcho(token, advertisedReverb);
     const channelName = `users.${userId}.compartment-status`;
     // Account-level state rides the same socket. A second Echo instance would mean
     // a second websocket per session for one rare event.
@@ -119,29 +158,33 @@ export function useCompartmentStatusRealtime(): void {
       );
     };
 
-    // Independent of the socket: a plain REST refetch to reconcile missed events.
-    // Runs when the socket drops and when the app returns to the foreground.
-    // `Auth` is included because the user's terms acceptance goes stale the same
-    // way compartment state does, and restarting the app was the only thing that
-    // refreshed it.
-    const refetchFallback = () => {
-      dispatch(openLockerApi.util.invalidateTags(['Compartment', 'Auth']));
-    };
-
     // The payload carries only a version; the profile is re-read rather than
     // patched, so there is one answer to "must I accept" and it comes from the API.
     const handleTermsAcceptanceRequired = () => {
       dispatch(openLockerApi.util.invalidateTags(['Auth']));
     };
 
-    echo
-      .private(channelName)
+    const subscribedChannels: string[] = [];
+    const handleSubscriptionFailed = (name: string) => {
+      dispatch(realtimeSubscriptionFailed(name));
+      refetchFallback();
+    };
+    // Subscribe every channel through here, so a refused one always shows the notice.
+    const subscribeTo = (name: string) => {
+      subscribedChannels.push(name);
+      return echo
+        .private(name)
+        .subscribed(() => dispatch(realtimeSubscriptionSucceeded(name)))
+        .error(() => handleSubscriptionFailed(name));
+    };
+
+    subscribeTo(channelName)
       .listen(DOOR_STATE_EVENT, handleDoorState)
       .listen(CONTENT_NOTE_EVENT, handleContentNote)
       .listen(OPEN_STATUS_EVENT, handleOpenStatus);
 
-    echo.private(accountChannel).listen(TERMS_ACCEPTANCE_EVENT, handleTermsAcceptanceRequired);
-    echo.private(lockerBankChannel).listen(BANK_CONNECTION_EVENT, handleBankConnection);
+    subscribeTo(accountChannel).listen(TERMS_ACCEPTANCE_EVENT, handleTermsAcceptanceRequired);
+    subscribeTo(lockerBankChannel).listen(BANK_CONNECTION_EVENT, handleBankConnection);
 
     const connection = (echo.connector as { pusher: { connection: PusherConnection } }).pusher
       .connection;
@@ -149,20 +192,25 @@ export function useCompartmentStatusRealtime(): void {
       dispatch(realtimeConnectionChanged(current));
     };
 
+    // A wrong signature (API and Reverb disagree on the app secret) arrives as a
+    // connection error that names no channel; every private channel is refused.
+    const handleConnectionError = (error: PusherConnectionError) => {
+      if (error?.data?.code === UNAUTHORIZED_CONNECTION_ERROR) {
+        subscribedChannels.forEach((name) => dispatch(realtimeSubscriptionFailed(name)));
+        refetchFallback();
+      }
+    };
+
+    connection.bind('error', handleConnectionError);
     connection.bind('unavailable', refetchFallback);
     connection.bind('disconnected', refetchFallback);
     connection.bind('state_change', handleStateChange);
     // Pusher can reach `failed` inside `createEcho`, before anything was bound.
     dispatch(realtimeConnectionChanged(connection.state));
 
-    const appStateSub = AppState.addEventListener('change', (state) => {
-      if (state === 'active') {
-        refetchFallback();
-      }
-    });
-
     return () => {
       appStateSub.remove();
+      connection.unbind('error', handleConnectionError);
       connection.unbind('unavailable', refetchFallback);
       connection.unbind('disconnected', refetchFallback);
       connection.unbind('state_change', handleStateChange);
@@ -172,15 +220,20 @@ export function useCompartmentStatusRealtime(): void {
       echo.disconnect();
       dispatch(realtimeReset());
     };
-  }, [token, userId, dispatch]);
+  }, [token, userId, isIdentifyLoading, advertisedReverb, dispatch]);
 }
 
 type PusherStateChangeHandler = (change: { current: string }) => void;
 
+type PusherConnectionError = { type?: string; data?: { code?: number; message?: string } };
+type PusherConnectionErrorHandler = (error: PusherConnectionError) => void;
+
 type PusherConnection = {
   state: string;
   bind(event: 'state_change', handler: PusherStateChangeHandler): void;
+  bind(event: 'error', handler: PusherConnectionErrorHandler): void;
   bind(event: string, handler: () => void): void;
   unbind(event: 'state_change', handler: PusherStateChangeHandler): void;
+  unbind(event: 'error', handler: PusherConnectionErrorHandler): void;
   unbind(event: string, handler: () => void): void;
 };
