@@ -1,8 +1,10 @@
-# ADR-0063: In-app help requests to locker managers
+# ADR-0069: In-app help requests to locker managers
 
 ## Status
 
 Implemented (2026-09-24, `37e56da8`; the call-back phone in `34d14c40`).
+
+Accepted 2026-09-24, before the 0068 cutoff in `adr-format-and-lifecycle.mdc`, so it can only be superseded. Renumbered from 0063, which two ADRs shared; the number does not reflect its age.
 
 ## Date
 
