@@ -1,0 +1,6 @@
+dependencies:
+  espressif/mqtt:
+    version: "*"
+    # The host tests replace it with a mock built from the headers of the firmware's copy.
+    rules:
+      - if: "target != linux"
