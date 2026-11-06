@@ -51,6 +51,14 @@ class AppServiceProvider extends ServiceProvider
             });
         }
 
+        // A device downloads once and retries a few times; the limit is per bank so one bank's retries
+        // never block another bank's download behind the same address.
+        RateLimiter::for('firmware-download', function (Request $request): Limit {
+            $bank = $request->route('lockerBank');
+
+            return Limit::perMinute(10)->by($bank instanceof Model ? (string) $bank->getKey() : (string) $bank);
+        });
+
         RateLimiter::for('password-reset', fn (Request $request): Limit => Limit::perMinute(6)->by((string) $request->ip()));
 
         // Force HTTPS in production or if explicitly enabled

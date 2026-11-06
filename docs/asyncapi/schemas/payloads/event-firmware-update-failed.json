@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "./event-firmware-update-failed.json",
+  "title": "Firmware update failed after it was accepted",
+  "description": "Published on locker/{locker_uuid}/event when an update_firmware command was accepted (success response) but the download or the image verification then failed. The running image is unchanged. This is the only report of such a failure; the command gets exactly one response (ADR-0076, following ADR-0040).",
+  "allOf": [
+    {
+      "$ref": "../messages/event.json"
+    },
+    {
+      "type": "object",
+      "required": [
+        "event",
+        "data"
+      ],
+      "properties": {
+        "event": {
+          "const": "firmware_update_failed"
+        },
+        "data": {
+          "type": "object",
+          "required": [
+            "transaction_id",
+            "error_code"
+          ],
+          "properties": {
+            "transaction_id": {
+              "$ref": "../common/transaction-id.json"
+            },
+            "error_code": {
+              "enum": [
+                "UPDATE_DOWNLOAD_FAILED",
+                "UPDATE_VERIFY_FAILED"
+              ]
+            }
+          },
+          "additionalProperties": false
+        }
+      }
+    }
+  ]
+}

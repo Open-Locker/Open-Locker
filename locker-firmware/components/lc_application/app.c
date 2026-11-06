@@ -58,6 +58,9 @@ void lc_app_init(lc_app_t *app, const lc_app_ports_t *ports)
         !app->config.applied) {
         memset(&app->config, 0, sizeof(app->config));
     }
+    const lc_firmware_update_port_t *update = &ports->firmware_update;
+    app->trial = update->start != NULL && update->on_trial(update->ctx);
+    app->trial_deadline_ms = app->started_at_ms + LC_TRIAL_WINDOW_MS;
 }
 
 void lc_app_recover(lc_app_t *app)
@@ -79,7 +82,7 @@ void lc_app_recover(lc_app_t *app)
         (void)lc_text_copy(result.transaction_id, sizeof(result.transaction_id),
                            entry.transaction_id);
         (void)lc_text_copy(result.action_name, sizeof(result.action_name), entry.action_name);
-        result.error = LC_ERROR_UNKNOWN_ERROR;
+        result.error = lc_app_error_for(entry.action_name, LC_ERROR_UNKNOWN_ERROR);
         (void)journal->complete(journal->ctx, &result);
     }
 }
@@ -107,6 +110,8 @@ static void lose(lc_app_t *app, const lc_app_outstanding_t *slot)
 void lc_app_on_connected(lc_app_t *app)
 {
     app->connected = true;
+    /* Called only once the command subscription is confirmed (ADR-0075 decision 17). */
+    app->broker_seen = true;
     app->snapshot_due = true;
     /* Tell the backend at once that the device is back. */
     app->next_heartbeat_ms = 0;
@@ -191,6 +196,8 @@ void lc_app_tick(lc_app_t *app)
     int64_t now_ms = app->ports.clock.now_ms(app->ports.clock.ctx);
 
     expire_outstanding(app, now_ms);
+    lc_app_check_trial(app, now_ms);
+    lc_app_check_restart(app);
     lc_app_send_heartbeat(app, now_ms);
     if (now_ms < app->next_poll_ms) {
         return;
@@ -224,6 +231,15 @@ void lc_app_dispatch(lc_app_t *app, const lc_event_t *event)
         break;
     case LC_EVENT_TICK:
         lc_app_tick(app);
+        break;
+    case LC_EVENT_FIRMWARE_VERIFIED:
+        lc_app_firmware_verified(app);
+        break;
+    case LC_EVENT_FIRMWARE_FAILED:
+        lc_app_firmware_failed(app, event->error);
+        break;
+    case LC_EVENT_NETWORK_UP:
+        app->network_seen = true;
         break;
     }
 }

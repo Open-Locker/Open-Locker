@@ -192,6 +192,7 @@ static void handle(owner_event_t *event)
         network_up = true;
         network_up_ms = esp_timer_get_time() / 1000;
         time_warned = false;
+        dispatch(LC_EVENT_NETWORK_UP);
         break;
     case OWNER_NETWORK_DOWN:
         network_up = false;

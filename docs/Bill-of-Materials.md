@@ -72,6 +72,11 @@ The planned controller board for the first ESP-based build is the Waveshare
 `ESP32-S3-ETH-8DI-8RO`. See
 [`docs/adr/0005-esp-build-controller-board-selection.md`](adr/0005-esp-build-controller-board-selection.md).
 
+Purchase requirements for any ESP32 unit that should take over-the-air updates
+([ADR-0075](adr/0075-esp32-ota-firmware-updates.md)): 4 MB of flash and a chip
+revision of v3.0 or later. Check a delivered unit with `esptool flash_id`
+(flash size) and `esptool chip_id` (revision) before installing it.
+
 For builds with up to 8 compartments, the board's onboard 8 relays and 8
 digital inputs are the planned starting point.
 

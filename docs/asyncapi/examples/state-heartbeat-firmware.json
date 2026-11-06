@@ -1,0 +1,13 @@
+{
+  "message_id": "msg-state-heartbeat-002",
+  "timestamp": "2026-10-22T09:05:00Z",
+  "uptime_seconds": 120,
+  "modbus_connected": true,
+  "firmware_version": "0.2.0",
+  "running_slot": "ota_1",
+  "trial": true,
+  "capabilities": [
+    "firmware_update"
+  ],
+  "last_rollback_version": "0.1.9"
+}

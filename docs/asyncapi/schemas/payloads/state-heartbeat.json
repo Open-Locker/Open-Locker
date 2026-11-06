@@ -19,7 +19,45 @@
         "modbus_connected": {
           "type": "boolean",
           "description": "Whether the Modbus bus is reachable. Absent when the device reports no hardware state; a device can be online and heartbeating while its bus is unreachable."
+        },
+        "firmware_version": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 31,
+          "description": "Version of the running firmware image (`PROJECT_VER`). Sent by devices that can report it; the backend counts an update as complete only when this equals the target version and `trial` is not true."
+        },
+        "running_slot": {
+          "type": "string",
+          "enum": [
+            "ota_0",
+            "ota_1"
+          ],
+          "description": "OTA slot the running image was booted from."
+        },
+        "trial": {
+          "type": "boolean",
+          "description": "True until the running image has marked itself valid after an update. Required whenever `firmware_version` is present, so a heartbeat without it can never count as an update's completion. A restart or the end of the trial window rolls the device back."
+        },
+        "capabilities": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "description": "Optional features the device supports, for example `firmware_update`. The backend sends `update_firmware` only to devices that list it."
+        },
+        "last_rollback_version": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 31,
+          "description": "Version of the image this device rolled back from, kept until the next update. Absent when there is none."
         }
+      },
+      "dependentRequired": {
+        "firmware_version": [
+          "trial"
+        ]
       }
     }
   ]

@@ -17,6 +17,7 @@ use App\Reactors\CompartmentOpenAuthorizationReactor;
 use App\Reactors\CompartmentOpenDeviationAlertReactor;
 use App\Reactors\CompartmentOpenStatusBroadcastReactor;
 use App\Reactors\DoorDetectionReactor;
+use App\Reactors\FirmwareUpdateReactor;
 use App\Reactors\LockerBankConnectionBroadcastReactor;
 use App\Reactors\MqttReactor;
 use App\Reactors\TermsNotificationReactor;
@@ -72,6 +73,7 @@ return [
         MqttReactor::class,
         CommandResponseReactor::class,
         DoorDetectionReactor::class,
+        FirmwareUpdateReactor::class,
         CompartmentOpenDeviationAlertReactor::class,
         CompartmentHelpRequestAlertReactor::class,
         CompartmentOpenAuthorizationReactor::class,

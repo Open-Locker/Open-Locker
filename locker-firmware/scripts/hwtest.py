@@ -96,6 +96,17 @@ CHECKS = [
     ("G1", "ACTUATES. 72 h run with an open every ten minutes: no missed response, no reset, stable heap",
      "a 72-hour run with 432 actuations; not done on the PR bench. Hardware-example PR"),
     ("G2", "Return the bank to the Pi client", "tests the Pi client's provisioning reset, not this firmware"),
+    ("H1", "Blank board flashed with the signed image: enrolls, then A1, A6, C4, D2 and D4 again", "manual"),
+    ("H2", "Update an idle unit through the backend: it restarts into the new version, the backend shows it", "manual"),
+    ("H3", "ACTUATES. An open during an update and one during a rollback's trial window: handled once, never lost", "manual"),
+    ("H4", "A bad signature and an image signed with another key are refused: the old version keeps running", "manual"),
+    ("H5", "Truncated image, then Wi-Fi cut mid-download: the old version runs, the backend shows the failure", "manual"),
+    ("H6", "A valid image that cannot reach the broker: back to the old version after the trial window", "manual"),
+    ("H7", "Power cut during the image write, ten times: always boots a valid image", "manual"),
+    ("H8", "After an update and a rollback: identity, mapping and journal intact, no unlock caused", "manual"),
+    ("H9", "Minimum free heap during a download with MQTT open leaves the HW-C9 stack headroom", "manual"),
+    ("H10", "The bootloader boots an app built with the next ESP-IDF patch release", "manual"),
+    ("H11", "Roll back an image on trial after it handled commands: the previous image reads the journal", "manual"),
 ]
 IDS = [c[0] for c in CHECKS]
 DEFERRED = {c[0]: c[2] for c in CHECKS if c[2] not in ("auto", "manual")}
@@ -230,7 +241,7 @@ NEEDS = {"B2": "B1"}
 GROUPS = {
     "A": "Serial bus and panel", "B": "Commands and journal", "C": "Network, MQTT, and enrollment",
     "D": "State and door events", "E": "USB commissioning", "F": "SoftAP commissioning",
-    "G": "Endurance and rollback",
+    "G": "Endurance and rollback", "H": "Over-the-air updates",
 }
 
 

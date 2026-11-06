@@ -27,7 +27,9 @@ void lc_app_send_heartbeat(lc_app_t *app, int64_t now_ms)
     uint32_t uptime_seconds = (uint32_t)((now_ms - app->started_at_ms) / 1000);
     bool bus_connected = app->ports.bus.connection_state(app->ports.bus.ctx) == LC_BUS_CONNECTED;
     /* Not tracked: the next one follows in an interval whether or not this arrived. */
-    (void)app->ports.outbound.heartbeat(app->ports.outbound.ctx, uptime_seconds, bus_connected);
+    lc_firmware_status_t firmware;
+    (void)app->ports.outbound.heartbeat(app->ports.outbound.ctx, uptime_seconds, bus_connected,
+                                        lc_app_firmware_status(app, &firmware));
 }
 
 /* ---- Doors ---- */
@@ -81,6 +83,8 @@ static void poll_doors(lc_app_t *app, int64_t now_ms)
         for (size_t i = 0; i < count; ++i) {
             readings[i] = LC_DOOR_UNKNOWN;
         }
+    } else {
+        app->bus_seen = true;
     }
 
     for (size_t i = 0; i < count; ++i) {

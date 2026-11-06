@@ -1,0 +1,50 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "./command-update-firmware.json",
+  "title": "Update firmware command",
+  "description": "Asks an ESP32 locker to download, verify and boot a signed firmware image (ADR-0075, ADR-0076). The command is transaction-bound; the transaction_id also deduplicates repeats. `data.url` carries a short-lived download token in its query string: never log it, never publish it anywhere else.",
+  "allOf": [
+    {
+      "$ref": "../messages/command.json"
+    },
+    {
+      "type": "object",
+      "required": [
+        "action",
+        "data"
+      ],
+      "properties": {
+        "action": {
+          "const": "update_firmware"
+        },
+        "data": {
+          "type": "object",
+          "required": [
+            "version",
+            "url"
+          ],
+          "properties": {
+            "version": {
+              "type": "string",
+              "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)(-(0|[1-9][0-9]*|[0-9]*[A-Za-z-][0-9A-Za-z-]*)(\\.(0|[1-9][0-9]*|[0-9]*[A-Za-z-][0-9A-Za-z-]*))*)?$",
+              "maxLength": 31,
+              "description": "Version the image at `url` must report in its app description (`PROJECT_VER`). The download task compares it with the image header before writing anything; a mismatch ends the update as a failed verification (firmware_update_failed)."
+            },
+            "url": {
+              "type": "string",
+              "pattern": "^https://",
+              "maxLength": 256,
+              "description": "HTTPS download URL of the signed image. Plain HTTP is never accepted. A device rejects a longer URL without downloading."
+            },
+            "allow_downgrade": {
+              "type": "boolean",
+              "default": false,
+              "description": "Permits a version lower than the running one. Without it a lower version is refused (UPDATE_DOWNGRADE)."
+            }
+          },
+          "additionalProperties": true
+        }
+      }
+    }
+  ]
+}

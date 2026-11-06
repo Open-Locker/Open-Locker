@@ -1,0 +1,9 @@
+{
+  "message_id": "msg-event-fw-001",
+  "event": "firmware_update_failed",
+  "timestamp": "2026-10-22T09:03:00Z",
+  "data": {
+    "transaction_id": "txn-fw-001",
+    "error_code": "UPDATE_DOWNLOAD_FAILED"
+  }
+}

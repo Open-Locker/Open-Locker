@@ -4,15 +4,19 @@ declare(strict_types=1);
 
 namespace App\Filament\Resources;
 
+use App\Enums\FirmwareUpdateStatus;
 use App\Enums\LockerAdapterType;
 use App\Enums\LockerFeedbackType;
 use App\Enums\Permission;
+use App\Exceptions\FirmwareUpdateRefused;
 use App\Filament\Concerns\InteractsWithOneTimeProvisioningToken;
 use App\Filament\Resources\LockerBankResource\Pages;
 use App\Filament\Resources\LockerBankResource\RelationManagers;
+use App\Models\FirmwareRelease;
 use App\Models\LockerBank;
 use App\Models\User;
 use App\Services\LockerProvisioningService;
+use App\Services\LockerService;
 use Filament\Actions\Action;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;
@@ -22,6 +26,7 @@ use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
+use Filament\Forms\Components\Toggle;
 use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
@@ -133,7 +138,97 @@ class LockerBankResource extends Resource
                 Placeholder::make('last_config_ack_at')
                     ->label(__('Last config confirmation'))
                     ->content(fn (?LockerBank $record): string => $record?->last_config_ack_at?->toDateTimeString() ?? '—'),
+                Placeholder::make('firmware_version')
+                    ->label(__('Firmware version'))
+                    ->content(fn (?LockerBank $record): string => $record->firmware_version ?? '—'),
+                Placeholder::make('firmware_running_slot')
+                    ->label(__('Running slot'))
+                    ->content(fn (?LockerBank $record): string => $record->firmware_running_slot ?? '—'),
+                Placeholder::make('firmware_trial')
+                    ->label(__('Trial boot'))
+                    ->content(fn (?LockerBank $record): string => match ($record?->firmware_trial) {
+                        true => __('Yes, not confirmed yet'),
+                        false => __('No'),
+                        default => '—',
+                    }),
+                Placeholder::make('firmware_last_rollback_version')
+                    ->label(__('Last rollback version'))
+                    ->content(fn (?LockerBank $record): string => $record->firmware_last_rollback_version ?? '—'),
+                Placeholder::make('firmware_update_status')
+                    ->label(__('Firmware update'))
+                    ->content(fn (?LockerBank $record): string => self::firmwareUpdateLabel($record)),
+                Placeholder::make('firmware_update_target_version')
+                    ->label(__('Update target version'))
+                    ->content(fn (?LockerBank $record): string => $record->firmware_update_target_version ?? '—'),
+                Placeholder::make('firmware_update_error_code')
+                    ->label(__('Update error code'))
+                    ->content(fn (?LockerBank $record): string => $record->firmware_update_error_code ?? '—'),
+                Placeholder::make('firmware_update_failure_reason')
+                    ->label(__('Update failure reason'))
+                    ->content(fn (?LockerBank $record): string => $record?->firmware_update_failure_reason?->label() ?? '—'),
             ]);
+    }
+
+    private static function firmwareUpdateLabel(?LockerBank $record): string
+    {
+        return $record?->firmware_update_status?->label() ?? '—';
+    }
+
+    /**
+     * Ask a capable bank to update to a chosen release. Shared by the list row and the edit page
+     * header. A refusal is an expected answer, so it is a notification, not an exception page.
+     */
+    public static function updateFirmwareAction(): Action
+    {
+        return Action::make('updateFirmware')
+            ->label(__('Update firmware'))
+            ->icon('heroicon-m-arrow-up-tray')
+            ->color('info')
+            ->modalHeading(__('Update firmware'))
+            ->modalSubmitActionLabel(__('Request update'))
+            ->visible(fn (LockerBank $record): bool => $record->firmware_update_capable
+                && (Filament::auth()->user()?->can(Permission::LockerBankConfigure->value) ?? false))
+            ->form([
+                Select::make('release_id')
+                    ->label(__('Firmware release'))
+                    ->options(fn (): array => FirmwareRelease::query()
+                        ->where('invalid', false)
+                        ->latest()
+                        ->pluck('version', 'id')
+                        ->all())
+                    ->required(),
+                Toggle::make('allow_downgrade')
+                    ->label(__('Allow downgrade'))
+                    ->helperText(__('Without this, the locker bank refuses an image that is not newer than the running one.'))
+                    ->default(false),
+            ])
+            ->action(function (LockerBank $record, array $data): void {
+                $actor = Filament::auth()->user();
+                $release = FirmwareRelease::query()->whereKey((string) $data['release_id'])->firstOrFail();
+
+                try {
+                    app(LockerService::class)->requestFirmwareUpdate(
+                        $record,
+                        $release,
+                        (bool) ($data['allow_downgrade'] ?? false),
+                        $actor instanceof User ? $actor->id : null,
+                    );
+                } catch (FirmwareUpdateRefused $e) {
+                    Notification::make()
+                        ->title(__('Firmware update refused'))
+                        ->body(__($e->reason->message()))
+                        ->danger()
+                        ->send();
+
+                    return;
+                }
+
+                Notification::make()
+                    ->title(__('Firmware update requested'))
+                    ->body(__('The locker bank downloads version :version and reports back.', ['version' => $release->version]))
+                    ->success()
+                    ->send();
+            });
     }
 
     /**
@@ -262,6 +357,22 @@ class LockerBankResource extends Resource
                         ? __('Reported: :date', ['date' => $record->modbus_status_reported_at->toDateTimeString()])
                         : __('No hardware state reported yet'))
                     ->sortable(),
+                TextColumn::make('firmware_version')
+                    ->label(__('Firmware'))
+                    ->placeholder('—')
+                    ->tooltip(fn (LockerBank $record): ?string => $record->firmware_trial === true
+                        ? (string) __('Trial boot, not confirmed yet')
+                        : null)
+                    ->sortable(),
+                TextColumn::make('firmware_update_status')
+                    ->label(__('Firmware update'))
+                    ->badge()
+                    ->state(fn (LockerBank $record): ?string => $record->firmware_update_status?->value)
+                    ->placeholder('—')
+                    ->color(fn (?string $state): string => $state !== null ? FirmwareUpdateStatus::from($state)->color() : 'gray')
+                    ->formatStateUsing(fn (string $state): string => FirmwareUpdateStatus::from($state)->label())
+                    ->tooltip(fn (LockerBank $record): ?string => $record->firmware_update_error_code
+                        ?? $record->firmware_update_failure_reason?->label()),
                 TextColumn::make('config_status')
                     ->label(__('Config'))
                     ->badge()
@@ -310,6 +421,7 @@ class LockerBankResource extends Resource
             ->actions([
                 EditAction::make(),
                 static::restartProvisioningAction(),
+                static::updateFirmwareAction(),
             ])
             ->bulkActions([
                 BulkActionGroup::make([

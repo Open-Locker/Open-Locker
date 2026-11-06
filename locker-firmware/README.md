@@ -86,6 +86,7 @@ lc_domain  <-  lc_ports  <-  lc_application  <-  adapters  <-  main
 | `lc_rs485_lock_board`, `lc_serial_uart` | The bus adapter and its UART |
 | `lc_usb_console` | Line protocol of the USB console |
 | `lc_storage_nvs`, `lc_net_wifi`, `lc_mqtt_espidf` | Settings and journal flash, Wi-Fi and SNTP, MQTT transport |
+| `lc_ota_espidf` | Over-the-air updates on `esp_https_ota` and `esp_ota_ops`; the download runs on its own task |
 | `main/` | Composition root, owner task, MQTT session, bench mode |
 
 All use cases run on one task, the owner task, one event at a time. Everything
@@ -172,6 +173,74 @@ exactly as the backend would, and the device prints what it would publish as
 tested without a radio (hardware checks B1 to B6). As soon as network settings
 are stored, commands come from the broker only.
 
+## Updating the firmware over the air
+
+A unit updates itself when the backend sends `update_firmware` (ADR-0075, ADR-0076,
+ADR-0077). It downloads the image over HTTPS from a short-lived link, checks the
+RSA-3072 signature (Secure Boot v2 format, hardware secure boot off), boots it on
+trial, and keeps it only if Wi-Fi, the broker and the bus all work within 180 s.
+Otherwise it goes back to the previous image by itself. Opens keep working
+throughout, and an update never unlocks anything.
+
+**Version.** The image version is semantic versioning, without a `v` or build
+metadata. A release build passes it, from the release tag, in the environment:
+`LC_FIRMWARE_VERSION=0.2.0 idf.py build`. The build fails on any other form (a leading
+`v`, `0.2`, `01.2.3`). A build without it is `0.0.0-dev`. The variable is read at every
+configure and never cached, but CMake does not watch the environment: run
+`idf.py reconfigure` after changing it. A unit refuses an update to its own version, to a
+lower one (unless the command allows a downgrade) and to a version it rolled back from.
+
+**Signing.** The build writes an unsigned image. A unit checks an update against the
+public key in the image it is *running*, so every image must be signed, the first one
+flashed over USB included, and all with the same key. Sign after the build:
+
+```bash
+python scripts/sign_firmware.py --generate-key ~/keys/bench.pem   # once; keep it out of the repository
+python scripts/sign_firmware.py ~/keys/bench.pem build/locker-firmware.bin
+idf.py secure-sign-data --keyfile ~/keys/bench.pem --version 2 build/locker-firmware.bin   # the same, in place
+```
+
+The tool refuses a key inside the repository, and `*.pem` is ignored by git. A **release key**
+is made offline or in an HSM, never held as a plain CI secret, with one encrypted offline
+backup. **A key cannot be replaced over the air on this chip:** a unit only accepts images
+signed by the key of the image it runs, and an image carries one signature. A lost or leaked
+key means flashing every unit over USB. Bench units use a bench key of their own, so they
+never accept a release image and release units never accept a bench image.
+
+**First flash and update.** Flash a *signed* image over USB, the bootloader and the
+partition table with it, and never the unsigned `build/locker-firmware.bin`: a unit that runs
+an unsigned image cannot verify any update. `idf.py flash` writes the unsigned image, so it is
+not used for a unit that must update. From the `build` directory, after signing:
+
+```bash
+python -m esptool --chip esp32 --before default-reset --after hard-reset write-flash \
+  --flash-mode dio --flash-size keep --flash-freq 40m \
+  0x1000 bootloader/bootloader.bin \
+  0xc000 partition_table/partition-table.bin \
+  0x13000 ota_data_initial.bin \
+  0x20000 locker-firmware-signed.bin
+```
+
+(`flash_args` in the build directory lists the same files and offsets for the unsigned image.)
+`ota_data_initial.bin` leaves `otadata` empty, so the unit boots `ota_0`. After that, upload the
+signed image of a release in the admin panel and use "Update firmware" on a locker bank. The
+backend shows the version the unit reports; an update is finished only when the unit reports the
+new version outside its trial.
+
+**Recovery.**
+
+- A bad download, a failed signature or a wrong version leaves the running image in place; the
+  backend marks the update failed.
+- A new image that cannot reach Wi-Fi, the broker and the bus within 180 s is rolled back by
+  the unit. The previous image then refuses that version; publish a new release with the next
+  patch version. A good image can be rolled back by a network outage that starts during its
+  reboot; the same fix applies.
+- A unit that boots neither image, or whose journal or identity is damaged, is flashed over
+  USB with a signed image, as under "First flash" (never plain `idf.py flash`, or the unit can
+  no longer update), and then commissioned again.
+- The bootloader is never replaced by an update. It boots images built with a newer ESP-IDF but
+  not an older one, so ESP-IDF upgrades happen in the app only.
+
 ## Returning a bank to the Pi client
 
 1. Disconnect the ESP32 from the panel (cut its power first, then the RS485
@@ -216,9 +285,13 @@ token.
   (for example the Let's Encrypt certificate of ADR-0053). Certificate and host
   name verification cannot be turned off. A broker with a private CA needs the
   CA added to the build.
-- **No OTA yet, and the setup network is barely tried.** OTA is #59. The setup
-  network has not run on a bench unit; the hardware checks of group F are open
-  (ADR-0074). Its `esp_prov` comes from the firmware's own build tree (ADR-0074).
+- **OTA is not tried on a bench unit, and neither is the setup network.** The
+  hardware checks of group H (updates) and group F (setup network) are open
+  (ADR-0075, ADR-0074). Units flashed before OTA need one USB flash of a signed
+  image. The key cannot be replaced over the air (see above). Credentials stay
+  unencrypted until flash encryption is on, which an encrypted-image update will
+  also have to take into account (ADR-0075).
+- **The setup network's `esp_prov`** comes from the firmware's own build tree (ADR-0074).
 - **Unconfirmed hardware facts:** panel model, supply voltage, channel count,
   lock model, board flash size (the partition table assumes 4 MB), UART pins,
   serial parameters, DIP address and feedback polarity. The host tests establish
@@ -236,5 +309,5 @@ The partition table sits at `0xC000`, so the bootloader has room to grow.
 | `phy_init` | `0x15000` | 4 KiB | Radio calibration |
 | `nvs_keys` | `0x16000` | 4 KiB | Reserved for NVS encryption; unused until it is turned on (ADR-0074 decision 18) |
 | `ota_0` | `0x20000` | 1.8 MiB | The firmware; `idf.py flash` writes it here |
-| `ota_1` | `0x1F0000` | 1.8 MiB | Second slot, used by OTA (#59) |
+| `ota_1` | `0x1F0000` | 1.8 MiB | Second slot, written by an update (ADR-0075) |
 | `journal` | `0x3C0000` | 256 KiB | The command journal (raw, subtype `0x40`) |
