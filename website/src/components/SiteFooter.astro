@@ -14,25 +14,25 @@ const imprintPath = localizePath('/imprint/', locale);
 const privacyPath = localizePath('/privacy-policy/', locale);
 ---
 
-<footer class="border-t border-slate-200 bg-white">
+<footer class="border-t border-line bg-surface">
 	<div class="mx-auto grid max-w-6xl gap-8 px-4 py-10 md:grid-cols-3">
 		<div class="space-y-3">
 			<div class="flex items-center gap-3">
 				<img src="/logo-open-locker.svg" alt="" class="h-9 w-9" width="36" height="36" />
 				<div>
 					<p class="text-sm font-semibold">Open Locker</p>
-					<p class="text-sm text-slate-600">{t.tagline}</p>
+					<p class="text-sm text-fg-muted">{t.tagline}</p>
 				</div>
 			</div>
 		</div>
 
 		<div class="space-y-2 text-sm">
-			<p class="font-semibold text-slate-900">{t.projectLabel}</p>
-			<ul class="space-y-1 text-slate-700">
-				<li><a class="hover:text-slate-900 underline-offset-4 hover:underline" href={blogPath}>{t.blog}</a></li>
+			<p class="font-semibold text-fg">{t.projectLabel}</p>
+			<ul class="space-y-1 text-fg-soft">
+				<li><a class="hover:text-fg underline-offset-4 hover:underline" href={blogPath}>{t.blog}</a></li>
 				<li>
 					<a
-						class="hover:text-slate-900 underline-offset-4 hover:underline"
+						class="hover:text-fg underline-offset-4 hover:underline"
 						href={LINKS.githubRepo}
 						target="_blank"
 						rel="noreferrer"
@@ -42,7 +42,7 @@ const privacyPath = localizePath('/privacy-policy/', locale);
 				</li>
 				<li>
 					<a
-						class="hover:text-slate-900 underline-offset-4 hover:underline"
+						class="hover:text-fg underline-offset-4 hover:underline"
 						href={LINKS.discordInvite}
 						target="_blank"
 						rel="noreferrer"
@@ -54,16 +54,16 @@ const privacyPath = localizePath('/privacy-policy/', locale);
 		</div>
 
 		<div class="space-y-2 text-sm">
-			<p class="font-semibold text-slate-900">{t.legalLabel}</p>
-			<ul class="space-y-1 text-slate-700">
-				<li><a class="hover:text-slate-900 underline-offset-4 hover:underline" href={imprintPath}>{t.imprint}</a></li>
-				<li><a class="hover:text-slate-900 underline-offset-4 hover:underline" href={privacyPath}>{t.privacy}</a></li>
+			<p class="font-semibold text-fg">{t.legalLabel}</p>
+			<ul class="space-y-1 text-fg-soft">
+				<li><a class="hover:text-fg underline-offset-4 hover:underline" href={imprintPath}>{t.imprint}</a></li>
+				<li><a class="hover:text-fg underline-offset-4 hover:underline" href={privacyPath}>{t.privacy}</a></li>
 			</ul>
 		</div>
 	</div>
 
-	<div class="border-t border-slate-200">
-		<div class="mx-auto flex max-w-6xl flex-col gap-2 px-4 py-6 text-sm text-slate-600 md:flex-row md:items-center md:justify-between">
+	<div class="border-t border-line">
+		<div class="mx-auto flex max-w-6xl flex-col gap-2 px-4 py-6 text-sm text-fg-muted md:flex-row md:items-center md:justify-between">
 			<p>© {new Date().getFullYear()} Open Locker</p>
 			<p>
 				{t.builtWith}

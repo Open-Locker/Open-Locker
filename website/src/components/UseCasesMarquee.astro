@@ -19,14 +19,14 @@ const repeatFactor = uniqueItems.length === 0 ? 1 : Math.ceil(minItemCount / uni
 const sequence = Array.from({ length: uniqueItems.length * repeatFactor }, (_, idx) => uniqueItems[idx % uniqueItems.length]);
 ---
 
-<section aria-labelledby="use-cases-title" class="border-t border-slate-200 bg-white">
+<section aria-labelledby="use-cases-title" class="border-t border-line bg-surface">
 	<div class="mx-auto max-w-6xl px-4 pt-14 md:pt-16">
 		<div class="flex flex-col gap-3 md:flex-row md:items-end md:justify-between md:gap-8">
 			<div class="space-y-2">
-				<h2 id="use-cases-title" class="text-2xl font-semibold tracking-tight text-slate-900">
+				<h2 id="use-cases-title" class="text-2xl font-semibold tracking-tight text-fg">
 					{heading}
 				</h2>
-				<p class="text-slate-700">
+				<p class="text-fg-soft">
 					{t.lead}
 				</p>
 			</div>
@@ -71,9 +71,9 @@ const sequence = Array.from({ length: uniqueItems.length * repeatFactor }, (_, i
 <style>
 	.use-cases-frame {
 		overflow: hidden;
-		border-top: 1px solid rgb(226 232 240);
-		border-bottom: 1px solid rgb(226 232 240);
-		background: rgb(248 250 252);
+		border-top: 1px solid var(--line);
+		border-bottom: 1px solid var(--line);
+		background: var(--surface-muted);
 	}
 
 	.use-cases-viewport {
@@ -100,14 +100,14 @@ const sequence = Array.from({ length: uniqueItems.length * repeatFactor }, (_, i
 		line-height: 1.05;
 		font-weight: 600;
 		letter-spacing: -0.02em;
-		color: rgb(15 23 42 / 0.9);
+		color: color-mix(in srgb, var(--fg) 90%, transparent);
 	}
 
 	.use-cases-item::after {
 		content: '·';
 		display: inline-block;
 		margin-left: clamp(1.25rem, 3vw, 2.25rem);
-		color: rgb(15 23 42 / 0.35);
+		color: color-mix(in srgb, var(--fg) 35%, transparent);
 	}
 
 	.use-cases-track li:last-child .use-cases-item::after {

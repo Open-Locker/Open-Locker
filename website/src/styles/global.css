@@ -1,9 +1,30 @@
 @import "tailwindcss";
+@import "./theme.css";
 @plugin "@tailwindcss/typography";
 
-/* Small global defaults for a clean baseline */
-:root {
-  color-scheme: light;
+@custom-variant dark (&:where([data-theme='dark'], [data-theme='dark'] *));
+
+@theme inline {
+  --color-surface: var(--surface);
+  --color-surface-muted: var(--surface-muted);
+  --color-surface-strong: var(--surface-strong);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-fg: var(--fg);
+  --color-fg-soft: var(--fg-soft);
+  --color-fg-muted: var(--fg-muted);
+  --color-fg-subtle: var(--fg-subtle);
+  --color-inverse: var(--inverse);
+  --color-inverse-hover: var(--inverse-hover);
+  --color-on-inverse: var(--on-inverse);
+  --color-ok-surface: var(--ok-surface);
+  --color-ok-surface-strong: var(--ok-surface-strong);
+  --color-ok-line: var(--ok-line);
+  --color-ok-fg: var(--ok-fg);
+  --color-warn-surface: var(--warn-surface);
+  --color-warn-surface-strong: var(--warn-surface-strong);
+  --color-warn-line: var(--warn-line);
+  --color-warn-fg: var(--warn-fg);
 }
 
 html {
@@ -12,6 +33,6 @@ html {
 
 /* Better default focus visibility */
 :focus-visible {
-  outline: 2px solid rgb(37 99 235);
+  outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
