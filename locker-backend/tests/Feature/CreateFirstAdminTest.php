@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use App\Models\Organization;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -22,6 +23,7 @@ class CreateFirstAdminTest extends TestCase
 
         $this->assertTrue($admin->isAdmin());
         $this->assertSame(1, User::adminRoleCount());
+        $this->assertSame([Organization::DEFAULT_SLUG], $admin->organizations()->pluck('slug')->all());
     }
 
     public function test_the_created_admin_cannot_be_logged_in_as_without_a_password_reset(): void

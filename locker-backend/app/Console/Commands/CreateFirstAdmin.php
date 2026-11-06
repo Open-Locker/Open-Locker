@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Console\Commands;
 
 use App\Models\User;
+use App\Services\UserAdministrationService;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
@@ -17,7 +18,7 @@ class CreateFirstAdmin extends Command
     /** @var string */
     protected $description = 'Create the first administrator on a fresh instance, if there is not one already.';
 
-    public function handle(): int
+    public function handle(UserAdministrationService $userAdministration): int
     {
         $email = $this->argument('email') ?? config('admin.first_admin_email');
 
@@ -46,16 +47,14 @@ class CreateFirstAdmin extends Command
             return self::SUCCESS;
         }
 
-        $user = User::query()->firstOrCreate(
-            ['email' => $email],
-            [
-                'first_name' => 'Admin',
-                'last_name' => 'Account',
-                // Deliberately unguessable and never shown: the administrator sets
-                // their own password through the reset flow.
-                'password' => Str::password(32),
-            ],
-        );
+        $user = $userAdministration->createMember([
+            'email' => $email,
+            'first_name' => 'Admin',
+            'last_name' => 'Account',
+            // Deliberately unguessable and never shown: the administrator sets
+            // their own password through the reset flow.
+            'password' => Str::password(32),
+        ]);
 
         // Set outside the create: email_verified_at is not fillable, so mass assignment
         // drops it silently. The address comes from deployment configuration, which is

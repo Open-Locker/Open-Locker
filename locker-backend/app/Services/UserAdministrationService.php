@@ -8,12 +8,40 @@ use App\Aggregates\UserRoleAggregate;
 use App\Enums\Permission;
 use App\Enums\Role;
 use App\Exceptions\LastAdminException;
+use App\Exceptions\MissingOrganizationContextException;
 use App\Models\User;
 use Illuminate\Auth\Access\AuthorizationException;
+use Illuminate\Support\Facades\DB;
 
 class UserAdministrationService
 {
-    public function __construct(private readonly LastAdminGuard $lastAdminGuard) {}
+    public function __construct(
+        private readonly LastAdminGuard $lastAdminGuard,
+        private readonly OrganizationContext $organizationContext,
+        private readonly OrganizationMembershipService $memberships,
+    ) {}
+
+    /**
+     * Create a user in the context organization. If the email already has an
+     * account, that account joins the organization and its profile stays
+     * unchanged (ADR-0067).
+     *
+     * @param  array{email: string, first_name: string, last_name: string, password: string}  $attributes
+     *
+     * @throws MissingOrganizationContextException
+     */
+    public function createMember(array $attributes, ?int $actorUserId = null): User
+    {
+        $organization = $this->organizationContext->require();
+
+        return DB::transaction(function () use ($attributes, $organization, $actorUserId): User {
+            $user = User::query()->firstOrCreate(['email' => $attributes['email']], $attributes);
+
+            $this->memberships->addMember($organization, $user, $actorUserId);
+
+            return $user;
+        });
+    }
 
     public function canManageUser(User $actor, User $target): bool
     {
