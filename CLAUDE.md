@@ -78,6 +78,12 @@ immutable `client-v*` tag for beta or production. It needs
 `config/locker-config.yml` and `.env` (`PROVISIONING_TOKEN`).
 
 ### Repo-level (`Justfile`)
+
+Use Just 1.56+; MQTT and tracing workflows require Node 22+ and dependencies
+installed with `just script-deps` (pnpm 11.25.0). Complex behavior lives in shared
+TypeScript modules under `scripts/`, executed by tsx. Run `pnpm --dir scripts check`
+and `pnpm --dir scripts test` for changes there
+(Just must be installed for integration tests).
 ```bash
 just setup-mqtt      # Generate mosquitto.conf from template (.env MOSQ_HTTP_PASS) + restart MQTT container
 just install-hooks   # Set core.hooksPath to .githooks (per-project pre-commit dispatch)
