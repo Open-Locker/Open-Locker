@@ -34,6 +34,8 @@ locker-firmware/
     lc_journal/           command journal over a flash I/O struct (ADR-0070)
     lc_storage_nvs/       settings, identity and runtime config stores; journal partition I/O
     lc_net_wifi/          Wi-Fi station and SNTP
+    lc_button/            reset gesture state machine (pure C, ADR-0074)
+    lc_softap_portal/     setup network decisions: window, one station, endpoints (pure C, ADR-0074)
     lc_usb_console/       driving adapter: serial line protocol to the commissioning use case
   main/                   composition root: app_main.c wires adapters to ports; owner_task.c
   tests/host/             host build: fakes and one suite per use case and pure adapter
@@ -55,7 +57,7 @@ An adapter never requires another adapter. Where two must cooperate, the
 composition root passes one into the other through a small struct, as the bus
 adapter gets its serial transport. That seam is also what lets the bus adapter
 run on a host against a scripted serial fake. The pure components (`lc_domain`,
-`lc_application`, `lc_mqtt_codec`, `lc_rs485_lock_board`, `lc_journal`) include
+`lc_application`, `lc_mqtt_codec`, `lc_rs485_lock_board`, `lc_journal`, `lc_button`, `lc_softap_portal`) include
 no SDK or RTOS header and build on a host unchanged.
 
 ### Mapping from the Pi client
@@ -245,8 +247,8 @@ journal,   data, 0x40,     0x3C0000, 0x40000,
   bytes on ESP-IDF 6.1, leaving 45 % of the slot free. The 36 KB from
   `0x17000` to `0x20000` are unused.
 - `nvs_keys` is reserved and unused until flash and NVS encryption are turned
-  on with the SoftAP change (#57). Whether its `encrypted` flag behaves as
-  expected is verified only then.
+  on (a release blocker, ADR-0074 decision 18). Whether its `encrypted` flag
+  behaves as expected is verified only then.
 - The journal is found by its label (`lc_storage_nvs/partition_flash.c`), not
   its offset, and is never flash-encrypted (ADR-0070). The table ends exactly
   at 4 MB.
@@ -287,9 +289,13 @@ journal,   data, 0x40,     0x3C0000, 0x40000,
 
 ### Commissioning
 
-Over USB serial with `scripts/commission.py`. A SoftAP portal is planned as a
-second driving adapter over the same use case (#57), with its own ADR, which
-also turns on flash and NVS encryption.
+Over USB serial with `scripts/commission.py --usb` on bench and development
+builds. The SoftAP setup network is the second driving adapter over the same use
+case (#57, [ADR-0074](../../docs/adr/0074-esp32-softap-provisioning.md)), used with
+`scripts/commission.py --softap`: it opens only on a unit without settings, for 10
+minutes, and is re-entered by a button held for 10 s. Its decisions are the pure
+`lc_softap_portal` and `lc_button` components; the radio adapter is
+`lc_softap_espidf`. Flash and NVS encryption are not on yet (ADR-0074 decision 18).
 
 ## Risks
 
@@ -307,16 +313,15 @@ also turns on flash and NVS encryption.
 - **Drift from the Pi client.** Two implementations of one contract. The
   shared schemas, the shared golden frames and the ported test names are the
   controls.
-- **Unverified hardware facts.** None of these is confirmed: the panel's supply
-  voltage and exact model, its channel count, the lock model, the board's flash
-  size, the serial parameters and DIP address, and the feedback polarity. The
-  build defaults stay assumptions until recorded on the bench; HW-A4 captures
-  the polarity.
-- **Plaintext credentials.** Wi-Fi and MQTT credentials sit unencrypted in NVS
-  until the SoftAP pull request
-  ([plan in #57](https://github.com/Open-Locker/Open-Locker/issues/57#issuecomment-6214674877)),
-  which turns on flash encryption and NVS encryption. Until then the firmware is
-  for an attended bench only.
+- **Hardware facts.** Confirmed on the bench: an SY-800R panel with 8 channels
+  at board address 1, 9600 8N1, door-closing feedback with active `82` events
+  (ADR-0071), and 4 MB of flash on the ESP32 (`esptool.py flash_id`,
+  2026-10-21). Still unconfirmed: the panel's supply voltage and the lock model.
+  Other panels and boards may differ, so every bench run records the polarity
+  again in HW-A4.
+- **Plaintext credentials.** Wi-Fi and MQTT credentials, and the setup
+  password, sit unencrypted in NVS until flash and NVS encryption are turned on
+  (ADR-0074 decision 18). Until then the firmware is for an attended bench only.
 
 ## Glossary
 

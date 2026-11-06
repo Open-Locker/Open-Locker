@@ -20,6 +20,8 @@ class LockerProvisioningService
 {
     private const TOKEN_HMAC_INFO = 'open-locker/provisioning-token-hmac/v1';
 
+    public const TOKEN_VALIDITY_HOURS = 24;
+
     public function __construct(
         private readonly MqttUserService $mqttUserService,
     ) {}
@@ -84,6 +86,17 @@ class LockerProvisioningService
                 ->first();
 
             if ($lockerBank === null || $lockerBank->provisioning_generation === null) {
+                return false;
+            }
+
+            $issuedAt = $lockerBank->provisioning_token_issued_at;
+
+            if ($issuedAt === null || ! now()->lt($issuedAt->addHours(self::TOKEN_VALIDITY_HOURS))) {
+                Log::warning('Provisioning token refused.', [
+                    'locker_bank_id' => $lockerBank->id,
+                    'reason' => 'expired',
+                ]);
+
                 return false;
             }
 

@@ -1,0 +1,13 @@
+menu "Locker reset button"
+
+    config LC_RESET_BUTTON_GPIO
+        int "Reset button GPIO"
+        range 0 39
+        default 4
+        help
+            A button from this pin to GND, with the internal pull-up. Held for
+            10 s and released, it wipes identity, mapping and network settings
+            and keeps the command journal (ADR-0074). The build refuses strapping,
+            flash, input-only, console and RS485 pins.
+
+endmenu

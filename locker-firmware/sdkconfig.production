@@ -1,0 +1,10 @@
+# Layered over sdkconfig.defaults for a production build (ADR-0074):
+#   idf.py -D SDKCONFIG_DEFAULTS="sdkconfig.defaults;sdkconfig.production" build
+# Delete any existing `sdkconfig` first so the defaults apply.
+#
+# Not yet a releasable configuration: flash encryption and NVS encryption are
+# not enabled here, and no production unit may ship before they are (ADR-0074,
+# decision 18).
+
+# No configure, unlock, command or reset-network on the USB console.
+CONFIG_LC_BENCH_CONSOLE=n

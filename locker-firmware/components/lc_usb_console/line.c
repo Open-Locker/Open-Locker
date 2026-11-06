@@ -53,7 +53,10 @@ static bool utf8_accepts(lc_console_line_t *input, uint8_t byte)
 
 lc_console_feed_t lc_console_line_feed(lc_console_line_t *input, char byte)
 {
-    if (byte == '\r') {
+    /* The LF of a CRLF: the CR already ended the line. */
+    bool after_cr = input->after_cr;
+    input->after_cr = byte == '\r';
+    if (byte == '\n' && after_cr) {
         return LC_CONSOLE_LINE_PENDING;
     }
     if (input->finished) {
@@ -63,7 +66,7 @@ lc_console_feed_t lc_console_line_feed(lc_console_line_t *input, char byte)
         input->utf8_remaining = 0;
     }
 
-    if (byte == '\n') {
+    if (byte == '\n' || byte == '\r') {
         input->finished = true;
         /* A sequence cut short by the newline is invalid too. */
         if (input->discarding || input->utf8_remaining > 0) {

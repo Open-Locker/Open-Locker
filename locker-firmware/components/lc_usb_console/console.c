@@ -6,7 +6,8 @@
 #include "lc_usb_console/line.h"
 #include "lc_usb_console/setup_json.h"
 
-#define REPLY_MAX 96
+/* Room for `diagnostics` with every number at its widest. */
+#define REPLY_MAX 128
 
 static const char *bus_state_name(lc_bus_state_t state)
 {
@@ -65,10 +66,19 @@ static void status(const lc_console_t *console)
 static void diagnostics(const lc_console_t *console)
 {
     char text[REPLY_MAX];
+    uint32_t min_free_heap = 0;
+    uint32_t owner_stack_free = 0;
 
-    snprintf(text, sizeof(text), "ok bus=%s unlock_transmissions=%lu\n",
-             bus_state_name(console->bus.connection_state(console->bus.ctx)),
-             (unsigned long)console->unlock_transmissions(console->ctx));
+    int length = snprintf(text, sizeof(text), "ok bus=%s unlock_transmissions=%lu",
+                          bus_state_name(console->bus.connection_state(console->bus.ctx)),
+                          (unsigned long)console->unlock_transmissions(console->ctx));
+    if (console->memory != NULL &&
+        console->memory(console->ctx, &min_free_heap, &owner_stack_free)) {
+        length += snprintf(text + length, sizeof(text) - (size_t)length,
+                           " min_free_heap=%lu owner_stack_free=%lu",
+                           (unsigned long)min_free_heap, (unsigned long)owner_stack_free);
+    }
+    snprintf(text + length, sizeof(text) - (size_t)length, "\n");
     reply(console, text);
 }
 
@@ -140,9 +150,20 @@ static void configure(const lc_console_t *console, const char *json)
     memset(&request, 0, sizeof(request));
 }
 
+/* The commands that change state or move a lock: bench builds only. */
+static bool is_bench_only(lc_console_kind_t kind)
+{
+    return kind == LC_CONSOLE_CONFIGURE || kind == LC_CONSOLE_UNLOCK ||
+           kind == LC_CONSOLE_COMMAND || kind == LC_CONSOLE_RESET_NETWORK;
+}
+
 void lc_console_execute(const lc_console_t *console, const char *line)
 {
     lc_console_command_t command = lc_console_parse(line);
+
+    if (console->production && is_bench_only(command.kind)) {
+        command.kind = LC_CONSOLE_INVALID;
+    }
 
     switch (command.kind) {
     case LC_CONSOLE_STATUS:

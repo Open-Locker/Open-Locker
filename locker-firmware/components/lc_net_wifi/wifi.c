@@ -76,8 +76,13 @@ static void on_ip_event(void *arg, esp_event_base_t base, int32_t id, void *data
     notify(true);
 }
 
-bool lc_wifi_start(const lc_network_settings_t *settings, lc_wifi_state_cb callback, void *ctx)
+static bool initialised;
+
+bool lc_wifi_init(lc_wifi_state_cb callback, void *ctx)
 {
+    if (initialised) {
+        return true;
+    }
     state_callback = callback;
     state_ctx = ctx;
 
@@ -96,19 +101,30 @@ bool lc_wifi_start(const lc_network_settings_t *settings, lc_wifi_state_cb callb
         ESP_LOGE(TAG, "network stack failed: %s", esp_err_to_name(err));
         return false;
     }
-    esp_netif_create_default_wifi_sta();
-
     const wifi_init_config_t init = WIFI_INIT_CONFIG_DEFAULT();
     err = esp_wifi_init(&init);
     if (err == ESP_OK) {
-        err = esp_event_handler_register(WIFI_EVENT, ESP_EVENT_ANY_ID, on_wifi_event, NULL);
-    }
-    if (err == ESP_OK) {
-        err = esp_event_handler_register(IP_EVENT, IP_EVENT_STA_GOT_IP, on_ip_event, NULL);
-    }
-    if (err == ESP_OK) {
         /* The credentials already live in our own record; the driver keeps no copy in NVS. */
         err = esp_wifi_set_storage(WIFI_STORAGE_RAM);
+    }
+    if (err != ESP_OK) {
+        ESP_LOGE(TAG, "Wi-Fi driver failed: %s", esp_err_to_name(err));
+        return false;
+    }
+    initialised = true;
+    return true;
+}
+
+bool lc_wifi_start_station(const lc_network_settings_t *settings)
+{
+    if (!initialised) {
+        return false;
+    }
+    esp_netif_create_default_wifi_sta();
+
+    esp_err_t err = esp_event_handler_register(WIFI_EVENT, ESP_EVENT_ANY_ID, on_wifi_event, NULL);
+    if (err == ESP_OK) {
+        err = esp_event_handler_register(IP_EVENT, IP_EVENT_STA_GOT_IP, on_ip_event, NULL);
     }
     if (err == ESP_OK) {
         err = esp_wifi_set_mode(WIFI_MODE_STA);
@@ -134,6 +150,11 @@ bool lc_wifi_start(const lc_network_settings_t *settings, lc_wifi_state_cb callb
         return false;
     }
     return true;
+}
+
+bool lc_wifi_start(const lc_network_settings_t *settings, lc_wifi_state_cb callback, void *ctx)
+{
+    return lc_wifi_init(callback, ctx) && lc_wifi_start_station(settings);
 }
 
 bool lc_wifi_time_valid(void)
