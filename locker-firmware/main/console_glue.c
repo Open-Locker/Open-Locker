@@ -26,41 +26,32 @@ static void write_line(void *ctx, const char *text)
 static bool submit_command(void *ctx, const char *json)
 {
     (void)ctx;
-    owner_event_t event;
 
     if (device_state.configured) {
         return false;
     }
 
-    memset(&event, 0, sizeof(event));
-    event.kind = OWNER_APP;
-    event.u.app.kind = LC_EVENT_COMMAND;
-    return lc_mqtt_decode_command(json, strlen(json), &event.u.app.command) && owner_post(&event);
+    lc_command_t *slot = owner_command_acquire();
+    if (slot == NULL) {
+        return false;
+    }
+    if (!lc_mqtt_decode_command(json, strlen(json), slot)) {
+        owner_command_discard(slot);
+        return false;
+    }
+    return owner_command_submit(slot);
 }
 
 static bool submit_setup(void *ctx, const lc_setup_request_t *request)
 {
     (void)ctx;
-    owner_event_t event;
-
-    memset(&event, 0, sizeof(event));
-    event.kind = OWNER_SETUP;
-    event.channel = LC_COMMISSION_CHANNEL_CONSOLE;
-    event.u.setup = *request;
-    bool posted = owner_post(&event);
-    /* The queue holds its own copy; this one held a token. */
-    memset(&event, 0, sizeof(event));
-    return posted;
+    return owner_post_setup(LC_COMMISSION_CHANNEL_CONSOLE, request);
 }
 
 static bool request_reset(void *ctx)
 {
     (void)ctx;
-    owner_event_t event;
-
-    memset(&event, 0, sizeof(event));
-    event.kind = OWNER_RESET;
-    return owner_post(&event);
+    return owner_post(&(owner_control_t){.kind = OWNER_RESET});
 }
 
 static bool provisioning_state(void *ctx, bool *enrolled, bool *pending, bool *configured)

@@ -65,8 +65,8 @@ lc_locker_bus_port_t fake_bus_port(fake_bus_t *bus);
 
 /* ---- Command journal ---- */
 
-#define FAKE_JOURNAL_ENTRIES 16
-#define FAKE_JOURNAL_MESSAGES 32
+#define FAKE_JOURNAL_ENTRIES 128
+#define FAKE_JOURNAL_MESSAGES 256
 
 typedef struct {
     bool healthy;

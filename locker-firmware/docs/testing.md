@@ -182,6 +182,23 @@ Suites `test_open_compartment`, `test_apply_config`, `test_app_dispatch`:
 | S2-H52 | While an acknowledgement is outstanding, the owner task goes on processing events |
 | S2-H53 | An acknowledgement event for an unknown or already delivered response changes nothing |
 
+Host suite `test_owner_queue`: `main/owner_queue.c` over a fake FreeRTOS (queues
+that hold copies and never block, in `tests/host/fakes/rtos/`), with the real
+application as the command handler. Whether the target wires the real queues the
+same way is checked on the bench, not here. Tests without an ID: the step is
+idle only when a whole wait passed with nothing posted, and does not sleep when
+work waits; a stale wake after a burst is not idle and waits again; a late wake
+waits only for the rest of the budget; a flood of control events cannot starve a
+command (at most 32 per step); a refused setup submit releases the mailbox.
+
+| ID | Test |
+| --- | --- |
+| S2-H54 | A burst of acknowledgements and other control events, far past the control queue's depth, cannot push out a command |
+| S2-H55 | With every command slot in use, the next command is dropped and logged, is never claimed in the journal, and never reaches the bus |
+| S2-H56 | Command slots are returned after dispatch, including after a duplicate and after a not-connected refusal: the pool is whole again |
+| S2-H57 | The setup and the provisioning-reply mailboxes refuse a second post while busy, and accept one once the first was handled or discarded |
+| S2-H58 | Control events are handled before a waiting command, one command per step |
+
 ### Network, MQTT and enrollment (S3)
 
 Host suite `test_provision_device`:
@@ -400,6 +417,11 @@ CI checks.
 `hwtest.py run --resume` runs only what is still missing, failed or not run;
 `--failed` reruns only the checks that failed.
 
+One bench action answers several checks, so `hwtest.py` asks once and records the
+answer for all of them: C1, C4, D2 and E1; C3 and C5; C7 and E5; D1 and D4; F8, F1
+and F7; F4, F2 and F3; H2 and H9; H6 and H8; H3 and H11. Its session order keeps
+them together, so it differs from this catalogue's order.
+
 Rules:
 
 - Run the groups in order. A failure in an earlier group makes later results
@@ -446,9 +468,9 @@ Rules:
 | HW-C4 | **Actuates.** One open from the admin panel releases the lock once |
 | HW-C5 | **Actuates.** `broker_check.py` with the actuation flag: one open and two duplicates raise the unlock transmission counter by one |
 | HW-C6 | Switch the access point off for one minute, then the broker for one minute: the device reconnects unaided and a response pending at the time is delivered |
+| HW-C9 | Right after HW-C6, with no restart between them, record minimum free heap and owner task stack headroom (`diagnostics` reports both, counted since boot) |
 | HW-C7 | Use an invalid token: the device reports rejection and does not retry; after a backend provisioning reset and a fresh token it enrolls |
 | HW-C8 | Pull power from the ESP32: the broker publishes the Last Will, and the backend shows the bank offline once the heartbeat times out (it does not act on the Last Will yet, #43) |
-| HW-C9 | Record minimum free heap and owner task stack headroom after HW-C6 (`diagnostics` reports both) |
 
 ### Group D: State and door events
 
@@ -465,7 +487,7 @@ Rules:
 
 | ID | Check |
 | --- | --- |
-| HW-E1 | **Actuates.** Commission a fully erased unit with `commission.py` through to an open from the admin panel |
+| HW-E1 | **Actuates.** Commission a unit with no settings with `commission.py` through to an open from the admin panel |
 | HW-E2 | Enter wrong Wi-Fi credentials, then correct them over USB without a reset: identity is kept |
 | HW-E3 | Move an enrolled unit to another Wi-Fi network: identity, mapping, and journal are kept |
 | HW-E4 | Unplug USB during a save, ten times: the device has either the old or the new settings, never a mix |
@@ -482,7 +504,7 @@ went through the HW-F1 path and the HW-F7 capture on a development build.
 
 | ID | Check |
 | --- | --- |
-| HW-F1 | **Actuates.** Commission an erased unit from a laptop with no cable, through to an open from the admin panel. Success is read in the panel |
+| HW-F1 | **Actuates.** Commission a unit with no settings from a laptop with no cable, through to an open from the admin panel. Success is read in the panel |
 | HW-F2 | Wrong Wi-Fi password: the unit keeps retrying, the 10 s button hold resets it, and within 24 h of issue the same unused token enrolls it. Checked in the panel |
 | HW-F3 | On an enrolled unit, scan for the access point and probe the port: neither is reachable |
 | HW-F4 | Button: under 10 s does nothing, 10 s resets, held at power-up does nothing, a jumper stuck down does nothing |
@@ -518,7 +540,7 @@ Two checks differ from the plan in issue #59 on purpose:
 
 | ID | Check |
 | --- | --- |
-| HW-H1 | Flash a blank board with the signed image (bootloader with rollback), enroll it, and rerun HW-A1, HW-A6, HW-C4, HW-D2 and HW-D4 |
+| HW-H1 | The whole run started on a blank board flashed with the signed image (bootloader with rollback), so groups A to E ran on it: confirm that, with no repeat run |
 | HW-H2 | Update an idle unit through the backend: it restarts into the new version and the backend shows it |
 | HW-H3 | **Actuates.** An open arriving during an update, and one during the trial window of a rollback, is handled once, never twice and never lost |
 | HW-H4 | An image with a bad signature, and one signed with another key, are refused; the old version keeps running |

@@ -95,15 +95,13 @@ static void restart_device(void *ctx)
 static void ota_verified(void *ctx)
 {
     (void)ctx;
-    const lc_event_t event = {.kind = LC_EVENT_FIRMWARE_VERIFIED};
-    (void)owner_post_app(&event);
+    (void)owner_post_app(LC_EVENT_FIRMWARE_VERIFIED, 0);
 }
 
 static void ota_failed(void *ctx, lc_error_t error)
 {
     (void)ctx;
-    const lc_event_t event = {.kind = LC_EVENT_FIRMWARE_FAILED, .error = error};
-    (void)owner_post_app(&event);
+    (void)owner_post_app(LC_EVENT_FIRMWARE_FAILED, (uint32_t)error);
 }
 
 static void stop_commands(void *ctx)
@@ -127,11 +125,7 @@ static bool self_test(void *ctx)
 static void on_wifi_state(void *ctx, bool up)
 {
     (void)ctx;
-    owner_event_t event;
-
-    memset(&event, 0, sizeof(event));
-    event.kind = up ? OWNER_NETWORK_UP : OWNER_NETWORK_DOWN;
-    (void)owner_post(&event);
+    (void)owner_post(&(owner_control_t){.kind = up ? OWNER_NETWORK_UP : OWNER_NETWORK_DOWN});
 }
 
 /* ---- The setup network ---- */
@@ -140,15 +134,7 @@ static void on_wifi_state(void *ctx, bool up)
 static bool submit_portal_setup(void *ctx, const lc_setup_request_t *request)
 {
     (void)ctx;
-    owner_event_t event;
-
-    memset(&event, 0, sizeof(event));
-    event.kind = OWNER_SETUP;
-    event.channel = LC_COMMISSION_CHANNEL_PORTAL;
-    event.u.setup = *request;
-    bool posted = owner_post(&event);
-    memset(&event, 0, sizeof(event));
-    return posted;
+    return owner_post_setup(LC_COMMISSION_CHANNEL_PORTAL, request);
 }
 
 static void portal_reply(lc_commission_result_t result)
@@ -348,10 +334,7 @@ void app_main(void)
         }
     } else {
         /* Bench mode: the console is the broker, and it is always there. */
-        lc_event_t connected;
-        memset(&connected, 0, sizeof(connected));
-        connected.kind = LC_EVENT_CONNECTED;
-        (void)owner_post_app(&connected);
+        (void)owner_post_app(LC_EVENT_CONNECTED, 0);
         ESP_LOGI(TAG, "no network settings: bench mode, commands come from the console");
         if (boot.mode == LC_BOOT_SETUP) {
             start_setup_network();

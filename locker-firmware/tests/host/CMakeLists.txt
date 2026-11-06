@@ -113,6 +113,17 @@ if(NOT MSVC)
   endif()
 endif()
 
+# main/owner_queue.c over a fake FreeRTOS: the owner task's inputs, with no RTOS or SDK.
+add_library(lc_owner_queue STATIC ../../main/owner_queue.c fakes/fake_rtos.c)
+target_include_directories(lc_owner_queue PUBLIC ../../main fakes/rtos)
+target_link_libraries(lc_owner_queue PUBLIC lc_under_test)
+if(NOT MSVC)
+  target_compile_options(lc_owner_queue PRIVATE -Wall -Wextra -Werror)
+  if(LC_SANITIZE)
+    target_compile_options(lc_owner_queue PRIVATE -fsanitize=address,undefined -fno-omit-frame-pointer)
+  endif()
+endif()
+
 enable_testing()
 
 function(lc_host_test name)
@@ -157,6 +168,7 @@ lc_host_test(test_firmware_update)
 lc_host_test(test_trial_boot)
 lc_host_test(test_apply_config)
 lc_host_test(test_app_dispatch)
+lc_host_test(test_owner_queue)
 # Beyond the test catalogue
 lc_host_test(test_domain)
 lc_host_test(test_journal_edge)
@@ -178,6 +190,8 @@ lc_host_test(test_boot_mode)
 lc_host_test(test_button)
 lc_host_test(test_softap_portal)
 lc_host_test(test_ol_config)
+
+target_link_libraries(test_owner_queue PRIVATE lc_owner_queue)
 
 # The libFuzzer target is only compiled here, so it cannot rot; see the file.
 add_library(fuzz_ol_config_check OBJECT ${CMAKE_CURRENT_SOURCE_DIR}/../fuzz/fuzz_ol_config.c)
