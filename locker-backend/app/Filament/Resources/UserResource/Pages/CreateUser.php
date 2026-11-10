@@ -34,7 +34,7 @@ class CreateUser extends CreateRecord
 
         // An existing account may hold a token from the last minute, which would
         // throttle this link and make the shared message below untrue.
-        Password::broker()->deleteToken($user);
+        Password::deleteToken($user);
 
         $passwordResetService = app(AuthService::class);
         $status = $passwordResetService->sendResetLink($user->email);

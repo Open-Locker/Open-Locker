@@ -121,7 +121,7 @@ class OrganizationMembershipTest extends TestCase
             'email' => 'grace@example.test',
         ]);
         $profile = $existing->only(['first_name', 'last_name', 'password', 'email_verified_at']);
-        Password::broker()->createToken($existing);
+        Password::createToken($existing);
 
         Livewire::actingAs($admin)
             ->test(CreateUser::class)
