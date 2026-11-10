@@ -433,7 +433,7 @@ validate_release_workflow
 validate_git_cliff
 validate_event_matrix
 validate_documentation_filters('backend-docker.yml', 'locker-backend')
-validate_documentation_filters('mqtt-contract-ci.yml', 'locker-backend')
+validate_documentation_filters('backend-ci.yml', 'locker-backend')
 validate_documentation_filters('client-docker.yml', 'locker-client')
 validate_documentation_filters('locker-client-ci.yml', 'locker-client')
 validate_documentation_filters('mobile-app-build.yml', 'mobile-app')

@@ -318,8 +318,8 @@ export type PutPasswordApiArg = {
   "Accept-Language"?: "en" | "de";
   changePasswordRequest: ChangePasswordRequest;
 };
-export type GetVerifyEmailByIdAndHashApiResponse = /** status 200 `ApiError` */
-  | {
+export type GetVerifyEmailByIdAndHashApiResponse =
+  | /** status 200 `ApiError` */ {
       message: "E-Mail best\u00E4tigt";
     }
   | ApiError;
@@ -330,11 +330,10 @@ export type GetVerifyEmailByIdAndHashApiArg = {
   "Accept-Language"?: "en" | "de";
 };
 export type PostEmailVerificationNotificationApiResponse =
-  /** status 200 `ApiError` */
-    | {
-        message: "Link zur E-Mail-Best\u00E4tigung gesendet";
-      }
-    | ApiError;
+  | /** status 200 `ApiError` */ {
+      message: "Link zur E-Mail-Best\u00E4tigung gesendet";
+    }
+  | ApiError;
 export type PostEmailVerificationNotificationApiArg = {
   /** Preferred language for server-rendered strings (API messages, web pages, and request-triggered emails). Falls back to the application default when omitted or unsupported. */
   "Accept-Language"?: "en" | "de";
@@ -489,7 +488,7 @@ export type CompartmentContentNote = {
   status: boolean;
   compartment_id: string;
   content_note?: string | null;
-  content_note_updated_at: string;
+  content_note_updated_at?: string | null;
   content_note_updated_by_user_id?: number | null;
 };
 export type UpdateCompartmentContentNoteRequest = {

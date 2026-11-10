@@ -48,27 +48,27 @@ describe('useCompartmentStatusRealtime', () => {
     mockConnection.state = 'connecting';
   });
 
-  it('picks up a state the socket reached before the listener was bound', () => {
+  it('picks up a state the socket reached before the listener was bound', async () => {
     mockConnection.state = 'failed';
 
-    renderHook(() => useCompartmentStatusRealtime());
+    await renderHook(() => useCompartmentStatusRealtime());
 
     expect(mockDispatch).toHaveBeenCalledWith(realtimeConnectionChanged('failed'));
   });
 
-  it('mirrors socket state changes into the realtime slice', () => {
-    renderHook(() => useCompartmentStatusRealtime());
+  it('mirrors socket state changes into the realtime slice', async () => {
+    await renderHook(() => useCompartmentStatusRealtime());
 
     handlers.get('state_change')?.({ current: 'unavailable' });
 
     expect(mockDispatch).toHaveBeenCalledWith(realtimeConnectionChanged('unavailable'));
   });
 
-  it('stops listening before disconnecting, then clears the paused flag', () => {
+  it('stops listening before disconnecting, then clears the paused flag', async () => {
     // Disconnecting while still bound would report a logout as paused live updates.
-    const { unmount } = renderHook(() => useCompartmentStatusRealtime());
+    const { unmount } = await renderHook(() => useCompartmentStatusRealtime());
 
-    unmount();
+    await unmount();
 
     expect({
       order: calls.slice(calls.indexOf('unbind:state_change')),

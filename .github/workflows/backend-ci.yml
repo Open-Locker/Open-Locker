@@ -8,7 +8,7 @@ on:
       - 'locker-backend/**'
       - '!locker-backend/**/*.md'
       - '!locker-backend/.cursor/**'
-      - '.github/workflows/mqtt-contract-ci.yml'
+      - '.github/workflows/backend-ci.yml'
   push:
     branches:
       - main
@@ -17,7 +17,7 @@ on:
       - 'locker-backend/**'
       - '!locker-backend/**/*.md'
       - '!locker-backend/.cursor/**'
-      - '.github/workflows/mqtt-contract-ci.yml'
+      - '.github/workflows/backend-ci.yml'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.run_id }}

@@ -39,13 +39,14 @@ export default function AccountScreen() {
   const [profileMessage, setProfileMessage] = React.useState<string | null>(null);
   const [passwordMessage, setPasswordMessage] = React.useState<string | null>(null);
 
-  React.useEffect(() => {
-    if (user) {
-      setFirstName(user.first_name);
-      setLastName(user.last_name ?? '');
-      setEmail(user.email);
-    }
-  }, [user]);
+  // Refill the form whenever a fresh user arrives (initial load or refetch).
+  const [formUser, setFormUser] = React.useState<typeof user>(undefined);
+  if (user && user !== formUser) {
+    setFormUser(user);
+    setFirstName(user.first_name);
+    setLastName(user.last_name ?? '');
+    setEmail(user.email);
+  }
 
   const clearSession = React.useCallback(async () => {
     await clearPersistedAuth();

@@ -39,14 +39,16 @@ export function useOpenProgress(commandId: string | null): OpenProgress | null {
 
   // A poll that started before a realtime event can land after it and write the
   // older state back into the cache; keep the furthest state seen instead.
-  useEffect(() => {
-    if (commandId === null || reportedState === undefined) return;
-    setKnown((previous) =>
-      previous?.commandId === commandId && !isOpenStateAdvance(previous.state, reportedState)
-        ? previous
-        : { commandId, state: reportedState },
-    );
-  }, [commandId, reportedState]);
+  if (
+    commandId !== null &&
+    reportedState !== undefined &&
+    !(
+      known?.commandId === commandId &&
+      (known.state === reportedState || !isOpenStateAdvance(known.state, reportedState))
+    )
+  ) {
+    setKnown({ commandId, state: reportedState });
+  }
 
   const knownState = known?.commandId === commandId ? known.state : undefined;
   const timedOut = timedOutCommandId === commandId;

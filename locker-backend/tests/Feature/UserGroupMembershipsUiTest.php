@@ -55,4 +55,49 @@ class UserGroupMembershipsUiTest extends TestCase
             ->assertCanSeeTableRecords([$activeGroup])
             ->assertCanNotSeeTableRecords([$revokedGroup]);
     }
+
+    public function test_relation_manager_shows_empty_state_when_user_has_no_groups(): void
+    {
+        $admin = $this->admin();
+        $member = User::factory()->create();
+
+        Livewire::actingAs($admin)
+            ->test(GroupMembershipsRelationManager::class, [
+                'ownerRecord' => $member->fresh(),
+                'pageClass' => EditUser::class,
+            ])
+            ->assertCountTableRecords(0)
+            ->assertSee(__('filament-tables::table.empty.heading', ['model' => __('Groups')]));
+    }
+
+    public function test_relation_manager_hides_memberships_once_they_expire(): void
+    {
+        $admin = $this->admin();
+        $member = User::factory()->create();
+
+        $service = app(GroupAccessService::class);
+
+        $permanentGroup = $service->createGroup('Engineering', actor: $admin);
+        $expiringGroup = $service->createGroup('Logistics', actor: $admin);
+
+        $service->addUser(group: $permanentGroup, user: $member, actor: $admin);
+        $service->addUser(group: $expiringGroup, user: $member, expiresAt: now()->addDay(), actor: $admin);
+
+        Livewire::actingAs($admin)
+            ->test(GroupMembershipsRelationManager::class, [
+                'ownerRecord' => $member->fresh(),
+                'pageClass' => EditUser::class,
+            ])
+            ->assertCanSeeTableRecords([$permanentGroup, $expiringGroup]);
+
+        $this->travel(2)->days();
+
+        Livewire::actingAs($admin)
+            ->test(GroupMembershipsRelationManager::class, [
+                'ownerRecord' => $member->fresh(),
+                'pageClass' => EditUser::class,
+            ])
+            ->assertCanSeeTableRecords([$permanentGroup])
+            ->assertCanNotSeeTableRecords([$expiringGroup]);
+    }
 }
