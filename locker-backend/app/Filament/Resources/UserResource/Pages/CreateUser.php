@@ -13,6 +13,7 @@ use Filament\Resources\Pages\CreateRecord;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Password;
 use Illuminate\Support\Str;
 
 class CreateUser extends CreateRecord
@@ -30,6 +31,10 @@ class CreateUser extends CreateRecord
             'last_name' => (string) $data['last_name'],
             'password' => Hash::make($tempPassword),
         ], $actor instanceof User ? $actor->id : null);
+
+        // An existing account may hold a token from the last minute, which would
+        // throttle this link and make the shared message below untrue.
+        Password::broker()->deleteToken($user);
 
         $passwordResetService = app(AuthService::class);
         $status = $passwordResetService->sendResetLink($user->email);

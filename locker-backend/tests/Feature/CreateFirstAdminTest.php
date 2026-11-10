@@ -26,6 +26,20 @@ class CreateFirstAdminTest extends TestCase
         $this->assertSame([Organization::DEFAULT_SLUG], $admin->organizations()->pluck('slug')->all());
     }
 
+    public function test_an_existing_account_keeps_its_profile_when_it_becomes_the_first_admin(): void
+    {
+        $existing = User::factory()->unverified()->create(['email' => 'ops@example.test']);
+        $profile = $existing->only(['first_name', 'last_name', 'password', 'email_verified_at']);
+        config(['admin.first_admin_email' => 'ops@example.test']);
+
+        $this->artisan('first-admin:create')->assertSuccessful();
+
+        $admin = $existing->fresh();
+        $this->assertTrue($admin?->isAdmin());
+        $this->assertEquals($profile, $admin?->only(['first_name', 'last_name', 'password', 'email_verified_at']));
+        $this->assertSame([Organization::DEFAULT_SLUG], $admin?->organizations()->pluck('slug')->all());
+    }
+
     public function test_the_created_admin_cannot_be_logged_in_as_without_a_password_reset(): void
     {
         config(['admin.first_admin_email' => 'ops@example.test']);

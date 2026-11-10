@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Projectors;
 
-use App\Models\User;
 use App\StorableEvents\UserAddedToOrganization;
 use App\StorableEvents\UserRemovedFromOrganization;
 use Illuminate\Support\Carbon;
@@ -23,8 +22,9 @@ class OrganizationMembershipProjector extends Projector
     public function onUserAddedToOrganization(UserAddedToOrganization $event): void
     {
         // Deleting a user cascades their memberships away; replaying their
-        // events must not bring the rows back or violate the foreign key.
-        if (! User::query()->whereKey($event->userId)->exists()) {
+        // events must not bring the rows back or violate the foreign key. The
+        // query builder keeps future model scopes out of the replay.
+        if (! DB::table('users')->where('id', $event->userId)->exists()) {
             return;
         }
 

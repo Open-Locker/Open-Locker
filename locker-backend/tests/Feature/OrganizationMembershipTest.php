@@ -19,6 +19,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;
+use Illuminate\Support\Facades\Password;
 use Livewire\Livewire;
 use Spatie\EventSourcing\StoredEvents\Models\EloquentStoredEvent;
 use Tests\TestCase;
@@ -120,6 +121,7 @@ class OrganizationMembershipTest extends TestCase
             'email' => 'grace@example.test',
         ]);
         $profile = $existing->only(['first_name', 'last_name', 'password', 'email_verified_at']);
+        Password::broker()->createToken($existing);
 
         Livewire::actingAs($admin)
             ->test(CreateUser::class)
@@ -139,6 +141,7 @@ class OrganizationMembershipTest extends TestCase
             'user_id' => $existing->id,
             'added_by_user_id' => $admin->id,
         ]);
+        Notification::assertSentTo($existing, WebResetPasswordNotification::class);
     }
 
     public function test_creating_a_user_fails_without_an_organization_context(): void

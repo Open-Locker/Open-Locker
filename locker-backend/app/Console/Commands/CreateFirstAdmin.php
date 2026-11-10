@@ -59,8 +59,9 @@ class CreateFirstAdmin extends Command
         // Set outside the create: email_verified_at is not fillable, so mass assignment
         // drops it silently. The address comes from deployment configuration, which is
         // already a trusted channel, so requiring a verification click on top of the
-        // password reset would only add a second way to be locked out.
-        if ($user->email_verified_at === null) {
+        // password reset would only add a second way to be locked out. An existing
+        // account keeps its profile (ADR-0067); completing the reset verifies it.
+        if ($user->wasRecentlyCreated && $user->email_verified_at === null) {
             $user->forceFill(['email_verified_at' => now()])->save();
         }
 
