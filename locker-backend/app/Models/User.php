@@ -80,6 +80,17 @@ class User extends Authenticatable implements FilamentUser, HasName, MustVerifyE
     }
 
     /**
+     * Organizations this user belongs to (inverse of Organization::members).
+     *
+     * @return BelongsToMany<Organization, $this>
+     */
+    public function organizations(): BelongsToMany
+    {
+        return $this->belongsToMany(Organization::class, 'organization_user')
+            ->withPivot(['added_by_user_id', 'joined_at']);
+    }
+
+    /**
      * Get all compartment access entries for this user.
      *
      * @return HasMany<CompartmentAccess, User>
