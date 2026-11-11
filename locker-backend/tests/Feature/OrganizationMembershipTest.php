@@ -16,6 +16,7 @@ use App\Services\OrganizationMembershipService;
 use App\Services\UserAdministrationService;
 use App\StorableEvents\UserAddedToOrganization;
 use App\StorableEvents\UserRemovedFromOrganization;
+use Filament\Notifications\Notification as FilamentNotification;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -60,10 +61,14 @@ class OrganizationMembershipTest extends TestCase
 
     public function test_rolling_the_backfill_back_and_forth_restores_every_membership(): void
     {
-        User::factory()->count(2)->create();
+        [, $removedMember] = User::factory()->count(2)->create()->all();
         $migration = require database_path('migrations/2026_10_14_000003_backfill_default_organization_memberships.php');
         $migration->up();
 
+        $organizationId = $this->defaultOrganization()->id;
+        OrganizationMembershipAggregate::retrieve(OrganizationMembershipAggregate::aggregateUuidFor($organizationId, $removedMember->id))
+            ->removeMember($organizationId, $removedMember->id, null, now())
+            ->persist();
         $laterMember = User::factory()->create();
         $otherOrganization = Organization::query()->create(['name' => 'Other', 'slug' => 'other']);
         app(OrganizationMembershipService::class)->addMember($this->defaultOrganization(), $laterMember);
@@ -74,10 +79,10 @@ class OrganizationMembershipTest extends TestCase
         DB::table('organization_user')->delete();
         $migration->up();
 
-        $this->assertSame(0, EloquentStoredEvent::query()
+        $this->assertSame(1, EloquentStoredEvent::query()
             ->where('event_class', UserRemovedFromOrganization::class)
             ->count(), 'A rollback must not record removals.');
-        $this->assertEquals($before, $this->membershipRows());
+        $this->assertEquals($before, $this->membershipRows(), 'A removed member must stay removed.');
     }
 
     public function test_a_replay_rebuilds_the_same_membership_table(): void
@@ -97,6 +102,9 @@ class OrganizationMembershipTest extends TestCase
             ->removeMember($organization->id, $removed->id, $actor->id, now())
             ->persist();
         $deleted->delete();
+        $deletedOrganization = Organization::query()->create(['name' => 'Gone', 'slug' => 'gone']);
+        $memberships->addMember($deletedOrganization, $kept, $actor->id);
+        $deletedOrganization->delete();
 
         $before = $this->membershipRows();
         $this->assertCount(2, $before);
@@ -181,7 +189,10 @@ class OrganizationMembershipTest extends TestCase
             ])
             ->call('create')
             ->assertHasNoFormErrors()
-            ->assertNotified(__('User created'));
+            ->assertNotified(FilamentNotification::make()
+                ->title(__('User created'))
+                ->body(trans(Password::RESET_THROTTLED))
+                ->success());
 
         Notification::assertNotSentTo($existing, WebResetPasswordNotification::class);
     }

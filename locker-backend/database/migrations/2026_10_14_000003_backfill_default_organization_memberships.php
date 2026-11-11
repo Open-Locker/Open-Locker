@@ -29,9 +29,15 @@ return new class extends Migration
             ->orderBy('id')
             ->chunkById(100, function ($users) use ($organizationId): void {
                 foreach ($users as $user) {
-                    OrganizationMembershipAggregate::retrieve(
-                        OrganizationMembershipAggregate::aggregateUuidFor($organizationId, (int) $user->id)
-                    )
+                    $aggregateUuid = OrganizationMembershipAggregate::aggregateUuidFor($organizationId, (int) $user->id);
+
+                    // Any history, including a removal, means the backfill already
+                    // ran for this user; re-adding would undo the removal.
+                    if (DB::table('stored_events')->where('aggregate_uuid', $aggregateUuid)->exists()) {
+                        continue;
+                    }
+
+                    OrganizationMembershipAggregate::retrieve($aggregateUuid)
                         ->addMember(
                             organizationId: $organizationId,
                             userId: (int) $user->id,

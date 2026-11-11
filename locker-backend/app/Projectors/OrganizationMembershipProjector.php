@@ -21,10 +21,12 @@ class OrganizationMembershipProjector extends Projector
 {
     public function onUserAddedToOrganization(UserAddedToOrganization $event): void
     {
-        // Deleting a user cascades their memberships away; replaying their
-        // events must not bring the rows back or violate the foreign key. The
-        // query builder keeps future model scopes out of the replay.
-        if (! DB::table('users')->where('id', $event->userId)->exists()) {
+        // Deleting a user or an organization cascades its memberships away;
+        // replaying their events must not bring the rows back or violate the
+        // foreign keys. The query builder keeps future model scopes out of the
+        // replay.
+        if (! DB::table('users')->where('id', $event->userId)->exists()
+            || ! DB::table('organizations')->where('id', $event->organizationId)->exists()) {
             return;
         }
 
