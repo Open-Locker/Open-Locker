@@ -4,7 +4,7 @@
 
 ## Status
 
-Proposed
+Implemented (2026-05-31, `beaa4714`).
 
 ## Date
 

@@ -2,7 +2,7 @@
 
 ## Status
 
-Proposed
+Implemented (2026-08-22, `14f9303a`), except decision 3: while the bus stays unreachable, the "bus unreachable" error is logged on every failed operation, not once per cycle.
 
 ## Date
 

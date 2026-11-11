@@ -4,7 +4,7 @@
 
 ## Status
 
-Proposed
+Implemented (2026-06-26, `ba798329`). Decisions 1, 3 and 5 were later superseded by ADR-0055 (signed builds only from `mobile-v*` tags); decisions 2 and 4 still apply.
 
 ## Date
 

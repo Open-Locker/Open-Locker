@@ -1,7 +1,7 @@
 ---
 description: ADR naming, format, and lifecycle conventions
 globs: docs/adr/**/*.md
-alwaysApply: false
+alwaysApply: true
 ---
 
 # ADR Format and Lifecycle
@@ -13,23 +13,31 @@ Store ADRs in `docs/adr/` and use numeric, kebab-case file names:
 
 ## ADR Structure
 
-Use this section order:
-
-1. Title
-2. Status
-3. Date
-4. Context
-5. Decision
-6. Alternatives Considered
-7. Consequences
-8. References
+Use the sections in `docs/adr/0000-template.md`, in that order. In new ADRs, the
+Date is the acceptance date.
 
 ## Lifecycle Rules
 
-- Keep one architecture decision per ADR.
-- Do not rewrite accepted ADR history.
-- When direction changes, create a new ADR and mark the old one superseded.
-- Link old and new ADRs for traceability.
+- `proposed`: the PR is open. An ADR is accepted when its PR is approved: set
+  `accepted` then, before merging. Never merge an ADR as `proposed`.
+- `accepted`: decided and editable until the decision is implemented or released,
+  even if the status has not been updated yet. Note each change as a dated line
+  under Status.
+- `implemented`: implemented or released. It can only be superseded or
+  deprecated. For a decision built over several PRs, set this when the last one
+  merges.
+- `superseded`: replaced by a newer ADR. Link the replacement both ways.
+- `deprecated`: no longer applies and nothing replaces it. Say why in the status
+  line.
+- ADRs accepted before this rule (0068 and lower, except 0053 and 0067) can only
+  be superseded or deprecated, whatever their status says. Their status line may
+  still be updated.
+- Keep one decision per ADR.
+
+## Confirmation
+
+Every new ADR lists how the decision is checked. Each item names a test or a bench
+check.
 
 ## Traceability Rules
 

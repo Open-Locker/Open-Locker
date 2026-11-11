@@ -54,6 +54,10 @@ Highlight key trade-offs and decision drivers.
 
 Describe rollout steps, migration strategy, and fallback plan if needed.
 
+## Confirmation
+
+List how the decision is checked. Each item names a test or a bench check.
+
 ## Supersedes / Superseded By
 
 - Supersedes: ADR-XXXX (if applicable)
