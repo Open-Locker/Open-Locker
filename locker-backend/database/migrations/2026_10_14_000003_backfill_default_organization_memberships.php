@@ -3,9 +3,11 @@
 declare(strict_types=1);
 
 use App\Aggregates\OrganizationMembershipAggregate;
+use App\Projectors\OrganizationMembershipProjector;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use Spatie\EventSourcing\Projectionist;
 
 return new class extends Migration
 {
@@ -13,6 +15,10 @@ return new class extends Migration
      * Add every existing user to the default organization through the
      * event-sourced membership flow (ADR-0067), so a replay rebuilds the
      * memberships. They joined when their account was created.
+     *
+     * The read model is then rebuilt from all membership events. After a
+     * rollback, organization_user is recreated empty while the aggregates
+     * still hold their members, so the backfill alone would record nothing.
      */
     public function up(): void
     {
@@ -35,31 +41,13 @@ return new class extends Migration
                         ->persist();
                 }
             });
+
+        app(Projectionist::class)->replay(collect([app(OrganizationMembershipProjector::class)]));
     }
 
     /**
-     * Remove the memberships through events as well; otherwise the aggregates
-     * would still count everyone as a member, and a later `up` would record
-     * nothing into the recreated, empty read model.
+     * Records nothing: stored events are permanent and show in the audit log,
+     * so a rollback must not invent removals. `up` restores the read model.
      */
-    public function down(): void
-    {
-        DB::table('organization_user')
-            ->select(['organization_id', 'user_id'])
-            ->orderBy('organization_id')
-            ->orderBy('user_id')
-            ->get()
-            ->each(function ($membership): void {
-                OrganizationMembershipAggregate::retrieve(
-                    OrganizationMembershipAggregate::aggregateUuidFor((int) $membership->organization_id, (int) $membership->user_id)
-                )
-                    ->removeMember(
-                        organizationId: (int) $membership->organization_id,
-                        userId: (int) $membership->user_id,
-                        actorUserId: null,
-                        removedAt: now(),
-                    )
-                    ->persist();
-            });
-    }
+    public function down(): void {}
 };

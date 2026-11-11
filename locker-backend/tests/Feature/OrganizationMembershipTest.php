@@ -15,6 +15,7 @@ use App\Services\OrganizationContext;
 use App\Services\OrganizationMembershipService;
 use App\Services\UserAdministrationService;
 use App\StorableEvents\UserAddedToOrganization;
+use App\StorableEvents\UserRemovedFromOrganization;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -55,6 +56,28 @@ class OrganizationMembershipTest extends TestCase
             'user_id' => $users->first()?->id,
             'added_by_user_id' => null,
         ]);
+    }
+
+    public function test_rolling_the_backfill_back_and_forth_restores_every_membership(): void
+    {
+        User::factory()->count(2)->create();
+        $migration = require database_path('migrations/2026_10_14_000003_backfill_default_organization_memberships.php');
+        $migration->up();
+
+        $laterMember = User::factory()->create();
+        $otherOrganization = Organization::query()->create(['name' => 'Other', 'slug' => 'other']);
+        app(OrganizationMembershipService::class)->addMember($this->defaultOrganization(), $laterMember);
+        app(OrganizationMembershipService::class)->addMember($otherOrganization, $laterMember);
+        $before = $this->membershipRows();
+
+        $migration->down();
+        DB::table('organization_user')->delete();
+        $migration->up();
+
+        $this->assertSame(0, EloquentStoredEvent::query()
+            ->where('event_class', UserRemovedFromOrganization::class)
+            ->count(), 'A rollback must not record removals.');
+        $this->assertEquals($before, $this->membershipRows());
     }
 
     public function test_a_replay_rebuilds_the_same_membership_table(): void
@@ -121,7 +144,6 @@ class OrganizationMembershipTest extends TestCase
             'email' => 'grace@example.test',
         ]);
         $profile = $existing->only(['first_name', 'last_name', 'password', 'email_verified_at']);
-        Password::createToken($existing);
 
         Livewire::actingAs($admin)
             ->test(CreateUser::class)
@@ -142,6 +164,26 @@ class OrganizationMembershipTest extends TestCase
             'added_by_user_id' => $admin->id,
         ]);
         Notification::assertSentTo($existing, WebResetPasswordNotification::class);
+    }
+
+    public function test_creating_an_existing_email_keeps_the_password_reset_throttle(): void
+    {
+        Notification::fake();
+        $existing = User::factory()->create(['email' => 'grace@example.test']);
+        Password::createToken($existing);
+
+        Livewire::actingAs($this->admin())
+            ->test(CreateUser::class)
+            ->fillForm([
+                'first_name' => 'Someone',
+                'last_name' => 'Else',
+                'email' => 'grace@example.test',
+            ])
+            ->call('create')
+            ->assertHasNoFormErrors()
+            ->assertNotified(__('User created'));
+
+        Notification::assertNotSentTo($existing, WebResetPasswordNotification::class);
     }
 
     public function test_creating_a_user_fails_without_an_organization_context(): void

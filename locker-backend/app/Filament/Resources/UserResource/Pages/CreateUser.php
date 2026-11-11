@@ -32,17 +32,14 @@ class CreateUser extends CreateRecord
             'password' => Hash::make($tempPassword),
         ], $actor instanceof User ? $actor->id : null);
 
-        // An existing account may hold a token from the last minute, which would
-        // throttle this link and make the shared message below untrue.
-        Password::deleteToken($user);
-
         $passwordResetService = app(AuthService::class);
         $status = $passwordResetService->sendResetLink($user->email);
 
-        // Same message whether the email was new or already had an account.
+        // Same title whether the email was new or already had an account. The body
+        // reports the broker, which throttles a link requested in the last minute.
         Notification::make()
             ->title(__('User created'))
-            ->body(__('Password reset link sent.'))
+            ->body($status === Password::RESET_LINK_SENT ? __('Password reset link sent.') : trans($status))
             ->success()
             ->send();
 
