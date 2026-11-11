@@ -140,8 +140,8 @@ one byte and is accepted.
 
 No unit is deployed, so no journal migrates; a bench board's journal is erased when
 the format changes. A device with a journal of an unknown version reports it
-unhealthy and does not actuate; a format change across OTA follows
-[ADR-0085](0085-esp32-trial-boot-and-rollback.md). There is no migration from the Pi
+unhealthy and does not actuate; a format change across OTA follows the
+trial boot and rollback rules that come with OTA (#59). There is no migration from the Pi
 client's files, because the two never share a bank.
 
 ## Confirmation

@@ -12,8 +12,7 @@ Accepted
 
 ESP-IDF cannot replace the partition table over the air. Once units are
 deployed, changing the flash layout means a USB reflash of every unit. No unit
-is deployed, so the layout is still free. OTA
-([ADR-0075](0075-esp32-ota-firmware-updates.md)), the command journal
+is deployed, so the layout is still free. OTA (#59), the command journal
 ([ADR-0070](0070-esp32-command-journal-format.md)) and later NVS encryption all
 need room in it. The bench board has 4 MB of flash (confirmed 2026-10-21); production boards
 are not chosen yet.
