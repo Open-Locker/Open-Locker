@@ -58,6 +58,11 @@ journal.
 
 ## Update the firmware over the air
 
+:::note[Planned]
+Over-the-air updates are not implemented yet. They come with [#336](https://github.com/Open-Locker/Open-Locker/pull/336), once the image
+signing design is settled. This section describes the plan.
+:::
+
 :::caution[Never run on a board]
 This path is complete in the code, but hardware group H has not run. Try it on a bench unit only, and
 keep a USB cable at hand.

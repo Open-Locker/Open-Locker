@@ -353,6 +353,11 @@ development build. It is a spike, not the group F acceptance run.
 
 ## OTA update on the device
 
+:::note[Planned]
+Over-the-air updates are not implemented yet. They come with [#336](https://github.com/Open-Locker/Open-Locker/pull/336), once the image
+signing design is settled. This section describes the plan.
+:::
+
 Decided in ADR-0075.
 
 ### Order of an update
@@ -390,6 +395,11 @@ HTTP client prints the whole URL when it cannot parse it, and clears its copy of
 download ends.
 
 ## Firmware rollout in the backend
+
+:::note[Planned]
+The backend rollout is not implemented yet. It comes with over-the-air updates in
+[#336](https://github.com/Open-Locker/Open-Locker/pull/336). This section describes the plan.
+:::
 
 Decided in ADR-0077.
 

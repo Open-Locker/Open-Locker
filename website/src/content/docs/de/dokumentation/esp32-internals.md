@@ -303,6 +303,11 @@ Einmal ausgeführt mit ESP-IDF 6.1, network_provisioning 3.0.0 und einem ESP32 r
 
 ## OTA-Update auf dem Gerät
 
+:::note[Geplant]
+Over-the-Air-Updates sind noch nicht umgesetzt. Sie kommen mit [#336](https://github.com/Open-Locker/Open-Locker/pull/336), sobald das
+Konzept für die Image-Signierung steht. Dieser Abschnitt beschreibt den Plan.
+:::
+
 Entschieden in ADR-0075.
 
 ### Reihenfolge eines Updates
@@ -324,6 +329,11 @@ Die Firmware speichert sie nicht. Es ist die Version des Slots, den der Bootload
 Der Adapter protokolliert nur die Version, schaltet während eines Downloads das Log-Tag `HTTP_CLIENT` stumm, weil der HTTP-Client die ganze URL ausgibt, wenn er sie nicht parsen kann, und löscht seine Kopie der URL am Ende des Downloads.
 
 ## Firmware-Rollout im Backend
+
+:::note[Geplant]
+Der Rollout im Backend ist noch nicht umgesetzt. Er kommt mit den Over-the-Air-Updates
+in [#336](https://github.com/Open-Locker/Open-Locker/pull/336). Dieser Abschnitt beschreibt den Plan.
+:::
 
 Entschieden in ADR-0077.
 

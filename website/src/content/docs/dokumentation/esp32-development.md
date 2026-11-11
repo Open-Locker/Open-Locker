@@ -72,7 +72,7 @@ python scripts/verify.py --skip-target   # without ESP-IDF
 | --- | --- |
 | `test IDs` | A catalogued ID of an implemented area with no test, a test with an ID the catalogue does not list, a test defined but never run, or run twice |
 | `layer includes` | A forbidden include or `REQUIRES`, an SDK header in a pure component, or a component in none of the lists in `verify.py` |
-| `OTA settings` | Any sdkconfig file sets `CONFIG_ESP_HTTPS_OTA_ALLOW_HTTP` |
+| `OTA settings` | Planned with [#336](https://github.com/Open-Locker/Open-Locker/pull/336). Any sdkconfig file sets `CONFIG_ESP_HTTPS_OTA_ALLOW_HTTP` |
 | `static analysis` | Any finding from clang's analyzer or `gcc -fanalyzer` on the pure sources |
 | `host tests` | Any suite, built with AddressSanitizer and UndefinedBehaviorSanitizer |
 | `message schemas` | A message encoded by a test that is invalid against `docs/asyncapi/schemas` |
@@ -170,7 +170,7 @@ file has the clang command to build it by hand.
 
 ## Add an MQTT command
 
-`update_firmware` is the example to follow.
+`update_firmware` is the example to follow once it lands with [#336](https://github.com/Open-Locker/Open-Locker/pull/336).
 
 1. Write the ADR, then the contract in `docs/asyncapi/`: the command and response schemas in `schemas/payloads/`, their files in `examples/`, and the messages in `mqtt.yaml`.
 2. Add the action to `lc_action_t` in `lc_domain/command.h`, with a struct for its data, and any new error code to `lc_domain/errors.h`.

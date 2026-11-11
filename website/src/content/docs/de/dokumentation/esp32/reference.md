@@ -109,6 +109,9 @@ Die Grenzen von `commission.py` für Werte:
 | `UPDATE_DOWNLOAD_FAILED` | Als Ereignis gemeldet, wenn der Download eines angenommenen Updates fehlschlägt |
 | `UPDATE_VERIFY_FAILED` | Als Ereignis gemeldet, wenn die Prüfung eines angenommenen Updates fehlschlägt |
 
+Die `UPDATE_*`-Codes sind mit den Over-the-Air-Updates geplant ([#336](https://github.com/Open-Locker/Open-Locker/pull/336)) und noch nicht
+umgesetzt.
+
 ## Grenzen
 
 - **Keine Produktiveinheit darf ausgeliefert werden.** Flash- und NVS-Verschlüsselung sind aus, die Partition `nvs_keys` ist für später

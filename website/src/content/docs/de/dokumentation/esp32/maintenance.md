@@ -56,6 +56,11 @@ Das ist heute der empfohlene Update-Weg. Er behält Einstellungen, Identität, Z
 
 ## Firmware Over-the-Air aktualisieren
 
+:::note[Geplant]
+Over-the-Air-Updates sind noch nicht umgesetzt. Sie kommen mit [#336](https://github.com/Open-Locker/Open-Locker/pull/336), sobald das
+Konzept für die Image-Signierung steht. Dieser Abschnitt beschreibt den Plan.
+:::
+
 :::caution[Lief noch nie auf einem Board]
 Dieser Weg ist im Code vollständig, aber die Hardwaregruppe H lief noch nicht. Nur an einer Bench-Einheit ausprobieren und ein
 USB-Kabel bereithalten.

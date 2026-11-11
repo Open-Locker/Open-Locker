@@ -150,6 +150,11 @@ refusing it.
 
 ## Sign the image
 
+:::note[Planned]
+Image signing is not implemented yet. It comes with over-the-air updates in
+[#336](https://github.com/Open-Locker/Open-Locker/pull/336). Until then, skip this step and flash the unsigned image.
+:::
+
 Skip this for a bench unit that will never update over the air. A unit checks an
 update against the public key in the image it is **running**, so a unit that runs
 an unsigned image can never verify an update.
@@ -284,7 +289,7 @@ with no settings yet, right after the erase.
 
 ## Flash the firmware
 
-**A signed image**, for a unit that must be able to update. Run this from the
+**A signed image** (planned, see [Sign the image](#sign-the-image)), for a unit that must be able to update. Run this from the
 `build/` folder, after you [signed the image](#sign-the-image). `idf.py flash` writes
 the unsigned image, so do not use it for such a unit.
 

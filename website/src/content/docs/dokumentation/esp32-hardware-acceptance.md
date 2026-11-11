@@ -150,6 +150,11 @@ Needs a unit with setup secrets, a laptop running `commission.py --softap` from 
 
 ### Group H: Over-the-air updates
 
+:::note[Planned]
+Over-the-air updates are not implemented yet. They come with [#336](https://github.com/Open-Locker/Open-Locker/pull/336), once the image
+signing design is settled. This section describes the plan.
+:::
+
 Needs a unit flashed over USB with a signed image, a backend with firmware releases, and a second signed release. Run after groups A to E and G pass.
 
 | ID | Check | How |

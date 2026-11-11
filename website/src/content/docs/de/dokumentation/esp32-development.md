@@ -70,7 +70,7 @@ python scripts/verify.py --skip-target   # ohne ESP-IDF
 | --- | --- |
 | `test IDs` | Einer katalogisierten ID eines umgesetzten Bereichs ohne Test, einem Test mit einer ID, die der Katalog nicht nennt, einem definierten, aber nie ausgeführten oder doppelt ausgeführten Test |
 | `layer includes` | Einem verbotenen Include oder `REQUIRES`, einem SDK-Header in einer reinen Komponente oder einer Komponente, die in keiner Liste von `verify.py` steht |
-| `OTA settings` | Einer sdkconfig-Datei, die `CONFIG_ESP_HTTPS_OTA_ALLOW_HTTP` setzt |
+| `OTA settings` | Geplant mit [#336](https://github.com/Open-Locker/Open-Locker/pull/336). Einer sdkconfig-Datei, die `CONFIG_ESP_HTTPS_OTA_ALLOW_HTTP` setzt |
 | `static analysis` | Einem Befund des clang-Analyzers oder von `gcc -fanalyzer` in den reinen Quellen |
 | `host tests` | Einer Suite, gebaut mit AddressSanitizer und UndefinedBehaviorSanitizer |
 | `message schemas` | Einer von einem Test kodierten Nachricht, die gegen `docs/asyncapi/schemas` ungültig ist |
@@ -166,7 +166,7 @@ enthält den clang-Befehl, um es von Hand zu bauen.
 
 ## Ein MQTT-Kommando hinzufügen
 
-`update_firmware` ist das Vorbild.
+`update_firmware` ist das Vorbild, sobald es mit [#336](https://github.com/Open-Locker/Open-Locker/pull/336) kommt.
 
 1. Das ADR schreiben, dann den Vertrag in `docs/asyncapi/`: Kommando- und Antwortschemata in `schemas/payloads/`, ihre Dateien in `examples/` und die
    Nachrichten in `mqtt.yaml`.

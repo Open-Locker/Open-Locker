@@ -149,6 +149,11 @@ Benötigt eine Einheit mit Setup-Secrets, einen Laptop mit `commission.py --soft
 
 ### Gruppe H: Over-the-Air-Updates
 
+:::note[Geplant]
+Over-the-Air-Updates sind noch nicht umgesetzt. Sie kommen mit [#336](https://github.com/Open-Locker/Open-Locker/pull/336), sobald das
+Konzept für die Image-Signierung steht. Dieser Abschnitt beschreibt den Plan.
+:::
+
 Benötigt eine per USB mit einem signierten Image geflashte Einheit, ein Backend mit Firmware-Releases und ein zweites signiertes Release. Läuft, nachdem die Gruppen A bis E und G bestanden sind.
 
 | ID | Prüfung | Art |

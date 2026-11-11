@@ -141,6 +141,11 @@ bleiben die Werte des vorherigen Builds erhalten: Ein Release-Build akzeptiert d
 
 ## Image signieren
 
+:::note[Geplant]
+Die Image-Signierung ist noch nicht umgesetzt. Sie kommt mit den Over-the-Air-Updates
+in [#336](https://github.com/Open-Locker/Open-Locker/pull/336). Bis dahin diesen Schritt überspringen und das unsignierte Image flashen.
+:::
+
 Für eine Bench-Einheit, die nie Over-the-Air aktualisiert wird, entfällt das. Eine Einheit prüft ein Update
 gegen den öffentlichen Schlüssel im Image, das sie gerade **ausführt**. Eine Einheit mit unsigniertem Image
 kann also nie ein Update verifizieren. Der Build schreibt ein unsigniertes Image, signiert wird danach.
@@ -271,7 +276,7 @@ direkt nach dem Löschen.
 
 ## Firmware flashen
 
-**Ein signiertes Image**, für eine Einheit, die sich aktualisieren können muss. Aus dem Ordner `build/`
+**Ein signiertes Image** (geplant, siehe [Image signieren](#image-signieren)), für eine Einheit, die sich aktualisieren können muss. Aus dem Ordner `build/`
 ausführen, nachdem das [Image signiert](#image-signieren) wurde. `idf.py flash` schreibt das unsignierte
 Image und ist für eine solche Einheit also ungeeignet.
 

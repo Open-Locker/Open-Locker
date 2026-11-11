@@ -108,6 +108,9 @@ The `commission.py` limits on values:
 | `UPDATE_DOWNLOAD_FAILED` | Reported as an event, after an accepted update fails to download |
 | `UPDATE_VERIFY_FAILED` | Reported as an event, after an accepted update fails verification |
 
+The `UPDATE_*` codes are planned with over-the-air updates ([#336](https://github.com/Open-Locker/Open-Locker/pull/336)) and not
+implemented yet.
+
 ## Limits
 
 - **No production unit may ship.** Flash and NVS encryption are off, and the `nvs_keys` partition is reserved
