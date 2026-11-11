@@ -96,4 +96,4 @@ None. No unit is deployed.
 - Related PRs: Open-Locker/Open-Locker#321, Open-Locker/Open-Locker#329
 - Related issues: #56
 - Related docs: `website/src/content/docs/dokumentation/esp32-internals.md`,
-  [ADR-0069](0069-esp32-locker-firmware.md)
+  [ADR-0072](0072-esp32-locker-firmware.md)

@@ -11,7 +11,7 @@ behandelt, was zum Ändern der Firmware nötig ist. Nur zum Flashen einer Einhei
 - Prüfungen an einem echten Board: [Hardware-Abnahme](/de/dokumentation/esp32-hardware-acceptance/)
 
 Die Firmware ist C auf ESP-IDF, festgelegt auf genau v6.1
-([ADR-0069](https://github.com/Open-Locker/Open-Locker/blob/main/docs/adr/0069-esp32-locker-firmware.md)), und `dependencies.lock` ist eingecheckt. Ein
+([ADR-0072](https://github.com/Open-Locker/Open-Locker/blob/main/docs/adr/0072-esp32-locker-firmware.md)), und `dependencies.lock` ist eingecheckt. Ein
 neues ESP-IDF-Patch-Release kommt über einen Pull Request und einen Bench-Lauf, gemeinsam in Firmware, CI, Docker-Image und Host-Werkzeugen.
 
 ## Einrichten

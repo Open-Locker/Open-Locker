@@ -38,7 +38,7 @@ watches the door and reports state. It speaks the same
 [MQTT contract](https://github.com/Open-Locker/Open-Locker/tree/main/docs/asyncapi),
 so the backend does not know which of the two it is talking to. A bank is driven by
 one or the other, never both
-([ADR-0069](https://github.com/Open-Locker/Open-Locker/blob/main/docs/adr/0069-esp32-locker-firmware.md)).
+([ADR-0072](https://github.com/Open-Locker/Open-Locker/blob/main/docs/adr/0072-esp32-locker-firmware.md)).
 
 ## Maturity of the ESP32 firmware: bench
 

@@ -38,7 +38,7 @@ und meldet den Zustand. Er spricht denselben
 [MQTT-Vertrag](https://github.com/Open-Locker/Open-Locker/tree/main/docs/asyncapi), das Backend weiß
 also nicht, mit welchem der beiden es spricht. Ein Schrank wird von genau einem der beiden gesteuert,
 nie von beiden
-([ADR-0069](https://github.com/Open-Locker/Open-Locker/blob/main/docs/adr/0069-esp32-locker-firmware.md)).
+([ADR-0072](https://github.com/Open-Locker/Open-Locker/blob/main/docs/adr/0072-esp32-locker-firmware.md)).
 
 ## Reifegrad der ESP32-Firmware: Bench
 

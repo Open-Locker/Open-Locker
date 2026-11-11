@@ -119,5 +119,5 @@ None on the firmware side: no unit is deployed.
 - Related PRs: Open-Locker/Open-Locker#331
 - Related issues: #57, #341
 - Related docs: `website/src/content/docs/dokumentation/esp32-internals.md`,
-  [ADR-0069](0069-esp32-locker-firmware.md),
+  [ADR-0072](0072-esp32-locker-firmware.md),
   [ADR-0070](0070-esp32-command-journal-format.md)

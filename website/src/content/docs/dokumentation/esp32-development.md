@@ -11,7 +11,7 @@ needs no hardware. This page covers what you need to change the firmware. To onl
 - Checks on a real board: [Hardware acceptance](/dokumentation/esp32-hardware-acceptance/)
 
 The firmware is C on ESP-IDF, pinned to exactly v6.1
-([ADR-0069](https://github.com/Open-Locker/Open-Locker/blob/main/docs/adr/0069-esp32-locker-firmware.md)), and
+([ADR-0072](https://github.com/Open-Locker/Open-Locker/blob/main/docs/adr/0072-esp32-locker-firmware.md)), and
 `dependencies.lock` is committed. Adopt a new ESP-IDF patch release through a pull request and a bench run, in the
 firmware, CI, the Docker image and the host tools together.
 

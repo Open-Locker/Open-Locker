@@ -160,7 +160,7 @@ Unterschied zwischen reservierter Kapazität und gemessener Nutzung.
 - [Hardware-Abnahme](/de/dokumentation/esp32-hardware-acceptance/): die Bench-Prüfungen und ihr Nachweis.
 - [ESP32-Firmware-Interna](/de/dokumentation/esp32-internals/): Schichten, Ports, Task-Modell, Journal-Format, Setup-Netzwerk, Update-Reihenfolge,
   Rollout-Status.
-- Entscheidungen: [ADR-0069](https://github.com/Open-Locker/Open-Locker/blob/main/docs/adr/0069-esp32-locker-firmware.md) (Firmware),
+- Entscheidungen: [ADR-0072](https://github.com/Open-Locker/Open-Locker/blob/main/docs/adr/0072-esp32-locker-firmware.md) (Firmware),
   [ADR-0070](https://github.com/Open-Locker/Open-Locker/blob/main/docs/adr/0070-esp32-command-journal-format.md) (Journal),
   [ADR-0071](https://github.com/Open-Locker/Open-Locker/blob/main/docs/adr/0071-rs485-lock-panel-replies-with-active-feedback.md) (Panel),
   [ADR-0074](https://github.com/Open-Locker/Open-Locker/blob/main/docs/adr/0074-esp32-softap-provisioning.md) (Setup-Netzwerk),

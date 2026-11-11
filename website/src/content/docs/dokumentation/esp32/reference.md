@@ -159,7 +159,7 @@ and the difference between reserved capacity and measured usage.
 - [Develop the ESP32 firmware](/dokumentation/esp32-development/): builds, gates, host tests and how to add a test.
 - [Hardware acceptance](/dokumentation/esp32-hardware-acceptance/): the bench checks and their record.
 - [ESP32 firmware internals](/dokumentation/esp32-internals/): layers, ports, the task model, journal format, setup network, update order, rollout status.
-- Decisions: [ADR-0069](https://github.com/Open-Locker/Open-Locker/blob/main/docs/adr/0069-esp32-locker-firmware.md) (firmware),
+- Decisions: [ADR-0072](https://github.com/Open-Locker/Open-Locker/blob/main/docs/adr/0072-esp32-locker-firmware.md) (firmware),
   [ADR-0070](https://github.com/Open-Locker/Open-Locker/blob/main/docs/adr/0070-esp32-command-journal-format.md) (journal),
   [ADR-0071](https://github.com/Open-Locker/Open-Locker/blob/main/docs/adr/0071-rs485-lock-panel-replies-with-active-feedback.md) (panel),
   [ADR-0074](https://github.com/Open-Locker/Open-Locker/blob/main/docs/adr/0074-esp32-softap-provisioning.md) (setup network),

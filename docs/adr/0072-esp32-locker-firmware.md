@@ -1,4 +1,4 @@
-# ADR-0069: ESP32 locker firmware in C on a pinned ESP-IDF
+# ADR-0072: ESP32 locker firmware in C on a pinned ESP-IDF
 
 ## Status
 
