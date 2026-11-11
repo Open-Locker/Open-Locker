@@ -13,8 +13,8 @@ Store ADRs in `docs/adr/` and use numeric, kebab-case file names:
 
 ## ADR Structure
 
-Use the sections in `docs/adr/0000-template.md`, in that order. The Date is the
-acceptance date.
+Use the sections in `docs/adr/0000-template.md`, in that order. In new ADRs, the
+Date is the acceptance date.
 
 ## Lifecycle Rules
 
@@ -23,14 +23,15 @@ acceptance date.
 - `accepted`: decided and editable until the decision is implemented or released,
   even if the status has not been updated yet. Note each change as a dated line
   under Status.
-- `implemented`: implemented or released. It can only be superseded. For a
-  decision built over several PRs, set this when the last one merges.
+- `implemented`: implemented or released. It can only be superseded or
+  deprecated. For a decision built over several PRs, set this when the last one
+  merges.
 - `superseded`: replaced by a newer ADR. Link the replacement both ways.
 - `deprecated`: no longer applies and nothing replaces it. Say why in the status
   line.
 - ADRs accepted before this rule (0068 and lower, except 0053 and 0067) can only
-  be superseded, whatever their status says. Their status line may still be
-  updated.
+  be superseded or deprecated, whatever their status says. Their status line may
+  still be updated.
 - Keep one decision per ADR.
 
 ## Confirmation

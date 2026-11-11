@@ -37,7 +37,8 @@ If unsure between the Plan section and Nothing, pick the lower one and say so in
 ## Working with existing ADRs
 
 - Check whether an ADR already covers the decision.
-- If it is outdated, edit it while it is editable; otherwise supersede it. See
+- If it is outdated, edit it while it is editable; otherwise supersede or
+  deprecate it. See
   `adr-format-and-lifecycle.mdc`.
 - Reference the ADR path in the PR description.
 
