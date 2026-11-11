@@ -102,13 +102,14 @@ dead bus.
   end an `80` message early; the board check and the following bytes make this
   unlikely, and the same risk existed before.
 - The Pi client (`locker-client/src/adapters/rs485/`) uses the same framing and
-  status rule and has the same defects until it is changed the same way.
+  status rule and has the same defects until it is changed the same way
+  ([#386](https://github.com/Open-Locker/Open-Locker/issues/386)).
 
 ## Rollout / Migration
 
 Firmware only in this change
 (`locker-firmware/components/lc_rs485_lock_board/`). The Pi client follows in a
-separate change. No MQTT or backend contract changes: `HARDWARE_ERROR` already
+separate change ([#386](https://github.com/Open-Locker/Open-Locker/issues/386); [#312](https://github.com/Open-Locker/Open-Locker/pull/312) makes this adapter the only one). No MQTT or backend contract changes: `HARDWARE_ERROR` already
 exists.
 
 ## Confirmation

@@ -68,10 +68,11 @@ portal; a runtime flag could.
 ### Risks
 
 - A development build flashed onto a deployed unit allows plain MQTT. Signed
-  images ([ADR-0084](0084-esp32-firmware-image-signing.md)) stop such a build
-  arriving over the air; only secure boot, which is not planned yet, stops it
-  over USB. Secure boot or equivalent control of USB flashing is therefore a
-  prerequisite for a production release.
+  images (planned with OTA, #59) would stop such a build arriving over the air;
+  only secure boot stops it over USB, and that needs physical access to the
+  controller. Whether to turn secure boot on is decided before the pilot units are
+  converted over USB, so each unit is visited only once
+  ([#388](https://github.com/Open-Locker/Open-Locker/issues/388)). It is not a blocker for the pilot.
 
 ## Rollout / Migration
 

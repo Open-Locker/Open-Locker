@@ -88,8 +88,11 @@ or console line can make a deployed unit reachable by radio.
 
 - Credentials and the setup password sit unencrypted in NVS, because nothing in the
   firmware turns flash or NVS encryption on yet. They can be read from a stolen unit,
-  so the firmware is for an attended bench only. This is a release blocker: no
-  production unit may ship before encryption is on, and that change needs its own ADR.
+  so the firmware is for an attended bench only. This is not a blocker for the
+  pilot: reading the flash or flashing over USB needs physical access to the
+  controller. Pilot units ship without encryption, and flash and NVS encryption follow
+  soon after the pilot release; every pilot unit is converted once over USB
+  ([#387](https://github.com/Open-Locker/Open-Locker/issues/387)). No wider rollout happens before that. The change needs its own ADR.
 
 ## Rollout / Migration
 

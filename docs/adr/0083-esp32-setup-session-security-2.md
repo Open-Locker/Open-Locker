@@ -82,7 +82,8 @@ endpoints and that the session encrypts it. The results are in
 ### Risks
 
 - The setup secrets sit unencrypted in NVS until flash and NVS encryption are on (see the
-  Risks of [ADR-0074](0074-esp32-softap-provisioning.md)).
+  Risks of [ADR-0074](0074-esp32-softap-provisioning.md) and
+  [#387](https://github.com/Open-Locker/Open-Locker/issues/387)).
 
 ## Rollout / Migration
 
