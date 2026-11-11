@@ -35,6 +35,15 @@ const copy = useTranslations(getLocaleFromUrl(Astro.url)).nav;
 		}),
 	);
 	sync();
+
+	// With no saved choice the page follows the system, as Starlight's own selector does.
+	matchMedia('(prefers-color-scheme: light)').addEventListener('change', ({ matches }) => {
+		try {
+			if (localStorage.getItem('starlight-theme')) return;
+		} catch {}
+		document.documentElement.dataset.theme = matches ? 'light' : 'dark';
+		sync();
+	});
 </script>
 
 <style>

@@ -21,9 +21,12 @@ const iconVersion = '2';
 		<meta charset="UTF-8" />
 		<!-- Inline to avoid a flash of the wrong theme. Same rule as Starlight's ThemeProvider on the docs. -->
 		<script is:inline>
+			let saved = null;
+			try {
+				saved = localStorage.getItem('starlight-theme');
+			} catch {}
 			document.documentElement.dataset.theme =
-				(typeof localStorage !== 'undefined' && localStorage.getItem('starlight-theme')) ||
-				(matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
+				saved || (matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
 		</script>
 		<meta name="viewport" content="width=device-width" />
 		<link rel="icon" type="image/svg+xml" href={`/favicon-light.svg?v=${iconVersion}`} media="(prefers-color-scheme: light)" />
