@@ -28,6 +28,9 @@ a unit with nothing stored, and that only a physical gesture can bring back.
 - A unit with **no network settings** opens its setup network on every power-up,
   for **10 minutes**. It never opens on a unit that has settings or is enrolled, and
   never because of an MQTT message or a console command.
+- A unit whose token the backend refused was never enrolled and holds no identity.
+  Its next power-up wipes the leftover settings and opens the setup network, so a
+  new token needs no button. The refusal itself opens nothing.
 - The window closes after saving, after 10 minutes, and after five failed sessions.
   One station may be connected at a time.
 - The only way back is a button on **GPIO 4** (to GND, internal pull-up) held for

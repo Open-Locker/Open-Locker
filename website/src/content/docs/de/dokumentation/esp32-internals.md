@@ -281,7 +281,7 @@ Der eigene Endpunkt trägt, was der WLAN-Endpunkt nicht kann: ein Versionsbyte (
 ### Löschreihenfolge und Boot-Reparatur
 
 - Ein Reset schreibt zuerst die leere Identität und löscht nichts, wenn das fehlschlägt. Dann versucht er, Zuordnung und Einstellungen zu entfernen, und liefert ein eigenes Ergebnis „partial“, wenn eines davon fehlschlägt.
-- Beim Boot ist eine leere Identität mit vorhandenen Einstellungen kein Zustand, den ein normaler Weg erzeugt. Die Boot-Logik schließt das Löschen ab und entscheidet dann den Modus. Dieselbe Regel repariert ein fehlgeschlagenes Rollback in `commission_apply`.
+- Beim Boot entsteht eine leere Identität mit vorhandenen Einstellungen durch einen abgebrochenen Reset oder durch ein abgelehntes Token, das das Token löscht und die Einstellungen behält. Die Boot-Logik schließt das Löschen ab und entscheidet dann den Modus, sodass eine solche Einheit ihr Setup-Netz öffnet. Dieselbe Regel repariert ein fehlgeschlagenes Rollback in `commission_apply`. Eine registrierte Einheit erreicht diesen Zustand nie.
 - Eine leere Identität mit Zuordnung und ohne Einstellungen ist ein gültiger Bench-Zustand und bleibt unangetastet.
 - Klappt das Entfernen der Einstellungen, aber nicht das der Zuordnung, behält die Einheit eine veraltete Zuordnung, die sich nicht von einer Bench-Zuordnung unterscheiden lässt. Das Backend markiert die Konfiguration eines zurückgesetzten Schranks als geändert und sendet nach der Registrierung ein frisches `apply_config`, und das Ergebnis „partial“ wird protokolliert.
 

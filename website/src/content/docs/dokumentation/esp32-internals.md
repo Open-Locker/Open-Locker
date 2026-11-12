@@ -325,9 +325,10 @@ every refusal, encrypted like the request. The tool sends `ol-config` first, bec
 - A reset writes the empty identity first and, if that fails, wipes nothing. It then tries
   to clear both mapping and settings, and returns a distinct "partial" result when one of
   those fails.
-- At boot, an empty identity with settings present is not a state any normal path creates.
-  The boot logic finishes the wipe, then decides the mode. The same rule repairs a failed
-  rollback in `commission_apply`.
+- At boot, an empty identity with settings present comes from a reset cut short, or from a
+  refused token, which clears the token and keeps the settings. The boot logic finishes the
+  wipe, then decides the mode, so such a unit opens its setup network. The same rule repairs
+  a failed rollback in `commission_apply`. An enrolled unit never reaches this state.
 - An empty identity with a mapping and no settings is a valid bench state and is left alone.
 - If the settings clear works but the mapping clear fails, the unit keeps a stale mapping that
   cannot be told from a bench mapping. The backend marks a reset bank's configuration dirty and
