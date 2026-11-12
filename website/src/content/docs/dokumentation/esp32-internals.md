@@ -88,7 +88,7 @@ A port is a struct of function pointers with a context pointer, one struct per r
 | `command_journal_port.h` | Find, seen, claim, complete, delivered, and the open transactions |
 | `store_ports.h` | Settings, identity and mapping stores |
 | `provisioning_gateway_port.h` | Subscribe to the enrollment reply, send the registration |
-| `firmware_update_port.h` | Running version, slot and trial state, start and abort a download, select the next slot, mark valid, roll back |
+| `firmware_update_port.h` | Planned with OTA. Running version, slot and trial state, start and abort a download, select the next slot, mark valid, roll back |
 | `clock_port.h` | Monotonic milliseconds. Wall time stays inside the MQTT adapter |
 | `hasher_port.h` | SHA-256 |
 | `system_port.h` | Restart |
@@ -106,7 +106,7 @@ Other tasks never call a use case. They post to the owner task's bounded inputs 
 | `owner` | Every use case, on a 100 ms tick |
 | `lc_console` | The USB console. Bench `unlock` and `query` reach the bus directly |
 | MQTT client | esp-mqtt. It decodes a command straight into a pool slot and posts it |
-| Download | `lc_ota_espidf`, only during a download. It posts how the download ended |
+| Download | Planned with OTA: `lc_ota_espidf`, only during a download. It posts how the download ended |
 | `button` | Samples the reset pin every 20 ms |
 
 `main/bus_guard.c` puts a mutex around the bus port, so a console request and the owner task never overlap on the panel. The owner task only ever waits for a reply from the panel,
@@ -299,7 +299,9 @@ Decided in ADR-0074 and ADR-0083.
 
 ```mermaid
 flowchart TD
-    A[Power-up] --> B{Identity empty and<br/>settings present?}
+    A[Power-up] --> R{Identity readable?}
+    R -- "no: may be an enrollment" --> S[Wipe nothing.<br/>No setup network]
+    R -- yes --> B{Identity empty and<br/>settings present?}
     B -- yes --> C[Finish the wipe:<br/>clear settings and mapping]
     B -- no --> D
     C --> D{Settings stored<br/>or unit enrolled?}

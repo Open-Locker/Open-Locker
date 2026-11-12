@@ -85,7 +85,7 @@ Ein Port ist ein Struct aus Funktionszeigern mit einem Kontextzeiger, ein Struct
 | `command_journal_port.h` | Finden, gesehen, Claim, Completion, Delivered und die offenen Transaktionen |
 | `store_ports.h` | Speicher für Einstellungen, Identität und Zuordnung |
 | `provisioning_gateway_port.h` | Antwort auf die Registrierung abonnieren, Registrierung senden |
-| `firmware_update_port.h` | Laufende Version, Slot und Probezustand, Download starten und abbrechen, nächsten Slot wählen, als gültig markieren, zurückrollen |
+| `firmware_update_port.h` | Geplant mit OTA. Laufende Version, Slot und Probezustand, Download starten und abbrechen, nächsten Slot wählen, als gültig markieren, zurückrollen |
 | `clock_port.h` | Monotone Millisekunden. Die Uhrzeit bleibt im MQTT-Adapter |
 | `hasher_port.h` | SHA-256 |
 | `system_port.h` | Neustart |
@@ -102,7 +102,7 @@ Andere Tasks rufen nie einen Use Case auf. Sie posten an die begrenzten Eingäng
 | `owner` | Jeder Use Case, im 100-ms-Takt |
 | `lc_console` | Die USB-Konsole. Bench-`unlock` und `query` erreichen den Bus direkt |
 | MQTT-Client | esp-mqtt. Dekodiert ein Kommando direkt in einen Pool-Slot und postet ihn |
-| Download | `lc_ota_espidf`, nur während eines Downloads. Postet, wie der Download endete |
+| Download | Geplant mit OTA: `lc_ota_espidf`, nur während eines Downloads. Postet, wie der Download endete |
 | `button` | Fragt den Reset-Pin alle 20 ms ab |
 
 `main/bus_guard.c` legt einen Mutex um den Bus-Port, sodass sich eine Konsolenanfrage und der Owner-Task am Panel nie überschneiden. Der Owner-Task wartet nur auf eine Antwort des Panels, begrenzt durch die Bus-Frist. In untätigen Takten erledigt er die Hintergrundarbeit des Journals, eine Sektorlöschung oder Kompaktierung nach der anderen.
@@ -261,7 +261,9 @@ Entschieden in ADR-0074 und ADR-0083.
 
 ```mermaid
 flowchart TD
-    A[Einschalten] --> B{Identität leer und<br/>Einstellungen vorhanden?}
+    A[Einschalten] --> R{Identität lesbar?}
+    R -- "nein: kann eine Registrierung sein" --> S[Nichts löschen.<br/>Kein Setup-Netzwerk]
+    R -- ja --> B{Identität leer und<br/>Einstellungen vorhanden?}
     B -- ja --> C[Löschen abschließen:<br/>Einstellungen und Zuordnung entfernen]
     B -- nein --> D
     C --> D{Einstellungen gespeichert<br/>oder Einheit registriert?}
@@ -276,7 +278,7 @@ Eine Einheit ohne Einstellungen ist im Bench-Modus, unabhängig davon, ob ihr Se
 
 ### Endpunkte
 
-Das Setup-Netz registriert vier Endpunkte und sonst keine: `prov-session` (der Security-2-Handshake), `prov-config` (WLAN) und `ol-config`, die letzten beiden nur hinter einer bestehenden Sitzung, sowie `proto-ver`, das jedem eine feste Versionszeichenkette liefert, weil `esp_prov` daraus den Security-2-Patchstand liest. Keiner meldet Status, Diagnosen oder gespeicherte Einstellungen.
+Das Setup-Netzwerk registriert vier Endpunkte und sonst keine: `prov-session` (der Security-2-Handshake), `prov-config` (WLAN) und `ol-config`, die letzten beiden nur hinter einer bestehenden Sitzung, sowie `proto-ver`, das jedem eine feste Versionszeichenkette liefert, weil `esp_prov` daraus den Security-2-Patchstand liest. Keiner meldet Status, Diagnosen oder gespeicherte Einstellungen.
 
 ### `ol-config`-Nutzlast
 
@@ -285,7 +287,7 @@ Der eigene Endpunkt trägt, was der WLAN-Endpunkt nicht kann: ein Versionsbyte (
 ### Löschreihenfolge und Boot-Reparatur
 
 - Ein Reset schreibt zuerst die leere Identität und löscht nichts, wenn das fehlschlägt. Dann versucht er, Zuordnung und Einstellungen zu entfernen, und liefert ein eigenes Ergebnis „partial“, wenn eines davon fehlschlägt.
-- Beim Boot entsteht eine leere Identität mit vorhandenen Einstellungen durch einen abgebrochenen Reset oder durch ein abgelehntes Token, das das Token löscht und die Einstellungen behält. Die Boot-Logik schließt das Löschen ab und entscheidet dann den Modus, sodass eine solche Einheit ihr Setup-Netz öffnet. Dieselbe Regel repariert ein fehlgeschlagenes Rollback in `commission_apply`. Eine registrierte Einheit erreicht diesen Zustand nie.
+- Beim Boot entsteht eine leere Identität mit vorhandenen Einstellungen durch einen abgebrochenen Reset oder durch ein abgelehntes Token, das das Token löscht und die Einstellungen behält. Die Boot-Logik schließt das Löschen ab und entscheidet dann den Modus, sodass eine solche Einheit ihr Setup-Netzwerk öffnet. Dieselbe Regel repariert ein fehlgeschlagenes Rollback in `commission_apply`. Eine registrierte Einheit erreicht diesen Zustand nie.
 - Eine leere Identität mit Zuordnung und ohne Einstellungen ist ein gültiger Bench-Zustand und bleibt unangetastet.
 - Klappt das Entfernen der Einstellungen, aber nicht das der Zuordnung, behält die Einheit eine veraltete Zuordnung, die sich nicht von einer Bench-Zuordnung unterscheiden lässt. Das Backend markiert die Konfiguration eines zurückgesetzten Schranks als geändert und sendet nach der Registrierung ein frisches `apply_config`, und das Ergebnis „partial“ wird protokolliert.
 

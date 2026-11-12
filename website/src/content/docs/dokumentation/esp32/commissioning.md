@@ -52,6 +52,28 @@ A unit with no settings opens its setup network on every power-up, for 10 minute
 password are on its label. The tool asks its questions while your laptop is still on its normal
 network, so you can check the broker before you switch.
 
+```mermaid
+sequenceDiagram
+    actor You
+    participant Tool as commission.py (laptop)
+    participant Unit as Unit (setup network)
+    participant Broker
+    You->>Tool: Answer the questions, still on your normal Wi-Fi
+    Tool->>Tool: Check the values. Nothing is sent yet
+    You->>Unit: Join the setup Wi-Fi named on the label
+    Tool->>Unit: Security 2 session: both sides prove the setup password
+    Tool->>Unit: ol-config: broker, bootstrap login, token
+    Tool->>Unit: Wi-Fi name and password
+    Unit->>Unit: Check everything, save it in one write
+    Unit-->>Tool: saved
+    Unit->>Unit: Close the setup network, restart
+    Unit->>Broker: Join the Wi-Fi, connect, enroll with the token
+    You->>You: Check the admin panel
+```
+
+*UML sequence diagram: the setup password is never sent, and the settings travel inside the
+encrypted session.*
+
 1. Build the firmware in this checkout, if you have not. The tool uses the `esp_prov` from the
    build's `managed_components/` folder, so tool and firmware always match. `esp_prov` also needs
    two more Python packages:

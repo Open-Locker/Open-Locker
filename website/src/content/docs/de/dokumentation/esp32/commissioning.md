@@ -50,6 +50,28 @@ Eine Einheit ohne Einstellungen öffnet ihr Setup-Netzwerk bei jedem Einschalten
 stehen auf ihrem Etikett. Das Werkzeug stellt seine Fragen, solange der Laptop noch im normalen Netzwerk ist, damit
 sich der Broker vor dem Wechsel prüfen lässt.
 
+```mermaid
+sequenceDiagram
+    actor P as Person
+    participant Tool as commission.py (Laptop)
+    participant Unit as Einheit (Setup-Netzwerk)
+    participant Broker
+    P->>Tool: Fragen beantworten, noch im normalen WLAN
+    Tool->>Tool: Werte prüfen. Noch wird nichts gesendet
+    P->>Unit: Dem Setup-WLAN vom Etikett beitreten
+    Tool->>Unit: Security-2-Sitzung: beide Seiten beweisen das Setup-Passwort
+    Tool->>Unit: ol-config: Broker, Bootstrap-Login, Token
+    Tool->>Unit: WLAN-Name und -Passwort
+    Unit->>Unit: Alles prüfen, in einem Schreibvorgang speichern
+    Unit-->>Tool: gespeichert
+    Unit->>Unit: Setup-Netzwerk schließen, neu starten
+    Unit->>Broker: WLAN beitreten, verbinden, mit dem Token registrieren
+    P->>P: Admin-Panel prüfen
+```
+
+*UML-Sequenzdiagramm: Das Setup-Passwort wird nie gesendet, und die Einstellungen reisen in der
+verschlüsselten Sitzung.*
+
 1. Falls noch nicht geschehen, die Firmware in diesem Checkout bauen. Das Werkzeug nutzt das `esp_prov` aus dem Ordner
    `managed_components/` des Builds, Werkzeug und Firmware passen also immer zusammen. `esp_prov` braucht außerdem zwei
    weitere Python-Pakete:
