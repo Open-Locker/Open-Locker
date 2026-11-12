@@ -19,14 +19,17 @@ lc_boot_result_t lc_boot_decide(const lc_boot_ports_t *ports)
     lc_identity_t identity;
     lc_network_settings_t settings;
 
-    if (!ports->identity_store.load(ports->identity_store.ctx, &identity)) {
+    lc_load_t loaded = ports->identity_store.load(ports->identity_store.ctx, &identity);
+    /* An unreadable identity may be an enrollment: no repair, and no setup network. */
+    bool unreadable = loaded == LC_LOAD_FAILED;
+    if (loaded != LC_LOAD_FOUND) {
         memset(&identity, 0, sizeof(identity));
     }
     bool settings_present = ports->settings_store.load(ports->settings_store.ctx, &settings) &&
                             settings.configured;
     memset(&settings, 0, sizeof(settings));
 
-    if (settings_present && identity_is_empty(&identity)) {
+    if (settings_present && !unreadable && identity_is_empty(&identity)) {
         result.repaired = true;
         /* Both are tried even if the first fails. */
         bool mapping_cleared = ports->config_store.clear(ports->config_store.ctx);
@@ -38,7 +41,7 @@ lc_boot_result_t lc_boot_decide(const lc_boot_ports_t *ports)
     if (settings_present) {
         result.mode = LC_BOOT_STATION;
     } else {
-        result.mode = identity.enrolled ? LC_BOOT_BENCH : LC_BOOT_SETUP;
+        result.mode = identity.enrolled || unreadable ? LC_BOOT_BENCH : LC_BOOT_SETUP;
     }
     return result;
 }

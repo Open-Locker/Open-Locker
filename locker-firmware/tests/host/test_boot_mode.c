@@ -133,6 +133,28 @@ void test_S6_H24_an_empty_identity_with_settings_finishes_the_wipe_then_decides_
     TEST_ASSERT_EQUAL_INT(LC_BOOT_SETUP, result.mode);
 }
 
+/* An identity that is stored but unreadable may be an enrollment: nothing is wiped, setup stays shut. */
+void test_S6_H27_an_unreadable_identity_wipes_nothing_and_never_opens_setup(void)
+{
+    store_settings();
+    store_mapping();
+    identity.unreadable = true;
+
+    lc_boot_result_t result = lc_boot_decide(&ports);
+
+    TEST_ASSERT_FALSE(result.repaired);
+    TEST_ASSERT_TRUE(settings.has);
+    TEST_ASSERT_TRUE(config.has);
+    TEST_ASSERT_EQUAL_INT(LC_BOOT_STATION, result.mode);
+
+    /* Without settings it stays on the console rather than opening the setup network. */
+    setUp();
+    identity.unreadable = true;
+    result = lc_boot_decide(&ports);
+    TEST_ASSERT_FALSE(result.repaired);
+    TEST_ASSERT_EQUAL_INT(LC_BOOT_BENCH, result.mode);
+}
+
 void test_S6_H26_an_empty_identity_with_a_mapping_and_no_settings_leaves_the_mapping_alone(void)
 {
     store_mapping();
@@ -152,5 +174,6 @@ int main(void)
     RUN_TEST(test_S6_H06_the_setup_network_never_starts_with_settings_or_on_an_enrolled_unit);
     RUN_TEST(test_S6_H24_an_empty_identity_with_settings_finishes_the_wipe_then_decides_the_mode);
     RUN_TEST(test_S6_H26_an_empty_identity_with_a_mapping_and_no_settings_leaves_the_mapping_alone);
+    RUN_TEST(test_S6_H27_an_unreadable_identity_wipes_nothing_and_never_opens_setup);
     return UNITY_END();
 }
