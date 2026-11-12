@@ -50,8 +50,10 @@ panel ships with it on, so clients must handle it either way.
   application answers `HARDWARE_ERROR`, and the bus counts as connected (no
   settle period, no cooldown).
 - A bus that only echoes our own requests (seen with miswired converters) is not
-  detected in code. It is documented by a host test: the unlock echo reads as a
-  failure status, so it is never reported as done.
+  detected in code. Under `door_closing` the unlock echo reads as a failure;
+  under `door_opening` it reads as success, and an echoed status poll reads as
+  every door open. No request reaches a panel on such a bus, so no door ever
+  opens, and the first unlock at commissioning shows the fault.
 
 This partially supersedes ADR-0061 for reply framing and unlock status.
 
