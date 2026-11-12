@@ -141,7 +141,8 @@ Host suite `test_journal`, against an in-memory flash fake:
 | S2-H24 | A claim is refused when there is no room left for its completion and delivered records |
 | S2-H25 | A full journal refuses new claims and still returns every stored response |
 | S2-H26 | Reopening never erases or rewrites existing records |
-| S2-H54 | A last claim whose body checks out but whose marker is missing or damaged is kept as an open claim, and the next compaction copies it with a marker |
+| S2-H59 | A last claim whose body checks out but whose marker is missing or damaged is kept as an open claim, and the next compaction copies it with a marker |
+| S2-H60 | A damaged header followed by a committed record marks the journal unhealthy, even when a cut write comes last |
 
 Host suite `test_handle_command`, with call-order recording fakes:
 

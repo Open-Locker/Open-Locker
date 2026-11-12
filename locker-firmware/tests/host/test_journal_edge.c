@@ -156,7 +156,7 @@ static size_t second_claim_size(void)
 
 void test_log_goes_on_after_a_torn_claim(void)
 {
-    /* A cut that leaves only the marker unwritten keeps the claim (S2-H54). */
+    /* A cut that leaves only the marker unwritten keeps the claim (S2-H59). */
     size_t only_marker_lost = second_claim_size() - 1;
 
     /* A cut at every point of a claim, each followed by more work. */

@@ -490,9 +490,42 @@ typedef enum {
 } scan_result_t;
 
 /*
+ * Whether a committed record starts after the damaged header at `offset` and
+ * ends by `last`. Its length is unknown, so every later position is tried. A
+ * torn write is the last write, so nothing complete can follow it. False when
+ * the region cannot be read. `candidate` is scratch space.
+ */
+static bool record_follows(const lc_journal_t *journal, size_t offset, long last,
+                           record_t *candidate, bool *found)
+{
+    size_t payload_length;
+
+    *found = false;
+    for (size_t at = offset + 1; (long)(at + HEADER_SIZE + TRAILER_SIZE) <= last + 1; ++at) {
+        if (!read_at(journal, at, candidate->bytes, HEADER_SIZE)) {
+            return false;
+        }
+        if (!header_valid(candidate->bytes, &payload_length) ||
+            (long)(at + record_size(payload_length)) > last + 1) {
+            continue;
+        }
+        candidate->size = record_size(payload_length);
+        if (!read_at(journal, at, candidate->bytes, candidate->size)) {
+            return false;
+        }
+        if (record_checks(candidate)) {
+            *found = true;
+            return true;
+        }
+    }
+    return true;
+}
+
+/*
  * Reads the record at `offset`. Only the record that reaches `last`, the last
- * programmed byte, may be torn, and only when that byte is not a commit
- * marker: a committed record always ends in one, so damage to it is never
+ * programmed byte, may be torn. A damaged header is torn only when `last` is
+ * no commit marker and no committed record follows it: a committed record
+ * always ends in one, so damage to it or to an earlier record is never
  * mistaken for a torn write.
  */
 static scan_result_t scan_record(const lc_journal_t *journal, size_t offset, size_t end,
@@ -519,10 +552,12 @@ static scan_result_t scan_record(const lc_journal_t *journal, size_t offset, siz
     if (head < HEADER_SIZE || !header_valid(record->bytes, &payload_length) ||
         record_size(payload_length) > room) {
         uint8_t tail;
-        if (last > (long)(offset + RECORD_MAX - 1) || !read_at(journal, (size_t)last, &tail, 1)) {
+        bool found;
+        if (last > (long)(offset + RECORD_MAX - 1) || !read_at(journal, (size_t)last, &tail, 1) ||
+            !record_follows(journal, offset, last, record, &found)) {
             return SCAN_CORRUPT;
         }
-        return tail == COMMIT ? SCAN_CORRUPT : SCAN_TORN;
+        return tail == COMMIT || found ? SCAN_CORRUPT : SCAN_TORN;
     }
     record->size = record_size(payload_length);
     if (!read_at(journal, offset, record->bytes, record->size)) {
