@@ -316,7 +316,7 @@ Host suite `test_boot_mode`:
 | --- | --- |
 | S6-H05 | The setup network starts when no settings are stored |
 | S6-H06 | The setup network never starts when settings are stored or the unit is enrolled, whatever else is true |
-| S6-H24 | Boot with an empty identity and settings present finishes the wipe (settings and mapping), then decides the mode |
+| S6-H24 | Boot with an empty identity and settings present (a reset cut short, or a refused token) finishes the wipe (settings and mapping), then decides the mode |
 | S6-H26 | Boot with an empty identity, a mapping and no settings leaves the mapping alone (bench mode, HW-B3) |
 
 Host suite `test_button`:

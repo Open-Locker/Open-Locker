@@ -97,6 +97,7 @@ void test_S6_H06_the_setup_network_never_starts_with_settings_or_on_an_enrolled_
     TEST_ASSERT_EQUAL_UINT(0, config.clear_count);
 }
 
+/* A reset cut short leaves this state, and so does a refused token: it clears the token, not the settings. */
 void test_S6_H24_an_empty_identity_with_settings_finishes_the_wipe_then_decides_the_mode(void)
 {
     store_settings();
