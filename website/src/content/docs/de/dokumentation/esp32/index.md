@@ -9,7 +9,7 @@ Für jeden Schließfachschrank, auf den sich Menschen verlassen, den Raspberry P
 ESP32-Firmware ist für einen beaufsichtigten Prüfaufbau gedacht: ausprobieren, testen und mit
 fertigstellen, aber nicht in einem Schrank im Feld einbauen.
 
-:::danger[Keine Produktiveinheit darf ausgeliefert werden]
+:::danger
 Flash- und NVS-Verschlüsselung sind in jedem Build aus. Das WLAN-Passwort, die MQTT-Zugangsdaten
 und die Setup-Secrets liegen deshalb unverschlüsselt auf dem Chip. Wer die Einheit erreicht, kann
 sie auslesen. Eine geflashte Einheit nicht unbeaufsichtigt lassen.

@@ -520,7 +520,7 @@ Es gibt keinen erneuten Lauf, weil der Rest des Laufs das auf diesem Image berei
 1. Prüfen, dass dieser Lauf auf einem gelöschten und mit dem signierten Image geflashten Board begann und `--image` `build/locker-firmware-signed.bin` ist.
 2. Prüfen, dass **Firmware** beim Schrank die Version dieses Images zeigt.
 
-**Bestanden:** Beides trifft zu. Wurde während des Laufs etwas anderes geflasht, mit einem leeren Board neu beginnen.
+**Bestanden:** Beides trifft zu. Wurde während des Laufs etwas anderes geflasht als der Production-Build von HW-F6, nach dem das signierte Image wieder geflasht wurde, mit einem leeren Board neu beginnen.
 
 #### HW-H2 und HW-H9: Untätige Einheit aktualisieren und Speicher prüfen
 

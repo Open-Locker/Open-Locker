@@ -521,7 +521,7 @@ There is no repeat run, because the rest of the run already covers it on this im
 1. Check that you started this run from a board you erased and flashed with the signed image, and that `--image` is `build/locker-firmware-signed.bin`.
 2. Check that the bank's **Firmware** shows that image's version.
 
-**Pass:** both are true. If you flashed anything else during the run, start again from a blank board.
+**Pass:** both are true. If you flashed anything other than the production build of HW-F6, after which you flashed the signed image back, start again from a blank board.
 
 #### HW-H2 and HW-H9: Update an idle unit and check its memory
 

@@ -114,7 +114,8 @@ umgesetzt.
 
 ## Grenzen
 
-- **Keine Produktiveinheit darf ausgeliefert werden.** Flash- und NVS-Verschlüsselung sind aus, die Partition `nvs_keys` ist für später
+- **Verschlüsselung ist aus.** Pilot-Einheiten werden ohne sie ausgeliefert; vor
+  [#387](https://github.com/Open-Locker/Open-Locker/issues/387) gibt es keine breitere Auslieferung. Flash- und NVS-Verschlüsselung sind aus, die Partition `nvs_keys` ist für später
   reserviert. Zugangsdaten und Setup-Secrets liegen unverschlüsselt auf dem Chip.
 - **Das Journal merkt sich die neuesten 256 zugestellten Kommandos**, `apply_config` eingeschlossen. Eine später eintreffende ältere Kopie
   eines Kommandos läuft erneut.

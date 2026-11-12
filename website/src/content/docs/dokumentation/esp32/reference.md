@@ -113,7 +113,8 @@ implemented yet.
 
 ## Limits
 
-- **No production unit may ship.** Flash and NVS encryption are off, and the `nvs_keys` partition is reserved
+- **Encryption is off.** Pilot units ship without it; no wider rollout happens before
+  [#387](https://github.com/Open-Locker/Open-Locker/issues/387) turns it on. Flash and NVS encryption are off, and the `nvs_keys` partition is reserved
   for when they are turned on. Credentials and the setup secrets are unencrypted on the chip.
 - **The journal remembers the newest 256 delivered commands**, `apply_config` included. An older copy of a
   command that arrives later runs again.

@@ -9,7 +9,7 @@ Use the Raspberry Pi for any locker bank that people depend on. The ESP32 firmwa
 is for a supervised bench: try it, test it and help finish it, but do not install
 it in a cabinet in the field.
 
-:::danger[No production unit may ship]
+:::danger
 Flash and NVS encryption are off in every build, so the Wi-Fi password, the MQTT
 credentials and the setup secrets sit unencrypted on the chip. Anyone who can reach
 the unit can read them. Keep a flashed unit attended.
