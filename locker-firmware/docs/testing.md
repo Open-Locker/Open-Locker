@@ -2,7 +2,8 @@
 
 How the firmware is tested: the gates every change must pass, the host test
 catalogue, and the hardware acceptance checks run on a bench before a
-firmware PR merges. Commands are in the [README](../README.md#build-and-test).
+firmware PR merges. Commands are in
+[Develop the ESP32 firmware](../../website/src/content/docs/dokumentation/esp32-development.md).
 
 ## Gates
 
@@ -365,7 +366,8 @@ Host suite `test_console_protocol`:
 ## Hardware acceptance
 
 Everything that needs the real board, converter, panel, lock, Wi-Fi or broker
-is checked on the bench described in the [README](../README.md#hardware). A
+is checked on the bench described in
+[Wiring](../../website/src/content/docs/dokumentation/esp32/wiring.md). A
 firmware PR merges only when its checks pass.
 `scripts/hwtest.py` runs the checks in one session and writes the record that
 CI checks.

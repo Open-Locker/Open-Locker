@@ -2,7 +2,7 @@ menu "Locker RS485 serial line"
 
     # Bench defaults for the ESP32 D1 mini with an XY-485 converter, confirmed
     # with the bench's SY-800R panel (ADR-0071). Other panels may differ; see
-    # the hardware facts in docs/architecture.md, Risks.
+    # the known risks on the ESP32 internals page (website).
 
     config LC_RS485_UART_NUM
         int "UART number"
