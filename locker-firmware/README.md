@@ -109,8 +109,9 @@ The console commands below (`configure`, `unlock`, `command`, `reset-network`)
 exist in bench and development builds only. A production build is made with
 `idf.py -D SDKCONFIG_DEFAULTS="sdkconfig.defaults;sdkconfig.production" build`
 and has none of them (`CONFIG_LC_BENCH_CONSOLE=n`); it is commissioned through
-the setup network (ADR-0074). Neither build has flash or NVS encryption yet, so
-no production unit may ship (ADR-0074).
+the setup network (ADR-0074). Neither build has flash or NVS encryption yet:
+pilot units ship without it, and no wider rollout happens before it is on
+(ADR-0074, #387).
 
 A new board has no network settings. Give it some with the tool:
 
@@ -209,8 +210,8 @@ token.
   `adapter_type` other than `rs485_lock_board`.
 - **Credentials are stored unencrypted** in NVS in this release. Flash
   encryption and NVS encryption (with the reserved `nvs_keys` partition) are
-  not turned on yet; no production unit may ship before they are (ADR-0074
-  decision 18). Until then, do not leave a unit unattended in a place anyone
+  not turned on yet. Pilot units ship without them; no wider rollout happens
+  before they are (ADR-0074, #387). Until then, do not leave a unit unattended in a place anyone
   can reach.
 - **The broker certificate must chain to a public CA** in the built-in bundle
   (for example the Let's Encrypt certificate of ADR-0053). Certificate and host
