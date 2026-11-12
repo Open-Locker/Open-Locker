@@ -30,7 +30,7 @@ Working note behind ADR-0074. Not a decision record.
 - Plaintext flash: bench builds only until flash and NVS encryption are enabled
   (release blocker, ADR-0074 decision 18).
 - ESP-IDF carried an lwIP DHCP-server advisory (GHSA-g764-gwc3-75m5). The pinned
-  release, 6.1 (ADR-0069), has the fix.
+  release, 6.1 (ADR-0072), has the fix.
 - Memory in AP+STA mode: measured at the spike, about 1.7 KB more than AP-only,
   with over 97 KB free in both. AP-only is enough, because the portal applies the
   credentials itself.

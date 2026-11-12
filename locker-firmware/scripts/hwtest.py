@@ -66,7 +66,7 @@ CHECKS = [
     ("C1", "Enroll a fresh unit against the real backend; the bank shows as connected", "manual"),
     ("C2", "Broker with a wrong-hostname or self-signed certificate is refused",
      "needs a TLS broker with bad certificates, and the bench broker has no TLS. No check yet covers a "
-     "verified mqtts:// connection either (ADR-0069, Risks). Hardware-example PR"),
+     "verified mqtts:// connection either (ADR-0072, Risks). Hardware-example PR"),
     ("C3", "`broker_check.py` without --actuate: apply_config acknowledged with the matching hash", "manual"),
     ("C4", "ACTUATES. One open from the admin panel releases the lock once", "manual"),
     ("C5", "ACTUATES. `broker_check.py --actuate`: one open and two duplicates, counter +1", "manual"),

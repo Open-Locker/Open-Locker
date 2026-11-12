@@ -248,7 +248,7 @@ journal,   data, 0x40,     0x3C0000, 0x40000,
   bytes on ESP-IDF 6.1, leaving 45 % of the slot free. The 36 KB from
   `0x17000` to `0x20000` are unused.
 - `nvs_keys` is reserved and unused until flash and NVS encryption are turned
-  on (a release blocker, ADR-0074 decision 18). Whether its `encrypted` flag
+  on (after the pilot, ADR-0074 Risks, #387). Whether its `encrypted` flag
   behaves as expected is verified only then.
 - The journal is found by its label (`lc_storage_nvs/partition_flash.c`), not
   its offset, and is never flash-encrypted (ADR-0070). The table ends exactly
@@ -296,7 +296,7 @@ case (#57, [ADR-0074](../../docs/adr/0074-esp32-softap-provisioning.md)), used w
 `scripts/commission.py --softap`: it opens only on a unit without settings, for 10
 minutes, and is re-entered by a button held for 10 s. Its decisions are the pure
 `lc_softap_portal` and `lc_button` components; the radio adapter is
-`lc_softap_espidf`. Flash and NVS encryption are not on yet (ADR-0074 decision 18).
+`lc_softap_espidf`. Flash and NVS encryption are not on yet (ADR-0074 Risks, #387).
 
 ## Risks
 
@@ -322,7 +322,8 @@ minutes, and is re-entered by a button held for 10 s. Its decisions are the pure
   again in HW-A4.
 - **Plaintext credentials.** Wi-Fi and MQTT credentials, and the setup
   password, sit unencrypted in NVS until flash and NVS encryption are turned on
-  (ADR-0074 decision 18). Until then the firmware is for an attended bench only.
+  (ADR-0074 Risks, #387). Pilot units ship without it; no wider rollout happens
+  before it is on.
 
 ## Glossary
 

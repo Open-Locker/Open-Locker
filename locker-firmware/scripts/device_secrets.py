@@ -19,7 +19,7 @@ you ask for, and the label file is created readable by its owner only.
 
 Not done here yet: deriving the Security 2 salt and verifier that the device
 stores in place of the setup password. That depends on the parameters the
-bench spike confirms (ADR-0074, open points), so `verifier_for()` refuses
+bench spike confirms (ADR-0083), so `verifier_for()` refuses
 instead of guessing.
 """
 

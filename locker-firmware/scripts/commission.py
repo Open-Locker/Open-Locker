@@ -23,7 +23,7 @@ and never resends them, and it never resets the device; a reset is a deliberate
 act of the operator (`reset-network` in the console, or the reset button).
 
 Over the setup network the device only says "saved". Whether it then joins the
-Wi-Fi and enrolls is read in the admin panel (ADR-0074, decision 8). That path
+Wi-Fi and enrolls is read in the admin panel (ADR-0083). That path
 uses the esp_prov of the network_provisioning component the firmware was built
 with (managed_components/ in the firmware build tree, the default for
 --esp-prov): firmware and tool must come from the same build, because the Wi-Fi

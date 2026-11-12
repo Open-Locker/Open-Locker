@@ -430,8 +430,8 @@ Rules:
 Needs a unit with its setup secrets in NVS (`scripts/device_secrets.py --nvs-csv`),
 a laptop running `scripts/commission.py --softap` from the same build, and a
 production-configured build for HW-F6. Run against a backend with the
-token-expiry change deployed for HW-F8 (ADR-0074). None has run against the
-final commit yet. The bench spike of 2026-10-21 (ADR-0074, open points) already
+token-expiry change deployed for HW-F8 (ADR-0082). None has run against the
+final commit yet. The bench spike of 2026-10-21 (ADR-0083) already
 went through the HW-F1 path and the HW-F7 capture on a development build.
 
 | ID | Check |

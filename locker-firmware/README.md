@@ -235,7 +235,7 @@ The partition table sits at `0xC000`, so the bootloader has room to grow.
 | `nvs` | `0xD000` | 24 KiB | Settings, identity and mapping |
 | `otadata` | `0x13000` | 8 KiB | Which app slot boots (empty: `ota_0`) |
 | `phy_init` | `0x15000` | 4 KiB | Radio calibration |
-| `nvs_keys` | `0x16000` | 4 KiB | Reserved for NVS encryption; unused until it is turned on (ADR-0074 decision 18) |
+| `nvs_keys` | `0x16000` | 4 KiB | Reserved for NVS encryption; unused until it is turned on (ADR-0074 Risks, #387) |
 | `ota_0` | `0x20000` | 1.8 MiB | The firmware; `idf.py flash` writes it here |
 | `ota_1` | `0x1F0000` | 1.8 MiB | Second slot, used by OTA (#59) |
 | `journal` | `0x3C0000` | 256 KiB | The command journal (raw, subtype `0x40`) |
