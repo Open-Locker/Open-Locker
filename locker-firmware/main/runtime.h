@@ -39,6 +39,8 @@ typedef enum {
 
 typedef struct {
     owner_event_kind_t kind;
+    /* For OWNER_SETUP: where the one reply goes. */
+    lc_commission_channel_t channel;
     union {
         lc_event_t app;
         int message_id;
@@ -75,6 +77,12 @@ typedef struct {
 
 /* Creates the queue and starts the owner task. */
 bool owner_start(const owner_context_t *context);
+
+/* The owner task's stack that was never used, in bytes. False before the task runs. */
+bool owner_stack_free(uint32_t *bytes);
+
+/* Starts the reset button task (button_task.c); it posts OWNER_RESET. */
+bool button_task_start(void);
 
 /* ---- The MQTT session (mqtt_session.c) ---- */
 

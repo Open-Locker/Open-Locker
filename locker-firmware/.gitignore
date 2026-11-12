@@ -3,6 +3,7 @@ sdkconfig
 sdkconfig.*
 !sdkconfig.defaults
 !sdkconfig.dev
+!sdkconfig.production
 __pycache__/
 managed_components/
 tests/idf_host/dependencies.lock

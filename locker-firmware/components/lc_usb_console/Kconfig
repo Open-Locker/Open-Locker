@@ -1,0 +1,13 @@
+menu "Locker USB console"
+
+    config LC_BENCH_CONSOLE
+        bool "Bench console: configure, unlock, command and reset-network"
+        default y
+        help
+            The bench console can commission a unit, send an unlock to the
+            panel and queue commands over USB. A production build turns this
+            off (sdkconfig.production): those four commands then do not exist,
+            and a unit is commissioned through the setup network and reset with
+            the button (ADR-0074). Development and bench builds keep it on.
+
+endmenu

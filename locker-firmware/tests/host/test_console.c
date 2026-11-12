@@ -182,6 +182,26 @@ void test_diagnostics_counts_unlock_transmissions_and_reports_the_bus_state(void
     TEST_ASSERT_EQUAL_STRING("ok bus=unreachable\n", replies);
 }
 
+static bool memory(void *ctx, uint32_t *min_free_heap, uint32_t *owner_stack_free)
+{
+    (void)ctx;
+    *min_free_heap = 4294967295u;
+    *owner_stack_free = 4294967295u;
+    return true;
+}
+
+void test_diagnostics_reports_heap_and_stack_headroom_when_it_can_read_them(void)
+{
+    console.memory = memory;
+    lc_console_execute(&console, "diagnostics");
+
+    /* The widest values must still fit one reply. */
+    TEST_ASSERT_EQUAL_STRING("ok bus=disconnected unlock_transmissions=0 min_free_heap=4294967295 "
+                             "owner_stack_free=4294967295\n",
+                             replies);
+    TEST_ASSERT_EQUAL_UINT(0, fake_serial_write_count(&serial));
+}
+
 void test_invalid_and_rejected_lines_get_one_error_reply_and_write_nothing(void)
 {
     lc_console_execute(&console, "unlock 1 255");
@@ -212,6 +232,7 @@ int main(void)
     RUN_TEST(test_query_without_a_reply_reports_an_error);
     RUN_TEST(test_status_diagnostics_and_self_test_write_nothing_to_the_bus);
     RUN_TEST(test_diagnostics_counts_unlock_transmissions_and_reports_the_bus_state);
+    RUN_TEST(test_diagnostics_reports_heap_and_stack_headroom_when_it_can_read_them);
     RUN_TEST(test_invalid_and_rejected_lines_get_one_error_reply_and_write_nothing);
     RUN_TEST(test_codec_self_test_passes);
     return UNITY_END();
