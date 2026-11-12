@@ -32,7 +32,7 @@ static lc_inbound_t inbound_kind = LC_INBOUND_OTHER;
 static void post(const owner_control_t *event)
 {
     if (!owner_post(event)) {
-        /* Lost, not retried: what that costs depends on the event (architecture.md, task model). */
+        /* Lost, not retried: what that costs depends on the event (ADR-0080). */
         ESP_LOGW(TAG, "control queue full, event %d dropped", (int)event->kind);
     }
 }
