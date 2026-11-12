@@ -71,10 +71,14 @@ cannot push out a command, and a full pool cannot lose an acknowledgement.
 
 ### Risks
 
-- At about 4.5 s per unlock on a silent panel, the 32nd queued command runs
-  about 2.5 minutes late, and nothing refuses it for being old. Answering
-  instead of dropping, and an age check, need a new error code in the MQTT
-  contract, and so their own ADR.
+- An unlock to a silent panel takes about 4.5 s (reply deadline and settle
+  period). After 5 failures in a row the bus cools down for 60 s and refuses
+  every unlock at once with `HARDWARE_ERROR`, so the queue empties instead of
+  running late. At most 5 unlocks reach a silent panel, the last about 20 s
+  late, inside the app's 45 s timeout. A panel that answers only some requests
+  resets the failure count, so a queue can still run late behind it. Refusing
+  commands by age needs a new error code in the MQTT contract, and so its own
+  ADR ([#134](https://github.com/Open-Locker/Open-Locker/issues/134)).
 
 ## Rollout / Migration
 
