@@ -279,6 +279,7 @@ Host suite `test_commission_device`:
 | S5-H08 | When online, the offline message is published before the restart is requested |
 | S5-H09 | New commands are refused once the settings are stored, before the restart; a failed save leaves the device taking commands |
 | S5-H19 | A development build (`CONFIG_LC_ALLOW_PLAINTEXT_MQTT`) also accepts an `mqtt://` broker URL with a host, and still rejects other schemes (ADR-0072) |
+| S5-H20 | An identity that is stored but cannot be read refuses new settings and stores nothing, so an enrollment is never overwritten |
 
 Host suite `test_console_protocol`:
 

@@ -234,7 +234,20 @@ void test_failed_identity_save_on_a_blank_device_leaves_it_unconfigured(void)
     TEST_ASSERT_FALSE(settings.has);
 }
 
-void test_a_device_whose_identity_cannot_be_loaded_is_set_up_as_not_enrolled(void)
+/* An identity that is there but unreadable may be an enrollment: nothing may overwrite it. */
+void test_S5_H20_an_unreadable_identity_refuses_settings_and_stores_nothing(void)
+{
+    identity.has = true;
+    identity.identity.enrolled = true;
+    identity.unreadable = true;
+    lc_setup_request_t setup = request();
+
+    TEST_ASSERT_EQUAL_INT(LC_COMMISSION_SAVE_FAILED, lc_commission_apply(&commission, &setup));
+    assert_nothing_stored();
+    TEST_ASSERT_TRUE(identity.identity.enrolled);
+}
+
+void test_a_device_with_no_stored_identity_is_set_up_as_not_enrolled(void)
 {
     identity.has = false;
     lc_setup_request_t setup = request();
@@ -506,7 +519,8 @@ int main(void)
     RUN_TEST(test_failed_identity_save_leaves_the_old_network_and_the_old_bootstrap);
     RUN_TEST(test_failed_identity_save_on_a_blank_device_leaves_it_unconfigured);
     RUN_TEST(test_a_failed_save_does_not_leave_the_device_refusing_commands);
-    RUN_TEST(test_a_device_whose_identity_cannot_be_loaded_is_set_up_as_not_enrolled);
+    RUN_TEST(test_S5_H20_an_unreadable_identity_refuses_settings_and_stores_nothing);
+    RUN_TEST(test_a_device_with_no_stored_identity_is_set_up_as_not_enrolled);
     RUN_TEST(test_S5_H04_network_change_on_an_enrolled_device_keeps_identity_and_mapping);
     RUN_TEST(test_S6_H10_configure_on_an_enrolled_device_keeps_the_stored_broker_url);
     RUN_TEST(test_S6_H11_wifi_alone_is_accepted_on_an_enrolled_device);

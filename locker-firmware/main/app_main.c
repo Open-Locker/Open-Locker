@@ -153,7 +153,13 @@ static void ensure_client_id(const lc_identity_store_port_t *store)
 {
     lc_identity_t identity;
 
-    if (!store->load(store->ctx, &identity)) {
+    lc_load_t loaded = store->load(store->ctx, &identity);
+    /* Saving over a record that could not be read would erase an enrollment. */
+    if (loaded == LC_LOAD_FAILED) {
+        ESP_LOGE(TAG, "the identity could not be read; it is left as it is");
+        return;
+    }
+    if (loaded == LC_LOAD_ABSENT) {
         memset(&identity, 0, sizeof(identity));
     }
     if (identity.client_id[0] != '\0') {
