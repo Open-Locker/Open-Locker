@@ -13,6 +13,10 @@ it in a cabinet in the field.
 Flash and NVS encryption are off in every build, so the Wi-Fi password, the MQTT
 credentials and the setup secrets sit unencrypted on the chip. Anyone who can reach
 the unit can read them. Keep a flashed unit attended.
+
+The MQTT credentials only reach that unit's own locker. The Wi-Fi password is the one
+secret that reaches further, so connect units to a separate Wi-Fi or VLAN for devices
+only. Encryption is tracked in [#387](https://github.com/Open-Locker/Open-Locker/issues/387).
 :::
 
 ## Raspberry Pi or ESP32?

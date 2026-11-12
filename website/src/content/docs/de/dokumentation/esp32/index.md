@@ -13,6 +13,11 @@ fertigstellen, aber nicht in einem Schrank im Feld einbauen.
 Flash- und NVS-Verschlüsselung sind in jedem Build aus. Das WLAN-Passwort, die MQTT-Zugangsdaten
 und die Setup-Secrets liegen deshalb unverschlüsselt auf dem Chip. Wer die Einheit erreicht, kann
 sie auslesen. Eine geflashte Einheit nicht unbeaufsichtigt lassen.
+
+Die MQTT-Zugangsdaten reichen nur bis zum eigenen Schließfachschrank der Einheit. Das
+WLAN-Passwort ist das einzige Secret, das weiter reicht. Einheiten deshalb mit einem eigenen
+WLAN oder VLAN nur für Geräte verbinden. Die Verschlüsselung wird in
+[#387](https://github.com/Open-Locker/Open-Locker/issues/387) verfolgt.
 :::
 
 ## Raspberry Pi oder ESP32?
