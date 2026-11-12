@@ -308,10 +308,14 @@ static bool load_record(lc_journal_t *journal, size_t offset, record_t *record)
     }
     record->size = record_size(payload_length);
     if (offset + record->size > active_end(journal) ||
-        !read_at(journal, offset, record->bytes, record->size) || !record_checks(record)) {
+        !read_at(journal, offset, record->bytes, record->size)) {
         return fail(journal);
     }
-    return true;
+    /* The kept claim counts as committed; a compaction copies it with its marker. */
+    if (offset == journal->unmarked) {
+        record->bytes[record->size - 1] = COMMIT;
+    }
+    return record_checks(record) || fail(journal);
 }
 
 /* The `nth` text of the record at `offset`, counting from 0. */
@@ -481,6 +485,7 @@ typedef enum {
     SCAN_RECORD,
     SCAN_END,
     SCAN_TORN,
+    SCAN_UNMARKED_CLAIM,
     SCAN_CORRUPT,
 } scan_result_t;
 
@@ -524,7 +529,18 @@ static scan_result_t scan_record(const lc_journal_t *journal, size_t offset, siz
         return SCAN_CORRUPT;
     }
     if (record->bytes[record->size - 1] != COMMIT) {
-        return last <= (long)(offset + record->size - 1) ? SCAN_TORN : SCAN_CORRUPT;
+        if (last > (long)(offset + record->size - 1)) {
+            return SCAN_CORRUPT;
+        }
+        /*
+         * A claim whose body checks out is kept although its marker is missing
+         * or damaged: a bit error in the marker reads like a cut write, and
+         * dropping the claim could unlock twice. Keeping it costs at most an
+         * unknown outcome for a command whose unlock was never sent.
+         */
+        record->bytes[record->size - 1] = COMMIT;
+        return record_type(record) == TYPE_CLAIM && record_checks(record) ? SCAN_UNMARKED_CLAIM
+                                                                         : SCAN_TORN;
     }
     return record_checks(record) ? SCAN_RECORD : SCAN_CORRUPT;
 }
@@ -540,6 +556,7 @@ static bool scan(lc_journal_t *journal)
     journal->message_count = 0;
     journal->open_count = 0;
     journal->torn = false;
+    journal->unmarked = 0;
     if (!last_programmed(journal, offset, end, &last)) {
         return fail(journal);
     }
@@ -551,6 +568,15 @@ static bool scan(lc_journal_t *journal)
         }
         if (result == SCAN_TORN) {
             journal->torn = true;
+            break;
+        }
+        if (result == SCAN_UNMARKED_CLAIM) {
+            if (!apply_record(journal, offset, &record)) {
+                return fail(journal);
+            }
+            journal->torn = true;
+            journal->unmarked = offset;
+            offset += record.size;
             break;
         }
         if (result == SCAN_CORRUPT || !apply_record(journal, offset, &record)) {

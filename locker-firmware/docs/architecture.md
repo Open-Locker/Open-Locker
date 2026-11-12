@@ -168,7 +168,8 @@ partition (ADR-0069), split into two regions, and records every command:
   published;
 - a **delivered** record, committed when the PUBACK for that response arrives.
 
-A torn last record counts as never written; any other damage stops all
+A torn last record counts as never written, except a claim whose body checks
+out, which stays open; any other damage stops all
 actuation until the partition is erased. Open transactions are never forgotten,
 and the newest 256 delivered ones are kept across compaction. The record
 format, retention and compaction are decided in
@@ -189,7 +190,7 @@ the host tests with the given prefix in [testing.md](testing.md).
 | The claim is durable before the unlock is sent; the result is durable before it is published; delivery is recorded only after PUBACK | S2 |
 | A repeated transaction ID replays the stored response with a fresh message ID and sends nothing to the panel | S2 |
 | A claim left incomplete by a restart becomes an unknown-outcome response, never a second unlock | S2 |
-| A corrupt journal record disables actuation; a torn last record counts as never written (ADR-0070) | S2 |
+| A corrupt journal record disables actuation; a torn last record counts as never written, except a claim with an intact body (ADR-0070) | S2 |
 | Running out of memory after transmission still leaves a durable final outcome | S2 |
 | Journal capacity exhaustion refuses new work and keeps stored responses | S2 |
 | `apply_config` cannot run during an in-flight unlock | S2 |

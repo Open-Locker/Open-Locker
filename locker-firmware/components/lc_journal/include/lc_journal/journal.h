@@ -10,7 +10,8 @@
  * Command journal over a flash partition split into two regions. One region
  * is appended to; when it fills, the records still needed are copied into the
  * other, which then becomes active. A torn last record counts as never
- * written; any other damage marks the journal unhealthy. Record format and
+ * written, except a claim whose body checks out, which stays open; any other
+ * damage marks the journal unhealthy. Record format and
  * retention: docs/adr/0070-esp32-command-journal-record-format-and-retention.md.
  */
 
@@ -66,6 +67,8 @@ typedef struct {
     size_t next_offset;
     /* The last record is torn; the next append compacts first. */
     bool torn;
+    /* Offset of a last claim kept without its commit marker, 0 if none. */
+    size_t unmarked;
     /* Something was appended since the last compaction. */
     bool appended;
     /* Sectors of the spare region erased since the start, and whether it is blank. */
