@@ -129,7 +129,7 @@ Jede Regel wird von den Host-Tests mit dem genannten Präfix gehalten, im Katalo
 | Eine Freigabe wird nie wiederholt. Beim Start oder Neuverbinden wird kein Unlock-Frame gesendet, und Leitungskanal null (alle öffnen) wird nie erzeugt | S1 |
 | Nach einem Timeout bleibt der Bus für eine Settle-Zeit still, damit eine späte Antwort nicht der nächsten Anfrage zugeschrieben wird | S1 |
 | Der Claim ist vor der Freigabe dauerhaft, das Ergebnis vor der Antwort, und Delivered erst nach dem PUBACK | S2 |
-| Ein beschädigter Journal-Eintrag stoppt jede Betätigung. Ein abgerissener letzter Eintrag zählt als nie geschrieben | S2 |
+| Ein beschädigter Journal-Eintrag stoppt jede Betätigung. Ein abgerissener letzter Eintrag zählt als nie geschrieben, außer einem Claim mit intaktem Inhalt, der offen bleibt | S2 |
 | `apply_config` kann nicht während einer Freigabe laufen | S2 |
 | Das Token wird erst veröffentlicht, wenn das Antwort-Abonnement bestätigt und das Pending-Flag gespeichert ist. Eine verlorene Antwort führt nie zu einer zweiten Registrierung | S3 |
 | Fehlende Statusbits und wiederholt fehlgeschlagene Abfragen melden `unknown`, ohne falsche Türereignisse nach einem Neuverbinden | S4 |
@@ -226,7 +226,7 @@ Beim Start wird die aktive Region ab Offset 16 gelesen:
 
 1. `0xFF` am Beginn eines Eintrags beendet das Log, wenn jedes Byte danach `0xFF` ist. Mit programmierten Bytes danach ist es ein beschädigter Header (Regel 3 oder 4).
 2. Ein Eintrag, der jede Prüfung besteht und auf `0xC3` endet, ist festgeschrieben.
-3. Das Ende ist abgerissen, nicht beschädigt, wenn es nicht auf einen gültigen `0xC3`-Marker endet: Sein Marker ist gelöscht oder teilweise programmiert, oder sein Header ist beschädigt und das letzte programmierte Byte liegt innerhalb von 331 Bytes ab seinem Beginn.
+3. Das Ende ist abgerissen, nicht beschädigt, wenn es nicht auf einen gültigen `0xC3`-Marker endet: Sein Marker ist gelöscht oder teilweise programmiert, oder sein Header ist beschädigt und das letzte programmierte Byte liegt innerhalb von 331 Bytes ab seinem Beginn. Ein abgerissener Claim, dessen Inhalt seine CRC-32 besteht, bleibt als offener Claim erhalten, weil ein Bitfehler in seinem Marker genauso aussieht wie ein abgebrochener Schreibvorgang. Die nächste Kompaktierung kopiert ihn mit Marker.
 4. Alles andere markiert das Journal als unhealthy: ein beschädigter Eintrag, dem irgendein programmiertes Byte folgt, ein Eintrag, der auf `0xC3` endet, aber eine Prüfung nicht besteht, eine unbekannte Version oder ein unbekannter Typ und ein intakter Eintrag ohne Sinn (ein Claim für eine bekannte ID, eine Completion oder Delivery für eine Transaktion nicht in diesem Zustand, ein unbekannter Fehlercode).
 
 Abgerissene Reste werden nie überschrieben: Der nächste Eintrag kompaktiert zuerst und lässt sie in der alten Region zurück.

@@ -135,7 +135,7 @@ Each rule is held by the host tests with the given prefix, in the catalogue in `
 | An unlock is never retried. No unlock frame is sent at start-up or on reconnect, and wire channel zero (open all) is never generated | S1 |
 | After a timeout, the bus stays silent for a settle period, so a late reply is not credited to the next request | S1 |
 | The claim is durable before the unlock, the result before the response, and delivery only after the PUBACK | S2 |
-| A corrupt journal record stops all actuation. A torn last record counts as never written | S2 |
+| A corrupt journal record stops all actuation. A torn last record counts as never written, except a claim with an intact body, which stays open | S2 |
 | `apply_config` cannot run during an unlock | S2 |
 | The token is published only after the reply subscription is confirmed and the pending flag is stored. A lost reply never causes a second registration | S3 |
 | Missing status bits and repeated failed polls report `unknown`, with no false door events after a reconnect | S4 |
@@ -245,7 +245,9 @@ At start the active region is scanned from offset 16:
 2. A record that passes every check and ends in `0xC3` is committed.
 3. The tail is torn, not corrupt, when it does not end in a valid `0xC3` marker: its
    marker is erased or partly programmed, or its header is damaged and the last programmed
-   byte lies within 331 bytes of its start.
+   byte lies within 331 bytes of its start. A torn claim whose body passes its CRC-32 is
+   kept as an open claim, because a bit error in its marker reads the same as a cut
+   write. The next compaction copies it with a marker.
 4. Everything else marks the journal unhealthy: a damaged record followed by any
    programmed byte, a record that ends in `0xC3` but fails a check, an unknown version or
    type, and an intact record that makes no sense (a claim for a known ID, a completion or

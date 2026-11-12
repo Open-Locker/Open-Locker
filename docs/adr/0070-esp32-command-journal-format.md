@@ -46,6 +46,9 @@ split into two regions of 128 KiB. One region is active; the other is spare.
   programmed byte of the region may be torn, and a torn record is ignored. Any
   other damage, and an intact record that makes no sense, marks the journal
   unhealthy.
+- **A claim is never dropped for its marker alone.** A torn last record that is a
+  claim and whose body passes its checksum is kept as an open claim. The next
+  compaction copies it with a marker.
 - **An unhealthy journal stops all actuation.** It answers every command with
   `UNKNOWN_ERROR`, never calls the bus, and repairs itself in no way. Recovery is
   an operator erasing the partition and commissioning again. A reset keeps the
@@ -68,10 +71,13 @@ again, and the backend deduplicates by transaction ID.
 
 Every single-bit corruption of a committed record is detected, with one
 exception: the commit marker of the last record itself, which looks exactly like
-a partly programmed one. That record reads as torn and is dropped. A dropped
-claim can then run again if its command is delivered again, and a dropped
-completion is answered with an unknown outcome. This needs a bit error in that
-one byte and is accepted.
+a partly programmed one, so no marker value can tell them apart. Dropping such a
+claim could run its command again when it is delivered again, so a claim with an
+intact body is kept instead. That errs towards safety: if the write was really
+cut before the marker, the unlock was never sent, and the command is answered
+with an unknown outcome (ADR-0041) instead of running. A dropped completion is
+answered with an unknown outcome, and a dropped delivered record only sends the
+response again, so both stay torn.
 
 ## Alternatives Considered
 
@@ -148,7 +154,7 @@ client's files, because the two never share a bank.
 
 - The three guarantees: S2-H27, S2-H28 and S2-H29.
 - Records survive reopening, unchanged: S2-H20, S2-H26.
-- Torn writes: S2-H21, S2-H22; `test_a_write_cut_out_of_order_is_torn_not_corrupt`
+- Torn writes: S2-H21, S2-H22, S2-H54; `test_a_write_cut_out_of_order_is_torn_not_corrupt`
   in `test_journal_edge`.
 - Corruption and the unhealthy state: S2-H23, S2-H34.
 - Moving regions: `test_a_cut_anywhere_in_a_compaction_loses_nothing_that_is_needed`,
