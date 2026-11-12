@@ -154,9 +154,9 @@ client's files, because the two never share a bank.
 
 - The three guarantees: S2-H27, S2-H28 and S2-H29.
 - Records survive reopening, unchanged: S2-H20, S2-H26.
-- Torn writes: S2-H21, S2-H22, S2-H54; `test_a_write_cut_out_of_order_is_torn_not_corrupt`
+- Torn writes: S2-H21, S2-H22, S2-H59; `test_a_write_cut_out_of_order_is_torn_not_corrupt`
   in `test_journal_edge`.
-- Corruption and the unhealthy state: S2-H23, S2-H34.
+- Corruption and the unhealthy state: S2-H23, S2-H34, S2-H60.
 - Moving regions: `test_a_cut_anywhere_in_a_compaction_loses_nothing_that_is_needed`,
   `test_with_two_valid_headers_the_newer_generation_wins` and
   `test_a_spare_that_does_not_erase_marks_the_journal_unhealthy` in

@@ -244,8 +244,9 @@ At start the active region is scanned from offset 16:
    With programmed bytes after it, it is a damaged header (rule 3 or 4).
 2. A record that passes every check and ends in `0xC3` is committed.
 3. The tail is torn, not corrupt, when it does not end in a valid `0xC3` marker: its
-   marker is erased or partly programmed, or its header is damaged and the last programmed
-   byte lies within 331 bytes of its start. A torn claim whose body passes its CRC-32 is
+   marker is erased or partly programmed, or its header is damaged, the last programmed
+   byte lies within 331 bytes of its start and is not `0xC3`, and no complete record starts
+   after the damaged header. A torn claim whose body passes its CRC-32 is
    kept as an open claim, because a bit error in its marker reads the same as a cut
    write. The next compaction copies it with a marker.
 4. Everything else marks the journal unhealthy: a damaged record followed by any
