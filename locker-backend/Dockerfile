@@ -1,6 +1,6 @@
 # Stage 1: Builder
 # Nutzt ein CLI-Image von SSU, das Composer und Node/NPM enthält
-FROM serversideup/php:8.4-cli as builder
+FROM serversideup/php:8.4.27-cli as builder
 
 # Temporär zu root wechseln, um Pakete, Node.js zu installieren und Berechtigungen zu setzen
 USER root
@@ -35,7 +35,7 @@ RUN composer install --no-dev --no-interaction --prefer-dist --optimize-autoload
 
 # Stage 2: Final Production Image
 # Nutzt das schlanke FPM-Image von SSU
-FROM serversideup/php:8.4-fpm-nginx
+FROM serversideup/php:8.4.27-fpm-nginx
 
 # Temporär zu root wechseln, um die intl-Erweiterung zu installieren
 USER root

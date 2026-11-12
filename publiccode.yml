@@ -1,0 +1,99 @@
+publiccodeYmlVersion: "0.4"
+name: Open-Locker
+url: "https://gitlab.opencode.de/OC000075481431/open-locker"
+landingURL: "https://open-locker.org"
+logo: logo_open_locker.svg
+platforms:
+  - linux
+  - android
+  - ios
+  - web
+categories:
+  - smart-city
+  - resource-management
+usedBy:
+  - Landkreis Hameln-Pyrmont
+developmentStatus: development
+softwareType: standalone/iot
+localisation:
+  localisationReady: true
+  availableLanguages:
+    - de
+    - en
+intendedAudience:
+  countries:
+    - de
+  scope:
+    - local-authorities
+    - education
+    - private
+description:
+  de:
+    genericName: Ressourcen-Schließfachplattform
+    shortDescription: >
+      Offene Software- und Hardware-Plattform für öffentliche Schließfächer zum
+      Lagern und Teilen physischer Ressourcen.
+    longDescription: >
+      Open-Locker ist eine quelloffene IoT-Plattform für Schließfächer, mit der
+      Kommunen, Organisationen und Communities physische Gegenstände sicher
+      ausleihen, lagern und teilen können. Das Monorepo umfasst Cloud-Dienste
+      (Laravel-API mit Admin-Oberfläche), eine React-Native-App, einen
+      MQTT-zu-Modbus-Controller für den Raspberry Pi vor Ort, Dokumentation,
+      eine öffentliche Website und Hardware-Referenzdesigns.
+
+      Nutzerinnen und Nutzer sehen zugängliche Fächer, pflegen Inhaltsnotizen und
+      können Öffnungen anfordern. Das Backend autorisiert Vorgänge, protokolliert
+      sie per Event Sourcing und steuert die Hardware über MQTT. Nur der
+      locker-client am Standort spricht Modbus RTU mit den Relaisplatinen.
+      Live-Updates zu Türstatus und Notizen erreichen die App über Laravel Reverb.
+
+      Das Projekt entstand im Landkreis Hameln-Pyrmont zum Ausleihen von
+      Geräten wie Laptops und VR-Brillen und wird im Smart-City-Kontext
+      weiterentwickelt. Ziel ist erschwinglicher Zugang zu Ressourcen,
+      Nachrüstung bestehender Schränke, Self-Hosting und offene Schnittstellen
+      ohne Herstellerbindung im Sinne von Public Money, Public Code.
+    features:
+      - Mobile App für Fächer, Notizen und Öffnungsanfragen
+      - Event-sourced Laravel-API mit MQTT und Admin-Panel
+      - Raspberry-Pi-Client für MQTT und Modbus RTU
+      - KiCad-Hardware und Simulator für Entwicklung ohne Gerät
+      - Dokumentation, ADRs und live OpenAPI-Vertrag
+    documentation: "https://open-locker.org/"
+  en:
+    genericName: Resource locker platform
+    shortDescription: >
+      Open source software and hardware platform for public lockers used to store
+      and share physical resources.
+    longDescription: >
+      Open-Locker is an open IoT platform for lockers that helps municipalities,
+      organizations, and communities lend, store, and share physical items
+      securely. The monorepo includes cloud services (a Laravel API with an admin
+      panel), a React Native mobile app, an on-site MQTT-to-Modbus controller for
+      Raspberry Pi, documentation, a public website, and hardware reference
+      designs.
+
+      People discover accessible compartments, maintain content notes, and request
+      opens. The backend authorizes operations, records them with event sourcing,
+      and sends hardware commands over MQTT. Only the locker-client on site speaks
+      Modbus RTU to relay boards. Live door state and note updates reach the app
+      through Laravel Reverb.
+
+      The project started in Hameln-Pyrmont county for lending equipment such as
+      laptops and VR headsets and continues in a smart-city context. Goals include
+      affordable access to resources, retrofitting existing cabinets, self-hosting,
+      and open interfaces without vendor lock-in, aligned with Public Money,
+      Public Code.
+    features:
+      - Mobile app for compartments, notes, and open requests
+      - Event-sourced Laravel API with MQTT and admin panel
+      - Raspberry Pi client for MQTT and Modbus RTU
+      - KiCad hardware designs and a hardware-free simulator
+      - Documentation, ADRs, and a live OpenAPI contract
+    documentation: "https://open-locker.org/"
+legal:
+  license: AGPL-3.0-only
+maintenance:
+  type: community
+  contacts:
+    - name: Merlin Hofmann
+      email: moin@merona.de

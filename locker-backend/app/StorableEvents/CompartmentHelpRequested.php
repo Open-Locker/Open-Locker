@@ -12,7 +12,7 @@ use Spatie\EventSourcing\StoredEvents\ShouldBeStored;
  * A user asked the locker managers for help with a compartment, usually after
  * it failed to open. The message is the user's own words and stays in the
  * event store with the rest of the audit trail, as does the optional call-back
- * phone (ADR-0063).
+ * phone (ADR-0069).
  */
 #[Audited(AuditCategory::Access, 'Help requested')]
 class CompartmentHelpRequested extends ShouldBeStored
