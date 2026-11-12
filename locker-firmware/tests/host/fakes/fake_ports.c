@@ -452,16 +452,16 @@ lc_config_store_port_t fake_config_store_port(fake_config_store_t *store)
         .ctx = store, .load = config_load, .save = config_save, .clear = config_clear};
 }
 
-static bool identity_load(void *ctx, lc_identity_t *out)
+static lc_load_t identity_load(void *ctx, lc_identity_t *out)
 {
     const fake_identity_store_t *store = ctx;
-    if (store->has) {
+    if (store->has && !store->unreadable) {
         *out = store->identity;
-    } else {
-        /* A load that fails may leave anything behind. */
-        memset(out, 0xFF, sizeof(*out));
+        return LC_LOAD_FOUND;
     }
-    return store->has;
+    /* A load that fails may leave anything behind. */
+    memset(out, 0xFF, sizeof(*out));
+    return store->unreadable ? LC_LOAD_FAILED : LC_LOAD_ABSENT;
 }
 
 static bool identity_save(void *ctx, const lc_identity_t *identity)

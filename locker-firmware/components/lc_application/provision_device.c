@@ -8,7 +8,7 @@ void lc_provision_init(lc_provision_t *provision, const lc_provision_ports_t *po
 {
     memset(provision, 0, sizeof(*provision));
     provision->ports = *ports;
-    if (!ports->identity_store.load(ports->identity_store.ctx, &provision->identity)) {
+    if (ports->identity_store.load(ports->identity_store.ctx, &provision->identity) != LC_LOAD_FOUND) {
         memset(&provision->identity, 0, sizeof(provision->identity));
     }
 

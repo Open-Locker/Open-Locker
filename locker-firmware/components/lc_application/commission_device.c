@@ -83,7 +83,12 @@ lc_commission_result_t lc_commission_apply(lc_commission_t *commission,
     const lc_commission_ports_t *ports = &commission->ports;
     lc_identity_t identity;
 
-    if (!ports->identity_store.load(ports->identity_store.ctx, &identity)) {
+    lc_load_t loaded = ports->identity_store.load(ports->identity_store.ctx, &identity);
+    /* An identity that is there but unreadable could be an enrollment: never overwrite it. */
+    if (loaded == LC_LOAD_FAILED) {
+        return answer(commission, LC_COMMISSION_SAVE_FAILED);
+    }
+    if (loaded == LC_LOAD_ABSENT) {
         memset(&identity, 0, sizeof(identity));
     }
 

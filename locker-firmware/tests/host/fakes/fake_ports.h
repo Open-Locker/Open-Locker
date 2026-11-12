@@ -152,6 +152,8 @@ lc_config_store_port_t fake_config_store_port(fake_config_store_t *store);
 
 typedef struct {
     bool has;
+    /* The record is there but cannot be read. */
+    bool unreadable;
     lc_identity_t identity;
     bool save_ok;
     unsigned save_count;

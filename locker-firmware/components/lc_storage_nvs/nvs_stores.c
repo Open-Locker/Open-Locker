@@ -34,29 +34,38 @@ bool lc_storage_init(void)
 /* Largest value stored here, with room for the version. */
 #define BUFFER_MAX 1024
 
-static bool load_record(const char *key, void *out, size_t size)
+/* Only a missing namespace or key is absent; a wrong size or version is a failed read. */
+static lc_load_t read_record(const char *key, void *out, size_t size)
 {
     nvs_handle_t handle;
-    if (nvs_open(NAMESPACE, NVS_READONLY, &handle) != ESP_OK) {
-        return false;
+    esp_err_t err = nvs_open(NAMESPACE, NVS_READONLY, &handle);
+    if (err != ESP_OK) {
+        return err == ESP_ERR_NVS_NOT_FOUND ? LC_LOAD_ABSENT : LC_LOAD_FAILED;
     }
     uint8_t buffer[BUFFER_MAX];
     size_t length = sizeof(buffer);
-    bool found = size + sizeof(uint32_t) <= sizeof(buffer) &&
-                 nvs_get_blob(handle, key, buffer, &length) == ESP_OK &&
-                 length == size + sizeof(uint32_t);
+    err = size + sizeof(uint32_t) <= sizeof(buffer) ? nvs_get_blob(handle, key, buffer, &length)
+                                                    : ESP_ERR_NVS_INVALID_LENGTH;
     nvs_close(handle);
+    if (err == ESP_ERR_NVS_NOT_FOUND) {
+        return LC_LOAD_ABSENT;
+    }
 
     uint32_t version;
-    if (!found) {
-        return false;
+    if (err != ESP_OK || length != size + sizeof(uint32_t)) {
+        return LC_LOAD_FAILED;
     }
     memcpy(&version, buffer, sizeof(version));
     if (version != RECORD_VERSION) {
-        return false;
+        return LC_LOAD_FAILED;
     }
     memcpy(out, buffer + sizeof(version), size);
-    return true;
+    return LC_LOAD_FOUND;
+}
+
+static bool load_record(const char *key, void *out, size_t size)
+{
+    return read_record(key, out, size) == LC_LOAD_FOUND;
 }
 
 static bool save_record(const char *key, const void *value, size_t size)
@@ -123,10 +132,10 @@ lc_config_store_port_t lc_storage_config_store(void)
 
 /* ---- Identity ---- */
 
-static bool identity_load(void *ctx, lc_identity_t *out)
+static lc_load_t identity_load(void *ctx, lc_identity_t *out)
 {
     (void)ctx;
-    return load_record(KEY_IDENTITY, out, sizeof(*out));
+    return read_record(KEY_IDENTITY, out, sizeof(*out));
 }
 
 static bool identity_save(void *ctx, const lc_identity_t *identity)
