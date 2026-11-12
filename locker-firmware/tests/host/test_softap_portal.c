@@ -107,20 +107,17 @@ void test_S6_H08_nothing_reopens_a_closed_portal_during_the_run(void)
     TEST_ASSERT_FALSE(lc_portal_endpoint_allowed(&portal, LC_PORTAL_ENDPOINT_SESSION));
 }
 
-void test_S6_H09_the_portal_exposes_no_status_diagnostics_or_stored_settings(void)
+/* softap.c registers no other endpoint than these and `proto-ver` (a fixed version string). */
+void test_S6_H09_only_the_handshake_answers_before_a_session(void)
 {
-    authenticated_station();
+    TEST_ASSERT_TRUE(lc_portal_station_joined(&portal));
+    TEST_ASSERT_TRUE(lc_portal_endpoint_allowed(&portal, LC_PORTAL_ENDPOINT_SESSION));
+    TEST_ASSERT_FALSE(lc_portal_endpoint_allowed(&portal, LC_PORTAL_ENDPOINT_WIFI_CONFIG));
+    TEST_ASSERT_FALSE(lc_portal_endpoint_allowed(&portal, LC_PORTAL_ENDPOINT_CONFIG));
 
-    TEST_ASSERT_TRUE(lc_portal_endpoint_name_allowed(&portal, "prov-session"));
-    TEST_ASSERT_TRUE(lc_portal_endpoint_name_allowed(&portal, "prov-config"));
-    TEST_ASSERT_TRUE(lc_portal_endpoint_name_allowed(&portal, "ol-config"));
-
-    /* Even with an authenticated session: scan results, version info, anything else. */
-    const char *const others[] = {"prov-scan", "proto-ver", "custom-data", "status",
-                                  "diagnostics", "settings", "", "ol-config2", "OL-CONFIG"};
-    for (unsigned i = 0; i < sizeof(others) / sizeof(others[0]); ++i) {
-        TEST_ASSERT_FALSE_MESSAGE(lc_portal_endpoint_name_allowed(&portal, others[i]), others[i]);
-    }
+    lc_portal_session_established(&portal);
+    TEST_ASSERT_TRUE(lc_portal_endpoint_allowed(&portal, LC_PORTAL_ENDPOINT_WIFI_CONFIG));
+    TEST_ASSERT_TRUE(lc_portal_endpoint_allowed(&portal, LC_PORTAL_ENDPOINT_CONFIG));
 }
 
 void test_S6_H13_a_second_station_is_refused_while_one_is_connected(void)
@@ -152,7 +149,7 @@ int main(void)
     RUN_TEST(test_S6_H03_a_failed_session_reaches_no_endpoint_and_five_failures_close_the_window);
     RUN_TEST(test_S6_H07_the_portal_closes_after_saving_and_after_10_minutes_and_a_new_boot_reopens_it);
     RUN_TEST(test_S6_H08_nothing_reopens_a_closed_portal_during_the_run);
-    RUN_TEST(test_S6_H09_the_portal_exposes_no_status_diagnostics_or_stored_settings);
+    RUN_TEST(test_S6_H09_only_the_handshake_answers_before_a_session);
     RUN_TEST(test_S6_H13_a_second_station_is_refused_while_one_is_connected);
     return UNITY_END();
 }

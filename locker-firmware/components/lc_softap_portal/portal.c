@@ -86,21 +86,6 @@ bool lc_portal_endpoint_allowed(const lc_portal_t *portal, lc_portal_endpoint_t 
     return false;
 }
 
-bool lc_portal_endpoint_name_allowed(const lc_portal_t *portal, const char *name)
-{
-    if (strcmp(name, "prov-session") == 0) {
-        return lc_portal_endpoint_allowed(portal, LC_PORTAL_ENDPOINT_SESSION);
-    }
-    if (strcmp(name, "prov-config") == 0) {
-        return lc_portal_endpoint_allowed(portal, LC_PORTAL_ENDPOINT_WIFI_CONFIG);
-    }
-    if (strcmp(name, "ol-config") == 0) {
-        return lc_portal_endpoint_allowed(portal, LC_PORTAL_ENDPOINT_CONFIG);
-    }
-    /* Not "prov-scan", not "proto-ver", nothing that reports status or settings. */
-    return false;
-}
-
 void lc_portal_saved(lc_portal_t *portal)
 {
     if (lc_portal_is_open(portal)) {

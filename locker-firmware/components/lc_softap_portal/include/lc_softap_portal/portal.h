@@ -69,8 +69,6 @@ void lc_portal_session_failed(lc_portal_t *portal);
  * diagnostics or stored settings.
  */
 bool lc_portal_endpoint_allowed(const lc_portal_t *portal, lc_portal_endpoint_t endpoint);
-/* By the name the provisioning manager uses: unknown names are never allowed. */
-bool lc_portal_endpoint_name_allowed(const lc_portal_t *portal, const char *name);
 
 /* The settings are saved: the portal closes and the radio is turned over to the station. */
 void lc_portal_saved(lc_portal_t *portal);

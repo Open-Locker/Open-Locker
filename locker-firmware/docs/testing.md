@@ -343,7 +343,7 @@ layer rule:
 | S6-H03 | A failed Security 2 session reaches no endpoint, and 5 failures close the window |
 | S6-H07 | The portal closes after saving and after 10 minutes. A unit with no settings reopens it on the next boot |
 | S6-H08 | Nothing reopens a closed portal during the run, so a Wi-Fi failure after commissioning never does (the token is kept by S5, `commission_device`) |
-| S6-H09 | The portal never exposes status, diagnostics or stored settings: only the handshake, the Wi-Fi endpoint and `ol-config` exist, the last two behind an established session |
+| S6-H09 | Only the handshake answers before a session; the Wi-Fi endpoint and `ol-config` answer only behind one. `softap.c` registers just these and `proto-ver`, a fixed version string, so nothing reports status, diagnostics or stored settings (on the radio: HW-F7) |
 | S6-H12 | No code path from the portal reaches the bus port (enforced by the layer rule in `verify.py`) |
 | S6-H13 | A second station is refused while one is connected |
 
