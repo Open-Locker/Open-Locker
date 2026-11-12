@@ -10,6 +10,7 @@
 static lc_command_t command;
 static lc_mqtt_envelope_t envelope;
 static char encoded[512];
+static char payload[LC_MQTT_PAYLOAD_MAX + 1];
 
 void setUp(void)
 {
@@ -197,8 +198,124 @@ void test_envelope_dates_cover_leap_days_and_the_epoch(void)
 void test_heartbeat_that_does_not_fit_is_reported(void)
 {
     for (size_t capacity = 0; capacity < 60; ++capacity) {
-        TEST_ASSERT_EQUAL_UINT(0, lc_mqtt_encode_heartbeat(5, true, &envelope, encoded, capacity));
+        TEST_ASSERT_EQUAL_UINT(0, lc_mqtt_encode_heartbeat(5, true, NULL, &envelope, encoded, capacity));
     }
+}
+
+static size_t read_example(const char *name)
+{
+    char path[512];
+    snprintf(path, sizeof(path), "%s/docs/asyncapi/examples/%s", LC_REPO_ROOT, name);
+    FILE *file = fopen(path, "rb");
+    TEST_ASSERT_NOT_NULL_MESSAGE(file, path);
+    size_t length = fread(payload, 1, LC_MQTT_PAYLOAD_MAX, file);
+    fclose(file);
+    payload[length] = '\0';
+    return length;
+}
+
+#define UPDATE_WITH(data)                                                                        \
+    "{\"transaction_id\":\"t1\",\"message_id\":\"m1\",\"action\":\"update_firmware\","         \
+    "\"timestamp\":\"2026-10-22T09:00:00Z\",\"data\":" data "}"
+
+void test_update_firmware_example_parses_into_a_typed_command(void)
+{
+    size_t length = read_example("command-update-firmware.json");
+    TEST_ASSERT_TRUE(lc_mqtt_decode_command(payload, length, &command));
+    TEST_ASSERT_EQUAL_INT(LC_ERROR_NONE, command.defect);
+    TEST_ASSERT_EQUAL_INT(LC_ACTION_UPDATE_FIRMWARE, command.action);
+    TEST_ASSERT_EQUAL_STRING("update_firmware", command.action_name);
+    TEST_ASSERT_EQUAL_STRING("txn-fw-001", command.transaction_id);
+    TEST_ASSERT_EQUAL_STRING("0.2.0", command.firmware.version);
+    TEST_ASSERT_EQUAL_STRING("https://open-locker.cloud/api/firmware/"
+                             "0b6f5a52-0f2d-4c58-9a57-3f1e7f1c2a11/"
+                             "7d1c9e34-8a47-4b1e-b0a2-5c3d9e6f1a22?expires="
+                             "1792659600&signature="
+                             "0000000000000000000000000000000000000000000000000000000000000000",
+                             command.firmware.url);
+    TEST_ASSERT_FALSE(command.firmware.allow_downgrade);
+}
+
+void test_update_firmware_reads_allow_downgrade(void)
+{
+    TEST_ASSERT_EQUAL_INT(
+        LC_ERROR_NONE,
+        defect_of(UPDATE_WITH("{\"version\":\"0.1.0-rc.1\",\"url\":\"https://e.com/a\","
+                              "\"allow_downgrade\":true}")));
+    TEST_ASSERT_TRUE(command.firmware.allow_downgrade);
+    TEST_ASSERT_EQUAL_STRING("0.1.0-rc.1", command.firmware.version);
+}
+
+void test_heartbeat_reports_trial_false_and_leaves_out_what_is_absent(void)
+{
+    lc_firmware_status_t firmware = {.running_slot = LC_OTA_SLOT_0, .trial = false};
+    snprintf(firmware.version, sizeof(firmware.version), "0.2.0");
+    TEST_ASSERT_TRUE(lc_mqtt_encode_heartbeat(5, true, &firmware, &envelope, encoded,
+                                              sizeof(encoded)) > 0);
+    cJSON *message = emit_message("payloads/state-heartbeat.json", encoded);
+    TEST_ASSERT_TRUE(cJSON_IsFalse(cJSON_GetObjectItemCaseSensitive(message, "trial")));
+    TEST_ASSERT_EQUAL_STRING("ota_0", emitted_string(message, "running_slot"));
+    TEST_ASSERT_NULL(cJSON_GetObjectItemCaseSensitive(message, "last_rollback_version"));
+    cJSON_Delete(message);
+
+    /* A device that reports no firmware sends none of the fields. */
+    TEST_ASSERT_TRUE(lc_mqtt_encode_heartbeat(5, true, NULL, &envelope, encoded, sizeof(encoded)) >
+                     0);
+    message = emit_message("payloads/state-heartbeat.json", encoded);
+    TEST_ASSERT_NULL(cJSON_GetObjectItemCaseSensitive(message, "firmware_version"));
+    TEST_ASSERT_NULL(cJSON_GetObjectItemCaseSensitive(message, "trial"));
+    TEST_ASSERT_NULL(cJSON_GetObjectItemCaseSensitive(message, "capabilities"));
+    cJSON_Delete(message);
+}
+
+void test_heartbeat_advertises_firmware_update_only_when_the_device_can_update(void)
+{
+    lc_firmware_status_t firmware = {.running_slot = LC_OTA_SLOT_0};
+    snprintf(firmware.version, sizeof(firmware.version), "0.2.0");
+
+    TEST_ASSERT_TRUE(lc_mqtt_encode_heartbeat(5, true, &firmware, &envelope, encoded,
+                                              sizeof(encoded)) > 0);
+    cJSON *message = emit_message("payloads/state-heartbeat.json", encoded);
+    TEST_ASSERT_NULL(cJSON_GetObjectItemCaseSensitive(message, "capabilities"));
+    cJSON_Delete(message);
+
+    firmware.update_capable = true;
+    TEST_ASSERT_TRUE(lc_mqtt_encode_heartbeat(5, true, &firmware, &envelope, encoded,
+                                              sizeof(encoded)) > 0);
+    message = emit_message("payloads/state-heartbeat.json", encoded);
+    const cJSON *capabilities = cJSON_GetObjectItemCaseSensitive(message, "capabilities");
+    TEST_ASSERT_EQUAL_INT(1, cJSON_GetArraySize(capabilities));
+    TEST_ASSERT_EQUAL_STRING("firmware_update", cJSON_GetArrayItem(capabilities, 0)->valuestring);
+    cJSON_Delete(message);
+}
+
+void test_heartbeat_without_a_firmware_version_sends_no_firmware_fields(void)
+{
+    lc_firmware_status_t firmware = {.running_slot = LC_OTA_SLOT_1, .trial = true, .update_capable = true};
+    snprintf(firmware.last_rollback_version, sizeof(firmware.last_rollback_version), "0.1.9");
+
+    TEST_ASSERT_TRUE(lc_mqtt_encode_heartbeat(5, true, &firmware, &envelope, encoded,
+                                              sizeof(encoded)) > 0);
+    cJSON *message = emit_message("payloads/state-heartbeat.json", encoded);
+    TEST_ASSERT_NULL(cJSON_GetObjectItemCaseSensitive(message, "firmware_version"));
+    TEST_ASSERT_NULL(cJSON_GetObjectItemCaseSensitive(message, "trial"));
+    TEST_ASSERT_NULL(cJSON_GetObjectItemCaseSensitive(message, "running_slot"));
+    TEST_ASSERT_NULL(cJSON_GetObjectItemCaseSensitive(message, "last_rollback_version"));
+    TEST_ASSERT_NULL(cJSON_GetObjectItemCaseSensitive(message, "capabilities"));
+    cJSON_Delete(message);
+}
+
+void test_failed_update_codes_have_a_message(void)
+{
+    lc_command_result_t result = {.error = LC_ERROR_UPDATE_DOWNLOAD_FAILED};
+    snprintf(result.transaction_id, sizeof(result.transaction_id), "txn-fw-001");
+    snprintf(result.action_name, sizeof(result.action_name), "update_firmware");
+
+    TEST_ASSERT_TRUE(lc_mqtt_encode_response(&result, &envelope, encoded, sizeof(encoded)) > 0);
+    TEST_ASSERT_NOT_NULL(strstr(encoded, "could not be downloaded"));
+    result.error = LC_ERROR_UPDATE_VERIFY_FAILED;
+    TEST_ASSERT_TRUE(lc_mqtt_encode_response(&result, &envelope, encoded, sizeof(encoded)) > 0);
+    TEST_ASSERT_NOT_NULL(strstr(encoded, "could not be verified"));
 }
 
 int main(void)
@@ -212,5 +329,11 @@ int main(void)
     RUN_TEST(test_encoded_text_is_escaped);
     RUN_TEST(test_envelope_dates_cover_leap_days_and_the_epoch);
     RUN_TEST(test_heartbeat_that_does_not_fit_is_reported);
+    RUN_TEST(test_update_firmware_example_parses_into_a_typed_command);
+    RUN_TEST(test_update_firmware_reads_allow_downgrade);
+    RUN_TEST(test_heartbeat_reports_trial_false_and_leaves_out_what_is_absent);
+    RUN_TEST(test_heartbeat_advertises_firmware_update_only_when_the_device_can_update);
+    RUN_TEST(test_heartbeat_without_a_firmware_version_sends_no_firmware_fields);
+    RUN_TEST(test_failed_update_codes_have_a_message);
     return UNITY_END();
 }

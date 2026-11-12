@@ -70,6 +70,11 @@ At a high level, the cabinet-side hardware is expected to stay similar:
 
 No controller board has been chosen for the ESP-based build yet.
 
+Purchase requirements for any ESP32 unit that should take over-the-air updates
+([ADR-0075](adr/0075-esp32-ota-firmware-updates.md)): 4 MB of flash and a chip
+revision of v3.0 or later. Check a delivered unit with `esptool flash_id`
+(flash size) and `esptool chip_id` (revision) before installing it.
+
 For builds with up to 8 compartments, the board's onboard 8 relays and 8
 digital inputs are the planned starting point.
 

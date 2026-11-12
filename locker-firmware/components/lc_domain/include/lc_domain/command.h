@@ -5,6 +5,7 @@
 
 #include "lc_domain/config.h"
 #include "lc_domain/errors.h"
+#include "lc_domain/firmware.h"
 
 /* A command from the backend and the result the device reports for it. */
 
@@ -15,6 +16,7 @@ typedef enum {
     LC_ACTION_UNKNOWN = 0,
     LC_ACTION_OPEN_COMPARTMENT,
     LC_ACTION_APPLY_CONFIG,
+    LC_ACTION_UPDATE_FIRMWARE,
 } lc_action_t;
 
 typedef struct {
@@ -27,8 +29,14 @@ typedef struct {
     lc_error_t defect;
     /* LC_ACTION_OPEN_COMPARTMENT */
     uint16_t compartment_number;
-    /* LC_ACTION_APPLY_CONFIG */
-    lc_config_request_t config;
+    /* One command is one action, so these share memory (the owner queue holds copies);
+     * `action` decides which member is valid. */
+    union {
+        /* LC_ACTION_APPLY_CONFIG */
+        lc_config_request_t config;
+        /* LC_ACTION_UPDATE_FIRMWARE */
+        lc_firmware_update_request_t firmware;
+    };
 } lc_command_t;
 
 typedef struct {

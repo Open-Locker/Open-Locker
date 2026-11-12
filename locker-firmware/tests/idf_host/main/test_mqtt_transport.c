@@ -69,14 +69,10 @@ static void start(void)
     Mockmqtt_client_Verify();
 }
 
-void setUp(void)
+void mqtt_transport_tests_reset(void)
 {
     subscribed_count = 0;
     subscribed_id = -1;
-}
-
-void tearDown(void)
-{
 }
 
 /* This suite builds without CONFIG_LC_ALLOW_PLAINTEXT_MQTT, as a release does. */
@@ -113,12 +109,10 @@ static void test_a_refused_subscription_is_not_reported(void)
     TEST_ASSERT_EQUAL_INT(0, subscribed_count);
 }
 
-void app_main(void)
+void run_mqtt_transport_tests(void)
 {
-    UNITY_BEGIN();
     RUN_TEST(test_a_release_build_refuses_a_plain_mqtt_broker);
     RUN_TEST(test_the_client_is_started_and_its_handler_registered);
     RUN_TEST(test_a_granted_subscription_is_reported);
     RUN_TEST(test_a_refused_subscription_is_not_reported);
-    exit(UNITY_END());
 }

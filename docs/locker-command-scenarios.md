@@ -35,6 +35,7 @@ step fails.
   - [13. Applying the compartment configuration](#13-applying-the-compartment-configuration)
   - [14. Heartbeat, snapshots and going offline](#14-heartbeat-snapshots-and-going-offline)
   - [15. Provisioning](#15-provisioning)
+  - [16. Updating ESP32 firmware](#16-updating-esp32-firmware)
 - [What a locker client must handle](#what-a-locker-client-must-handle)
 - [Known gaps](#known-gaps)
 
@@ -562,6 +563,57 @@ The token is single use. If the reply is lost after the backend accepted it,
 the bank is provisioned but the client has no credentials, and the operator
 has to issue a new token.
 
+### 16. Updating ESP32 firmware
+
+ESP32 lockers only, and only those whose heartbeat lists the `firmware_update`
+capability. An operator requests it from the admin panel for one locker. The
+contract is [ADR-0076](adr/0076-update-firmware-mqtt-command-and-heartbeat-fields.md),
+the device side [ADR-0075](adr/0075-esp32-ota-firmware-updates.md), the backend
+side [ADR-0077](adr/0077-backend-firmware-releases-and-rollout-tracking.md).
+The command gets **one** response; the end of the update is a heartbeat.
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant Admin
+    participant BE as Backend
+    participant MQ as Broker
+    participant FW as ESP32 firmware
+
+    Admin->>BE: Update firmware (release, locker)
+    BE->>BE: Record FirmwareUpdateRequested (no URL)
+    BE->>MQ: update_firmware (version, signed https URL, new transaction_id)
+    MQ->>FW: update_firmware
+    alt Refused
+        FW->>MQ: error UPDATE_BUSY, UPDATE_NOT_READY, UPDATE_SAME_VERSION, UPDATE_DOWNGRADE, UPDATE_VERSION_REJECTED or UPDATE_INVALID
+        MQ->>BE: response, status failed
+    else Accepted
+        FW->>MQ: response success (accepted, not updated)
+        MQ->>BE: response, status downloading
+        FW->>FW: Download, check the version, verify the signature
+        alt Download or verification fails
+            FW->>MQ: event firmware_update_failed (transaction_id, UPDATE_DOWNLOAD_FAILED or UPDATE_VERIFY_FAILED)
+            MQ->>BE: event, status failed
+        else Image verified
+            FW->>FW: Select the new slot and restart when idle
+            FW->>MQ: heartbeat with the new firmware_version and trial=true
+            FW->>FW: Wi-Fi, broker and one bus query succeed, mark valid
+            FW->>MQ: heartbeat with firmware_version and trial=false
+            MQ->>BE: heartbeat matches the target, trial=false
+            BE->>BE: Record completion
+        end
+    end
+```
+
+Rollback: if the new image cannot reach Wi-Fi, the broker or the bus within the
+trial window, or restarts during it, the device returns to the previous image
+and its heartbeat shows the old `firmware_version` with
+`last_rollback_version` set. The backend marks the update failed. A heartbeat
+with the target version and `trial=true`, or without `trial`, never completes an
+update. If the failure event is lost, or the device never answers, the backend's
+timeout fails the update. Opens keep working throughout, and the journal makes
+each happen once across the restart.
+
 ## What a locker client must handle
 
 Each item points to the scenario that needs it. A new client is complete when
@@ -617,8 +669,10 @@ What the system does not handle today. A new client cannot fix these alone.
 - **The last will is ignored.** Offline detection waits for the heartbeat
   timeout (scenario 14).
 - **Manual `queue:retry` can republish old commands** (scenario 7).
-- **Error codes are not part of the schema.** Clients and backend agree on
-  them only by convention (scenario 3).
+- **Error codes are mostly not part of the schema.** Clients and backend agree
+  on them only by convention (scenario 3). The exception is `update_firmware`,
+  whose refusal codes and failure-event codes are enums in the schema
+  (scenario 16).
 - **Lost provisioning replies need a new token** (scenario 15).
 
 ## References

@@ -9,6 +9,7 @@
 #include "lc_domain/identity.h"
 #include "lc_ports/clock_port.h"
 #include "lc_ports/command_journal_port.h"
+#include "lc_ports/firmware_update_port.h"
 #include "lc_ports/hasher_port.h"
 #include "lc_ports/locker_bus_port.h"
 #include "lc_ports/outbound_port.h"
@@ -95,6 +96,7 @@ typedef enum {
     FAKE_OPEN_DETECTION,
     FAKE_UNCOMMANDED_OPEN,
     FAKE_OFFLINE,
+    FAKE_FIRMWARE_FAILED,
     FAKE_PUBLISH_KINDS,
 } fake_publish_kind_t;
 
@@ -113,6 +115,9 @@ typedef struct {
     size_t response_count;
     uint32_t heartbeat_uptime_seconds;
     bool heartbeat_bus_connected;
+    /* The firmware status of the last heartbeat; has_firmware is false when it carried none. */
+    bool heartbeat_has_firmware;
+    lc_firmware_status_t heartbeat_firmware;
     lc_compartment_state_t snapshot[LC_COMPARTMENTS_MAX];
     size_t snapshot_count;
     lc_open_detection_t detections[FAKE_OUTBOUND_EVENTS];
@@ -120,6 +125,8 @@ typedef struct {
     lc_uncommanded_open_t uncommanded[FAKE_OUTBOUND_EVENTS];
     size_t uncommanded_count;
     lc_offline_reason_t offline_reason;
+    lc_firmware_update_failure_t failures[FAKE_OUTBOUND_EVENTS];
+    size_t failure_count;
 
     /* Every accepted publish, in order. */
     lc_publish_id_t ids[FAKE_OUTBOUND_IDS];
@@ -191,6 +198,30 @@ typedef struct {
 
 void fake_gateway_init(fake_gateway_t *gateway);
 lc_provisioning_gateway_port_t fake_gateway_port(fake_gateway_t *gateway);
+
+/* ---- Firmware update ---- */
+
+typedef struct {
+    char running_version[LC_FIRMWARE_VERSION_MAX + 1];
+    bool on_trial;
+    lc_ota_slot_t slot;
+    /* What last_rollback_version() answers. */
+    char last_rollback_version[LC_FIRMWARE_VERSION_MAX + 1];
+    bool start_ok;
+    bool select_ok;
+    bool mark_valid_ok;
+    /* False: the rollback call returned, as it does when there is no previous image. */
+    bool rollback_ok;
+    unsigned mark_valid_count;
+    unsigned rollback_count;
+    unsigned start_count;
+    unsigned abort_count;
+    unsigned select_count;
+    lc_firmware_update_request_t last_request;
+} fake_update_t;
+
+void fake_update_init(fake_update_t *update);
+lc_firmware_update_port_t fake_update_port(fake_update_t *update);
 
 /* ---- System ---- */
 

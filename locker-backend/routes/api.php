@@ -5,6 +5,7 @@ declare(strict_types=1);
 use App\Http\Controllers\AppInfoController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\CompartmentController;
+use App\Http\Controllers\FirmwareDownloadController;
 use App\Http\Controllers\Mqtt\MosquittoAuthController;
 use App\Http\Controllers\TermsController;
 use App\Http\Middleware\VerifyMosqHttpAuth;
@@ -63,6 +64,12 @@ Route::middleware(['auth:sanctum', 'terms.accepted'])->group(function () {
     });
 
 });
+
+// A locker downloads its firmware from a link the backend signs and sends over MQTT (ADR-0077).
+// The signature is the credential, so there is no auth guard: an expired or altered link is a 403.
+Route::get('firmware/{release}/{lockerBank}', FirmwareDownloadController::class)
+    ->middleware(['signed', 'throttle:firmware-download'])
+    ->name('firmware.download');
 
 // Mosquitto HTTP auth endpoints (secured via Basic Auth middleware)
 Route::prefix('mosq')->group(function () {

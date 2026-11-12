@@ -25,7 +25,7 @@ enum Permission: string
             self::CompartmentAccessManage => 'Allows granting and revoking direct compartment access for users.',
             self::CompartmentOpen => 'Allows operationally opening any compartment and receiving operational status updates.',
             self::RolesManage => 'Allows granting and revoking user roles.',
-            self::LockerBankConfigure => 'Allows changing technical locker-bank configuration like Modbus, provisioning, and heartbeat settings.',
+            self::LockerBankConfigure => 'Allows changing technical locker-bank configuration like Modbus, provisioning, and heartbeat settings, and managing firmware releases and firmware updates.',
             self::SystemConfigure => 'Allows changing legal and system-wide configuration resources.',
             self::AuditLogView => 'Allows viewing the system-wide audit log.',
         };

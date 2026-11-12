@@ -274,8 +274,8 @@ void test_S4_H21_state_and_event_messages_match_their_schemas(void)
     lc_mqtt_envelope_t envelope;
     lc_mqtt_envelope(RANDOM, 1776195060, &envelope);
 
-    TEST_ASSERT_TRUE(lc_mqtt_encode_heartbeat(86400, false, &envelope, encoded, sizeof(encoded)) >
-                     0);
+    TEST_ASSERT_TRUE(lc_mqtt_encode_heartbeat(86400, false, NULL, &envelope, encoded,
+                                              sizeof(encoded)) > 0);
     cJSON *message = emit_message("payloads/state-heartbeat.json", encoded);
     TEST_ASSERT_EQUAL_INT(86400, emitted_integer(message, "uptime_seconds"));
     TEST_ASSERT_TRUE(cJSON_IsFalse(cJSON_GetObjectItemCaseSensitive(message, "modbus_connected")));

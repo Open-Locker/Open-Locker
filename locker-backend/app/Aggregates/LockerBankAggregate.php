@@ -4,10 +4,14 @@ declare(strict_types=1);
 
 namespace App\Aggregates;
 
+use App\Enums\FirmwareUpdateRefusal;
+use App\Exceptions\FirmwareUpdateRefused;
 use App\Models\Compartment;
+use App\Models\FirmwareRelease;
 use App\Models\LockerBank;
 use App\Services\LockerProvisioningService;
 use App\StorableEvents\CompartmentOpeningRequested;
+use App\StorableEvents\FirmwareUpdateRequested;
 use App\StorableEvents\LockerConfigApplyRequested;
 use App\StorableEvents\LockerProvisioningFailed;
 use App\StorableEvents\LockerProvisioningReset;
@@ -115,6 +119,53 @@ class LockerBankAggregate extends TransactionalAggregateRoot
             compartmentUuid: $compartmentUuid,
             compartmentNumber: $compartmentNumber,
             commandId: $commandId,
+        ));
+
+        return $this;
+    }
+
+    /**
+     * Record a request to update the locker's firmware to a release (ADR-0077).
+     *
+     * One update at a time per bank, and only for a bank that is provisioned
+     * and whose heartbeat advertised `firmware_update`. The caller passes the
+     * bank read under a lock, because the other events of an update (accepted,
+     * failed) are not in this aggregate's stream, so the aggregate cannot know
+     * by itself whether one is in flight. The event carries the
+     * release, not the download link; the reactor makes the link when it
+     * publishes.
+     *
+     * @throws FirmwareUpdateRefused
+     */
+    public function requestFirmwareUpdate(
+        LockerBank $lockerBank,
+        FirmwareRelease $release,
+        string $commandId,
+        bool $allowDowngrade,
+        ?int $actorUserId,
+    ): self {
+        $refusal = match (true) {
+            $lockerBank->provisioned_at === null => FirmwareUpdateRefusal::NotProvisioned,
+            ! $lockerBank->firmware_update_capable => FirmwareUpdateRefusal::NotCapable,
+            $lockerBank->firmware_update_status?->isInFlight() => FirmwareUpdateRefusal::UpdateInFlight,
+            $release->invalid => FirmwareUpdateRefusal::ReleaseInvalid,
+            $lockerBank->firmware_version === $release->version => FirmwareUpdateRefusal::AlreadyRunning,
+            ! FirmwareRelease::isUsableDownloadUrl($release->signedDownloadUrl((string) $lockerBank->id)) => FirmwareUpdateRefusal::DownloadUrlUnusable,
+            default => null,
+        };
+
+        if ($refusal !== null) {
+            throw new FirmwareUpdateRefused($refusal);
+        }
+
+        $this->recordThat(new FirmwareUpdateRequested(
+            lockerBankUuid: (string) $lockerBank->id,
+            commandId: $commandId,
+            releaseId: (string) $release->id,
+            version: $release->version,
+            allowDowngrade: $allowDowngrade,
+            actorUserId: $actorUserId,
+            requestedAtIso8601: now()->toIso8601String(),
         ));
 
         return $this;

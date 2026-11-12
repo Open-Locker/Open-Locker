@@ -37,7 +37,7 @@ SCHEMAS = REPO / "docs" / "asyncapi" / "schemas"
 EMITTED_MESSAGES = BUILD / "emitted-messages.jsonl"
 
 # Test ID prefixes (S<n>) whose catalogue entries must all have a test.
-IMPLEMENTED_SLICES = [1, 2, 3, 4, 5, 6]
+IMPLEMENTED_SLICES = [1, 2, 3, 4, 5, 6, 7]
 
 MIN_LINE_COVERAGE = 95.0
 
@@ -72,6 +72,7 @@ HEADER_ONLY_PURE_COMPONENTS = ["lc_ports"]
 ADAPTER_COMPONENTS = [
     "lc_mqtt_espidf",
     "lc_net_wifi",
+    "lc_ota_espidf",
     "lc_serial_uart",
     "lc_softap_espidf",
     "lc_storage_nvs",
@@ -453,13 +454,108 @@ def check_coverage():
     return errors
 
 
+# ---- Over-the-air updates (ADR-0075) ----
+
+# Plain HTTP for an update: in an sdkconfig file, or in the header generated from it.
+HTTP_OTA = re.compile(r"^(CONFIG_ESP_HTTPS_OTA_ALLOW_HTTP=y|#define CONFIG_ESP_HTTPS_OTA_ALLOW_HTTP 1)\s*$", re.M)
+PARTITIONS = ROOT / "partitions.csv"
+SDKCONFIG_DEFAULTS = ROOT / "sdkconfig.defaults"
+# Signing (scripts/sign_firmware.py) pads the image to 4 KiB and appends one 4 KiB signature block.
+SIGNATURE_BLOCK_BYTES = 4096
+# The bootloader sits between here and the partition table (CONFIG_PARTITION_TABLE_OFFSET).
+BOOTLOADER_OFFSET = 0x1000
+
+
+def allows_http_ota(text):
+    return HTTP_OTA.search(text) is not None
+
+
+def http_ota_errors(files):
+    """`files` maps a file name to its text."""
+    return [
+        f"{name} sets CONFIG_ESP_HTTPS_OTA_ALLOW_HTTP: an update must be fetched over verified HTTPS"
+        for name, text in files.items()
+        if allows_http_ota(text)
+    ]
+
+
+def check_ota_settings():
+    """No settings file, and not the generated configuration, allows plain HTTP for updates."""
+    files = {path.name: read(path) for path in sorted(ROOT.glob("sdkconfig*")) if path.is_file()}
+    generated = ROOT / "build" / "config" / "sdkconfig.h"
+    if generated.exists():
+        files["build/config/sdkconfig.h"] = read(generated)
+    return http_ota_errors(files)
+
+
+def partition_sizes(text):
+    """The size of each partition in a partitions.csv, by name."""
+    units = {"K": 1024, "M": 1024 * 1024}
+    sizes = {}
+    for line in text.splitlines():
+        line = line.split("#", 1)[0].strip()
+        fields = [field.strip() for field in line.split(",")]
+        if len(fields) < 5 or not fields[0]:
+            continue
+        size = fields[4]
+        if not size:
+            continue
+        sizes[fields[0]] = int(size[:-1], 0) * units[size[-1].upper()] if size[-1].upper() in units else int(size, 0)
+    return sizes
+
+
+def partition_table_offset(text):
+    """CONFIG_PARTITION_TABLE_OFFSET of an sdkconfig file; None when it is not set."""
+    match = re.search(r"^CONFIG_PARTITION_TABLE_OFFSET=(0[xX][0-9A-Fa-f]+|\d+)\s*$", text, re.M)
+    return int(match[1], 0) if match else None
+
+
+def signed_size(size):
+    """The size of an image after signing."""
+    return -(-size // SIGNATURE_BLOCK_BYTES) * SIGNATURE_BLOCK_BYTES + SIGNATURE_BLOCK_BYTES
+
+
+def image_size_errors(name, size, limit):
+    if size <= limit:
+        return []
+    return [f"{name} is {size} bytes and does not fit in {limit} bytes (over by {size - limit})"]
+
+
+def build_size_errors(sizes, app_size, bootloader_size, table_offset):
+    """The signed app must fit the smaller OTA slot and the bootloader the space before the partition table."""
+    slots = [sizes[name] for name in ("ota_0", "ota_1") if name in sizes]
+    if len(slots) != 2:
+        return ["partitions.csv must have ota_0 and ota_1"]
+    return [
+        *image_size_errors("the app image with its signature", signed_size(app_size), min(slots)),
+        *image_size_errors("the bootloader", bootloader_size, table_offset - BOOTLOADER_OFFSET),
+    ]
+
+
+def check_image_sizes(build=None):
+    """The images the build wrote still fit their partitions (an update could not be written otherwise)."""
+    build = Path(build) if build else ROOT / "build"
+    app, bootloader = build / "locker-firmware.bin", build / "bootloader" / "bootloader.bin"
+    for image in (app, bootloader):
+        if not image.exists():
+            return [f"{image} is missing; did the build run?"]
+    table_offset = partition_table_offset(read(SDKCONFIG_DEFAULTS))
+    if table_offset is None:
+        return ["sdkconfig.defaults does not set CONFIG_PARTITION_TABLE_OFFSET"]
+    app_size, bootloader_size = app.stat().st_size, bootloader.stat().st_size
+    print(f"  app image {app_size} bytes ({signed_size(app_size)} signed), bootloader {bootloader_size} bytes")
+    return build_size_errors(partition_sizes(read(PARTITIONS)), app_size, bootloader_size, table_offset)
+
+
 def check_target_build():
     """ESP-IDF build for the board. Needs an ESP-IDF shell, with `idf.py` on the PATH."""
     tool = shutil.which("idf.py")
     if tool is None:
         return ["idf.py not found; run from an ESP-IDF shell or pass --skip-target"]
     # idf.py is a Python script; running it with this interpreter works on every platform.
-    return [] if run([sys.executable, tool, "build"]) else ["target build failed"]
+    if not run([sys.executable, tool, "build"]):
+        return ["target build failed"]
+    return check_image_sizes()
 
 
 def check_idf_host_tests():
@@ -475,9 +571,19 @@ def check_idf_host_tests():
 
 
 def main(argv):
+    # CI builds the firmware in its own step and then checks the images it wrote.
+    if argv[:1] == ["--check-image-sizes"]:
+        if len(argv) != 2:
+            print("usage: python scripts/verify.py --check-image-sizes BUILD_DIR", file=sys.stderr)
+            return 2
+        errors = check_image_sizes(argv[1])
+        for error in errors:
+            print(f"  FAIL {error}")
+        return 1 if errors else 0
+
     unknown = [option for option in argv if option != "--skip-target"]
     if unknown:
-        print(f"usage: python scripts/verify.py [--skip-target]\nunknown: {' '.join(unknown)}", file=sys.stderr)
+        print(f"usage: python scripts/verify.py [--skip-target | --check-image-sizes BUILD_DIR]\nunknown: {' '.join(unknown)}", file=sys.stderr)
         return 2
     # The ESP-IDF checks then count as not run, and the summary says so.
     skip_target = "--skip-target" in argv
@@ -487,6 +593,7 @@ def main(argv):
     checks = [
         ("test IDs", check_plan_ids),
         ("layer includes", check_layers),
+        ("OTA settings", check_ota_settings),
         ("static analysis", check_static_analysis),
         ("host tests", check_host_tests),
         ("message schemas", check_emitted_messages),

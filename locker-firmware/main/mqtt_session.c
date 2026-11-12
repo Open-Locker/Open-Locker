@@ -140,12 +140,14 @@ static lc_publish_id_t out_response(void *ctx, const lc_command_result_t *result
                    lc_mqtt_encode_response(result, &stamp, encoded, sizeof(encoded)));
 }
 
-static lc_publish_id_t out_heartbeat(void *ctx, uint32_t uptime_seconds, bool bus_connected)
+static lc_publish_id_t out_heartbeat(void *ctx, uint32_t uptime_seconds, bool bus_connected,
+                                     const lc_firmware_status_t *firmware)
 {
     (void)ctx;
     const lc_mqtt_envelope_t stamp = envelope();
     return publish(LC_TOPIC_HEARTBEAT, lc_mqtt_encode_heartbeat(uptime_seconds, bus_connected,
-                                                                &stamp, encoded, sizeof(encoded)));
+                                                                firmware, &stamp, encoded,
+                                                                sizeof(encoded)));
 }
 
 static lc_publish_id_t out_snapshot(void *ctx, const lc_compartment_state_t *states, size_t count)
@@ -180,6 +182,19 @@ static lc_publish_id_t out_connection_offline(void *ctx, lc_offline_reason_t rea
                    lc_mqtt_encode_connection_offline(reason, &stamp, encoded, sizeof(encoded)));
 }
 
+static lc_publish_id_t out_firmware_update_failed(void *ctx, const lc_firmware_update_failure_t *event)
+{
+    (void)ctx;
+    const lc_mqtt_envelope_t stamp = envelope();
+    lc_publish_id_t id = publish(
+        LC_TOPIC_EVENT, lc_mqtt_encode_firmware_update_failed(event, &stamp, encoded, sizeof(encoded)));
+    if (id == LC_PUBLISH_REFUSED) {
+        /* Not sent again; the backend's timeout fails the update (ADR-0076). */
+        ESP_LOGW(TAG, "firmware update failure event dropped");
+    }
+    return id;
+}
+
 lc_outbound_port_t mqtt_session_outbound(void)
 {
     return (lc_outbound_port_t){
@@ -190,6 +205,7 @@ lc_outbound_port_t mqtt_session_outbound(void)
         .open_detection = out_open_detection,
         .uncommanded_open = out_uncommanded_open,
         .connection_offline = out_connection_offline,
+        .firmware_update_failed = out_firmware_update_failed,
     };
 }
 

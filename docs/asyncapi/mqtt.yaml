@@ -27,6 +27,8 @@ channels:
         $ref: '#/components/messages/openCompartmentCommand'
       applyConfigCommand:
         $ref: '#/components/messages/applyConfigCommand'
+      updateFirmwareCommand:
+        $ref: '#/components/messages/updateFirmwareCommand'
   lockerResponse:
     address: locker/{locker_uuid}/response
     parameters:
@@ -39,6 +41,10 @@ channels:
         $ref: '#/components/messages/applyConfigSuccessResponse'
       commandErrorResponse:
         $ref: '#/components/messages/commandErrorResponse'
+      updateFirmwareSuccessResponse:
+        $ref: '#/components/messages/updateFirmwareSuccessResponse'
+      updateFirmwareErrorResponse:
+        $ref: '#/components/messages/updateFirmwareErrorResponse'
   lockerEvent:
     address: locker/{locker_uuid}/event
     description: >-
@@ -50,6 +56,8 @@ channels:
       emits `opened` or `door_jammed` only; `already_open` remains valid in the
       schema for historical and backend-compatible events. Current door state
       remains the retained snapshot on `locker/{locker_uuid}/state/compartments`.
+      `firmware_update_failed` reports a download or verification failure after
+      an `update_firmware` command was accepted (ADR-0076).
       Future candidates include `qr_scanned` and `tamper_detected`.
     parameters:
       locker_uuid:
@@ -63,6 +71,8 @@ channels:
         $ref: '#/components/messages/compartmentOpenFailedEvent'
       compartmentUncommandedOpenEvent:
         $ref: '#/components/messages/compartmentUncommandedOpenEvent'
+      firmwareUpdateFailedEvent:
+        $ref: '#/components/messages/firmwareUpdateFailedEvent'
   lockerStateHeartbeat:
     address: locker/{locker_uuid}/state/heartbeat
     parameters:
@@ -114,6 +124,7 @@ operations:
     messages:
       - $ref: '#/channels/lockerCommand/messages/openCompartmentCommand'
       - $ref: '#/channels/lockerCommand/messages/applyConfigCommand'
+      - $ref: '#/channels/lockerCommand/messages/updateFirmwareCommand'
   backendReceiveLockerResponse:
     action: receive
     channel:
@@ -123,6 +134,8 @@ operations:
       - $ref: '#/channels/lockerResponse/messages/commandSuccessResponse'
       - $ref: '#/channels/lockerResponse/messages/applyConfigSuccessResponse'
       - $ref: '#/channels/lockerResponse/messages/commandErrorResponse'
+      - $ref: '#/channels/lockerResponse/messages/updateFirmwareSuccessResponse'
+      - $ref: '#/channels/lockerResponse/messages/updateFirmwareErrorResponse'
   backendReceiveLockerEvent:
     action: receive
     channel:
@@ -180,6 +193,7 @@ operations:
     messages:
       - $ref: '#/channels/lockerCommand/messages/openCompartmentCommand'
       - $ref: '#/channels/lockerCommand/messages/applyConfigCommand'
+      - $ref: '#/channels/lockerCommand/messages/updateFirmwareCommand'
   lockerClientSendLockerResponse:
     action: send
     channel:
@@ -189,6 +203,8 @@ operations:
       - $ref: '#/channels/lockerResponse/messages/commandSuccessResponse'
       - $ref: '#/channels/lockerResponse/messages/applyConfigSuccessResponse'
       - $ref: '#/channels/lockerResponse/messages/commandErrorResponse'
+      - $ref: '#/channels/lockerResponse/messages/updateFirmwareSuccessResponse'
+      - $ref: '#/channels/lockerResponse/messages/updateFirmwareErrorResponse'
   lockerClientSendLockerEvent:
     action: send
     channel:
@@ -258,6 +274,19 @@ components:
       contentType: application/json
       payload:
         $ref: './schemas/payloads/command-apply-config.json'
+    updateFirmwareCommand:
+      name: updateFirmwareCommand
+      title: Update firmware command
+      summary: >-
+        ESP32 lockers only (ADR-0075, ADR-0076). Sent only to devices whose
+        heartbeat lists the `firmware_update` capability. A success response
+        means the update was accepted and the download started; the update is
+        complete only when a later heartbeat reports the target
+        `firmware_version` with `trial` not true. The URL's query string holds
+        a short-lived token and must never be logged or republished.
+      contentType: application/json
+      payload:
+        $ref: './schemas/payloads/command-update-firmware.json'
     commandSuccessResponse:
       name: commandSuccessResponse
       title: Successful command response
@@ -276,6 +305,24 @@ components:
       contentType: application/json
       payload:
         $ref: './schemas/payloads/response-command-error.json'
+    updateFirmwareSuccessResponse:
+      name: updateFirmwareSuccessResponse
+      title: Successful update_firmware response
+      summary: >-
+        Narrows the generic success response to `update_firmware`. It means
+        accepted, not updated.
+      contentType: application/json
+      payload:
+        $ref: './schemas/payloads/response-update-firmware-success.json'
+    updateFirmwareErrorResponse:
+      name: updateFirmwareErrorResponse
+      title: Failed update_firmware response
+      summary: >-
+        Narrows the generic error response to `update_firmware` and its refusal
+        codes.
+      contentType: application/json
+      payload:
+        $ref: './schemas/payloads/response-update-firmware-error.json'
     deviceEvent:
       name: deviceEvent
       title: Generic non-retained device event
@@ -300,6 +347,12 @@ components:
       contentType: application/json
       payload:
         $ref: './schemas/payloads/event-compartment-uncommanded-open.json'
+    firmwareUpdateFailedEvent:
+      name: firmwareUpdateFailedEvent
+      title: Firmware update failed after it was accepted
+      contentType: application/json
+      payload:
+        $ref: './schemas/payloads/event-firmware-update-failed.json'
     heartbeatState:
       name: heartbeatState
       title: Periodic heartbeat state

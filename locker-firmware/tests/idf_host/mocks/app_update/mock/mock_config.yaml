@@ -1,0 +1,10 @@
+        :cmock:
+          :enforce_strict_ordering: 1
+          :plugins:
+            - expect
+            - expect_any_args
+            - return_thru_ptr
+            - array
+            - ignore
+            - ignore_arg
+            - callback
