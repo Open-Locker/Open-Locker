@@ -11,8 +11,8 @@
  * is appended to; when it fills, the records still needed are copied into the
  * other, which then becomes active. A torn last record counts as never
  * written, except a claim whose body checks out, which stays open; any other
- * damage marks the journal unhealthy. Record format and
- * retention: docs/adr/0070-esp32-command-journal-record-format-and-retention.md.
+ * damage marks the journal unhealthy. Record format:
+ * docs/adr/0070-esp32-command-journal-format.md; retention: docs/adr/0081-esp32-command-journal-retention.md.
  */
 
 /* Open transactions: claimed, or completed and not yet delivered. Never pruned. */

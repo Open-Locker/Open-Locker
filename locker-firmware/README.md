@@ -10,8 +10,8 @@ This is bench firmware. Read [Limits](#limits) before you put a lock on it.
 
 - Architecture: [`docs/architecture.md`](docs/architecture.md)
 - Tests and hardware acceptance: [`docs/testing.md`](docs/testing.md)
-- Firmware decisions: [ADR-0069](../docs/adr/0069-esp32-locker-firmware.md)
-- Journal format and retention: [ADR-0070](../docs/adr/0070-esp32-command-journal-record-format-and-retention.md)
+- Firmware decisions: [ADR-0072](../docs/adr/0072-esp32-locker-firmware.md)
+- Journal format: [ADR-0070](../docs/adr/0070-esp32-command-journal-format.md), retention: [ADR-0081](../docs/adr/0081-esp32-command-journal-retention.md)
 - Hardware: [ADR-0005](../docs/adr/0005-esp-build-controller-board-selection.md)
 
 ## Hardware
@@ -123,7 +123,7 @@ Things to know:
 - If the connection to the tool is lost after the settings were sent, nothing
   is resent. Run `status` in the console, then try again.
 - **Plain `mqtt://` against a local broker** needs a development build
-  (ADR-0069). Delete `sdkconfig`, then
+  (ADR-0072). Delete `sdkconfig`, then
   `idf.py -D SDKCONFIG_DEFAULTS="sdkconfig.defaults;sdkconfig.dev" build`.
   A plain `idf.py build` is the release configuration and refuses `mqtt://`,
   including a URL stored earlier by a development build.
@@ -168,7 +168,7 @@ token.
 
 ## Limits
 
-- **The journal remembers the newest 256 delivered commands** (ADR-0070).
+- **The journal remembers the newest 256 delivered commands** (ADR-0081).
   `apply_config` counts. An older copy of a command arriving later is executed
   again; this closes when commands carry an age (#134).
 - **At most 32 responses can wait for the broker.** While 32 are unacknowledged,
@@ -206,7 +206,7 @@ token.
 
 ## Layout of flash
 
-`partitions.csv` is the final layout (ADR-0069); it cannot change over the air.
+`partitions.csv` is the final layout (ADR-0072); it cannot change over the air.
 The partition table sits at `0xC000`, so the bootloader has room to grow.
 
 | Partition | Offset | Size | Holds |
