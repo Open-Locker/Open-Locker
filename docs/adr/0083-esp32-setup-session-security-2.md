@@ -30,8 +30,9 @@ ESP-IDF's protocomm, on a WPA2 access point with a per-device passphrase.
   validated and saved **together, or not at all**.
 - No response contains a submitted value. The portal exposes no status, diagnostics
   or stored settings, and the installer only learns "saved".
-- The broker URL is frozen once a unit is enrolled. On an enrolled unit the broker and
-  token fields are ignored and Wi-Fi-only requests are accepted.
+- The broker URL is frozen once a unit is enrolled. The setup network never runs on an
+  enrolled unit, so this applies only to USB commissioning in bench builds: an enrolled
+  unit ignores the broker and token fields there and takes the Wi-Fi only.
 
 ## Rationale
 
