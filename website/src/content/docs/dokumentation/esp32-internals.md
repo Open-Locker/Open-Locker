@@ -313,6 +313,13 @@ flowchart TD
 A unit without settings is in bench mode whether or not its setup network is open, and the setup network
 stays closed if the `lc_setup` namespace holds no secrets. No default password stands in.
 
+### Endpoints
+
+The setup network registers four endpoints and nothing else: `prov-session` (the Security 2 handshake),
+`prov-config` (Wi-Fi) and `ol-config`, the last two only behind an established session, and `proto-ver`, which
+answers anyone with a fixed version string because `esp_prov` reads the Security 2 patch level from it. None
+reports status, diagnostics or stored settings.
+
 ### `ol-config` payload
 
 The custom endpoint carries what the Wi-Fi endpoint cannot: one version byte (`1`), then tag-length-value items

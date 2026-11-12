@@ -274,6 +274,10 @@ flowchart TD
 
 Eine Einheit ohne Einstellungen ist im Bench-Modus, unabhängig davon, ob ihr Setup-Netzwerk offen ist, und das Setup-Netzwerk bleibt geschlossen, wenn der Namespace `lc_setup` keine Secrets enthält. Kein Standardpasswort springt ein.
 
+### Endpunkte
+
+Das Setup-Netz registriert vier Endpunkte und sonst keine: `prov-session` (der Security-2-Handshake), `prov-config` (WLAN) und `ol-config`, die letzten beiden nur hinter einer bestehenden Sitzung, sowie `proto-ver`, das jedem eine feste Versionszeichenkette liefert, weil `esp_prov` daraus den Security-2-Patchstand liest. Keiner meldet Status, Diagnosen oder gespeicherte Einstellungen.
+
 ### `ol-config`-Nutzlast
 
 Der eigene Endpunkt trägt, was der WLAN-Endpunkt nicht kann: ein Versionsbyte (`1`), dann Tag-Length-Value-Einträge mit einem Byte Tag und einem Byte Länge. Die Tags sind `1` Broker-URL (bis 192 Bytes), `2` Bootstrap-Benutzer, `3` Bootstrap-Passwort und `4` Token (je bis 128 Bytes). Kein Feld darf leer sein oder ein NUL enthalten. Die Antwort ist ein Statusbyte, gleich für jede Ablehnung und verschlüsselt wie die Anfrage. Das Werkzeug sendet `ol-config` zuerst, weil der WLAN-Teil die Einheit dazu bringt, sich selbst in Betrieb zu nehmen.
