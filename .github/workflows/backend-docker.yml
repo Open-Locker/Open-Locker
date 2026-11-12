@@ -55,7 +55,7 @@ jobs:
     name: Backend release quality gate
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/backend-v')
     needs: release-gate
-    uses: ./.github/workflows/mqtt-contract-ci.yml
+    uses: ./.github/workflows/backend-ci.yml
     permissions:
       contents: read
 

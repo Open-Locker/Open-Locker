@@ -2,7 +2,7 @@
 
 ## Status
 
-Proposed
+Implemented (2026-02-23, `e2f0fdb7`). The compartment-open route checks terms inside the open path instead of the middleware; see ADR-0060.
 
 ## Date
 

@@ -2,7 +2,7 @@
 
 ## Status
 
-Proposed
+Deprecated (2026-11-10). No production board was chosen, so this planning decision no longer applies.
 
 ## Date
 

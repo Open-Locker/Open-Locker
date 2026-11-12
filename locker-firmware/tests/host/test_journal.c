@@ -210,16 +210,18 @@ void test_S2_H21_torn_claim_leaves_no_claim_or_an_unhealthy_journal(void)
             TEST_ASSERT_FALSE(port.healthy(port.ctx));
             continue;
         }
+        /* With only the marker missing the whole claim is kept (S2-H59), never a half one. */
+        bool whole_body = landed == total - 1;
         TEST_ASSERT_TRUE(port.healthy(port.ctx));
-        TEST_ASSERT_FALSE_MESSAGE(find("tx-1"), "a torn claim was accepted");
-        TEST_ASSERT_FALSE(port.seen_message(port.ctx, "msg-1"));
-        TEST_ASSERT_EQUAL_UINT(0, port.count(port.ctx));
+        TEST_ASSERT_EQUAL_MESSAGE(whole_body, find("tx-1"), "a torn claim was accepted");
+        TEST_ASSERT_EQUAL(whole_body, port.seen_message(port.ctx, "msg-1"));
+        TEST_ASSERT_EQUAL_UINT(whole_body ? 1 : 0, port.count(port.ctx));
         /* A healthy journal must stay usable after the torn record. */
         settle();
         TEST_ASSERT_TRUE(claim("tx-2", "msg-2"));
         TEST_ASSERT_TRUE(reopen());
         TEST_ASSERT_TRUE(find("tx-2"));
-        TEST_ASSERT_FALSE(find("tx-1"));
+        TEST_ASSERT_EQUAL(whole_body, find("tx-1"));
     }
 }
 
@@ -390,6 +392,78 @@ void test_S2_H26_reopening_never_erases_or_rewrites(void)
     TEST_ASSERT_TRUE(changed_bytes > 0);
 }
 
+/* The offset of the last programmed byte: the commit marker of the last record. */
+static size_t tail_marker(void)
+{
+    size_t offset = FLASH_SIZE;
+    while (flash.memory[offset - 1] == 0xFF) {
+        --offset;
+    }
+    return offset - 1;
+}
+
+void test_S2_H59_claim_with_a_damaged_marker_is_kept_open(void)
+{
+    TEST_ASSERT_TRUE(claim("tx-0", "msg-0"));
+    TEST_ASSERT_TRUE(complete("tx-0", LC_ERROR_NONE));
+    TEST_ASSERT_TRUE(claim("tx-1", "msg-1"));
+    size_t marker = tail_marker();
+    TEST_ASSERT_EQUAL_HEX8(0xC3, flash.memory[marker]);
+
+    /* A bit error that reads like a cut write: one cleared bit set again. */
+    flash.memory[marker] = 0xC7;
+    TEST_ASSERT_TRUE(reopen());
+    TEST_ASSERT_TRUE(port.healthy(port.ctx));
+    TEST_ASSERT_TRUE_MESSAGE(find("tx-1"), "the claim was dropped");
+    TEST_ASSERT_FALSE(entry.completed);
+    TEST_ASSERT_TRUE(port.seen_message(port.ctx, "msg-1"));
+    TEST_ASSERT_TRUE(find("tx-0"));
+    TEST_ASSERT_TRUE(entry.completed);
+
+    /* The compaction copies it with a proper marker, and the journal goes on. */
+    settle();
+    TEST_ASSERT_EQUAL_HEX8(0xC3, flash.memory[tail_marker()]);
+    TEST_ASSERT_TRUE(complete("tx-1", LC_ERROR_NONE));
+    TEST_ASSERT_TRUE(reopen());
+    TEST_ASSERT_TRUE(port.healthy(port.ctx));
+    TEST_ASSERT_TRUE(find("tx-1"));
+    TEST_ASSERT_TRUE(entry.completed);
+
+    /* A damaged marker on a claim whose body is also damaged is still a torn write. */
+    TEST_ASSERT_TRUE(claim("tx-2", "msg-2"));
+    marker = tail_marker();
+    flash.memory[marker] = 0xFF;
+    flash.memory[marker - 6] ^= 0x01;
+    TEST_ASSERT_TRUE(reopen());
+    TEST_ASSERT_TRUE(port.healthy(port.ctx));
+    TEST_ASSERT_FALSE(find("tx-2"));
+}
+
+/*
+ * A bit error in an earlier record's header, then a cut write: the record
+ * between them is committed, so the damage is not a torn tail.
+ */
+void test_S2_H60_damaged_header_before_a_committed_record_is_not_torn(void)
+{
+    const size_t first = 16;
+    TEST_ASSERT_TRUE(claim("tx-1", "msg-1"));
+    TEST_ASSERT_TRUE(complete("tx-1", LC_ERROR_NONE));
+    TEST_ASSERT_TRUE(claim("tx-2", "msg-2"));
+    TEST_ASSERT_EQUAL_HEX8(0xA7, flash.memory[first]);
+
+    /* The write of tx-2 cut before its CRC-32: a torn tail on its own. */
+    memset(flash.memory + tail_marker() - 4, 0xFF, 5);
+    TEST_ASSERT_TRUE(reopen());
+    TEST_ASSERT_TRUE(port.healthy(port.ctx));
+    TEST_ASSERT_TRUE(find("tx-1"));
+    TEST_ASSERT_TRUE(entry.completed);
+
+    /* Its last byte is no marker, but the completion of tx-1 lies between. */
+    flash.memory[first] = 0xA6;
+    TEST_ASSERT_FALSE_MESSAGE(reopen(), "committed records were dropped as torn");
+    TEST_ASSERT_FALSE(port.healthy(port.ctx));
+}
+
 int main(void)
 {
     UNITY_BEGIN();
@@ -401,5 +475,7 @@ int main(void)
     RUN_TEST(test_S2_H24_claim_is_refused_without_room_for_completion_and_delivery);
     RUN_TEST(test_S2_H25_full_journal_refuses_claims_and_keeps_every_response);
     RUN_TEST(test_S2_H26_reopening_never_erases_or_rewrites);
+    RUN_TEST(test_S2_H59_claim_with_a_damaged_marker_is_kept_open);
+    RUN_TEST(test_S2_H60_damaged_header_before_a_committed_record_is_not_torn);
     return UNITY_END();
 }

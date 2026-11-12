@@ -4,7 +4,7 @@
 
 /*
  * Format, version 1. See
- * docs/adr/0070-esp32-command-journal-record-format-and-retention.md.
+ * docs/adr/0070-esp32-command-journal-format.md.
  *
  * Each of the two regions starts with a header, written after its records:
  *
@@ -308,10 +308,14 @@ static bool load_record(lc_journal_t *journal, size_t offset, record_t *record)
     }
     record->size = record_size(payload_length);
     if (offset + record->size > active_end(journal) ||
-        !read_at(journal, offset, record->bytes, record->size) || !record_checks(record)) {
+        !read_at(journal, offset, record->bytes, record->size)) {
         return fail(journal);
     }
-    return true;
+    /* The kept claim counts as committed; a compaction copies it with its marker. */
+    if (offset == journal->unmarked) {
+        record->bytes[record->size - 1] = COMMIT;
+    }
+    return record_checks(record) || fail(journal);
 }
 
 /* The `nth` text of the record at `offset`, counting from 0. */
@@ -481,13 +485,47 @@ typedef enum {
     SCAN_RECORD,
     SCAN_END,
     SCAN_TORN,
+    SCAN_UNMARKED_CLAIM,
     SCAN_CORRUPT,
 } scan_result_t;
 
 /*
+ * Whether a committed record starts after the damaged header at `offset` and
+ * ends by `last`. Its length is unknown, so every later position is tried. A
+ * torn write is the last write, so nothing complete can follow it. False when
+ * the region cannot be read. `candidate` is scratch space.
+ */
+static bool record_follows(const lc_journal_t *journal, size_t offset, long last,
+                           record_t *candidate, bool *found)
+{
+    size_t payload_length;
+
+    *found = false;
+    for (size_t at = offset + 1; (long)(at + HEADER_SIZE + TRAILER_SIZE) <= last + 1; ++at) {
+        if (!read_at(journal, at, candidate->bytes, HEADER_SIZE)) {
+            return false;
+        }
+        if (!header_valid(candidate->bytes, &payload_length) ||
+            (long)(at + record_size(payload_length)) > last + 1) {
+            continue;
+        }
+        candidate->size = record_size(payload_length);
+        if (!read_at(journal, at, candidate->bytes, candidate->size)) {
+            return false;
+        }
+        if (record_checks(candidate)) {
+            *found = true;
+            return true;
+        }
+    }
+    return true;
+}
+
+/*
  * Reads the record at `offset`. Only the record that reaches `last`, the last
- * programmed byte, may be torn, and only when that byte is not a commit
- * marker: a committed record always ends in one, so damage to it is never
+ * programmed byte, may be torn. A damaged header is torn only when `last` is
+ * no commit marker and no committed record follows it: a committed record
+ * always ends in one, so damage to it or to an earlier record is never
  * mistaken for a torn write.
  */
 static scan_result_t scan_record(const lc_journal_t *journal, size_t offset, size_t end,
@@ -514,17 +552,30 @@ static scan_result_t scan_record(const lc_journal_t *journal, size_t offset, siz
     if (head < HEADER_SIZE || !header_valid(record->bytes, &payload_length) ||
         record_size(payload_length) > room) {
         uint8_t tail;
-        if (last > (long)(offset + RECORD_MAX - 1) || !read_at(journal, (size_t)last, &tail, 1)) {
+        bool found;
+        if (last > (long)(offset + RECORD_MAX - 1) || !read_at(journal, (size_t)last, &tail, 1) ||
+            !record_follows(journal, offset, last, record, &found)) {
             return SCAN_CORRUPT;
         }
-        return tail == COMMIT ? SCAN_CORRUPT : SCAN_TORN;
+        return tail == COMMIT || found ? SCAN_CORRUPT : SCAN_TORN;
     }
     record->size = record_size(payload_length);
     if (!read_at(journal, offset, record->bytes, record->size)) {
         return SCAN_CORRUPT;
     }
     if (record->bytes[record->size - 1] != COMMIT) {
-        return last <= (long)(offset + record->size - 1) ? SCAN_TORN : SCAN_CORRUPT;
+        if (last > (long)(offset + record->size - 1)) {
+            return SCAN_CORRUPT;
+        }
+        /*
+         * A claim whose body checks out is kept although its marker is missing
+         * or damaged: a bit error in the marker reads like a cut write, and
+         * dropping the claim could unlock twice. Keeping it costs at most an
+         * unknown outcome for a command whose unlock was never sent.
+         */
+        record->bytes[record->size - 1] = COMMIT;
+        return record_type(record) == TYPE_CLAIM && record_checks(record) ? SCAN_UNMARKED_CLAIM
+                                                                         : SCAN_TORN;
     }
     return record_checks(record) ? SCAN_RECORD : SCAN_CORRUPT;
 }
@@ -540,6 +591,7 @@ static bool scan(lc_journal_t *journal)
     journal->message_count = 0;
     journal->open_count = 0;
     journal->torn = false;
+    journal->unmarked = 0;
     if (!last_programmed(journal, offset, end, &last)) {
         return fail(journal);
     }
@@ -551,6 +603,15 @@ static bool scan(lc_journal_t *journal)
         }
         if (result == SCAN_TORN) {
             journal->torn = true;
+            break;
+        }
+        if (result == SCAN_UNMARKED_CLAIM) {
+            if (!apply_record(journal, offset, &record)) {
+                return fail(journal);
+            }
+            journal->torn = true;
+            journal->unmarked = offset;
+            offset += record.size;
             break;
         }
         if (result == SCAN_CORRUPT || !apply_record(journal, offset, &record)) {

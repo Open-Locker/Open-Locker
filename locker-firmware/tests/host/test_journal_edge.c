@@ -142,8 +142,23 @@ static void assert_unhealthy_open(void)
     TEST_ASSERT_FALSE(claim("tx-after", "msg-after"));
 }
 
+/* Bytes the claim of tx-1 writes after tx-0 was claimed and completed: its body, then its marker. */
+static size_t second_claim_size(void)
+{
+    fake_flash_init(&flash, FLASH_SIZE);
+    TEST_ASSERT_TRUE(reopen());
+    TEST_ASSERT_TRUE(claim("tx-0", "msg-0"));
+    TEST_ASSERT_TRUE(complete("tx-0"));
+    size_t before = flash.bytes_written;
+    TEST_ASSERT_TRUE(claim("tx-1", "msg-1"));
+    return flash.bytes_written - before;
+}
+
 void test_log_goes_on_after_a_torn_claim(void)
 {
+    /* A cut that leaves only the marker unwritten keeps the claim (S2-H59). */
+    size_t only_marker_lost = second_claim_size() - 1;
+
     /* A cut at every point of a claim, each followed by more work. */
     for (size_t landed = 1; landed < 60; ++landed) {
         fake_flash_init(&flash, FLASH_SIZE);
@@ -168,14 +183,15 @@ void test_log_goes_on_after_a_torn_claim(void)
         TEST_ASSERT_TRUE(complete("tx-2"));
         TEST_ASSERT_TRUE(claim("tx-3", "msg-3"));
 
+        bool kept = landed == only_marker_lost;
         TEST_ASSERT_TRUE_MESSAGE(reopen(), "the log cannot be read after going on");
         TEST_ASSERT_TRUE(port.find(port.ctx, "tx-0", &entry));
-        TEST_ASSERT_FALSE(port.find(port.ctx, "tx-1", &entry));
+        TEST_ASSERT_EQUAL(kept, port.find(port.ctx, "tx-1", &entry));
         TEST_ASSERT_TRUE(port.find(port.ctx, "tx-2", &entry));
         TEST_ASSERT_TRUE(entry.completed);
         TEST_ASSERT_TRUE(port.find(port.ctx, "tx-3", &entry));
         TEST_ASSERT_FALSE(entry.completed);
-        TEST_ASSERT_EQUAL_UINT(3, port.count(port.ctx));
+        TEST_ASSERT_EQUAL_UINT(kept ? 4 : 3, port.count(port.ctx));
     }
 }
 
@@ -353,6 +369,7 @@ void test_data_after_the_end_of_the_log_is_torn_nearby_and_corrupt_further_on(vo
 void test_a_write_cut_out_of_order_is_torn_not_corrupt(void)
 {
     /* The cut write lands its last bytes; its first ones, the magic among them, stay erased. */
+    size_t only_marker_lost = second_claim_size() - 1;
     for (size_t landed = 1; landed < 60; ++landed) {
         fake_flash_init(&flash, FLASH_SIZE);
         TEST_ASSERT_TRUE(reopen());
@@ -370,7 +387,7 @@ void test_a_write_cut_out_of_order_is_torn_not_corrupt(void)
         TEST_ASSERT_TRUE_MESSAGE(reopen(), "an out-of-order cut stopped the journal");
         TEST_ASSERT_TRUE(port.find(port.ctx, "tx-0", &entry));
         TEST_ASSERT_TRUE(entry.completed);
-        TEST_ASSERT_FALSE(port.find(port.ctx, "tx-1", &entry));
+        TEST_ASSERT_EQUAL(landed == only_marker_lost, port.find(port.ctx, "tx-1", &entry));
         settle();
         TEST_ASSERT_TRUE(claim("tx-2", "msg-2"));
         TEST_ASSERT_TRUE(reopen());

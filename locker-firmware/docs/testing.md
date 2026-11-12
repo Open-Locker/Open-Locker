@@ -138,12 +138,14 @@ Host suite `test_journal`, against an in-memory flash fake:
 | --- | --- |
 | S2-H19 | A claim is found by transaction ID and its message ID is marked seen |
 | S2-H20 | Claim, completion, and delivered records survive closing and reopening |
-| S2-H21 | A write cut at every byte boundary of a claim leaves no claim, never a usable half record; the journal stays healthy unless the damage cannot be told from corruption |
+| S2-H21 | A write cut at every byte boundary of a claim leaves no claim, or the whole claim when only its marker is missing, never a usable half record; the journal stays healthy unless the damage cannot be told from corruption |
 | S2-H22 | The same for a completion record and for a delivered record |
 | S2-H23 | A record with a bad checksum marks the journal unhealthy |
 | S2-H24 | A claim is refused when there is no room left for its completion and delivered records |
 | S2-H25 | A full journal refuses new claims and still returns every stored response |
 | S2-H26 | Reopening never erases or rewrites existing records |
+| S2-H59 | A last claim whose body checks out but whose marker is missing or damaged is kept as an open claim, and the next compaction copies it with a marker |
+| S2-H60 | A damaged header followed by a committed record marks the journal unhealthy, even when a cut write comes last |
 
 Host suite `test_handle_command`, with call-order recording fakes:
 
@@ -259,7 +261,7 @@ Host suite `test_commission_device`:
 | S5-H07 | Reset clears identity, credentials, and mapping, and keeps the journal |
 | S5-H08 | When online, the offline message is published before the restart is requested |
 | S5-H09 | New commands are refused once the settings are stored, before the restart; a failed save leaves the device taking commands |
-| S5-H19 | A development build (`CONFIG_LC_ALLOW_PLAINTEXT_MQTT`) also accepts an `mqtt://` broker URL with a host, and still rejects other schemes (ADR-0069) |
+| S5-H19 | A development build (`CONFIG_LC_ALLOW_PLAINTEXT_MQTT`) also accepts an `mqtt://` broker URL with a host, and still rejects other schemes (ADR-0072) |
 
 Host suite `test_console_protocol`:
 

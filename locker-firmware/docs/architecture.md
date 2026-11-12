@@ -3,7 +3,7 @@
 How `locker-firmware/` is built: its layers and components, the ports between
 them, the task model, the command journal, the safety rules the code is held
 to, and how the decisions of
-[ADR-0069](../../docs/adr/0069-esp32-locker-firmware.md) are implemented. For wiring,
+[ADR-0072](../../docs/adr/0072-esp32-locker-firmware.md) are implemented. For wiring,
 building and commissioning, see the [README](../README.md). For tests, see
 [testing.md](testing.md).
 
@@ -162,7 +162,7 @@ times out.
 ## Command journal
 
 The journal replaces the Pi client's dedup file. It lives in its own flash
-partition (ADR-0069), split into two regions, and records every command:
+partition (ADR-0072), split into two regions, and records every command:
 
 - a **claim** (transaction ID, message ID, action), committed before any side
   effect;
@@ -170,16 +170,17 @@ partition (ADR-0069), split into two regions, and records every command:
   published;
 - a **delivered** record, committed when the PUBACK for that response arrives.
 
-A torn last record counts as never written; any other damage stops all
+A torn last record counts as never written, except a claim whose body checks
+out, which stays open; any other damage stops all
 actuation until the partition is erased. Open transactions are never forgotten,
 and the newest 256 delivered ones are kept across compaction. The record
-format, retention and compaction are decided in
-[ADR-0070](../../docs/adr/0070-esp32-command-journal-record-format-and-retention.md).
+format is decided in [ADR-0070](../../docs/adr/0070-esp32-command-journal-format.md), retention and
+compaction in [ADR-0081](../../docs/adr/0081-esp32-command-journal-retention.md).
 
 ## Safety rules
 
 Each rule follows from an accepted decision (ADR-0040, ADR-0041, ADR-0046,
-ADR-0048, ADR-0050, ADR-0061) or from ADR-0069, ADR-0070 and ADR-0071. Each is held by
+ADR-0048, ADR-0050, ADR-0061) or from ADR-0070, ADR-0071, ADR-0072 and ADR-0081. Each is held by
 the host tests with the given prefix in [testing.md](testing.md).
 
 | Rule | Tests |
@@ -191,7 +192,7 @@ the host tests with the given prefix in [testing.md](testing.md).
 | The claim is durable before the unlock is sent; the result is durable before it is published; delivery is recorded only after PUBACK | S2 |
 | A repeated transaction ID replays the stored response with a fresh message ID and sends nothing to the panel | S2 |
 | A claim left incomplete by a restart becomes an unknown-outcome response, never a second unlock | S2 |
-| A corrupt journal record disables actuation; a torn last record counts as never written (ADR-0070) | S2 |
+| A corrupt journal record disables actuation; a torn last record counts as never written, except a claim with an intact body (ADR-0070) | S2 |
 | Running out of memory after transmission still leaves a durable final outcome | S2 |
 | Journal capacity exhaustion refuses new work and keeps stored responses | S2 |
 | `apply_config` cannot run during an in-flight unlock | S2 |
@@ -199,7 +200,7 @@ the host tests with the given prefix in [testing.md](testing.md).
 | A pending-enrollment flag is persisted before the token is published | S3 |
 | A lost or rejected enrollment reply never triggers a second registration | S3 |
 | Bootstrap credentials and token are cleared once issued credentials are saved | S3 |
-| TLS certificate and hostname verification cannot be disabled; plain `mqtt://` exists only in development builds (ADR-0069) | S3 |
+| TLS certificate and hostname verification cannot be disabled; plain `mqtt://` exists only in development builds (ADR-0072) | S3 |
 | Missing status bits become `unknown`; repeated failed polls report `unknown` | S4 |
 | Reconnect and `apply_config` force a snapshot without false door events | S4 |
 | Malformed, oversized, NUL, or stalled commissioning input never saves partial settings | S5 |
@@ -207,8 +208,8 @@ the host tests with the given prefix in [testing.md](testing.md).
 
 ## Design decisions
 
-The decisions are in ADR-0069 (firmware), ADR-0070 (journal) and ADR-0071
-(panel replies). This section records how they are implemented, and the
+The decisions are in ADR-0072 (firmware), ADR-0070 and ADR-0081 (journal) and
+ADR-0071 (panel replies). This section records how they are implemented, and the
 smaller choices that have no ADR.
 
 - **Hardware scope.** The RS485 lock panel (`adapter_type = rs485_lock_board`,
@@ -265,7 +266,7 @@ journal,   data, 0x40,     0x3C0000, 0x40000,
   `esp_prov` must come from the same release.
 - The IDF host tests mock `espressif/mqtt` from the headers of the resolved
   copy in `managed_components/`, so the firmware build runs before them.
-- Language: C. Rust was considered and not chosen (ADR-0069).
+- Language: C. Rust was considered and not chosen (ADR-0072).
 
 ### Release and development builds
 

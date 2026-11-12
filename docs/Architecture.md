@@ -45,7 +45,7 @@ deduplication, local runtime configuration, and hardware state reporting.
 - **`locker-firmware/`** — C firmware on ESP-IDF that replaces the Raspberry Pi
   for one RS485 lock panel. It speaks the same MQTT contract, so the backend
   cannot tell the two clients apart; a bank is driven by one or the other,
-  never both (ADR-0069).
+  never both (ADR-0072).
 - **Mosquitto** — MQTT broker with HTTP authentication and authorization
   delegated to backend endpoints.
 - **`website/`** — Astro site for the public project presence and published
