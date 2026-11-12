@@ -17,10 +17,9 @@ system's secure random source, shown once on a label and printed on the unit.
 They are not kept anywhere else: this tool writes nothing but the label file
 you ask for, and the label file is created readable by its owner only.
 
-Not done here yet: deriving the Security 2 salt and verifier that the device
-stores in place of the setup password. That depends on the parameters the
-bench spike confirms (ADR-0083), so `verifier_for()` refuses
-instead of guessing.
+The unit stores the setup password itself and derives the Security 2 salt and
+verifier from it at each start (ADR-0083), so nothing else is computed here.
+NVS is unencrypted until flash and NVS encryption are on (#387).
 """
 
 import argparse
@@ -70,13 +69,6 @@ def nvs_csv_text(device_secrets):
         "ap_pass,data,string,{ap_passphrase}\n"
         "setup_pw,data,string,{setup_password}\n"
     ).format(**device_secrets)
-
-
-def verifier_for(device_secrets):
-    raise NotImplementedError(
-        "the Security 2 salt and verifier depend on the parameters confirmed by the bench spike "
-        "(docs/adr/0074-esp32-softap-provisioning.md)"
-    )
 
 
 def write_secret_file(path, text):

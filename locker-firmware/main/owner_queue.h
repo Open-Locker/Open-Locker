@@ -52,9 +52,10 @@ typedef struct {
  * What the four inputs hold, counted together: the control events, the command
  * slots, the two mailboxes, and the one-byte slot indices of the free and ready
  * queues of the three slot sets. Not counted: the FreeRTOS control block of each
- * of the seven queues and the semaphore (about 84 bytes each, from the bench
- * spike, ADR-0083). A type that outgrows the budget fails the build.
+ * of the seven queues and the semaphore (about 84 bytes each, measured in the
+ * bench spike of 2026-10-21). A type that outgrows the budget fails the build.
  */
+/* The budget is decided in ADR-0080. */
 #define OWNER_QUEUE_BUDGET_BYTES (24 * 1024)
 #define OWNER_INDEX_BYTES (2 * (OWNER_COMMAND_SLOTS + 1 + 1))
 #define OWNER_QUEUE_BYTES                                                                       \

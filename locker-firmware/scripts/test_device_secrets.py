@@ -77,10 +77,6 @@ class DeviceSecretsTest(unittest.TestCase):
             self.assertIn("Setup password:", output.getvalue())
             self.assertEqual(before, set(os.listdir(directory)))
 
-    def test_the_verifier_waits_for_the_spike(self):
-        with self.assertRaises(NotImplementedError):
-            device_secrets.verifier_for(device_secrets.new_device_secrets())
-
 
 if __name__ == "__main__":
     unittest.main()

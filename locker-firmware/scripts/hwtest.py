@@ -61,12 +61,12 @@ CHECKS = [
     ("B4", "ACTUATES. Cut power right after an open, five times: stored outcome, no unlock at boot", "auto"),
     ("B5", "Power cut at claim, transmit, completion, PUBACK", "needs fault injection; covered by host tests S2-H21..H38. Hardware-example PR"),
     ("B6", "600 commands: the journal compacts without refusing one, the newest 256 replay, an older one runs as new",
-     "needs a dedicated unit and 600 commands; compaction and retention (ADR-0070) are covered by "
+     "needs a dedicated unit and 600 commands; compaction and retention (ADR-0081) are covered by "
      "tests/host/test_journal_retention.c. Hardware-example PR"),
     ("C1", "Enroll a fresh unit against the real backend; the bank shows as connected", "manual"),
     ("C2", "Broker with a wrong-hostname or self-signed certificate is refused",
      "needs a TLS broker with bad certificates, and the bench broker has no TLS. No check yet covers a "
-     "verified mqtts:// connection either (ADR-0072, Risks). Hardware-example PR"),
+     "verified mqtts:// connection either (ADR-0079, Confirmation). Hardware-example PR"),
     ("C3", "`broker_check.py` without --actuate: apply_config acknowledged with the matching hash", "manual"),
     ("C4", "ACTUATES. One open from the admin panel releases the lock once", "manual"),
     ("C5", "ACTUATES. `broker_check.py --actuate`: one open and two duplicates, counter +1", "manual"),
