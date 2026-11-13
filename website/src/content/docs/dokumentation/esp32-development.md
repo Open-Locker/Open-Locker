@@ -105,8 +105,8 @@ docker run --rm -v "$PWD/..:/repo" -w /repo/locker-firmware espressif/idf:v6.1 \
 Host suites compile the real component sources. Only ports are faked, and the fakes in `tests/host/fakes/` record call order,
 so ordering rules are asserted, not assumed.
 
-The IDF host tests live in `tests/idf_host/` and test the SDK adapters (`lc_mqtt_espidf`, `lc_ota_espidf`) against CMock mocks
-generated from the SDK's real headers. The MQTT mock takes its header from `managed_components/`, so build the firmware first.
+The IDF host tests live in `tests/idf_host/` and test the SDK adapters (`lc_mqtt_espidf`, `lc_softap_espidf`, `lc_ota_espidf`) against CMock mocks
+generated from the SDK's real headers. `lc_storage_nvs` runs against ESP-IDF's real NVS on emulated flash. The MQTT mock takes its header from `managed_components/`, so build the firmware first.
 
 ```bash
 cd tests/idf_host

@@ -164,6 +164,20 @@ void test_S5_H02_invalid_settings_are_rejected_and_nothing_is_saved(void)
     TEST_ASSERT_EQUAL_INT(LC_COMMISSION_SAVED, lc_commission_apply(&commission, &open_network));
 }
 
+/* Wi-Fi allows a 32-byte SSID and a 64-character password: both fit and are saved. */
+void test_the_longest_ssid_and_wifi_password_are_saved(void)
+{
+    lc_setup_request_t longest = request();
+    memset(longest.ssid, 's', LC_SSID_MAX);
+    longest.ssid[LC_SSID_MAX] = '\0';
+    memset(longest.wifi_password, 'p', LC_WIFI_PASSWORD_MAX);
+    longest.wifi_password[LC_WIFI_PASSWORD_MAX] = '\0';
+
+    TEST_ASSERT_EQUAL_INT(LC_COMMISSION_SAVED, lc_commission_apply(&commission, &longest));
+    TEST_ASSERT_EQUAL_UINT(LC_SSID_MAX, strlen(settings.settings.ssid));
+    TEST_ASSERT_EQUAL_UINT(LC_WIFI_PASSWORD_MAX, strlen(settings.settings.wifi_password));
+}
+
 void test_S5_H19_a_development_build_also_accepts_a_plain_mqtt_broker(void)
 {
     lc_commission_allow_plaintext_broker(&commission, true);
@@ -518,6 +532,7 @@ int main(void)
     UNITY_BEGIN();
     RUN_TEST(test_S5_H01_valid_settings_are_saved_then_acknowledged_then_the_restart_is_requested);
     RUN_TEST(test_S5_H02_invalid_settings_are_rejected_and_nothing_is_saved);
+    RUN_TEST(test_the_longest_ssid_and_wifi_password_are_saved);
     RUN_TEST(test_S5_H19_a_development_build_also_accepts_a_plain_mqtt_broker);
     RUN_TEST(test_S5_H03_store_failure_produces_no_acknowledgement_and_no_restart);
     RUN_TEST(test_failed_identity_save_leaves_the_old_network_and_the_old_bootstrap);

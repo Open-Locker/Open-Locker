@@ -233,6 +233,27 @@ void test_S3_H07_device_that_boots_with_the_pending_flag_never_registers(void)
     TEST_ASSERT_TRUE(store.identity.enrollment_pending);
 }
 
+/* The owner task connects only to send a token, hear a late reply, or run enrolled. */
+void test_a_device_with_nothing_to_send_or_hear_wants_no_session(void)
+{
+    TEST_ASSERT_TRUE(lc_provision_wants_session(&provision));
+
+    store.identity.token[0] = '\0';
+    start();
+    TEST_ASSERT_FALSE(lc_provision_wants_session(&provision));
+
+    store.has = false;
+    start();
+    TEST_ASSERT_FALSE(lc_provision_wants_session(&provision));
+
+    /* Pending without a client id: there is no reply topic to listen on. */
+    store.has = true;
+    store.identity.enrollment_pending = true;
+    store.identity.client_id[0] = '\0';
+    start();
+    TEST_ASSERT_FALSE(lc_provision_wants_session(&provision));
+}
+
 /* A restart between the token and the reply: the broker may still hold the reply for this client. */
 void test_a_device_that_boots_with_the_pending_flag_waits_for_a_late_reply(void)
 {
@@ -369,5 +390,6 @@ int main(void)
     RUN_TEST(test_S3_H09_device_is_not_enrolled_if_saving_the_credentials_fails);
     RUN_TEST(test_S3_H10_enrolled_device_never_publishes_a_registration);
     RUN_TEST(test_a_device_whose_identity_cannot_be_loaded_is_not_enrolled_and_never_registers);
+    RUN_TEST(test_a_device_with_nothing_to_send_or_hear_wants_no_session);
     return UNITY_END();
 }

@@ -2,7 +2,7 @@
 
 How the firmware is tested: the gates every change must pass, the host test
 catalogue, and the hardware acceptance checks run on a bench before a
-firmware PR merges. Commands are in
+firmware release. Commands are in
 [Develop the ESP32 firmware](../../website/src/content/docs/dokumentation/esp32-development.md).
 
 ## Gates
@@ -16,7 +16,7 @@ image in a separate step.
 | --- | --- |
 | **Static** | Target build with warnings as errors; layer include check; compiler static analysis of the pure components |
 | **Host** | Every host suite, built with AddressSanitizer and UndefinedBehaviorSanitizer; schema validation of every emitted MQTT message; the Python tests of the tools; line coverage |
-| **IDF host** | The ESP-IDF adapters on ESP-IDF's Linux target, with the SDK below them replaced by CMock mocks generated from its real headers (`tests/idf_host/`). Needs ESP-IDF, like the target build |
+| **IDF host** | The ESP-IDF adapters on ESP-IDF's Linux target, with the SDK below them replaced by CMock mocks generated from its real headers, except NVS, which runs for real on emulated flash (`tests/idf_host/`). Needs ESP-IDF, like the target build |
 
 Rules:
 
@@ -367,10 +367,10 @@ Host suite `test_console_protocol`:
 
 Everything that needs the real board, converter, panel, lock, Wi-Fi or broker
 is checked on the bench described in
-[Wiring](../../website/src/content/docs/dokumentation/esp32/wiring.md). A
-firmware PR merges only when its checks pass.
-`scripts/hwtest.py` runs the checks in one session and writes the record that
-CI checks.
+[Wiring](../../website/src/content/docs/dokumentation/esp32/wiring.md). Run
+them before a firmware release and before flashing pilot units.
+`scripts/hwtest.py` runs the checks in one session and writes a record of the
+result. CI does not check the record until the HIL rig (#342) lands.
 `hwtest.py list` shows every check with its status in the record, and
 `hwtest.py run --resume` runs only what is still missing, failed or not run;
 `--failed` reruns only the checks that failed.
@@ -389,7 +389,7 @@ Rules:
 - Record each check with the source commit, the firmware SHA-256, the operator
   and the date. A check that was not run is marked as not run, never as passed.
 - Checks marked **actuates** release the lock and need someone at the bench.
-- Only a run against the final commit of the PR counts for the merge.
+- Only a run against the commit you release counts.
 
 ### Group A: Serial bus and panel
 

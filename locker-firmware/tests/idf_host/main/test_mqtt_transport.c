@@ -113,8 +113,9 @@ static void test_a_refused_subscription_is_not_reported(void)
     TEST_ASSERT_EQUAL_INT(0, subscribed_count);
 }
 
-/* In test_softap.c. */
+/* In test_softap.c and test_nvs_stores.c. */
 void softap_tests(void);
+void nvs_store_tests(void);
 
 void app_main(void)
 {
@@ -124,5 +125,6 @@ void app_main(void)
     RUN_TEST(test_a_granted_subscription_is_reported);
     RUN_TEST(test_a_refused_subscription_is_not_reported);
     softap_tests();
+    nvs_store_tests();
     exit(UNITY_END());
 }

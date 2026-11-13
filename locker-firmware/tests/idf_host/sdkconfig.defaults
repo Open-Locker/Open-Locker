@@ -1,2 +1,6 @@
 CONFIG_IDF_TARGET="linux"
 CONFIG_UNITY_ENABLE_IDF_TEST_RUNNER=n
+# The NVS adapter test needs both NVS partitions, on the emulated flash.
+CONFIG_PARTITION_TABLE_CUSTOM=y
+CONFIG_PARTITION_TABLE_CUSTOM_FILENAME="partitions.csv"
+CONFIG_PARTITION_TABLE_FILENAME="partitions.csv"
