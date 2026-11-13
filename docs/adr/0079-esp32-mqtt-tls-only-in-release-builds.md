@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted
+Implemented (2026-11-13, #321). The bench handshake against the real broker in Confirmation is still open.
 
 ## Date
 
