@@ -122,7 +122,8 @@ class RegistrationHandlerTest extends TestCase
 
     public function test_expired_provisioning_token_is_rejected_with_the_same_failure_reply(): void
     {
-        MQTT::shouldReceive('connection')->andReturn(new FakeMqttClient);
+        $mqttClient = new FakeMqttClient;
+        MQTT::shouldReceive('connection')->andReturn($mqttClient);
 
         [$lockerBank, $token] = $this->bankWithIssuedToken();
         $this->travel(25)->hours();
@@ -137,6 +138,11 @@ class RegistrationHandlerTest extends TestCase
         $this->assertSame(0, EloquentStoredEvent::query()
             ->where('event_class', LockerWasProvisioned::class)
             ->count());
+        $this->assertCount(1, $mqttClient->published);
+        $this->assertSame('locker/provisioning/reply/prov-client-expired', $mqttClient->published[0]['topic']);
+        $reply = json_decode($mqttClient->published[0]['payload'], true);
+        $this->assertSame('error', $reply['status'] ?? null);
+        $this->assertSame('Invalid or expired provisioning token.', $reply['message'] ?? null);
     }
 
     public function test_registration_message_with_unsafe_client_id_is_rejected_before_reply_topic_is_derived(): void

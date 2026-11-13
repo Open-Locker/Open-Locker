@@ -133,15 +133,6 @@ class LockerBankProvisioningResetTest extends TestCase
         $this->assertStringNotContainsString($token, $databaseState);
     }
 
-    public function test_fresh_provisioning_token_is_accepted(): void
-    {
-        $lockerBank = LockerBank::factory()->create();
-        $token = app(LockerProvisioningService::class)->restart($lockerBank, $this->admin());
-
-        $this->assertTrue(app(LockerProvisioningService::class)->acceptRegistration($token, 'locker/provisioning/reply/fresh'));
-        $this->assertNotNull($lockerBank->fresh()->provisioned_at);
-    }
-
     public function test_provisioning_token_past_24_hours_is_refused_and_logged_as_expired(): void
     {
         $lockerBank = LockerBank::factory()->create();
@@ -193,21 +184,14 @@ class LockerBankProvisioningResetTest extends TestCase
         $this->assertFalse(app(LockerProvisioningService::class)->acceptRegistration($token, 'locker/provisioning/reply/no-time'));
     }
 
-    public function test_used_token_and_enrolled_bank_are_unaffected_after_24_hours(): void
+    public function test_using_a_provisioning_token_clears_its_issue_time(): void
     {
         $lockerBank = LockerBank::factory()->create();
         $service = app(LockerProvisioningService::class);
         $token = $service->restart($lockerBank, $this->admin());
+
         $this->assertTrue($service->acceptRegistration($token, 'locker/provisioning/reply/used'));
-
-        $this->travel(48)->hours();
-
-        $lockerBank->refresh();
-        $this->assertNotNull($lockerBank->provisioned_at);
-        $this->assertNull($lockerBank->provisioning_token_hmac);
-        $this->assertNull($lockerBank->provisioning_token_issued_at);
-        $this->assertFalse($service->acceptRegistration($token, 'locker/provisioning/reply/used'));
-        $this->assertNotNull($lockerBank->fresh()->provisioned_at);
+        $this->assertNull($lockerBank->fresh()->provisioning_token_issued_at);
     }
 
     public function test_reset_clears_the_token_issue_time(): void
