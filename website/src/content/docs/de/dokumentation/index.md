@@ -32,6 +32,8 @@ Wie die Teile zusammenspielen, beschreibt die [Architektur](/dokumentation/archi
 
 - [Loslegen](/dokumentation/getting-started/) — lokale Entwicklungsumgebung aufsetzen
 - [Betrieb](/dokumentation/operations/) — Produktions-Deployment und Hosting
+- [ESP32-Controller](/de/dokumentation/esp32/) — einen ESP32-Locker-Controller aufbauen, flashen und in Betrieb nehmen (Bench-Firmware)
+- [ESP32-Firmware entwickeln](/de/dokumentation/esp32-development/) — die Firmware bauen, testen und ändern
 - [Mitmachen](/dokumentation/contributing/) — zum Projekt beitragen
 
 ## Community

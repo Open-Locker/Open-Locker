@@ -71,6 +71,9 @@ Details und Payloads: [App Communication Guide](https://github.com/Open-Locker/O
 - Modbus-Operationen sind serialisiert und tolerieren nicht erreichbare
   Boards — nur der Client spricht mit der Hardware, das Backend nie direkt
 
+Alternativ kann eine Bank von einem ESP32 mit Bench-Firmware gesteuert werden. Siehe
+[ESP32-Firmware-Interna](/de/dokumentation/esp32-internals/).
+
 ## Mobile App
 
 - **React Native** (Expo, TypeScript)

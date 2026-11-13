@@ -1,0 +1,18 @@
+---
+title: Flash & RAM
+description: Interaktive Diagramme zur Flash- und RAM-Belegung des ESP32.
+tableOfContents: false
+prev: false
+next: false
+sidebar:
+  order: 11
+---
+
+import FirmwareMemory from '../../../../../components/FirmwareMemory.astro';
+
+Eine Kachel auswählen, um zu sehen, was Flash und RAM des Chips belegt. Die Zahlen stammen aus einem gemessenen Build der
+Production-Konfiguration, ein späterer Build kann also abweichen. Die [Referenz](/de/dokumentation/esp32/reference/#flash-layout) nennt die
+Partitionen als Tabelle. Die Diagramme selbst sind auf Englisch beschriftet.
+
+<FirmwareMemory />
+<FirmwareMemory kind="ram" />

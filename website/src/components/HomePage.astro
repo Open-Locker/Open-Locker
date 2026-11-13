@@ -43,7 +43,7 @@ const lockerCompartments = [
 <Layout lang={locale}>
 	<Seo slot="head" title={t.seoTitle} description={t.seoDescription} />
 
-	<section id="start" class="border-b border-slate-200 scroll-mt-24">
+	<section id="start" class="border-b border-line scroll-mt-24">
 		<LockerDemo
 			videoLabel={t.lockerDemo.videoLabel}
 			compartments={lockerCompartments}
@@ -56,19 +56,19 @@ const lockerCompartments = [
 			openStatus={t.lockerDemo.openStatus}
 		>
 			<div class="space-y-6">
-				<p class="text-sm font-semibold tracking-wide text-slate-600">{t.kicker}</p>
-				<h1 class="text-4xl font-semibold tracking-tight text-slate-900 md:text-5xl">
+				<p class="text-sm font-semibold tracking-wide text-fg-muted">{t.kicker}</p>
+				<h1 class="text-4xl font-semibold tracking-tight text-fg md:text-5xl">
 					<span class="block">Open Locker</span>
 					<span class="mt-2 block">{t.heroTitle}</span>
 				</h1>
-				<p class="max-w-xl text-lg leading-relaxed text-slate-700 min-[768px]:max-[1119px]:hidden">
+				<p class="max-w-xl text-lg leading-relaxed text-fg-soft min-[768px]:max-[1119px]:hidden">
 					{t.heroLead}
 				</p>
 
 				<div class="flex flex-wrap gap-3">
 					<a
 						href="#mehr-erfahren"
-						class="rounded-md bg-slate-900 px-4 py-2.5 text-sm font-medium text-white hover:bg-slate-800 focus-visible:ring-2 focus-visible:ring-slate-900"
+						class="rounded-md bg-inverse px-4 py-2.5 text-sm font-medium text-on-inverse hover:bg-inverse-hover focus-visible:ring-2 focus-visible:ring-fg"
 					>
 						{t.learnMore}
 					</a>
@@ -76,7 +76,7 @@ const lockerCompartments = [
 						href={INSTALLATION_URL}
 						target="_blank"
 						rel="noreferrer"
-						class="rounded-md border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-900 hover:bg-slate-50 focus-visible:ring-2 focus-visible:ring-slate-900"
+						class="rounded-md border border-line-strong bg-surface px-4 py-2.5 text-sm font-medium text-fg hover:bg-surface-muted focus-visible:ring-2 focus-visible:ring-fg"
 					>
 						{t.startBuilding}
 					</a>
@@ -89,19 +89,19 @@ const lockerCompartments = [
 
 	<UseCasesMarquee />
 
-	<section id="mitmachen" class="mt-10 border-t border-slate-200 bg-slate-50 scroll-mt-24 md:mt-14">
+	<section id="mitmachen" class="mt-10 border-t border-line bg-surface-muted scroll-mt-24 md:mt-14">
 		<div class="relative overflow-hidden">
 			<div class="pointer-events-none absolute inset-0">
-				<div class="absolute inset-0 bg-linear-to-br from-slate-50/85 via-white/55 to-slate-100/80"></div>
+				<div class="absolute inset-0 bg-linear-to-br from-surface-muted/85 via-surface/55 to-surface-strong/80"></div>
 				<MeetingPolaroids variant="spreadBackground" />
 			</div>
 
 			<div class="relative z-10 mx-auto max-w-6xl px-4 py-14 md:py-16">
-				<div class="max-w-2xl rounded-2xl border border-slate-200 bg-white/90 p-8 shadow-sm backdrop-blur-sm md:p-10">
+				<div class="max-w-2xl rounded-2xl border border-line bg-surface/90 p-8 shadow-sm backdrop-blur-sm md:p-10">
 					<div class="space-y-4">
 						<div class="space-y-2">
-							<h2 class="text-2xl font-semibold tracking-tight text-slate-900">{t.joinTitle}</h2>
-							<p class="text-slate-700">
+							<h2 class="text-2xl font-semibold tracking-tight text-fg">{t.joinTitle}</h2>
+							<p class="text-fg-soft">
 								{t.joinLead}
 							</p>
 						</div>
@@ -128,13 +128,13 @@ const lockerCompartments = [
 								href={LINKS.githubRepo + '/issues'}
 								target="_blank"
 								rel="noreferrer"
-								class="inline-flex items-center gap-2 rounded-md border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-900 hover:bg-slate-50 focus-visible:ring-2 focus-visible:ring-blue-600"
+								class="inline-flex items-center gap-2 rounded-md border border-line-strong bg-surface px-4 py-2.5 text-sm font-medium text-fg hover:bg-surface-muted focus-visible:ring-2 focus-visible:ring-blue-600"
 							>
 								<img
 									src={githubMark.src}
 									width="20"
 									height="20"
-									class="h-5 w-5"
+									class="h-5 w-5 dark:invert"
 									alt=""
 									aria-hidden="true"
 									loading="lazy"
@@ -143,7 +143,7 @@ const lockerCompartments = [
 							</a>
 						</div>
 
-						<p class="text-sm text-slate-600">
+						<p class="text-sm text-fg-muted">
 							{t.joinNote}
 						</p>
 					</div>
@@ -154,14 +154,14 @@ const lockerCompartments = [
 
 	<Pricing installationUrl={INSTALLATION_URL} contactHref="#kontakt" />
 
-	<section id="kontakt" class="border-t border-slate-200 bg-slate-50 scroll-mt-24">
+	<section id="kontakt" class="border-t border-line bg-surface-muted scroll-mt-24">
 		<div class="mx-auto max-w-6xl px-4 py-14 md:py-16">
-			<div class="rounded-2xl border border-slate-200 bg-white p-8">
-				<h2 class="text-2xl font-semibold tracking-tight text-slate-900">{t.contactTitle}</h2>
-				<p class="mt-3 text-slate-700">
+			<div class="rounded-2xl border border-line bg-surface p-8">
+				<h2 class="text-2xl font-semibold tracking-tight text-fg">{t.contactTitle}</h2>
+				<p class="mt-3 text-fg-soft">
 					{t.contactLead.before}
 					<a
-						class="font-medium text-slate-900 underline-offset-4 hover:underline"
+						class="font-medium text-fg underline-offset-4 hover:underline"
 						href={'mailto:' + LINKS.contactEmail}
 					>
 						{t.contactLead.linkText}
@@ -190,14 +190,14 @@ const lockerCompartments = [
 						href={LINKS.githubRepo}
 						target="_blank"
 						rel="noreferrer"
-						class="inline-flex items-center rounded-md border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-900 hover:bg-slate-50 focus-visible:ring-2 focus-visible:ring-blue-600"
+						class="inline-flex items-center rounded-md border border-line-strong bg-surface px-4 py-2.5 text-sm font-medium text-fg hover:bg-surface-muted focus-visible:ring-2 focus-visible:ring-blue-600"
 						aria-label={t.openGithubAria}
 					>
 						<img
 							src={githubLockup.src}
 							width="88"
 							height="20"
-							class="h-5 w-auto max-w-44"
+							class="h-5 w-auto max-w-44 dark:invert"
 							alt=""
 							aria-hidden="true"
 							loading="lazy"
@@ -207,13 +207,13 @@ const lockerCompartments = [
 						href={LINKS.githubRepo + '/issues'}
 						target="_blank"
 						rel="noreferrer"
-						class="inline-flex items-center gap-2 rounded-md border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-900 hover:bg-slate-50 focus-visible:ring-2 focus-visible:ring-blue-600"
+						class="inline-flex items-center gap-2 rounded-md border border-line-strong bg-surface px-4 py-2.5 text-sm font-medium text-fg hover:bg-surface-muted focus-visible:ring-2 focus-visible:ring-blue-600"
 					>
 						<img
 							src={githubMark.src}
 							width="20"
 							height="20"
-							class="h-5 w-5"
+							class="h-5 w-5 dark:invert"
 							alt=""
 							aria-hidden="true"
 							loading="lazy"
