@@ -424,10 +424,11 @@ class SoftapLink:
                 return "refused"
             saved = self._session.send_wifi(settings["ssid"], settings["wifi_password"])
         except ConnectionError:
-            # Sent once. Whether the device got it is not known, so it is not sent again.
+            # Sent once. Whether the device saved it is not known, so it is not sent again.
             output.write(
-                "The connection was lost after the settings were sent. They may or may not have been "
-                "saved, and nothing was resent. Check the admin panel before running this tool again.\n",
+                "The device did not answer, or the connection was lost, after the settings were sent. "
+                "They may or may not have been saved, and nothing was resent. Check the admin panel "
+                "before running this tool again.\n",
                 "error",
             )
             return "connection_lost"

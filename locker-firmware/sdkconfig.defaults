@@ -11,6 +11,8 @@ CONFIG_FREERTOS_HZ=1000
 CONFIG_ESP_TASK_WDT_EN=y
 CONFIG_ESP_TASK_WDT_INIT=y
 CONFIG_ESP_TASK_WDT_PANIC=y
+# The owner task is watched too: see the assertion in main/owner_task.c.
+CONFIG_ESP_TASK_WDT_TIMEOUT_S=15
 CONFIG_ESP_INT_WDT=y
 
 # The main task builds the objects of the application and opens the journal.

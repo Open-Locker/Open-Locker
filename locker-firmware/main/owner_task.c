@@ -1,6 +1,7 @@
 #include <string.h>
 
 #include "esp_log.h"
+#include "esp_task_wdt.h"
 #include "esp_timer.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
@@ -22,6 +23,16 @@
 /* The application keeps a few kilobytes of working copies on this stack. */
 #define STACK_SIZE 12288
 #define PRIORITY 6
+
+/*
+ * The owner task is on the task watchdog, so a hang restarts the unit instead of
+ * leaving everything that waits for it waiting. Its longest step is one bus
+ * exchange after waiting for a console one, each up to a settle period plus a
+ * reply deadline.
+ */
+_Static_assert(CONFIG_ESP_TASK_WDT_TIMEOUT_S * 1000 >=
+                   2 * (CONFIG_LC_RS485_SETTLE_PERIOD_MS + CONFIG_LC_RS485_REPLY_DEADLINE_MS) + 2000,
+               "raise CONFIG_ESP_TASK_WDT_TIMEOUT_S above two bus exchanges");
 
 static const char *TAG = "owner";
 
@@ -239,7 +250,11 @@ static void owner_task(void *arg)
     (void)arg;
     int64_t last_tick_ms = esp_timer_get_time() / 1000;
 
+    if (esp_task_wdt_add(NULL) != ESP_OK) {
+        ESP_LOGE(TAG, "the owner task could not be put on the task watchdog");
+    }
     for (;;) {
+        (void)esp_task_wdt_reset();
         /* Idle means nothing at all was handled. */
         bool idle = !owner_queue_step(&handlers, TICK_MS);
 

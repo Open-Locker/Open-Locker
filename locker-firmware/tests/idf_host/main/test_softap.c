@@ -9,6 +9,8 @@
 #include "Mocknetwork_config.h"
 #include "Mockprotocomm.h"
 #include "Mockprotocomm_httpd.h"
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
 #include "lc_softap_espidf/softap.h"
 #include "lc_softap_portal/ol_config.h"
 #include "lc_softap_portal/portal.h"
@@ -187,11 +189,25 @@ static esp_err_t record_deauth(uint16_t aid, int calls)
 
 /* ---- The owner task side ---- */
 
+static uint32_t answer_after_ms;
+
+/* An owner task that answers late, as a stalled one would. */
+static void late_answer(void *arg)
+{
+    (void)arg;
+    vTaskDelay(pdMS_TO_TICKS(answer_after_ms));
+    lc_softap_commission_result(answer_saved);
+    vTaskDelete(NULL);
+}
+
 static bool submit(void *ctx, const lc_setup_request_t *request)
 {
     (void)ctx;
     ++submit_count;
     submitted = *request;
+    if (answer_after_ms > 0) {
+        return xTaskCreate(late_answer, "late_answer", 4096, NULL, 5, NULL) == pdPASS;
+    }
     lc_softap_commission_result(answer_saved);
     return true;
 }
@@ -246,6 +262,7 @@ static bool start(void)
     deauthed_aid = -1;
     submit_count = 0;
     answer_saved = true;
+    answer_after_ms = 0;
     memset(&submitted, 0, sizeof(submitted));
     return lc_softap_start(&secrets, &sink);
 }
@@ -404,6 +421,23 @@ static void test_a_refused_request_wipes_what_was_collected(void)
     close_by_timeout();
 }
 
+/*
+ * The handler has no limit of its own: an answer that comes after 8 s, the old
+ * limit, still reaches the installer, so "refused" never stands for a saved request.
+ */
+static void test_a_slow_owner_task_is_waited_for(void)
+{
+    TEST_ASSERT_TRUE(start());
+    station(WIFI_EVENT_AP_STACONNECTED, 1);
+    session(PROTOCOMM_SECURITY_SESSION_SETUP_OK);
+    answer_after_ms = 8500;
+
+    TEST_ASSERT_EQUAL_INT(accepted_byte(), send_ol_config(TOKEN));
+    TEST_ASSERT_EQUAL_INT(ESP_OK, send_wifi("home-wifi"));
+    TEST_ASSERT_EQUAL_INT(1, submit_count);
+    window_check(NULL);
+}
+
 /* A start that fails part-way takes the access point down again: no network without its portal. */
 static void test_a_failed_start_leaves_no_access_point_up(void)
 {
@@ -454,6 +488,7 @@ void softap_tests(void)
     RUN_TEST(test_a_second_station_is_sent_away);
     RUN_TEST(test_no_endpoint_answers_before_a_session);
     RUN_TEST(test_a_refused_request_wipes_what_was_collected);
+    RUN_TEST(test_a_slow_owner_task_is_waited_for);
     RUN_TEST(test_a_failed_start_leaves_no_access_point_up);
     RUN_TEST(test_the_ol_config_of_a_station_that_left_is_not_paired_with_the_next);
 }

@@ -35,8 +35,6 @@
 #define SRP_SALT_LENGTH 16
 #define AP_CHANNEL 1
 #define WINDOW_CHECK_US (1000 * 1000)
-/* Longest an endpoint waits for the owner task to commission the unit. */
-#define RESULT_WAIT_MS 8000
 
 /* What esp_prov reads first. The shape follows the provisioning manager's; the patch level is
  * the one protocomm runs, since esp_prov must match it. */
@@ -156,7 +154,13 @@ static void on_session_event(void *arg, esp_event_base_t base, int32_t id, void 
 
 /* ---- Handing the request on ---- */
 
-/* Waits for the owner task to commission the unit. True when it saved. */
+/*
+ * Waits for the owner task's answer, however long it takes. No limit of its own:
+ * a handler that gave up could say "refused" for a request the owner task saves
+ * later. The owner task is on the task watchdog, so it answers or the unit
+ * restarts; the installer tool's own timeout reports the wait as unknown.
+ * True when it saved.
+ */
 static bool submit_collected(void)
 {
     lc_setup_request_t request;
@@ -171,7 +175,7 @@ static bool submit_collected(void)
     (void)xSemaphoreTake(result_ready, 0);
     commission_saved = false;
     bool saved = sink.submit(sink.ctx, &request) &&
-                 xSemaphoreTake(result_ready, pdMS_TO_TICKS(RESULT_WAIT_MS)) == pdTRUE &&
+                 xSemaphoreTake(result_ready, portMAX_DELAY) == pdTRUE &&
                  commission_saved;
     memset(&request, 0, sizeof(request));
     return saved;
