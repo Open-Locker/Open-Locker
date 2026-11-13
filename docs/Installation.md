@@ -386,15 +386,18 @@ Set `EXPO_PUBLIC_API_BASE_URL` in `.env` to the running backend, including the
 `/api` path.
 
 The local Docker stack advertises `localhost` on the forwarded Reverb port
-(`FORWARD_REVERB_PORT`, default `8080`). An Android emulator or USB phone
-reaches it after forwarding that port, for example:
+(`FORWARD_REVERB_PORT`, default `8080`). The iOS Simulator reaches it as is. An
+Android emulator or an Android phone over USB reaches it after forwarding that
+port, for example:
 
 ```bash
 adb reverse tcp:8080 tcp:8080
 ```
 
-For a phone on Wi-Fi without USB, set `VITE_REVERB_HOST` in
-`locker-backend/.env` to the computer's LAN address instead.
+For an iPhone (also over USB) or any phone on Wi-Fi, set `VITE_REVERB_HOST` in
+`locker-backend/.env` to the computer's LAN address instead, then recreate the
+containers with `docker compose up -d` in `locker-backend/`.
+`docker compose restart` keeps the old value.
 
 `pnpm start` targets an installed Expo development client. Build and launch one
 with `pnpm android` or `pnpm ios`. Use `pnpm start:go` only for the more limited
