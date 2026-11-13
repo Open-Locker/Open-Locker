@@ -7,7 +7,7 @@
     python scripts/hwtest.py run --port COM4 --image ... --failed   # only what failed
     python scripts/hwtest.py list           # every check and its status
     python scripts/hwtest.py run --port COM4 --image ... --operator "Name"   # not git's identity
-    python scripts/hwtest.py check          # what CI runs; needs no hardware
+    python scripts/hwtest.py check          # needs no hardware; not in CI until the HIL rig (#342)
 
 `run` drives the USB console, asks the operator for the physical steps, and
 writes `hardware-record.json` next to this folder after every check. The record

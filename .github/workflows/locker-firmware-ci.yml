@@ -40,9 +40,6 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v7
-        with:
-          # The hardware record names the tree of the PR head, not of the merge commit.
-          ref: ${{ github.event.pull_request.head.sha || github.sha }}
 
       - name: Setup Python
         uses: actions/setup-python@v6
@@ -54,10 +51,10 @@ jobs:
       - name: Install gate dependencies
         run: pip install -r requirements-dev.txt
 
+      # The bench record (`hwtest.py check`) is not gated here until the HIL rig lands (#342).
       - name: Run static and host gates
         run: python scripts/verify.py --skip-target
 
-      # Before the hardware record, so a stale record does not hide a broken build.
       - name: Build the firmware with ESP-IDF
         uses: espressif/esp-idf-ci-action@v1
         with:
@@ -80,7 +77,3 @@ jobs:
         run: |
           test -f sdkconfig
           ! grep -q '^CONFIG_LC_ALLOW_PLAINTEXT_MQTT=y' sdkconfig
-
-      # Fails when locker-firmware/ changed since the bench run, or a check failed.
-      - name: Check the hardware record
-        run: python scripts/hwtest.py check

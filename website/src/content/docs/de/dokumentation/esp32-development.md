@@ -80,9 +80,8 @@ python scripts/verify.py --skip-target   # ohne ESP-IDF
 | `IDF host tests` | Einem fehlgeschlagenen Test der ESP-IDF-Adapter auf dem Linux-Target |
 
 CI (`.github/workflows/locker-firmware-ci.yml`) führt `--skip-target` aus, dann den Target-Build, die Image-Größenprüfung
-(`python scripts/verify.py --check-image-sizes build`), die IDF-Host-Tests, eine Prüfung, dass unverschlüsseltes MQTT im Standard-Build aus ist, und
-`python scripts/hwtest.py check`. Der letzte Schritt schlägt fehl, solange es keinen aktuellen
-[Hardware-Nachweis](/de/dokumentation/esp32-hardware-acceptance/#der-nachweis-den-ci-prüft) gibt.
+(`python scripts/verify.py --check-image-sizes build`), die IDF-Host-Tests und eine Prüfung, dass unverschlüsseltes MQTT im Standard-Build aus ist.
+Den [Hardware-Nachweis](/de/dokumentation/esp32-hardware-acceptance/#der-nachweis) prüft CI vorerst nicht.
 
 ## Einen Host-Test ausführen
 

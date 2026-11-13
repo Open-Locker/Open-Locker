@@ -3,7 +3,7 @@ title: Hardware acceptance
 description: How to run the ESP32 firmware's bench checks and record the result.
 ---
 
-A firmware PR merges only when its hardware checks pass. `scripts/hwtest.py` runs them in one session and writes the record that CI checks. `python scripts/hwtest.py list` shows the current status of every check.
+Run the hardware checks before a firmware release and before you flash pilot units. `scripts/hwtest.py` runs them in one session and writes a record of the result. CI does not check the record for now. `python scripts/hwtest.py list` shows the current status of every check.
 
 The checks are named `HW-A1` in the ADRs and the test catalogue. The tool drops the prefix: `--only A,B3`, and `A1` in its output.
 
@@ -41,9 +41,9 @@ releases the lock, type `go` or `skip`.
 - Run the groups in order. A failure makes later results unreliable: stop, fix it, and restart from the failed group.
 - Every fix is a commit on the same PR and must pass the [gates](/dokumentation/esp32-development/#run-the-gates).
 - A check that was not run is marked as not run, never as passed.
-- Only a run against the final commit of the PR counts for the merge.
+- Only a run against the commit you release counts.
 
-## The record CI checks
+## The record
 
 `run` writes `locker-firmware/hardware-record.json` after every check. Commit it. `python scripts/hwtest.py check`, which needs no hardware, fails if:
 
@@ -51,7 +51,7 @@ releases the lock, type `go` or `skip`.
 - a check failed, is missing, or was not run without being deferred;
 - the operator, the date or the firmware SHA-256 is missing.
 
-The record is the operator's statement, not proof. It only stops a change going in without a run, or with a failed one.
+The record is the operator's statement, not proof.
 
 ## The checks
 
