@@ -140,7 +140,7 @@ response again, so both stay torn.
   cut so late that it reads blank but holds weak bits. Those surface as a record
   that fails its check, which stops the journal, so the failure is loud.
 - A sector erase can take up to about 500 ms. One sector per idle tick keeps the
-  owner task well inside the 5 s task watchdog.
+  owner task well inside the 15 s task watchdog.
 
 ## Rollout / Migration
 
