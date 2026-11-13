@@ -44,7 +44,7 @@ stored.
 
 The bench spike of 2026-10-21 confirmed that `esp_prov` carries `ol-config` over our
 endpoints and that the session encrypts it. The results are in
-`website/src/content/docs/dokumentation/esp32-internals.md`.
+`website/src/content/docs/dokumentation/esp32-internals.mdx`.
 
 ## Alternatives Considered
 
@@ -107,6 +107,6 @@ A unit gets its setup secrets as an NVS image made from `scripts/device_secrets.
 
 - Related PRs: Open-Locker/Open-Locker#331
 - Related issues: #57, #341
-- Related docs: `website/src/content/docs/dokumentation/esp32-internals.md`
+- Related docs: `website/src/content/docs/dokumentation/esp32-internals.mdx`
 - [GHSA-g764-gwc3-75m5](https://github.com/espressif/esp-idf/security/advisories/GHSA-g764-gwc3-75m5),
   the lwIP DHCP-server advisory

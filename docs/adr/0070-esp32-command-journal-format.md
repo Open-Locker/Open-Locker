@@ -58,7 +58,7 @@ split into two regions of 128 KiB. One region is active; the other is spare.
   and erased bytes would no longer read as `0xFF`. The journal holds no secrets.
 
 The byte layout, the reading rules and the steps of moving between regions are in
-`website/src/content/docs/dokumentation/esp32-internals.md`. What is kept, and
+`website/src/content/docs/dokumentation/esp32-internals.mdx`. What is kept, and
 when compaction runs, is [ADR-0081](0081-esp32-command-journal-retention.md).
 
 ## Rationale
@@ -172,7 +172,7 @@ client's files, because the two never share a bank.
 
 - Related PRs: Open-Locker/Open-Locker#321
 - Related issues: #56, #58
-- Related docs: `website/src/content/docs/dokumentation/esp32-internals.md`,
+- Related docs: `website/src/content/docs/dokumentation/esp32-internals.mdx`,
   ADR-0040, ADR-0041, ADR-0046
 - Code: `locker-firmware/components/lc_journal/journal.c`
 - Torn tail: [LevelDB log reader](https://github.com/google/leveldb/blob/main/db/log_reader.cc),

@@ -3,6 +3,8 @@ title: ESP32-Firmware-Interna
 description: Wie locker-firmware aufgebaut ist, vom Öffnen eines Fachs bis zu Schichten, Ports, Tasks und Flash-Formaten.
 ---
 
+import ScenarioTimeline from '../../../../components/docs/ScenarioTimeline.astro';
+
 Die Firmware ist hexagonal aufgebaut, wie der Pi Client
 ([ADR-0024](https://github.com/Open-Locker/Open-Locker/blob/main/docs/adr/0024-locker-client-v2-hexagonal-rewrite.md)): Reine C-Use-Cases in der Mitte erreichen jede Technologie über Ports. Alle Use Cases laufen auf einem Task, ein Ereignis nach dem anderen. Die Firmware teilt die MQTT-Schemata und die Golden Frames des Panels mit dem Pi Client, aber keinen Code.
 
@@ -280,6 +282,67 @@ Das Setup-Netzwerk registriert vier Endpunkte und sonst keine: `prov-session` (d
 ### `ol-config`-Nutzlast
 
 Der eigene Endpunkt trägt, was der WLAN-Endpunkt nicht kann: ein Versionsbyte (`1`), dann Tag-Length-Value-Einträge mit einem Byte Tag und einem Byte Länge. Die Tags sind `1` Broker-URL (bis 192 Bytes), `2` Bootstrap-Benutzer, `3` Bootstrap-Passwort und `4` Token (je bis 128 Bytes). Kein Feld darf leer sein oder ein NUL enthalten. Die Antwort ist ein Statusbyte, gleich für jede Ablehnung und verschlüsselt wie die Anfrage. Das Werkzeug sendet `ol-config` zuerst, weil der WLAN-Teil die Einheit dazu bringt, sich selbst in Betrieb zu nehmen.
+
+### Wer über das Ergebnis entscheidet
+
+Nur der Owner-Task entscheidet, ob eine Setup-Anfrage gespeichert wird. Der Endpunkt-Handler gibt die Anfrage weiter und wartet ohne eigene Grenze auf die Antwort des Owner-Tasks: Ein Handler, der aufgibt, könnte „abgelehnt“ melden, obwohl der Owner-Task die Anfrage später speichert. Der Owner-Task hängt am Task-Watchdog (15 s), also antwortet er oder die Einheit startet neu. Sein längster regulärer Schritt sind zwei Bus-Austausche, 9 s mit der voreingestellten Beruhigungszeit und Antwortfrist. Die Balkenlängen sind Beispiele, die Grenzen sind echt.
+
+<ScenarioTimeline
+  title="Wer über eine Setup-Anfrage entscheidet"
+  description="Drei Spuren über die Zeit: das Installationswerkzeug, der Endpunkt-Handler und der Owner-Task, mit dem 15-Sekunden-Task-Watchdog."
+  lanes={[
+    { id: 'tool', title: 'Werkzeug', subtitle: 'commission.py' },
+    { id: 'handler', title: 'Handler', subtitle: 'Setup-Endpunkt' },
+    { id: 'owner', title: 'Owner-Task', subtitle: 'entscheidet allein' },
+  ]}
+  markers={[{ at: 15, lane: 'owner', label: '15 s: der Watchdog startet die Einheit neu', tone: 'bad' }]}
+  scenarios={[
+    {
+      name: '1. Normal',
+      duration: 2,
+      caption: 'Der Owner-Task nimmt die Anfrage im nächsten Takt, prüft sie und speichert sie. Der Handler gibt „gespeichert“ weiter, und das Werkzeug meldet es.',
+      result: 'Werkzeug: gespeichert. Einheit: gespeichert. Stimmt überein.',
+      segments: {
+        tool: [{ from: 0, to: 0.8, kind: 'wait', label: 'wartet' }, { from: 0.8, to: 1, kind: 'ok', label: 'gespeichert' }],
+        handler: [{ from: 0, to: 0.7, kind: 'wait', label: 'wartet' }, { from: 0.7, to: 0.8, kind: 'ok', label: 'gespeichert' }],
+        owner: [{ from: 0.1, to: 0.3, kind: 'check', label: 'prüfen' }, { from: 0.3, to: 0.7, kind: 'work', label: 'speichern' }],
+      },
+    },
+    {
+      name: '2. Owner-Task beschäftigt',
+      duration: 12,
+      caption: 'Der Owner-Task steckt in zwei fehlgeschlagenen Bus-Austauschen, zusammen 9 s, und nimmt die Anfrage danach. Der Handler wartet noch und gibt „gespeichert“ weiter. Ein Handler mit eigener 8-s-Grenze hätte hier „abgelehnt“ gemeldet.',
+      result: 'Werkzeug: gespeichert. Einheit: gespeichert. Stimmt überein.',
+      segments: {
+        tool: [{ from: 0, to: 10.1, kind: 'wait', label: 'wartet auf die Antwort' }, { from: 10.1, to: 10.6, kind: 'ok', label: 'gespeichert' }],
+        handler: [{ from: 0, to: 9.6, kind: 'wait', label: 'wartet, ohne eigene Grenze' }, { from: 9.6, to: 10.1, kind: 'ok', label: 'gespeichert' }],
+        owner: [{ from: 0, to: 9, kind: 'busy', label: 'zwei fehlgeschlagene Bus-Austausche' }, { from: 9, to: 9.6, kind: 'work', label: 'prüfen, speichern' }],
+      },
+    },
+    {
+      name: '3. Abgelehnt',
+      duration: 2,
+      caption: 'Der Owner-Task lehnt die Einstellungen ab, etwa ein WLAN-Passwort falscher Länge, und speichert nichts. Der Handler gibt „abgelehnt“ weiter.',
+      result: 'Werkzeug: abgelehnt. Einheit: nichts gespeichert. Stimmt überein.',
+      segments: {
+        tool: [{ from: 0, to: 0.6, kind: 'wait', label: 'wartet' }, { from: 0.6, to: 0.8, kind: 'bad', label: 'abgelehnt' }],
+        handler: [{ from: 0, to: 0.4, kind: 'wait', label: 'wartet' }, { from: 0.4, to: 0.6, kind: 'bad', label: 'abgelehnt' }],
+        owner: [{ from: 0.1, to: 0.3, kind: 'check', label: 'prüfen' }, { from: 0.3, to: 0.4, kind: 'bad', label: 'ablehnen' }],
+      },
+    },
+    {
+      name: '4. Owner-Task hängt',
+      duration: 20,
+      caption: 'Der Owner-Task hängt und setzt den Watchdog nicht mehr zurück. Nach 15 s startet der Watchdog die Einheit neu, und das Setup-Netzwerk verschwindet. Die Anfrage des Werkzeugs schlägt fehl, und es meldet das Ergebnis als unbekannt: vor einem neuen Lauf im Admin-Panel nachsehen.',
+      result: 'Werkzeug: unbekannt. Einheit: neu gestartet. Nichts meldet ein falsches Ergebnis.',
+      segments: {
+        tool: [{ from: 0, to: 20, kind: 'wait', label: 'wartet bis zum Verbindungsverlust oder seinem 60-s-Timeout' }],
+        handler: [{ from: 0, to: 15, kind: 'wait', label: 'wartet, ohne eigene Grenze' }, { from: 15, to: 20, kind: 'idle', label: 'mit dem Neustart weg' }],
+        owner: [{ from: 0, to: 15, kind: 'busy', label: 'hängt' }, { from: 15, to: 17, kind: 'bad', label: 'Neustart' }],
+      },
+    },
+  ]}
+/>
 
 ### Löschreihenfolge und Boot-Reparatur
 

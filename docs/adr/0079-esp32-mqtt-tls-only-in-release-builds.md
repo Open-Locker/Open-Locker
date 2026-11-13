@@ -99,4 +99,4 @@ None. No unit is deployed.
 
 - Related PRs: Open-Locker/Open-Locker#321
 - Related issues: #56, #58
-- Related docs: ADR-0053, `website/src/content/docs/dokumentation/esp32-internals.md`
+- Related docs: ADR-0053, `website/src/content/docs/dokumentation/esp32-internals.mdx`

@@ -37,7 +37,7 @@ Overflow never actuates:
 
 The order per step, the semaphore and the 24 KiB budget asserted at build time
 are in
-`website/src/content/docs/dokumentation/esp32-internals.md`
+`website/src/content/docs/dokumentation/esp32-internals.mdx`
 and `main/owner_queue.h`.
 
 ## Rationale
@@ -99,5 +99,5 @@ None. No unit is deployed.
 
 - Related PRs: Open-Locker/Open-Locker#321, Open-Locker/Open-Locker#329
 - Related issues: #56
-- Related docs: `website/src/content/docs/dokumentation/esp32-internals.md`,
+- Related docs: `website/src/content/docs/dokumentation/esp32-internals.mdx`,
   [ADR-0072](0072-esp32-locker-firmware.md)
