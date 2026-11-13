@@ -169,8 +169,14 @@ export function useCompartmentStatusRealtime(): void {
       dispatch(openLockerApi.util.invalidateTags(['Auth']));
     };
 
+    // pusher-js keeps a pending channel's listeners after `leave()` and can still
+    // report its auth result, so callbacks check this before touching the store.
+    let active = true;
     const subscribedChannels: string[] = [];
     const handleSubscriptionsFailed = (names: string[]) => {
+      if (!active) {
+        return;
+      }
       names.forEach((name) => dispatch(realtimeSubscriptionFailed(name)));
       refetchFallback(dispatch);
     };
@@ -179,7 +185,7 @@ export function useCompartmentStatusRealtime(): void {
       subscribedChannels.push(name);
       return echo
         .private(name)
-        .subscribed(() => dispatch(realtimeSubscriptionSucceeded(name)))
+        .subscribed(() => active && dispatch(realtimeSubscriptionSucceeded(name)))
         .error(() => handleSubscriptionsFailed([name]));
     };
 
@@ -214,6 +220,7 @@ export function useCompartmentStatusRealtime(): void {
     dispatch(realtimeConnectionChanged(connection.state));
 
     return () => {
+      active = false;
       connection.unbind('error', handleConnectionError);
       connection.unbind('unavailable', handleConnectionLost);
       connection.unbind('disconnected', handleConnectionLost);

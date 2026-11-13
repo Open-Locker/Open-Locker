@@ -252,6 +252,28 @@ describe('useCompartmentStatusRealtime', () => {
     expect(mockDispatch).toHaveBeenCalledWith(restRefetch);
   });
 
+  // pusher-js keeps a pending channel's listeners after `leave()` and still emits
+  // `pusher:subscription_error` when its /broadcasting/auth request fails later.
+  it('ignores an auth failure from a previous session that arrives after cleanup', async () => {
+    const { rerender } = await renderHook(() => useCompartmentStatusRealtime());
+    const lateAuthFailure = channelErrorHandlers.get('users.7.compartment-status');
+
+    // Switch server: the old session cleans up, the new one connects and subscribes.
+    mockIdentify.data = undefined;
+    mockIdentify.isLoading = true;
+    await rerender({});
+    mockIdentify.data = { realtime: mockRealtime };
+    mockIdentify.isLoading = false;
+    await rerender({});
+    handlers.get('state_change')?.({ current: 'connected' });
+    channelSubscribedHandlers.forEach((subscribed) => subscribed());
+
+    // The old session's auth request fails only now.
+    lateAuthFailure?.({ type: 'AuthError', error: 'broadcasting/auth failed: 401', status: 401 });
+
+    expect(livePausedAfterDispatches()).toBe(false);
+  });
+
   it('stays paused after a 4009 until every channel has subscribed', async () => {
     await renderHook(() => useCompartmentStatusRealtime());
     handlers.get('state_change')?.({ current: 'connected' });
