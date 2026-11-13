@@ -19,6 +19,15 @@ const iconVersion = '2';
 <html lang={lang}>
 	<head>
 		<meta charset="UTF-8" />
+		<!-- Inline to avoid a flash of the wrong theme. Same rule as Starlight's ThemeProvider on the docs. -->
+		<script is:inline>
+			let saved = null;
+			try {
+				saved = localStorage.getItem('starlight-theme');
+			} catch {}
+			document.documentElement.dataset.theme =
+				saved || (matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
+		</script>
 		<meta name="viewport" content="width=device-width" />
 		<link rel="icon" type="image/svg+xml" href={`/favicon-light.svg?v=${iconVersion}`} media="(prefers-color-scheme: light)" />
 		<link rel="icon" type="image/svg+xml" href={`/favicon-dark.svg?v=${iconVersion}`} media="(prefers-color-scheme: dark)" />
@@ -28,10 +37,10 @@ const iconVersion = '2';
 		<link rel="sitemap" href="/sitemap-index.xml" />
 		<slot name="head" />
 	</head>
-	<body class="min-h-dvh bg-white text-slate-900 antialiased">
+	<body class="min-h-dvh bg-surface text-fg antialiased">
 		<a
 			href="#main"
-			class="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50 focus:rounded-md focus:bg-white focus:px-3 focus:py-2 focus:text-sm focus:font-medium focus:text-slate-900 focus:shadow-lg"
+			class="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50 focus:rounded-md focus:bg-surface focus:px-3 focus:py-2 focus:text-sm focus:font-medium focus:text-fg focus:shadow-lg"
 		>
 			{t.layout.skipToContent}
 		</a>
