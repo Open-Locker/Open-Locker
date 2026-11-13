@@ -70,10 +70,25 @@ pnpm install
 ```
 
 In `.env` `EXPO_PUBLIC_API_BASE_URL` auf das laufende Backend einschließlich
-`/api` setzen. Realtime verwendet `EXPO_PUBLIC_REVERB_KEY`,
-`EXPO_PUBLIC_REVERB_PORT` und `EXPO_PUBLIC_REVERB_SCHEME`;
-`EXPO_PUBLIC_REVERB_HOST` ist optional, wenn API und Reverb denselben Host
-verwenden.
+`/api` setzen.
+
+Die App verbindet sich mit dem Reverb-Server, den das Backend meldet. Der lokale
+Stack meldet `localhost` auf Port `8080` (`FORWARD_REVERB_PORT`). Wie ein Gerät
+ihn erreicht, hängt vom Gerät ab:
+
+- **iOS-Simulator:** funktioniert ohne Weiteres; er nutzt das Netzwerk des
+  Rechners.
+- **Android-Emulator oder Android-Handy per USB:** den Port weiterleiten, sonst
+  erscheinen Live-Updates als pausiert:
+
+  ```bash
+  adb reverse tcp:8080 tcp:8080
+  ```
+
+- **iPhone (auch per USB) oder jedes Handy im WLAN:** `VITE_REVERB_HOST` in
+  `locker-backend/.env` auf die LAN-Adresse des Rechners setzen und die
+  Container mit `docker compose up -d` in `locker-backend/` neu erstellen.
+  `docker compose restart` behält den alten Wert.
 
 `pnpm start` erwartet einen installierten **Expo Development Client**; mit
 `pnpm android` oder `pnpm ios` wird er gebaut. Für den eingeschränkteren
