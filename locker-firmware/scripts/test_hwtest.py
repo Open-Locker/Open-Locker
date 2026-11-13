@@ -4,6 +4,7 @@ import re
 import unittest
 
 from hwtest import (CHECKS, DEFERRED, IDS, ROOT, RUN_ORDER, SHARED, Device, checks_to_run, git_operator, listing,
+                    lock_name,
                     problems, selected)
 
 TREE = "a" * 64
@@ -62,6 +63,11 @@ class CatalogueTest(unittest.TestCase):
 
 
 class CounterTest(unittest.TestCase):
+    def test_the_safety_prompt_names_the_lock_that_is_released(self):
+        # --address 3 releases wire channel 4, not channel 1.
+        self.assertEqual("board 1, channel 1", lock_name(1, 0))
+        self.assertEqual("board 2, channel 4", lock_name(2, 3))
+
     def test_the_counter_is_read_from_a_diagnostics_reply_with_or_without_memory_fields(self):
         device = Device.__new__(Device)  # no port
         for reply in ("ok bus=connected unlock_transmissions=3",

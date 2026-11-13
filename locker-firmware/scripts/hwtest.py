@@ -347,6 +347,11 @@ def fixtures():
     return b
 
 
+def lock_name(board, address):
+    """The lock an unlock of `address` releases: wire channels are one-based (codec.c)."""
+    return f"board {board}, channel {address + 1}"
+
+
 class Session:
     def __init__(self, device, board, address):
         self.device, self.board, self.address = device, board, address
@@ -391,7 +396,7 @@ def a3(s):
 
 
 def a4(s):
-    if not watching("This releases the lock at channel 1."):
+    if not watching(f"This releases the lock at {lock_name(s.board, s.address)}."):
         return "not_run", "operator declined to actuate"
 
     def door():
@@ -399,7 +404,7 @@ def a4(s):
         states = reply.split("=", 1)[1] if reply.startswith("ok doors=") else ""
         return states[s.address] if len(states) > s.address else "?"
 
-    pause("Push the latch at channel 1 in, so it is closed")
+    pause(f"Push the latch at {lock_name(s.board, s.address)} in, so it is closed")
     closed = door()
     s.device.ask(f"unlock {s.board} {s.address}")
     pause("Leave the latch open (do not push it in)")
@@ -437,7 +442,7 @@ def a5(s):
 
 
 def a6(s):
-    if not watching("This releases the lock at channel 1."):
+    if not watching(f"This releases the lock at {lock_name(s.board, s.address)}."):
         return "not_run", "operator declined to actuate"
     before = s.device.counter()
     reply = s.device.ask(f"unlock {s.board} {s.address}")
@@ -474,7 +479,7 @@ def a8(s):
 
 
 def b1(s):
-    if not watching("This releases the lock at channel 1."):
+    if not watching(f"This releases the lock at {lock_name(s.board, s.address)}."):
         return "not_run", "operator declined to actuate"
     if not s.apply_config():
         return "fail", "apply_config was not acknowledged with success"
