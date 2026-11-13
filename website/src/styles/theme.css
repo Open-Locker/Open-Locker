@@ -38,12 +38,12 @@
 	--bad-surface: #fef2f2;
 	--bad-fg: #7f1d1d;
 
-	/* Timeline bars and limits: mid tones that carry white text on both themes. */
-	--series-ok: #1d9e75;
-	--series-bad: #e24b4a;
-	--series-work: #378add;
-	--series-busy: #ba7517;
-	--series-check: #7f77dd;
+	/* Timeline bars and limits: dark enough for white 12px labels (over 6:1) on both themes. */
+	--series-ok: #0f6e56;
+	--series-bad: #a32d2d;
+	--series-work: #185fa5;
+	--series-busy: #854f0b;
+	--series-check: #534ab7;
 }
 
 :root[data-theme='dark'] {

@@ -217,14 +217,14 @@ function render(s: Scenario) {
 		stroke-width: 1.5;
 		stroke-dasharray: 5 4;
 	}
+	/* The line carries the tone; the label stays in body text colour, readable on both themes. */
 	.marker text {
-		fill: var(--tone);
+		fill: var(--sl-color-gray-2);
 	}
 	.marker.bad { --tone: var(--series-bad); }
 	.marker.check { --tone: var(--series-check); }
 	.bar rect {
 		fill: var(--fill);
-		opacity: 0.85;
 	}
 	.bar text.inside {
 		fill: #fff;
