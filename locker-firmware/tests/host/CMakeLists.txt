@@ -137,19 +137,6 @@ function(lc_host_test name)
   add_test(NAME ${name} COMMAND ${name})
 endfunction()
 
-# A suite whose code is not implemented yet. It is compiled against the
-# headers, so it cannot rot, but not linked or run: the code it tests does not
-# exist. The change that implements it turns the line into lc_host_test() and
-# adds its sources to lc_under_test.
-function(lc_pending_test name)
-  add_library(${name} OBJECT ${name}.c)
-  target_link_libraries(${name} PRIVATE lc_fixture)
-  target_compile_definitions(${name} PRIVATE LC_REPO_ROOT="${LC_REPO_ROOT}")
-  if(NOT MSVC)
-    target_compile_options(${name} PRIVATE -Wall -Wextra -Werror)
-  endif()
-endfunction()
-
 lc_host_test(test_sanitizer_coverage)
 lc_host_test(test_rs485_codec)
 lc_host_test(test_rs485_bus)

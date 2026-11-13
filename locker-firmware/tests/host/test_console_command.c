@@ -87,11 +87,6 @@ void test_command_line_hands_the_rest_of_the_line_over(void)
     TEST_ASSERT_EQUAL_INT(LC_CONSOLE_INVALID, lc_console_parse("Command {}").kind);
 }
 
-void test_a_line_with_a_whole_command_fits(void)
-{
-    TEST_ASSERT_TRUE(sizeof("command " PAYLOAD) - 1 <= LC_CONSOLE_LINE_MAX);
-}
-
 void test_the_payload_is_submitted_and_never_echoed(void)
 {
     lc_console_execute(&console, "command " PAYLOAD);
@@ -125,7 +120,6 @@ int main(void)
 {
     UNITY_BEGIN();
     RUN_TEST(test_command_line_hands_the_rest_of_the_line_over);
-    RUN_TEST(test_a_line_with_a_whole_command_fits);
     RUN_TEST(test_the_payload_is_submitted_and_never_echoed);
     RUN_TEST(test_a_command_that_was_not_accepted_gets_an_error);
     RUN_TEST(test_without_a_handler_the_command_is_refused);

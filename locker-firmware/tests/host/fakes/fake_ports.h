@@ -28,7 +28,6 @@ void fake_trace_reset(void);
 void fake_trace(const char *what);
 /* Position of the first such call, or -1. */
 int fake_trace_first(const char *what);
-unsigned fake_trace_count(const char *what);
 
 /* ---- Clock ---- */
 

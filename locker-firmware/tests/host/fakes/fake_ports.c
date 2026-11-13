@@ -32,17 +32,6 @@ int fake_trace_first(const char *what)
     return -1;
 }
 
-unsigned fake_trace_count(const char *what)
-{
-    unsigned count = 0;
-    for (size_t i = 0; i < trace_count; ++i) {
-        if (strcmp(trace[i], what) == 0) {
-            ++count;
-        }
-    }
-    return count;
-}
-
 /* ---- Clock ---- */
 
 static int64_t clock_now_ms(void *ctx)
