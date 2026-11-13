@@ -26,9 +26,10 @@
 
 /*
  * The owner task is on the task watchdog, so a hang restarts the unit instead of
- * leaving everything that waits for it waiting. Its longest step is one bus
- * exchange after waiting for a console one, each up to a settle period plus a
- * reply deadline.
+ * leaving everything that waits for it waiting. It checks in before a step and
+ * again before the tick, so each has its own budget. The longest of them is one
+ * bus exchange after waiting for a console one, each up to a settle period plus
+ * a reply deadline.
  */
 _Static_assert(CONFIG_ESP_TASK_WDT_TIMEOUT_S * 1000 >=
                    2 * (CONFIG_LC_RS485_SETTLE_PERIOD_MS + CONFIG_LC_RS485_REPLY_DEADLINE_MS) + 2000,
@@ -261,6 +262,8 @@ static void owner_task(void *arg)
         int64_t now_ms = esp_timer_get_time() / 1000;
         if (now_ms - last_tick_ms >= TICK_MS) {
             last_tick_ms = now_ms;
+            /* The tick's door poll gets its own budget: the step above may have used two exchanges. */
+            (void)esp_task_wdt_reset();
             /* One sector erase (up to about 500 ms) or one compaction per idle tick. */
             if (idle) {
                 (void)lc_journal_maintain(owner.journal);
