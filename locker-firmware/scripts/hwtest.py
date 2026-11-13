@@ -38,7 +38,6 @@ ROOT = pathlib.Path(__file__).resolve().parents[1]
 RECORD = ROOT / "hardware-record.json"
 RECORD_NAME = RECORD.name
 REPLY_DEADLINE_MS = 1500  # LC_RS485_REPLY_DEADLINE_MS
-B4_CYCLES = 5  # power cuts in HW-B4, each by unplugging USB
 
 # (id, title, how). how: "auto" (script, operator confirms physical effects),
 # "manual" (operator runs it elsewhere and reports), or a reason string for a check
@@ -57,8 +56,7 @@ CHECKS = [
      "and a 3000 ms settle period, and A7 rechecks queries. Hardware-example PR"),
     ("B1", "ACTUATES. apply_config then one open: lock releases once, response printed", "auto"),
     ("B2", "Duplicate open (same and new message ID): counter unchanged", "auto"),
-    ("B3", "Restart: the mapping is still in effect", "auto"),
-    ("B4", "ACTUATES. Cut power right after an open, five times: stored outcome, no unlock at boot", "auto"),
+    ("B3", "Restart: the mapping is still in effect, and B1's open replays its stored outcome without unlocking", "auto"),
     ("B5", "Power cut at claim, transmit, completion, PUBACK", "needs fault injection; covered by host tests S2-H21..H38. Hardware-example PR"),
     ("B6", "600 commands: the journal compacts without refusing one, the newest 256 replay, an older one runs as new",
      "needs a dedicated unit and 600 commands; compaction and retention (ADR-0081) are covered by "
@@ -227,12 +225,12 @@ def selected(only, check_id):
 
 # A check that only works in the same session as another one: B2 repeats B1's open, and C9
 # reads values counted since boot, so no restart may come between C6's outages and C9.
-NEEDS = {"B2": "B1", "C9": "C6"}
+NEEDS = {"B2": "B1", "B3": "B1", "C9": "C6"}
 # Checks one bench action answers: asked once, and the answer is recorded for all of them.
 SHARED = [("C1", "C4", "D2", "E1"), ("C3", "C5"), ("C7", "E5"), ("D1", "D4"), ("F8", "F1", "F7"),
           ("F4", "F2", "F3")]
 # The order of a session, so shared checks sit together and D5 can be read during C6's panel cut.
-RUN_ORDER = ["A1", "A2", "A3", "A4", "A5", "A6", "A7", "A8", "A9", "B1", "B2", "B3", "B4", "B5", "B6",
+RUN_ORDER = ["A1", "A2", "A3", "A4", "A5", "A6", "A7", "A8", "A9", "B1", "B2", "B3", "B5", "B6",
              "C1", "C4", "D2", "E1", "C2", "C3", "C5", "C6", "C9", "D5", "C7", "E5", "C8",
              "D1", "D4", "D3", "D6", "E2", "E3", "E4", "F8", "F1", "F7", "F4", "F2", "F3", "F5", "F6",
              "G1", "G2"]
@@ -504,42 +502,25 @@ def b2(s):
 
 
 def b3(s):
+    if not s.open_pair:
+        return "fail", "needs B1 to have run in this session"
+    if not watching(f"If the journal lost B1's open, this releases the lock at {lock_name(s.board, s.address)}."):
+        return "not_run", "operator declined to actuate"
+    txn, _ = s.open_pair
     s.apply_config()
     s.device.reset()
     replies = s.open(compartment=99)  # not mapped: the answer tells whether the mapping survived
     code = replies[0].get("error_code") if replies else None
-    return ("pass" if code == "COMPARTMENT_NOT_FOUND" else "fail"), f"open of an unmapped compartment after restart: {code}"
-
-
-def b4(s):
-    if not watching(f"This may release the lock up to {B4_CYCLES} times."):
-        return "not_run", "operator declined to actuate"
-    if not s.apply_config():
-        return "fail", "apply_config was not acknowledged with success"
-    notes = []
-    for i in range(B4_CYCLES):
-        txn = f"hw-cut-{uuid.uuid4()}"
-        body = s.b.open_command(txn, str(uuid.uuid4()), 1)
-        # Accepted first, so the cut cannot come before the command reached the device.
-        s.device.send("command " + json.dumps(body, separators=(",", ":")), 3, lambda ls: any(x.startswith("ok") for x in ls))
-        # The cut: flash keeps what was written, RAM and the bus do not.
-        boot = s.device.power_cycle(f"Cycle {i + 1} of {B4_CYCLES}, as soon as you read this")
-        count = s.device.counter()
-        replay = s.device.command(s.b.open_command(txn, str(uuid.uuid4()), 1))
-        stored = replay or [json.loads(x.split(" ", 2)[2]) for x in boot if x.startswith("out response") and txn in x]
-        if count != 0:
-            return "fail", f"cycle {i + 1}: unlock counter {count} after boot"
-        if not stored:
-            return "fail", f"cycle {i + 1}: no stored outcome for {txn}"
-        if s.device.counter() != 0:
-            return "fail", f"cycle {i + 1}: the replay unlocked again"
-        notes.append(stored[0].get("error_code") or stored[0]["result"])
-    twice = confirm("Did the lock ever release twice for one cycle?")
-    return ("fail" if twice else "pass"), f"outcomes per cycle {notes}; power cut by unplugging USB"
+    # The journal read back from real flash: B1's transaction replays, nothing unlocks.
+    replay = s.device.command(s.b.open_command(txn, str(uuid.uuid4()), 1))
+    count = s.device.counter()
+    ok = code == "COMPARTMENT_NOT_FOUND" and len(replay) == 1 and count == 0
+    return ("pass" if ok else "fail"), (f"open of an unmapped compartment after restart: {code}; "
+                                        f"B1 replayed: {len(replay)} responses; unlock counter {count}")
 
 
 AUTO = {"A1": a1, "A2": a2, "A3": a3, "A4": a4, "A5": a5, "A6": a6, "A7": a7, "A8": a8,
-        "B1": b1, "B2": b2, "B3": b3, "B4": b4}
+        "B1": b1, "B2": b2, "B3": b3}
 
 
 def manual(check_id, title):

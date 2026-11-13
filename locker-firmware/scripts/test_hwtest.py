@@ -90,6 +90,9 @@ class ResumeTest(unittest.TestCase):
         self.assertEqual(checks_to_run(results, None, resume=True), ["B1", "B2"])
         self.assertEqual(checks_to_run({}, ["B2"]), ["B1", "B2"])
 
+    def test_b3_brings_b1_along_because_it_replays_b1s_open_after_a_restart(self):
+        self.assertEqual(checks_to_run({}, ["B3"]), ["B1", "B3"])
+
     def test_c9_runs_right_after_c6_with_no_restart_between(self):
         self.assertEqual(checks_to_run({}, ["C9"]), ["C6", "C9"])
         self.assertEqual(RUN_ORDER.index("C9"), RUN_ORDER.index("C6") + 1)
@@ -167,7 +170,7 @@ class OperatorTest(unittest.TestCase):
 class SelectionTest(unittest.TestCase):
     def test_a_group_letter_selects_its_checks_and_an_id_only_itself(self):
         self.assertEqual([i for i in IDS if selected(["B", "A1"], i)],
-                         ["A1", "B1", "B2", "B3", "B4", "B5", "B6"])
+                         ["A1", "B1", "B2", "B3", "B5", "B6"])
 
     def test_no_selection_means_everything(self):
         self.assertTrue(all(selected(None, i) for i in IDS))

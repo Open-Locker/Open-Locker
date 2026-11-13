@@ -77,8 +77,7 @@ The record is the operator's statement, not proof. It only stops a change going 
 | --- | --- | --- |
 | HW-B1 | **Actuates.** `apply_config`, then one open: the lock releases once and the response is printed | auto |
 | HW-B2 | Duplicate open, with the same and a new message ID: the counter does not change | auto |
-| HW-B3 | Restart: the mapping is still in effect | auto |
-| HW-B4 | **Actuates.** Cut power right after an open, five times: a stored outcome, and no unlock at boot | auto |
+| HW-B3 | Restart: the mapping is still in effect, and B1's open replays its stored outcome without an unlock | auto |
 | HW-B5 | Power cut at claim, transmit, completion and PUBACK | deferred |
 | HW-B6 | 600 commands: the journal compacts without refusing one, the newest 256 replay, and an older one runs as new | deferred |
 

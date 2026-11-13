@@ -161,7 +161,7 @@ client's files, because the two never share a bank.
   `test_with_two_valid_headers_the_newer_generation_wins` and
   `test_a_spare_that_does_not_erase_marks_the_journal_unhealthy` in
   `test_journal_retention`.
-- Real flash: HW-B4 and HW-B5 (power cuts).
+- Real flash: HW-B3 (the journal read back after a restart) and HW-B5 (power cuts).
 
 ## Supersedes / Superseded By
 

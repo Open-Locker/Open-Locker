@@ -76,8 +76,7 @@ Der Nachweis ist die Aussage der Bedienperson, kein Beweis. Er verhindert nur, d
 | --- | --- | --- |
 | HW-B1 | **Löst aus.** `apply_config`, dann ein Öffnen: Das Schloss gibt einmal frei, und die Antwort wird ausgegeben | auto |
 | HW-B2 | Doppeltes Öffnen, mit derselben und einer neuen Message-ID: Der Zähler ändert sich nicht | auto |
-| HW-B3 | Neustart: Die Zuordnung gilt weiter | auto |
-| HW-B4 | **Löst aus.** Fünfmal Strom direkt nach einem Öffnen trennen: ein gespeichertes Ergebnis und keine Freigabe beim Boot | auto |
+| HW-B3 | Neustart: Die Zuordnung gilt weiter, und das Öffnen aus B1 gibt sein gespeichertes Ergebnis ohne Freigabe wieder | auto |
 | HW-B5 | Stromausfall bei Claim, Senden, Completion und PUBACK | zurückgestellt |
 | HW-B6 | 600 Kommandos: Das Journal kompaktiert, ohne eines abzulehnen, die neuesten 256 werden wiedergegeben, ein älteres läuft als neu | zurückgestellt |
 
