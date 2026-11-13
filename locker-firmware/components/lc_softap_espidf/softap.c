@@ -79,14 +79,18 @@ static void teardown(void)
 
     ESP_LOGI(TAG, "setup network closed (%d)", (int)portal.state);
     esp_timer_stop(window_timer);
+    /*
+     * After "saved" the unit restarts into station mode; otherwise it goes quiet. The
+     * radio goes first: a station still sending a request then drops, so stopping the
+     * HTTP server below does not wait for it.
+     */
+    if (!saved) {
+        esp_wifi_stop();
+    }
     if (comm != NULL) {
         protocomm_httpd_stop(comm);
         protocomm_delete(comm);
         comm = NULL;
-    }
-    /* After "saved" the unit restarts into station mode; otherwise it just goes quiet. */
-    if (!saved) {
-        esp_wifi_stop();
     }
     xSemaphoreTake(lock, portMAX_DELAY);
     lc_collector_clear(&collector);

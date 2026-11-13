@@ -51,6 +51,7 @@ static esp_err_t httpd_start_result;
 static esp_err_t timer_start_result;
 static int wifi_started;
 static int wifi_stopped;
+static char call_order[64];
 static int deauthed_aid;
 static int submit_count;
 static bool answer_saved;
@@ -173,10 +174,19 @@ static esp_err_t count_wifi_start(int calls)
     return ESP_OK;
 }
 
-static esp_err_t count_wifi_stop(int calls)
+static esp_err_t count_wifi_stop(int n)
 {
-    (void)calls;
+    (void)n;
     ++wifi_stopped;
+    strncat(call_order, "wifi_stop,", sizeof(call_order) - strlen(call_order) - 1);
+    return ESP_OK;
+}
+
+static esp_err_t record_httpd_stop(protocomm_t *pc, int n)
+{
+    (void)pc;
+    (void)n;
+    strncat(call_order, "httpd_stop,", sizeof(call_order) - strlen(call_order) - 1);
     return ESP_OK;
 }
 
@@ -243,7 +253,7 @@ static void reset_mocks(void)
     protocomm_get_sec_version_Stub(sec_version);
     protocomm_set_version_Stub(record_version);
     protocomm_add_endpoint_Stub(capture_endpoint);
-    protocomm_httpd_stop_IgnoreAndReturn(ESP_OK);
+    protocomm_httpd_stop_Stub(record_httpd_stop);
     protocomm_delete_Ignore();
 }
 
@@ -259,6 +269,7 @@ static bool start(void)
     httpd_start_result = ESP_OK;
     timer_start_result = ESP_OK;
     wifi_started = wifi_stopped = 0;
+    call_order[0] = '\0';
     deauthed_aid = -1;
     submit_count = 0;
     answer_saved = true;
@@ -381,6 +392,8 @@ static void test_the_window_closes_after_ten_minutes_and_stops_the_radio(void)
 
     close_by_timeout();
     TEST_ASSERT_EQUAL_INT(1, wifi_stopped);
+    /* The radio first: a station still sending a request cannot hold the HTTP server open. */
+    TEST_ASSERT_EQUAL_STRING("wifi_stop,httpd_stop,", call_order);
 }
 
 static void test_a_second_station_is_sent_away(void)
