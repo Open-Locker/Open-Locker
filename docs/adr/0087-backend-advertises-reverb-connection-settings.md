@@ -2,11 +2,11 @@
 
 ## Status
 
-Proposed
+Accepted
 
 ## Date
 
-2026-11-03
+2026-11-13
 
 ## Context
 
@@ -35,7 +35,8 @@ The mobile app reads `/identify` before it opens the socket and uses only the
 advertised settings. The build-time `EXPO_PUBLIC_REVERB_*` variables and the
 values derived from the API URL are removed. If the server advertises nothing,
 or `/identify` fails, the app opens no socket and shows live updates as paused;
-REST and pull-to-refresh keep working. This supersedes item 2 ("Connection
+REST and pull-to-refresh keep working. It asks `/identify` again each time it
+returns to the foreground, and connects once the server advertises Reverb. This supersedes item 2 ("Connection
 config") of ADR-0023; the rest of ADR-0023 stands.
 
 "Live updates paused" also covers a refused channel subscription, on every
@@ -51,8 +52,11 @@ REST once. Refusals clear when the channel subscribes or the socket reconnects.
 
 - `/identify` is unauthenticated and already the app's "is this an Open-Locker
   server" check, so it needs no new route or extra request.
-- Reading it on every connect, through the RTK Query cache, follows server
-  switches and server-side config changes without a separate persistence layer.
+- Reading it through the RTK Query cache follows server switches (the switch
+  resets that cache) without a separate persistence layer. A server that starts
+  advertising Reverb is picked up on the next return to the foreground. A change
+  to Reverb settings the app already holds is picked up only after a restart or
+  a server switch.
 - No fallback: a build-time default points at one particular server, so falling
   back to it sends a self-hoster's users and channel names to a server that
   cannot authorize them, and can look connected while receiving nothing. Saying
@@ -117,6 +121,12 @@ Additive API change. Deploy the backend (open-locker.cloud must have
 `VITE_REVERB_*` set, which the Coolify compose file already requires) before
 releasing an app build with this change. Remove the `EXPO_PUBLIC_REVERB_KEY`
 EAS secret afterwards.
+
+## Confirmation
+
+- `AppInfoControllerTest`: `/identify` advertises `realtime` from `VITE_REVERB_*`, defaults the port to the scheme's, and sends `null` without a host or key.
+- `useCompartmentStatusRealtime.test.ts`: the app connects only to the advertised Reverb, shows live updates as paused without one, asks again on foreground after a failed `/identify`, and moves to the new server's Reverb after a server switch.
+- `useCompartmentStatusRealtime.test.ts` and `realtimeSlice.test.ts`: a refused channel (`/broadcasting/auth` failure or Reverb error 4009) shows live updates as paused until every channel subscribes.
 
 ## Supersedes / Superseded By
 

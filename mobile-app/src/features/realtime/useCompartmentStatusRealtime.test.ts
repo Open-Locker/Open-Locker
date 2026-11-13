@@ -145,6 +145,51 @@ describe('useCompartmentStatusRealtime', () => {
     expect(mockDispatch).toHaveBeenCalledWith(restRefetch);
   });
 
+  it('asks the server again on returning to the foreground after /identify failed', async () => {
+    mockIdentify.data = undefined;
+    const { rerender } = await renderHook(() => useCompartmentStatusRealtime());
+
+    returnToForeground();
+    const retriedIdentify = mockDispatch.mock.calls.some(([action]) =>
+      action?.tags?.includes('AppInfo'),
+    );
+    mockIdentify.data = { realtime: mockRealtime };
+    await rerender({});
+
+    expect({ retriedIdentify, connectedTo: mockCreateEcho.mock.calls.at(-1)?.[1] }).toEqual({
+      retriedIdentify: true,
+      connectedTo: mockRealtime,
+    });
+  });
+
+  it('moves to the new server’s Reverb after switching server', async () => {
+    const otherRealtime = { key: 'k2', host: 'ws.other.example.org', port: 8080, scheme: 'http' };
+    const { rerender } = await renderHook(() => useCompartmentStatusRealtime());
+    calls.length = 0;
+
+    // change-server.tsx resets the API state, so /identify loads again.
+    mockIdentify.data = undefined;
+    mockIdentify.isLoading = true;
+    await rerender({});
+    const disconnectedWhileLoading = calls.includes('disconnect');
+    mockIdentify.data = { realtime: otherRealtime };
+    mockIdentify.isLoading = false;
+    await rerender({});
+
+    expect({
+      disconnectedWhileLoading,
+      connectedTo: mockCreateEcho.mock.calls.map(([, realtime]) => realtime),
+    }).toEqual({ disconnectedWhileLoading: true, connectedTo: [mockRealtime, otherRealtime] });
+  });
+
+  it('only refetches compartments and the profile on foreground while connected', async () => {
+    await renderHook(() => useCompartmentStatusRealtime());
+
+    returnToForeground();
+
+    expect(mockDispatch).toHaveBeenCalledWith(restRefetch);
+  });
+
   it('picks up a state the socket reached before the listener was bound', async () => {
     mockConnection.state = 'failed';
 

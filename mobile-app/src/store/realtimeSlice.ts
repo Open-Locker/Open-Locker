@@ -1,5 +1,9 @@
 import { createSlice, type PayloadAction } from '@reduxjs/toolkit';
 
+/** pusher-js connection states; it types them only as `string`. */
+export type ConnectionState =
+  'initialized' | 'connecting' | 'connected' | 'unavailable' | 'failed' | 'disconnected';
+
 type RealtimeState = {
   /** The socket connection itself is down. */
   connectionPaused: boolean;
@@ -13,11 +17,11 @@ const initialState: RealtimeState = {
 };
 
 /**
- * Maps a Pusher connection state onto whether live updates are paused.
+ * Maps a Pusher connection state onto whether the socket connection is paused.
  * `initialized` and `connecting` keep the previous answer, so the first connect
  * does not flash a notice and a reconnect attempt does not hide one early.
  */
-export function isLivePaused(previous: boolean, connectionState: string): boolean {
+export function isConnectionPaused(previous: boolean, connectionState: ConnectionState): boolean {
   switch (connectionState) {
     case 'connected':
       return false;
@@ -42,8 +46,8 @@ const realtimeSlice = createSlice({
   name: 'realtime',
   initialState,
   reducers: {
-    realtimeConnectionChanged(state, action: PayloadAction<string>) {
-      state.connectionPaused = isLivePaused(state.connectionPaused, action.payload);
+    realtimeConnectionChanged(state, action: PayloadAction<ConnectionState>) {
+      state.connectionPaused = isConnectionPaused(state.connectionPaused, action.payload);
       // Pusher resubscribes every channel after (re)connecting, so earlier
       // refusals are stale; the new attempts report again.
       if (action.payload === 'connected') {

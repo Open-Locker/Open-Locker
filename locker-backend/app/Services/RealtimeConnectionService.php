@@ -27,13 +27,15 @@ class RealtimeConnectionService
         }
 
         $tls = (bool) ($echo['forceTLS'] ?? true);
+        // `?:` so an empty VITE_REVERB_PORT falls back too, instead of becoming port 0.
+        $port = (int) (($echo['wsPort'] ?? null) ?: ($tls ? 443 : 80));
 
-        // The casts are for Scramble, which does not narrow through is_string() and
-        // would otherwise publish key and host as nullable.
         return [
-            'key' => (string) $key,
-            'host' => (string) $host,
-            'port' => (int) ($echo['wsPort'] ?? ($tls ? 443 : 80)),
+            /** @var string */
+            'key' => $key,
+            /** @var string */
+            'host' => $host,
+            'port' => $port,
             'scheme' => $tls ? 'https' : 'http',
         ];
     }

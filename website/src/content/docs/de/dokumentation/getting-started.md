@@ -72,6 +72,18 @@ pnpm install
 In `.env` `EXPO_PUBLIC_API_BASE_URL` auf das laufende Backend einschließlich
 `/api` setzen.
 
+Die App verbindet sich mit dem Reverb-Server, den das Backend meldet. Der lokale
+Stack meldet `localhost` auf Port `8080` (`FORWARD_REVERB_PORT`). Ein
+Android-Emulator oder ein per USB verbundenes Handy braucht deshalb eine
+Portweiterleitung, sonst erscheinen Live-Updates als pausiert:
+
+```bash
+adb reverse tcp:8080 tcp:8080
+```
+
+Für ein Handy im WLAN stattdessen `VITE_REVERB_HOST` in `locker-backend/.env`
+auf die LAN-Adresse des Rechners setzen.
+
 `pnpm start` erwartet einen installierten **Expo Development Client**; mit
 `pnpm android` oder `pnpm ios` wird er gebaut. Für den eingeschränkteren
 Workflow mit **Expo Go** dient `pnpm start:go`.

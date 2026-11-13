@@ -393,8 +393,8 @@ reaches it after forwarding that port, for example:
 adb reverse tcp:8080 tcp:8080
 ```
 
-For a phone on Wi-Fi without USB, set `VITE_REVERB_HOST` in the backend
-environment to the computer's LAN address instead.
+For a phone on Wi-Fi without USB, set `VITE_REVERB_HOST` in
+`locker-backend/.env` to the computer's LAN address instead.
 
 `pnpm start` targets an installed Expo development client. Build and launch one
 with `pnpm android` or `pnpm ios`. Use `pnpm start:go` only for the more limited

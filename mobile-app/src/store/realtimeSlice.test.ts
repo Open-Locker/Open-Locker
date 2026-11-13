@@ -1,5 +1,5 @@
 import {
-  isLivePaused,
+  isConnectionPaused,
   realtimeConnectionChanged,
   realtimeReducer,
   realtimeSubscriptionFailed,
@@ -12,24 +12,22 @@ function livePausedAfter(...actions: Parameters<typeof realtimeReducer>[1][]): b
   return selectLivePaused({ realtime });
 }
 
-describe('isLivePaused', () => {
+describe('isConnectionPaused', () => {
   it('pauses when the socket drops', () => {
-    expect(['unavailable', 'failed', 'disconnected'].map((s) => isLivePaused(false, s))).toEqual([
-      true,
-      true,
-      true,
-    ]);
+    expect(
+      (['unavailable', 'failed', 'disconnected'] as const).map((s) => isConnectionPaused(false, s)),
+    ).toEqual([true, true, true]);
   });
 
   it('resumes once connected', () => {
-    expect(isLivePaused(true, 'connected')).toBe(false);
+    expect(isConnectionPaused(true, 'connected')).toBe(false);
   });
 
   it('keeps the previous answer while connecting', () => {
-    expect([isLivePaused(false, 'connecting'), isLivePaused(true, 'connecting')]).toEqual([
-      false,
-      true,
-    ]);
+    expect([
+      isConnectionPaused(false, 'connecting'),
+      isConnectionPaused(true, 'connecting'),
+    ]).toEqual([false, true]);
   });
 });
 
