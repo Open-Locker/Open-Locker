@@ -514,9 +514,11 @@ def b3(s):
     # The journal read back from real flash: B1's transaction replays, nothing unlocks.
     replay = s.device.command(s.b.open_command(txn, str(uuid.uuid4()), 1))
     count = s.device.counter()
-    ok = code == "COMPARTMENT_NOT_FOUND" and len(replay) == 1 and count == 0
+    # B1 passed only on success, so its stored outcome is a success for its transaction.
+    replayed = len(replay) == 1 and replay[0].get("transaction_id") == txn and replay[0].get("result") == "success"
+    ok = code == "COMPARTMENT_NOT_FOUND" and replayed and count == 0
     return ("pass" if ok else "fail"), (f"open of an unmapped compartment after restart: {code}; "
-                                        f"B1 replayed: {len(replay)} responses; unlock counter {count}")
+                                        f"B1 replayed: {[r.get('result') for r in replay]}; unlock counter {count}")
 
 
 AUTO = {"A1": a1, "A2": a2, "A3": a3, "A4": a4, "A5": a5, "A6": a6, "A7": a7, "A8": a8,
