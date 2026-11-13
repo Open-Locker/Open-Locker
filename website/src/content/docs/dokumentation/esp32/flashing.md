@@ -244,14 +244,14 @@ sequenceDiagram
     actor Op as Installer
     participant DS as device_secrets.py
     participant Gen as nvs_partition_gen
-    participant Unit as ESP32 (nvs partition)
+    participant Unit as ESP32 (lc_setup partition)
     Op->>DS: --label label.txt --nvs-csv secrets.csv
     DS-->>Op: label.txt and secrets.csv (owner-only)
-    Op->>Gen: generate secrets.csv nvs.bin 0x6000
-    Gen-->>Op: nvs.bin
-    Op->>Unit: esptool write-flash 0xD000 nvs.bin
+    Op->>Gen: generate secrets.csv setup.bin 0x3000
+    Gen-->>Op: setup.bin
+    Op->>Unit: esptool write-flash 0x17000 setup.bin
     Op->>Op: Print the label, stick it on the unit
-    Op->>Op: Delete secrets.csv, nvs.bin and label.txt
+    Op->>Op: Delete secrets.csv, setup.bin and label.txt
 ```
 
 *UML sequence diagram: the secrets go from your laptop to the unit and the
@@ -263,28 +263,28 @@ label, and nowhere else.*
    python scripts/device_secrets.py --label label.txt --nvs-csv secrets.csv
    ```
 
-2. Turn them into an image of the `nvs` partition (24 KiB, `0x6000`):
+2. Turn them into an image of the `lc_setup` partition (12 KiB, `0x3000`):
 
    ```bash
-   python -m esp_idf_nvs_partition_gen generate secrets.csv nvs.bin 0x6000
+   python -m esp_idf_nvs_partition_gen generate secrets.csv setup.bin 0x3000
    ```
 
    The generator comes with ESP-IDF. With Docker, run this command in the
    container, the same way as the build.
 
-3. Write the image to the unit. `0xD000` is where the `nvs` partition starts;
+3. Write the image to the unit. `0x17000` is where the `lc_setup` partition starts;
    the flash layout is fixed, so this address never changes.
 
    ```bash
-   python -m esptool --port COM3 write-flash 0xD000 nvs.bin
+   python -m esptool --port COM3 write-flash 0x17000 setup.bin
    ```
 
 4. Print `label.txt` and stick it on the unit, where an installer will find it.
-5. Delete `secrets.csv`, `nvs.bin` and `label.txt`.
+5. Delete `secrets.csv`, `setup.bin` and `label.txt`.
 
 :::caution
-Writing the `nvs` partition replaces everything in it. Only do it on a unit
-with no settings yet, right after the erase.
+Writing the `lc_setup` partition replaces the unit's setup secrets, so its old
+label no longer works. Write it once, right after the erase.
 :::
 
 ## Flash the firmware
@@ -355,7 +355,8 @@ flowchart LR
         ota["otadata"]
         app0["ota_0: firmware"]
         app1["ota_1: second slot, for OTA"]
-        nvs["nvs: settings, identity,<br/>mapping, setup secrets"]
+        nvs["nvs: settings, identity,<br/>mapping"]
+        setup["lc_setup: setup secrets"]
         journal["journal: command journal"]
     end
     esptool -- "USB serial" --> boot
@@ -363,7 +364,7 @@ flowchart LR
     esptool --> ota
     esptool --> app0
     classDef kept stroke-dasharray: 5 5
-    class nvs,journal,app1 kept
+    class nvs,setup,journal,app1 kept
 ```
 
 *UML deployment diagram. Solid boxes are written by every flash; dashed boxes
@@ -371,9 +372,9 @@ are kept.*
 
 | What you run | Replaces | Keeps |
 | --- | --- | --- |
-| `idf.py flash`, or `write-flash` as above | Bootloader, partition table, `otadata`, firmware in `ota_0` | `nvs` (settings, identity, mapping, setup secrets), `ota_1` and `journal` |
+| `idf.py flash`, or `write-flash` as above | Bootloader, partition table, `otadata`, firmware in `ota_0` | `nvs` (settings, identity, mapping), `lc_setup` (setup secrets), `ota_1` and `journal` |
 | `idf.py erase-flash` | Everything | Nothing |
-| `write-flash 0xD000 nvs.bin` | All settings and the setup secrets | Everything else |
+| `write-flash 0x17000 setup.bin` | The setup secrets | Everything else |
 
 So flashing a new firmware version onto a unit in service keeps it enrolled and
 configured. Because `otadata` is written empty, the unit boots `ota_0`. To update

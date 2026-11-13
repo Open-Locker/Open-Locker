@@ -144,10 +144,11 @@ aber noch nicht ausprobiert. Die Partitionstabelle liegt bei `0xC000`, der Bootl
 
 | Partition | Offset | Größe | Inhalt |
 | --- | --- | --- | --- |
-| `nvs` | `0xD000` | 24 KiB | Einstellungen, Identität, Zuordnung und Setup-Secrets |
+| `nvs` | `0xD000` | 24 KiB | Einstellungen, Identität und Zuordnung. Wird gelöscht, wenn NVS nicht lesbar ist |
 | `otadata` | `0x13000` | 8 KiB | Welcher App-Slot bootet. Leer bedeutet `ota_0` |
 | `phy_init` | `0x15000` | 4 KiB | Funkkalibrierung |
 | `nvs_keys` | `0x16000` | 4 KiB | Für NVS-Verschlüsselung reserviert, ungenutzt |
+| `lc_setup` | `0x17000` | 12 KiB | Setup-Secrets vom Etikett. Die Firmware löscht sie nie |
 | `ota_0` | `0x20000` | 1856 KiB | Firmware. Ein USB-Flash schreibt sie hierher |
 | `ota_1` | `0x1F0000` | 1856 KiB | Zweiter Slot, von einem Update geschrieben |
 | `journal` | `0x3C0000` | 256 KiB | Das Kommando-Journal, roh, Subtyp `0x40` |

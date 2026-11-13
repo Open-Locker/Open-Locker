@@ -144,10 +144,11 @@ this has not been tried on a board. The partition table sits at `0xC000`, and th
 
 | Partition | Offset | Size | Holds |
 | --- | --- | --- | --- |
-| `nvs` | `0xD000` | 24 KiB | Settings, identity, mapping and setup secrets |
+| `nvs` | `0xD000` | 24 KiB | Settings, identity and mapping. Erased if NVS cannot be read |
 | `otadata` | `0x13000` | 8 KiB | Which app slot boots. Empty means `ota_0` |
 | `phy_init` | `0x15000` | 4 KiB | Radio calibration |
 | `nvs_keys` | `0x16000` | 4 KiB | Reserved for NVS encryption, unused |
+| `lc_setup` | `0x17000` | 12 KiB | Setup secrets from the label. Never erased by the firmware |
 | `ota_0` | `0x20000` | 1856 KiB | Firmware. A USB flash writes it here |
 | `ota_1` | `0x1F0000` | 1856 KiB | Second slot, written by an update |
 | `journal` | `0x3C0000` | 256 KiB | The command journal, raw, subtype `0x40` |

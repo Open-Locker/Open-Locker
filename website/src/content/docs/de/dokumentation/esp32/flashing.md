@@ -233,14 +233,14 @@ sequenceDiagram
     actor Op as Installateur
     participant DS as device_secrets.py
     participant Gen as nvs_partition_gen
-    participant Unit as ESP32 (nvs-Partition)
+    participant Unit as ESP32 (lc_setup-Partition)
     Op->>DS: --label label.txt --nvs-csv secrets.csv
     DS-->>Op: label.txt und secrets.csv (nur für den Eigentümer)
-    Op->>Gen: generate secrets.csv nvs.bin 0x6000
-    Gen-->>Op: nvs.bin
-    Op->>Unit: esptool write-flash 0xD000 nvs.bin
+    Op->>Gen: generate secrets.csv setup.bin 0x3000
+    Gen-->>Op: setup.bin
+    Op->>Unit: esptool write-flash 0x17000 setup.bin
     Op->>Op: Etikett drucken, auf die Einheit kleben
-    Op->>Op: secrets.csv, nvs.bin und label.txt löschen
+    Op->>Op: secrets.csv, setup.bin und label.txt löschen
 ```
 
 *UML-Sequenzdiagramm: Die Secrets gehen vom Laptop zur Einheit und zum Etikett, sonst nirgendwohin.*
@@ -251,27 +251,27 @@ sequenceDiagram
    python scripts/device_secrets.py --label label.txt --nvs-csv secrets.csv
    ```
 
-2. Daraus ein Image der `nvs`-Partition erzeugen (24 KiB, `0x6000`):
+2. Daraus ein Image der `lc_setup`-Partition erzeugen (12 KiB, `0x3000`):
 
    ```bash
-   python -m esp_idf_nvs_partition_gen generate secrets.csv nvs.bin 0x6000
+   python -m esp_idf_nvs_partition_gen generate secrets.csv setup.bin 0x3000
    ```
 
    Der Generator gehört zu ESP-IDF. Mit Docker diesen Befehl im Container ausführen, genau wie den Build.
 
-3. Das Image auf die Einheit schreiben. Bei `0xD000` beginnt die `nvs`-Partition; das Flash-Layout ist fest,
+3. Das Image auf die Einheit schreiben. Bei `0x17000` beginnt die `lc_setup`-Partition; das Flash-Layout ist fest,
    diese Adresse ändert sich also nie.
 
    ```bash
-   python -m esptool --port COM3 write-flash 0xD000 nvs.bin
+   python -m esptool --port COM3 write-flash 0x17000 setup.bin
    ```
 
 4. `label.txt` drucken und so auf die Einheit kleben, dass es bei der Installation auffindbar ist.
-5. `secrets.csv`, `nvs.bin` und `label.txt` löschen.
+5. `secrets.csv`, `setup.bin` und `label.txt` löschen.
 
 :::caution
-Das Schreiben der `nvs`-Partition ersetzt alles darin. Nur bei einer Einheit ohne Einstellungen ausführen,
-direkt nach dem Löschen.
+Das Schreiben der `lc_setup`-Partition ersetzt die Setup-Secrets der Einheit, ihr altes Etikett gilt dann nicht mehr.
+Einmal ausführen, direkt nach dem Löschen.
 :::
 
 ## Firmware flashen
@@ -338,7 +338,8 @@ flowchart LR
         ota["otadata"]
         app0["ota_0: Firmware"]
         app1["ota_1: zweiter Slot, für OTA"]
-        nvs["nvs: Einstellungen, Identität,<br/>Zuordnung, Setup-Secrets"]
+        nvs["nvs: Einstellungen, Identität,<br/>Zuordnung"]
+        setup["lc_setup: Setup-Secrets"]
         journal["journal: Kommando-Journal"]
     end
     esptool -- "USB seriell" --> boot
@@ -346,16 +347,16 @@ flowchart LR
     esptool --> ota
     esptool --> app0
     classDef kept stroke-dasharray: 5 5
-    class nvs,journal,app1 kept
+    class nvs,setup,journal,app1 kept
 ```
 
 *UML-Verteilungsdiagramm. Durchgezogene Kästen schreibt jedes Flashen; gestrichelte bleiben erhalten.*
 
 | Ausgeführt | Ersetzt | Behält |
 | --- | --- | --- |
-| `idf.py flash` oder `write-flash` wie oben | Bootloader, Partitionstabelle, `otadata`, Firmware in `ota_0` | `nvs` (Einstellungen, Identität, Zuordnung, Setup-Secrets), `ota_1` und `journal` |
+| `idf.py flash` oder `write-flash` wie oben | Bootloader, Partitionstabelle, `otadata`, Firmware in `ota_0` | `nvs` (Einstellungen, Identität, Zuordnung), `lc_setup` (Setup-Secrets), `ota_1` und `journal` |
 | `idf.py erase-flash` | Alles | Nichts |
-| `write-flash 0xD000 nvs.bin` | Alle Einstellungen und die Setup-Secrets | Alles andere |
+| `write-flash 0x17000 setup.bin` | Die Setup-Secrets | Alles andere |
 
 Eine neue Firmware-Version auf eine Einheit im Betrieb zu flashen, lässt sie also registriert und konfiguriert.
 Weil `otadata` leer geschrieben wird, bootet die Einheit `ota_0`. Zum Aktualisieren im Betrieb siehe
