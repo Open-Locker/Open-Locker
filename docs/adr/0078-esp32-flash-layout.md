@@ -88,7 +88,8 @@ a USB reflash of every unit and a new ADR.
 ## Supersedes / Superseded By
 
 - Supersedes: none
-- Superseded by: none
+- Superseded by: in part, [ADR-0088](0088-esp32-setup-secrets-partition.md) (the `lc_setup`
+  partition at `0x17000`)
 
 ## References
 

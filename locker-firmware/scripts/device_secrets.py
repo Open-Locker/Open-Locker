@@ -6,10 +6,10 @@
     python scripts/device_secrets.py --label out.txt  # also writes it, owner-only
     python scripts/device_secrets.py --nvs-csv s.csv  # input for the unit's NVS image
 
-The NVS image is made with ESP-IDF's nvs_partition_gen.py (`generate s.csv nvs.bin
-0x6000`) and flashed to the `nvs` partition of a unit that has no settings yet,
-then s.csv is deleted. The firmware reads the three values from the `lc_setup`
-namespace; a reset never touches it.
+The NVS image is made with ESP-IDF's nvs_partition_gen.py (`generate s.csv
+setup.bin 0x3000`) and flashed to the unit's own `lc_setup` partition at 0x17000,
+then s.csv is deleted (ADR-0088). The firmware reads the three values from it;
+neither a reset nor the recovery that erases the `nvs` partition touches it.
 
 Every unit gets its own access-point passphrase (WPA2) and its own setup
 password (the Security 2 session). Both are generated here from the operating

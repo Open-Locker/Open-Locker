@@ -16,11 +16,14 @@
  * section 7).
  */
 
-/* Initialises NVS. An NVS partition that cannot be read is erased, which un-enrolls the device. */
+/*
+ * Initialises NVS. An nvs partition that cannot be read is erased, which un-enrolls the device.
+ * The lc_setup partition is opened too and never erased.
+ */
 bool lc_storage_init(void);
 
 /*
- * The setup network's secrets, from their own NVS namespace. False when they
+ * The setup network's secrets, from their own lc_setup partition. False when they
  * were never written or do not fit: there is then no setup network, and no
  * default password stands in for them.
  */
