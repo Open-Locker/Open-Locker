@@ -1,0 +1,6 @@
+# The Wi-Fi handlers of network_config.h exist only with this option, as in the real component.
+menu "network_provisioning mock"
+    config NETWORK_PROV_NETWORK_TYPE_WIFI
+        bool
+        default y
+endmenu

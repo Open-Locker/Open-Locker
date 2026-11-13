@@ -113,6 +113,9 @@ static void test_a_refused_subscription_is_not_reported(void)
     TEST_ASSERT_EQUAL_INT(0, subscribed_count);
 }
 
+/* In test_softap.c. */
+void softap_tests(void);
+
 void app_main(void)
 {
     UNITY_BEGIN();
@@ -120,5 +123,6 @@ void app_main(void)
     RUN_TEST(test_the_client_is_started_and_its_handler_registered);
     RUN_TEST(test_a_granted_subscription_is_reported);
     RUN_TEST(test_a_refused_subscription_is_not_reported);
+    softap_tests();
     exit(UNITY_END());
 }

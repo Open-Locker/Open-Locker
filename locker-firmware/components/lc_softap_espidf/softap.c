@@ -131,6 +131,8 @@ static void on_wifi_event(void *arg, esp_event_base_t base, int32_t id, void *da
         if (event->aid == current_aid) {
             lc_portal_station_left(&portal);
             current_aid = 0;
+            /* Half a request must never be completed by the next station. */
+            lc_collector_clear(&collector);
         }
     }
     xSemaphoreGive(lock);
@@ -323,6 +325,23 @@ static bool start_protocomm(const lc_setup_secrets_t *secrets)
            protocomm_add_endpoint(comm, OL_ENDPOINT, ol_config_handler, NULL) == ESP_OK;
 }
 
+/* Undoes a start that failed part-way, so no access point stays up without its portal and window. */
+static void undo_start(bool access_point_up)
+{
+    if (comm != NULL) {
+        protocomm_httpd_stop(comm);
+        protocomm_delete(comm);
+        comm = NULL;
+    }
+    if (access_point_up) {
+        esp_wifi_stop();
+    }
+    free(srp_salt);
+    free(srp_verifier);
+    srp_salt = NULL;
+    srp_verifier = NULL;
+}
+
 bool lc_softap_start(const lc_setup_secrets_t *secrets, const lc_softap_sink_t *callbacks)
 {
     if (running) {
@@ -344,14 +363,21 @@ bool lc_softap_start(const lc_setup_secrets_t *secrets, const lc_softap_sink_t *
     bool ok = esp_timer_create(&timer_args, &window_timer) == ESP_OK &&
               esp_event_handler_register(WIFI_EVENT, ESP_EVENT_ANY_ID, on_wifi_event, NULL) == ESP_OK &&
               esp_event_handler_register(PROTOCOMM_SECURITY_SESSION_EVENT, ESP_EVENT_ANY_ID,
-                                         on_session_event, NULL) == ESP_OK &&
-              start_access_point(secrets) && start_protocomm(secrets);
+                                         on_session_event, NULL) == ESP_OK;
+    bool access_point_up = ok && start_access_point(secrets);
+    ok = access_point_up && start_protocomm(secrets);
+    if (ok) {
+        running = true;
+        lc_portal_open(&portal, esp_timer_get_time() / 1000);
+        /* Without its timer the window would never close. */
+        ok = esp_timer_start_periodic(window_timer, WINDOW_CHECK_US) == ESP_OK;
+        running = ok;
+    }
     if (!ok) {
         ESP_LOGE(TAG, "the setup network could not be started");
+        undo_start(access_point_up);
         return false;
     }
-    running = true;
-    lc_portal_open(&portal, esp_timer_get_time() / 1000);
     ESP_LOGI(TAG, "setup network open for %d s", LC_PORTAL_WINDOW_MS / 1000);
-    return esp_timer_start_periodic(window_timer, WINDOW_CHECK_US) == ESP_OK;
+    return true;
 }
