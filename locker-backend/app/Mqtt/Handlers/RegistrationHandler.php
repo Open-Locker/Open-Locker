@@ -77,7 +77,7 @@ class RegistrationHandler extends AbstractInboundMqttHandler
         }
 
         if (! $accepted) {
-            Log::warning('No LockerBank found for provisioning token', [
+            Log::warning('Provisioning registration refused', [
                 'client_id' => $clientId,
             ]);
 

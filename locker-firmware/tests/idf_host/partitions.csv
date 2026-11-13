@@ -1,0 +1,5 @@
+# Name,   Type, SubType, Offset,  Size
+# The two NVS partitions of ../../partitions.csv, for the NVS adapter test.
+nvs,      data, nvs,     0x9000,  0x6000,
+lc_setup, data, nvs,     0xF000,  0x3000,
+factory,  app,  factory, 0x20000, 0x100000,

@@ -10,7 +10,7 @@ test cabinet build.
 
 It reflects the hardware used in the current Raspberry Pi based setup and
 documents the cabinet-independent electrical parts first. An ESP-based build is
-planned, but it is not yet built or validated.
+planned, but it is not yet validated.
 
 ## Scope
 
@@ -57,7 +57,9 @@ This is the currently used and validated build profile.
 
 ### ESP-Based Build
 
-This build profile is planned, but not yet built or validated.
+This build profile is planned, but not yet validated. Separate from the plan below, there is
+[bench firmware for an ESP32 with an RS485 lock panel](/dokumentation/esp32/), which uses other parts
+than this page lists.
 
 One reason for planning this variant is that the Raspberry Pi based setup was
 not always reliable in our tests and occasionally dropped out.
@@ -70,9 +72,7 @@ At a high level, the cabinet-side hardware is expected to stay similar:
 - connectors
 - power distribution
 
-The planned controller board for the first ESP-based build is the Waveshare
-`ESP32-S3-ETH-8DI-8RO`. See
-[`docs/adr/0005-esp-build-controller-board-selection.md`](https://github.com/Open-Locker/Open-Locker/blob/main/docs/adr/0005-esp-build-controller-board-selection.md).
+No controller board has been chosen for the ESP-based build yet.
 
 For builds with up to 8 compartments, the board's onboard 8 relays and 8
 digital inputs are the planned starting point.
@@ -173,7 +173,6 @@ For now, treat the following as stable:
 - connection board recommendation
 - internal cabinet wiring approach
 - basic 12 V power distribution
-- planned ESP controller board: Waveshare `ESP32-S3-ETH-8DI-8RO`
 - planned expansion path for more than 8 compartments: external Waveshare
   `Modbus RTU Relay (D)` board over RS485
 

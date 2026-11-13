@@ -1,0 +1,42 @@
+menu "Locker RS485 lock panel timing"
+
+    config LC_RS485_REPLY_DEADLINE_MS
+        int "Reply deadline (ms)"
+        range 100 10000
+        default 1500
+        help
+            Longest wait for a complete reply, measured from the write. After
+            it an unlock is reported as outcome unknown; it is never retried.
+
+    config LC_RS485_QUIET_INTERVAL_MS
+        int "Quiet interval (ms)"
+        range 2 1000
+        default 25
+        help
+            Silence between bytes that ends a frame. Must be several byte
+            times at the configured baud rate.
+
+    config LC_RS485_SETTLE_PERIOD_MS
+        int "Settle period after a failed exchange (ms)"
+        range 100 60000
+        default 3000
+        help
+            Silence kept before the next request once a request got no usable
+            reply. Bytes received in it are discarded. Must exceed the worst
+            reply time of the panel, which is unmeasured until hardware check
+            HW-A9.
+
+    config LC_RS485_FAILURES_BEFORE_COOLDOWN
+        int "Consecutive failures before a cooldown"
+        range 1 255
+        default 5
+
+    config LC_RS485_COOLDOWN_MS
+        int "Cooldown (ms)"
+        range 1000 3600000
+        default 60000
+        help
+            Time during which nothing is written after repeated failures.
+            An unlock requested in it is reported as not sent.
+
+endmenu

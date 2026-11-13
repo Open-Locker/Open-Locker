@@ -8,6 +8,8 @@ use App\Models\Compartment;
 use App\Models\CompartmentAccess;
 use App\Models\LockerBank;
 use App\Models\User;
+use App\Services\OrganizationContext;
+use App\Services\OrganizationMembershipService;
 use Illuminate\Database\Seeder;
 
 class DatabaseSeeder extends Seeder
@@ -76,6 +78,11 @@ class DatabaseSeeder extends Seeder
                 'compartment_id' => $compartment->id,
                 'granted_by_user_id' => $admin->id,
             ]);
+        });
+
+        $organization = app(OrganizationContext::class)->require();
+        User::query()->each(function (User $user) use ($organization): void {
+            app(OrganizationMembershipService::class)->addMember($organization, $user);
         });
     }
 }

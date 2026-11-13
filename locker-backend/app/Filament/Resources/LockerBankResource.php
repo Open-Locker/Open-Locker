@@ -197,7 +197,7 @@ class LockerBankResource extends Resource
             ->disabled(fn ($livewire): bool => ! in_array(InteractsWithOneTimeProvisioningToken::class, class_uses_recursive($livewire), true)
                 || $livewire->getOneTimeProvisioningToken() === '')
             ->modalHeading(__('Copy the provisioning token now'))
-            ->modalDescription(__('This token will not be shown again. If it is lost, issue a new one.'))
+            ->modalDescription(__('This token is valid for 24 hours and will not be shown again. If it is lost, issue a new one.'))
             ->modalContent(fn ($livewire) => view('filament.actions.show-provisioning-token', [
                 'token' => in_array(InteractsWithOneTimeProvisioningToken::class, class_uses_recursive($livewire), true)
                     ? $livewire->getOneTimeProvisioningToken()

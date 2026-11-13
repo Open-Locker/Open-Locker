@@ -1,0 +1,83 @@
+/*
+ * The site's colours, for the marketing pages (via Tailwind, see global.css) and the
+ * docs (via Starlight, see starlight-custom.css). Change a colour here, not in a component.
+ */
+:root {
+	color-scheme: light;
+
+	--surface: #ffffff;
+	--surface-muted: #f8fafc;
+	--surface-strong: #f1f5f9;
+	--line: #e2e8f0;
+	--line-strong: #cbd5e1;
+
+	--fg: #0f172a;
+	--fg-soft: #334155;
+	--fg-muted: #475569;
+	--fg-subtle: #64748b;
+
+	/* Primary buttons and badges: the opposite of the page. */
+	--inverse: #0f172a;
+	--inverse-hover: #1e293b;
+	--on-inverse: #ffffff;
+
+	--accent: #2563eb;
+	--accent-low: #dbe6fd;
+	--accent-high: #1e3a8a;
+
+	--ok-surface: #ecfdf5;
+	--ok-surface-strong: #d1fae5;
+	--ok-line: #a7f3d0;
+	--ok-fg: #064e3b;
+
+	--warn-surface: #fffbeb;
+	--warn-surface-strong: #fef3c7;
+	--warn-line: #fde68a;
+	--warn-fg: #78350f;
+
+	--bad-surface: #fef2f2;
+	--bad-fg: #7f1d1d;
+
+	/* Timeline bars and limits: dark enough for white 12px labels (over 6:1) on both themes. */
+	--series-ok: #0f6e56;
+	--series-bad: #a32d2d;
+	--series-work: #185fa5;
+	--series-busy: #854f0b;
+	--series-check: #534ab7;
+}
+
+:root[data-theme='dark'] {
+	color-scheme: dark;
+
+	--surface: #0f172a;
+	--surface-muted: #162033;
+	--surface-strong: #1e293b;
+	--line: #334155;
+	--line-strong: #475569;
+
+	--fg: #f1f5f9;
+	--fg-soft: #cbd5e1;
+	--fg-muted: #a8b5c7;
+	--fg-subtle: #94a3b8;
+
+	--inverse: #f1f5f9;
+	--inverse-hover: #cbd5e1;
+	--on-inverse: #0f172a;
+
+	--accent: #60a5fa;
+	--accent-low: #1e3a8a;
+	--accent-high: #bfdbfe;
+
+	--ok-surface: #022c22;
+	--ok-surface-strong: #064e3b;
+	--ok-line: #065f46;
+	--ok-fg: #a7f3d0;
+
+	--warn-surface: #2d1a06;
+	--warn-surface-strong: #78350f;
+	--warn-line: #92400e;
+	--warn-fg: #fde68a;
+
+	--bad-surface: #2c0b0b;
+	--bad-fg: #fecaca;
+}

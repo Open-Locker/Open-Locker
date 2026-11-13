@@ -1,0 +1,265 @@
+---
+/**
+ * Interactive timeline for docs: a few lanes (tasks, components) drawn over
+ * time, one scenario at a time, picked with buttons. Rendered to static SVG
+ * at build time; the script only switches which scenario is visible.
+ *
+ * Use it from an `.mdx` docs page:
+ *
+ *   import ScenarioTimeline from '../../../components/docs/ScenarioTimeline.astro';
+ *
+ *   <ScenarioTimeline
+ *     title="Handler and owner task"
+ *     description="Two lanes over time with the 8 s age limit."
+ *     lanes={[{ id: 'handler', title: 'Handler', subtitle: 'passes the answer on' }, …]}
+ *     markers={[{ at: 8, lane: 'owner', label: '8 s: owner saves nothing older', tone: 'check' }]}
+ *     scenarios={[{
+ *       name: '1. Normal', duration: 4, caption: '…', result: 'Match.',
+ *       segments: { handler: [{ from: 0, to: 1.3, kind: 'wait', label: 'waiting' }], owner: […] },
+ *     }]}
+ *   />
+ */
+
+export type SegmentKind = 'ok' | 'bad' | 'work' | 'busy' | 'check' | 'wait' | 'idle';
+
+export type Lane = { id: string; title: string; subtitle?: string };
+
+export type Segment = { from: number; to: number; kind: SegmentKind; label: string };
+
+/** A fixed limit drawn on one lane whenever it falls inside a scenario's time scale. */
+export type Marker = { at: number; lane: string; label: string; tone?: 'bad' | 'check' };
+
+export type Scenario = {
+	name: string;
+	/** Length of the time axis in `unit`s. */
+	duration: number;
+	caption: string;
+	result?: string;
+	resultTone?: 'success' | 'danger';
+	segments: Record<string, Segment[]>;
+};
+
+type Props = {
+	/** Accessible name of the figure (SVG title). */
+	title: string;
+	/** Screen-reader description of what the figure shows. */
+	description: string;
+	lanes: Lane[];
+	scenarios: Scenario[];
+	markers?: Marker[];
+	unit?: string;
+};
+
+const { title, description, lanes, scenarios, markers = [], unit = 's' } = Astro.props;
+
+const X0 = 150;
+const X1 = 650;
+const BAR = 30;
+const LANE_GAP = 90;
+const TOP = 57;
+const laneY = (i: number) => TOP + i * LANE_GAP;
+const gridBottom = laneY(lanes.length - 1) + BAR + 28;
+const height = gridBottom + 45;
+const idBase = `timeline-${Math.random().toString(36).slice(2, 8)}`;
+
+function render(s: Scenario) {
+	const x = (t: number) => X0 + ((X1 - X0) * Math.min(t, s.duration)) / s.duration;
+	const step = s.duration / 8;
+	const ticks = Array.from({ length: 9 }, (_, i) => i * step);
+	const bars = lanes.flatMap((lane, i) =>
+		(s.segments[lane.id] ?? []).map((seg) => {
+			const w = x(seg.to) - x(seg.from);
+			// rough monospace estimate for the 12px label; long labels move under the bar
+			const fits = seg.label.length * 7 + 12 < w;
+			return { ...seg, x: x(seg.from), y: laneY(i), w: Math.max(w, 4), fits, open: seg.kind === 'wait' || seg.kind === 'idle' };
+		}),
+	);
+	const marks = markers
+		.filter((m) => m.at <= s.duration)
+		.map((m) => {
+			const i = lanes.findIndex((l) => l.id === m.lane);
+			const y = laneY(i);
+			const mx = x(m.at);
+			return { ...m, x: mx, y1: y - 17, y2: y + BAR + 28, labelY: y - 24, end: mx > (X0 + X1) / 2 };
+		});
+	return { x, ticks, bars, marks };
+}
+---
+
+<figure class="scenario-timeline not-content">
+	<div class="buttons" role="group" aria-label="Scenarios">
+		{scenarios.map((s, i) => (
+			<button type="button" aria-pressed={i === 0 ? 'true' : 'false'} aria-controls={`${idBase}-${i}`}>
+				{s.name}
+			</button>
+		))}
+	</div>
+	{scenarios.map((s, i) => {
+		const r = render(s);
+		return (
+			<div class="panel" id={`${idBase}-${i}`} hidden={i !== 0}>
+				<p class="caption">{s.caption}</p>
+				<div class="chart">
+					<svg width="100%" viewBox={`0 0 680 ${height}`} role="img" aria-labelledby={`${idBase}-${i}-t ${idBase}-${i}-d`}>
+						<title id={`${idBase}-${i}-t`}>{`${title}: ${s.name}`}</title>
+						<desc id={`${idBase}-${i}-d`}>{description}</desc>
+						{lanes.map((l, li) => (
+							<>
+								<text class="lane-title" x="20" y={laneY(li) + 15} dominant-baseline="central">{l.title}</text>
+								{l.subtitle && <text x="20" y={laneY(li) + 33}>{l.subtitle}</text>}
+							</>
+						))}
+						{r.ticks.map((t) => (
+							<>
+								<line class="grid" x1={r.x(t)} y1="50" x2={r.x(t)} y2={gridBottom} />
+								<text x={r.x(t)} y={gridBottom + 27} text-anchor="middle">{`${+t.toFixed(1)} ${unit}`}</text>
+							</>
+						))}
+						{r.marks.map((m) => (
+							<g class={`marker ${m.tone ?? 'check'}`}>
+								<line x1={m.x} y1={m.y1} x2={m.x} y2={m.y2} />
+								<text x={m.end ? m.x - 6 : m.x + 6} y={m.labelY} text-anchor={m.end ? 'end' : 'start'}>{m.label}</text>
+							</g>
+						))}
+						{r.bars.map((b) => (
+							<g class={`bar ${b.kind}`}>
+								<rect x={b.x} y={b.y} width={b.w} height={BAR} rx="4" />
+								<text
+									class={b.fits ? 'inside' : undefined}
+									x={b.x + b.w / 2}
+									y={b.fits ? b.y + 15 : b.y + 44}
+									text-anchor="middle"
+									dominant-baseline={b.fits ? 'central' : undefined}
+								>
+									{b.label}
+								</text>
+							</g>
+						))}
+					</svg>
+				</div>
+				{s.result && <p class={`result ${s.resultTone ?? 'success'}`}>{s.result}</p>}
+			</div>
+		);
+	})}
+</figure>
+
+<script>
+	for (const fig of document.querySelectorAll('.scenario-timeline')) {
+		const buttons = fig.querySelectorAll<HTMLButtonElement>('.buttons button');
+		buttons.forEach((button) =>
+			button.addEventListener('click', () =>
+				buttons.forEach((b) => {
+					const on = b === button;
+					b.setAttribute('aria-pressed', String(on));
+					document.getElementById(b.getAttribute('aria-controls')!)!.hidden = !on;
+				}),
+			),
+		);
+	}
+</script>
+
+<style>
+	.scenario-timeline {
+		margin-block: 1.5rem;
+		padding: 1rem;
+		border: 1px solid var(--sl-color-hairline);
+		border-radius: 0.75rem;
+	}
+	.buttons {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.5rem;
+	}
+	button {
+		padding: 0.25rem 0.75rem;
+		border: 1px solid var(--sl-color-hairline);
+		border-radius: 0.5rem;
+		background: none;
+		color: var(--sl-color-gray-1);
+		font: inherit;
+		font-size: 0.875rem;
+		cursor: pointer;
+	}
+	button[aria-pressed='true'] {
+		border-color: var(--sl-color-accent);
+		color: var(--sl-color-accent);
+	}
+	.caption {
+		margin: 0.75rem 0;
+		min-height: 3em;
+		font-size: 0.875rem;
+		line-height: 1.6;
+		color: var(--sl-color-gray-2);
+	}
+	/* below this width the 12px labels get unreadable, so scroll instead */
+	.chart {
+		overflow-x: auto;
+	}
+	svg {
+		display: block;
+		min-width: 34rem;
+		font-size: 12px;
+	}
+	svg text {
+		fill: var(--sl-color-gray-2);
+	}
+	.lane-title {
+		font-size: 14px;
+		font-weight: 600;
+		fill: var(--sl-color-white);
+	}
+	.grid {
+		stroke: var(--sl-color-hairline);
+		stroke-width: 0.5;
+	}
+	.marker line {
+		stroke: var(--tone);
+		stroke-width: 1.5;
+		stroke-dasharray: 5 4;
+	}
+	/* The line carries the tone; the label stays in body text colour, readable on both themes. */
+	.marker text {
+		fill: var(--sl-color-gray-2);
+	}
+	.marker.bad { --tone: var(--series-bad); }
+	.marker.check { --tone: var(--series-check); }
+	.bar rect {
+		fill: var(--fill);
+	}
+	.bar text.inside {
+		fill: #fff;
+	}
+	.bar.ok { --fill: var(--series-ok); }
+	.bar.bad { --fill: var(--series-bad); }
+	.bar.work { --fill: var(--series-work); }
+	.bar.busy { --fill: var(--series-busy); }
+	.bar.check { --fill: var(--series-check); }
+	.bar.wait rect,
+	.bar.idle rect {
+		fill: none;
+		opacity: 1;
+		stroke: var(--sl-color-gray-4);
+	}
+	.bar.wait rect {
+		stroke: var(--sl-color-gray-2);
+		stroke-dasharray: 4 3;
+	}
+	.bar.wait text.inside,
+	.bar.idle text.inside {
+		fill: var(--sl-color-gray-2);
+	}
+	.result {
+		margin: 0.5rem 0 0;
+		padding: 0.5rem 0.75rem;
+		border-radius: 0.5rem;
+		font-size: 0.875rem;
+	}
+	.result.success {
+		background: var(--ok-surface);
+		color: var(--ok-fg);
+	}
+	.result.danger {
+		background: var(--bad-surface);
+		color: var(--bad-fg);
+	}
+</style>

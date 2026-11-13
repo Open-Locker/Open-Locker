@@ -19,42 +19,42 @@ const t = useTranslations(locale).pricing;
 const { docsHref = localizePath('/dokumentation/', locale) } = Astro.props;
 ---
 
-<section id={id} class="border-t border-slate-200 bg-white scroll-mt-24">
+<section id={id} class="border-t border-line bg-surface scroll-mt-24">
 	<div class="mx-auto max-w-6xl px-4 py-14 md:py-16">
 		<div class="space-y-10">
 			<div class="grid gap-6 lg:grid-cols-[1.1fr_0.9fr] lg:items-start">
 				<div class="space-y-2">
-					<p class="text-sm font-semibold tracking-wide text-slate-600">{t.kicker}</p>
-					<h2 class="text-2xl font-semibold tracking-tight text-slate-900" set:html={t.titleHtml} />
-					<p class="text-slate-700">
+					<p class="text-sm font-semibold tracking-wide text-fg-muted">{t.kicker}</p>
+					<h2 class="text-2xl font-semibold tracking-tight text-fg" set:html={t.titleHtml} />
+					<p class="text-fg-soft">
 						{t.lead}
 					</p>
 				</div>
 
 				<aside
-					class="rounded-2xl border border-slate-200 bg-slate-50 p-6 text-slate-700 opacity-80 grayscale-[15%]"
+					class="rounded-2xl border border-line bg-surface-muted p-6 text-fg-soft opacity-90 grayscale-[15%]"
 					aria-label={t.teaser.ariaLabel}
 				>
 					<div class="flex items-start justify-between gap-4">
 						<div class="space-y-1">
 							<div class="flex flex-wrap items-center gap-2">
-								<p class="text-sm font-semibold text-slate-900">{t.teaser.title}</p>
-								<span class="rounded-full bg-slate-900/5 px-2.5 py-1 text-[11px] font-semibold text-slate-700 ring-1 ring-slate-200">
+								<p class="text-sm font-semibold text-fg">{t.teaser.title}</p>
+								<span class="rounded-full bg-fg/5 px-2.5 py-1 text-[11px] font-semibold text-fg-soft ring-1 ring-line">
 									{t.teaser.badge}
 								</span>
 							</div>
-							<p class="text-xs text-slate-600">{t.teaser.subtitle}</p>
+							<p class="text-xs text-fg-muted">{t.teaser.subtitle}</p>
 						</div>
-						<Wrench class="h-6 w-6 text-slate-700" aria-hidden="true" />
+						<Wrench class="h-6 w-6 text-fg-soft" aria-hidden="true" />
 					</div>
 
-					<p class="mt-4 text-lg font-semibold tracking-tight text-slate-900">{t.teaser.price}</p>
-					<p class="mt-1 text-sm text-slate-600" set:html={t.teaser.descriptionHtml} />
+					<p class="mt-4 text-lg font-semibold tracking-tight text-fg">{t.teaser.price}</p>
+					<p class="mt-1 text-sm text-fg-muted" set:html={t.teaser.descriptionHtml} />
 
-					<ul class="mt-4 space-y-2 text-sm text-slate-700">
+					<ul class="mt-4 space-y-2 text-sm text-fg-soft">
 						{t.teaser.bullets.map((bullet) => (
 							<li class="flex items-start gap-2">
-								<Check class="mt-0.5 h-4 w-4 text-slate-700" aria-hidden="true" />
+								<Check class="mt-0.5 h-4 w-4 text-fg-soft" aria-hidden="true" />
 								<span>{bullet}</span>
 							</li>
 						))}
@@ -63,25 +63,25 @@ const { docsHref = localizePath('/dokumentation/', locale) } = Astro.props;
 			</div>
 
 			<div class="grid gap-4 md:grid-cols-3">
-				<div class="rounded-2xl border border-emerald-200 bg-emerald-50 p-6">
+				<div class="rounded-2xl border border-ok-line bg-ok-surface p-6">
 					<div class="flex items-start justify-between gap-4">
 						<div class="space-y-1">
 							<div class="flex flex-wrap items-center gap-2">
-								<p class="text-sm font-semibold text-slate-900">{t.selfHosted.title}</p>
-								<span class="rounded-full bg-white/70 px-2.5 py-1 text-[11px] font-semibold text-emerald-900 ring-1 ring-emerald-200">
+								<p class="text-sm font-semibold text-fg">{t.selfHosted.title}</p>
+								<span class="rounded-full bg-surface/70 px-2.5 py-1 text-[11px] font-semibold text-ok-fg ring-1 ring-ok-line">
 									{t.selfHosted.badge}
 								</span>
 							</div>
-							<p class="text-xs text-emerald-900/80">{t.selfHosted.subtitle}</p>
+							<p class="text-xs text-ok-fg/80">{t.selfHosted.subtitle}</p>
 						</div>
-						<Sparkles class="h-6 w-6 text-emerald-900" aria-hidden="true" />
+						<Sparkles class="h-6 w-6 text-ok-fg" aria-hidden="true" />
 					</div>
-					<p class="mt-4 text-4xl font-semibold tracking-tight text-slate-900">{t.selfHosted.price}</p>
-					<p class="mt-1 text-sm text-emerald-900/80">{t.selfHosted.priceNote}</p>
-					<ul class="mt-4 space-y-2 text-sm text-slate-700">
+					<p class="mt-4 text-4xl font-semibold tracking-tight text-fg">{t.selfHosted.price}</p>
+					<p class="mt-1 text-sm text-ok-fg/80">{t.selfHosted.priceNote}</p>
+					<ul class="mt-4 space-y-2 text-sm text-fg-soft">
 						{t.selfHosted.bullets.map((bullet) => (
 							<li class="flex items-start gap-2">
-								<Check class="mt-0.5 h-4 w-4 text-emerald-800" aria-hidden="true" />
+								<Check class="mt-0.5 h-4 w-4 text-ok-fg" aria-hidden="true" />
 								<span>{bullet}</span>
 							</li>
 						))}
@@ -90,65 +90,65 @@ const { docsHref = localizePath('/dokumentation/', locale) } = Astro.props;
 						href={installationUrl}
 						target="_blank"
 						rel="noreferrer"
-						class="mt-6 inline-flex w-full items-center justify-center rounded-md bg-slate-900 px-4 py-2.5 text-sm font-medium text-white hover:bg-slate-800 focus-visible:ring-2 focus-visible:ring-slate-900"
+						class="mt-6 inline-flex w-full items-center justify-center rounded-md bg-inverse px-4 py-2.5 text-sm font-medium text-on-inverse hover:bg-inverse-hover focus-visible:ring-2 focus-visible:ring-fg"
 					>
 						{t.selfHosted.ctaBuild}
 					</a>
 					<a
 						href={docsHref}
-						class="mt-3 inline-flex w-full items-center justify-center rounded-md border border-emerald-200 bg-white/60 px-4 py-2.5 text-sm font-medium text-emerald-950 hover:bg-white focus-visible:ring-2 focus-visible:ring-emerald-700"
+						class="mt-3 inline-flex w-full items-center justify-center rounded-md border border-ok-line bg-surface/60 px-4 py-2.5 text-sm font-medium text-ok-fg hover:bg-surface focus-visible:ring-2 focus-visible:ring-emerald-700"
 					>
 						{t.selfHosted.ctaDocs}
 					</a>
 				</div>
 
-				<div class="rounded-2xl border border-slate-200 bg-white p-6">
+				<div class="rounded-2xl border border-line bg-surface p-6">
 					<div class="flex items-start justify-between gap-4">
 						<div class="space-y-1">
-							<p class="text-sm font-semibold text-slate-900">{t.hosted.title}</p>
-							<p class="text-xs text-slate-600">{t.hosted.subtitle}</p>
+							<p class="text-sm font-semibold text-fg">{t.hosted.title}</p>
+							<p class="text-xs text-fg-muted">{t.hosted.subtitle}</p>
 						</div>
-						<Server class="h-6 w-6 text-slate-900" aria-hidden="true" />
+						<Server class="h-6 w-6 text-fg" aria-hidden="true" />
 					</div>
-					<p class="mt-4 text-4xl font-semibold tracking-tight text-slate-900">{t.hosted.price}</p>
-					<p class="mt-1 text-sm text-slate-600">{t.hosted.priceNote}</p>
-					<ul class="mt-4 space-y-2 text-sm text-slate-700">
+					<p class="mt-4 text-4xl font-semibold tracking-tight text-fg">{t.hosted.price}</p>
+					<p class="mt-1 text-sm text-fg-muted">{t.hosted.priceNote}</p>
+					<ul class="mt-4 space-y-2 text-sm text-fg-soft">
 						{t.hosted.bullets.map((bullet) => (
 							<li class="flex items-start gap-2">
-								<Check class="mt-0.5 h-4 w-4 text-slate-900" aria-hidden="true" />
+								<Check class="mt-0.5 h-4 w-4 text-fg" aria-hidden="true" />
 								<span>{bullet}</span>
 							</li>
 						))}
 					</ul>
 					<a
 						href={contactHref}
-						class="mt-6 inline-flex w-full items-center justify-center rounded-md border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-900 hover:bg-slate-50 focus-visible:ring-2 focus-visible:ring-slate-900"
+						class="mt-6 inline-flex w-full items-center justify-center rounded-md border border-line-strong bg-surface px-4 py-2.5 text-sm font-medium text-fg hover:bg-surface-muted focus-visible:ring-2 focus-visible:ring-fg"
 					>
 						{t.hosted.cta}
 					</a>
 				</div>
 
-				<div class="rounded-2xl border border-amber-200 bg-amber-50 p-6">
+				<div class="rounded-2xl border border-warn-line bg-warn-surface p-6">
 					<div class="flex items-start justify-between gap-4">
 						<div class="space-y-1">
-							<p class="text-sm font-semibold text-slate-900">{t.workshops.title}</p>
-							<p class="text-xs text-amber-900/80">{t.workshops.subtitle}</p>
+							<p class="text-sm font-semibold text-fg">{t.workshops.title}</p>
+							<p class="text-xs text-warn-fg/80">{t.workshops.subtitle}</p>
 						</div>
-						<GraduationCap class="h-6 w-6 text-amber-900" aria-hidden="true" />
+						<GraduationCap class="h-6 w-6 text-warn-fg" aria-hidden="true" />
 					</div>
-					<p class="mt-4 text-4xl font-semibold tracking-tight text-slate-900">{t.workshops.price}</p>
-					<p class="mt-1 text-sm text-amber-900/80">{t.workshops.priceNote}</p>
-					<ul class="mt-4 space-y-2 text-sm text-slate-700">
+					<p class="mt-4 text-4xl font-semibold tracking-tight text-fg">{t.workshops.price}</p>
+					<p class="mt-1 text-sm text-warn-fg/80">{t.workshops.priceNote}</p>
+					<ul class="mt-4 space-y-2 text-sm text-fg-soft">
 						{t.workshops.bullets.map((bullet) => (
 							<li class="flex items-start gap-2">
-								<Check class="mt-0.5 h-4 w-4 text-amber-900" aria-hidden="true" />
+								<Check class="mt-0.5 h-4 w-4 text-warn-fg" aria-hidden="true" />
 								<span>{bullet}</span>
 							</li>
 						))}
 					</ul>
 					<a
 						href={contactHref}
-						class="mt-6 inline-flex w-full items-center justify-center rounded-md bg-slate-900 px-4 py-2.5 text-sm font-medium text-white hover:bg-slate-800 focus-visible:ring-2 focus-visible:ring-slate-900"
+						class="mt-6 inline-flex w-full items-center justify-center rounded-md bg-inverse px-4 py-2.5 text-sm font-medium text-on-inverse hover:bg-inverse-hover focus-visible:ring-2 focus-visible:ring-fg"
 					>
 						{t.workshops.cta}
 					</a>

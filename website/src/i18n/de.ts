@@ -13,6 +13,7 @@ export const de = {
 		pricing: 'Kosten',
 		contact: 'Kontakt',
 		switchLabel: 'Sprache wechseln',
+		themeSwitchLabel: 'Dunkler Modus',
 		githubAriaLabel: 'Open Locker auf GitHub',
 		discordAriaLabel: 'Open Locker auf Discord',
 		openMenuAriaLabel: 'Menü öffnen',
@@ -78,7 +79,7 @@ export const de = {
 		paragraph2:
 			'Dabei setzt Open Locker auf kontrollierbare Kosten und offene Standards: Du kannst die Software selbst betreiben oder optional Hosting buchen.',
 		paragraph3Html:
-			'Wir bauen die Lösung außerdem so, dass sie <strong class="text-slate-900">einfach zu verwenden</strong> ist. Unser Schrank ist im Sinne von <strong class="text-slate-900">digitaler Teilhabe</strong> z.B. auch für Senior:innen und digital weniger affine Gruppen gut geeignet.',
+			'Wir bauen die Lösung außerdem so, dass sie <strong class="text-fg">einfach zu verwenden</strong> ist. Unser Schrank ist im Sinne von <strong class="text-fg">digitaler Teilhabe</strong> z.B. auch für Senior:innen und digital weniger affine Gruppen gut geeignet.',
 		storyLead: 'Vom Hackathon zum Open Source Projekt:',
 		storyCta: 'Unsere Hintergrundgeschichte',
 		featuresTitle: 'Features auf einen Blick',

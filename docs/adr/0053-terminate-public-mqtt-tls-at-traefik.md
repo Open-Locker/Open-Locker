@@ -2,7 +2,7 @@
 
 ## Status
 
-Proposed
+Accepted (2026-10-30). The code and configuration are on `main` since `cab9f12b` (2026-08-23). Becomes Implemented when #233 records the runtime verification of both deployment paths, as rollout step 6 requires.
 
 ## Date
 
@@ -36,7 +36,9 @@ container-local communication between Laravel and Mosquitto:
    Production Compose must not publish that port on the host.
 3. The MQTTS router listens on public TCP port 8883, selects the broker by
    `HostSNI`, terminates TLS with an ACME-managed certificate, and forwards
-   plaintext MQTT to `mqtt:1883` over the private Docker network.
+   plaintext MQTT to `mqtt:1883` over the private Docker network. On Coolify the
+   rule is `HostSNI(*)`, which matches any hostname, because Coolify does not
+   expand variables in Compose labels.
 4. Coolify deployments use Coolify's managed Traefik instance with an explicit
    TCP entrypoint and router. Plain-Docker deployments use the maintained
    Traefik Compose overlay.
@@ -132,8 +134,8 @@ configuration without exposing plaintext traffic on the host.
    `MQTT_MIGRATION_BIND_ADDRESS`; Coolify deploys the repository-owned Compose
    definition without its old mapping. Verify that port 1883 is no longer
    externally reachable.
-6. Keep this ADR proposed until both deployment paths have passed the documented
-   smoke test.
+6. Do not record this ADR as implemented until both deployment paths have passed
+   the documented smoke test.
 
 ## Supersedes / Superseded By
 

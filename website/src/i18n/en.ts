@@ -15,6 +15,7 @@ export const en: Dictionary = {
 		pricing: 'Pricing',
 		contact: 'Contact',
 		switchLabel: 'Switch language to German',
+		themeSwitchLabel: 'Dark mode',
 		githubAriaLabel: 'Open Locker on GitHub',
 		discordAriaLabel: 'Open Locker on Discord',
 		openMenuAriaLabel: 'Open menu',
@@ -80,7 +81,7 @@ export const en: Dictionary = {
 		paragraph2:
 			'Open Locker focuses on predictable costs and open standards: you can run the software yourself or use our optional managed hosting.',
 		paragraph3Html:
-			'We are also designing the system to be <strong class="text-slate-900">easy to use</strong>. To support <strong class="text-slate-900">digital inclusion</strong>, it should work well for older adults and people with less digital experience.',
+			'We are also designing the system to be <strong class="text-fg">easy to use</strong>. To support <strong class="text-fg">digital inclusion</strong>, it should work well for older adults and people with less digital experience.',
 		storyLead: 'From hackathon to open source project:',
 		storyCta: 'Our background story',
 		featuresTitle: 'Features at a glance',

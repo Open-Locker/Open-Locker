@@ -1,0 +1,6 @@
+# protocomm_security2 is declared only with this option, as in the real component.
+menu "protocomm mock"
+    config ESP_PROTOCOMM_SUPPORT_SECURITY_VERSION_2
+        bool
+        default y
+endmenu
