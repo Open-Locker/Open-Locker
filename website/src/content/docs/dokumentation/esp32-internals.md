@@ -38,9 +38,6 @@ sequenceDiagram
 3. **The result is durable before it is published.** A repeated transaction ID replays the stored response with a fresh message ID, and sends nothing to the panel.
 4. **Delivered means the broker has it.** Only the PUBACK marks a response as delivered, and the owner task goes on polling doors in the meantime.
 
-The same path holds for every client: see
-[Locker command scenarios](https://github.com/Open-Locker/Open-Locker/blob/main/docs/locker-command-scenarios.md).
-
 ## Layers and components
 
 ESP-IDF components are the unit that enforces dependencies. `verify.py` checks the includes and the `REQUIRES` of each one.

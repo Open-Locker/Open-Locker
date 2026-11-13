@@ -36,9 +36,6 @@ sequenceDiagram
 3. **Das Ergebnis ist vor der Veröffentlichung dauerhaft.** Eine wiederholte Transaction-ID gibt die gespeicherte Antwort mit neuer Message-ID wieder und sendet nichts an das Panel.
 4. **Delivered bedeutet, der Broker hat sie.** Nur der PUBACK markiert eine Antwort als zugestellt, und der Owner-Task fragt währenddessen weiter Türen ab.
 
-Derselbe Weg gilt für jeden Client: siehe
-[Locker command scenarios](https://github.com/Open-Locker/Open-Locker/blob/main/docs/locker-command-scenarios.md).
-
 ## Schichten und Komponenten
 
 ESP-IDF-Komponenten sind die Einheit, die Abhängigkeiten durchsetzt. `verify.py` prüft die Includes und `REQUIRES` jeder einzelnen.
