@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted
+Implemented (2026-11-13, #321).
 
 ## Date
 

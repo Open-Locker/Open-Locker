@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted
+Implemented (2026-11-13, #321) in the ESP32 firmware. The Pi client follows in #386.
 
 ## Date
 
