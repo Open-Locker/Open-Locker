@@ -245,7 +245,9 @@ sequenceDiagram
 
 *UML-Sequenzdiagramm: Die Secrets gehen vom Laptop zur Einheit und zum Etikett, sonst nirgendwohin.*
 
-1. Die Secrets erzeugen. Das Werkzeug überschreibt keine vorhandenen Dateien.
+1. Die Secrets erzeugen. Das Werkzeug überschreibt keine vorhandenen Dateien. Unter Linux und macOS kann nur der
+   Eigentümer sie lesen; unter Windows erben sie die Rechte des Ordners, deshalb in einem Ordner ausführen, auf den
+   nur das eigene Benutzerkonto Zugriff hat, etwa im Benutzerordner.
 
    ```bash
    python scripts/device_secrets.py --label label.txt --nvs-csv secrets.csv

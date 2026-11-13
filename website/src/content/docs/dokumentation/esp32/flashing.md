@@ -257,7 +257,9 @@ sequenceDiagram
 *UML sequence diagram: the secrets go from your laptop to the unit and the
 label, and nowhere else.*
 
-1. Make the secrets. The tool refuses to overwrite existing files.
+1. Make the secrets. The tool refuses to overwrite existing files. On Linux and macOS
+   only you can read them; on Windows they take the folder's permissions, so run this
+   in a folder only you can read, such as your user folder.
 
    ```bash
    python scripts/device_secrets.py --label label.txt --nvs-csv secrets.csv

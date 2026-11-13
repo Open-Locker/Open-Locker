@@ -15,7 +15,9 @@ Every unit gets its own access-point passphrase (WPA2) and its own setup
 password (the Security 2 session). Both are generated here from the operating
 system's secure random source, shown once on a label and printed on the unit.
 They are not kept anywhere else: this tool writes nothing but the label file
-you ask for, and the label file is created readable by its owner only.
+you ask for, and on Linux and macOS the files are created readable by their owner
+only. On Windows a file takes its folder's permissions, so write it to a folder
+only you can read, such as your user folder.
 
 The unit stores the setup password itself and derives the Security 2 salt and
 verifier from it at each start (ADR-0083), so nothing else is computed here.
@@ -72,7 +74,7 @@ def nvs_csv_text(device_secrets):
 
 
 def write_secret_file(path, text):
-    """Creates the file readable by its owner only, and refuses to overwrite one."""
+    """Creates the file, owner-only on POSIX (Windows ignores the mode), and refuses to overwrite one."""
     descriptor = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
     with os.fdopen(descriptor, "w", encoding="utf8", newline="\n") as file:
         file.write(text)
