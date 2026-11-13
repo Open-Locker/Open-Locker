@@ -150,4 +150,4 @@ Empfohlene Hardware: siehe
 - **Self-Hosting**: alles selbst betreiben — volle Kontrolle, keine
   Softwarekosten
 - **Gehostetes Backend**: wer nicht selbst hosten möchte, kann das zentrale
-  Backend hosten lassen — siehe [Angebot auf der Website](/#hosting)
+  Backend hosten lassen — siehe [Angebot auf der Website](/de/#hosting)

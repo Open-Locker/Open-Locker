@@ -19,31 +19,31 @@ const featureIcons = [ListChecks, Wallet, BadgeCheck, Wrench, Server, ListChecks
 const storyHref = localizePath('/blog/hintergrund-open-locker/', locale);
 ---
 
-<section id="mehr-erfahren" class="border-b border-slate-200 bg-white scroll-mt-24">
+<section id="mehr-erfahren" class="border-b border-line bg-surface scroll-mt-24">
 	<div class="mx-auto max-w-6xl px-4 py-14 md:py-16">
 		<div class="grid gap-10 md:grid-cols-2 md:items-start">
 			<div class="space-y-4">
 				<div class="flex flex-wrap items-center gap-3">
-					<h2 class="text-2xl font-semibold tracking-tight text-slate-900">{t.title}</h2>
-					<span class="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-900">
+					<h2 class="text-2xl font-semibold tracking-tight text-fg">{t.title}</h2>
+					<span class="rounded-full bg-warn-surface-strong px-2 py-0.5 text-xs font-semibold text-warn-fg">
 						{t.badge}
 					</span>
 				</div>
 
-				<p class="text-slate-700">
+				<p class="text-fg-soft">
 					{t.paragraph1}
 				</p>
-				<p class="text-slate-700">
+				<p class="text-fg-soft">
 					{t.paragraph2}
 				</p>
-				<p class="text-slate-700" set:html={t.paragraph3Html} />
+				<p class="text-fg-soft" set:html={t.paragraph3Html} />
 
 				<div class="flex flex-wrap gap-3 pt-1">
-				<p class="text-slate-700">{t.storyLead}
+				<p class="text-fg-soft">{t.storyLead}
 					</p>
 					<a
 						href={storyHref}
-						class="rounded-md border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-900 hover:bg-slate-50 focus-visible:ring-2 focus-visible:ring-slate-900"
+						class="rounded-md border border-line-strong bg-surface px-4 py-2.5 text-sm font-medium text-fg hover:bg-surface-muted focus-visible:ring-2 focus-visible:ring-fg"
 					>
 						{t.storyCta}
 					</a>
@@ -51,19 +51,19 @@ const storyHref = localizePath('/blog/hintergrund-open-locker/', locale);
 			</div>
 
 			<div class="space-y-3">
-				<p class="text-sm font-semibold text-slate-900">{t.featuresTitle}</p>
+				<p class="text-sm font-semibold text-fg">{t.featuresTitle}</p>
 				<div class="grid gap-3 sm:grid-cols-2 md:grid-cols-1 lg:grid-cols-2">
 					{t.features.map((feature, index) => {
 						const Icon = featureIcons[index] ?? ListChecks;
 						return (
-							<div class="rounded-xl border border-slate-200 bg-white p-4">
+							<div class="rounded-xl border border-line bg-surface p-4">
 								<div class="flex items-start gap-3">
-									<span class="mt-0.5 inline-flex h-5 w-5 flex-none items-center justify-center text-slate-900">
+									<span class="mt-0.5 inline-flex h-5 w-5 flex-none items-center justify-center text-fg">
 										<Icon size={20} aria-hidden="true" />
 									</span>
 									<div>
-										<p class="font-semibold text-slate-900">{feature.title}</p>
-										<p class="mt-1 text-sm text-slate-700">{feature.text}</p>
+										<p class="font-semibold text-fg">{feature.title}</p>
+										<p class="mt-1 text-sm text-fg-soft">{feature.text}</p>
 									</div>
 								</div>
 							</div>

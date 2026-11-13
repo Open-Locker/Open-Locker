@@ -12,7 +12,9 @@
   "dependencies": {
     "@astrojs/starlight": "^0.36.3",
     "@lucide/astro": "^0.563.0",
-    "astro": "^5.17.1"
+    "astro": "^5.17.1",
+    "astro-mermaid": "^2.1.0",
+    "mermaid": "^11.17.2"
   },
   "devDependencies": {
     "@astrojs/mdx": "^4.3.13",
@@ -20,6 +22,7 @@
     "@tailwindcss/typography": "^0.5.19",
     "@tailwindcss/vite": "^4.1.18",
     "@types/node": "^25.2.0",
+    "starlight-links-validator": "^0.19.2",
     "tailwindcss": "^4.1.18"
   }
 }
