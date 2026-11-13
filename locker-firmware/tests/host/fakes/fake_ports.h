@@ -28,7 +28,6 @@ void fake_trace_reset(void);
 void fake_trace(const char *what);
 /* Position of the first such call, or -1. */
 int fake_trace_first(const char *what);
-unsigned fake_trace_count(const char *what);
 
 /* ---- Clock ---- */
 
@@ -64,8 +63,8 @@ lc_locker_bus_port_t fake_bus_port(fake_bus_t *bus);
 
 /* ---- Command journal ---- */
 
-#define FAKE_JOURNAL_ENTRIES 16
-#define FAKE_JOURNAL_MESSAGES 32
+#define FAKE_JOURNAL_ENTRIES 128
+#define FAKE_JOURNAL_MESSAGES 256
 
 typedef struct {
     bool healthy;
@@ -143,6 +142,7 @@ typedef struct {
     bool has;
     lc_config_t config;
     bool save_ok;
+    bool clear_ok;
     unsigned save_count;
     unsigned clear_count;
 } fake_config_store_t;
@@ -166,6 +166,7 @@ typedef struct {
     bool has;
     lc_network_settings_t settings;
     bool save_ok;
+    bool clear_ok;
     unsigned save_count;
     unsigned clear_count;
 } fake_settings_store_t;

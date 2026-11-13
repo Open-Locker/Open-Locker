@@ -44,7 +44,7 @@ ESP-IDF, pinned to exactly v6.1.
   panel per bank. Other adapter types and a second board address are rejected.
 
 The components, ports and the mapping from the Pi client are in
-`website/src/content/docs/dokumentation/esp32-internals.md`.
+`website/src/content/docs/dokumentation/esp32-internals.mdx`.
 
 ## Rationale
 
@@ -115,7 +115,7 @@ reset provisioning in the backend and enroll the Pi with a new token.
 - Related PRs: Open-Locker/Open-Locker#321
 - Related issues: #56, #58
 - Related docs:
-  `website/src/content/docs/dokumentation/esp32-internals.md`,
+  `website/src/content/docs/dokumentation/esp32-internals.mdx`,
   ADR-0024, ADR-0061
 - Flash layout: [ADR-0078](0078-esp32-flash-layout.md). Concurrency:
   [ADR-0080](0080-esp32-owner-task.md). MQTT security:

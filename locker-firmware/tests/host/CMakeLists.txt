@@ -45,11 +45,15 @@ add_library(lc_under_test STATIC
   ${LC_COMPONENTS}/lc_application/publish_state.c
   ${LC_COMPONENTS}/lc_application/provision_device.c
   ${LC_COMPONENTS}/lc_application/commission_device.c
+  ${LC_COMPONENTS}/lc_application/boot_mode.c
   ${LC_COMPONENTS}/lc_mqtt_codec/codec.c
   ${LC_COMPONENTS}/lc_mqtt_codec/topics.c
   ${LC_COMPONENTS}/lc_mqtt_codec/provisioning.c
   ${LC_COMPONENTS}/lc_mqtt_codec/events.c
   ${LC_COMPONENTS}/lc_journal/journal.c
+  ${LC_COMPONENTS}/lc_button/button.c
+  ${LC_COMPONENTS}/lc_softap_portal/portal.c
+  ${LC_COMPONENTS}/lc_softap_portal/ol_config.c
   ${LC_COMPONENTS}/lc_rs485_lock_board/codec.c
   ${LC_COMPONENTS}/lc_rs485_lock_board/bus.c
   ${LC_COMPONENTS}/lc_rs485_lock_board/self_test.c
@@ -66,6 +70,8 @@ target_include_directories(lc_under_test PUBLIC
   ${LC_COMPONENTS}/lc_application/include
   ${LC_COMPONENTS}/lc_mqtt_codec/include
   ${LC_COMPONENTS}/lc_journal/include
+  ${LC_COMPONENTS}/lc_button/include
+  ${LC_COMPONENTS}/lc_softap_portal/include
 )
 target_link_libraries(lc_under_test PUBLIC cjson)
 
@@ -105,6 +111,17 @@ if(NOT MSVC)
   endif()
 endif()
 
+# main/owner_queue.c over a fake FreeRTOS: the owner task's inputs, with no RTOS or SDK.
+add_library(lc_owner_queue STATIC ../../main/owner_queue.c fakes/fake_rtos.c)
+target_include_directories(lc_owner_queue PUBLIC ../../main fakes/rtos)
+target_link_libraries(lc_owner_queue PUBLIC lc_under_test)
+if(NOT MSVC)
+  target_compile_options(lc_owner_queue PRIVATE -Wall -Wextra -Werror)
+  if(LC_SANITIZE)
+    target_compile_options(lc_owner_queue PRIVATE -fsanitize=address,undefined -fno-omit-frame-pointer)
+  endif()
+endif()
+
 enable_testing()
 
 function(lc_host_test name)
@@ -118,19 +135,6 @@ function(lc_host_test name)
     target_compile_options(${name} PRIVATE -Wall -Wextra -Werror)
   endif()
   add_test(NAME ${name} COMMAND ${name})
-endfunction()
-
-# A suite whose code is not implemented yet. It is compiled against the
-# headers, so it cannot rot, but not linked or run: the code it tests does not
-# exist. The change that implements it turns the line into lc_host_test() and
-# adds its sources to lc_under_test.
-function(lc_pending_test name)
-  add_library(${name} OBJECT ${name}.c)
-  target_link_libraries(${name} PRIVATE lc_fixture)
-  target_compile_definitions(${name} PRIVATE LC_REPO_ROOT="${LC_REPO_ROOT}")
-  if(NOT MSVC)
-    target_compile_options(${name} PRIVATE -Wall -Wextra -Werror)
-  endif()
 endfunction()
 
 lc_host_test(test_sanitizer_coverage)
@@ -147,6 +151,7 @@ lc_host_test(test_handle_command)
 lc_host_test(test_open_compartment)
 lc_host_test(test_apply_config)
 lc_host_test(test_app_dispatch)
+lc_host_test(test_owner_queue)
 # Beyond the test catalogue
 lc_host_test(test_domain)
 lc_host_test(test_journal_edge)
@@ -163,3 +168,14 @@ lc_host_test(test_publish_state)
 # S5: USB commissioning
 lc_host_test(test_commission_device)
 lc_host_test(test_console_protocol)
+# S6: SoftAP provisioning
+lc_host_test(test_boot_mode)
+lc_host_test(test_button)
+lc_host_test(test_softap_portal)
+lc_host_test(test_ol_config)
+
+target_link_libraries(test_owner_queue PRIVATE lc_owner_queue)
+
+# The libFuzzer target is only compiled here, so it cannot rot; see the file.
+add_library(fuzz_ol_config_check OBJECT ${CMAKE_CURRENT_SOURCE_DIR}/../fuzz/fuzz_ol_config.c)
+target_link_libraries(fuzz_ol_config_check PRIVATE lc_under_test)

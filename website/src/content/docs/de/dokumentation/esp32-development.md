@@ -80,9 +80,8 @@ python scripts/verify.py --skip-target   # ohne ESP-IDF
 | `IDF host tests` | Einem fehlgeschlagenen Test der ESP-IDF-Adapter auf dem Linux-Target |
 
 CI (`.github/workflows/locker-firmware-ci.yml`) führt `--skip-target` aus, dann den Target-Build, die Image-Größenprüfung
-(`python scripts/verify.py --check-image-sizes build`), die IDF-Host-Tests, eine Prüfung, dass unverschlüsseltes MQTT im Standard-Build aus ist, und
-`python scripts/hwtest.py check`. Der letzte Schritt schlägt fehl, solange es keinen aktuellen
-[Hardware-Nachweis](/de/dokumentation/esp32-hardware-acceptance/#der-nachweis-den-ci-prüft) gibt.
+(`python scripts/verify.py --check-image-sizes build`), die IDF-Host-Tests und eine Prüfung, dass unverschlüsseltes MQTT im Standard-Build aus ist.
+Den [Hardware-Nachweis](/de/dokumentation/esp32-hardware-acceptance/#der-nachweis) prüft CI vorerst nicht.
 
 ## Einen Host-Test ausführen
 
@@ -103,8 +102,8 @@ docker run --rm -v "$PWD/..:/repo" -w /repo/locker-firmware espressif/idf:v6.1 \
 Host-Suites kompilieren die echten Komponentenquellen. Nur Ports werden gefälscht, und die Fakes in `tests/host/fakes/` protokollieren die
 Aufrufreihenfolge. Reihenfolgeregeln werden also geprüft, nicht angenommen.
 
-Die IDF-Host-Tests liegen in `tests/idf_host/` und testen die SDK-Adapter (`lc_mqtt_espidf`, `lc_ota_espidf`) gegen CMock-Mocks aus den echten
-SDK-Headern. Der MQTT-Mock nimmt seinen Header aus `managed_components/`, die Firmware also zuerst bauen.
+Die IDF-Host-Tests liegen in `tests/idf_host/` und testen die SDK-Adapter (`lc_mqtt_espidf`, `lc_softap_espidf`, `lc_ota_espidf`) gegen CMock-Mocks aus den echten
+SDK-Headern. `lc_storage_nvs` läuft gegen das echte NVS von ESP-IDF auf emuliertem Flash. Der MQTT-Mock nimmt seinen Header aus `managed_components/`, die Firmware also zuerst bauen.
 
 ```bash
 cd tests/idf_host

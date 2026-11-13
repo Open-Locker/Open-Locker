@@ -1,22 +1,22 @@
 #include <string.h>
 
 #include "esp_log.h"
+#include "esp_task_wdt.h"
 #include "esp_timer.h"
 #include "freertos/FreeRTOS.h"
-#include "freertos/queue.h"
 #include "freertos/task.h"
 #include "lc_net_wifi/wifi.h"
 #include "runtime.h"
 
 /*
  * The owner task: the one place the use cases run. Driving adapters (the MQTT
- * transport, the console, the Wi-Fi events) post events to its queue; this
- * task takes them one at a time, so no two commands, and no configuration and
- * unlock, can ever interleave.
+ * transport, the console, the Wi-Fi events) post to its inputs (owner_queue.h);
+ * this task takes them one at a time, so no two commands, and no configuration
+ * and unlock, can ever interleave. A slow bus exchange blocks it for over a
+ * second while events keep arriving; they wait in their own queues, so a burst
+ * of acknowledgements cannot push a command out.
  */
 
-/* A slow bus exchange blocks the task for over a second while events keep arriving. */
-#define QUEUE_DEPTH 32
 #define TICK_MS 100
 /* How long the network may be up without a valid time before it is reported. */
 #define TIME_WARNING_MS 30000
@@ -24,33 +24,28 @@
 #define STACK_SIZE 12288
 #define PRIORITY 6
 
+/*
+ * The owner task is on the task watchdog, so a hang restarts the unit instead of
+ * leaving everything that waits for it waiting. It checks in before a step and
+ * again before the tick, so each has its own budget. The longest of them is one
+ * bus exchange after waiting for a console one, each up to a settle period plus
+ * a reply deadline.
+ */
+_Static_assert(CONFIG_ESP_TASK_WDT_TIMEOUT_S * 1000 >=
+                   2 * (CONFIG_LC_RS485_SETTLE_PERIOD_MS + CONFIG_LC_RS485_REPLY_DEADLINE_MS) + 2000,
+               "raise CONFIG_ESP_TASK_WDT_TIMEOUT_S above two bus exchanges");
+
 static const char *TAG = "owner";
 
 device_state_t device_state;
 
-static QueueHandle_t queue;
+static TaskHandle_t task;
 static owner_context_t owner;
 static bool network_up;
 static int64_t network_up_ms;
 static bool time_warned;
 static bool session_started;
 static int command_subscription = -1;
-
-bool owner_post(const owner_event_t *event)
-{
-    /* Never waits: a full queue loses the event, and a lost command gets no unlock. */
-    return queue != NULL && xQueueSend(queue, event, 0) == pdTRUE;
-}
-
-bool owner_post_app(const lc_event_t *event)
-{
-    owner_event_t wrapped;
-
-    memset(&wrapped, 0, sizeof(wrapped));
-    wrapped.kind = OWNER_APP;
-    wrapped.u.app = *event;
-    return owner_post(&wrapped);
-}
 
 static void dispatch(lc_event_kind_t kind)
 {
@@ -173,12 +168,30 @@ static void on_provision_reply(const lc_provisioning_reply_t *reply)
 
 /* ---- The loop ---- */
 
-static void handle(owner_event_t *event)
+static void on_control(const owner_control_t *event)
 {
     switch (event->kind) {
-    case OWNER_APP:
-        lc_app_dispatch(owner.app, &event->u.app);
+    case OWNER_APP: {
+        lc_event_t app_event;
+
+        /* The command stays empty: commands do not come through here. */
+        memset(&app_event, 0, sizeof(app_event));
+        app_event.kind = event->app_kind;
+        switch (event->app_kind) {
+        case LC_EVENT_PUBLISH_ACKNOWLEDGED:
+        case LC_EVENT_PUBLISH_FAILED:
+            app_event.publish_id = (lc_publish_id_t)event->value;
+            break;
+        case LC_EVENT_COMMAND:
+        case LC_EVENT_CONNECTED:
+        case LC_EVENT_DISCONNECTED:
+        case LC_EVENT_TICK:
+        default:
+            break;
+        }
+        lc_app_dispatch(owner.app, &app_event);
         break;
+    }
     case OWNER_NETWORK_UP:
         network_up = true;
         network_up_ms = esp_timer_get_time() / 1000;
@@ -197,40 +210,60 @@ static void handle(owner_event_t *event)
         }
         break;
     case OWNER_SUBSCRIBED:
-        on_subscribed(event->u.message_id);
-        break;
-    case OWNER_PROVISION_REPLY:
-        on_provision_reply(&event->u.reply);
-        break;
-    case OWNER_SETUP:
-        (void)lc_commission_apply(owner.commission, &event->u.setup);
-        refresh_device_state();
+        on_subscribed((int)event->value);
         break;
     case OWNER_RESET:
-        if (!lc_commission_reset(owner.commission)) {
+        switch (lc_commission_reset(owner.commission)) {
+        case LC_RESET_DONE:
+            break;
+        case LC_RESET_FAILED:
             ESP_LOGE(TAG, "the reset could not be stored and was not done");
+            break;
+        case LC_RESET_PARTIAL:
+            ESP_LOGE(TAG, "the reset is partial: mapping or settings were not cleared");
+            break;
         }
         break;
     }
-    /* Settings and tokens do not outlive the event they came in. */
-    memset(event, 0, sizeof(*event));
 }
+
+static void on_command(const lc_command_t *command)
+{
+    /* The slot is the command's only copy; handle_command reads it in place. */
+    lc_app_handle_command(owner.app, command);
+}
+
+static void on_setup(const owner_setup_t *setup)
+{
+    (void)lc_commission_apply_from(owner.commission, setup->channel, &setup->request);
+    refresh_device_state();
+}
+
+static const owner_handlers_t handlers = {
+    .control = on_control,
+    .command = on_command,
+    .setup = on_setup,
+    .reply = on_provision_reply,
+};
 
 static void owner_task(void *arg)
 {
     (void)arg;
-    owner_event_t event;
     int64_t last_tick_ms = esp_timer_get_time() / 1000;
 
+    if (esp_task_wdt_add(NULL) != ESP_OK) {
+        ESP_LOGE(TAG, "the owner task could not be put on the task watchdog");
+    }
     for (;;) {
-        bool idle = xQueueReceive(queue, &event, pdMS_TO_TICKS(TICK_MS)) != pdTRUE;
-        if (!idle) {
-            handle(&event);
-        }
+        (void)esp_task_wdt_reset();
+        /* Idle means nothing at all was handled. */
+        bool idle = !owner_queue_step(&handlers, TICK_MS);
 
         int64_t now_ms = esp_timer_get_time() / 1000;
         if (now_ms - last_tick_ms >= TICK_MS) {
             last_tick_ms = now_ms;
+            /* The tick's door poll gets its own budget: the step above may have used two exchanges. */
+            (void)esp_task_wdt_reset();
             /* One sector erase (up to about 500 ms) or one compaction per idle tick. */
             if (idle) {
                 (void)lc_journal_maintain(owner.journal);
@@ -245,10 +278,19 @@ static void owner_task(void *arg)
 bool owner_start(const owner_context_t *context)
 {
     owner = *context;
-    queue = xQueueCreate(QUEUE_DEPTH, sizeof(owner_event_t));
-    if (queue == NULL) {
+    if (!owner_queue_init()) {
         return false;
     }
     refresh_device_state();
-    return xTaskCreate(owner_task, "owner", STACK_SIZE, NULL, PRIORITY, NULL) == pdPASS;
+    return xTaskCreate(owner_task, "owner", STACK_SIZE, NULL, PRIORITY, &task) == pdPASS;
+}
+
+bool owner_stack_free(uint32_t *bytes)
+{
+    if (task == NULL) {
+        return false;
+    }
+    /* ESP-IDF counts stack in bytes, not words. */
+    *bytes = (uint32_t)uxTaskGetStackHighWaterMark(task);
+    return true;
 }

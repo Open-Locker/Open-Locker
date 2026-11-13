@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted
+Implemented (2026-11-13, #331).
 
 ## Date
 
@@ -47,7 +47,7 @@ a unit with nothing stored, and that only a physical gesture can bring back.
   `"lc_softap_portal": ["lc_domain"]` enforces it.
 
 The wipe order, boot repair and installer tool are in
-`website/src/content/docs/dokumentation/esp32-internals.md`.
+`website/src/content/docs/dokumentation/esp32-internals.mdx`.
 
 ## Rationale
 
@@ -121,6 +121,6 @@ None on the firmware side: no unit is deployed.
 
 - Related PRs: Open-Locker/Open-Locker#331
 - Related issues: #57, #341
-- Related docs: `website/src/content/docs/dokumentation/esp32-internals.md`,
+- Related docs: `website/src/content/docs/dokumentation/esp32-internals.mdx`,
   [ADR-0072](0072-esp32-locker-firmware.md),
   [ADR-0070](0070-esp32-command-journal-format.md)

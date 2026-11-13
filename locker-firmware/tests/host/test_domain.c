@@ -79,6 +79,36 @@ void test_config_refuses_what_cannot_be_applied(void)
     TEST_ASSERT_NULL(lc_config_find(&config, 1));
 }
 
+/* The last check before the bus: a mapping the panel cannot address is refused here too. */
+void test_config_refuses_a_mapping_the_panel_cannot_address(void)
+{
+    lc_config_t config;
+    lc_config_request_t value = request();
+
+    value.mappings[0].number = 0;
+    TEST_ASSERT_FALSE(lc_config_from_request(&value, &config));
+
+    value = request();
+    value.mappings[0].board = LC_BOARD_ADDRESS_MIN - 1;
+    TEST_ASSERT_FALSE(lc_config_from_request(&value, &config));
+    value.mappings[0].board = LC_BOARD_ADDRESS_MAX + 1;
+    TEST_ASSERT_FALSE(lc_config_from_request(&value, &config));
+    value.mappings[0].board = LC_BOARD_ADDRESS_MAX;
+    TEST_ASSERT_TRUE(lc_config_from_request(&value, &config));
+
+    value = request();
+    value.mappings[0].address = LC_COMPARTMENT_ADDRESS_MAX + 1;
+    TEST_ASSERT_FALSE(lc_config_from_request(&value, &config));
+    value.mappings[0].address = LC_COMPARTMENT_ADDRESS_MAX;
+    TEST_ASSERT_TRUE(lc_config_from_request(&value, &config));
+
+    /* One panel per bus: a second board address is refused. */
+    value = request();
+    value.count = 2;
+    value.mappings[1] = (lc_mapping_t){.number = 2, .board = 2, .address = 1};
+    TEST_ASSERT_FALSE(lc_config_from_request(&value, &config));
+}
+
 void test_canonical_form_reports_every_place_it_can_run_out_of_room(void)
 {
     lc_config_t config;
@@ -169,6 +199,7 @@ int main(void)
     UNITY_BEGIN();
     RUN_TEST(test_text_copy_reports_what_does_not_fit);
     RUN_TEST(test_config_refuses_what_cannot_be_applied);
+    RUN_TEST(test_config_refuses_a_mapping_the_panel_cannot_address);
     RUN_TEST(test_canonical_form_reports_every_place_it_can_run_out_of_room);
     RUN_TEST(test_config_find_matches_the_compartment_number);
     RUN_TEST(test_a_door_seen_open_ends_the_watch);

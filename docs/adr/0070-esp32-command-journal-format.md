@@ -58,7 +58,7 @@ split into two regions of 128 KiB. One region is active; the other is spare.
   and erased bytes would no longer read as `0xFF`. The journal holds no secrets.
 
 The byte layout, the reading rules and the steps of moving between regions are in
-`website/src/content/docs/dokumentation/esp32-internals.md`. What is kept, and
+`website/src/content/docs/dokumentation/esp32-internals.mdx`. What is kept, and
 when compaction runs, is [ADR-0081](0081-esp32-command-journal-retention.md).
 
 ## Rationale
@@ -140,7 +140,7 @@ response again, so both stay torn.
   cut so late that it reads blank but holds weak bits. Those surface as a record
   that fails its check, which stops the journal, so the failure is loud.
 - A sector erase can take up to about 500 ms. One sector per idle tick keeps the
-  owner task well inside the 5 s task watchdog.
+  owner task well inside the 15 s task watchdog.
 
 ## Rollout / Migration
 
@@ -161,7 +161,7 @@ client's files, because the two never share a bank.
   `test_with_two_valid_headers_the_newer_generation_wins` and
   `test_a_spare_that_does_not_erase_marks_the_journal_unhealthy` in
   `test_journal_retention`.
-- Real flash: HW-B4 and HW-B5 (power cuts).
+- Real flash: HW-B3 (the journal read back after a restart) and HW-B5 (power cuts).
 
 ## Supersedes / Superseded By
 
@@ -172,7 +172,7 @@ client's files, because the two never share a bank.
 
 - Related PRs: Open-Locker/Open-Locker#321
 - Related issues: #56, #58
-- Related docs: `website/src/content/docs/dokumentation/esp32-internals.md`,
+- Related docs: `website/src/content/docs/dokumentation/esp32-internals.mdx`,
   ADR-0040, ADR-0041, ADR-0046
 - Code: `locker-firmware/components/lc_journal/journal.c`
 - Torn tail: [LevelDB log reader](https://github.com/google/leveldb/blob/main/db/log_reader.cc),

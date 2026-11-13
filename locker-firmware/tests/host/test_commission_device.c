@@ -16,6 +16,7 @@ static lc_commission_t commission;
 static unsigned stop_count;
 static unsigned reply_count;
 static lc_commission_result_t last_reply;
+static lc_commission_channel_t last_channel;
 
 static void stop_commands(void *ctx)
 {
@@ -24,12 +25,13 @@ static void stop_commands(void *ctx)
     ++stop_count;
 }
 
-static void reply(void *ctx, lc_commission_result_t result)
+static void reply(void *ctx, lc_commission_channel_t channel, lc_commission_result_t result)
 {
     (void)ctx;
     fake_trace("commission.reply");
     ++reply_count;
     last_reply = result;
+    last_channel = channel;
 }
 
 void setUp(void)
@@ -89,6 +91,8 @@ static void enroll(void)
     settings.has = true;
     settings.settings.configured = true;
     snprintf(settings.settings.ssid, sizeof(settings.settings.ssid), "old-network");
+    snprintf(settings.settings.broker_url, sizeof(settings.settings.broker_url),
+             "mqtts://enrolled-with.example");
 }
 
 static void assert_nothing_stored(void)
@@ -158,6 +162,20 @@ void test_S5_H02_invalid_settings_are_rejected_and_nothing_is_saved(void)
     lc_setup_request_t open_network = request();
     open_network.wifi_password[0] = '\0';
     TEST_ASSERT_EQUAL_INT(LC_COMMISSION_SAVED, lc_commission_apply(&commission, &open_network));
+}
+
+/* Wi-Fi allows a 32-byte SSID and a 64-character password: both fit and are saved. */
+void test_the_longest_ssid_and_wifi_password_are_saved(void)
+{
+    lc_setup_request_t longest = request();
+    memset(longest.ssid, 's', LC_SSID_MAX);
+    longest.ssid[LC_SSID_MAX] = '\0';
+    memset(longest.wifi_password, 'p', LC_WIFI_PASSWORD_MAX);
+    longest.wifi_password[LC_WIFI_PASSWORD_MAX] = '\0';
+
+    TEST_ASSERT_EQUAL_INT(LC_COMMISSION_SAVED, lc_commission_apply(&commission, &longest));
+    TEST_ASSERT_EQUAL_UINT(LC_SSID_MAX, strlen(settings.settings.ssid));
+    TEST_ASSERT_EQUAL_UINT(LC_WIFI_PASSWORD_MAX, strlen(settings.settings.wifi_password));
 }
 
 void test_S5_H19_a_development_build_also_accepts_a_plain_mqtt_broker(void)
@@ -280,6 +298,41 @@ void test_S5_H04_network_change_on_an_enrolled_device_keeps_identity_and_mapping
     TEST_ASSERT_TRUE(config.has);
 }
 
+void test_S6_H10_configure_on_an_enrolled_device_keeps_the_stored_broker_url(void)
+{
+    enroll();
+    const lc_setup_request_t setup = request(); /* names another broker */
+
+    TEST_ASSERT_EQUAL_INT(LC_COMMISSION_SAVED, lc_commission_apply(&commission, &setup));
+
+    TEST_ASSERT_EQUAL_STRING("workshop", settings.settings.ssid);
+    TEST_ASSERT_EQUAL_STRING("mqtts://enrolled-with.example", settings.settings.broker_url);
+}
+
+void test_S6_H11_wifi_alone_is_accepted_on_an_enrolled_device(void)
+{
+    enroll();
+    lc_setup_request_t wifi_only;
+    memset(&wifi_only, 0, sizeof(wifi_only));
+    snprintf(wifi_only.ssid, sizeof(wifi_only.ssid), "third-network");
+    snprintf(wifi_only.wifi_password, sizeof(wifi_only.wifi_password), "correct horse");
+
+    TEST_ASSERT_EQUAL_INT(LC_COMMISSION_SAVED, lc_commission_apply(&commission, &wifi_only));
+    TEST_ASSERT_EQUAL_STRING("third-network", settings.settings.ssid);
+    TEST_ASSERT_EQUAL_STRING("mqtts://enrolled-with.example", settings.settings.broker_url);
+
+    /* A broker given with it is ignored, even one that would be invalid on a fresh unit. */
+    snprintf(wifi_only.broker_url, sizeof(wifi_only.broker_url), "http://not-mqtts");
+    snprintf(wifi_only.token, sizeof(wifi_only.token), "ignored");
+    TEST_ASSERT_EQUAL_INT(LC_COMMISSION_SAVED, lc_commission_apply(&commission, &wifi_only));
+    TEST_ASSERT_EQUAL_STRING("mqtts://enrolled-with.example", settings.settings.broker_url);
+
+    /* The Wi-Fi itself is still checked. */
+    wifi_only.ssid[0] = '\0';
+    TEST_ASSERT_EQUAL_INT(LC_COMMISSION_INVALID, lc_commission_apply(&commission, &wifi_only));
+    TEST_ASSERT_EQUAL_STRING("third-network", settings.settings.ssid);
+}
+
 void test_S5_H05_enrollment_fields_are_ignored_on_an_enrolled_device(void)
 {
     enroll();
@@ -316,7 +369,7 @@ void test_S5_H06_pending_enrollment_refuses_new_settings_until_reset(void)
     assert_nothing_stored();
     TEST_ASSERT_EQUAL_STRING("spent-token", identity.identity.token);
 
-    TEST_ASSERT_TRUE(lc_commission_reset(&commission));
+    TEST_ASSERT_EQUAL_INT(LC_RESET_DONE, lc_commission_reset(&commission));
     TEST_ASSERT_FALSE(identity.identity.enrollment_pending);
 }
 
@@ -324,7 +377,7 @@ void test_S5_H07_reset_clears_identity_and_mapping_and_keeps_the_journal(void)
 {
     enroll();
 
-    TEST_ASSERT_TRUE(lc_commission_reset(&commission));
+    TEST_ASSERT_EQUAL_INT(LC_RESET_DONE, lc_commission_reset(&commission));
 
     TEST_ASSERT_FALSE(identity.identity.enrolled);
     TEST_ASSERT_FALSE(identity.identity.enrollment_pending);
@@ -345,8 +398,62 @@ void test_S5_H07_reset_clears_identity_and_mapping_and_keeps_the_journal(void)
     setUp();
     enroll();
     identity.save_ok = false;
-    TEST_ASSERT_FALSE(lc_commission_reset(&commission));
+    TEST_ASSERT_EQUAL_INT(LC_RESET_FAILED, lc_commission_reset(&commission));
     TEST_ASSERT_EQUAL_UINT(0, device.restart_count);
+}
+
+void test_S6_H15_reset_wipes_everything_keeps_the_journal_publishes_nothing_and_reports_a_partial_wipe(void)
+{
+    enroll();
+    TEST_ASSERT_EQUAL_INT(LC_RESET_DONE, lc_commission_reset(&commission));
+    TEST_ASSERT_FALSE(identity.identity.enrolled);
+    TEST_ASSERT_FALSE(config.has);
+    TEST_ASSERT_FALSE(settings.has);
+    /* Offline, so nothing is published; the journal is not reachable from here at all. */
+    TEST_ASSERT_EQUAL_UINT(0, outbound.id_count);
+
+    /*
+     * The mapping cannot be cleared: the settings stay, so the next boot finishes
+     * the wipe. The unit still restarts, and says it was partial.
+     */
+    setUp();
+    enroll();
+    config.clear_ok = false;
+    TEST_ASSERT_EQUAL_INT(LC_RESET_PARTIAL, lc_commission_reset(&commission));
+    TEST_ASSERT_FALSE(identity.identity.enrolled);
+    TEST_ASSERT_TRUE(settings.has);
+    TEST_ASSERT_EQUAL_UINT(0, settings.clear_count);
+    TEST_ASSERT_EQUAL_UINT(1, device.restart_count);
+
+    /* So when the settings cannot be cleared, after the mapping was. */
+    setUp();
+    enroll();
+    settings.clear_ok = false;
+    TEST_ASSERT_EQUAL_INT(LC_RESET_PARTIAL, lc_commission_reset(&commission));
+    TEST_ASSERT_EQUAL_UINT(1, config.clear_count);
+    TEST_ASSERT_EQUAL_UINT(1, device.restart_count);
+}
+
+/* Beyond the catalogue: the one reply goes out on the channel the request came in on. */
+void test_the_reply_goes_to_the_requesting_channel(void)
+{
+    lc_setup_request_t setup = request();
+
+    TEST_ASSERT_EQUAL_INT(LC_COMMISSION_SAVED,
+                          lc_commission_apply_from(&commission, LC_COMMISSION_CHANNEL_PORTAL, &setup));
+    TEST_ASSERT_EQUAL_UINT(1, reply_count);
+    TEST_ASSERT_EQUAL_INT(LC_COMMISSION_CHANNEL_PORTAL, last_channel);
+
+    setUp();
+    snprintf(setup.broker_url, sizeof(setup.broker_url), "http://not-mqtts");
+    TEST_ASSERT_EQUAL_INT(LC_COMMISSION_INVALID,
+                          lc_commission_apply_from(&commission, LC_COMMISSION_CHANNEL_PORTAL, &setup));
+    TEST_ASSERT_EQUAL_INT(LC_COMMISSION_CHANNEL_PORTAL, last_channel);
+
+    setUp();
+    setup = request();
+    TEST_ASSERT_EQUAL_INT(LC_COMMISSION_SAVED, lc_commission_apply(&commission, &setup));
+    TEST_ASSERT_EQUAL_INT(LC_COMMISSION_CHANNEL_CONSOLE, last_channel);
 }
 
 void test_S5_H08_offline_message_is_published_before_the_restart_when_online(void)
@@ -372,7 +479,7 @@ void test_S5_H08_offline_message_is_published_before_the_restart_when_online(voi
     setUp();
     enroll();
     lc_commission_set_online(&commission, true);
-    TEST_ASSERT_TRUE(lc_commission_reset(&commission));
+    TEST_ASSERT_EQUAL_INT(LC_RESET_DONE, lc_commission_reset(&commission));
     TEST_ASSERT_EQUAL_UINT(1, outbound.accepted[FAKE_OFFLINE]);
     TEST_ASSERT_TRUE(fake_trace_first("outbound.offline") < fake_trace_first("system.restart"));
 }
@@ -392,7 +499,7 @@ void test_S5_H09_new_commands_are_refused_from_the_moment_settings_are_accepted(
 
     setUp();
     enroll();
-    TEST_ASSERT_TRUE(lc_commission_reset(&commission));
+    TEST_ASSERT_EQUAL_INT(LC_RESET_DONE, lc_commission_reset(&commission));
     TEST_ASSERT_EQUAL_UINT(1, stop_count);
     TEST_ASSERT_TRUE(fake_trace_first("commission.stop_commands") >
                      fake_trace_first("identity.save"));
@@ -416,7 +523,7 @@ void test_a_failed_save_does_not_leave_the_device_refusing_commands(void)
     setUp();
     enroll();
     identity.save_ok = false;
-    TEST_ASSERT_FALSE(lc_commission_reset(&commission));
+    TEST_ASSERT_EQUAL_INT(LC_RESET_FAILED, lc_commission_reset(&commission));
     TEST_ASSERT_EQUAL_UINT(0, stop_count);
 }
 
@@ -425,6 +532,7 @@ int main(void)
     UNITY_BEGIN();
     RUN_TEST(test_S5_H01_valid_settings_are_saved_then_acknowledged_then_the_restart_is_requested);
     RUN_TEST(test_S5_H02_invalid_settings_are_rejected_and_nothing_is_saved);
+    RUN_TEST(test_the_longest_ssid_and_wifi_password_are_saved);
     RUN_TEST(test_S5_H19_a_development_build_also_accepts_a_plain_mqtt_broker);
     RUN_TEST(test_S5_H03_store_failure_produces_no_acknowledgement_and_no_restart);
     RUN_TEST(test_failed_identity_save_leaves_the_old_network_and_the_old_bootstrap);
@@ -433,9 +541,13 @@ int main(void)
     RUN_TEST(test_S5_H20_an_unreadable_identity_refuses_settings_and_stores_nothing);
     RUN_TEST(test_a_device_with_no_stored_identity_is_set_up_as_not_enrolled);
     RUN_TEST(test_S5_H04_network_change_on_an_enrolled_device_keeps_identity_and_mapping);
+    RUN_TEST(test_S6_H10_configure_on_an_enrolled_device_keeps_the_stored_broker_url);
+    RUN_TEST(test_S6_H11_wifi_alone_is_accepted_on_an_enrolled_device);
     RUN_TEST(test_S5_H05_enrollment_fields_are_ignored_on_an_enrolled_device);
     RUN_TEST(test_S5_H06_pending_enrollment_refuses_new_settings_until_reset);
     RUN_TEST(test_S5_H07_reset_clears_identity_and_mapping_and_keeps_the_journal);
+    RUN_TEST(test_S6_H15_reset_wipes_everything_keeps_the_journal_publishes_nothing_and_reports_a_partial_wipe);
+    RUN_TEST(test_the_reply_goes_to_the_requesting_channel);
     RUN_TEST(test_S5_H08_offline_message_is_published_before_the_restart_when_online);
     RUN_TEST(test_S5_H09_new_commands_are_refused_from_the_moment_settings_are_accepted);
     return UNITY_END();

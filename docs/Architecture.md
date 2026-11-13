@@ -118,7 +118,7 @@ journal before touching the panel (ADR-0070).
 
 - [Backend component documentation](../locker-backend/README.md)
 - [Locker client component documentation](../locker-client/README.md)
-- [ESP32 firmware internals](../website/src/content/docs/dokumentation/esp32-internals.md)
+- [ESP32 firmware internals](../website/src/content/docs/dokumentation/esp32-internals.mdx)
 - [Installation and deployment](Installation.md)
 - [REST and realtime app communication](app_communication.md)
 - [MQTT AsyncAPI contract](asyncapi/mqtt.yaml)

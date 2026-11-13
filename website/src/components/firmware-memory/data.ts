@@ -43,12 +43,13 @@ export function flashTree(afterOta = false): MemoryNode {
 			node('journal-spare', 'Spare region', 0x20000, 'dynamic', 'Compaction destination. May be erased, awaiting erase, or temporarily hold another valid generation. Not additional command capacity.'),
 		], 0x3c0000),
 		group('system', 'System & settings', 'Exact address ranges from partitions.csv, including boot space and alignment gaps.', [
-			node('alignment', 'Alignment gap', 0x9000, 'reserved', '0x17000–0x20000: unassigned alignment space, not a storage partition.', 0x17000),
+			node('lc-setup', 'Setup secrets', 0x3000, 'reserved', 'lc_setup NVS partition: the label\'s setup Wi-Fi name, passphrase and setup password. Written once when the unit is made; the firmware never erases it.', 0x17000),
+			node('alignment', 'Alignment gap', 0x6000, 'reserved', '0x1A000–0x20000: unassigned alignment space, not a storage partition.', 0x1a000),
 			group('bootloader', 'Bootloader space', '44 KiB address allowance before the partition table. Binary length is measured; the remaining space is reserved for bootloader growth.', [
 				node('bootloader-image', 'Bootloader binary', snapshot.bootloaderBytes, 'image', 'Measured build/bootloader/bootloader.bin length.'),
 				node('bootloader-headroom', 'Bootloader headroom', 0xb000 - snapshot.bootloaderBytes, 'headroom', 'Unused allowance before the partition table; not available to application partitions.'),
 			], 0x1000),
-			group('nvs', 'NVS settings', '24 KiB partition. Only the three application blob sizes below are known. The remainder includes NVS metadata, setup strings, Wi-Fi data, old entries and unused space; it is NOT all free.', [
+			group('nvs', 'NVS settings', '24 KiB partition. Only the three application blob sizes below are known. The remainder includes NVS metadata, Wi-Fi data, old entries and unused space; it is NOT all free.', [
 				node('nvs-identity', 'Identity blob', 728, 'payload', '724-byte lc_identity_t + 4-byte record version. Includes fixed buffers for bootstrap and issued credentials.'),
 				node('nvs-config', 'Configuration blob', 344, 'payload', '340-byte lc_config_t + 4-byte version; storage for all 64 compartment mappings.'),
 				node('nvs-network', 'Network blob', 296, 'payload', '292-byte lc_network_settings_t + 4-byte version. Assumes a commissioned device with all three records present.'),

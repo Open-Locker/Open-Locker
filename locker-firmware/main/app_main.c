@@ -9,6 +9,7 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "lc_application/app.h"
+#include "lc_application/boot_mode.h"
 #include "lc_application/commission_device.h"
 #include "lc_application/provision_device.h"
 #include "lc_journal/journal.h"
@@ -16,6 +17,7 @@
 #include "lc_rs485_lock_board/bus.h"
 #include "lc_rs485_lock_board/codec.h"
 #include "lc_serial_uart/serial_uart.h"
+#include "lc_softap_espidf/softap.h"
 #include "lc_storage_nvs/storage.h"
 #include "lc_usb_console/console.h"
 #include "psa/crypto.h"
@@ -109,11 +111,39 @@ static bool self_test(void *ctx)
 static void on_wifi_state(void *ctx, bool up)
 {
     (void)ctx;
-    owner_event_t event;
+    (void)owner_post(&(owner_control_t){.kind = up ? OWNER_NETWORK_UP : OWNER_NETWORK_DOWN});
+}
 
-    memset(&event, 0, sizeof(event));
-    event.kind = up ? OWNER_NETWORK_UP : OWNER_NETWORK_DOWN;
-    (void)owner_post(&event);
+/* ---- The setup network ---- */
+
+/* The setup network hands a collected request to the owner task, on the portal channel. */
+static bool submit_portal_setup(void *ctx, const lc_setup_request_t *request)
+{
+    (void)ctx;
+    return owner_post_setup(LC_COMMISSION_CHANNEL_PORTAL, request);
+}
+
+static void portal_reply(lc_commission_result_t result)
+{
+    lc_softap_commission_result(result == LC_COMMISSION_SAVED);
+}
+
+/* Only for a unit with no settings that is not enrolled; see lc_boot_decide(). */
+static void start_setup_network(void)
+{
+    static lc_setup_secrets_t secrets;
+    const lc_softap_sink_t sink = {.submit = submit_portal_setup, .ctx = NULL};
+
+    if (!lc_storage_load_setup_secrets(&secrets)) {
+        /* No default password stands in: a unit without its label secrets has no setup network. */
+        ESP_LOGE(TAG, "no setup secrets stored: the setup network stays closed");
+        return;
+    }
+    console_glue_set_portal_reply(portal_reply);
+    if (!lc_wifi_init(NULL, NULL) || !lc_softap_start(&secrets, &sink)) {
+        ESP_LOGE(TAG, "the setup network could not be started");
+    }
+    memset(&secrets, 0, sizeof(secrets));
 }
 
 /* ---- Construction ---- */
@@ -208,6 +238,19 @@ void app_main(void)
 
     ensure_client_id(&identity_store);
 
+    /* Finish an interrupted wipe, then decide what this start is (ADR-0074). */
+    const lc_boot_ports_t boot_ports = {
+        .settings_store = settings_store,
+        .identity_store = identity_store,
+        .config_store = config_store,
+    };
+    const lc_boot_result_t boot = lc_boot_decide(&boot_ports);
+    if (boot.repaired) {
+        ESP_LOGW(TAG, "a half-finished reset was found and %s", boot.repair_failed
+                                                                    ? "could not be fully repaired"
+                                                                    : "finished");
+    }
+
     lc_network_settings_t settings;
     const bool configured = settings_store.load(settings_store.ctx, &settings);
 
@@ -266,6 +309,9 @@ void app_main(void)
 
     console_glue_init(&console, &app_ports.bus, unlock_transmissions, self_test);
     lc_usb_console_start(&console);
+    if (!button_task_start()) {
+        ESP_LOGE(TAG, "the reset button could not be started");
+    }
 
     if (configured) {
         if (!lc_wifi_start(&settings, on_wifi_state, NULL)) {
@@ -273,11 +319,11 @@ void app_main(void)
         }
     } else {
         /* Bench mode: the console is the broker, and it is always there. */
-        lc_event_t connected;
-        memset(&connected, 0, sizeof(connected));
-        connected.kind = LC_EVENT_CONNECTED;
-        (void)owner_post_app(&connected);
+        (void)owner_post_app(LC_EVENT_CONNECTED, 0);
         ESP_LOGI(TAG, "no network settings: bench mode, commands come from the console");
+        if (boot.mode == LC_BOOT_SETUP) {
+            start_setup_network();
+        }
     }
     memset(&settings, 0, sizeof(settings));
 }

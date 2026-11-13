@@ -13,6 +13,9 @@
 /* Bump when a stored structure changes shape; an older record is then not loaded. */
 #define RECORD_VERSION 1u
 
+/* The label's setup secrets live in their own partition, which nothing here ever erases. */
+#define SETUP_PARTITION "lc_setup"
+
 static const char *TAG = "lc_storage";
 
 bool lc_storage_init(void)
@@ -28,7 +31,39 @@ bool lc_storage_init(void)
     if (err != ESP_OK) {
         ESP_LOGE(TAG, "NVS init failed: %s", esp_err_to_name(err));
     }
+    /* Never erased: without its secrets a unit cannot open its setup network. */
+    esp_err_t setup_err = nvs_flash_init_partition(SETUP_PARTITION);
+    if (setup_err != ESP_OK) {
+        ESP_LOGW(TAG, "setup secrets unavailable: %s", esp_err_to_name(setup_err));
+    }
     return err == ESP_OK;
+}
+
+#define SETUP_NAMESPACE "lc_setup"
+
+static bool load_text(nvs_handle_t handle, const char *key, char *out, size_t capacity)
+{
+    size_t length = capacity;
+    return nvs_get_str(handle, key, out, &length) == ESP_OK && length > 1 && length <= capacity;
+}
+
+bool lc_storage_load_setup_secrets(lc_setup_secrets_t *out)
+{
+    nvs_handle_t handle;
+    memset(out, 0, sizeof(*out));
+    if (nvs_open_from_partition(SETUP_PARTITION, SETUP_NAMESPACE, NVS_READONLY, &handle) != ESP_OK) {
+        return false;
+    }
+    bool found = load_text(handle, "ssid", out->ssid, sizeof(out->ssid)) &&
+                 load_text(handle, "ap_pass", out->passphrase, sizeof(out->passphrase)) &&
+                 load_text(handle, "setup_pw", out->setup_password, sizeof(out->setup_password));
+    nvs_close(handle);
+    /* WPA2 needs 8 to 63 characters; a shorter passphrase would not start the access point. */
+    if (!found || strlen(out->passphrase) < 8 || strlen(out->setup_password) < 8) {
+        memset(out, 0, sizeof(*out));
+        return false;
+    }
+    return true;
 }
 
 /* Largest value stored here, with room for the version. */

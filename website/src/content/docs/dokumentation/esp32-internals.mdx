@@ -3,6 +3,8 @@ title: ESP32 firmware internals
 description: How locker-firmware is built, from one compartment open to its layers, ports, tasks and on-flash formats.
 ---
 
+import ScenarioTimeline from '../../../components/docs/ScenarioTimeline.astro';
+
 The firmware is hexagonal, like the Pi client
 ([ADR-0024](https://github.com/Open-Locker/Open-Locker/blob/main/docs/adr/0024-locker-client-v2-hexagonal-rewrite.md)): pure C use cases in the
 middle reach every technology through ports. All use cases run on one task, one event at a time. The firmware shares the MQTT schemas and the panel's
@@ -311,7 +313,7 @@ flowchart TD
 ```
 
 A unit without settings is in bench mode whether or not its setup network is open, and the setup network
-stays closed if the `lc_setup` namespace holds no secrets. No default password stands in.
+stays closed if the `lc_setup` partition holds no secrets. No default password stands in.
 
 ### Endpoints
 
@@ -327,19 +329,80 @@ with a one-byte tag and a one-byte length. The tags are `1` broker URL (up to 19
 password and `4` token (up to 128 bytes each). No field may be empty or hold a NUL. The reply is one status byte, the same for
 every refusal, encrypted like the request. The tool sends `ol-config` first, because the Wi-Fi part makes the unit commission itself.
 
+### Who decides the outcome
+
+Only the owner task decides whether a setup request is saved. The endpoint handler hands the request on and waits for the owner task's answer with no limit of its own: a handler that gave up could say "refused" for a request the owner task saves later. The owner task is on the task watchdog (15 s), so it answers or the unit restarts. Its longest legitimate step is two bus exchanges, 9 s with the default settle period and reply deadline. The bar lengths are examples; the limits are real.
+
+<ScenarioTimeline
+  title="Who decides a setup request"
+  description="Three lanes over time: the installer tool, the endpoint handler and the owner task, with the 15 second task watchdog."
+  lanes={[
+    { id: 'tool', title: 'Installer tool', subtitle: 'commission.py' },
+    { id: 'handler', title: 'Handler', subtitle: 'setup endpoint' },
+    { id: 'owner', title: 'Owner task', subtitle: 'the only one deciding' },
+  ]}
+  markers={[{ at: 15, lane: 'owner', label: '15 s: the watchdog restarts the unit', tone: 'bad' }]}
+  scenarios={[
+    {
+      name: '1. Normal',
+      duration: 2,
+      caption: 'The owner task takes the request on its next tick, checks it and saves it. The handler passes “saved” on, and the tool reports it.',
+      result: 'Tool: saved. Unit: saved. Match.',
+      segments: {
+        tool: [{ from: 0, to: 0.8, kind: 'wait', label: 'waiting' }, { from: 0.8, to: 1, kind: 'ok', label: 'saved' }],
+        handler: [{ from: 0, to: 0.7, kind: 'wait', label: 'waiting' }, { from: 0.7, to: 0.8, kind: 'ok', label: 'saved' }],
+        owner: [{ from: 0.1, to: 0.3, kind: 'check', label: 'check' }, { from: 0.3, to: 0.7, kind: 'work', label: 'save' }],
+      },
+    },
+    {
+      name: '2. Owner busy',
+      duration: 12,
+      caption: 'The owner task is inside two failed bus exchanges, 9 s in all, and takes the request after them. The handler is still waiting and passes “saved” on. A handler with an 8 s limit of its own would have said “refused” here.',
+      result: 'Tool: saved. Unit: saved. Match.',
+      segments: {
+        tool: [{ from: 0, to: 10.1, kind: 'wait', label: 'waiting for the reply' }, { from: 10.1, to: 10.6, kind: 'ok', label: 'saved' }],
+        handler: [{ from: 0, to: 9.6, kind: 'wait', label: 'waiting, no limit of its own' }, { from: 9.6, to: 10.1, kind: 'ok', label: 'saved' }],
+        owner: [{ from: 0, to: 9, kind: 'busy', label: 'two failed bus exchanges' }, { from: 9, to: 9.6, kind: 'work', label: 'check, save' }],
+      },
+    },
+    {
+      name: '3. Refused',
+      duration: 2,
+      caption: 'The owner task refuses the settings, for example a Wi-Fi password of the wrong length, and saves nothing. The handler passes “refused” on.',
+      result: 'Tool: refused. Unit: nothing saved. Match.',
+      segments: {
+        tool: [{ from: 0, to: 0.6, kind: 'wait', label: 'waiting' }, { from: 0.6, to: 0.8, kind: 'bad', label: 'refused' }],
+        handler: [{ from: 0, to: 0.4, kind: 'wait', label: 'waiting' }, { from: 0.4, to: 0.6, kind: 'bad', label: 'refused' }],
+        owner: [{ from: 0.1, to: 0.3, kind: 'check', label: 'check' }, { from: 0.3, to: 0.4, kind: 'bad', label: 'refuse' }],
+      },
+    },
+    {
+      name: '4. Owner hung',
+      duration: 20,
+      caption: 'The owner task hangs and stops resetting the watchdog. After 15 s the watchdog restarts the unit, which takes the setup network down. The tool’s request fails, and it reports the outcome as unknown: check the admin panel before running it again.',
+      result: 'Tool: unknown. Unit: restarted. Nothing reports a wrong outcome.',
+      segments: {
+        tool: [{ from: 0, to: 20, kind: 'wait', label: 'waiting until the link is lost or its 60 s timeout' }],
+        handler: [{ from: 0, to: 15, kind: 'wait', label: 'waiting, no limit of its own' }, { from: 15, to: 20, kind: 'idle', label: 'gone with the restart' }],
+        owner: [{ from: 0, to: 15, kind: 'busy', label: 'hung' }, { from: 15, to: 17, kind: 'bad', label: 'restart' }],
+      },
+    },
+  ]}
+/>
+
 ### Wipe order and boot repair
 
-- A reset writes the empty identity first and, if that fails, wipes nothing. It then tries
-  to clear both mapping and settings, and returns a distinct "partial" result when one of
-  those fails.
+- A reset writes the empty identity first and, if that fails, wipes nothing. It then clears
+  the mapping, and the settings only once the mapping is gone. It returns a distinct "partial"
+  result when either fails.
 - At boot, an empty identity with settings present comes from a reset cut short, or from a
   refused token, which clears the token and keeps the settings. The boot logic finishes the
   wipe, then decides the mode, so such a unit opens its setup network. The same rule repairs
   a failed rollback in `commission_apply`. An enrolled unit never reaches this state.
 - An empty identity with a mapping and no settings is a valid bench state and is left alone.
-- If the settings clear works but the mapping clear fails, the unit keeps a stale mapping that
-  cannot be told from a bench mapping. The backend marks a reset bank's configuration dirty and
-  sends a fresh `apply_config` after enrollment, and the partial result is logged.
+- If the mapping clear fails, the settings stay. With the empty identity they make every boot
+  retry the wipe, so a unit never opens its setup network with an old mapping. One that keeps
+  failing stays in station mode, with no identity, and logs the failed repair.
 
 ### Installer tool
 

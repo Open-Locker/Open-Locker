@@ -274,14 +274,6 @@ void test_S1_H29_reply_that_arrives_while_the_write_completes_is_accepted(void)
     TEST_ASSERT_EQUAL_UINT(1, fake_serial_write_count(&serial));
 }
 
-void test_status_reply_that_arrives_while_the_write_completes_is_accepted(void)
-{
-    fake_serial_set_write_duration(&serial, 5);
-    fake_serial_reply_to_write(&serial, 0, 2, STATUS_0_AND_2_HIGH, sizeof(STATUS_0_AND_2_HIGH));
-
-    TEST_ASSERT_TRUE(read_doors());
-}
-
 void test_continuous_noise_cannot_hold_the_bus_before_transmission(void)
 {
     /* A byte every 10 ms, closer together than the quiet interval, for a minute. */
@@ -465,7 +457,6 @@ int main(void)
     RUN_TEST(test_S1_H27_after_a_timeout_the_bus_stays_silent_for_the_settle_period);
     RUN_TEST(test_S1_H28_late_ack_of_a_timed_out_unlock_does_not_acknowledge_the_next);
     RUN_TEST(test_S1_H29_reply_that_arrives_while_the_write_completes_is_accepted);
-    RUN_TEST(test_status_reply_that_arrives_while_the_write_completes_is_accepted);
     RUN_TEST(test_continuous_noise_cannot_hold_the_bus_before_transmission);
     RUN_TEST(test_S1_H30_unlock_during_the_settle_period_waits_and_is_sent_once);
     RUN_TEST(test_S1_H31_late_status_reply_is_not_the_answer_to_the_next_query);

@@ -531,7 +531,7 @@
     "The response is not a view.": "Die Antwort ist keine Ansicht.",
     "This action is unauthorized.": "Diese Aktion ist nicht autorisiert.",
     "This invalidates any previous provisioning token and MQTT credentials. The new token is shown once after confirmation.": "Dies macht alle bisherigen Bereitstellungstokens und MQTT-Zugangsdaten ungültig. Das neue Token wird nach der Bestätigung einmalig angezeigt.",
-    "This token will not be shown again. If it is lost, issue a new one.": "Dieses Token wird nicht erneut angezeigt. Stelle bei Verlust ein neues aus.",
+    "This token is valid for 24 hours and will not be shown again. If it is lost, issue a new one.": "Dieses Token ist 24 Stunden gültig und wird nicht erneut angezeigt. Stelle bei Verlust ein neues aus.",
     "This email address is already verified. You can continue in the app.": "Diese E-Mail-Adresse ist bereits bestätigt. Du kannst in der App fortfahren.",
     "This generates a new provisioning token and marks the locker bank as not provisioned. The device will stay offline until you copy the new token into its PROVISIONING_TOKEN, clear its provisioning state, and restart it. Locker contents and history are not affected.": "Dadurch wird ein neues Bereitstellungstoken erzeugt und die Schließfachanlage als nicht bereitgestellt markiert. Das Gerät bleibt offline, bis du das neue Token in dessen PROVISIONING_TOKEN einträgst, seinen Bereitstellungsstatus zurücksetzt und es neu startest. Inhalte und Verlauf der Schließfächer sind nicht betroffen.",
     "This password reset link will expire in :count minutes.": "Dieser Link zum Zurücksetzen des Passworts läuft in :count Minuten ab.",

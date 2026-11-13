@@ -35,6 +35,19 @@ typedef struct {
     char broker_url[LC_BROKER_URL_MAX + 1];
 } lc_network_settings_t;
 
+/*
+ * The secrets printed on a unit's label (ADR-0074): the setup network's name,
+ * its WPA2 passphrase and the setup password of the Security 2 session. Written
+ * once when the unit is flashed; never changed by a reset.
+ */
+#define LC_SETUP_PASSPHRASE_MAX 63
+#define LC_SETUP_PASSWORD_MAX 63
+typedef struct {
+    char ssid[LC_SSID_MAX + 1];
+    char passphrase[LC_SETUP_PASSPHRASE_MAX + 1];
+    char setup_password[LC_SETUP_PASSWORD_MAX + 1];
+} lc_setup_secrets_t;
+
 /* What an installer submits. The last three fields matter only before enrollment. */
 typedef struct {
     char ssid[LC_SSID_MAX + 1];

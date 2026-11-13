@@ -23,6 +23,7 @@ use Illuminate\Database\Eloquent\Relations\HasManyThrough;
  * @property LockerFeedbackType $feedback_type
  * @property string|null $provisioning_token_hmac
  * @property string|null $provisioning_generation
+ * @property-read CarbonImmutable|null $provisioning_token_issued_at
  * @property-read CarbonImmutable|null $provisioned_at
  * @property-read CarbonImmutable|null $last_heartbeat_at
  * @property-read int $heartbeat_interval_seconds
@@ -51,6 +52,7 @@ class LockerBank extends Model
         'feedback_type',
         'provisioning_token_hmac',
         'provisioning_generation',
+        'provisioning_token_issued_at',
         'provisioned_at',
         'last_heartbeat_at',
         'heartbeat_interval_seconds',
@@ -69,6 +71,7 @@ class LockerBank extends Model
     protected $casts = [
         'adapter_type' => LockerAdapterType::class,
         'feedback_type' => LockerFeedbackType::class,
+        'provisioning_token_issued_at' => 'datetime',
         'provisioned_at' => 'datetime',
         'last_heartbeat_at' => 'datetime',
         'connection_status_changed_at' => 'datetime',

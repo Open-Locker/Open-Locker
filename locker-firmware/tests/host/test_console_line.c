@@ -95,10 +95,43 @@ void test_S1_H26_oversized_line_is_discarded_through_its_newline(void)
     TEST_ASSERT_EQUAL_STRING("status", input.line);
 }
 
+void test_S1_H36_cr_lf_and_crlf_each_end_one_line(void)
+{
+    /* ESP-IDF's monitor sends a bare CR for Enter on an ESP32. */
+    feed("status\r");
+    TEST_ASSERT_EQUAL_UINT(1, ready_count);
+    TEST_ASSERT_EQUAL_STRING("status", input.line);
+
+    /* The LF of a CRLF belongs to the line the CR ended: no empty line follows. */
+    feed("diagnostics\r\n");
+    TEST_ASSERT_EQUAL_UINT(2, ready_count);
+    TEST_ASSERT_EQUAL_STRING("diagnostics", input.line);
+
+    feed("self-test\n");
+    TEST_ASSERT_EQUAL_UINT(3, ready_count);
+    TEST_ASSERT_EQUAL_STRING("self-test", input.line);
+
+    /* Only an LF right after a CR is taken as part of it. */
+    feed("\n");
+    TEST_ASSERT_EQUAL_UINT(4, ready_count);
+    TEST_ASSERT_EQUAL_STRING("", input.line);
+
+    /* A CR also ends a line that is being discarded, and its LF starts nothing. */
+    char oversized[LC_CONSOLE_LINE_MAX + 32];
+    memset(oversized, 'a', sizeof(oversized));
+    oversized[sizeof(oversized) - 1] = '\0';
+    feed(oversized);
+    feed("\r\nstatus\r\n");
+    TEST_ASSERT_EQUAL_UINT(5, ready_count);
+    TEST_ASSERT_EQUAL_UINT(1, rejected_count);
+    TEST_ASSERT_EQUAL_STRING("status", input.line);
+}
+
 int main(void)
 {
     UNITY_BEGIN();
     RUN_TEST(test_S1_H25_unlock_and_query_parse_valid_arguments_and_reject_others);
     RUN_TEST(test_S1_H26_oversized_line_is_discarded_through_its_newline);
+    RUN_TEST(test_S1_H36_cr_lf_and_crlf_each_end_one_line);
     return UNITY_END();
 }

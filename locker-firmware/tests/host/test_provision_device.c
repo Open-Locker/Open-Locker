@@ -186,6 +186,38 @@ void test_S3_H05_rejected_or_expired_token_is_reported_and_not_retried(void)
     TEST_ASSERT_FALSE(store.identity.enrolled);
 }
 
+/* Without the reply subscription no token is sent; the next connection asks again. */
+void test_a_refused_subscription_sends_no_token_and_is_asked_again_on_reconnect(void)
+{
+    gateway.subscribe_ok = false;
+    lc_provision_on_connected(&provision);
+    lc_provision_on_subscribed(&provision);
+
+    TEST_ASSERT_EQUAL_UINT(0, gateway.registration_count);
+    TEST_ASSERT_EQUAL_INT(LC_PROVISION_IDLE, state());
+    TEST_ASSERT_FALSE(store.identity.enrollment_pending);
+
+    gateway.subscribe_ok = true;
+    register_and_wait();
+    TEST_ASSERT_EQUAL_UINT(2, gateway.subscribe_count);
+}
+
+/* A failed publish may still have reached the broker: the token is never sent again. */
+void test_a_registration_whose_publish_failed_is_never_sent_again(void)
+{
+    gateway.publish_ok = false;
+    lc_provision_on_connected(&provision);
+    lc_provision_on_subscribed(&provision);
+
+    TEST_ASSERT_EQUAL_UINT(1, gateway.registration_count);
+    TEST_ASSERT_EQUAL_INT(LC_PROVISION_OUTCOME_UNKNOWN, state());
+    TEST_ASSERT_TRUE(store.identity.enrollment_pending);
+
+    gateway.publish_ok = true;
+    provoke_a_retry();
+    TEST_ASSERT_EQUAL_UINT(1, gateway.registration_count);
+}
+
 void test_S3_H06_missing_reply_is_not_retried_and_leaves_the_pending_flag_set(void)
 {
     register_and_wait();
@@ -231,6 +263,27 @@ void test_S3_H07_device_that_boots_with_the_pending_flag_never_registers(void)
 
     TEST_ASSERT_EQUAL_UINT(0, gateway.registration_count);
     TEST_ASSERT_TRUE(store.identity.enrollment_pending);
+}
+
+/* The owner task connects only to send a token, hear a late reply, or run enrolled. */
+void test_a_device_with_nothing_to_send_or_hear_wants_no_session(void)
+{
+    TEST_ASSERT_TRUE(lc_provision_wants_session(&provision));
+
+    store.identity.token[0] = '\0';
+    start();
+    TEST_ASSERT_FALSE(lc_provision_wants_session(&provision));
+
+    store.has = false;
+    start();
+    TEST_ASSERT_FALSE(lc_provision_wants_session(&provision));
+
+    /* Pending without a client id: there is no reply topic to listen on. */
+    store.has = true;
+    store.identity.enrollment_pending = true;
+    store.identity.client_id[0] = '\0';
+    start();
+    TEST_ASSERT_FALSE(lc_provision_wants_session(&provision));
 }
 
 /* A restart between the token and the reply: the broker may still hold the reply for this client. */
@@ -361,6 +414,8 @@ int main(void)
     RUN_TEST(test_S3_H03_nothing_is_published_if_saving_the_pending_flag_fails);
     RUN_TEST(test_S3_H04_success_reply_stores_the_identity_in_one_write);
     RUN_TEST(test_S3_H05_rejected_or_expired_token_is_reported_and_not_retried);
+    RUN_TEST(test_a_refused_subscription_sends_no_token_and_is_asked_again_on_reconnect);
+    RUN_TEST(test_a_registration_whose_publish_failed_is_never_sent_again);
     RUN_TEST(test_S3_H06_missing_reply_is_not_retried_and_leaves_the_pending_flag_set);
     RUN_TEST(test_a_reply_that_arrives_after_the_wait_still_enrolls_the_device);
     RUN_TEST(test_S3_H07_device_that_boots_with_the_pending_flag_never_registers);
@@ -369,5 +424,6 @@ int main(void)
     RUN_TEST(test_S3_H09_device_is_not_enrolled_if_saving_the_credentials_fails);
     RUN_TEST(test_S3_H10_enrolled_device_never_publishes_a_registration);
     RUN_TEST(test_a_device_whose_identity_cannot_be_loaded_is_not_enrolled_and_never_registers);
+    RUN_TEST(test_a_device_with_nothing_to_send_or_hear_wants_no_session);
     return UNITY_END();
 }

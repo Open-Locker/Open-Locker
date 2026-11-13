@@ -32,17 +32,6 @@ int fake_trace_first(const char *what)
     return -1;
 }
 
-unsigned fake_trace_count(const char *what)
-{
-    unsigned count = 0;
-    for (size_t i = 0; i < trace_count; ++i) {
-        if (strcmp(trace[i], what) == 0) {
-            ++count;
-        }
-    }
-    return count;
-}
-
 /* ---- Clock ---- */
 
 static int64_t clock_now_ms(void *ctx)
@@ -435,8 +424,11 @@ static bool config_clear(void *ctx)
 {
     fake_config_store_t *store = ctx;
     fake_trace("config.clear");
-    store->has = false;
     ++store->clear_count;
+    if (!store->clear_ok) {
+        return false;
+    }
+    store->has = false;
     return true;
 }
 
@@ -444,6 +436,7 @@ void fake_config_store_init(fake_config_store_t *store)
 {
     memset(store, 0, sizeof(*store));
     store->save_ok = true;
+    store->clear_ok = true;
 }
 
 lc_config_store_port_t fake_config_store_port(fake_config_store_t *store)
@@ -514,8 +507,11 @@ static bool settings_clear(void *ctx)
 {
     fake_settings_store_t *store = ctx;
     fake_trace("settings.clear");
-    store->has = false;
     ++store->clear_count;
+    if (!store->clear_ok) {
+        return false;
+    }
+    store->has = false;
     return true;
 }
 
@@ -523,6 +519,7 @@ void fake_settings_store_init(fake_settings_store_t *store)
 {
     memset(store, 0, sizeof(*store));
     store->save_ok = true;
+    store->clear_ok = true;
 }
 
 lc_settings_store_port_t fake_settings_store_port(fake_settings_store_t *store)

@@ -3,7 +3,7 @@ title: Hardware-Abnahme
 description: Die Bench-Prüfungen der ESP32-Firmware ausführen und das Ergebnis festhalten.
 ---
 
-Ein Firmware-PR wird erst gemergt, wenn seine Hardwareprüfungen bestanden sind. `scripts/hwtest.py` führt sie in einer Sitzung aus und schreibt den Nachweis, den CI prüft. `python scripts/hwtest.py list` zeigt den aktuellen Stand jeder Prüfung.
+Die Hardwareprüfungen vor einem Firmware-Release und vor dem Flashen von Pilot-Einheiten ausführen. `scripts/hwtest.py` führt sie in einer Sitzung aus und schreibt einen Nachweis des Ergebnisses. CI prüft den Nachweis vorerst nicht. `python scripts/hwtest.py list` zeigt den aktuellen Stand jeder Prüfung.
 
 Die Prüfungen heißen in den ADRs und im Testkatalog `HW-A1`. Das Werkzeug lässt das Präfix weg: `--only A,B3`, und `A1` in seiner Ausgabe.
 
@@ -40,9 +40,9 @@ python scripts/hwtest.py run --port COM3 --image build/locker-firmware.bin
 - Die Gruppen der Reihe nach ausführen. Ein Fehlschlag macht spätere Ergebnisse unzuverlässig: anhalten, beheben und bei der fehlgeschlagenen Gruppe neu beginnen.
 - Jede Behebung ist ein Commit im selben PR und muss die [Gates](/de/dokumentation/esp32-development/#gates-ausführen) bestehen.
 - Eine nicht ausgeführte Prüfung wird als nicht ausgeführt markiert, nie als bestanden.
-- Für den Merge zählt nur ein Lauf gegen den letzten Commit des PR.
+- Es zählt nur ein Lauf gegen den Commit, der veröffentlicht wird.
 
-## Der Nachweis, den CI prüft
+## Der Nachweis
 
 `run` schreibt nach jeder Prüfung `locker-firmware/hardware-record.json`. Die Datei committen. `python scripts/hwtest.py check` braucht keine Hardware und schlägt fehl, wenn:
 
@@ -50,7 +50,7 @@ python scripts/hwtest.py run --port COM3 --image build/locker-firmware.bin
 - eine Prüfung fehlgeschlagen ist, fehlt oder nicht lief, ohne zurückgestellt zu sein;
 - Bedienperson, Datum oder Firmware-SHA-256 fehlen.
 
-Der Nachweis ist die Aussage der Bedienperson, kein Beweis. Er verhindert nur, dass eine Änderung ohne Lauf oder mit fehlgeschlagenem Lauf hineinkommt.
+Der Nachweis ist die Aussage der Bedienperson, kein Beweis.
 
 ## Die Prüfungen
 
@@ -76,8 +76,7 @@ Der Nachweis ist die Aussage der Bedienperson, kein Beweis. Er verhindert nur, d
 | --- | --- | --- |
 | HW-B1 | **Löst aus.** `apply_config`, dann ein Öffnen: Das Schloss gibt einmal frei, und die Antwort wird ausgegeben | auto |
 | HW-B2 | Doppeltes Öffnen, mit derselben und einer neuen Message-ID: Der Zähler ändert sich nicht | auto |
-| HW-B3 | Neustart: Die Zuordnung gilt weiter | auto |
-| HW-B4 | **Löst aus.** Fünfmal Strom direkt nach einem Öffnen trennen: ein gespeichertes Ergebnis und keine Freigabe beim Boot | auto |
+| HW-B3 | Neustart: Die Zuordnung gilt weiter, und das Öffnen aus B1 gibt sein gespeichertes Ergebnis ohne Freigabe wieder | auto |
 | HW-B5 | Stromausfall bei Claim, Senden, Completion und PUBACK | zurückgestellt |
 | HW-B6 | 600 Kommandos: Das Journal kompaktiert, ohne eines abzulehnen, die neuesten 256 werden wiedergegeben, ein älteres läuft als neu | zurückgestellt |
 

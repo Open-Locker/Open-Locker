@@ -7,7 +7,19 @@ set(COMPONENTS main)
 list(APPEND EXTRA_COMPONENT_DIRS
      "${CMAKE_CURRENT_LIST_DIR}/../../components/lc_mqtt_espidf"
      "${CMAKE_CURRENT_LIST_DIR}/mocks/espressif__mqtt"
+     "${CMAKE_CURRENT_LIST_DIR}/../../components/lc_softap_espidf"
+     "${CMAKE_CURRENT_LIST_DIR}/../../components/lc_softap_portal"
+     "${CMAKE_CURRENT_LIST_DIR}/../../components/lc_domain"
+     "${CMAKE_CURRENT_LIST_DIR}/../../components/lc_ports"
+     "${CMAKE_CURRENT_LIST_DIR}/../../components/lc_storage_nvs"
+     "${CMAKE_CURRENT_LIST_DIR}/mocks/protocomm"
+     "${CMAKE_CURRENT_LIST_DIR}/mocks/network_provisioning"
+     "${CMAKE_CURRENT_LIST_DIR}/mocks/esp_http_server"
      "$ENV{IDF_PATH}/tools/mocks/esp_event/"
+     "$ENV{IDF_PATH}/tools/mocks/esp_wifi/"
+     "$ENV{IDF_PATH}/tools/mocks/esp_netif/"
+     "$ENV{IDF_PATH}/tools/mocks/lwip/"
+     "$ENV{IDF_PATH}/tools/mocks/esp_timer/"
      "$ENV{IDF_PATH}/tools/mocks/esp-tls/"
      "$ENV{IDF_PATH}/tools/mocks/tcp_transport/")
 

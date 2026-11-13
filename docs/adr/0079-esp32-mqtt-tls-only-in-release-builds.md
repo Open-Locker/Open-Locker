@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted
+Implemented (2026-11-13, #321). The bench handshake against the real broker in Confirmation is still open.
 
 ## Date
 
@@ -99,4 +99,4 @@ None. No unit is deployed.
 
 - Related PRs: Open-Locker/Open-Locker#321
 - Related issues: #56, #58
-- Related docs: ADR-0053, `website/src/content/docs/dokumentation/esp32-internals.md`
+- Related docs: ADR-0053, `website/src/content/docs/dokumentation/esp32-internals.mdx`
