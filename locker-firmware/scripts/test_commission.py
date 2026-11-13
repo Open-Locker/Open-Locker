@@ -175,11 +175,13 @@ class CommissionTest(unittest.TestCase):
 
     def test_a_broker_the_device_cannot_use_is_refused_before_anything_is_sent(self):
         for broker in ("mqtt://localhost:1883", "mqtt://127.0.0.1", "mqtt://[::1]:1883", "mqtt://0.0.0.0:1883",
-                       "mqtt://box.localhost", "http://broker.example", "broker.example:1883", "mqtt://broker:99999"):
+                       "mqtt://box.localhost", "http://broker.example", "broker.example:1883", "mqtt://broker:99999",
+                       "mqtts://broker.example:0", "mqtts://user:hunter2@broker.example", "mqtts://user@broker.example"):
             device = Device(SAVED, answers={**ANSWERS, "broker": broker})
             self.assertEqual(device.run(), "refused", broker)
             self.assertEqual(device.configures, [], broker)
             self.assertIn("Nothing was sent", device.output)
+            self.assertNotIn("hunter2", device.output)
 
     def test_the_broker_port_defaults_to_the_scheme_s(self):
         self.assertEqual(broker_address("mqtt://192.168.1.20"), ("192.168.1.20", 1883))

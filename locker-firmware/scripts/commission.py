@@ -204,10 +204,15 @@ def broker_address(url):
     parsed = urlparse(url)
     if parsed.scheme not in BROKER_PORTS or not parsed.hostname:
         raise ValueError("The broker URL must look like mqtts://host:port (mqtt:// on a development build).")
+    # A login in the URL would be printed in the summary and saved as a default.
+    if parsed.username is not None or parsed.password is not None:
+        raise ValueError("The broker URL must not contain a user or password; enter them as the bootstrap login.")
     try:
-        port = parsed.port or BROKER_PORTS[parsed.scheme]
+        port = BROKER_PORTS[parsed.scheme] if parsed.port is None else parsed.port
     except ValueError:
         raise ValueError("The broker URL has an invalid port.") from None
+    if port == 0:
+        raise ValueError("The broker URL has an invalid port.")
     host = parsed.hostname
     try:
         address = ipaddress.ip_address(host)
