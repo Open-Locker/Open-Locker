@@ -398,16 +398,20 @@ void test_S6_H15_reset_wipes_everything_keeps_the_journal_publishes_nothing_and_
     /* Offline, so nothing is published; the journal is not reachable from here at all. */
     TEST_ASSERT_EQUAL_UINT(0, outbound.id_count);
 
-    /* The mapping cannot be cleared: the unit still restarts, and says it was partial. */
+    /*
+     * The mapping cannot be cleared: the settings stay, so the next boot finishes
+     * the wipe. The unit still restarts, and says it was partial.
+     */
     setUp();
     enroll();
     config.clear_ok = false;
     TEST_ASSERT_EQUAL_INT(LC_RESET_PARTIAL, lc_commission_reset(&commission));
     TEST_ASSERT_FALSE(identity.identity.enrolled);
-    TEST_ASSERT_FALSE(settings.has);
+    TEST_ASSERT_TRUE(settings.has);
+    TEST_ASSERT_EQUAL_UINT(0, settings.clear_count);
     TEST_ASSERT_EQUAL_UINT(1, device.restart_count);
 
-    /* So when the settings cannot be cleared; both clears are still tried. */
+    /* So when the settings cannot be cleared, after the mapping was. */
     setUp();
     enroll();
     settings.clear_ok = false;

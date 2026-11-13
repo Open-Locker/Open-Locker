@@ -31,9 +31,9 @@ lc_boot_result_t lc_boot_decide(const lc_boot_ports_t *ports)
 
     if (settings_present && !unreadable && identity_is_empty(&identity)) {
         result.repaired = true;
-        /* Both are tried even if the first fails. */
+        /* The settings go last: while they stay, every boot retries the mapping. */
         bool mapping_cleared = ports->config_store.clear(ports->config_store.ctx);
-        bool settings_cleared = ports->settings_store.clear(ports->settings_store.ctx);
+        bool settings_cleared = mapping_cleared && ports->settings_store.clear(ports->settings_store.ctx);
         result.repair_failed = !mapping_cleared || !settings_cleared;
         settings_present = !settings_cleared;
     }

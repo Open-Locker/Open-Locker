@@ -122,15 +122,20 @@ void test_S6_H24_an_empty_identity_with_settings_finishes_the_wipe_then_decides_
     TEST_ASSERT_EQUAL_UINT(1, config.clear_count);
     TEST_ASSERT_EQUAL_INT(LC_BOOT_STATION, result.mode);
 
-    /* A mapping that cannot be cleared is reported too; the settings still go. */
+    /*
+     * A mapping that cannot be cleared keeps the settings, so the unit stays a
+     * station with no identity and the next boot tries again. It never opens
+     * the setup network with another bank's mapping still stored.
+     */
     setUp();
     store_settings();
     store_mapping();
     config.clear_ok = false;
     result = lc_boot_decide(&ports);
     TEST_ASSERT_TRUE(result.repair_failed);
-    TEST_ASSERT_FALSE(settings.has);
-    TEST_ASSERT_EQUAL_INT(LC_BOOT_SETUP, result.mode);
+    TEST_ASSERT_TRUE(settings.has);
+    TEST_ASSERT_EQUAL_UINT(0, settings.clear_count);
+    TEST_ASSERT_EQUAL_INT(LC_BOOT_STATION, result.mode);
 }
 
 /* An identity that is stored but unreadable may be an enrollment: nothing is wiped, setup stays shut. */

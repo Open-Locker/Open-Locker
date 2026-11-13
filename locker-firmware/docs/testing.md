@@ -310,7 +310,7 @@ Rows are added in the commit that writes each test (ADR-0074). Host suite
 | --- | --- |
 | S6-H10 | `configure` on an enrolled unit keeps the stored broker URL (S5-H01 to H09 still pass, with S5-H04 changed accordingly) |
 | S6-H11 | On an enrolled unit, broker and token fields are ignored and Wi-Fi settings alone are accepted |
-| S6-H15 | Factory reset wipes identity, mapping and settings, keeps the journal, publishes nothing. A failed later clear returns the "partial" result |
+| S6-H15 | Factory reset wipes identity, mapping and settings, keeps the journal, publishes nothing. The settings are cleared only after the mapping; a failed clear returns the "partial" result |
 
 Host suite `test_boot_mode`:
 
@@ -318,7 +318,7 @@ Host suite `test_boot_mode`:
 | --- | --- |
 | S6-H05 | The setup network starts when no settings are stored |
 | S6-H06 | The setup network never starts when settings are stored or the unit is enrolled, whatever else is true |
-| S6-H24 | Boot with an empty identity and settings present (a reset cut short, or a refused token) finishes the wipe (settings and mapping), then decides the mode |
+| S6-H24 | Boot with an empty identity and settings present (a reset cut short, or a refused token) finishes the wipe (the mapping, then the settings; a failed mapping clear keeps the settings for the next boot), then decides the mode |
 | S6-H26 | Boot with an empty identity, a mapping and no settings leaves the mapping alone (bench mode, HW-B3) |
 | S6-H27 | Boot with an identity that is stored but cannot be read wipes nothing and never opens the setup network |
 

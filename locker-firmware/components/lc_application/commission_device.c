@@ -168,9 +168,13 @@ lc_reset_result_t lc_commission_reset(lc_commission_t *commission)
         return LC_RESET_FAILED;
     }
     ports->stop_commands(ports->ctx);
-    /* Both are tried even if the first fails: a partial wipe is reported, not hidden. */
+    /*
+     * The mapping before the settings, and the settings only once the mapping is
+     * gone: settings left over with an empty identity make the next boot finish
+     * the wipe, so a failed mapping clear is retried rather than left behind.
+     */
     bool config_cleared = ports->config_store.clear(ports->config_store.ctx);
-    bool settings_cleared = ports->settings_store.clear(ports->settings_store.ctx);
+    bool settings_cleared = config_cleared && ports->settings_store.clear(ports->settings_store.ctx);
 
     say_goodbye(commission);
     ports->system.restart(ports->system.ctx);
