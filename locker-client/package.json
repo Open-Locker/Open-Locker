@@ -1,7 +1,7 @@
 {
   "name": "locker-client",
   "version": "1.0.0",
-  "description": "Open Locker hexagonal MQTT/Modbus bridge",
+  "description": "Open Locker hexagonal MQTT/RS485 bridge",
   "license": "AGPL-3.0-only",
   "scripts": {
     "dev": "ts-node src/main.ts",
@@ -30,7 +30,6 @@
     "@opentelemetry/semantic-conventions": "^1.43.0",
     "dotenv": "^18.0.5",
     "js-yaml": "^4.3.2",
-    "modbus-serial": "^8.0.23-no-serial-port",
     "mqtt": "^5.16.0",
     "p-queue": "^9.3.3",
     "serialport": "^13.0.0",

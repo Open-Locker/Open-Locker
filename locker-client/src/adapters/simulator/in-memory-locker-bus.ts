@@ -1,35 +1,40 @@
 import type { CompartmentTarget, DoorState } from '../../domain/compartment';
-import type { ConnectionState, LockerBusPort } from '../../ports/locker-bus.port';
+import type {
+  ConnectionState,
+  LockerBusPort,
+  UnlockObservation,
+} from '../../ports/locker-bus.port';
 
 /**
  * Fake hardware for the fleet simulator.
  *
- * Sibling of `WaveshareModbusBusActor`: same port, no Modbus. Relay and door
- * state live in memory, keyed by the `slaveId:address` pair the real driver
+ * Sibling of `Rs485LockBoardBusActor`: same port, no serial line. Door state
+ * lives in memory, keyed by the `boardAddress:address` pair the real driver
  * addresses boards with, so the use cases above the port cannot tell the
  * difference.
  *
- * Door behaviour mirrors a real locker: flashing a relay pops the door open,
- * and it stays open until something closes it — a scripted scenario step or a
- * manual toggle. Nothing closes a door on its own, because real doors don't.
+ * Door behaviour mirrors a real locker: an unlock pops the door open, and it
+ * stays open until something closes it — a scripted scenario step or a manual
+ * toggle. Nothing closes a door on its own, because real doors don't. Like the
+ * RS485 board, an unlock reports the door state it observed.
  */
 export interface InMemoryLockerBusOptions {
-  /** Boards this device answers for; mirrors the configured Modbus slave ids. */
-  slaveIds: number[];
-  /** Door states at startup, keyed by `slaveId:address`. Defaults to closed. */
+  /** Boards this device answers for; mirrors the configured board addresses. */
+  boardAddresses: number[];
+  /** Door states at startup, keyed by `boardAddress:address`. Defaults to closed. */
   initialDoorStates?: Map<string, DoorState>;
   /**
-   * Compartments whose door will not open when the relay fires, keyed by
-   * `slaveId:address`. Reproduces a jam, blocked door, or failed latch — the
-   * case door-open detection exists to catch.
+   * Compartments whose door will not open when unlocked, keyed by
+   * `boardAddress:address`. Reproduces a jam, blocked door, or failed latch —
+   * the case door-open detection exists to catch.
    */
   jammedTargets?: Set<string>;
   /** Simulated round-trip delay per bus operation, in milliseconds. */
   latencyMs?: number;
 }
 
-export function busTargetKey(slaveId: number, address: number): string {
-  return `${slaveId}:${address}`;
+export function busTargetKey(boardAddress: number, address: number): string {
+  return `${boardAddress}:${address}`;
 }
 
 export class InMemoryLockerBus implements LockerBusPort {
@@ -37,18 +42,14 @@ export class InMemoryLockerBus implements LockerBusPort {
 
   private readonly doorStates = new Map<string, DoorState>();
 
-  private readonly relayStates = new Map<string, boolean>();
-
-  private readonly flashTimers = new Map<string, NodeJS.Timeout>();
-
   private readonly jammedTargets = new Set<string>();
 
-  private readonly slaveIds: number[];
+  private readonly boardAddresses: number[];
 
   private readonly latencyMs: number;
 
   constructor(options: InMemoryLockerBusOptions) {
-    this.slaveIds = [...options.slaveIds];
+    this.boardAddresses = [...options.boardAddresses];
     this.latencyMs = options.latencyMs ?? 0;
 
     for (const [key, state] of options.initialDoorStates ?? []) {
@@ -67,10 +68,6 @@ export class InMemoryLockerBus implements LockerBusPort {
   }
 
   async disconnect(): Promise<void> {
-    for (const timer of this.flashTimers.values()) {
-      clearTimeout(timer);
-    }
-    this.flashTimers.clear();
     this.connectionState = 'disconnected';
   }
 
@@ -95,92 +92,56 @@ export class InMemoryLockerBus implements LockerBusPort {
   }
 
   /**
-   * Pulse a relay. On real hardware the pulse releases the latch and the door
-   * springs open, so the simulated door flips to `open` and stays there.
+   * On real hardware an unlock releases the latch and the door springs open, so
+   * the simulated door flips to `open` and stays there.
    *
-   * A jammed compartment pulses normally but its door does not move, which is
+   * A jammed compartment unlocks normally but its door does not move, which is
    * exactly what a real jam, blockage, or worn latch looks like from the bus.
    */
-  async flashRelay(target: CompartmentTarget, durationMs: number): Promise<void> {
+  async unlockCompartment(target: CompartmentTarget): Promise<UnlockObservation> {
     if (this.connectionState !== 'connected') {
       await this.connect();
     }
 
     await this.delay();
 
-    const key = busTargetKey(target.slaveId, target.relayAddress);
-    this.relayStates.set(key, true);
-
-    const existingTimer = this.flashTimers.get(key);
-    if (existingTimer) {
-      clearTimeout(existingTimer);
-    }
-
-    this.flashTimers.set(
-      key,
-      setTimeout(() => {
-        this.relayStates.set(key, false);
-        this.flashTimers.delete(key);
-      }, durationMs),
-    );
-
+    const key = busTargetKey(target.boardAddress, target.address);
     if (!this.jammedTargets.has(key)) {
       this.doorStates.set(key, 'open');
     }
+
+    return { doorState: this.doorStates.get(key) ?? 'closed' };
   }
 
-  /**
-   * Contiguous block read, matching the real driver: index `i` of the result is
-   * the sensor at `startAddress + i`.
-   */
-  async readDoorSensors(
-    slaveId: number,
-    startAddress: number,
-    length: number,
+  async readCompartmentStates(
+    boardAddress: number,
+    addresses: readonly number[],
   ): Promise<DoorState[]> {
     await this.delay();
 
-    return Array.from(
-      { length },
-      (_unused, offset) =>
-        this.doorStates.get(busTargetKey(slaveId, startAddress + offset)) ?? 'closed',
+    return addresses.map(
+      (address) => this.doorStates.get(busTargetKey(boardAddress, address)) ?? 'closed',
     );
   }
 
-  async initializeBoard(slaveId: number): Promise<void> {
-    await this.delay();
-
-    // Safe to iterate live: only existing keys are reassigned, none added or removed.
-    for (const key of this.relayStates.keys()) {
-      if (key.startsWith(`${slaveId}:`)) {
-        this.relayStates.set(key, false);
-      }
-    }
-  }
-
-  /** Simulator compatibility helper for scenarios that explicitly test relay clearing. */
-  async turnAllRelaysOff(slaveId: number): Promise<void> {
-    await this.initializeBoard(slaveId);
-  }
-
-  getConfiguredSlaveIds(): number[] {
-    return [...this.slaveIds];
+  getConfiguredBoardAddresses(): number[] {
+    return [...this.boardAddresses];
   }
 
   // --- simulator-only controls, not part of LockerBusPort ---
 
   /** Scripted or manual door change; the next poll publishes a fresh snapshot. */
-  setDoorState(slaveId: number, address: number, state: DoorState): void {
-    this.doorStates.set(busTargetKey(slaveId, address), state);
+  setDoorState(boardAddress: number, address: number, state: DoorState): void {
+    this.doorStates.set(busTargetKey(boardAddress, address), state);
   }
 
-  getDoorState(slaveId: number, address: number): DoorState {
-    return this.doorStates.get(busTargetKey(slaveId, address)) ?? 'closed';
+  getDoorState(boardAddress: number, address: number): DoorState {
+    return this.doorStates.get(busTargetKey(boardAddress, address)) ?? 'closed';
   }
 
   /** Jam or unjam a compartment at runtime, from the interactive console. */
-  setJammed(slaveId: number, address: number, jammed: boolean): void {
-    const key = busTargetKey(slaveId, address);
+  setJammed(boardAddress: number, address: number, jammed: boolean): void {
+    const key = busTargetKey(boardAddress, address);
 
     if (jammed) {
       this.jammedTargets.add(key);
@@ -191,8 +152,8 @@ export class InMemoryLockerBus implements LockerBusPort {
     this.jammedTargets.delete(key);
   }
 
-  isJammed(slaveId: number, address: number): boolean {
-    return this.jammedTargets.has(busTargetKey(slaveId, address));
+  isJammed(boardAddress: number, address: number): boolean {
+    return this.jammedTargets.has(busTargetKey(boardAddress, address));
   }
 
   private delay(): Promise<void> {

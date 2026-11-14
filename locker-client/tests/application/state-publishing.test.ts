@@ -6,6 +6,7 @@ import {
   type CompartmentSnapshotEntry,
 } from '../../src/application/state-publishing';
 import type { DoorState } from '../../src/domain/compartment';
+import { BoardNotRespondingError } from '../../src/domain/errors';
 import type {
   CommandResponseBody,
   OutboundMqttPort,
@@ -16,10 +17,10 @@ import { createTestConfigRepository } from '../helpers/test-config-repository';
 
 const snapshotTopic = 'locker/test/state/compartments';
 
-test('polls each board once and maps all configured addresses from batch reads', async () => {
+test('reads each board once and maps its configured addresses', async () => {
   const bus = new FakeLockerBus([1, 2]);
-  bus.setDoorBatchStates(1, statesWith({ 0: 'closed', 7: 'open' }));
-  bus.setDoorBatchStates(2, statesWith({ 2: 'closed' }));
+  bus.setBoardStates(1, statesWith({ 0: 'closed', 7: 'open' }));
+  bus.setBoardStates(2, statesWith({ 2: 'closed' }));
   const outbound = new RecordingOutbound();
   const poll = new PollCompartmentStateUseCase(
     bus,
@@ -36,9 +37,9 @@ test('polls each board once and maps all configured addresses from batch reads',
 
   await poll.pollAndPublish();
 
-  assert.deepEqual(bus.doorBatchReads, [
-    { slaveId: 1, startAddress: 0, length: 8 },
-    { slaveId: 2, startAddress: 2, length: 1 },
+  assert.deepEqual(bus.doorReads, [
+    { boardAddress: 1, addresses: [0, 7] },
+    { boardAddress: 2, addresses: [2] },
   ]);
   assert.deepEqual(outbound.snapshots[0]?.compartments, [
     { compartment_number: 1, door_state: 'closed' },
@@ -50,7 +51,7 @@ test('polls each board once and maps all configured addresses from batch reads',
 
 test('publishes only state changes while preserving force publish', async () => {
   const bus = new FakeLockerBus([1]);
-  bus.setDoorBatchStates(1, statesWith({ 0: 'closed' }));
+  bus.setBoardStates(1, statesWith({ 0: 'closed' }));
   const outbound = new RecordingOutbound();
   const poll = createPoll(bus, outbound);
 
@@ -58,7 +59,7 @@ test('publishes only state changes while preserving force publish', async () => 
   await poll.pollAndPublish();
   assert.equal(outbound.snapshots.length, 1);
 
-  bus.setDoorBatchStates(1, statesWith({ 0: 'open' }));
+  bus.setBoardStates(1, statesWith({ 0: 'open' }));
   await poll.pollAndPublish();
   assert.equal(outbound.snapshots.length, 2);
 
@@ -68,13 +69,13 @@ test('publishes only state changes while preserving force publish', async () => 
 
 test('publishes unknown after three consecutive failures and clears it on recovery', async () => {
   const bus = new FakeLockerBus([1]);
-  bus.setDoorBatchStates(1, statesWith({ 0: 'closed' }));
+  bus.setBoardStates(1, statesWith({ 0: 'closed' }));
   const outbound = new RecordingOutbound();
   const poll = createPoll(bus, outbound);
 
   await poll.pollAndPublish();
 
-  bus.setDoorBatchStates(1, statesWith({ 0: 'unknown' }));
+  bus.setBoardStates(1, statesWith({ 0: 'unknown' }));
   await poll.pollAndPublish();
   await poll.pollAndPublish();
   assert.equal(outbound.snapshots.length, 1);
@@ -83,15 +84,60 @@ test('publishes unknown after three consecutive failures and clears it on recove
   assert.equal(outbound.snapshots.length, 2);
   assert.equal(outbound.snapshots[1]?.compartments[0]?.door_state, 'unknown');
 
-  bus.setDoorBatchStates(1, statesWith({ 0: 'closed' }));
+  bus.setBoardStates(1, statesWith({ 0: 'closed' }));
   await poll.pollAndPublish();
   assert.equal(outbound.snapshots.length, 3);
   assert.equal(outbound.snapshots[2]?.compartments[0]?.door_state, 'closed');
 });
 
+test('reports a board that does not answer as unknown doors', async () => {
+  const bus = new FakeLockerBus([1]);
+  bus.readCompartmentStates = async () => {
+    throw new BoardNotRespondingError('RS485 board 1 did not respond');
+  };
+  const outbound = new RecordingOutbound();
+  const poll = createPoll(bus, outbound);
+
+  await poll.pollAndPublish();
+
+  assert.equal(outbound.snapshots[0]?.compartments[0]?.door_state, 'unknown');
+});
+
+test('logs a failing board once per streak, not on every poll', async () => {
+  const bus = new FakeLockerBus([1]);
+  let failing = true;
+  bus.readCompartmentStates = async () => {
+    if (failing) {
+      throw new BoardNotRespondingError('RS485 board 1 did not respond');
+    }
+    return ['closed'];
+  };
+  const warnings: string[] = [];
+  const poll = new PollCompartmentStateUseCase(
+    bus,
+    createTestConfigRepository({
+      compartments: [{ compartment_number: 1, slaveId: 1, address: 0 }],
+    }),
+    new RecordingOutbound(),
+    snapshotTopic,
+    { warn: (message) => warnings.push(message), error: () => undefined },
+  );
+
+  await poll.pollAndPublish();
+  await poll.pollAndPublish();
+  await poll.pollAndPublish();
+  failing = false;
+  await poll.pollAndPublish();
+
+  assert.deepEqual(warnings, [
+    'Board read failed, reporting its doors as unknown until it recovers',
+    'Board read recovered',
+  ]);
+});
+
 test('publishes initial unknown immediately when no known state exists', async () => {
   const bus = new FakeLockerBus([1]);
-  bus.setDoorBatchStates(1, statesWith({ 0: 'unknown' }));
+  bus.setBoardStates(1, statesWith({ 0: 'unknown' }));
   const outbound = new RecordingOutbound();
   const poll = createPoll(bus, outbound);
 
@@ -128,14 +174,14 @@ test('coalesces force requests during an active poll into one follow-up poll', a
   });
   let reads = 0;
 
-  bus.readDoorSensors = async (slaveId, startAddress, length) => {
-    bus.doorBatchReads.push({ slaveId, startAddress, length });
+  bus.readCompartmentStates = async (boardAddress, addresses) => {
+    bus.doorReads.push({ boardAddress, addresses: [...addresses] });
     reads++;
     if (reads === 1) {
       markFirstReadStarted();
       await firstReadReleased;
     }
-    return statesWith({ 0: 'closed' }).slice(startAddress, startAddress + length);
+    return addresses.map((address) => statesWith({ 0: 'closed' })[address] ?? 'closed');
   };
 
   const firstPoll = poll.pollAndPublish();
@@ -175,7 +221,7 @@ test('discards a snapshot when apply_config changes mapping during the read', as
   const config = createTestConfigRepository({
     compartments,
     load: () => ({
-      modbus: { port: '/dev/null', flashDurationMs: 200 },
+      serial: { port: '/dev/null' },
       compartments,
     }),
   });
@@ -191,13 +237,13 @@ test('discards a snapshot when apply_config changes mapping during the read', as
     releaseFirstRead = resolve;
   });
 
-  bus.readDoorSensors = async (slaveId, startAddress, length) => {
-    bus.doorBatchReads.push({ slaveId, startAddress, length });
-    if (slaveId === 1) {
+  bus.readCompartmentStates = async (boardAddress, addresses) => {
+    bus.doorReads.push({ boardAddress, addresses: [...addresses] });
+    if (boardAddress === 1) {
       markFirstReadStarted();
       await firstReadReleased;
     }
-    return statesWith({ 0: 'closed', 1: 'open' }).slice(startAddress, startAddress + length);
+    return addresses.map((address) => statesWith({ 0: 'closed', 1: 'open' })[address] ?? 'closed');
   };
 
   const oldConfigPoll = poll.pollAndPublish();
@@ -207,9 +253,9 @@ test('discards a snapshot when apply_config changes mapping during the read', as
   releaseFirstRead();
   await Promise.all([oldConfigPoll, configForcePoll]);
 
-  assert.deepEqual(bus.doorBatchReads, [
-    { slaveId: 1, startAddress: 0, length: 1 },
-    { slaveId: 2, startAddress: 1, length: 1 },
+  assert.deepEqual(bus.doorReads, [
+    { boardAddress: 1, addresses: [0] },
+    { boardAddress: 2, addresses: [1] },
   ]);
   assert.equal(outbound.snapshots.length, 1);
   assert.deepEqual(outbound.snapshots[0]?.compartments, [
@@ -231,12 +277,12 @@ test('skips overlapping regular poll requests', async () => {
   });
   let reads = 0;
 
-  bus.readDoorSensors = async (slaveId, startAddress, length) => {
-    bus.doorBatchReads.push({ slaveId, startAddress, length });
+  bus.readCompartmentStates = async (boardAddress, addresses) => {
+    bus.doorReads.push({ boardAddress, addresses: [...addresses] });
     reads++;
     markReadStarted();
     await readReleased;
-    return statesWith({ 0: 'closed' }).slice(startAddress, startAddress + length);
+    return addresses.map((address) => statesWith({ 0: 'closed' })[address] ?? 'closed');
   };
 
   const firstPoll = poll.pollAndPublish();

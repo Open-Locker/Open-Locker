@@ -69,7 +69,7 @@ if [ ! -f config/locker-config.yml ]; then
     echo "✓ Configuration file created"
     echo ""
     echo "⚠️  Please edit config/locker-config.yml with your settings:"
-    echo "   - Configure the Modbus serial port and bus settings"
+    echo "   - Configure the USB-RS485 serial port"
 else
     echo "✓ Configuration file already exists"
 fi

@@ -4,7 +4,7 @@ import { createOpenCompartmentHandler } from '../../src/adapters/mqtt/handlers/o
 import { FakeLockerBus } from '../helpers/fake-locker-bus';
 import { OutboundMqttAdapter } from '../../src/adapters/mqtt/outbound-mqtt.adapter';
 import { OpenCompartmentUseCase } from '../../src/application/open-compartment';
-import { RelayFireLog } from '../../src/domain/door-detection';
+import { ActuationLog } from '../../src/domain/door-detection';
 import { FakeDoorEventPublisher } from '../helpers/fake-door-event-publisher';
 import { PollCompartmentStateUseCase } from '../../src/application/state-publishing';
 import { RunAfterCompleteScheduler } from '../../src/infrastructure/scheduler';
@@ -29,7 +29,7 @@ test('open compartment handler returns success and preserves transaction_id', as
     config,
     scheduler: new RunAfterCompleteScheduler(),
     doorEvents: new FakeDoorEventPublisher(),
-    relayFireLog: new RelayFireLog(),
+    actuationLog: new ActuationLog(),
   });
   const pollSnapshot = new PollCompartmentStateUseCase(
     bus,
@@ -54,7 +54,7 @@ test('open compartment handler returns success and preserves transaction_id', as
   );
 
   openCompartment.stopAllMonitoring();
-  assert.equal(bus.flashCalls.length, 1);
+  assert.equal(bus.unlockCalls.length, 1);
   assert.equal(response.result, 'success');
   assert.equal(response.transaction_id, 'tx-abc');
   assert.equal(response.message, 'Unlock pulse sent.');

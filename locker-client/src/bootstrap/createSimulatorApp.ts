@@ -22,8 +22,8 @@ import {
 } from '../adapters/simulator/traffic-log';
 import { ApplyConfigUseCase } from '../application/apply-config';
 import { MqttDoorEventPublisher } from '../adapters/mqtt/door-event-publisher';
-import { RelayFireLog } from '../domain/door-detection';
-import { OpenCompartmentUseCase, runStartupFailsafe } from '../application/open-compartment';
+import { ActuationLog } from '../domain/door-detection';
+import { OpenCompartmentUseCase } from '../application/open-compartment';
 import {
   COMPARTMENT_POLL_INTERVAL_MS,
   HeartbeatUseCase,
@@ -43,7 +43,7 @@ import { createWinstonLoggerPort } from '../infrastructure/winston-logger.adapte
  * Fleet simulator composition root.
  *
  * Deliberately mirrors `createApp.ts` step for step, with exactly two
- * substitutions: the Modbus bus becomes `InMemoryLockerBus`, and the file-backed
+ * substitutions: the RS485 bus becomes `InMemoryLockerBus`, and the file-backed
  * stores become in-memory ones. Everything between — use cases, dispatcher,
  * envelope, dedup, schemas — is the production code path, which is what keeps
  * simulator payloads contract-valid by construction rather than by discipline.
@@ -57,7 +57,7 @@ export interface SimulatedDevice {
   /** Scripted or manual door change; publishes a fresh retained snapshot. */
   setDoorState(compartmentNumber: number, state: DoorState): Promise<void>;
   getDoorState(compartmentNumber: number): DoorState | null;
-  /** Jammed compartments pulse the relay but their door never moves. */
+  /** Jammed compartments unlock but their door never moves. */
   setJammed(compartmentNumber: number, jammed: boolean): void;
   isJammed(compartmentNumber: number): boolean;
   shutdown(): Promise<void>;
@@ -139,7 +139,7 @@ export function wireSimulatedDevice(options: WireSimulatedDeviceOptions): WiredS
   };
 
   const bus = new InMemoryLockerBus({
-    slaveIds: configRepo.getConfiguredSlaveIds(),
+    boardAddresses: configRepo.getConfiguredBoardAddresses(),
     initialDoorStates: new Map(
       bank.compartments.map((compartment) => [
         busTargetKey(compartment.slaveId, compartment.address),
@@ -160,7 +160,7 @@ export function wireSimulatedDevice(options: WireSimulatedDeviceOptions): WiredS
   const appLogger = createWinstonLoggerPort();
 
   const doorEvents = new MqttDoorEventPublisher(outbound, topics.event);
-  const relayFireLog = new RelayFireLog();
+  const actuationLog = new ActuationLog();
   const detectionTimeoutMs = (): number =>
     Math.max(1, configRepo.getHeartbeatIntervalSeconds()) * 1000;
 
@@ -169,7 +169,7 @@ export function wireSimulatedDevice(options: WireSimulatedDeviceOptions): WiredS
     config: configRepo,
     scheduler,
     doorEvents,
-    relayFireLog,
+    actuationLog,
     log: appLogger,
   });
   const pollSnapshot = new PollCompartmentStateUseCase(
@@ -178,7 +178,7 @@ export function wireSimulatedDevice(options: WireSimulatedDeviceOptions): WiredS
     outbound,
     topics.snapshot,
     appLogger,
-    { relayFireLog, doorEvents, detectionTimeoutMs },
+    { actuationLog, doorEvents, detectionTimeoutMs },
   );
   const heartbeat = new HeartbeatUseCase(
     outbound,
@@ -284,7 +284,6 @@ export function wireSimulatedDevice(options: WireSimulatedDeviceOptions): WiredS
 
   const start = async () => {
     await bus.connect();
-    await runStartupFailsafe(bus);
     heartbeat.start();
 
     // Publish the seeded door states immediately so the backend read model is

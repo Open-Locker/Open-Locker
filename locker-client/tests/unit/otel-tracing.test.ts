@@ -71,8 +71,8 @@ test('the adapter produces well-formed trace context and nests child spans', asy
     { kind: 'producer', attributes: { 'open_locker.compartment_number': 3 } },
     async () => {
       // A nested span inherits the trace without being passed anything, which
-      // is what makes a Modbus write land under the command that caused it.
-      const nestedTraceparent = await tracing.inSpan('modbus flash_relay', {}, async () =>
+      // is what makes an unlock land under the command that caused it.
+      const nestedTraceparent = await tracing.inSpan('rs485 unlock', {}, async () =>
         tracing.currentTraceparent(),
       );
 
@@ -133,13 +133,13 @@ test('a failing operation is recorded on the span but still throws', async () =>
   const { tracing, exporter } = createAdapter();
 
   await assert.rejects(
-    tracing.inSpan('modbus read_discrete_inputs', {}, async () => {
+    tracing.inSpan('rs485 query_all', {}, async () => {
       throw new Error('Timed out');
     }),
     /Timed out/,
   );
 
-  const span = exporter.getFinishedSpans().find((s) => s.name === 'modbus read_discrete_inputs');
+  const span = exporter.getFinishedSpans().find((s) => s.name === 'rs485 query_all');
 
   assert.ok(span);
   assert.equal(span.status.code, 2, 'expected the span to be marked as an error');

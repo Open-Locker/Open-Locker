@@ -4,6 +4,9 @@
 
 Implemented (2026-11-13, #321) in the ESP32 firmware. The Pi client follows in #386.
 
+- 2026-11-14: the Pi client adopts the reply framing in #312 (ADR-0089); the
+  unlock status is superseded there in part.
+
 ## Date
 
 2026-10-20
@@ -124,7 +127,8 @@ exists.
 ## Supersedes / Superseded By
 
 - Supersedes: ADR-0061 in part (reply framing and unlock status)
-- Superseded by: none
+- Superseded by: ADR-0089 in part (a failure status in the unlock reply becomes
+  `success` plus `door_jammed` instead of `HARDWARE_ERROR`)
 
 ## References
 

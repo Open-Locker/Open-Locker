@@ -5,7 +5,7 @@ import { CommandDispatcher } from '../../src/adapters/mqtt/command-dispatcher';
 import { InboundProtocolGuard } from '../../src/adapters/mqtt/inbound-protocol-guard';
 import { InMemoryDedupStore } from '../../src/adapters/mqtt/dedup-store';
 import { OutboundMqttAdapter } from '../../src/adapters/mqtt/outbound-mqtt.adapter';
-import { WaveshareModbusBusActor } from '../../src/adapters/modbus/waveshare-modbus-bus-actor';
+import { Rs485LockBoardBusActor } from '../../src/adapters/rs485/rs485-lock-board-bus-actor';
 import { mqttSpanAttributes, spanDestination } from '../../src/domain/mqtt-span-attributes';
 import { readTraceparent, TRACEPARENT_FIELD } from '../../src/domain/trace-context';
 import * as attr from '../../src/domain/trace-attributes';
@@ -213,77 +213,68 @@ test('unparseable messages are dropped without opening a span', async () => {
   assert.deepEqual(tracing.spans, []);
 });
 
-test('modbus operations are traced with the board they addressed', async () => {
+test('hardware operations are traced with the board they addressed', async () => {
   const tracing = new RecordingTracing();
   const calls: string[] = [];
 
-  const bus = new WaveshareModbusBusActor(
+  const bus = new Rs485LockBoardBusActor(
     {
       async connect() {},
       async disconnect() {},
       isOpen: () => true,
-      async flashRelayOn() {
-        calls.push('flash');
+      async unlock() {
+        calls.push('unlock');
+        return 'open' as const;
       },
-      async readCoils() {
-        return [true];
+      async queryAll() {
+        return ['closed' as const];
       },
-      async readDiscreteInputs() {
-        return [false];
-      },
-      async turnAllRelaysOff() {},
     },
+    () => [3],
     { maxAttempts: 1, delayMs: 0 },
-    [3],
-    'door_closing',
     tracing,
   );
 
-  await bus.flashRelay({ compartmentNumber: 2, slaveId: 3, relayAddress: 5 }, 400);
-  await bus.readDoorSensors(3, 0, 1);
+  await bus.unlockCompartment({ compartmentNumber: 2, boardAddress: 3, address: 5 });
+  await bus.readCompartmentStates(3, [0]);
 
-  const flash = tracing.find('modbus flash_relay');
-  assert.ok(flash, 'expected a span for the relay pulse');
-  assert.equal(flash.kind, 'internal');
-  assert.equal(flash.attributes[attr.MODBUS_SLAVE_ID], 3);
-  assert.equal(flash.attributes[attr.MODBUS_ADDRESS], 5);
-  assert.equal(flash.attributes[attr.MODBUS_DURATION_MS], 400);
-  assert.equal(flash.attributes[attr.COMPARTMENT_NUMBER], 2);
+  const unlock = tracing.find('rs485 unlock');
+  assert.ok(unlock, 'expected a span for the unlock');
+  assert.equal(unlock.kind, 'internal');
+  assert.equal(unlock.attributes[attr.HARDWARE_BOARD_ADDRESS], 3);
+  assert.equal(unlock.attributes[attr.HARDWARE_COMPARTMENT_ADDRESS], 5);
+  assert.equal(unlock.attributes[attr.COMPARTMENT_NUMBER], 2);
   assert.equal(calls.length, 1);
 
-  const read = tracing.find('modbus read_discrete_inputs');
+  const read = tracing.find('rs485 query_all');
   assert.ok(read, 'expected a span for the door read');
-  assert.equal(read.attributes[attr.MODBUS_LENGTH], 1);
+  assert.equal(read.attributes[attr.HARDWARE_BOARD_ADDRESS], 3);
 });
 
 test('an unreachable board still records the failure on its span', async () => {
   const tracing = new RecordingTracing();
 
-  const bus = new WaveshareModbusBusActor(
+  const bus = new Rs485LockBoardBusActor(
     {
       async connect() {},
       async disconnect() {},
       isOpen: () => true,
-      async flashRelayOn() {},
-      async readCoils() {
-        return [];
+      async unlock() {
+        return 'open' as const;
       },
-      async readDiscreteInputs(): Promise<boolean[]> {
-        throw new Error('Timed out');
+      async queryAll(): Promise<Array<'open' | 'closed'>> {
+        throw new Error('RS485 board 1 did not respond');
       },
-      async turnAllRelaysOff() {},
     },
+    () => [1],
     { maxAttempts: 1, delayMs: 0 },
-    [1],
-    'door_closing',
     tracing,
   );
 
-  // Door reads degrade to "unknown" rather than throwing.
-  assert.deepEqual(await bus.readDoorSensors(1, 0, 2), ['unknown', 'unknown']);
+  await assert.rejects(bus.readCompartmentStates(1, [0, 1]), /did not respond/);
 
-  const span = tracing.find('modbus read_discrete_inputs');
+  const span = tracing.find('rs485 query_all');
 
   assert.ok(span);
-  assert.equal(span.failed, true, 'the timeout must be visible on the trace');
+  assert.equal(span.failed, true, 'the failure must be visible on the trace');
 });

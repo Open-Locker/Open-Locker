@@ -4,7 +4,7 @@ import { computeAppliedConfigHash } from '../../src/domain/config-normalization'
 
 export function canonicalConfigHash(
   compartments: CompartmentConfig[],
-  adapterType: AdapterType = 'waveshare_modbus',
+  adapterType: AdapterType = 'rs485_lock_board',
   feedbackType: FeedbackType = 'door_closing',
 ): string {
   return computeAppliedConfigHash({
