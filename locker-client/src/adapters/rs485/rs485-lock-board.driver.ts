@@ -10,7 +10,7 @@ import {
   decodeUnlockResponse,
   encodeQueryAllRequest,
   encodeUnlockRequest,
-  validateQueryAllFrame,
+  findQueryAllResponse,
 } from './rs485-lock-board-codec';
 import {
   RequestNotSentError,
@@ -74,7 +74,7 @@ export class Rs485LockBoardDriver implements Rs485LockBoardDriverPort {
       response = await this.transport.transact(
         encodeQueryAllRequest(boardAddress),
         this.timeoutMs,
-        (frame) => validateQueryAllFrame(frame, boardAddress),
+        (frame) => void findQueryAllResponse(frame, boardAddress),
       );
     } catch (error) {
       if (error instanceof ResponseTimeoutError && error.receivedBytes === 0) {

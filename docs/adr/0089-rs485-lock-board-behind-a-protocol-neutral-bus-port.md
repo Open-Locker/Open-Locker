@@ -2,11 +2,11 @@
 
 ## Status
 
-Proposed
+Accepted
 
 ## Date
 
-2026-09-28
+2026-11-14
 
 ## Context
 
@@ -199,14 +199,20 @@ stable `/dev/serial/by-id/...` path. `modbus:` remains a deprecated alias whose
 
 ### 7. Protocol handling
 
-- XOR/BCC is validated over every complete frame.
+- A received burst is split into messages by their known formats, as in the
+  firmware (ADR-0071): `8A` and `82` are five bytes, `80` runs to the `33`
+  command marker followed by a matching XOR. Bytes that start no valid message
+  are skipped. The board can send a `82` door event right behind a reply with
+  no gap, so a burst may hold a reply and an event.
+- XOR/BCC is validated over every message.
 - Query-all response length comes from the received frame, never from a
   declared channel count; only configured channels are selected.
 - Missing status bits produce `unknown`.
 - `slaveId` is the physical DIP address, `1..31`.
 - Zero-based compartment addresses become one-based wire channels inside the
   adapter.
-- Polling uses query-all; unsolicited `0x82` feedback is not supported.
+- Polling uses query-all. Unsolicited `0x82` door events are ignored, since the
+  periodic poll already reports doors.
 - Full-open and multi-channel unlock commands are not exposed.
 
 ### 8. Transaction ordering and isolation
@@ -217,8 +223,10 @@ stable `/dev/serial/by-id/...` path. `modbus:` remains a deprecated alias whose
   each operation's priority through.
 - After a timeout, a BCC mismatch, or unexpected bytes, the adapter waits for
   the frame quiet time and discards all buffered input before the next request.
-- A frame that does not match the pending request's header, board address, and
-  channel is rejected.
+- An exchange takes the message that answers its request: for an unlock, the
+  `8A` reply with the request's board address, channel, and a `00` or `11`
+  status; for query-all, the `80` response with the request's board address. A
+  burst without such a message is rejected.
 - A USB-RS485 disconnect is recovered in the running process through the
   ADR-0051 reconnect cycle.
 - A board that stays silent still triggers the reconnect, but is not queried
@@ -349,6 +357,9 @@ configuration files valid.
 - Contact bounce around the unlock response can produce a false `opened`, and
   a lock that releases after the board's reading a false `door_jammed`, because
   the response is a single unfiltered reading.
+- A door event that arrives alone, more than the frame quiet time before the
+  reply, completes the burst without a reply: an unlock then ends as an unknown
+  outcome, a poll as `unknown` for one cycle. The firmware behaves the same.
 - Until the firmware change ships, a refused unlock is `success` plus
   `door_jammed` from a Pi and `HARDWARE_ERROR` from an ESP32.
 - A wrong `feedback_type` inverts both the unlock observation and polling.
@@ -408,6 +419,11 @@ The contract is unchanged, so the client ships before the backend.
   `reports door_jammed straight from an unlock response that observed the door closed`,
   `keeps polling when the unlock response observed no door state`.
 - Detection window: `a slow unlock does not use up the detection window`.
+- Bursts split into messages (ports of firmware tests S1-H32, S1-H33, S1-H35):
+  `an unlock reply followed by a door event is read`,
+  `a query-all response followed by a door event is read`,
+  `a door event and noise ahead of the reply are skipped`,
+  `a bus that only echoes requests never reports an unlock as opened`.
 - Late responses discarded:
   `a late response after a timeout is discarded, not read as the next answer`.
 - Silent board not queried again:

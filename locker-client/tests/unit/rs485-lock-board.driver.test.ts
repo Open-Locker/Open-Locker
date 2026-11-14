@@ -113,7 +113,7 @@ test('a malformed unlock reply means the unlock outcome is unknown', async () =>
     () => driver.unlock(1, 0),
     (error: unknown) => {
       assert.ok(error instanceof UnlockOutcomeUnknownError);
-      assert.match(error.message, /BCC/);
+      assert.match(error.message, /no unlock response/);
       assert.equal(error.reconnectable, true);
       return true;
     },

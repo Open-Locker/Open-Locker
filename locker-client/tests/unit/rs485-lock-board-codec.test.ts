@@ -64,15 +64,15 @@ test('query-all still inverts door state for door_opening wiring', () => {
   );
 });
 
-test('rejects malformed BCC, address, and truncated frames', () => {
+test('rejects malformed BCC, address, status, and truncated frames', () => {
   assert.throws(
     () => decodeUnlockResponse(Uint8Array.from([0x8a, 1, 1, 0, 0]), 1, 0, 'door_closing'),
-    /BCC/,
+    /no unlock response/,
   );
   const body = [0x8a, 2, 1, 0];
   assert.throws(
     () => decodeUnlockResponse(Uint8Array.from([...body, xorBcc(body)]), 1, 0, 'door_closing'),
-    /does not match/,
+    /no unlock response/,
   );
   const badStatus = [0x8a, 1, 1, 0x22];
   assert.throws(
@@ -83,7 +83,68 @@ test('rejects malformed BCC, address, and truncated frames', () => {
         0,
         'door_closing',
       ),
-    /unsupported unlock response status/,
+    /no unlock response/,
   );
-  assert.throws(() => decodeQueryAllResponse(Uint8Array.from([0x80]), 1, 'door_closing'), /length/);
+  assert.throws(
+    () => decodeQueryAllResponse(Uint8Array.from([0x80]), 1, 'door_closing'),
+    /no query-all response/,
+  );
+});
+
+// Captured from an SY-800R panel (ADR-0071): the unlock reply, then a door event, in one burst.
+test('an unlock reply followed by a door event is read', () => {
+  const ackThenEvent = Uint8Array.from([
+    0x8a, 0x01, 0x01, 0x00, 0x8a, 0x82, 0x01, 0x01, 0x00, 0x82,
+  ]);
+
+  assert.equal(decodeUnlockResponse(ackThenEvent, 1, 0, 'door_closing'), 'open');
+});
+
+// Captured from an SY-800R panel (ADR-0071): the status reply, then a door event, in one burst.
+test('a query-all response followed by a door event is read', () => {
+  const statusThenEvent = Uint8Array.from([
+    0x80, 0x01, 0x00, 0x00, 0x00, 0x33, 0xb2, 0x82, 0x01, 0x01, 0x11, 0x93,
+  ]);
+
+  const states = decodeQueryAllResponse(statusThenEvent, 1, 'door_closing');
+  assert.equal(states.length, 24);
+  assert.ok(states.every((state) => state === 'open'));
+});
+
+test('a door event and noise ahead of the reply are skipped', () => {
+  const eventThenReply = Uint8Array.from([
+    0x00,
+    0x82,
+    0x01,
+    0x02,
+    0x11,
+    0x90,
+    ...unlockResponse(0x11),
+  ]);
+
+  assert.equal(decodeUnlockResponse(eventThenReply, 1, 0, 'door_closing'), 'closed');
+});
+
+test('a door event alone is no unlock response', () => {
+  const event = [0x82, 0x01, 0x01, 0x00];
+
+  assert.throws(
+    () => decodeUnlockResponse(Uint8Array.from([...event, xorBcc(event)]), 1, 0, 'door_closing'),
+    /no unlock response/,
+  );
+});
+
+/*
+ * A miswired bus reflects every request back unchanged and the board never
+ * answers. Documented, not handled (ADR-0071): the unlock echo reads as a closed
+ * door, so the open is never reported as done, but the status echo reads as
+ * every door open.
+ */
+test('a bus that only echoes requests never reports an unlock as opened', () => {
+  assert.equal(decodeUnlockResponse(encodeUnlockRequest(1, 0), 1, 0, 'door_closing'), 'closed');
+  assert.ok(
+    decodeQueryAllResponse(encodeQueryAllRequest(1), 1, 'door_closing').every(
+      (state) => state === 'open',
+    ),
+  );
 });

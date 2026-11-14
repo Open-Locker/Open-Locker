@@ -94,8 +94,10 @@ response. Only an open whose reply was lost fails with `HARDWARE_ERROR`.
   fails and the door is watched by normal polling.
 - Unlocks go ahead of queued polls.
 - A board that does not answer reports its doors as `unknown`.
-- Unsolicited `0x82` feedback, full-open, and multi-channel unlock commands are
-  not used.
+- The board may send a `0x82` door event on its own, also right behind a reply.
+  The client splits each received burst into messages and ignores these
+  events; polling reports the doors.
+- Full-open and multi-channel unlock commands are not used.
 
 ## Commissioning
 
