@@ -30,7 +30,7 @@ The board firmware fixes the serial framing, so the adapter does too:
 | Flow control          | none                                     |
 | Response timeout      | 1500 ms (the unlock reply takes ~500 ms) |
 | Frame quiet time      | 25 ms of silence completes a response    |
-| Inter-transaction gap | 5 ms                                     |
+| Inter-transaction gap | 50 ms                                    |
 | Reconnect             | 5 attempts, 5 s apart, 60 s cooldown     |
 
 A file with the older `modbus:` block still works: its `port` is read and every

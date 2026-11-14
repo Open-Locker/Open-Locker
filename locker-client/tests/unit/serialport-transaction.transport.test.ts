@@ -100,6 +100,42 @@ test('transport assembles a frame split across chunks', async () => {
   assert.deepEqual([...(await pending)], [...response]);
 });
 
+test('transport keeps a 50 ms gap between the end of a transaction and the next request', async () => {
+  const port = new FakeSerialPort();
+  let nowMs = 1_000;
+  const sleeps: number[] = [];
+  const transport = new SerialPortTransactionTransport(
+    connection,
+    {
+      now: () => nowMs,
+      sleep: async (delayMs) => {
+        sleeps.push(delayMs);
+        nowMs += delayMs;
+      },
+    },
+    () => port,
+  );
+  await transport.open();
+
+  const transactOnce = async (): Promise<void> => {
+    const pending = transport.transact(request, 200);
+    await waitForTransactReady();
+    port.push(queryResponse());
+    await pending;
+  };
+
+  await transactOnce();
+  assert.deepEqual(sleeps, []);
+
+  nowMs += 10;
+  await transactOnce();
+  assert.deepEqual(sleeps, [40]);
+
+  nowMs += 50;
+  await transactOnce();
+  assert.deepEqual(sleeps, [40]);
+});
+
 test('transport classifies EACCES on serial open as non-reconnectable', async () => {
   class PermissionDeniedPort extends FakeSerialPort {
     override open(callback: (error?: Error | null) => void): void {

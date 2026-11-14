@@ -1,5 +1,4 @@
 import { performance } from 'node:perf_hooks';
-import { calculateInterTransactionDelayMs } from '../serial/serial-framing-timing';
 import type { SerialConnectionConfig } from '../serial/serial-connection-config';
 import { HardwareTransportError, isReconnectableHardwareError } from '../../domain/errors';
 import {
@@ -14,6 +13,14 @@ import {
  * apart, so a shorter quiet time cuts frames in half (ADR-0089).
  */
 const FRAME_QUIET_MS = 25;
+
+/**
+ * Pause between the end of one transaction and the next request. Lock boards
+ * ignore a request that follows the previous reply too closely: with three
+ * boards on one bus, a request about 10 ms after the reply went unanswered
+ * (#350, ADR-0089).
+ */
+const REQUEST_GAP_MS = 50;
 
 /** The request never reached the wire: nothing the board could have acted on. */
 export class RequestNotSentError extends HardwareTransportError {
@@ -52,7 +59,6 @@ export class SerialPortTransactionTransport implements Rs485TransactionTransport
   private port: InjectableSerialPort | null = null;
   private deferredError: HardwareTransportError | null = null;
   private lastTransactionCompletedAt: number | null = null;
-  private readonly interTransactionDelayMs: number;
   private readonly timing: TimingDependencies;
   private readonly onPortError = (error: Error): void => {
     this.deferredError = new HardwareTransportError(`RS485 serial error: ${error.message}`, true);
@@ -63,8 +69,8 @@ export class SerialPortTransactionTransport implements Rs485TransactionTransport
     timing: Partial<TimingDependencies> = {},
     private readonly createPort: SerialPortFactory = defaultSerialPortFactory,
     private readonly frameQuietMs = FRAME_QUIET_MS,
+    private readonly interTransactionDelayMs = REQUEST_GAP_MS,
   ) {
-    this.interTransactionDelayMs = calculateInterTransactionDelayMs(connection);
     this.timing = {
       now: timing.now ?? (() => performance.now()),
       sleep: timing.sleep ?? ((delayMs) => new Promise((resolve) => setTimeout(resolve, delayMs))),

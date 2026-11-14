@@ -159,7 +159,14 @@ parity, 1 stop bit, and no flow control. Internal defaults:
 - response timeout: 1500 ms;
 - frame quiet time: 25 ms of silence completes a response, because USB-RS485
   adapters deliver one response in bursts that can be more than 5 ms apart;
-- inter-transaction gap: 5 ms (ADR-0035 for 9600/8N1);
+- request gap: 50 ms from the end of one transaction to the next request.
+  The boards ignore a request that follows the previous reply on the bus too
+  closely: on a locker with three boards on one bus, a request about 10 ms
+  after the reply went unanswered every time, while a later one was answered
+  at once ([#350](https://github.com/Open-Locker/Open-Locker/issues/350)).
+  A transaction ends 25 ms after its last byte, so the line is quiet for about
+  75 ms before each request. The Modbus RTU gap from ADR-0035 does not apply
+  to this protocol;
 - reconnect budget and cooldown (ADR-0051).
 
 The external YAML key becomes `serial:` with a single `port` entry, preferably a
@@ -201,6 +208,10 @@ and runs every 500 ms (ADR-0038). One board per bus is the supported
 configuration until a poll cycle with several boards has been measured on a
 real bus. The limit is documented, not enforced, so that measurement remains
 possible.
+
+With a reply after about 20 ms, the 25 ms quiet time, and the 50 ms request
+gap, one board takes about 95 ms per poll. Three boards fit the 500 ms interval
+at about 0.3 s, and an unlock waits at most one transaction behind a poll.
 
 ### Out of scope
 
@@ -297,6 +308,10 @@ configuration files valid.
   because the response is a single unfiltered reading.
 - A wrong `feedback_type` inverts both the unlock observation and polling.
 - Several boards at 9600 baud may not fit the 500 ms poll interval.
+- The 50 ms request gap is derived from one failing and one working gap, not
+  from a measured threshold. If it is too short, a silent board is no longer
+  queried again within the same poll, so its compartments read `unknown` on
+  every poll instead of only arriving late.
 - Protocol behaviour is tested against vendor documentation and one captured
   frame only.
 
@@ -309,6 +324,10 @@ The contract is unchanged, so the client ships before the backend.
 2. Validate the reference build on hardware:
    - momentary unlock actuation with no energised output after a restart;
    - the 25 ms quiet time on the USB-RS485 adapter;
+   - the 50 ms request gap on the Hameln locker (`locker-3`, three boards on
+     one bus): no unanswered query in a serial trace, and the time from
+     receiving an open command to its response in the command dedup store,
+     repeated as in #350;
    - feedback semantics (door or latch), polarity, and contact bounce;
    - total current, lock inrush, and simultaneous actuation limits;
    - flyback, short-circuit, overcurrent, reverse-polarity, ESD, and surge
@@ -327,22 +346,48 @@ The contract is unchanged, so the client ships before the backend.
 5. Remove `waveshare_modbus` from the backend admin and validation, and migrate
    remaining rows.
 
+## Confirmation
+
+- Unlock never re-sent after an unknown outcome:
+  `RS485 actor reconnects after an unlock with an unknown outcome but never re-sends it`;
+  re-sent when nothing left the client:
+  `RS485 actor reconnects and re-sends an unlock that never left the client`.
+- Possible actuation recorded:
+  `records a possible actuation but starts no detection when the unlock outcome is unknown`.
+- Unlock priority end to end:
+  `an unlock overtakes door reads already queued behind a running operation`.
+- Unlock response mapping:
+  `unlock response maps door_closing feedback: 00 is open, 11 is closed`,
+  `unlock response maps door_opening feedback: 11 is open, 00 is closed`,
+  `reports opened straight from an unlock response that observed the door open`.
+- Detection window: `a slow unlock does not use up the detection window`.
+- Late responses discarded:
+  `a late response after a timeout is discarded, not read as the next answer`.
+- Silent board not queried again:
+  `RS485 actor reconnects after a silent board but does not query it again`.
+- Request gap:
+  `transport keeps a 50 ms gap between the end of a transaction and the next request`.
+- On hardware: the checks in Rollout step 2.
+
 ## Supersedes / Superseded By
 
 - Supersedes: ADR-0004 (its deduplication rule remains)
 - Supersedes: ADR-0006
+- Partially supersedes: ADR-0035 (the RS485 adapter uses its own 50 ms request
+  gap instead of the Modbus RTU inter-frame delay)
 - Partially supersedes: ADR-0061 (the `waveshare_modbus` value, the
   acknowledgement-only unlock response, and the shared `modbus:` YAML key)
 - Partially supersedes: ADR-0051 (the cooldown is no longer
   operator-configurable; reconnect triggers and `unreachable` are unchanged)
 - Narrows: ADR-0063 (`0063-prioritize-compartment-unlock-actuation.md`),
-  ADR-0040, ADR-0007, ADR-0038, and ADR-0035
+  ADR-0040, ADR-0007, and ADR-0038
 - Superseded by: none
 
 ## References
 
 - `https://github.com/Open-Locker/Open-Locker/issues/307`
 - `https://github.com/Open-Locker/Open-Locker/issues/302`
+- `https://github.com/Open-Locker/Open-Locker/issues/350`
 - `docs/adr/0002-mqtt-message-id-and-transaction-id-separation.md`
 - `docs/adr/0004-waveshare-hardware-flash-and-supported-boards.md`
 - `docs/adr/0006-best-effort-startup-failsafe-for-unreachable-modbus-boards.md`
