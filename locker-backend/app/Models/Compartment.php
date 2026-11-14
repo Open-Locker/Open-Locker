@@ -148,6 +148,25 @@ class Compartment extends Model
     }
 
     /**
+     * Grants that still give this compartment to a group.
+     *
+     * @return HasMany<GroupCompartmentAccess, Compartment>
+     */
+    public function activeGroupAccesses(): HasMany
+    {
+        return $this->groupAccesses()
+            ->active()
+            ->whereHas('group', function (Builder $query): void {
+                $query->whereNull('archived_at');
+            })
+            ->orderBy(
+                Group::query()
+                    ->select('name')
+                    ->whereColumn('groups.id', 'group_compartment_accesses.group_id'),
+            );
+    }
+
+    /**
      * Get the attributes that should be cast.
      *
      * @return array<string, string>
