@@ -53,26 +53,48 @@ export class OpenCompartmentUseCase {
 
   async execute(compartmentNumber: number, transactionId: string): Promise<void> {
     const startedAt = this.now();
-    const { target, targetConfigKey, observation } = await this.bus.runExclusive(
+    const { target, targetConfigKey, observation, unknownOutcome } = await this.bus.runExclusive(
       async (exclusiveBus) => {
         const resolvedTarget = this.resolveTarget(compartmentNumber);
+        const targetConfigKey = this.targetConfigKey(resolvedTarget);
         try {
           return {
             target: resolvedTarget,
-            targetConfigKey: this.targetConfigKey(resolvedTarget),
+            targetConfigKey,
             observation: await exclusiveBus.unlockCompartment(resolvedTarget),
+            unknownOutcome: null,
           };
         } catch (error) {
           if (error instanceof UnlockOutcomeUnknownError) {
-            // The lock may have released: a door opening now is not uncommanded.
+            // The lock may have released: watch for an open, but keep the
+            // command failure. A jam is not reported — HARDWARE_ERROR already
+            // answered (ADR-0089).
             this.actuationLog.recordActuation(compartmentNumber, this.now());
+            return {
+              target: resolvedTarget,
+              targetConfigKey,
+              observation: {},
+              unknownOutcome: error,
+            };
           }
           throw error;
         }
       },
     );
-    this.actuationLog.recordActuation(compartmentNumber, this.now());
-    this.startDoorDetection(target, transactionId, targetConfigKey, startedAt, observation);
+    if (unknownOutcome === null) {
+      this.actuationLog.recordActuation(compartmentNumber, this.now());
+    }
+    this.startDoorDetection(
+      target,
+      transactionId,
+      targetConfigKey,
+      startedAt,
+      observation,
+      unknownOutcome === null,
+    );
+    if (unknownOutcome !== null) {
+      throw unknownOutcome;
+    }
   }
 
   stopAllMonitoring(): void {
@@ -94,6 +116,7 @@ export class OpenCompartmentUseCase {
     targetConfigKey: string,
     startedAt: number,
     observation: UnlockObservation,
+    reportJammedOnTimeout: boolean,
   ): void {
     const compartmentNumber = target.compartmentNumber;
     const timeoutMs = this.detectionTimeoutMs();
@@ -151,12 +174,16 @@ export class OpenCompartmentUseCase {
 
       if (nowMs - detectionStartedAt >= timeoutMs) {
         this.actuationLog.endDetection(compartmentNumber);
-        await this.reportOutcome({
-          compartmentNumber,
-          transactionId,
-          outcome: 'door_jammed',
-          detectionMs: null,
-        });
+        // After an unknown unlock outcome the command already failed with
+        // HARDWARE_ERROR; a jam alert would misread a bus fault as a stuck lock.
+        if (reportJammedOnTimeout) {
+          await this.reportOutcome({
+            compartmentNumber,
+            transactionId,
+            outcome: 'door_jammed',
+            detectionMs: null,
+          });
+        }
 
         return;
       }

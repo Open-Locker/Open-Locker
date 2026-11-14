@@ -122,7 +122,7 @@ detection window:
 |---|---|---|
 | `open` | `success` | `opened` |
 | `closed` | `success` | `door_jammed` (`DOOR_JAMMED`) |
-| no usable response | `HARDWARE_ERROR` (section 4) | none |
+| no usable response | `HARDWARE_ERROR` (section 4) | `opened` if the door is later observed open; otherwise none |
 
 A `closed` response is a physical observation, not a transport failure, so it is
 reported on the event channel as ADR-0040 requires, and the backend shows it as
@@ -156,9 +156,10 @@ and the caller still receives that error even when the reconnect fails. Only
 
 Both errors fail the `open_compartment` command with a hardware error. After
 `UnlockOutcomeUnknownError`, `OpenCompartmentUseCase` records the attempt as a
-possible actuation, so the state poller does not report an opening within the
-detection timeout as uncommanded. No detection window starts and no `opened` or
-`door_jammed` follows the error response.
+possible actuation and starts a detection window that only reports `opened` if
+the door is later observed open. It never reports `door_jammed`: the command
+already failed, and a jam alert would misread a bus fault (the usual cause of a
+lost reply) as a stuck lock. `UnlockNotSentError` starts no detection.
 
 Command deduplication by `message_id` and `transaction_id` stays (ADR-0002,
 ADR-0004).
@@ -200,10 +201,12 @@ stable `/dev/serial/by-id/...` path. `modbus:` remains a deprecated alias whose
 ### 7. Protocol handling
 
 - A received burst is split into messages by their known formats, as in the
-  firmware (ADR-0071): `8A` and `82` are five bytes, `80` runs to the `33`
-  command marker followed by a matching XOR. Bytes that start no valid message
-  are skipped. The board can send a `82` door event right behind a reply with
-  no gap, so a burst may hold a reply and an event.
+  firmware (ADR-0071): `8A` and `82` are five bytes; for `80`, every length that
+  ends with the `33` command marker and a matching XOR is a candidate, and the
+  longest wins. A shorter prefix can also be BCC-valid when a status byte is
+  `0x33` (ADR-0071 Risks). Bytes that start no valid message are skipped. The
+  board can send a `82` door event right behind a reply with no gap, so a burst
+  may hold a reply and an event.
 - XOR/BCC is validated over every message.
 - Query-all response length comes from the received frame, never from a
   declared channel count; only configured channels are selected.
@@ -408,8 +411,9 @@ The contract is unchanged, so the client ships before the backend.
   `RS485 actor reconnects after an unlock with an unknown outcome but never re-sends it`;
   re-sent when nothing left the client:
   `RS485 actor reconnects and re-sends an unlock that never left the client`.
-- Possible actuation recorded:
-  `records a possible actuation but starts no detection when the unlock outcome is unknown`.
+- Unknown unlock outcome:
+  `watches for opened after an unknown unlock outcome but never reports door_jammed`,
+  `ends the unknown-outcome watch without door_jammed when the door stays shut`.
 - Unlock priority end to end:
   `an unlock overtakes door reads already queued behind a running operation`.
 - Unlock response mapping:
@@ -423,7 +427,8 @@ The contract is unchanged, so the client ships before the backend.
   `an unlock reply followed by a door event is read`,
   `a query-all response followed by a door event is read`,
   `a door event and noise ahead of the reply are skipped`,
-  `a bus that only echoes requests never reports an unlock as opened`.
+  `a bus that only echoes requests never reports an unlock as opened`,
+  `a query-all reply prefers the longest valid frame over a shorter BCC-valid prefix`.
 - Late responses discarded:
   `a late response after a timeout is discarded, not read as the next answer`.
 - Silent board not queried again:

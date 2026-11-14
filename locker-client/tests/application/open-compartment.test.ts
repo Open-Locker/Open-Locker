@@ -75,19 +75,59 @@ test('does not record an actuation or start detection when the unlock was not se
   assert.equal(await (scheduler as ManualScheduler).runNext(), false);
 });
 
-test('records a possible actuation but starts no detection when the unlock outcome is unknown', async () => {
+test('watches for opened after an unknown unlock outcome but never reports door_jammed', async () => {
   const bus = new FakeLockerBus([1]);
   bus.unlockCompartment = async () => {
     throw new UnlockOutcomeUnknownError('response timed out');
   };
-  const { doorEvents, actuationLog, scheduler, useCase } = build({ bus, now: () => 777 });
+  let nowMs = 777;
+  const { doorEvents, actuationLog, scheduler, useCase } = build({
+    bus,
+    now: () => nowMs,
+  });
 
   await assert.rejects(() => useCase.execute(1, 'txn-unknown'), /response timed out/);
 
   assert.equal(actuationLog.lastActuationAt(1), 777);
-  assert.equal(actuationLog.isDetecting(1), false);
+  assert.equal(actuationLog.isDetecting(1), true);
+
+  bus.setDoorState(TARGET, 'open');
+  nowMs = 1200;
+  await tickUntilOutcome(scheduler as ManualScheduler, doorEvents);
+  assert.deepEqual(doorEvents.lastDetection(), {
+    compartmentNumber: 1,
+    transactionId: 'txn-unknown',
+    outcome: 'opened',
+    detectionMs: 423,
+  });
+});
+
+test('ends the unknown-outcome watch without door_jammed when the door stays shut', async () => {
+  const bus = new FakeLockerBus([1]);
+  bus.unlockCompartment = async () => {
+    throw new UnlockOutcomeUnknownError('response timed out');
+  };
+  let nowMs = 0;
+  const { doorEvents, actuationLog, scheduler, useCase } = build({
+    bus,
+    now: () => nowMs,
+  });
+  const manual = scheduler as ManualScheduler;
+
+  await assert.rejects(() => useCase.execute(1, 'txn-unknown-jam'), /response timed out/);
+  assert.equal(actuationLog.isDetecting(1), true);
+
+  // One tick while still inside the 15 s window, then past it.
+  nowMs = 5_000;
+  await manual.runNext();
+  assert.equal(actuationLog.isDetecting(1), true);
+
+  nowMs = 15_000;
+  await manual.runNext();
+
   assert.deepEqual(doorEvents.detections, []);
-  assert.equal(await (scheduler as ManualScheduler).runNext(), false);
+  assert.equal(actuationLog.isDetecting(1), false);
+  assert.equal(await manual.runNext(), false);
 });
 
 test('OpenCompartmentUseCase throws when runtime mapping is missing', async () => {

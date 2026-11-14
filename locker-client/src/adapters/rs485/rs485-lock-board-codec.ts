@@ -129,12 +129,16 @@ function messageAt(bytes: Uint8Array, start: number): Uint8Array | null {
     return candidate.length === SHORT_MESSAGE_LENGTH && hasValidBcc(candidate) ? candidate : null;
   }
   if (header === QUERY_HEADER) {
+    // Prefer the longest valid frame: a shorter prefix can also end with 0x33
+    // and a matching BCC when a status byte happens to be 0x33 (ADR-0089).
+    let longest: Uint8Array | null = null;
     for (let end = start + MIN_QUERY_RESPONSE_LENGTH; end <= bytes.length; end++) {
       const candidate = bytes.subarray(start, end);
       if (candidate.at(-2) === QUERY_COMMAND && hasValidBcc(candidate)) {
-        return candidate;
+        longest = candidate;
       }
     }
+    return longest;
   }
   return null;
 }

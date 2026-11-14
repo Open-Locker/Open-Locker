@@ -100,6 +100,18 @@ test('an unlock reply followed by a door event is read', () => {
   assert.equal(decodeUnlockResponse(ackThenEvent, 1, 0, 'door_closing'), 'open');
 });
 
+test('a query-all reply prefers the longest valid frame over a shorter BCC-valid prefix', () => {
+  // 80 01 00 33 B2 is a valid 5-byte prefix of the 7-byte reply 80 01 00 33 B2 33 33.
+  // Taking the short one would report only eight doors, all open under door_closing.
+  const ambiguous = Uint8Array.from([0x80, 0x01, 0x00, 0x33, 0xb2, 0x33, 0x33]);
+  const states = decodeQueryAllResponse(ambiguous, 1, 'door_closing');
+
+  assert.equal(states.length, 24);
+  // Status bytes are 00 33 B2; group 0 is the last byte 0xB2 → channel 2 (bit 1) closed.
+  assert.equal(states[1], 'closed');
+  assert.equal(states[0], 'open');
+});
+
 // Captured from an SY-800R panel (ADR-0071): the status reply, then a door event, in one burst.
 test('a query-all response followed by a door event is read', () => {
   const statusThenEvent = Uint8Array.from([
