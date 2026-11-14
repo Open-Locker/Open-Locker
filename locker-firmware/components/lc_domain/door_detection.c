@@ -10,12 +10,13 @@ void lc_door_tracker_reset(lc_door_tracker_t *tracker)
 }
 
 void lc_door_unlocked(lc_door_tracker_t *tracker, uint16_t compartment_number,
-                      const char *transaction_id, int64_t now_ms)
+                      const char *transaction_id, int64_t now_ms, bool opened_only_watch)
 {
     tracker->unlocked_since_boot = true;
     tracker->unlocked_at_ms = now_ms;
     tracker->watching = true;
     tracker->saw_closed = false;
+    tracker->opened_only_watch = opened_only_watch;
     tracker->outcome_due = false;
     memset(&tracker->outcome, 0, sizeof(tracker->outcome));
     tracker->outcome.compartment_number = compartment_number;
@@ -29,6 +30,18 @@ static void finish(lc_door_tracker_t *tracker, bool opened, int64_t now_ms)
     tracker->outcome_due = true;
     tracker->outcome.opened = opened;
     tracker->outcome.detection_ms = opened ? (uint32_t)(now_ms - tracker->unlocked_at_ms) : 0;
+}
+
+void lc_door_finish_from_reply(lc_door_tracker_t *tracker, lc_door_t observed, int64_t now_ms)
+{
+    if (!tracker->watching) {
+        return;
+    }
+    if (observed == LC_DOOR_OPEN) {
+        finish(tracker, true, now_ms);
+    } else if (observed == LC_DOOR_CLOSED) {
+        finish(tracker, false, now_ms);
+    }
 }
 
 void lc_door_watch(lc_door_tracker_t *tracker, lc_door_t reading, int64_t now_ms,
@@ -45,7 +58,7 @@ void lc_door_watch(lc_door_tracker_t *tracker, lc_door_t reading, int64_t now_ms
         tracker->saw_closed = true;
     }
     if (now_ms - tracker->unlocked_at_ms >= (int64_t)window_ms) {
-        if (tracker->saw_closed) {
+        if (tracker->saw_closed && !tracker->opened_only_watch) {
             finish(tracker, false, now_ms);
         } else {
             tracker->watching = false;

@@ -23,6 +23,10 @@ void lc_app_flush_responses(lc_app_t *app);
 lc_command_result_t lc_app_open_compartment(lc_app_t *app, const lc_command_t *command);
 lc_command_result_t lc_app_apply_config(lc_app_t *app, const lc_command_t *command);
 
+/* Door events that must not wait for a poll interval (ADR-0089). */
+void lc_app_publish_door_events(lc_app_t *app);
+/* Polling and snapshot updates that run on the slower poll interval. */
+void lc_app_poll_period(lc_app_t *app, int64_t now_ms);
 /* The work of the periodic tick, in publish_state.c. */
 void lc_app_service(lc_app_t *app, int64_t now_ms);
 /* The mapping changed: forget what was known about the doors. */

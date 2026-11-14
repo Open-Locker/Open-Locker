@@ -46,6 +46,7 @@ typedef struct {
     lc_door_t doors[FAKE_BUS_ADDRESSES];
     bool read_ok;
     lc_unlock_result_t unlock_result;
+    lc_door_t unlock_observed;
     lc_bus_state_t state;
     bool apply_profile_ok;
     unsigned unlock_count;
