@@ -23,6 +23,8 @@ typedef struct {
     bool watching;
     /* The door was read as closed during the watch. */
     bool saw_closed;
+    /* When set, a timed-out watch never reports door_jammed (ADR-0089 section 4). */
+    bool opened_only_watch;
     /* The result of a finished watch, not yet accepted for sending. */
     bool outcome_due;
     lc_open_detection_t outcome;
@@ -36,7 +38,7 @@ void lc_door_tracker_reset(lc_door_tracker_t *tracker);
  * still running is replaced.
  */
 void lc_door_unlocked(lc_door_tracker_t *tracker, uint16_t compartment_number,
-                      const char *transaction_id, int64_t now_ms);
+                      const char *transaction_id, int64_t now_ms, bool opened_only_watch);
 
 /*
  * Ends a running watch from the door state the panel reported with its unlock
@@ -47,7 +49,7 @@ void lc_door_finish_from_reply(lc_door_tracker_t *tracker, lc_door_t observed, i
 /*
  * A reading of the door while a watch runs. `open` ends the watch with an
  * outcome; so does the end of `window_ms`, as a jam when the door was read as
- * closed, and as nothing when it never could be read.
+ * closed and the watch is not opened-only, and as nothing otherwise.
  */
 void lc_door_watch(lc_door_tracker_t *tracker, lc_door_t reading, int64_t now_ms,
                    uint32_t window_ms);

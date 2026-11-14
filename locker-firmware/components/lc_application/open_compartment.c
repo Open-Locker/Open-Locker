@@ -41,9 +41,11 @@ lc_command_result_t lc_app_open_compartment(lc_app_t *app, const lc_command_t *c
     const size_t index = (size_t)(mapping - app->config.mappings);
     const int64_t now_ms = app->ports.clock.now_ms(app->ports.clock.ctx);
 
+    const bool opened_only = observation.result == LC_UNLOCK_OUTCOME_UNKNOWN;
+
     /* Acknowledged or not, the lock may have moved. */
     lc_door_unlocked(&app->compartments[index].door, mapping->number, command->transaction_id,
-                     now_ms);
+                     now_ms, opened_only);
 
     if (observation.result == LC_UNLOCK_OUTCOME_UNKNOWN) {
         result.error = LC_ERROR_HARDWARE_ERROR;

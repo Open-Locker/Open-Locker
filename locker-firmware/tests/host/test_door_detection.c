@@ -185,6 +185,17 @@ void test_S4_H08_unknown_to_open_is_not_an_uncommanded_open(void)
     TEST_ASSERT_EQUAL_INT(LC_DOOR_OPEN, fake_outbound_snapshot_state(&fx_outbound, 1));
 }
 
+void test_S4_H27_unknown_outcome_with_door_closed_never_yields_door_jammed(void)
+{
+    fx_bus.unlock_result = LC_UNLOCK_OUTCOME_UNKNOWN;
+    open("tx-1", 1);
+    TEST_ASSERT_EQUAL_INT(LC_ERROR_HARDWARE_ERROR,
+                          fake_outbound_last_response(&fx_outbound)->error);
+
+    fx_advance_acknowledging(WINDOW_MS);
+    TEST_ASSERT_EQUAL_UINT(0, fx_outbound.detection_count);
+}
+
 void test_S4_H09_unlock_with_unknown_outcome_still_runs_detection(void)
 {
     fx_bus.unlock_result = LC_UNLOCK_OUTCOME_UNKNOWN;
@@ -289,6 +300,7 @@ int main(void)
     RUN_TEST(test_S4_H06_opening_during_a_commanded_open_is_not_uncommanded);
     RUN_TEST(test_S4_H07_first_reading_after_boot_being_open_is_no_event);
     RUN_TEST(test_S4_H08_unknown_to_open_is_not_an_uncommanded_open);
+    RUN_TEST(test_S4_H27_unknown_outcome_with_door_closed_never_yields_door_jammed);
     RUN_TEST(test_S4_H09_unlock_with_unknown_outcome_still_runs_detection);
     RUN_TEST(test_S4_H10_detection_event_whose_publish_fails_is_retried_and_published_once);
     RUN_TEST(test_S4_H24_unlock_reply_open_publishes_opened_without_the_detection_window);

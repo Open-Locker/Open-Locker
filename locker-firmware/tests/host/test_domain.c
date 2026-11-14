@@ -144,7 +144,7 @@ void test_config_find_matches_the_compartment_number(void)
 
 void test_a_door_seen_open_ends_the_watch(void)
 {
-    lc_door_unlocked(&tracker, 4, "tx-1", 1000);
+    lc_door_unlocked(&tracker, 4, "tx-1", 1000, false);
     TEST_ASSERT_TRUE(tracker.watching);
 
     lc_door_watch(&tracker, LC_DOOR_CLOSED, 1500, WINDOW_MS);
@@ -167,7 +167,7 @@ void test_a_door_seen_open_ends_the_watch(void)
 
 void test_a_window_with_no_reading_ends_without_an_outcome(void)
 {
-    lc_door_unlocked(&tracker, 4, "tx-1", 1000);
+    lc_door_unlocked(&tracker, 4, "tx-1", 1000, false);
 
     lc_door_watch(&tracker, LC_DOOR_UNKNOWN, 5000, WINDOW_MS);
     TEST_ASSERT_TRUE(tracker.watching);
@@ -178,9 +178,19 @@ void test_a_window_with_no_reading_ends_without_an_outcome(void)
     TEST_ASSERT_FALSE(tracker.outcome_due);
 }
 
+void test_opened_only_watch_never_reports_door_jammed_when_the_window_ends(void)
+{
+    lc_door_unlocked(&tracker, 4, "tx-1", 1000, true);
+    lc_door_watch(&tracker, LC_DOOR_CLOSED, 1500, WINDOW_MS);
+    lc_door_watch(&tracker, LC_DOOR_CLOSED, 1000 + (int64_t)WINDOW_MS, WINDOW_MS);
+
+    TEST_ASSERT_FALSE(tracker.watching);
+    TEST_ASSERT_FALSE(tracker.outcome_due);
+}
+
 void test_unlock_reply_observation_ends_the_watch_without_polling(void)
 {
-    lc_door_unlocked(&tracker, 4, "tx-1", 1000);
+    lc_door_unlocked(&tracker, 4, "tx-1", 1000, false);
 
     lc_door_finish_from_reply(&tracker, LC_DOOR_CLOSED, 1200);
 
@@ -192,8 +202,8 @@ void test_unlock_reply_observation_ends_the_watch_without_polling(void)
 
 void test_a_second_unlock_replaces_a_running_watch(void)
 {
-    lc_door_unlocked(&tracker, 4, "tx-1", 1000);
-    lc_door_unlocked(&tracker, 4, "tx-2", 2000);
+    lc_door_unlocked(&tracker, 4, "tx-1", 1000, false);
+    lc_door_unlocked(&tracker, 4, "tx-2", 2000, false);
 
     lc_door_watch(&tracker, LC_DOOR_OPEN, 2600, WINDOW_MS);
 
@@ -214,6 +224,7 @@ int main(void)
     RUN_TEST(test_config_refuses_a_mapping_the_panel_cannot_address);
     RUN_TEST(test_canonical_form_reports_every_place_it_can_run_out_of_room);
     RUN_TEST(test_config_find_matches_the_compartment_number);
+    RUN_TEST(test_opened_only_watch_never_reports_door_jammed_when_the_window_ends);
     RUN_TEST(test_unlock_reply_observation_ends_the_watch_without_polling);
     RUN_TEST(test_a_door_seen_open_ends_the_watch);
     RUN_TEST(test_a_window_with_no_reading_ends_without_an_outcome);

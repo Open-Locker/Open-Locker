@@ -67,6 +67,7 @@ Host suite `test_rs485_codec`:
 | S1-H09 | Status bits map to addresses in the documented order, for both feedback polarities |
 | S1-H10 | Addresses beyond the returned status bytes decode as `unknown` |
 | S1-H11 | Bad checksum, wrong header, wrong board, wrong command marker, and frames under five bytes are rejected |
+| S1-H37 | The longest valid query-all frame in a burst is chosen, not an earlier valid prefix |
 
 Host suite `test_rs485_bus`, against a scripted serial fake:
 
@@ -174,7 +175,7 @@ Suites `test_open_compartment`, `test_apply_config`, `test_app_dispatch`:
 | S2-H41 | Open of an unmapped compartment yields `COMPARTMENT_NOT_FOUND` |
 | S2-H42 | `ACKNOWLEDGED` yields success |
 | S2-H43 | `NOT_SENT` yields `HARDWARE_ERROR` and arms no door detection |
-| S2-H44 | `OUTCOME_UNKNOWN` yields `HARDWARE_ERROR` and arms door detection |
+| S2-H44 | `OUTCOME_UNKNOWN` yields `HARDWARE_ERROR`, arms opened-only detection, and never yields `door_jammed` |
 | S2-H45 | The bus is called with the mapped board and address, exactly once |
 | S2-H61 | `REFUSED` with `closed` in the unlock reply yields success |
 | S2-H46 | A valid `apply_config` is saved, sets the bus profile, and responds with `applied_config_hash` |
@@ -245,6 +246,7 @@ Host suite `test_door_detection`:
 | S4-H07 | The first reading after boot being open yields no event |
 | S4-H08 | `unknown` to open yields no uncommanded-open event |
 | S4-H09 | An unlock that returned `OUTCOME_UNKNOWN` still runs detection and can report `opened` |
+| S4-H27 | After `OUTCOME_UNKNOWN`, a closed door through the window must not yield `door_jammed` |
 | S4-H10 | A detection event whose publish fails is retried and published once |
 | S4-H24 | An unlock reply of `open` yields `opened` on the next service tick without the detection window |
 | S4-H25 | An unlock reply of `closed` yields `door_jammed` on the next service tick without the detection window |

@@ -79,14 +79,18 @@ static bool next_message(const uint8_t *bytes, size_t length, size_t *pos, const
             return true;
         }
         if (start[0] == QUERY_HEADER) {
+            size_t best_length = 0;
             for (size_t end = QUERY_RESPONSE_MIN; end <= left; ++end) {
                 if (start[end - 2] == QUERY_COMMAND &&
                     start[end - 1] == xor_checksum(start, end - 1)) {
-                    *message = start;
-                    *message_length = end;
-                    *pos += end;
-                    return true;
+                    best_length = end;
                 }
+            }
+            if (best_length > 0) {
+                *message = start;
+                *message_length = best_length;
+                *pos += best_length;
+                return true;
             }
         }
         ++*pos;
