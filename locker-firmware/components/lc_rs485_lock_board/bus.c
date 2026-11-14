@@ -193,11 +193,13 @@ static lc_unlock_observation_t unlock_compartment(void *ctx, lc_target_t target)
         case LC_RS485_UNLOCK_SUCCEEDED:
             record_success(bus);
             observation.result = LC_UNLOCK_ACKNOWLEDGED;
+            observation.observed = LC_DOOR_OPEN;
             break;
         case LC_RS485_UNLOCK_FAILED:
             /* The panel answered: the bus works, the lock did not open. */
             record_success(bus);
             observation.result = LC_UNLOCK_REFUSED;
+            observation.observed = LC_DOOR_CLOSED;
             break;
         case LC_RS485_UNLOCK_NO_ANSWER:
         default:

@@ -39,6 +39,12 @@ void lc_door_unlocked(lc_door_tracker_t *tracker, uint16_t compartment_number,
                       const char *transaction_id, int64_t now_ms);
 
 /*
+ * Ends a running watch from the door state the panel reported with its unlock
+ * reply. LC_DOOR_UNKNOWN leaves the watch running.
+ */
+void lc_door_finish_from_reply(lc_door_tracker_t *tracker, lc_door_t observed, int64_t now_ms);
+
+/*
  * A reading of the door while a watch runs. `open` ends the watch with an
  * outcome; so does the end of `window_ms`, as a jam when the door was read as
  * closed, and as nothing when it never could be read.

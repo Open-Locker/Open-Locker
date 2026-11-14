@@ -201,6 +201,55 @@ void test_S4_H09_unlock_with_unknown_outcome_still_runs_detection(void)
     TEST_ASSERT_EQUAL_UINT(0, fx_outbound.uncommanded_count);
 }
 
+void test_S4_H24_unlock_reply_open_publishes_opened_without_the_detection_window(void)
+{
+    fx_bus.unlock_observed = LC_DOOR_OPEN;
+    open("tx-1", 1);
+    TEST_ASSERT_EQUAL_UINT(1, fx_outbound.attempts[FAKE_RESPONSE]);
+    TEST_ASSERT_EQUAL_UINT(0, fx_outbound.detection_count);
+
+    fake_trace_reset();
+    lc_app_tick(&fx_app);
+    fx_acknowledge_all();
+
+    TEST_ASSERT_EQUAL_UINT(1, fx_outbound.detection_count);
+    TEST_ASSERT_TRUE(fx_outbound.detections[0].opened);
+    TEST_ASSERT_EQUAL_STRING("tx-1", fx_outbound.detections[0].transaction_id);
+    TEST_ASSERT_EQUAL_UINT(0, fx_outbound.detections[0].detection_ms);
+    fx_advance_acknowledging(WINDOW_MS);
+    TEST_ASSERT_EQUAL_UINT(1, fx_outbound.detection_count);
+}
+
+void test_S4_H25_unlock_reply_closed_publishes_door_jammed_without_the_detection_window(void)
+{
+    fx_bus.unlock_result = LC_UNLOCK_REFUSED;
+    fx_bus.unlock_observed = LC_DOOR_CLOSED;
+    open("tx-1", 1);
+    TEST_ASSERT_EQUAL_INT(LC_ERROR_NONE, fake_outbound_last_response(&fx_outbound)->error);
+
+    lc_app_tick(&fx_app);
+    fx_acknowledge_all();
+
+    TEST_ASSERT_EQUAL_UINT(1, fx_outbound.detection_count);
+    TEST_ASSERT_FALSE(fx_outbound.detections[0].opened);
+    fx_advance_acknowledging(WINDOW_MS);
+    TEST_ASSERT_EQUAL_UINT(1, fx_outbound.detection_count);
+}
+
+void test_S4_H26_door_outcome_from_the_unlock_reply_follows_the_command_response(void)
+{
+    fx_bus.unlock_observed = LC_DOOR_OPEN;
+    open("tx-1", 1);
+    TEST_ASSERT_EQUAL_UINT(1, fx_outbound.attempts[FAKE_RESPONSE]);
+    TEST_ASSERT_TRUE(fake_trace_first("outbound.response") >= 0);
+    TEST_ASSERT_EQUAL_INT(-1, fake_trace_first("outbound.detection"));
+
+    lc_app_tick(&fx_app);
+    fx_acknowledge_all();
+
+    TEST_ASSERT_TRUE(fake_trace_first("outbound.response") < fake_trace_first("outbound.detection"));
+}
+
 void test_S4_H10_detection_event_whose_publish_fails_is_retried_and_published_once(void)
 {
     /* Refused twice, then accepted and reported as failed, then delivered. */
@@ -239,5 +288,8 @@ int main(void)
     RUN_TEST(test_S4_H08_unknown_to_open_is_not_an_uncommanded_open);
     RUN_TEST(test_S4_H09_unlock_with_unknown_outcome_still_runs_detection);
     RUN_TEST(test_S4_H10_detection_event_whose_publish_fails_is_retried_and_published_once);
+    RUN_TEST(test_S4_H24_unlock_reply_open_publishes_opened_without_the_detection_window);
+    RUN_TEST(test_S4_H25_unlock_reply_closed_publishes_door_jammed_without_the_detection_window);
+    RUN_TEST(test_S4_H26_door_outcome_from_the_unlock_reply_follows_the_command_response);
     return UNITY_END();
 }

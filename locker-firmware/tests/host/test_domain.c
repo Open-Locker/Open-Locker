@@ -178,6 +178,18 @@ void test_a_window_with_no_reading_ends_without_an_outcome(void)
     TEST_ASSERT_FALSE(tracker.outcome_due);
 }
 
+void test_unlock_reply_observation_ends_the_watch_without_polling(void)
+{
+    lc_door_unlocked(&tracker, 4, "tx-1", 1000);
+
+    lc_door_finish_from_reply(&tracker, LC_DOOR_CLOSED, 1200);
+
+    TEST_ASSERT_FALSE(tracker.watching);
+    TEST_ASSERT_TRUE(tracker.outcome_due);
+    TEST_ASSERT_FALSE(tracker.outcome.opened);
+    TEST_ASSERT_EQUAL_UINT32(0, tracker.outcome.detection_ms);
+}
+
 void test_a_second_unlock_replaces_a_running_watch(void)
 {
     lc_door_unlocked(&tracker, 4, "tx-1", 1000);
@@ -202,6 +214,7 @@ int main(void)
     RUN_TEST(test_config_refuses_a_mapping_the_panel_cannot_address);
     RUN_TEST(test_canonical_form_reports_every_place_it_can_run_out_of_room);
     RUN_TEST(test_config_find_matches_the_compartment_number);
+    RUN_TEST(test_unlock_reply_observation_ends_the_watch_without_polling);
     RUN_TEST(test_a_door_seen_open_ends_the_watch);
     RUN_TEST(test_a_window_with_no_reading_ends_without_an_outcome);
     RUN_TEST(test_a_second_unlock_replaces_a_running_watch);

@@ -31,6 +31,18 @@ static void finish(lc_door_tracker_t *tracker, bool opened, int64_t now_ms)
     tracker->outcome.detection_ms = opened ? (uint32_t)(now_ms - tracker->unlocked_at_ms) : 0;
 }
 
+void lc_door_finish_from_reply(lc_door_tracker_t *tracker, lc_door_t observed, int64_t now_ms)
+{
+    if (!tracker->watching) {
+        return;
+    }
+    if (observed == LC_DOOR_OPEN) {
+        finish(tracker, true, now_ms);
+    } else if (observed == LC_DOOR_CLOSED) {
+        finish(tracker, false, now_ms);
+    }
+}
+
 void lc_door_watch(lc_door_tracker_t *tracker, lc_door_t reading, int64_t now_ms,
                    uint32_t window_ms)
 {
