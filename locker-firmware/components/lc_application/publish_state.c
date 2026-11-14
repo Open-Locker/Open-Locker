@@ -153,15 +153,27 @@ static void publish_snapshot(lc_app_t *app)
     }
 }
 
-void lc_app_service(lc_app_t *app, int64_t now_ms)
+void lc_app_publish_door_events(lc_app_t *app)
 {
-    lc_app_flush_responses(app);
+    if (app->connected) {
+        publish_detections(app);
+        publish_uncommanded(app);
+    }
+}
+
+void lc_app_poll_period(lc_app_t *app, int64_t now_ms)
+{
     if (app->config.applied) {
         poll_doors(app, now_ms);
     }
     if (app->connected) {
-        publish_detections(app);
-        publish_uncommanded(app);
         publish_snapshot(app);
     }
+}
+
+void lc_app_service(lc_app_t *app, int64_t now_ms)
+{
+    lc_app_flush_responses(app);
+    lc_app_poll_period(app, now_ms);
+    lc_app_publish_door_events(app);
 }

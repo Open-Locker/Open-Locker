@@ -241,13 +241,16 @@ void test_S4_H26_door_outcome_from_the_unlock_reply_follows_the_command_response
     fx_bus.unlock_observed = LC_DOOR_OPEN;
     open("tx-1", 1);
     TEST_ASSERT_EQUAL_UINT(1, fx_outbound.attempts[FAKE_RESPONSE]);
-    TEST_ASSERT_TRUE(fake_trace_first("outbound.response") >= 0);
+    const int response_pos = fake_trace_first("outbound.response");
+    TEST_ASSERT_TRUE(response_pos >= 0);
     TEST_ASSERT_EQUAL_INT(-1, fake_trace_first("outbound.detection"));
 
     lc_app_tick(&fx_app);
     fx_acknowledge_all();
 
-    TEST_ASSERT_TRUE(fake_trace_first("outbound.response") < fake_trace_first("outbound.detection"));
+    const int detection_pos = fake_trace_first("outbound.detection");
+    TEST_ASSERT_TRUE(detection_pos >= 0);
+    TEST_ASSERT_TRUE(response_pos < detection_pos);
 }
 
 void test_S4_H10_detection_event_whose_publish_fails_is_retried_and_published_once(void)

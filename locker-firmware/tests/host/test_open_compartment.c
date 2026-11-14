@@ -83,6 +83,7 @@ void test_S2_H44_unlock_with_unknown_outcome_is_a_hardware_error_with_detection(
 
 void test_S2_H61_refused_unlock_with_door_closed_in_the_reply_is_success(void)
 {
+    fx_configure();
     fx_bus.unlock_result = LC_UNLOCK_REFUSED;
     fx_bus.unlock_observed = LC_DOOR_CLOSED;
 

@@ -192,11 +192,13 @@ void lc_app_tick(lc_app_t *app)
 
     expire_outstanding(app, now_ms);
     lc_app_send_heartbeat(app, now_ms);
+    lc_app_flush_responses(app);
+    lc_app_publish_door_events(app);
     if (now_ms < app->next_poll_ms) {
         return;
     }
     app->next_poll_ms = now_ms + LC_POLL_INTERVAL_MS;
-    lc_app_service(app, now_ms);
+    lc_app_poll_period(app, now_ms);
 }
 
 void lc_app_begin_closing(lc_app_t *app)
