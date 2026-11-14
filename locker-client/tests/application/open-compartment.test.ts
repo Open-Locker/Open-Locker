@@ -243,14 +243,32 @@ test('reports opened straight from an unlock response that observed the door ope
   assert.equal(await (scheduler as ManualScheduler).runNext(), false, 'no polling needed');
 });
 
-test('keeps polling when the unlock response observed the door closed', async () => {
+test('reports door_jammed straight from an unlock response that observed the door closed', async () => {
   const bus = new FakeLockerBus([1]);
   bus.unlockObservation = { doorState: 'closed' };
-  const { doorEvents, scheduler, useCase } = build({ bus });
+  const { actuationLog, doorEvents, scheduler, useCase } = build({ bus });
 
   await useCase.execute(1, 'txn-closed');
-  assert.deepEqual(doorEvents.detections, []);
+  assert.deepEqual(doorEvents.detections, [], 'the outcome follows the command response');
+  await (scheduler as ManualScheduler).runNext();
 
+  assert.deepEqual(doorEvents.lastDetection(), {
+    compartmentNumber: 1,
+    transactionId: 'txn-closed',
+    outcome: 'door_jammed',
+    detectionMs: null,
+  });
+  assert.equal(actuationLog.isDetecting(1), false);
+  assert.notEqual(actuationLog.lastActuationAt(1), null, 'a late opening stays attributed');
+  assert.equal(await (scheduler as ManualScheduler).runNext(), false, 'no polling needed');
+});
+
+test('keeps polling when the unlock response observed no door state', async () => {
+  const bus = new FakeLockerBus([1]);
+  bus.unlockObservation = { doorState: 'unknown' };
+  const { doorEvents, scheduler, useCase } = build({ bus });
+
+  await useCase.execute(1, 'txn-unknown');
   bus.setDoorState(TARGET, 'open');
   await tickUntilOutcome(scheduler as ManualScheduler, doorEvents);
   assert.equal(doorEvents.lastDetection()?.outcome, 'opened');

@@ -104,8 +104,11 @@ export class OpenCompartmentUseCase {
 
     this.actuationLog.beginDetection(compartmentNumber);
 
-    if (observation.doorState === 'open') {
-      const detectionMs = this.now() - startedAt;
+    // A controller that reports the door with its unlock reply decides the
+    // outcome; no detection window is needed (ADR-0089).
+    if (observation.doorState === 'open' || observation.doorState === 'closed') {
+      const opened = observation.doorState === 'open';
+      const detectionMs = opened ? this.now() - startedAt : null;
       // Scheduled rather than published inline, so the outcome follows the
       // command response and stopAllMonitoring() can still cancel it.
       this.scheduler.scheduleAfter(0, async () => {
@@ -113,7 +116,7 @@ export class OpenCompartmentUseCase {
         await this.reportOutcome({
           compartmentNumber,
           transactionId,
-          outcome: 'opened',
+          outcome: opened ? 'opened' : 'door_jammed',
           detectionMs,
         });
       });

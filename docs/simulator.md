@@ -163,23 +163,23 @@ Traffic is echoed to the console (`←` inbound, `→` outbound):
 
 ### Testing a jammed door
 
-A successful unlock pulse does not mean the door opened. The client watches the
-door sensor after firing and reports the outcome separately, on the event channel
-(ADR-0040). Jam mode is how you exercise the failure path without hardware.
+An acknowledged unlock does not mean the door opened. The client reports the door
+outcome separately, on the event channel (ADR-0040, ADR-0089). Jam mode is how you exercise the failure path without hardware.
 
 ```
 jam main 1
 ```
 
-Then trigger an open on compartment 1 from the backend or admin panel. You will
-see the pulse acknowledged immediately, the snapshot stay `closed`, and — after
-the bank's `heartbeat_interval_seconds` — the failure event:
+Then trigger an open on compartment 1 from the backend or admin panel. Like the
+RS485 lock board, the simulator reports the door with its unlock reply, so the
+unlock is acknowledged, the snapshot stays `closed`, and the failure event
+follows straight after the response:
 
 ```
 [main] ← command  open_compartment #1 tx=jam-test
 [main] → state/compartments (retained)  #1:closed #2:open
-[main] → response  open_compartment success tx=jam-test     ← pulse sent, nothing more
-[main] → event                                              ← ~10s later
+[main] → response  open_compartment success tx=jam-test     ← the board answered
+[main] → event                                              ← straight after
 ```
 
 The event payload:

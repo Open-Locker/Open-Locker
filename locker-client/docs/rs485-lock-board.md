@@ -77,9 +77,9 @@ carries one bit per channel. Both are mapped through the bank's `feedback_type`:
 | `door_closing`  | `open`            | `closed`           |
 | `door_opening`  | `closed`          | `open`             |
 
-The unlock reply is the first door observation after an open command: `open`
-reports `opened` straight away, anything else continues query-all polling until
-the door opens or the detection window ends with `door_jammed`.
+The unlock reply decides the outcome of an open command: `open` reports
+`opened` and `closed` reports `door_jammed`, both straight after the `success`
+response. Only an open whose reply was lost fails with `HARDWARE_ERROR`.
 
 ## Protocol behaviour
 

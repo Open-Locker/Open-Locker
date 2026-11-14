@@ -124,7 +124,8 @@ exists.
 ## Supersedes / Superseded By
 
 - Supersedes: ADR-0061 in part (reply framing and unlock status)
-- Superseded by: none
+- Superseded by: ADR-0089 in part (a failure status in the unlock reply becomes
+  `success` plus `door_jammed` instead of `HARDWARE_ERROR`)
 
 ## References
 

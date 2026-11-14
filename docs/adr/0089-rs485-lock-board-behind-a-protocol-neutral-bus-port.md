@@ -103,22 +103,46 @@ connects an adapter, at startup from a stored configuration and on
 `apply_config`: it reads every configured board, and fails with
 `HARDWARE_ERROR` when the bus is connected but no configured board answers.
 
-### 3. The unlock response is the first post-actuation observation
+### 3. The unlock response decides the door outcome
 
-The RS485 adapter maps the unlock response through the bank's `feedback_type`,
-the same polarity used for query-all:
+The board reads its lock feedback input about 250 to 500 ms after the unlock and
+returns that reading in the unlock response. The vendor documentation calls the
+two values "unlock succeeded" and "unlock failed"; they are the same feedback
+reading that query-all reports. The RS485 adapter maps the response through the
+bank's `feedback_type`, the same polarity used for query-all:
 
 - `door_closing`: `00` = `open`, `11` = `closed`
 - `door_opening`: `11` = `open`, `00` = `closed`
 
-`OpenCompartmentUseCase` uses that value as the first door-detection
-observation. `open` reports `opened` immediately; `closed` or no observation
-continues query-all polling; `door_jammed` is reported only when the detection
-window ends without observing `open`.
+When the board answered, the command response is `success`, and
+`OpenCompartmentUseCase` publishes the outcome right after it, without a
+detection window:
 
-Command acknowledgement and door events stay separate (ADR-0040). The client
-still actuates when the door already reads `open` (#302); the unlock response
-then reads `open` and `opened` follows about 500 ms after the command.
+| Unlock response | Command response | Door event |
+|---|---|---|
+| `open` | `success` | `opened` |
+| `closed` | `success` | `door_jammed` (`DOOR_JAMMED`) |
+| no usable response | `HARDWARE_ERROR` (section 4) | none |
+
+A `closed` response is a physical observation, not a transport failure, so it is
+reported on the event channel as ADR-0040 requires, and the backend shows it as
+"did not open" and alerts the locker manager. `HARDWARE_ERROR` stays reserved for
+the case where the client does not know whether the lock released. The bus stays
+connected after a `closed` response. The actuation is still recorded, so a door
+that opens shortly afterwards is not reported as uncommanded.
+
+A controller that reports no door state with its unlock (no observation or
+`unknown`) keeps the query-all detection window from ADR-0040.
+
+Command acknowledgement and door events stay separate messages (ADR-0040);
+whether to merge them is evaluated in
+[#394](https://github.com/Open-Locker/Open-Locker/issues/394). The client still actuates when the
+door already reads `open` (#302); the unlock response then reads `open` and
+`opened` follows about 500 ms after the command.
+
+The ESP32 firmware speaks the same MQTT contract (ADR-0072) and adopts the same
+mapping: today it answers a failure status with `HARDWARE_ERROR` (ADR-0071) and
+moves to `success` plus `door_jammed` in a separate change.
 
 Query-all polling continues to detect manual and uncommanded openings.
 
@@ -264,6 +288,23 @@ configuration files valid.
 - Cons: discards a reading the board already provides
 - Why not chosen: it comes from the same feedback input as polling
 
+### Report a `closed` unlock response as `HARDWARE_ERROR` (ADR-0071)
+
+- Pros: the command fails at once; matches the firmware as implemented
+- Cons: a physical outcome is reported as a transport failure; the backend
+  records a generic `Failed` instead of "did not open" and alerts no one, and
+  the same code then means both "lock stayed shut" and "outcome unknown"
+- Why not chosen: ADR-0040 reports physical outcomes on the event channel, and
+  `door_jammed` already carries the right meaning and alert
+
+### Keep the detection window after a `closed` unlock response
+
+- Pros: a lock that releases late still ends as `opened`
+- Cons: a lock that is really blocked takes the full window (about 10 s) to
+  report
+- Why not chosen: the response is read after the lock has had its release
+  time; a late release stays attributed through the actuation record
+
 ### Report a lost unlock response as success with unknown state
 
 - Pros: no error when the lock did release
@@ -287,7 +328,8 @@ configuration files valid.
 ### Positive
 
 - one production adapter, one BOM, and one wiring guide
-- `opened` can be reported directly from the unlock response
+- `opened` and `door_jammed` are reported directly from the unlock response,
+  without a detection window
 - a lost unlock response no longer causes a second actuation
 - unlocks take priority over queued polls end to end
 - operators configure only the serial device path
@@ -304,8 +346,11 @@ configuration files valid.
 ### Risks
 
 - The feedback contact may report latch position rather than door position.
-- Contact bounce around the unlock response can produce a false `opened`,
-  because the response is a single unfiltered reading.
+- Contact bounce around the unlock response can produce a false `opened`, and
+  a lock that releases after the board's reading a false `door_jammed`, because
+  the response is a single unfiltered reading.
+- Until the firmware change ships, a refused unlock is `success` plus
+  `door_jammed` from a Pi and `HARDWARE_ERROR` from an ESP32.
 - A wrong `feedback_type` inverts both the unlock observation and polling.
 - Several boards at 9600 baud may not fit the 500 ms poll interval.
 - The 50 ms request gap is derived from one failing and one working gap, not
@@ -359,7 +404,9 @@ The contract is unchanged, so the client ships before the backend.
 - Unlock response mapping:
   `unlock response maps door_closing feedback: 00 is open, 11 is closed`,
   `unlock response maps door_opening feedback: 11 is open, 00 is closed`,
-  `reports opened straight from an unlock response that observed the door open`.
+  `reports opened straight from an unlock response that observed the door open`,
+  `reports door_jammed straight from an unlock response that observed the door closed`,
+  `keeps polling when the unlock response observed no door state`.
 - Detection window: `a slow unlock does not use up the detection window`.
 - Late responses discarded:
   `a late response after a timeout is discarded, not read as the next answer`.
@@ -379,6 +426,9 @@ The contract is unchanged, so the client ships before the backend.
   acknowledgement-only unlock response, and the shared `modbus:` YAML key)
 - Partially supersedes: ADR-0051 (the cooldown is no longer
   operator-configurable; reconnect triggers and `unreachable` are unchanged)
+- Partially supersedes: ADR-0071 (a failure status in the unlock response is
+  reported as `door_jammed` after a `success` response instead of
+  `HARDWARE_ERROR`; its reply framing decision is unchanged)
 - Narrows: ADR-0063 (`0063-prioritize-compartment-unlock-actuation.md`),
   ADR-0040, ADR-0007, and ADR-0038
 - Superseded by: none
@@ -398,4 +448,6 @@ The contract is unchanged, so the client ships before the backend.
 - `docs/adr/0051-modbus-reconnect-declares-an-unreachable-bus.md`
 - `docs/adr/0061-backend-managed-rs485-locker-board-profile.md`
 - `docs/adr/0063-prioritize-compartment-unlock-actuation.md`
+- `docs/adr/0071-rs485-lock-panel-replies-with-active-feedback.md`
+- `docs/adr/0072-esp32-locker-firmware.md`
 - RS485 board documentation: `https://de.aliexpress.com/item/1005004825186472.html`
