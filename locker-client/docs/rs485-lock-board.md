@@ -91,7 +91,9 @@ response. Only an open whose reply was lost fails with `HARDWARE_ERROR`.
 - After a timeout or a bad frame the client waits for the line to go quiet and
   discards all input, so a late reply is never read as the next answer.
 - An unlock is never sent twice on its own. If its reply is lost, the command
-  fails and the door is watched by normal polling.
+  fails with `HARDWARE_ERROR`. The client still watches for an `opened` event
+  so a late door opening is reported; it does not report `door_jammed` on that
+  path.
 - Unlocks go ahead of queued polls.
 - A board that does not answer reports its doors as `unknown`.
 - The board may send a `0x82` door event on its own, also right behind a reply.
