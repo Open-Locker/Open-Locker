@@ -146,7 +146,10 @@ class CompartmentResource extends Resource
             // loads collapsed, so the page is a short list of bank headers no matter
             // how many compartments exist — the grouping is the pagination (#167).
             ->paginated(false)
-            ->modifyQueryUsing(fn (Builder $query): Builder => $query->with('latestOpenRequest'))
+            ->modifyQueryUsing(fn (Builder $query): Builder => $query->with([
+                'latestOpenRequest',
+                'activeGroupAccesses.group',
+            ]))
             ->columns([
                 Tables\Columns\TextColumn::make('number')
                     ->label(__('Compartment'))
@@ -158,6 +161,10 @@ class CompartmentResource extends Resource
                     ->counts('activeAccesses')
                     ->badge()
                     ->color('gray'),
+                Tables\Columns\TextColumn::make('activeGroupAccesses.group.name')
+                    ->label(__('Groups'))
+                    ->badge()
+                    ->listWithLineBreaks(),
                 Tables\Columns\TextColumn::make('content_note')
                     ->label(__('Note'))
                     ->placeholder(__('No note'))
