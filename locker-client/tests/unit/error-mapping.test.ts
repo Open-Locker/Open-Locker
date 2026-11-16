@@ -1,10 +1,10 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import {
-  isReconnectableModbusError,
+  HardwareTransportError,
+  isReconnectableHardwareError,
   LockerError,
   mapErrorToMqttCode,
-  ModbusTransportError,
   MqttErrorCode,
 } from '../../src/domain/errors';
 
@@ -14,8 +14,8 @@ test('an error we raise reports the code it was given', () => {
     MqttErrorCode.DOOR_JAMMED,
   );
   assert.equal(
-    mapErrorToMqttCode(new ModbusTransportError('Port Not Open', true)),
-    MqttErrorCode.MODBUS_ERROR,
+    mapErrorToMqttCode(new HardwareTransportError('RS485 port is not open', true)),
+    MqttErrorCode.HARDWARE_ERROR,
   );
 });
 
@@ -27,8 +27,8 @@ test('rewording a message no longer changes the code reported', () => {
   assert.equal(mapErrorToMqttCode(reworded), MqttErrorCode.UNKNOWN_ERROR);
 });
 
-test('third-party modbus transport failures are still recognised', () => {
-  // modbus-serial throws plain Errors, so message text is the only signal.
+test('third-party serial transport failures are still recognised', () => {
+  // Library errors without a code leave message text as the only signal.
   for (const message of ['Port Not Open', 'connect ECONNREFUSED', 'Timed out', 'CRC error']) {
     assert.equal(
       mapErrorToMqttCode(new Error(message)),
@@ -44,20 +44,20 @@ test('a non-error value maps to unknown rather than throwing', () => {
 });
 
 test('only transport faults that reconnecting can clear are reconnectable', () => {
-  assert.equal(isReconnectableModbusError(new ModbusTransportError('Port Not Open', true)), true);
-  // A missing library API is a packaging fault; redialling the port cannot fix it.
   assert.equal(
-    isReconnectableModbusError(
-      new ModbusTransportError('modbus-serial customFunction API is unavailable'),
-    ),
+    isReconnectableHardwareError(new HardwareTransportError('RS485 port is not open', true)),
+    true,
+  );
+  assert.equal(
+    isReconnectableHardwareError(new HardwareTransportError('Max reconnect attempts reached')),
     false,
   );
   // Real socket failures carry the code; the wording is incidental.
   assert.equal(
-    isReconnectableModbusError(withCode(new Error('connect failed'), 'ECONNREFUSED')),
+    isReconnectableHardwareError(withCode(new Error('connect failed'), 'ECONNREFUSED')),
     true,
   );
-  assert.equal(isReconnectableModbusError(new Error('something unrelated')), false);
+  assert.equal(isReconnectableHardwareError(new Error('something unrelated')), false);
 });
 
 /** Attaches a `code` the way the runtime does, so tests match real error shapes. */
@@ -73,7 +73,7 @@ test('a serial port that went away is reconnectable, by code rather than wording
   // there is used to be treated as permanent.
   for (const code of ['ENOENT', 'ENXIO', 'EIO', 'EBADF']) {
     assert.equal(
-      isReconnectableModbusError(withCode(new Error('no such file or directory'), code)),
+      isReconnectableHardwareError(withCode(new Error('no such file or directory'), code)),
       true,
       `expected ${code} to be reconnectable`,
     );
@@ -85,7 +85,7 @@ test('a permissions fault is not reconnectable', () => {
   // group, say. It fails identically every time, so retrying only produces noise
   // until a human changes something.
   assert.equal(
-    isReconnectableModbusError(withCode(new Error('permission denied'), 'EACCES')),
+    isReconnectableHardwareError(withCode(new Error('permission denied'), 'EACCES')),
     false,
   );
 });
@@ -96,7 +96,7 @@ test('a code carried on a nested cause is still found', () => {
   const wrapped = new Error('failed to open port');
   Object.assign(wrapped, { cause: withCode(new Error('device not configured'), 'ENXIO') });
 
-  assert.equal(isReconnectableModbusError(wrapped), true);
+  assert.equal(isReconnectableHardwareError(wrapped), true);
 });
 
 test('a serial fault reports MODBUS_ERROR rather than unknown', () => {

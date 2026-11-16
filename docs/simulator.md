@@ -54,10 +54,10 @@ banks:
         slaveId: 1
         address: 2
         door_state: closed
-        jammed: true                 # relay fires, door never moves
+        jammed: true                 # lock releases, door never moves
 ```
 
-`jammed` (default `false`) makes a compartment answer the relay normally while
+`jammed` (default `false`) makes a compartment accept the unlock normally while
 its door stays shut — a jam, a blocked door, a worn latch. It is how you
 reproduce a failed open; see [Testing a jammed door](#testing-a-jammed-door).
 
@@ -127,8 +127,8 @@ Each simulated bank reports as its own instance, so a fleet run looks to the
 dashboard exactly like a fleet of Pis. Setup and what to look for:
 [observability.md](observability.md).
 
-One thing it cannot show you: Modbus spans. The simulator drives an in-memory
-bus, so `modbus flash_relay` and friends only appear with real hardware.
+One thing it cannot show you: hardware spans. The simulator drives an in-memory
+bus, so `rs485 unlock` and `rs485 query_all` only appear with real hardware.
 
 ---
 
@@ -143,7 +143,7 @@ list                     show every bank and its door states
 open main 1              mark compartment 1 of bank "main" open
 close main 1             mark it closed
 unknown main 1           mark its state unknown (sensor failure)
-jam main 1               relay still fires, but the door stays shut
+jam main 1               lock still releases, but the door stays shut
 unjam main 1             let it open normally again
 quit                     shut down
 ```
@@ -163,23 +163,23 @@ Traffic is echoed to the console (`←` inbound, `→` outbound):
 
 ### Testing a jammed door
 
-A successful unlock pulse does not mean the door opened. The client watches the
-door sensor after firing and reports the outcome separately, on the event channel
-(ADR-0040). Jam mode is how you exercise the failure path without hardware.
+An acknowledged unlock does not mean the door opened. The client reports the door
+outcome separately, on the event channel (ADR-0040, ADR-0089). Jam mode is how you exercise the failure path without hardware.
 
 ```
 jam main 1
 ```
 
-Then trigger an open on compartment 1 from the backend or admin panel. You will
-see the pulse acknowledged immediately, the snapshot stay `closed`, and — after
-the bank's `heartbeat_interval_seconds` — the failure event:
+Then trigger an open on compartment 1 from the backend or admin panel. Like the
+RS485 lock board, the simulator reports the door with its unlock reply, so the
+unlock is acknowledged, the snapshot stays `closed`, and the failure event
+follows straight after the response:
 
 ```
 [main] ← command  open_compartment #1 tx=jam-test
 [main] → state/compartments (retained)  #1:closed #2:open
-[main] → response  open_compartment success tx=jam-test     ← pulse sent, nothing more
-[main] → event                                              ← ~10s later
+[main] → response  open_compartment success tx=jam-test     ← the board answered
+[main] → event                                              ← straight after
 ```
 
 The event payload:
@@ -271,6 +271,5 @@ startup.
 ## What it does not cover
 
 The simulator replaces everything **above** the hardware port, so it cannot
-exercise anything below it: Modbus framing, RTU inter-frame timing
-([ADR-0035](adr/0035-enforce-modbus-rtu-inter-frame-delay.md)), relay wiring, or
-reconnect behaviour against a real board. Those still need hardware.
+exercise anything below it: RS485 framing and timing, lock wiring, feedback
+polarity, or reconnect behaviour against a real board. Those still need hardware.

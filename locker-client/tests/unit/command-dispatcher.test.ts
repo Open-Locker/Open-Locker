@@ -10,7 +10,7 @@ import { OutboundMqttAdapter } from '../../src/adapters/mqtt/outbound-mqtt.adapt
 import { createOpenCompartmentHandler } from '../../src/adapters/mqtt/handlers/open-compartment.handler';
 import { createApplyConfigHandler } from '../../src/adapters/mqtt/handlers/apply-config.handler';
 import { OpenCompartmentUseCase } from '../../src/application/open-compartment';
-import { RelayFireLog } from '../../src/domain/door-detection';
+import { ActuationLog } from '../../src/domain/door-detection';
 import { FakeDoorEventPublisher } from '../helpers/fake-door-event-publisher';
 import { ApplyConfigUseCase } from '../../src/application/apply-config';
 import { PollCompartmentStateUseCase } from '../../src/application/state-publishing';
@@ -25,16 +25,15 @@ import type { DedupStorePort } from '../../src/ports/mqtt.port';
 
 const configStub: ConfigRepositoryPort = {
   load: () => ({
-    modbus: { port: '/dev/null', flashDurationMs: 200 },
+    serial: { port: '/dev/null' },
     compartments: [{ compartment_number: 1, slaveId: 1, address: 0 }],
   }),
   reload: () => ({
-    modbus: { port: '/dev/null', flashDurationMs: 200 },
+    serial: { port: '/dev/null' },
     compartments: [{ compartment_number: 1, slaveId: 1, address: 0 }],
   }),
   getCompartmentConfig: (n) => (n === 1 ? { compartment_number: 1, slaveId: 1, address: 0 } : null),
-  getConfiguredSlaveIds: () => [1],
-  getFlashDurationMs: () => 200,
+  getConfiguredBoardAddresses: () => [1],
   getHeartbeatIntervalSeconds: () => 15,
   getMqttTransportSettings: () => ({
     clean: false,
@@ -68,7 +67,7 @@ function createDispatcherHarness(
     config: configStub,
     scheduler: new RunAfterCompleteScheduler(),
     doorEvents: new FakeDoorEventPublisher(),
-    relayFireLog: new RelayFireLog(),
+    actuationLog: new ActuationLog(),
   });
   const pollSnapshot = new PollCompartmentStateUseCase(
     bus,
@@ -129,40 +128,41 @@ test('dispatcher executes valid open_compartment once', async () => {
   );
 
   openCompartment.stopAllMonitoring();
-  assert.equal(bus.flashCalls.length, 1);
+  assert.equal(bus.unlockCalls.length, 1);
   assert.equal(commandResponses(published)[0]?.result, 'success');
 });
 
 test('dispatcher serializes hardware and configuration commands', async () => {
   const bus = new FakeLockerBus([1]);
-  let flashCount = 0;
-  let notifyFirstFlash!: () => void;
-  const firstFlashStarted = new Promise<void>((resolve) => {
-    notifyFirstFlash = resolve;
+  let unlockCount = 0;
+  let notifyFirstUnlock!: () => void;
+  const firstUnlockStarted = new Promise<void>((resolve) => {
+    notifyFirstUnlock = resolve;
   });
-  let releaseFirstFlash!: () => void;
-  const firstFlashGate = new Promise<void>((resolve) => {
-    releaseFirstFlash = resolve;
+  let releaseFirstUnlock!: () => void;
+  const firstUnlockGate = new Promise<void>((resolve) => {
+    releaseFirstUnlock = resolve;
   });
-  bus.flashRelay = async () => {
-    flashCount++;
-    if (flashCount === 1) {
-      notifyFirstFlash();
-      await firstFlashGate;
+  bus.unlockCompartment = async () => {
+    unlockCount++;
+    if (unlockCount === 1) {
+      notifyFirstUnlock();
+      await firstUnlockGate;
     }
+    return {};
   };
   const { dispatcher, openCompartment } = createDispatcherHarness(bus);
 
   const first = dispatcher.dispatch('locker/test/command', serializedOpenCommand('first'));
-  await firstFlashStarted;
+  await firstUnlockStarted;
   const second = dispatcher.dispatch('locker/test/command', serializedOpenCommand('second'));
   await Promise.resolve();
-  assert.equal(flashCount, 1);
+  assert.equal(unlockCount, 1);
 
-  releaseFirstFlash();
+  releaseFirstUnlock();
   await Promise.all([first, second]);
   openCompartment.stopAllMonitoring();
-  assert.equal(flashCount, 2);
+  assert.equal(unlockCount, 2);
 });
 
 test('dispatcher ignores duplicate message_id before side effects', async () => {
@@ -183,7 +183,7 @@ test('dispatcher ignores duplicate message_id before side effects', async () => 
   );
 
   openCompartment.stopAllMonitoring();
-  assert.equal(bus.flashCalls.length, 1);
+  assert.equal(bus.unlockCalls.length, 1);
   // The redelivery is answered by replaying the first response, so there are two
   // replies but only one execution.
   assert.equal(commandResponses(published).length, 2);
@@ -226,7 +226,7 @@ test('legacy dedup migration never repeats a completed physical command', async 
   );
 
   openCompartment.stopAllMonitoring();
-  assert.equal(bus.flashCalls.length, 0);
+  assert.equal(bus.unlockCalls.length, 0);
   assert.equal(commandResponses(published).length, 0);
 });
 
@@ -245,7 +245,7 @@ test('dispatcher rejects invalid payload with structured error', async () => {
   );
 
   openCompartment.stopAllMonitoring();
-  assert.equal(bus.flashCalls.length, 0);
+  assert.equal(bus.unlockCalls.length, 0);
   assert.equal(published.length, 1);
   const response = JSON.parse(published[0]!) as {
     result: string;
@@ -276,7 +276,7 @@ test('invalid response remains persistently pending after publish failure and ca
 
   const restartedStore = new FileDedupStore(file);
   const pendingRecord = restartedStore.getCommandRecord('txn-invalid-pending');
-  assert.equal(bus.flashCalls.length, 0);
+  assert.equal(bus.unlockCalls.length, 0);
   assert.equal(pendingRecord?.status, 'completed');
   assert.equal(pendingRecord?.response?.error_code, 'INVALID_COMMAND');
   assert.equal(pendingRecord?.responseDeliveredAt, undefined);
@@ -314,7 +314,7 @@ test('invalid duplicate does not overwrite a completed success response', async 
   );
 
   openCompartment.stopAllMonitoring();
-  assert.equal(bus.flashCalls.length, 0);
+  assert.equal(bus.unlockCalls.length, 0);
   assert.deepEqual(dedup.getCommandRecord('txn-invalid-duplicate')?.response, successResponse);
   assert.equal(commandResponses(published)[0]?.result, 'success');
 });
@@ -336,7 +336,7 @@ test('invalid duplicate leaves an in_progress command untouched', async () => {
   );
 
   openCompartment.stopAllMonitoring();
-  assert.equal(bus.flashCalls.length, 0);
+  assert.equal(bus.unlockCalls.length, 0);
   assert.deepEqual(dedup.getCommandRecord('txn-invalid-in-progress'), existing);
   assert.equal(commandResponses(published).length, 0);
 });
@@ -356,20 +356,20 @@ test('dispatcher rejects missing transaction_id without side effects', async () 
   );
 
   openCompartment.stopAllMonitoring();
-  assert.equal(bus.flashCalls.length, 0);
+  assert.equal(bus.unlockCalls.length, 0);
   assert.equal(published.length, 0);
 });
 
 test('failed open marks completed and a retry is answered with the same failure', async () => {
   const bus = new FakeLockerBus([1]);
-  let flashAttempts = 0;
-  const originalFlash = bus.flashRelay.bind(bus);
-  bus.flashRelay = async (target, durationMs) => {
-    flashAttempts++;
-    if (flashAttempts === 1) {
-      throw new Error('modbus failed');
+  let unlockAttempts = 0;
+  const originalUnlock = bus.unlockCompartment.bind(bus);
+  bus.unlockCompartment = async (target) => {
+    unlockAttempts++;
+    if (unlockAttempts === 1) {
+      throw new Error('hardware failed');
     }
-    return originalFlash(target, durationMs);
+    return originalUnlock(target);
   };
 
   const { dedup, dispatcher, openCompartment, published } = createDispatcherHarness(bus);
@@ -400,13 +400,13 @@ test('failed open marks completed and a retry is answered with the same failure'
 
   const responses = commandResponses(published);
   // The retry is answered by replaying the original failure: the backend gets
-  // the outcome it missed, and the relay is not fired a second time.
+  // the outcome it missed, and the lock is not actuated a second time.
   assert.equal(responses.length, 2);
   assert.deepEqual(
     responses.map((response) => response.result),
     ['error', 'error'],
   );
-  assert.equal(flashAttempts, 1);
+  assert.equal(unlockAttempts, 1);
   assert.equal(dedup.getCommandRecord('txn-retry')?.status, 'completed');
 });
 
@@ -429,7 +429,7 @@ test('duplicate completed open_compartment replays its stored response', async (
   );
 
   openCompartment.stopAllMonitoring();
-  assert.equal(bus.flashCalls.length, 0);
+  assert.equal(bus.unlockCalls.length, 0);
   assert.equal(commandResponses(published).length, 1);
   assert.equal(commandResponses(published)[0]?.transaction_id, 'txn-dup');
 });
@@ -468,7 +468,7 @@ test('apply_config replays a completed response without re-running', async () =>
       message_id: 'msg-apply-dup',
       timestamp: '2026-04-11T10:00:00Z',
       data: {
-        adapter_type: 'waveshare_modbus',
+        adapter_type: 'rs485_lock_board',
         feedback_type: 'door_closing',
         config_hash: configHash,
         heartbeat_interval_seconds: 30,
@@ -498,7 +498,7 @@ test('open response publish failure keeps a replayable final response', async ()
   );
 
   const pendingRecord = dedup.getCommandRecord('txn-pending-open');
-  assert.equal(bus.flashCalls.length, 1);
+  assert.equal(bus.unlockCalls.length, 1);
   assert.equal(pendingRecord?.status, 'completed');
   assert.equal(pendingRecord?.response?.result, 'success');
   assert.equal(pendingRecord?.responseDeliveredAt, undefined);
@@ -516,7 +516,7 @@ test('open response publish failure keeps a replayable final response', async ()
   );
 
   openCompartment.stopAllMonitoring();
-  assert.equal(bus.flashCalls.length, 1);
+  assert.equal(bus.unlockCalls.length, 1);
   assert.equal(commandResponses(published).length, 1);
   assert.ok(dedup.getCommandRecord('txn-pending-open')?.responseDeliveredAt);
 });
@@ -528,7 +528,7 @@ test('startup recovery finalizes in_progress without executing hardware', async 
   dispatcher.recoverInterruptedCommands();
   const recovered = dedup.getCommandRecord('txn-interrupted');
 
-  assert.equal(bus.flashCalls.length, 0);
+  assert.equal(bus.unlockCalls.length, 0);
   assert.equal(recovered?.status, 'completed');
   assert.equal(recovered?.response?.result, 'error');
   assert.equal(recovered?.response?.error_code, 'UNKNOWN_ERROR');
@@ -578,7 +578,7 @@ test('reconnect flushes pending responses without repeating hardware', async () 
   );
 
   openCompartment.stopAllMonitoring();
-  assert.equal(bus.flashCalls.length, 1);
+  assert.equal(bus.unlockCalls.length, 1);
   assert.equal(commandResponses(published).length, 2);
   assert.ok(dedup.getCommandRecord('txn-reconnect')?.responseDeliveredAt);
 });
@@ -615,7 +615,7 @@ test('failed delivered duplicate replay is pending and flushes on reconnect', as
     }),
   );
 
-  assert.equal(bus.flashCalls.length, 1);
+  assert.equal(bus.unlockCalls.length, 1);
   assert.equal(dedup.getCommandRecord(command.transaction_id)?.responseDeliveredAt, undefined);
   assert.equal(
     new FileDedupStore(file).getCommandRecord(command.transaction_id)?.responseDeliveredAt,
@@ -625,7 +625,7 @@ test('failed delivered duplicate replay is pending and flushes on reconnect', as
   setConnected(true);
   await transport.simulateBrokerRestore();
 
-  assert.equal(bus.flashCalls.length, 1);
+  assert.equal(bus.unlockCalls.length, 1);
   assert.equal(commandResponses(published).length, 2);
   assert.ok(dedup.getCommandRecord(command.transaction_id)?.responseDeliveredAt);
   const responseMessageIds = attempted
@@ -710,7 +710,7 @@ test('apply_config response recovers without applying config twice', async () =>
     message_id: 'msg-apply-pending',
     timestamp: '2026-04-11T10:00:00Z',
     data: {
-      adapter_type: 'waveshare_modbus',
+      adapter_type: 'rs485_lock_board',
       feedback_type: 'door_closing',
       config_hash: configHash,
       heartbeat_interval_seconds: 30,
@@ -916,7 +916,7 @@ test('a command arriving during shutdown is refused, not silently dropped', asyn
 
   assert.equal(responses.length, 1, 'the backend is told, rather than left waiting');
   assert.equal(responses[0].error_code, 'SHUTTING_DOWN');
-  assert.equal(bus.flashCalls.length, 0, 'no relay fires once closing has begun');
+  assert.equal(bus.unlockCalls.length, 0, 'no unlock once closing has begun');
 });
 
 test('commands already running are unaffected by beginClosing', async () => {
@@ -943,7 +943,7 @@ test('commands already running are unaffected by beginClosing', async () => {
 
   assert.equal(responses.length, 1, 'the in-flight command still answers');
   assert.equal(responses[0].transaction_id, 'tx-inflight-1');
-  assert.equal(bus.flashCalls.length, 1, 'and its relay did fire');
+  assert.equal(bus.unlockCalls.length, 1, 'and its unlock did happen');
 
   // The real shutdown clears monitoring after draining; without it the door
   // watch keeps the event loop alive here too.
@@ -974,7 +974,7 @@ test('a redelivery during shutdown replays its stored response instead of refusi
   assert.equal(
     responses[1].result,
     'success',
-    'a command whose relay already fired must not come back as an error',
+    'a command whose unlock already happened must not come back as an error',
   );
   assert.equal(responses[1].error_code, undefined);
 
@@ -998,7 +998,7 @@ test('a command refused during shutdown leaves no in-progress record behind', as
     }),
   );
 
-  assert.equal(bus.flashCalls.length, 0, 'nothing ran');
+  assert.equal(bus.unlockCalls.length, 0, 'nothing ran');
   assert.equal(
     dedup.getCommandRecord('tx-refused-clean'),
     null,
@@ -1040,7 +1040,7 @@ test('two concurrent deliveries of one transaction open the door once', async ()
   ]);
 
   openCompartment.stopAllMonitoring();
-  assert.equal(bus.flashCalls.length, 1, 'the relay must fire once for one request');
+  assert.equal(bus.unlockCalls.length, 1, 'the lock must be actuated once for one request');
 
   const responses = published
     .map((payload) => JSON.parse(payload) as { result?: string })

@@ -3,15 +3,16 @@
 Docker-based Raspberry Pi service that bridges the Open-Locker backend and
 physical locker hardware:
 
-`MQTT ↔ application use cases ↔ serialized Modbus RTU ↔ Waveshare relay boards`
+`MQTT ↔ application use cases ↔ serialized RS485 ↔ RS485 lock boards`
 
 The current implementation is the hexagonal TypeScript rewrite accepted in
 [ADR-0024](../docs/adr/0024-locker-client-v2-hexagonal-rewrite.md).
 
-## Hardware warning
+## Hardware
 
-Compartment open uses **Waveshare hardware flash** only. Locks must receive brief
-pulses (100–500ms). Never energize relays via software ON/OFF timers.
+The client drives the dedicated RS485 lock board through a USB-to-RS485 adapter.
+The board times each unlock itself; the client never holds a lock output on.
+See [RS485 lock board](docs/rs485-lock-board.md).
 
 ## Raspberry Pi deployment
 
@@ -48,7 +49,7 @@ for explicit local development and simulator use.
 
 Required mounts:
 
-- `/config/locker-config.yml`: operator-managed Modbus/base configuration
+- `/config/locker-config.yml`: operator-managed base configuration (serial device, MQTT)
 - `/data`: client identity, MQTT credentials, runtime config, and dedup state
 
 Keep the host `data` directory private (`0700`). The client creates persistent
@@ -102,7 +103,7 @@ pnpm dev
 Requires `/config/locker-config.yml` and `/data` volumes (or env `CONFIG_DIR` /
 `DATA_DIR`).
 
-Hardware adapter (`waveshare_modbus` or `rs485_lock_board`), feedback wiring,
+Hardware adapter (`rs485_lock_board`), feedback wiring,
 compartment mapping, and heartbeat interval are **not** part of the base YAML.
 The backend pushes them via MQTT `apply_config`; the client persists the result
 in `/data/.runtime-config-overlay.json`. Until that first apply completes, MQTT
@@ -146,7 +147,7 @@ attaching an MQTT client (`--quiet` turns it off):
 ```
 
 The simulator is a **second adapter behind `LockerBusPort`**, not a mode of the
-real client: `InMemoryLockerBus` replaces Modbus, and everything above the port —
+real client: `InMemoryLockerBus` replaces the RS485 bus, and everything above the port —
 use cases, dispatcher, envelope builder, dedup, schemas — is the production code
 path. That is what keeps its payloads contract-valid by construction.
 `src/main.ts` and `src/bootstrap/createApp.ts` are untouched by it.
@@ -169,10 +170,10 @@ See [ADR-0031](../docs/adr/0031-contract-aligned-locker-fleet-simulator.md).
 
 Per ADR-0014: persistent session (`clean: false`), unlimited automatic reconnect.
 
-## Hardware and Modbus documentation
+## Hardware documentation
 
-- [Modbus configuration](docs/modbus-configuration.md)
-- [Waveshare integration](docs/WAVESHARE_INTEGRATION.md)
+- [RS485 lock board](docs/rs485-lock-board.md): configuration, addressing,
+  feedback, and commissioning
 
 ## Build the image locally
 

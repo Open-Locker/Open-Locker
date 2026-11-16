@@ -84,11 +84,11 @@ test('a step that never resolves is abandoned instead of hanging shutdown', asyn
   };
 
   // The wedged-serial-port case: disconnect() never settles.
-  await closeOrAbandon('modbus-disconnect', () => new Promise<void>(() => {}), 20, log);
+  await closeOrAbandon('bus-disconnect', () => new Promise<void>(() => {}), 20, log);
 
   assert.equal(logged.length, 1);
   assert.equal(logged[0].message, 'Shutdown step did not finish; continuing without it');
-  assert.deepEqual(logged[0].metadata, { step: 'modbus-disconnect', timeoutMs: 20 });
+  assert.deepEqual(logged[0].metadata, { step: 'bus-disconnect', timeoutMs: 20 });
 });
 
 test('a step that throws is logged and the sequence continues', async () => {

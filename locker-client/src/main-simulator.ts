@@ -105,7 +105,7 @@ function printUsage(): void {
       '  open <bank> <compartment>   Mark a door open',
       '  close <bank> <compartment>  Mark a door closed',
       '  unknown <bank> <compartment>  Mark a door state unknown',
-      '  jam <bank> <compartment>    Relay fires but the door stays shut',
+      '  jam <bank> <compartment>    Lock releases but the door stays shut',
       '  unjam <bank> <compartment>  Let the door open normally again',
       '  quit                        Shut down',
       '',
@@ -278,7 +278,7 @@ function startInteractiveConsole(
       resolved.device.setJammed(resolved.compartmentNumber, jammed);
       write(
         `${resolved.device.name} #${resolved.compartmentNumber} -> ${
-          jammed ? 'jammed (relay fires, door stays shut)' : 'not jammed'
+          jammed ? 'jammed (lock releases, door stays shut)' : 'not jammed'
         }`,
       );
     } catch (error) {

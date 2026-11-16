@@ -21,7 +21,7 @@ async function main(): Promise<void> {
     stopping = app.shutdown();
 
     // Exit either way. A shutdown that threw has already given up whatever step
-    // failed, and staying alive holding the Modbus port helps nobody.
+    // failed, and staying alive holding the serial port helps nobody.
     try {
       await stopping;
       process.exit(0);

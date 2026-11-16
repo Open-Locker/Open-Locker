@@ -112,7 +112,7 @@ export class CommandDispatcher {
   ): Promise<void> {
     // Validation first, even while closing: it is what routes a redelivery to
     // its stored response. Refusing ahead of that would answer a command whose
-    // relay already fired with an error, contradicting a reply the backend may
+    // lock already released with an error, contradicting a reply the backend may
     // have acted on — a worse failure than the silence this gate replaced.
     const command = await this.validateCommand(topic, resolved);
     if (!command || (await this.handleDuplicateCommand(command, !arrivedWhileClosing))) {
@@ -121,8 +121,8 @@ export class CommandDispatcher {
 
     // Refuse here: past the duplicate lookup, so a redelivery still replays its
     // stored answer, but before the command is claimed as running. Marking a
-    // refused command in progress would leave a record for a relay that never
-    // fired, and restart recovery would then publish a second, contradictory
+    // refused command in progress would leave a record for an unlock that never
+    // happened, and restart recovery would then publish a second, contradictory
     // answer for it.
     if (arrivedWhileClosing) {
       logger.warn('Refused inbound MQTT command: shutting down', {
@@ -490,8 +490,8 @@ export class CommandDispatcher {
    * The lookup and the claim must not be separated by an await. Two deliveries
    * of one transaction id would otherwise both read "ready" and both execute —
    * the same door opening twice on a single request. `claim` is false only when
-   * the caller is going to refuse the command, so nothing is recorded for a
-   * relay that never fires.
+   * the caller is going to refuse the command, so nothing is recorded for an
+   * unlock that never happens.
    */
   private async guardTransactionExecution(
     action: string,

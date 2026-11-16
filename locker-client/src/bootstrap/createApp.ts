@@ -1,11 +1,6 @@
-import {
-  DEFAULT_MODBUS_MAX_RECONNECT_ATTEMPTS,
-  WaveshareModbusBusActor,
-} from '../adapters/modbus/waveshare-modbus-bus-actor';
-import { WaveshareModbusRtuDriver } from '../adapters/modbus/waveshare-modbus-rtu.driver';
 import { Rs485LockBoardBusActor } from '../adapters/rs485/rs485-lock-board-bus-actor';
 import { Rs485LockBoardDriver } from '../adapters/rs485/rs485-lock-board.driver';
-import { serialConnectionFromModbus } from '../adapters/serial/serial-connection-config';
+import { lockBoardSerialConnection } from '../adapters/serial/serial-connection-config';
 import { SerialPortTransactionTransport } from '../adapters/rs485/serialport-transaction.transport';
 import { RuntimeConfiguredLockerBus } from '../adapters/runtime/runtime-configured-locker-bus';
 import { YamlConfigRepository } from '../adapters/config/yaml-config.repository';
@@ -19,8 +14,8 @@ import { CommandDispatcher } from '../adapters/mqtt/command-dispatcher';
 import { createOpenCompartmentHandler } from '../adapters/mqtt/handlers/open-compartment.handler';
 import { createApplyConfigHandler } from '../adapters/mqtt/handlers/apply-config.handler';
 import { MqttDoorEventPublisher } from '../adapters/mqtt/door-event-publisher';
-import { RelayFireLog } from '../domain/door-detection';
-import { OpenCompartmentUseCase, runStartupFailsafe } from '../application/open-compartment';
+import { ActuationLog } from '../domain/door-detection';
+import { OpenCompartmentUseCase } from '../application/open-compartment';
 import { ApplyConfigUseCase } from '../application/apply-config';
 import {
   COMPARTMENT_POLL_INTERVAL_MS,
@@ -57,7 +52,11 @@ export async function createApp(): Promise<AppContext> {
   assertSecureProductionMqttUrl(brokerUrl);
 
   ensurePrivateDirectory(DATA_DIR);
-  const configRepo = new YamlConfigRepository(new FileRuntimeOverlayStore());
+  const configRepo = new YamlConfigRepository(
+    new FileRuntimeOverlayStore(),
+    undefined,
+    createWinstonLoggerPort(),
+  );
   const config = configRepo.load();
   const credentialStore = new FileCredentialStore();
   const dedupStore = new FileDedupStore();
@@ -102,48 +101,22 @@ export async function createApp(): Promise<AppContext> {
   setLogTraceContextProvider(() => tracing.currentCorrelation());
   shipLogsTo(tracing);
 
-  const serialConnection = serialConnectionFromModbus(config.modbus);
+  const serialConnection = lockBoardSerialConnection(config.serial.port);
 
-  const bus = new RuntimeConfiguredLockerBus(configRepo, (profile) => {
-    if (profile.adapterType === 'rs485_lock_board') {
-      const driver = new Rs485LockBoardDriver(
-        new SerialPortTransactionTransport(serialConnection),
-        profile.feedbackType,
-        serialConnection.timeout,
-      );
-      return new Rs485LockBoardBusActor(
-        driver,
-        () => configRepo.getConfiguredSlaveIds(),
-        {
-          maxAttempts: DEFAULT_MODBUS_MAX_RECONNECT_ATTEMPTS,
-          delayMs: 5000,
-          cooldownMs:
-            config.modbus.reconnectCooldownSeconds === undefined
-              ? undefined
-              : config.modbus.reconnectCooldownSeconds * 1000,
-        },
+  const bus = new RuntimeConfiguredLockerBus(
+    configRepo,
+    (profile) =>
+      new Rs485LockBoardBusActor(
+        new Rs485LockBoardDriver(
+          new SerialPortTransactionTransport(serialConnection),
+          profile.feedbackType,
+        ),
+        () => configRepo.getConfiguredBoardAddresses(),
+        undefined,
         tracing,
         appLogger,
-      );
-    }
-
-    const driver = new WaveshareModbusRtuDriver(serialConnection, {}, appLogger);
-    return new WaveshareModbusBusActor(
-      driver,
-      {
-        maxAttempts: DEFAULT_MODBUS_MAX_RECONNECT_ATTEMPTS,
-        delayMs: 5000,
-        cooldownMs:
-          config.modbus.reconnectCooldownSeconds === undefined
-            ? undefined
-            : config.modbus.reconnectCooldownSeconds * 1000,
-      },
-      () => configRepo.getConfiguredSlaveIds(),
-      profile.feedbackType,
-      tracing,
-      appLogger,
-    );
-  });
+      ),
+  );
 
   await transport.connect(brokerUrl, {
     username: credentials.username,
@@ -169,7 +142,7 @@ export async function createApp(): Promise<AppContext> {
 
   const scheduler = new RunAfterCompleteScheduler();
   const doorEvents = new MqttDoorEventPublisher(outbound, eventTopic);
-  const relayFireLog = new RelayFireLog();
+  const actuationLog = new ActuationLog();
   const detectionTimeoutMs = (): number =>
     Math.max(1, configRepo.getHeartbeatIntervalSeconds()) * 1000;
 
@@ -178,7 +151,7 @@ export async function createApp(): Promise<AppContext> {
     config: configRepo,
     scheduler,
     doorEvents,
-    relayFireLog,
+    actuationLog,
     log: appLogger,
   });
   const pollSnapshot = new PollCompartmentStateUseCase(
@@ -187,7 +160,7 @@ export async function createApp(): Promise<AppContext> {
     outbound,
     snapshotTopic,
     appLogger,
-    { relayFireLog, doorEvents, detectionTimeoutMs },
+    { actuationLog, doorEvents, detectionTimeoutMs },
   );
   const heartbeat = new HeartbeatUseCase(
     outbound,
@@ -225,7 +198,7 @@ export async function createApp(): Promise<AppContext> {
   await dispatcher.flushPendingResponses();
 
   // Commands already running when shutdown starts must finish: an open whose
-  // relay has fired but whose response was never published leaves the backend
+  // lock has released but whose response was never published leaves the backend
   // waiting and the door in an unknown state.
   const inFlight = new Set<Promise<void>>();
 
@@ -237,8 +210,8 @@ export async function createApp(): Promise<AppContext> {
 
   await transport.subscribe(commandTopic);
 
+  // Fails startup when the bus is connected but no configured board answers.
   await bus.connect();
-  await runStartupFailsafe(bus, appLogger);
   heartbeat.start();
 
   const pollTimer = setInterval(() => {
@@ -273,7 +246,7 @@ export async function createApp(): Promise<AppContext> {
       );
 
       await closeOrAbandon('transport-disconnect', () => transport.disconnect());
-      await closeOrAbandon('modbus-disconnect', () => bus.disconnect());
+      await closeOrAbandon('bus-disconnect', () => bus.disconnect());
       // Last, so spans from the shutdown path are flushed too.
       await closeOrAbandon('tracing-shutdown', () => tracing.shutdown());
     },
@@ -286,8 +259,8 @@ interface DispatchErrorLogger {
 
 /**
  * Returns the dispatch promise instead of discarding it, so shutdown can wait
- * for a command that is already running. A dropped promise here means a relay
- * can fire after the transport is gone, with no response and no record.
+ * for a command that is already running. A dropped promise here means a lock
+ * can release after the transport is gone, with no response and no record.
  *
  * Already-handled failures resolve rather than reject: callers track this to
  * know when work is finished, not whether it succeeded.

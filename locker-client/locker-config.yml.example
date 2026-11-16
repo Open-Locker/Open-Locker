@@ -4,15 +4,10 @@
 # server-managed via MQTT apply_config and persisted under DATA_DIR. No hardware
 # adapter is selected locally.
 
-modbus:
+# The only serial setting: the lock board fixes 9600 8N1. Prefer a stable
+# /dev/serial/by-id/... path over /dev/ttyUSB0.
+serial:
   port: /dev/ttyACM0
-  baudRate: 9600
-  dataBits: 8
-  stopBits: 1
-  parity: none
-  timeout: 1000
-  # Used only when the runtime adapter_type is waveshare_modbus.
-  flashDurationMs: 200
 
 mqtt:
   cleanSession: false

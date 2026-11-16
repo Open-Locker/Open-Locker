@@ -1,24 +1,17 @@
 import type { CompartmentTarget, DoorState } from '../../src/domain/compartment';
-import type { LockerBusPort } from '../../src/ports/locker-bus.port';
+import type { LockerBusPort, UnlockObservation } from '../../src/ports/locker-bus.port';
 
 export class FakeLockerBus implements LockerBusPort {
-  readonly flashCalls: Array<{
-    target: CompartmentTarget;
-    durationMs: number;
-  }> = [];
-  readonly writeCoilCalls: Array<{
-    slaveId: number;
-    address: number;
-    value: boolean;
-  }> = [];
-  readonly turnAllOffCalls: number[] = [];
-  readonly doorBatchReads: Array<{ slaveId: number; startAddress: number; length: number }> = [];
+  readonly unlockCalls: CompartmentTarget[] = [];
+  readonly doorReads: Array<{ boardAddress: number; addresses: number[] }> = [];
+  /** What the next unlock reports; no observation by default, like a controller without feedback. */
+  unlockObservation: UnlockObservation = {};
   private doorStates = new Map<number, DoorState[]>();
   private connected = true;
-  private slaveIds: number[];
+  private boardAddresses: number[];
 
-  constructor(slaveIds: number[] = [1]) {
-    this.slaveIds = slaveIds;
+  constructor(boardAddresses: number[] = [1]) {
+    this.boardAddresses = boardAddresses;
   }
 
   async connect(): Promise<void> {
@@ -48,42 +41,33 @@ export class FakeLockerBus implements LockerBusPort {
     return this.connected;
   }
 
-  async flashRelay(target: CompartmentTarget, durationMs: number): Promise<void> {
-    this.flashCalls.push({ target, durationMs });
+  async unlockCompartment(target: CompartmentTarget): Promise<UnlockObservation> {
+    this.unlockCalls.push(target);
+    return this.unlockObservation;
   }
 
-  recordWriteCoil(slaveId: number, address: number, value: boolean): void {
-    this.writeCoilCalls.push({ slaveId, address, value });
-  }
-
-  async readDoorSensors(
-    slaveId: number,
-    startAddress: number,
-    length: number,
+  async readCompartmentStates(
+    boardAddress: number,
+    addresses: readonly number[],
   ): Promise<DoorState[]> {
-    this.doorBatchReads.push({ slaveId, startAddress, length });
-    const states =
-      this.doorStates.get(slaveId) ?? Array.from({ length: 8 }, () => 'closed' as const);
-    return states.slice(startAddress, startAddress + length);
+    this.doorReads.push({ boardAddress, addresses: [...addresses] });
+    const states = this.doorStates.get(boardAddress) ?? [];
+    return addresses.map((address) => states[address] ?? 'closed');
   }
 
-  async initializeBoard(slaveId: number): Promise<void> {
-    this.turnAllOffCalls.push(slaveId);
-  }
-
-  getConfiguredSlaveIds(): number[] {
-    return [...this.slaveIds];
+  getConfiguredBoardAddresses(): number[] {
+    return [...this.boardAddresses];
   }
 
   reloadRuntimeConfig = async (): Promise<void> => undefined;
 
-  setDoorBatchStates(slaveId: number, states: DoorState[]): void {
-    this.doorStates.set(slaveId, [...states]);
+  setBoardStates(boardAddress: number, states: DoorState[]): void {
+    this.doorStates.set(boardAddress, [...states]);
   }
 
   setDoorState(target: CompartmentTarget, state: DoorState): void {
-    const states = this.doorStates.get(target.slaveId) ?? Array.from({ length: 8 }, () => 'closed');
-    states[target.relayAddress] = state;
-    this.doorStates.set(target.slaveId, states);
+    const states = this.doorStates.get(target.boardAddress) ?? [];
+    states[target.address] = state;
+    this.doorStates.set(target.boardAddress, states);
   }
 }

@@ -14,8 +14,8 @@ flowchart LR
     DB[("PostgreSQL<br/>events + read models")]
     Broker["MQTT broker<br/>Mosquitto"]
     Client["Locker client<br/>Node.js on Raspberry Pi"]
-    Modbus["Serialized Modbus RTU"]
-    Hardware["Relay boards<br/>and compartments"]
+    Bus["Serialized RS485"]
+    Hardware["RS485 lock boards<br/>and compartments"]
 
     Mobile -->|REST + Sanctum| API
     Admin --> API
@@ -25,10 +25,10 @@ flowchart LR
     Broker <--> Client
     API --> Reverb
     Reverb -->|private channel updates| Mobile
-    Client --> Modbus --> Hardware
+    Client --> Bus --> Hardware
 ```
 
-The backend has no Modbus dependency and does not connect to relay boards. Its
+The backend has no hardware dependency and does not connect to lock boards. Its
 hardware boundary is MQTT. `locker-client` owns serial communication, command
 deduplication, local runtime configuration, and hardware state reporting.
 
@@ -40,8 +40,8 @@ deduplication, local runtime configuration, and hardware state reporting.
 - **`mobile-app/`** — React Native and Expo client. Its RTK Query API bindings
   are generated from the backend's live OpenAPI document.
 - **`locker-client/`** — TypeScript service deployed on a Raspberry Pi. It
-  provisions over MQTT and translates validated commands into serialized
-  Modbus RTU operations. It also provides a hardware-free fleet simulator.
+  provisions over MQTT and translates validated commands into serialized RS485
+  lock-board operations. It also provides a hardware-free fleet simulator.
 - **`locker-firmware/`** — C firmware on ESP-IDF that replaces the Raspberry Pi
   for one RS485 lock panel. It speaks the same MQTT contract, so the backend
   cannot tell the two clients apart; a bank is driven by one or the other,
@@ -105,9 +105,9 @@ in general architecture documentation.
 
 ### Locker client to hardware
 
-The locker client is the only component that speaks Modbus. It serializes
-Modbus RTU access to Waveshare relay boards and uses hardware-timed relay pulses
-for safe compartment opening. Hardware observations return through MQTT rather
+The locker client is the only component that talks to locker hardware. It
+serializes RS485 access to the dedicated lock boards behind a protocol-neutral
+port (ADR-0089); each board times its own unlock pulse. Hardware observations return through MQTT rather
 than through backend-side polling.
 
 The ESP32 firmware drives the proprietary RS485 lock panel (ADR-0061,

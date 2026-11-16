@@ -49,9 +49,9 @@ export class MqttDoorEventPublisher implements DoorEventPublisherPort {
         event: UNCOMMANDED_OPEN_EVENT,
         data: {
           compartment_number: event.compartmentNumber,
-          ...(event.millisecondsSinceLastRelayFire === null
+          ...(event.millisecondsSinceLastActuation === null
             ? {}
-            : { milliseconds_since_last_relay_fire: event.millisecondsSinceLastRelayFire }),
+            : { milliseconds_since_last_relay_fire: event.millisecondsSinceLastActuation }),
         },
       },
       { qos: 1 },

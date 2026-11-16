@@ -8,8 +8,8 @@
 # passwords in plaintext), so every bank listed here needs its own provisioning
 # token from the admin panel.
 #
-# Nothing here touches real hardware or a real device's /data files: relay and
-# door state live in memory for the lifetime of the run.
+# Nothing here touches real hardware or a real device's /data files: door state
+# lives in memory for the lifetime of the run.
 
 # Optional. Falls back to MQTT_BROKER_URL, then the client default.
 # The --broker flag overrides both.
@@ -22,7 +22,6 @@ banks:
 
     # Optional, defaults shown.
     heartbeat_interval_seconds: 15
-    flash_duration_ms: 200
     # Simulated bus round-trip delay — raise it to exercise slow-hardware paths.
     latency_ms: 0
 

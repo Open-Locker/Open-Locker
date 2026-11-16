@@ -1,5 +1,5 @@
 import type { CompartmentConfig, DoorState } from '../domain/compartment';
-import type { RelayFireLog } from '../domain/door-detection';
+import type { ActuationLog } from '../domain/door-detection';
 import type { ConfigRepositoryPort } from '../ports/config.port';
 import type { DoorEventPublisherPort } from '../ports/door-events.port';
 import type { LockerBusPort } from '../ports/locker-bus.port';
@@ -21,12 +21,12 @@ export const UNKNOWN_PUBLISH_THRESHOLD = 3;
 
 /**
  * Wiring for uncommanded-open detection: a door observed opening
- * with no relay fire that could explain it.
+ * with no actuation that could explain it.
  */
 export interface UncommandedOpenWatch {
-  relayFireLog: RelayFireLog;
+  actuationLog: ActuationLog;
   doorEvents: DoorEventPublisherPort;
-  /** Same window the open use case waits for a door; fires inside it are explained. */
+  /** Same window the open use case waits for a door; actuations inside it are explained. */
   detectionTimeoutMs: () => number;
   now?: () => number;
 }
@@ -37,6 +37,8 @@ export class PollCompartmentStateUseCase {
   private lastPublishedSnapshotKey: string | null = null;
   private readonly lastKnownDoorStates = new Map<string, Exclude<DoorState, 'unknown'>>();
   private readonly consecutiveUnknownReads = new Map<string, number>();
+  /** Boards whose last read failed; a failure is logged once per streak, not every poll. */
+  private readonly failingBoards = new Set<number>();
 
   constructor(
     private readonly bus: LockerBusPort,
@@ -113,40 +115,39 @@ export class PollCompartmentStateUseCase {
     }
 
     const configKey = this.configKey(compartments);
-    const compartmentsBySlave = this.groupBySlaveId(compartments);
+    const compartmentsByBoard = this.groupByBoardAddress(compartments);
     const entries: CompartmentSnapshotEntry[] = [];
     const activeTargetKeys = new Set<string>();
 
-    for (const [slaveId, boardCompartments] of [...compartmentsBySlave.entries()].toSorted(
+    for (const [boardAddress, boardCompartments] of [...compartmentsByBoard.entries()].toSorted(
       ([left], [right]) => left - right,
     )) {
       const addresses = boardCompartments.map((compartment) => compartment.address);
-      const startAddress = Math.min(...addresses);
-      const length = Math.max(...addresses) - startAddress + 1;
       let observedStates: DoorState[];
       try {
-        observedStates = await this.bus.readDoorSensors(slaveId, startAddress, length);
+        observedStates = await this.bus.readCompartmentStates(boardAddress, addresses);
+        if (this.failingBoards.delete(boardAddress)) {
+          this.log.warn('Board read recovered', { boardAddress });
+        }
       } catch (error) {
-        // The bus adapter substitutes 'unknown' for its own read failures, so
-        // reaching this catch means something above the hardware layer broke.
-        // Rare enough to be worth its own line rather than a silent empty read.
-        this.log.warn('Door sensor read threw during snapshot collection', {
-          slaveId,
-          startAddress,
-          length,
-          error: error instanceof Error ? error.message : String(error),
-        });
+        if (!this.failingBoards.has(boardAddress)) {
+          this.failingBoards.add(boardAddress);
+          this.log.warn('Board read failed, reporting its doors as unknown until it recovers', {
+            boardAddress,
+            error: error instanceof Error ? error.message : String(error),
+          });
+        }
         observedStates = [];
       }
 
-      for (const compartment of boardCompartments) {
+      for (const [index, compartment] of boardCompartments.entries()) {
         const targetKey = this.targetKey(compartment);
         activeTargetKeys.add(targetKey);
 
         const previousState = this.lastKnownDoorStates.get(targetKey);
         const effectiveState = this.resolveEffectiveDoorState(
           targetKey,
-          observedStates[compartment.address - startAddress] ?? 'unknown',
+          observedStates[index] ?? 'unknown',
         );
 
         if (previousState === 'closed' && effectiveState === 'open') {
@@ -161,6 +162,11 @@ export class PollCompartmentStateUseCase {
     }
 
     this.removeStaleTargets(activeTargetKeys);
+    for (const boardAddress of this.failingBoards) {
+      if (!compartmentsByBoard.has(boardAddress)) {
+        this.failingBoards.delete(boardAddress);
+      }
+    }
 
     return {
       entries: entries.toSorted(
@@ -171,9 +177,9 @@ export class PollCompartmentStateUseCase {
   }
 
   /**
-   * A closed→open transition is only news if no relay fire explains it. An
-   * active detection window owns its own outcome, and a fire inside that window
-   * is the command that opened the door.
+   * A closed→open transition is only news if no actuation explains it. An
+   * active detection window owns its own outcome, and an actuation inside that
+   * window is the command that opened the door.
    */
   private async reportIfUncommanded(compartmentNumber: number): Promise<void> {
     const watch = this.uncommandedOpen;
@@ -181,21 +187,24 @@ export class PollCompartmentStateUseCase {
       return;
     }
 
-    if (watch.relayFireLog.isDetecting(compartmentNumber)) {
+    if (watch.actuationLog.isDetecting(compartmentNumber)) {
       return;
     }
 
     const nowMs = (watch.now ?? (() => Date.now()))();
-    const sinceFireMs = watch.relayFireLog.millisecondsSinceFire(compartmentNumber, nowMs);
+    const sinceActuationMs = watch.actuationLog.millisecondsSinceActuation(
+      compartmentNumber,
+      nowMs,
+    );
 
-    if (sinceFireMs !== null && sinceFireMs <= watch.detectionTimeoutMs()) {
+    if (sinceActuationMs !== null && sinceActuationMs <= watch.detectionTimeoutMs()) {
       return;
     }
 
     try {
       await watch.doorEvents.publishUncommandedOpen({
         compartmentNumber,
-        millisecondsSinceLastRelayFire: sinceFireMs,
+        millisecondsSinceLastActuation: sinceActuationMs,
       });
     } catch (error) {
       this.log.warn('Uncommanded open event publish failed', {
@@ -205,7 +214,7 @@ export class PollCompartmentStateUseCase {
     }
   }
 
-  private groupBySlaveId(compartments: CompartmentConfig[]): Map<number, CompartmentConfig[]> {
+  private groupByBoardAddress(compartments: CompartmentConfig[]): Map<number, CompartmentConfig[]> {
     const grouped = new Map<number, CompartmentConfig[]>();
     for (const compartment of compartments) {
       const boardCompartments = grouped.get(compartment.slaveId) ?? [];
@@ -272,7 +281,7 @@ export class HeartbeatUseCase {
   private readonly startTime = Date.now();
 
   /**
-   * @param busHealth Reports whether the Modbus bus is currently usable. A Pi
+   * @param busHealth Reports whether the hardware bus is currently usable. A Pi
    *   with an unreachable bus still connects to MQTT and still heartbeats, so
    *   without this a blind device is indistinguishable from a healthy one.
    */

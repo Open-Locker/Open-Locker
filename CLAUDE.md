@@ -9,7 +9,7 @@ actively-developed components are:
 
 - **`locker-backend/`** — Laravel 12 REST API + Filament admin panel. Source of truth for data, auth, and the OpenAPI spec. Uses **event sourcing**.
 - **`mobile-app/`** — React Native (Expo, TypeScript) end-user app. Consumes a **TypeScript RTK Query client generated from the backend's OpenAPI spec**.
-- **`locker-client/`** — TypeScript/Node service that runs on a Raspberry Pi (in Docker). Bridges the backend (via **MQTT**) and physical hardware (via **Modbus**).
+- **`locker-client/`** — TypeScript/Node service that runs on a Raspberry Pi (in Docker). Bridges the backend (via **MQTT**) and physical hardware (via **RS485** lock boards).
 
 Supporting: `hardware/` (KiCad designs), `docs/` (architecture + ADRs).
 
@@ -18,7 +18,7 @@ documentation when they disagree.
 
 ## Architecture Big Picture
 
-**Data flow:** `Mobile App → Laravel API → MQTT (Mosquitto) → locker-client on Pi → Modbus → physical lockers`. The admin panel (Filament) is the only server-rendered UI; everything else is API-first.
+**Data flow:** `Mobile App → Laravel API → MQTT (Mosquitto) → locker-client on Pi → RS485 → physical lockers`. The admin panel (Filament) is the only server-rendered UI; everything else is API-first.
 
 **Event sourcing (backend).** Domain state changes flow through `spatie/laravel-event-sourcing`. When working in the backend, expect this structure under `locker-backend/app/`:
 - `Aggregates/` — command handlers that record events
@@ -30,7 +30,7 @@ Do **not** mutate read-model state directly when an aggregate/event path exists 
 
 **MQTT contract.** The backend publishes via typed outbound publisher services in `locker-backend/app/Mqtt/` (see ADR-0008). Mosquitto authenticates clients against the Laravel API (`/api/mosq/*`) via `mosquitto-go-auth`. Message-id vs transaction-id separation is defined in ADR-0002. The `locker-client` subscribes/publishes on the other end.
 
-**Modbus lives only in `locker-client/`, not the backend.** Hardware comms were moved out of Laravel (the old `php-modbus-ffi` dependency and `ModbusServiceProvider` were removed). The backend never speaks Modbus: `app/Services/LockerService.php` records an event, a Reactor publishes MQTT, and the `locker-client` (`src/adapters/modbus/`, using the `modbus-serial` package) issues the actual Modbus command. Modbus operations are serialized/lock-guarded and tolerate unreachable boards on the client side (ADR-0006/0007).
+**Hardware comms live only in `locker-client/`, not the backend.** The backend never talks to hardware: `app/Services/LockerService.php` records an event, a Reactor publishes MQTT, and the `locker-client` issues the command to the dedicated RS485 lock board (`src/adapters/rs485/`, using the `serialport` package) behind the protocol-neutral `LockerBusPort` (ADR-0089). Serial operations are serialized with unlocks ahead of polling, and an unlock is never re-sent automatically. Waveshare/Modbus support was removed; `slaveId` and `modbus_connected` remain only as wire names in the MQTT contract.
 
 **The codegen pipeline is a real cross-component contract:**
 1. The backend exposes the OpenAPI spec **live** via Scramble at `/docs/api.json`; no exported specification is committed.
@@ -93,7 +93,7 @@ documentation was requested.
 - `declare(strict_types=1);` in all PHP files; PSR-12; full class imports (no inline FQCNs).
 - Thin controllers → delegate to `app/Services/`. Form Requests for validation, JSON Resources for responses, Policies for authz.
 - API-only (no public views except the Filament admin panel).
-- Prefer feature tests for workflows; mock the MQTT boundary instead of Modbus hardware.
+- Prefer feature tests for workflows; mock the MQTT boundary instead of locker hardware.
 - Keep routes, resources, and controller types discoverable by Scramble.
 
 ## Shared Agent Rules (single source of truth)

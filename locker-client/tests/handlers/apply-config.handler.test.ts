@@ -39,7 +39,7 @@ test('apply_config handler returns success with applied_config_hash', async () =
       transaction_id: 'tx-1',
       timestamp: '2026-06-16T12:00:00.000Z',
       data: {
-        adapter_type: 'waveshare_modbus',
+        adapter_type: 'rs485_lock_board',
         feedback_type: 'door_closing',
         config_hash: configHash,
         heartbeat_interval_seconds: 30,
@@ -57,7 +57,7 @@ test('apply_config handler returns success with applied_config_hash', async () =
 test('apply_config handler propagates runtime apply failures', async () => {
   const bus = new FakeLockerBus([1]);
   bus.reloadRuntimeConfig = async () => {
-    throw new Error('modbus reconnect failed');
+    throw new Error('serial reconnect failed');
   };
 
   const overlayStore = new MemoryOverlayStore();
@@ -81,7 +81,7 @@ test('apply_config handler propagates runtime apply failures', async () => {
           transaction_id: 'tx-2',
           timestamp: '2026-06-16T12:00:00.000Z',
           data: {
-            adapter_type: 'waveshare_modbus',
+            adapter_type: 'rs485_lock_board',
             feedback_type: 'door_closing',
             config_hash: canonicalConfigHash(compartments),
             heartbeat_interval_seconds: 30,
@@ -89,6 +89,6 @@ test('apply_config handler propagates runtime apply failures', async () => {
           },
         },
       ),
-    /modbus reconnect failed/,
+    /serial reconnect failed/,
   );
 });

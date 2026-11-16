@@ -1,5 +1,5 @@
 import type { CompartmentConfig } from '../../src/domain/compartment';
-import { deriveConfiguredSlaveIds } from '../../src/domain/config';
+import { deriveConfiguredBoardAddresses } from '../../src/domain/config';
 import type { ConfigRepositoryPort } from '../../src/ports/config.port';
 
 const DEFAULT_MQTT_TRANSPORT_SETTINGS = {
@@ -18,7 +18,7 @@ export function createTestConfigRepository(
 ): ConfigRepositoryPort {
   const { compartments, heartbeatIntervalSeconds = 15, ...portOverrides } = overrides;
   const baseConfig = {
-    modbus: { port: '/dev/null', flashDurationMs: 200 },
+    serial: { port: '/dev/null' },
     mqtt:
       heartbeatIntervalSeconds !== undefined
         ? { heartbeatInterval: heartbeatIntervalSeconds }
@@ -30,8 +30,7 @@ export function createTestConfigRepository(
     load: () => baseConfig,
     reload: () => baseConfig,
     getCompartmentConfig: (n) => compartments?.find((c) => c.compartment_number === n) ?? null,
-    getConfiguredSlaveIds: () => deriveConfiguredSlaveIds(compartments),
-    getFlashDurationMs: () => 200,
+    getConfiguredBoardAddresses: () => deriveConfiguredBoardAddresses(compartments),
     getHeartbeatIntervalSeconds: () => heartbeatIntervalSeconds,
     getMqttTransportSettings: () => ({ ...DEFAULT_MQTT_TRANSPORT_SETTINGS }),
     ...portOverrides,

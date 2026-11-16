@@ -5,8 +5,7 @@ export interface ConfigRepositoryPort {
   load(): EffectiveLockerConfig;
   reload(): EffectiveLockerConfig;
   getCompartmentConfig(compartmentNumber: number): CompartmentConfig | null;
-  getConfiguredSlaveIds(): number[];
-  getFlashDurationMs(): number;
+  getConfiguredBoardAddresses(): number[];
   getHeartbeatIntervalSeconds(): number;
   getMqttTransportSettings(): import('./mqtt.port').MqttTransportSettings;
 }
