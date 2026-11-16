@@ -24,7 +24,7 @@ export function createOpenCompartmentHandler(deps: {
         action: command.action,
         result: 'success',
         transaction_id: command.transaction_id,
-        message: 'Unlock pulse sent.',
+        message: 'Unlock sent.',
       };
     },
   };

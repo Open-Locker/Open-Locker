@@ -57,7 +57,7 @@ test('open compartment handler returns success and preserves transaction_id', as
   assert.equal(bus.unlockCalls.length, 1);
   assert.equal(response.result, 'success');
   assert.equal(response.transaction_id, 'tx-abc');
-  assert.equal(response.message, 'Unlock pulse sent.');
+  assert.equal(response.message, 'Unlock sent.');
   assert.equal(
     published
       .map((payload) => JSON.parse(payload) as { compartments?: unknown[] })
