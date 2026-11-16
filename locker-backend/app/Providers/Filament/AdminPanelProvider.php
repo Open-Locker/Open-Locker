@@ -117,8 +117,10 @@ class AdminPanelProvider extends PanelProvider
                 SubstituteBindings::class,
                 DisableBladeIconComponents::class,
                 DispatchServingFilamentEvent::class,
-                SetPanelLocale::class,
             ])
+            // Persistent so Livewire updates (tabs, filters, actions) keep the
+            // chosen language instead of falling back to APP_LOCALE.
+            ->middleware([SetPanelLocale::class], isPersistent: true)
             ->authMiddleware([
                 Authenticate::class,
             ]);

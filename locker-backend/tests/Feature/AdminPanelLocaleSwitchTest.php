@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use App\Http\Middleware\SetPanelLocale;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Livewire\Livewire;
 use Tests\TestCase;
 
 class AdminPanelLocaleSwitchTest extends TestCase
@@ -73,6 +75,13 @@ class AdminPanelLocaleSwitchTest extends TestCase
             ->get('/admin');
 
         $this->assertSame('de', app()->getLocale());
+    }
+
+    public function test_livewire_updates_keep_the_session_locale(): void
+    {
+        // Livewire updates skip panel middleware unless it is persistent, and
+        // would then render tabs and filters in APP_LOCALE.
+        $this->assertContains(SetPanelLocale::class, Livewire::getPersistentMiddleware());
     }
 
     public function test_login_page_renders_in_cookie_locale_without_session(): void

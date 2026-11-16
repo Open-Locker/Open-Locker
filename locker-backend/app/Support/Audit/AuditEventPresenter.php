@@ -74,22 +74,6 @@ class AuditEventPresenter
     }
 
     /**
-     * Category key => translated label, for tabs and filters.
-     *
-     * @return array<string, string>
-     */
-    public function categories(): array
-    {
-        $categories = [];
-
-        foreach (AuditCategory::cases() as $category) {
-            $categories[$category->value] = $category->label();
-        }
-
-        return $categories;
-    }
-
-    /**
      * Fully-qualified class names belonging to a category.
      *
      * @return list<string>
