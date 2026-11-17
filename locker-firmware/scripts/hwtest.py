@@ -73,8 +73,10 @@ CHECKS = [
     ("C7", "Invalid token: rejected, no retry; after a provisioning reset and a fresh token it enrolls", "manual"),
     ("C8", "Pull power: the backend shows the bank offline", "manual"),
     ("D1", "Door by hand: admin panel and app follow within two seconds", "manual"),
-    ("D2", "ACTUATES. Open through the backend and pull the door: `opened` arrives", "manual"),
-    ("D3", "ACTUATES. Open through the backend and hold the door: `door_jammed` arrives", "manual"),
+    ("D2", "ACTUATES. Open through the backend and pull the door, or the panel replies open: "
+     "`opened` arrives without the detection window", "manual"),
+    ("D3", "ACTUATES. Open through the backend and hold the door shut, or the panel replies closed: "
+     "`door_jammed` arrives without the detection window", "manual"),
     ("D4", "Force the door open with no command: uncommanded-open event", "manual"),
     ("D5", "Panel power removed: heartbeat says disconnected, states unknown; both recover", "manual"),
     ("D6", "Broker restart with the door open: no door event on reconnect", "an edge case. Hardware-example PR"),

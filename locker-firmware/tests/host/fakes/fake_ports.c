@@ -62,7 +62,7 @@ static lc_unlock_observation_t bus_unlock(void *ctx, lc_target_t target)
     fake_trace("bus.unlock");
     ++bus->unlock_count;
     bus->last_target = target;
-    return (lc_unlock_observation_t){.result = bus->unlock_result, .observed = LC_DOOR_UNKNOWN};
+    return (lc_unlock_observation_t){.result = bus->unlock_result, .observed = bus->unlock_observed};
 }
 
 static bool bus_read(void *ctx, uint8_t board, const uint8_t *addresses, size_t count,
@@ -96,6 +96,7 @@ void fake_bus_init(fake_bus_t *bus)
     }
     bus->read_ok = true;
     bus->unlock_result = LC_UNLOCK_ACKNOWLEDGED;
+    bus->unlock_observed = LC_DOOR_UNKNOWN;
     bus->state = LC_BUS_CONNECTED;
     bus->apply_profile_ok = true;
 }

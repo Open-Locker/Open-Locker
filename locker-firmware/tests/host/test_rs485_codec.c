@@ -141,6 +141,26 @@ void test_S1_H08_verified_query_all_response_decodes(void)
     TEST_ASSERT_EQUAL_INT(LC_DOOR_CLOSED, states[23]);
 }
 
+/*
+ * A valid five-byte query-all prefix must not win over a longer reply in the same
+ * burst (ADR-0089 section 7).
+ */
+void test_S1_H37_longest_valid_query_all_frame_is_chosen(void)
+{
+    static const uint8_t LONGER_THAN_PREFIX[] = {0x80, 0x01, 0x00, 0x33, 0xB2, 0x33, 0x33};
+
+    TEST_ASSERT_TRUE(decode(LONGER_THAN_PREFIX, sizeof(LONGER_THAN_PREFIX), 1,
+                            LC_FEEDBACK_DOOR_CLOSING));
+    /* Wire channel 2 is address 1; bit 1 set in the last status byte (0xB2). */
+    TEST_ASSERT_EQUAL_INT(LC_DOOR_CLOSED, states[1]);
+    TEST_ASSERT_EQUAL_INT(LC_DOOR_OPEN, states[0]);
+    TEST_ASSERT_TRUE(decode(LONGER_THAN_PREFIX, 5, 1, LC_FEEDBACK_DOOR_CLOSING));
+    TEST_ASSERT_EQUAL_INT(LC_DOOR_OPEN, states[1]);
+    TEST_ASSERT_TRUE(decode(LONGER_THAN_PREFIX, sizeof(LONGER_THAN_PREFIX), 1,
+                            LC_FEEDBACK_DOOR_CLOSING));
+    TEST_ASSERT_EQUAL_INT(LC_DOOR_CLOSED, states[1]);
+}
+
 void test_S1_H09_status_bits_map_to_addresses_for_both_polarities(void)
 {
     /* Last status byte 0x05: addresses 0 and 2 high. */
@@ -244,6 +264,7 @@ int main(void)
     RUN_TEST(test_S1_H06_unlock_ack_with_another_status_is_rejected);
     RUN_TEST(test_S1_H07_unlock_ack_for_another_board_or_channel_is_rejected);
     RUN_TEST(test_S1_H08_verified_query_all_response_decodes);
+    RUN_TEST(test_S1_H37_longest_valid_query_all_frame_is_chosen);
     RUN_TEST(test_S1_H09_status_bits_map_to_addresses_for_both_polarities);
     RUN_TEST(test_S1_H10_addresses_beyond_the_status_bytes_are_unknown);
     RUN_TEST(test_status_bits_beyond_the_last_address_are_ignored);

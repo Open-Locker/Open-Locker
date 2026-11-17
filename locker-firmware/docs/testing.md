@@ -67,13 +67,14 @@ Host suite `test_rs485_codec`:
 | S1-H09 | Status bits map to addresses in the documented order, for both feedback polarities |
 | S1-H10 | Addresses beyond the returned status bytes decode as `unknown` |
 | S1-H11 | Bad checksum, wrong header, wrong board, wrong command marker, and frames under five bytes are rejected |
+| S1-H37 | The longest valid query-all frame in a burst is chosen, not an earlier valid prefix |
 
 Host suite `test_rs485_bus`, against a scripted serial fake:
 
 | ID | Test |
 | --- | --- |
 | S1-H12 | Starting the adapter writes nothing |
-| S1-H13 | Acknowledged unlock returns `ACKNOWLEDGED` after exactly one write |
+| S1-H13 | Acknowledged unlock returns `ACKNOWLEDGED` with `open` observed, after exactly one write |
 | S1-H14 | A write that sends zero bytes returns `NOT_SENT` |
 | S1-H15 | A partial write returns `OUTCOME_UNKNOWN` |
 | S1-H16 | No reply before the deadline returns `OUTCOME_UNKNOWN` after exactly one write |
@@ -92,7 +93,7 @@ Host suite `test_rs485_bus`, against a scripted serial fake:
 | S1-H31 | A late status reply to a timed-out query is not used as the answer to the next query |
 | S1-H32 | An unlock acknowledgement followed in the same burst by the panel's door event (`82`) is `ACKNOWLEDGED` |
 | S1-H33 | A status reply followed in the same burst by a door event is read, and the bus stays connected |
-| S1-H34 | An unlock reply with the failure status is `REFUSED`, and the bus stays connected |
+| S1-H34 | An unlock reply with the failure status is `REFUSED` with `closed` observed, and the bus stays connected |
 | S1-H35 | A miswired bus that only echoes requests never acknowledges an unlock (documents that its status echo reads as all doors open) |
 
 Host suite `test_console_line`:
@@ -174,8 +175,9 @@ Suites `test_open_compartment`, `test_apply_config`, `test_app_dispatch`:
 | S2-H41 | Open of an unmapped compartment yields `COMPARTMENT_NOT_FOUND` |
 | S2-H42 | `ACKNOWLEDGED` yields success |
 | S2-H43 | `NOT_SENT` yields `HARDWARE_ERROR` and arms no door detection |
-| S2-H44 | `OUTCOME_UNKNOWN` yields `HARDWARE_ERROR` and arms door detection |
+| S2-H44 | `OUTCOME_UNKNOWN` yields `HARDWARE_ERROR`, arms opened-only detection, and never yields `door_jammed` |
 | S2-H45 | The bus is called with the mapped board and address, exactly once |
+| S2-H61 | `REFUSED` with `closed` in the unlock reply yields success |
 | S2-H46 | A valid `apply_config` is saved, sets the bus profile, and responds with `applied_config_hash` |
 | S2-H47 | A valid `apply_config` is saved and acknowledged while the bus is disconnected |
 | S2-H48 | A store failure yields an error and the previous configuration stays in effect |
@@ -244,7 +246,11 @@ Host suite `test_door_detection`:
 | S4-H07 | The first reading after boot being open yields no event |
 | S4-H08 | `unknown` to open yields no uncommanded-open event |
 | S4-H09 | An unlock that returned `OUTCOME_UNKNOWN` still runs detection and can report `opened` |
+| S4-H27 | After `OUTCOME_UNKNOWN`, a closed door through the window must not yield `door_jammed` |
 | S4-H10 | A detection event whose publish fails is retried and published once |
+| S4-H24 | An unlock reply of `open` yields `opened` on the next service tick without the detection window |
+| S4-H25 | An unlock reply of `closed` yields `door_jammed` on the next service tick without the detection window |
+| S4-H26 | The door outcome from the unlock reply is published only after the command response |
 
 Host suite `test_publish_state`:
 
@@ -434,8 +440,8 @@ Rules:
 | ID | Check |
 | --- | --- |
 | HW-D1 | Open and close the door by hand: the admin panel and the mobile app follow within two seconds |
-| HW-D2 | **Actuates.** Open through the backend and pull the door: an `opened` event arrives |
-| HW-D3 | **Actuates.** Open through the backend and hold the door shut: `door_jammed` arrives after the window |
+| HW-D2 | **Actuates.** Open through the backend and pull the door, or let the panel report `open` in the unlock reply: an `opened` event arrives without waiting for the detection window |
+| HW-D3 | **Actuates.** Open through the backend and hold the door shut, or let the panel report `closed` in the unlock reply: `door_jammed` arrives without waiting for the detection window |
 | HW-D4 | Force the door open by hand with no command: an uncommanded-open event arrives |
 | HW-D5 | Remove panel power: the heartbeat reports the bus as disconnected and states become `unknown`; restore it and both recover |
 | HW-D6 | Restart the broker with the door open: no door event is published on reconnect |

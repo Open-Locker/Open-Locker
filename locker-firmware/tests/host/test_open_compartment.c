@@ -74,11 +74,27 @@ void test_S2_H44_unlock_with_unknown_outcome_is_a_hardware_error_with_detection(
 
     TEST_ASSERT_EQUAL_INT(LC_ERROR_HARDWARE_ERROR, open("tx-1", 1));
 
-    /* The lock may have moved: the door is watched and reported. */
+    fx_advance_acknowledging(1000);
+    fx_bus.doors[0] = LC_DOOR_OPEN;
+    fx_advance_acknowledging(1000);
+    TEST_ASSERT_EQUAL_UINT(1, fx_outbound.detection_count);
+    TEST_ASSERT_TRUE(fx_outbound.detections[0].opened);
+
+    /* After the window ends without a jam, a later reading does not re-arm detection. */
+    fx_bus.doors[0] = LC_DOOR_CLOSED;
     fx_advance_acknowledging(2 * FX_HEARTBEAT_SECONDS * 1000);
     TEST_ASSERT_EQUAL_UINT(1, fx_outbound.detection_count);
-    TEST_ASSERT_EQUAL_STRING("tx-1", fx_outbound.detections[0].transaction_id);
-    TEST_ASSERT_EQUAL_UINT16(1, fx_outbound.detections[0].compartment_number);
+}
+
+void test_S2_H61_refused_unlock_with_door_closed_in_the_reply_is_success(void)
+{
+    fx_configure();
+    fx_bus.unlock_result = LC_UNLOCK_REFUSED;
+    fx_bus.unlock_observed = LC_DOOR_CLOSED;
+
+    TEST_ASSERT_EQUAL_INT(LC_ERROR_NONE, open("tx-1", 1));
+
+    TEST_ASSERT_EQUAL_UINT(1, fx_bus.unlock_count);
 }
 
 void test_S2_H45_bus_is_called_once_with_the_mapped_board_and_address(void)
@@ -110,5 +126,6 @@ int main(void)
     RUN_TEST(test_S2_H43_unlock_that_was_not_sent_is_a_hardware_error_without_detection);
     RUN_TEST(test_S2_H44_unlock_with_unknown_outcome_is_a_hardware_error_with_detection);
     RUN_TEST(test_S2_H45_bus_is_called_once_with_the_mapped_board_and_address);
+    RUN_TEST(test_S2_H61_refused_unlock_with_door_closed_in_the_reply_is_success);
     return UNITY_END();
 }

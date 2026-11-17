@@ -50,9 +50,14 @@ void tearDown(void)
 {
 }
 
+static lc_unlock_observation_t unlock_observation(void)
+{
+    return port.unlock_compartment(port.ctx, TARGET);
+}
+
 static lc_unlock_result_t unlock(void)
 {
-    return port.unlock_compartment(port.ctx, TARGET).result;
+    return unlock_observation().result;
 }
 
 /* Pre-fills with a known state so an untouched output cannot pass as unknown. */
@@ -94,7 +99,10 @@ void test_S1_H13_acknowledged_unlock_after_exactly_one_write(void)
 {
     fake_serial_reply_to_write(&serial, 0, REPLY_MS, UNLOCK_ACK, sizeof(UNLOCK_ACK));
 
-    TEST_ASSERT_EQUAL_INT(LC_UNLOCK_ACKNOWLEDGED, unlock());
+    lc_unlock_observation_t observation = unlock_observation();
+
+    TEST_ASSERT_EQUAL_INT(LC_UNLOCK_ACKNOWLEDGED, observation.result);
+    TEST_ASSERT_EQUAL_INT(LC_DOOR_OPEN, observation.observed);
 
     TEST_ASSERT_EQUAL_UINT(1, fake_serial_write_count(&serial));
     TEST_ASSERT_EQUAL_UINT(sizeof(UNLOCK_REQUEST), fake_serial_write_at(&serial, 0)->length);
@@ -407,7 +415,10 @@ void test_S1_H34_unlock_failure_status_is_refused_and_the_bus_stays_connected(vo
     static const uint8_t UNLOCK_FAILED[] = {0x8A, 0x01, 0x01, 0x11, 0x9B};
     fake_serial_reply_to_write(&serial, 0, REPLY_MS, UNLOCK_FAILED, sizeof(UNLOCK_FAILED));
 
-    TEST_ASSERT_EQUAL_INT(LC_UNLOCK_REFUSED, unlock());
+    lc_unlock_observation_t observation = unlock_observation();
+
+    TEST_ASSERT_EQUAL_INT(LC_UNLOCK_REFUSED, observation.result);
+    TEST_ASSERT_EQUAL_INT(LC_DOOR_CLOSED, observation.observed);
     TEST_ASSERT_EQUAL_INT(LC_BUS_CONNECTED, port.connection_state(port.ctx));
 }
 
