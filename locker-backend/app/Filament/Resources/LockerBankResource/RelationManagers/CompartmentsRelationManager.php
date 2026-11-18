@@ -125,6 +125,7 @@ class CompartmentsRelationManager extends RelationManager
     {
         return $table
             ->recordTitleAttribute('number')
+            ->defaultSort('number')
             // The door badge reads the last open request to flag a jam, so load it
             // with the rows rather than once per compartment.
             ->modifyQueryUsing(fn (Builder $query): Builder => $query->with('latestOpenRequest'))
