@@ -111,4 +111,25 @@ class OpenRequestStatusBadgeTest extends TestCase
             ->assertSuccessful()
             ->assertSee($status->label());
     }
+
+    public function test_open_command_history_shows_actors_of_several_requests(): void
+    {
+        // Laravel only rejects lazy loading on queries that return more than
+        // one row, so a single request would not catch a missing eager load.
+        $admin = $this->admin();
+        $lockerBank = LockerBank::factory()->create();
+        $compartment = Compartment::factory()->for($lockerBank)->create(['number' => 1]);
+        foreach (range(1, 2) as $i) {
+            $this->openRequest($compartment, CompartmentOpenRequestStatus::Opened)
+                ->update(['actor_user_id' => $admin->id]);
+        }
+
+        Livewire::actingAs($admin)
+            ->test(OpenRequestsRelationManager::class, [
+                'ownerRecord' => $lockerBank,
+                'pageClass' => EditLockerBank::class,
+            ])
+            ->assertSuccessful()
+            ->assertSee($admin->fullName());
+    }
 }
