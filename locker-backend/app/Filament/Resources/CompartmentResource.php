@@ -125,7 +125,15 @@ class CompartmentResource extends Resource
                     ->getTitleFromRecordUsing(LockerBankGroupHeading::title(...))
                     ->getDescriptionFromRecordUsing(LockerBankGroupHeading::description(...))
                     ->orderQueryUsing(function (Builder $query, string $direction): Builder {
+                        // Online banks first so offline (development, test) lockers
+                        // sink below the ones an admin can actually open (#376).
                         return $query
+                            ->orderBy(
+                                LockerBank::query()
+                                    ->selectRaw("case when connection_status = 'online' then 0 else 1 end")
+                                    ->whereColumn('locker_banks.id', 'compartments.locker_bank_id'),
+                                $direction,
+                            )
                             ->orderBy(
                                 LockerBank::query()
                                     ->select('name')
