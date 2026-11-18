@@ -10,6 +10,7 @@ use Filament\Resources\RelationManagers\RelationManager;
 use Filament\Schemas\Schema;
 use Filament\Tables;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 
 class OpenRequestsRelationManager extends RelationManager
@@ -29,6 +30,7 @@ class OpenRequestsRelationManager extends RelationManager
     public function table(Table $table): Table
     {
         return $table
+            ->modifyQueryUsing(fn (Builder $query): Builder => $query->with('actor'))
             ->defaultSort('requested_at', 'desc')
             ->columns([
                 Tables\Columns\TextColumn::make('command_id')

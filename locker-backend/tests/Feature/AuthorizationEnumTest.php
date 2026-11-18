@@ -37,6 +37,7 @@ class AuthorizationEnumTest extends TestCase
         $this->assertContains(Permission::CompartmentAccessManage, $managerPermissions);
         $this->assertContains(Permission::CompartmentOpen, $managerPermissions);
         $this->assertContains(Permission::SystemConfigure, $managerPermissions);
+        $this->assertContains(Permission::AuditLogViewAccess, $managerPermissions);
 
         // ...but NOT these.
         $this->assertNotContains(Permission::RolesManage, $managerPermissions);

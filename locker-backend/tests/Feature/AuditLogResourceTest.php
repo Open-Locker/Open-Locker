@@ -12,7 +12,9 @@ use App\Models\AuditEvent;
 use App\Models\Group;
 use App\Models\LockerBank;
 use App\Models\User;
+use App\StorableEvents\CompartmentAccessGranted;
 use App\StorableEvents\LockerProvisioningReplyFailed;
+use App\Support\Audit\AuditCategory;
 use App\Support\Audit\AuditEventPresenter;
 use Filament\Tables\Contracts\HasTable;
 use Filament\Tables\Table;
@@ -146,24 +148,16 @@ class AuditLogResourceTest extends TestCase
 
     private function recordAuditEvent(int $actorUserId): AuditEvent
     {
-        return AuditEvent::create([
-            'aggregate_uuid' => (string) Str::uuid(),
-            'aggregate_version' => 1,
-            'event_version' => 1,
-            'event_class' => 'App\\StorableEvents\\GroupCreated',
-            'event_properties' => [
-                'groupUuid' => (string) Str::uuid(),
-                'name' => 'Test group',
-                'description' => null,
-                'actorUserId' => $actorUserId,
-                'createdAt' => now()->toIso8601String(),
-            ],
-            'meta_data' => [],
-            'created_at' => now(),
+        return $this->recordEvent('App\\StorableEvents\\GroupCreated', [
+            'groupUuid' => (string) Str::uuid(),
+            'name' => 'Test group',
+            'description' => null,
+            'actorUserId' => $actorUserId,
+            'createdAt' => now()->toIso8601String(),
         ]);
     }
 
-    public function test_manager_cannot_access_audit_log(): void
+    public function test_manager_sees_only_access_entries(): void
     {
         $manager = User::factory()->create();
         UserRoleAggregate::retrieve(UserRoleAggregate::aggregateUuidFor($manager->id))
@@ -171,12 +165,41 @@ class AuditLogResourceTest extends TestCase
             ->persist();
         $manager->flushPermissionCache();
 
+        $accessEvent = $this->recordEvent(CompartmentAccessGranted::class, [
+            'userId' => $manager->id,
+            'actorUserId' => $manager->id,
+            'compartmentUuid' => (string) Str::uuid(),
+            'grantedAt' => now()->toIso8601String(),
+        ]);
+        $groupEvent = $this->recordAuditEvent($manager->id);
+        $deviceEvent = $this->recordDeviceEvent();
+
         $this->actingAs($manager);
 
-        $this->assertFalse(AuditLogResource::canAccess());
+        $this->assertTrue(AuditLogResource::canAccess());
+        $this->assertSame([AuditCategory::Access], AuditLogResource::visibleCategories());
 
         $this->get(route('filament.admin.resources.audit-logs.index'))
-            ->assertForbidden();
+            ->assertOk();
+
+        Livewire::test(ListAuditLog::class)
+            ->assertCanSeeTableRecords([$accessEvent])
+            ->assertCanNotSeeTableRecords([$groupEvent, $deviceEvent]);
+    }
+
+    public function test_admin_sees_device_events(): void
+    {
+        $admin = User::factory()->create();
+        $admin->makeAdmin();
+
+        $deviceEvent = $this->recordDeviceEvent();
+
+        $this->actingAs($admin);
+
+        $this->assertContains(AuditCategory::Devices, AuditLogResource::visibleCategories());
+
+        Livewire::test(ListAuditLog::class)
+            ->assertCanSeeTableRecords([$deviceEvent]);
     }
 
     public function test_non_admin_cannot_access_audit_log(): void
@@ -189,5 +212,30 @@ class AuditLogResourceTest extends TestCase
 
         $this->get(route('filament.admin.resources.audit-logs.index'))
             ->assertForbidden();
+    }
+
+    private function recordDeviceEvent(): AuditEvent
+    {
+        return $this->recordEvent(LockerProvisioningReplyFailed::class, [
+            'lockerBankUuid' => (string) Str::uuid(),
+            'replyToTopic' => 'locker/register/reply',
+            'reason' => 'broker unreachable',
+        ]);
+    }
+
+    /**
+     * @param  array<string, mixed>  $properties
+     */
+    private function recordEvent(string $eventClass, array $properties): AuditEvent
+    {
+        return AuditEvent::create([
+            'aggregate_uuid' => (string) Str::uuid(),
+            'aggregate_version' => 1,
+            'event_version' => 1,
+            'event_class' => $eventClass,
+            'event_properties' => $properties,
+            'meta_data' => [],
+            'created_at' => now(),
+        ]);
     }
 }

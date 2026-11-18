@@ -74,22 +74,6 @@ class AuditEventPresenter
     }
 
     /**
-     * Category key => translated label, for tabs and filters.
-     *
-     * @return array<string, string>
-     */
-    public function categories(): array
-    {
-        $categories = [];
-
-        foreach (AuditCategory::cases() as $category) {
-            $categories[$category->value] = $category->label();
-        }
-
-        return $categories;
-    }
-
-    /**
      * Fully-qualified class names belonging to a category.
      *
      * @return list<string>
@@ -100,6 +84,25 @@ class AuditEventPresenter
 
         foreach ($this->audited() as $class => $audited) {
             if ($audited->category->value === $category) {
+                $classes[] = $class;
+            }
+        }
+
+        return $classes;
+    }
+
+    /**
+     * Fully-qualified class names belonging to any of the given categories.
+     *
+     * @param  list<AuditCategory>  $categories
+     * @return list<string>
+     */
+    public function classesForCategories(array $categories): array
+    {
+        $classes = [];
+
+        foreach ($this->audited() as $class => $audited) {
+            if (in_array($audited->category, $categories, true)) {
                 $classes[] = $class;
             }
         }

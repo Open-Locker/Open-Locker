@@ -33,6 +33,7 @@ enum Role: string
                 Permission::CompartmentAccessManage,
                 Permission::CompartmentOpen,
                 Permission::SystemConfigure,
+                Permission::AuditLogViewAccess,
             ],
             self::Admin => Permission::cases(),
         };

@@ -15,6 +15,7 @@ enum Permission: string
     case LockerBankConfigure = 'lockerbank.configure';
     case SystemConfigure = 'system.configure';
     case AuditLogView = 'audit.view';
+    case AuditLogViewAccess = 'audit.access.view';
 
     public function description(): string
     {
@@ -28,6 +29,7 @@ enum Permission: string
             self::LockerBankConfigure => 'Allows changing technical locker-bank configuration like Modbus, provisioning, and heartbeat settings.',
             self::SystemConfigure => 'Allows changing legal and system-wide configuration resources.',
             self::AuditLogView => 'Allows viewing the system-wide audit log.',
+            self::AuditLogViewAccess => 'Allows viewing the access entries of the audit log: compartment openings and access changes.',
         };
     }
 

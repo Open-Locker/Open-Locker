@@ -4,12 +4,14 @@ declare(strict_types=1);
 
 namespace Database\Seeders;
 
+use App\Enums\Role;
 use App\Models\Compartment;
 use App\Models\CompartmentAccess;
 use App\Models\LockerBank;
 use App\Models\User;
 use App\Services\OrganizationContext;
 use App\Services\OrganizationMembershipService;
+use App\Services\UserAdministrationService;
 use Illuminate\Database\Seeder;
 
 class DatabaseSeeder extends Seeder
@@ -29,6 +31,15 @@ class DatabaseSeeder extends Seeder
         ]);
 
         $admin->makeAdmin();
+
+        $manager = User::factory()->create([
+            'first_name' => 'Manager',
+            'last_name' => 'User',
+            'email' => 'manager@example.com',
+            'password' => bcrypt('string'),
+        ]);
+
+        app(UserAdministrationService::class)->changeRole($admin, $manager, Role::Manager);
 
         // Create one Locker Bank
         $lockerBank = LockerBank::factory()->create(['name' => 'Main Locker Bank']);

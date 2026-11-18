@@ -8,6 +8,7 @@ use App\Enums\Permission;
 use App\Filament\Resources\AuditLogResource\Pages;
 use App\Models\AuditEvent;
 use App\Models\User;
+use App\Support\Audit\AuditCategory;
 use App\Support\Audit\AuditEventPresenter;
 use Filament\Forms;
 use Filament\Resources\Resource;
@@ -33,12 +34,39 @@ class AuditLogResource extends Resource
     protected static ?int $navigationSort = 90;
 
     /**
-     * The system-wide audit trail is admin-only. Managers hold system.configure
-     * for the terms screens, so the audit log has its own permission.
+     * Managers hold system.configure for the terms screens, so the audit log has
+     * its own permissions: audit.view for the full trail, and audit.access.view
+     * for the Access entries only (#375).
      */
     public static function canAccess(): bool
     {
-        return auth()->user()?->can(Permission::AuditLogView->value) ?? false;
+        $user = auth()->user();
+
+        return $user !== null
+            && ($user->can(Permission::AuditLogView->value) || $user->can(Permission::AuditLogViewAccess->value));
+    }
+
+    /**
+     * Categories the signed-in user may see: everything with audit.view,
+     * otherwise only compartment openings and access changes.
+     *
+     * @return list<AuditCategory>
+     */
+    public static function visibleCategories(): array
+    {
+        if (auth()->user()?->can(Permission::AuditLogView->value)) {
+            return AuditCategory::cases();
+        }
+
+        return [AuditCategory::Access];
+    }
+
+    /**
+     * @return list<string>
+     */
+    public static function visibleEventClasses(): array
+    {
+        return app(AuditEventPresenter::class)->classesForCategories(self::visibleCategories());
     }
 
     public static function getNavigationGroup(): ?string
@@ -104,7 +132,10 @@ class AuditLogResource extends Resource
             ->filters([
                 Tables\Filters\SelectFilter::make('event_class')
                     ->label(__('Event type'))
-                    ->options($presenter->eventTypeOptions())
+                    ->options(fn (): array => array_intersect_key(
+                        $presenter->eventTypeOptions(),
+                        array_flip(self::visibleEventClasses()),
+                    ))
                     ->multiple()
                     ->searchable(),
                 Tables\Filters\SelectFilter::make('actor')
@@ -166,10 +197,10 @@ class AuditLogResource extends Resource
 
     public static function getEloquentQuery(): Builder
     {
-        // Scope to the curated, admin-meaningful events; the
-        // whitelist lives in the presenter as the single source of truth.
+        // Scope to the curated events the user may see; the whitelist lives in
+        // the presenter as the single source of truth.
         return parent::getEloquentQuery()
-            ->whereIn('event_class', app(AuditEventPresenter::class)->auditableEventClasses());
+            ->whereIn('event_class', self::visibleEventClasses());
     }
 
     public static function canCreate(): bool
