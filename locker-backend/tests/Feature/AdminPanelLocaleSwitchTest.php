@@ -7,6 +7,7 @@ namespace Tests\Feature;
 use App\Http\Middleware\SetPanelLocale;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\App;
 use Livewire\Livewire;
 use Tests\TestCase;
 
@@ -82,6 +83,40 @@ class AdminPanelLocaleSwitchTest extends TestCase
         // Livewire updates skip panel middleware unless it is persistent, and
         // would then render tabs and filters in APP_LOCALE.
         $this->assertContains(SetPanelLocale::class, Livewire::getPersistentMiddleware());
+    }
+
+    public function test_livewire_update_request_renders_in_the_session_locale(): void
+    {
+        $admin = User::factory()->create();
+        $admin->makeAdmin();
+
+        $page = $this->actingAs($admin)
+            ->withSession(['locale' => 'en'])
+            ->get(route('filament.admin.resources.audit-logs.index'))
+            ->assertOk()
+            ->getContent();
+
+        preg_match_all('/wire:snapshot="([^"]+)"/', $page, $matches);
+        $snapshot = collect($matches[1])
+            ->map(fn (string $encoded): string => html_entity_decode($encoded, ENT_QUOTES))
+            ->first(fn (string $json): bool => str_contains($json, 'ListAuditLog'));
+        $this->assertNotNull($snapshot);
+
+        // Make German the default, as in the dev .env; only SetPanelLocale can
+        // bring English back before Filament builds the tabs.
+        config(['app.locale' => 'de']);
+        App::setLocale('de');
+
+        $html = $this->withHeader('X-Livewire', 'true')
+            ->postJson(app('livewire')->getUpdateUri(), [
+                'components' => [['snapshot' => $snapshot, 'updates' => ['activeTab' => 'access'], 'calls' => []]],
+            ])
+            ->assertOk()
+            ->json('components.0.effects.html');
+
+        // Filament builds the tabs before Livewire restores the snapshot locale.
+        $this->assertStringContainsString('Access', $html);
+        $this->assertStringNotContainsString(__('Access', locale: 'de'), $html);
     }
 
     public function test_login_page_renders_in_cookie_locale_without_session(): void
