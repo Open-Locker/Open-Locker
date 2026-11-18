@@ -92,6 +92,25 @@ class AuditEventPresenter
     }
 
     /**
+     * Fully-qualified class names belonging to any of the given categories.
+     *
+     * @param  list<AuditCategory>  $categories
+     * @return list<string>
+     */
+    public function classesForCategories(array $categories): array
+    {
+        $classes = [];
+
+        foreach ($this->audited() as $class => $audited) {
+            if (in_array($audited->category, $categories, true)) {
+                $classes[] = $class;
+            }
+        }
+
+        return $classes;
+    }
+
+    /**
      * Event class => translated label options, for the type filter.
      *
      * @return array<string, string>

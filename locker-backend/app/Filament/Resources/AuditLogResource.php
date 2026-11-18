@@ -66,12 +66,7 @@ class AuditLogResource extends Resource
      */
     public static function visibleEventClasses(): array
     {
-        $presenter = app(AuditEventPresenter::class);
-
-        return array_merge(...array_map(
-            static fn (AuditCategory $category): array => $presenter->classesForCategory($category->value),
-            self::visibleCategories(),
-        ));
+        return app(AuditEventPresenter::class)->classesForCategories(self::visibleCategories());
     }
 
     public static function getNavigationGroup(): ?string

@@ -148,20 +148,12 @@ class AuditLogResourceTest extends TestCase
 
     private function recordAuditEvent(int $actorUserId): AuditEvent
     {
-        return AuditEvent::create([
-            'aggregate_uuid' => (string) Str::uuid(),
-            'aggregate_version' => 1,
-            'event_version' => 1,
-            'event_class' => 'App\\StorableEvents\\GroupCreated',
-            'event_properties' => [
-                'groupUuid' => (string) Str::uuid(),
-                'name' => 'Test group',
-                'description' => null,
-                'actorUserId' => $actorUserId,
-                'createdAt' => now()->toIso8601String(),
-            ],
-            'meta_data' => [],
-            'created_at' => now(),
+        return $this->recordEvent('App\\StorableEvents\\GroupCreated', [
+            'groupUuid' => (string) Str::uuid(),
+            'name' => 'Test group',
+            'description' => null,
+            'actorUserId' => $actorUserId,
+            'createdAt' => now()->toIso8601String(),
         ]);
     }
 
