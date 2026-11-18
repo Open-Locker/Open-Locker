@@ -91,7 +91,7 @@ class AdminPanelLocaleSwitchTest extends TestCase
         $admin->makeAdmin();
 
         $page = $this->actingAs($admin)
-            ->withSession(['locale' => 'en'])
+            ->withSession(['locale' => 'de'])
             ->get(route('filament.admin.resources.audit-logs.index'))
             ->assertOk()
             ->getContent();
@@ -102,21 +102,22 @@ class AdminPanelLocaleSwitchTest extends TestCase
             ->first(fn (string $json): bool => str_contains($json, 'ListAuditLog'));
         $this->assertNotNull($snapshot);
 
-        // Make German the default, as in the dev .env; only SetPanelLocale can
-        // bring English back before Filament builds the tabs.
-        config(['app.locale' => 'de']);
-        App::setLocale('de');
+        // Every fallback says English: the app default and the browser. Only the
+        // session locale, applied by SetPanelLocale on the update, says German.
+        config(['app.locale' => 'en']);
+        App::setLocale('en');
 
-        $html = $this->withHeader('X-Livewire', 'true')
+        $html = $this->withHeaders(['X-Livewire' => 'true', 'Accept-Language' => 'en'])
             ->postJson(app('livewire')->getUpdateUri(), [
                 'components' => [['snapshot' => $snapshot, 'updates' => ['activeTab' => 'access'], 'calls' => []]],
             ])
             ->assertOk()
             ->json('components.0.effects.html');
 
-        // Filament builds the tabs before Livewire restores the snapshot locale.
-        $this->assertStringContainsString('Access', $html);
-        $this->assertStringNotContainsString(__('Access', locale: 'de'), $html);
+        // Filament builds the tabs before Livewire restores the snapshot locale,
+        // so only the tab labels show whether SetPanelLocale ran.
+        preg_match_all('/fi-tabs-item-label[^>]*>\s*([^<]+?)\s*</', $html, $tabs);
+        $this->assertContains(__('Access', locale: 'de'), $tabs[1]);
     }
 
     public function test_login_page_renders_in_cookie_locale_without_session(): void
