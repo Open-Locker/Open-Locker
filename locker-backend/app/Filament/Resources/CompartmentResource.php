@@ -168,7 +168,11 @@ class CompartmentResource extends Resource
                     ->label(__('Direct users'))
                     ->counts('activeAccesses')
                     ->badge()
-                    ->color('gray'),
+                    ->color('gray')
+                    // A bare number was mistaken for an ID (#378); the icon and
+                    // tooltip say what is being counted.
+                    ->icon('heroicon-m-user')
+                    ->tooltip(fn (int $state): string => __('Users with direct access: :count', ['count' => $state])),
                 Tables\Columns\TextColumn::make('activeGroupAccesses.group.name')
                     ->label(__('Groups'))
                     ->badge()
