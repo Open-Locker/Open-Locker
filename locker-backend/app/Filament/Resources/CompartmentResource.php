@@ -125,7 +125,15 @@ class CompartmentResource extends Resource
                     ->getTitleFromRecordUsing(LockerBankGroupHeading::title(...))
                     ->getDescriptionFromRecordUsing(LockerBankGroupHeading::description(...))
                     ->orderQueryUsing(function (Builder $query, string $direction): Builder {
+                        // Online banks first so offline (development, test) lockers
+                        // sink below the ones an admin can actually open (#376).
                         return $query
+                            ->orderBy(
+                                LockerBank::query()
+                                    ->selectRaw("case when connection_status = 'online' then 0 else 1 end")
+                                    ->whereColumn('locker_banks.id', 'compartments.locker_bank_id'),
+                                $direction,
+                            )
                             ->orderBy(
                                 LockerBank::query()
                                     ->select('name')
@@ -160,7 +168,11 @@ class CompartmentResource extends Resource
                     ->label(__('Direct users'))
                     ->counts('activeAccesses')
                     ->badge()
-                    ->color('gray'),
+                    ->color('gray')
+                    // A bare number was mistaken for an ID (#378); the icon and
+                    // tooltip say what is being counted.
+                    ->icon('heroicon-m-user')
+                    ->tooltip(fn (int $state): string => __('Users with direct access: :count', ['count' => $state])),
                 Tables\Columns\TextColumn::make('activeGroupAccesses.group.name')
                     ->label(__('Groups'))
                     ->badge()

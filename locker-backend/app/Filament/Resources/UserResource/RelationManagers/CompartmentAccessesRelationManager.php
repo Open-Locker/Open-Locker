@@ -39,6 +39,7 @@ class CompartmentAccessesRelationManager extends RelationManager
     {
         return $table
             ->recordTitleAttribute('id')
+            ->defaultSort('compartment.number')
             // Every column below reaches through `compartment`, and two reach a
             // hop further into its latest open request. The actor columns reach
             // sideways instead, resolved inside a per-row closure rather than a

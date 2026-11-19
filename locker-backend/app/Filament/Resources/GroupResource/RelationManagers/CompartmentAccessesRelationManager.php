@@ -38,6 +38,7 @@ class CompartmentAccessesRelationManager extends RelationManager
     {
         return $table
             ->recordTitleAttribute('id')
+            ->defaultSort('compartment.number')
             ->columns([
                 Tables\Columns\TextColumn::make('compartment.number')
                     ->label(__('Compartment'))

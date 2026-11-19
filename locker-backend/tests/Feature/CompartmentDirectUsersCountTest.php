@@ -58,4 +58,25 @@ class CompartmentDirectUsersCountTest extends TestCase
             ->test(ListCompartments::class)
             ->assertTableColumnStateSet('active_accesses_count', 0, record: $compartment);
     }
+
+    public function test_direct_users_count_explains_itself_in_a_tooltip(): void
+    {
+        $admin = User::factory()->create();
+        $admin->makeAdmin();
+
+        $compartment = Compartment::factory()->create();
+        app(CompartmentAccessService::class)->grantAccess(
+            user: User::factory()->create(),
+            compartment: $compartment,
+            actor: $admin,
+        );
+
+        $table = Livewire::actingAs($admin)->test(ListCompartments::class)->instance()->getTable();
+        $column = $table->getColumn('active_accesses_count')->record($compartment->loadCount('activeAccesses'));
+
+        $state = $column->getState();
+
+        $this->assertSame('heroicon-m-user', $column->getIcon($state));
+        $this->assertSame(__('Users with direct access: :count', ['count' => 1]), $column->getTooltip($state));
+    }
 }

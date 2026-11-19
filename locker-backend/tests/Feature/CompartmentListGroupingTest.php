@@ -211,4 +211,22 @@ class CompartmentListGroupingTest extends TestCase
         $this->assertStringNotContainsString('"', (string) $group->getTitle($onlineCompartment));
         $this->assertStringNotContainsString('"', (string) $group->getTitle($offlineCompartment));
     }
+
+    public function test_online_locker_banks_are_listed_before_offline_ones(): void
+    {
+        $offline = LockerBank::factory()->create(['name' => 'Alpha', 'connection_status' => 'offline']);
+        $unknown = LockerBank::factory()->create(['name' => 'Beta', 'connection_status' => 'unknown']);
+        $onlineLate = LockerBank::factory()->create(['name' => 'Zeta', 'connection_status' => 'online']);
+        $onlineEarly = LockerBank::factory()->create(['name' => 'Gamma', 'connection_status' => 'online']);
+
+        $compartments = collect([$offline, $unknown, $onlineLate, $onlineEarly])
+            ->map(fn (LockerBank $bank): Compartment => Compartment::factory()->for($bank)->create(['number' => 1]));
+
+        Livewire::actingAs($this->admin())
+            ->test(ListCompartments::class)
+            ->assertCanSeeTableRecords(
+                [$compartments[3], $compartments[2], $compartments[0], $compartments[1]],
+                inOrder: true,
+            );
+    }
 }
