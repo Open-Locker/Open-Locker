@@ -73,6 +73,7 @@ class GroupAccessesRelationManager extends RelationManager
                         'group_ids',
                         __('Groups'),
                         fn (): array => $this->grantableGroupOptions(),
+                        warning: fn (): ?string => AccessPickerOptions::otherGroupsWarning([(string) $this->getOwnerRecord()->getKey()]),
                     ))
                     ->action(function (array $data): void {
                         /** @var Compartment $compartment */

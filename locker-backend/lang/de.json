@@ -601,6 +601,7 @@
     "Your password has been reset. You can now sign in in the app.": "Dein Passwort wurde zurückgesetzt. Du kannst dich jetzt in der App anmelden.",
     "Your password has been reset. You can now sign in to the admin panel or the app.": "Dein Passwort wurde zurückgesetzt. Du kannst dich jetzt im Admin-Panel oder in der App anmelden.",
     "Go to the admin panel login": "Zur Anmeldung im Admin-Panel",
+    "Already assigned to another group: :compartments. The new group gets access in addition.": "Bereits einer anderen Gruppe zugewiesen: :compartments. Die neue Gruppe erhält zusätzlich Zugriff.",
     "Sign in to the admin panel": "Im Admin-Panel anmelden",
     "App users sign in with the Open-Locker mobile app.": "App-Nutzer melden sich in der Open-Locker-App an.",
     "Your reset token was loaded from the email link.": "Dein Reset-Token wurde aus dem E-Mail-Link übernommen.",
