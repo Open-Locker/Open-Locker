@@ -14,11 +14,13 @@ use App\Http\Resources\TokenResponseResource;
 use App\Http\Resources\UserResource;
 use App\Models\User;
 use App\Services\AuthService;
+use Filament\Facades\Filament;
 use Illuminate\Foundation\Auth\EmailVerificationRequest;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Password;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -171,9 +173,18 @@ class AuthController extends Controller
         // redirect them back to where they came from with their error message.
         if ($status == Password::PASSWORD_RESET) {
             if (! $request->expectsJson()) {
+                // Managers and admins also sign in to the admin panel, so they get its login link (#372).
+                $user = User::query()->where('email', Str::lower($validated['email']))->first();
+                $adminLoginUrl = $user?->canAccessPanel(Filament::getPanel('admin'))
+                    ? Filament::getPanel('admin')->getLoginUrl()
+                    : null;
+
                 return redirect()
                     ->route('password.reset.form')
-                    ->with('status', __('Your password has been reset. You can now sign in in the app.'));
+                    ->with('status', $adminLoginUrl === null
+                        ? __('Your password has been reset. You can now sign in in the app.')
+                        : __('Your password has been reset. You can now sign in to the admin panel or the app.'))
+                    ->with('admin_login_url', $adminLoginUrl);
             }
 
             return response()->json([

@@ -54,6 +54,17 @@
         }
 
         a { color: inherit; }
+
+        .login {
+            display: inline-block;
+            margin: 6px 0 18px;
+            padding: 12px 22px;
+            border-radius: 12px;
+            background: #4338ca;
+            color: #ffffff;
+            font-weight: 650;
+            text-decoration: none;
+        }
     </style>
 </head>
 <body>
@@ -62,6 +73,9 @@
         <img class="logo" src="{{ asset('storage/assets/logo.svg') }}" alt="Open-Locker Logo">
         <h1>Open-Locker</h1>
         <p>Open-Source Projekt für ein IoT-basiertes Locker-/Schließfach-System (Software, Hardware-Bauanleitung &amp; Kit).</p>
+        {{-- Managers only know the domain; the admin login has to be findable from here (#373). --}}
+        <a class="login" href="{{ filament()->getPanel('admin')->getLoginUrl() }}">{{ __('Sign in to the admin panel') }}</a>
+        <p>{{ __('App users sign in with the Open-Locker mobile app.') }}</p>
         <p>
             GitHub: <a href="https://github.com/Open-Locker/Open-Locker" rel="noopener noreferrer" target="_blank">Open-Locker/Open-Locker</a>
         </p>
