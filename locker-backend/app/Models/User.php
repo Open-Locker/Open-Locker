@@ -10,6 +10,7 @@ use App\Models\Concerns\HasPermissions;
 use App\Notifications\Auth\WebResetPasswordNotification;
 use App\Notifications\Auth\WebVerifyEmailNotification;
 use App\Services\UserAdministrationService;
+use App\Support\CaseInsensitiveUserProvider;
 use Carbon\CarbonImmutable;
 use Database\Factories\UserFactory;
 use Filament\Models\Contracts\FilamentUser;
@@ -17,6 +18,7 @@ use Filament\Models\Contracts\HasName;
 use Filament\Panel;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -24,6 +26,7 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Facades\Password;
+use Illuminate\Support\Str;
 use Laravel\Sanctum\HasApiTokens;
 
 /**
@@ -67,6 +70,17 @@ class User extends Authenticatable implements FilamentUser, HasName, MustVerifyE
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
         ];
+    }
+
+    /**
+     * Emails are stored lowercase so sign-in and lookups ignore casing (#371);
+     * {@see CaseInsensitiveUserProvider} lowercases the credential side.
+     *
+     * @return Attribute<string, string>
+     */
+    protected function email(): Attribute
+    {
+        return Attribute::make(set: fn (string $value): string => Str::lower($value));
     }
 
     /**

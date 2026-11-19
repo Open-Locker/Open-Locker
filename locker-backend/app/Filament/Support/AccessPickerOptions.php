@@ -12,6 +12,7 @@ use Filament\Forms\Components\DateTimePicker;
 use Filament\Forms\Components\Field;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
+use Filament\Schemas\Components\Text;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Carbon;
 
@@ -47,13 +48,29 @@ final class AccessPickerOptions
      * `expires_at` (and optionally `notes`) fields, so every grant modal
      * stays field-for-field identical (see issue #127).
      *
+     * An optional `$warning` receives the selected ids and returns a message
+     * shown below the picker before the grant is confirmed.
+     *
      * @param  Closure(): array<int|string, string>  $options
+     * @param  (Closure(list<string>): ?string)|null  $warning
      * @return array<int, Field>
      */
-    public static function grantForm(string $name, string $label, Closure $options, bool $withNotes = true): array
+    public static function grantForm(string $name, string $label, Closure $options, bool $withNotes = true, ?Closure $warning = null): array
     {
+        $select = self::select($name, $label, $options);
+
+        if ($warning !== null) {
+            $select->live()->belowContent(function (?array $state) use ($warning): ?Text {
+                $message = $warning(array_values(array_map('strval', $state ?? [])));
+
+                return $message === null
+                    ? null
+                    : Text::make($message)->color('warning');
+            });
+        }
+
         $fields = [
-            self::select($name, $label, $options),
+            $select,
             DateTimePicker::make('expires_at')
                 ->label(__('Expires at'))
                 ->seconds(false),
@@ -79,6 +96,38 @@ final class AccessPickerOptions
         $value = $data['expires_at'] ?? null;
 
         return filled($value) ? Carbon::parse($value) : null;
+    }
+
+    /**
+     * Warning before granting a group access to compartments that another
+     * group already has (#379). Several groups per compartment stay allowed,
+     * so this only informs the manager.
+     *
+     * @param  list<string>  $compartmentIds
+     */
+    public static function otherGroupsWarning(array $compartmentIds): ?string
+    {
+        $assigned = Compartment::query()
+            ->whereIn('id', $compartmentIds)
+            ->whereHas('activeGroupAccesses')
+            ->with(['lockerBank', 'activeGroupAccesses.group'])
+            ->orderBy('number')
+            ->get();
+
+        if ($assigned->isEmpty()) {
+            return null;
+        }
+
+        return __('Already assigned to another group: :compartments. The new group gets access in addition.', [
+            'compartments' => $assigned
+                ->map(fn (Compartment $compartment): string => sprintf(
+                    '%s / #%d (%s)',
+                    $compartment->lockerBank->name ?? __('Unknown'),
+                    (int) $compartment->number,
+                    $compartment->activeGroupAccesses->pluck('group.name')->join(', '),
+                ))
+                ->join('; '),
+        ]);
     }
 
     /**

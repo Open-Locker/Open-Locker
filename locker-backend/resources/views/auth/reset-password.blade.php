@@ -203,6 +203,12 @@
             </div>
         @endif
 
+        @if ($hasSuccessStatus && session('admin_login_url'))
+            <a class="button" style="display: block; margin-top: 18px; text-align: center; text-decoration: none;" href="{{ session('admin_login_url') }}">
+                {{ __('Go to the admin panel login') }}
+            </a>
+        @endif
+
         @if ($errors->any())
             <div class="feedback feedback-error" role="alert">
                 <ul>

@@ -75,6 +75,7 @@ class CompartmentAccessesRelationManager extends RelationManager
                         'compartment_ids',
                         __('Compartments'),
                         fn (): array => $this->grantableCompartmentOptions(),
+                        warning: fn (array $compartmentIds): ?string => AccessPickerOptions::otherGroupsWarning($compartmentIds),
                     ))
                     ->action(function (array $data): void {
                         /** @var Group $group */
