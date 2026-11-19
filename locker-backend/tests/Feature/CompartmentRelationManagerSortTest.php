@@ -43,7 +43,7 @@ class CompartmentRelationManagerSortTest extends TestCase
         $this->admin->makeAdmin();
         $this->lockerBank = LockerBank::factory()->create();
 
-        foreach ([12, 11, 14, 13, 15] as $number) {
+        foreach ([12, 2, 11, 1, 3] as $number) {
             $this->compartments[] = Compartment::factory()->for($this->lockerBank)->create(['number' => $number]);
         }
     }
