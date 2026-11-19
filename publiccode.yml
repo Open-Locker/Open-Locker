@@ -2,6 +2,8 @@ publiccodeYmlVersion: "0.4"
 name: Open-Locker
 url: "https://gitlab.opencode.de/OC000075481431/open-locker"
 landingURL: "https://open-locker.org"
+softwareVersion: "0.1.0"
+releaseDate: "2026-11-19"
 logo: logo_open_locker.svg
 platforms:
   - linux
@@ -26,7 +28,6 @@ intendedAudience:
   scope:
     - local-authorities
     - education
-    - private
 description:
   de:
     genericName: Ressourcen-Schließfachplattform
