@@ -53,7 +53,8 @@ class MosquittoAuthController extends Controller
             return response()->json(['allow' => true, 'ok' => true]);
         }
 
-        return response()->json(['allow' => false, 'ok' => false]);
+        // mosquitto-go-auth only reads the HTTP status, so a denial must not be 200.
+        return response()->json(['allow' => false, 'ok' => false], 403);
     }
 
     /**

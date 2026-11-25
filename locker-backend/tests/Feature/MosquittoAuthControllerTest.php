@@ -143,11 +143,66 @@ class MosquittoAuthControllerTest extends TestCase
             'password' => 'device-pass',
         ]);
 
-        $response->assertOk()
+        $response->assertStatus(403)
             ->assertJson([
                 'allow' => false,
                 'ok' => false,
             ]);
+    }
+
+    /**
+     * mosquitto-go-auth runs in its default `status` response mode, where any
+     * HTTP 200 counts as a successful login regardless of the JSON body. A
+     * denied login must therefore never answer 200.
+     */
+    public function test_backend_user_with_wrong_password_is_denied_with_non_200_status(): void
+    {
+        $response = $this->postJson('/api/mosq/auth?mosq_secret=test-secret', [
+            'username' => 'laravel_backend',
+            'password' => 'wrong-pass',
+        ]);
+
+        $response->assertStatus(403)
+            ->assertJson(['allow' => false, 'ok' => false]);
+    }
+
+    public function test_provisioning_user_with_wrong_password_is_denied_with_non_200_status(): void
+    {
+        $response = $this->postJson('/api/mosq/auth?mosq_secret=test-secret', [
+            'username' => 'provisioning_client',
+            'password' => 'wrong-pass',
+        ]);
+
+        $response->assertStatus(403)
+            ->assertJson(['allow' => false, 'ok' => false]);
+    }
+
+    public function test_device_user_with_wrong_password_is_denied_with_non_200_status(): void
+    {
+        MqttUser::factory()->create([
+            'username' => 'device_1',
+            'password_hash' => Hash::make('device-pass'),
+            'enabled' => true,
+        ]);
+
+        $response = $this->postJson('/api/mosq/auth?mosq_secret=test-secret', [
+            'username' => 'device_1',
+            'password' => 'wrong-pass',
+        ]);
+
+        $response->assertStatus(403)
+            ->assertJson(['allow' => false, 'ok' => false]);
+    }
+
+    public function test_unknown_user_is_denied_with_non_200_status(): void
+    {
+        $response = $this->postJson('/api/mosq/auth?mosq_secret=test-secret', [
+            'username' => 'unknown',
+            'password' => 'anything',
+        ]);
+
+        $response->assertStatus(403)
+            ->assertJson(['allow' => false, 'ok' => false]);
     }
 
     public function test_enabled_mqtt_user_can_authenticate_with_valid_password(): void
@@ -426,7 +481,7 @@ class MosquittoAuthControllerTest extends TestCase
             'username' => 'revoked_device',
             'password' => 'password123',
         ]);
-        $auth->assertJson(['allow' => false, 'ok' => false]);
+        $auth->assertStatus(403)->assertJson(['allow' => false, 'ok' => false]);
 
         $acl = $this->postJson('/api/mosq/acl?mosq_secret=test-secret', [
             'username' => 'revoked_device',
