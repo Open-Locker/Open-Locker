@@ -132,10 +132,7 @@ class UserResource extends Resource
 
     public static function table(Table $table): Table
     {
-        $currentTermsVersion = TermsDocument::query()
-            ->with('activeVersion')
-            ->oldest('id')
-            ->first()?->activeVersion?->version;
+        $currentTermsVersion = TermsDocument::currentActiveVersionNumber();
 
         return $table
             ->modifyQueryUsing(fn ($query) => $query->with(['userRoles', 'latestTermsAcceptance.acceptedVersion']))

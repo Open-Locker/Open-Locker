@@ -31,12 +31,10 @@ class ListAuditLog extends ListRecords
 
         $presenter = app(AuditEventPresenter::class);
 
-        $presenter->primeUserCache(
+        $presenter->primeDescribeCaches(
             $recordsCollection
                 ->filter(fn (mixed $record): bool => $record instanceof EloquentStoredEvent)
-                ->map(fn (EloquentStoredEvent $event): ?int => $presenter->actorId($event))
-                ->filter()
-                ->all(),
+                ->all()
         );
 
         return $records;

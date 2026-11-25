@@ -433,6 +433,166 @@ class AuditEventPresenter
         }
     }
 
+    /**
+     * @param  iterable<string|null>  $uuids
+     */
+    public function primeCompartmentCache(iterable $uuids): void
+    {
+        $uniqueUuids = [];
+
+        foreach ($uuids as $uuid) {
+            if (! is_string($uuid) || $uuid === '') {
+                continue;
+            }
+
+            $uniqueUuids[$uuid] = true;
+        }
+
+        if ($uniqueUuids === []) {
+            return;
+        }
+
+        $missingUuids = [];
+        foreach (array_keys($uniqueUuids) as $uuid) {
+            if (! array_key_exists($uuid, $this->compartmentCache)) {
+                $missingUuids[] = $uuid;
+            }
+        }
+
+        if ($missingUuids === []) {
+            return;
+        }
+
+        foreach ($missingUuids as $uuid) {
+            $this->compartmentCache[$uuid] = (string) __('Unknown');
+        }
+
+        $compartments = Compartment::query()
+            ->with('lockerBank')
+            ->whereKey($missingUuids)
+            ->get(['id', 'locker_bank_id', 'number']);
+
+        foreach ($compartments as $compartment) {
+            $bank = $compartment->lockerBank?->name;
+            $number = $compartment->number;
+
+            $this->compartmentCache[$compartment->id] = $number !== null
+                ? ($bank !== null ? $bank.' / #'.$number : '#'.$number)
+                : (string) __('Unknown');
+        }
+    }
+
+    /**
+     * @param  iterable<string|null>  $uuids
+     */
+    public function primeGroupCache(iterable $uuids): void
+    {
+        $uniqueUuids = [];
+
+        foreach ($uuids as $uuid) {
+            if (! is_string($uuid) || $uuid === '') {
+                continue;
+            }
+
+            $uniqueUuids[$uuid] = true;
+        }
+
+        if ($uniqueUuids === []) {
+            return;
+        }
+
+        $missingUuids = [];
+        foreach (array_keys($uniqueUuids) as $uuid) {
+            if (! array_key_exists($uuid, $this->groupCache)) {
+                $missingUuids[] = $uuid;
+            }
+        }
+
+        if ($missingUuids === []) {
+            return;
+        }
+
+        foreach ($missingUuids as $uuid) {
+            $this->groupCache[$uuid] = (string) __('Unknown');
+        }
+
+        $groups = Group::query()->whereKey($missingUuids)->get(['id', 'name']);
+
+        foreach ($groups as $group) {
+            $this->groupCache[$group->id] = $group->name ?: (string) __('Unknown');
+        }
+    }
+
+    /**
+     * @param  iterable<string|null>  $uuids
+     */
+    public function primeLockerBankCache(iterable $uuids): void
+    {
+        $uniqueUuids = [];
+
+        foreach ($uuids as $uuid) {
+            if (! is_string($uuid) || $uuid === '') {
+                continue;
+            }
+
+            $uniqueUuids[$uuid] = true;
+        }
+
+        if ($uniqueUuids === []) {
+            return;
+        }
+
+        $missingUuids = [];
+        foreach (array_keys($uniqueUuids) as $uuid) {
+            if (! array_key_exists($uuid, $this->lockerBankCache)) {
+                $missingUuids[] = $uuid;
+            }
+        }
+
+        if ($missingUuids === []) {
+            return;
+        }
+
+        foreach ($missingUuids as $uuid) {
+            $this->lockerBankCache[$uuid] = (string) __('Unknown');
+        }
+
+        $banks = LockerBank::query()->whereKey($missingUuids)->get(['id', 'name']);
+
+        foreach ($banks as $bank) {
+            $this->lockerBankCache[$bank->id] = $bank->name ?: (string) __('Unknown');
+        }
+    }
+
+    /**
+     * Prime caches used by {@see describe()} for the given events.
+     *
+     * @param  iterable<EloquentStoredEvent>  $events
+     */
+    public function primeDescribeCaches(iterable $events): void
+    {
+        $userIds = [];
+        $compartmentUuids = [];
+        $groupUuids = [];
+        $lockerBankUuids = [];
+
+        foreach ($events as $event) {
+            $userIds[] = $this->actorId($event);
+
+            $p = $event->event_properties;
+
+            $userIds[] = $p['userId'] ?? null;
+            $compartmentUuids[] = $p['compartmentUuid'] ?? null;
+            $groupUuids[] = $p['groupUuid'] ?? null;
+            $lockerBankUuids[] = $p['lockerBankUuid'] ?? null;
+        }
+
+        $this->primeUserCache($userIds);
+        $this->primeCompartmentCache($compartmentUuids);
+        $this->primeGroupCache($groupUuids);
+        $this->primeLockerBankCache($lockerBankUuids);
+    }
+
     private function user(int|string|null $id): string
     {
         if ($id === null) {
