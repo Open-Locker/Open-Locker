@@ -9,6 +9,7 @@ use App\Enums\Role;
 use App\Filament\Resources\UserResource\Pages;
 use App\Filament\Resources\UserResource\RelationManagers\CompartmentAccessesRelationManager;
 use App\Filament\Resources\UserResource\RelationManagers\GroupMembershipsRelationManager;
+use App\Models\TermsDocument;
 use App\Models\User;
 use App\Services\UserAdministrationService;
 use Filament\Actions\BulkActionGroup;
@@ -131,8 +132,13 @@ class UserResource extends Resource
 
     public static function table(Table $table): Table
     {
+        $currentTermsVersion = TermsDocument::query()
+            ->with('activeVersion')
+            ->oldest('id')
+            ->first()?->activeVersion?->version;
+
         return $table
-            ->modifyQueryUsing(fn ($query) => $query->with('userRoles'))
+            ->modifyQueryUsing(fn ($query) => $query->with(['userRoles', 'latestTermsAcceptance.acceptedVersion']))
             ->columns([
                 Tables\Columns\TextColumn::make('first_name')
                     ->label(__('First name'))
@@ -164,10 +170,19 @@ class UserResource extends Resource
                 Tables\Columns\IconColumn::make('terms_current_accepted')
                     ->label(__('Current terms accepted'))
                     ->boolean()
-                    ->state(fn (User $record): bool => $record->hasAcceptedCurrentTerms()),
+                    ->state(function (User $record) use ($currentTermsVersion): bool {
+                        if ($currentTermsVersion === null) {
+                            return true;
+                        }
+
+                        $acceptedVersion = $record->latestTermsAcceptance?->acceptedVersion?->version;
+
+                        return $acceptedVersion !== null
+                            && $acceptedVersion === $currentTermsVersion;
+                    }),
                 Tables\Columns\TextColumn::make('latest_terms_version')
                     ->label(__('Last accepted terms version'))
-                    ->state(fn (User $record): ?int => $record->latestAcceptedTermsVersion())
+                    ->state(fn (User $record): ?int => $record->latestTermsAcceptance?->acceptedVersion?->version)
                     ->placeholder('-'),
             ])
             ->filters([

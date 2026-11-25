@@ -325,11 +325,7 @@ class AuditEventPresenter
         return ['actorUserId', 'createdByUserId', 'publishedByUserId', 'activatedByUserId'];
     }
 
-    /**
-     * Display name of the user who caused the event, if any. System- and
-     * device-originated events have no actor and return null.
-     */
-    public function actorName(EloquentStoredEvent $event): ?string
+    public function actorId(EloquentStoredEvent $event): ?int
     {
         $p = $event->event_properties;
 
@@ -340,7 +336,18 @@ class AuditEventPresenter
             // UserAcceptedTermsVersion is self-acted by the user.
             ?? ($this->short($event->event_class) === 'UserAcceptedTermsVersion' ? ($p['userId'] ?? null) : null);
 
-        return $actorId !== null ? $this->user((int) $actorId) : null;
+        return $actorId !== null ? (int) $actorId : null;
+    }
+
+    /**
+     * Display name of the user who caused the event, if any. System- and
+     * device-originated events have no actor and return null.
+     */
+    public function actorName(EloquentStoredEvent $event): ?string
+    {
+        $actorId = $this->actorId($event);
+
+        return $actorId !== null ? $this->user($actorId) : null;
     }
 
     /**
@@ -376,6 +383,54 @@ class AuditEventPresenter
         }
 
         return class_basename($eventClass);
+    }
+
+    /**
+     * @param  iterable<int|string|null>  $ids
+     */
+    public function primeUserCache(iterable $ids): void
+    {
+        $uniqueIds = [];
+
+        foreach ($ids as $id) {
+            if ($id === null) {
+                continue;
+            }
+
+            $id = (int) $id;
+            if ($id <= 0) {
+                continue;
+            }
+
+            $uniqueIds[$id] = true;
+        }
+
+        if ($uniqueIds === []) {
+            return;
+        }
+
+        $missingIds = [];
+        foreach (array_keys($uniqueIds) as $id) {
+            if (! array_key_exists($id, $this->userCache)) {
+                $missingIds[] = $id;
+            }
+        }
+
+        if ($missingIds === []) {
+            return;
+        }
+
+        foreach ($missingIds as $id) {
+            $this->userCache[$id] = (string) __('User #:id', ['id' => $id]);
+        }
+
+        $users = User::query()
+            ->whereKey($missingIds)
+            ->get(['id', 'first_name', 'last_name']);
+
+        foreach ($users as $user) {
+            $this->userCache[$user->id] = $user->fullName();
+        }
     }
 
     private function user(int|string|null $id): string

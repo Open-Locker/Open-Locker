@@ -62,7 +62,7 @@ class TermsDocumentVersionResource extends Resource
     public static function table(Table $table): Table
     {
         return $table
-            ->modifyQueryUsing(fn (Builder $query) => $query->with('createdByUser'))
+            ->modifyQueryUsing(fn (Builder $query) => $query->with(['createdByUser', 'document']))
             ->defaultSort('version', 'desc')
             ->columns([
                 Tables\Columns\TextColumn::make('version')
