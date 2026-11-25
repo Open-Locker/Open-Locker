@@ -136,6 +136,10 @@ configuration without exposing plaintext traffic on the host.
    externally reachable.
 6. Do not record this ADR as implemented until both deployment paths have passed
    the documented smoke test.
+   Note (2026-11-25): marked Implemented after the Coolify path passed on
+   production. The standalone path is no maintained production deployment, so
+   it is recorded as documented but not verified at runtime instead of blocking
+   the status (see #233).
 
 ## Supersedes / Superseded By
 
