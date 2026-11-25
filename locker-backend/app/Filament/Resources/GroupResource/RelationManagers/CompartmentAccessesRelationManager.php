@@ -15,6 +15,7 @@ use Filament\Actions\Action;
 use Filament\Facades\Filament;
 use Filament\Resources\RelationManagers\RelationManager;
 use Filament\Schemas\Components\Callout;
+use Filament\Schemas\Components\Component;
 use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Schema;
 use Filament\Tables;
@@ -153,6 +154,9 @@ class CompartmentAccessesRelationManager extends RelationManager
         );
     }
 
+    /**
+     * @return array<int, Component>
+     */
     private function grantFormWithExistingGroupAccessWarning(): array
     {
         $form = AccessPickerOptions::grantForm(
@@ -243,7 +247,9 @@ class CompartmentAccessesRelationManager extends RelationManager
 
     private function compartmentLabel(Compartment $compartment): string
     {
-        $bankName = $compartment->lockerBank?->name ?? __('Unknown');
+        $bankName = $compartment->lockerBank !== null
+            ? $compartment->lockerBank->name
+            : __('Unknown');
 
         return sprintf('%s / #%d', $bankName, (int) $compartment->number);
     }
