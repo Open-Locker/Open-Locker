@@ -14,6 +14,8 @@ use App\Services\GroupAccessService;
 use Filament\Actions\Action;
 use Filament\Facades\Filament;
 use Filament\Resources\RelationManagers\RelationManager;
+use Filament\Schemas\Components\Callout;
+use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Schema;
 use Filament\Tables;
 use Filament\Tables\Table;
@@ -69,11 +71,7 @@ class GroupAccessesRelationManager extends RelationManager
                     ->label(__('Grant group access'))
                     ->icon('heroicon-m-key')
                     ->visible(fn (): bool => $this->currentUserCanManageAccess())
-                    ->form(AccessPickerOptions::grantForm(
-                        'group_ids',
-                        __('Groups'),
-                        fn (): array => $this->grantableGroupOptions(),
-                    ))
+                    ->form($this->grantFormWithMultipleGroupWarning())
                     ->action(function (array $data): void {
                         /** @var Compartment $compartment */
                         $compartment = $this->getOwnerRecord();
@@ -154,6 +152,107 @@ class GroupAccessesRelationManager extends RelationManager
                         })
                 )
         );
+    }
+
+    private function grantFormWithMultipleGroupWarning(): array
+    {
+        $form = AccessPickerOptions::grantForm(
+            'group_ids',
+            __('Groups'),
+            fn (): array => $this->grantableGroupOptions(),
+        );
+
+        // Make the picker reactive so the warning callout can appear immediately.
+        $form[0] = $form[0]->live();
+
+        array_unshift(
+            $form,
+            Callout::make(__('Compartment already has group access'))
+                ->warning()
+                ->columnSpanFull()
+                ->visible(fn (Get $get): bool => $this->shouldWarnAboutMultipleGroups($get('group_ids')))
+                ->description(fn (Get $get): string => $this->multipleGroupsWarningDescription($get('group_ids'))),
+        );
+
+        return $form;
+    }
+
+    /**
+     * @param  array<int, int|string>|null  $selectedGroupIds
+     */
+    private function shouldWarnAboutMultipleGroups(?array $selectedGroupIds): bool
+    {
+        /** @var Compartment $compartment */
+        $compartment = $this->getOwnerRecord();
+
+        $groupIds = array_values(array_filter(
+            $selectedGroupIds ?? [],
+            static fn (mixed $value): bool => filled($value),
+        ));
+
+        if ($groupIds === []) {
+            return false;
+        }
+
+        $existingGroupCount = $compartment->activeGroupAccesses()->count();
+
+        return ($existingGroupCount + count($groupIds)) > 1;
+    }
+
+    /**
+     * @param  array<int, int|string>|null  $selectedGroupIds
+     */
+    private function multipleGroupsWarningDescription(?array $selectedGroupIds): string
+    {
+        /** @var Compartment $compartment */
+        $compartment = $this->getOwnerRecord();
+        $compartment->loadMissing('lockerBank');
+
+        $existingGroups = $compartment->activeGroupAccesses()
+            ->with('group:id,name')
+            ->get()
+            ->pluck('group.name')
+            ->filter()
+            ->values()
+            ->all();
+
+        $groupIds = array_values(array_filter(
+            $selectedGroupIds ?? [],
+            static fn (mixed $value): bool => filled($value),
+        ));
+
+        $lines = [
+            __('This would result in multiple groups having active access to the same compartment.'),
+            __('Compartment: :compartment', ['compartment' => $this->compartmentLabel($compartment)]),
+        ];
+
+        if ($existingGroups !== []) {
+            $lines[] = __('Groups with access already: :groups', ['groups' => implode(', ', $existingGroups)]);
+        } else {
+            $lines[] = __('Groups with access already: none');
+        }
+
+        if (count($groupIds) > 1) {
+            $selectedGroupNames = Group::query()
+                ->unarchived()
+                ->whereIn('id', $groupIds)
+                ->orderBy('name')
+                ->pluck('name')
+                ->all();
+
+            $lines[] = __('You are granting access to multiple groups at once: :groups', [
+                'groups' => implode(', ', $selectedGroupNames),
+            ]);
+        }
+
+        return implode("\n", $lines);
+    }
+
+    private function compartmentLabel(Compartment $compartment): string
+    {
+        $bankName = $compartment->lockerBank?->name ?? __('Unknown');
+
+        return sprintf('%s / #%d', $bankName, (int) $compartment->number);
     }
 
     private function currentUserCanManageAccess(): bool

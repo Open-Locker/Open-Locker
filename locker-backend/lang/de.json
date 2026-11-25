@@ -635,5 +635,13 @@
     "This may indicate a break-in, tampering, a faulty lock, or a failing door sensor.": "Das kann auf einen Einbruch, eine Manipulation, ein defektes Schloss oder einen ausfallenden Türsensor hindeuten.",
     "This user cannot be deleted.": "Dieser Benutzer kann nicht gelöscht werden.",
     "Unlock pulse sent to compartment :compartment": "Entriegelungsimpuls an Fach :compartment gesendet",
-    "Waveshare Modbus relay board": "Waveshare-Modbus-Relaisboard"
+    "Waveshare Modbus relay board": "Waveshare-Modbus-Relaisboard",
+    "Compartment already has group access": "Fach hat bereits Gruppenzugriff",
+    "Grant access anyway": "Zugriff trotzdem gewähren",
+    "This would result in multiple groups having active access to the same compartment.": "Dadurch hätten mehrere Gruppen gleichzeitig aktiven Zugriff auf dasselbe Fach.",
+    "Compartment: :compartment": "Fach: :compartment",
+    "Groups with access already: :groups": "Gruppen mit bestehendem Zugriff: :groups",
+    "Groups with access already: none": "Gruppen mit bestehendem Zugriff: keine",
+    "You are granting access to multiple groups at once: :groups": "Du gewährst mehreren Gruppen gleichzeitig Zugriff: :groups",
+    "Some compartments already have active access for other groups.": "Einige Fächer haben bereits aktiven Zugriff für andere Gruppen."
 }

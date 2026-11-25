@@ -14,6 +14,8 @@ use App\Services\GroupAccessService;
 use Filament\Actions\Action;
 use Filament\Facades\Filament;
 use Filament\Resources\RelationManagers\RelationManager;
+use Filament\Schemas\Components\Callout;
+use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Schema;
 use Filament\Tables;
 use Filament\Tables\Table;
@@ -71,11 +73,7 @@ class CompartmentAccessesRelationManager extends RelationManager
                     ->label(__('Grant access'))
                     ->icon('heroicon-m-key')
                     ->visible(fn (): bool => $this->currentUserCanManageGroups() && ! $this->ownerGroupIsArchived())
-                    ->form(AccessPickerOptions::grantForm(
-                        'compartment_ids',
-                        __('Compartments'),
-                        fn (): array => $this->grantableCompartmentOptions(),
-                    ))
+                    ->form($this->grantFormWithExistingGroupAccessWarning())
                     ->action(function (array $data): void {
                         /** @var Group $group */
                         $group = $this->getOwnerRecord();
@@ -153,6 +151,101 @@ class CompartmentAccessesRelationManager extends RelationManager
                     })
             )
         );
+    }
+
+    private function grantFormWithExistingGroupAccessWarning(): array
+    {
+        $form = AccessPickerOptions::grantForm(
+            'compartment_ids',
+            __('Compartments'),
+            fn (): array => $this->grantableCompartmentOptions(),
+        );
+
+        // Make the picker reactive so the warning callout can appear immediately.
+        $form[0] = $form[0]->live();
+
+        array_unshift(
+            $form,
+            Callout::make(__('Compartment already has group access'))
+                ->warning()
+                ->columnSpanFull()
+                ->visible(fn (Get $get): bool => $this->compartmentsWithOtherActiveGroups($get('compartment_ids')) !== [])
+                ->description(fn (Get $get): string => $this->existingGroupAccessWarningDescription($get('compartment_ids'))),
+        );
+
+        return $form;
+    }
+
+    /**
+     * @param  array<int, int|string>|null  $selectedCompartmentIds
+     */
+    private function existingGroupAccessWarningDescription(?array $selectedCompartmentIds): string
+    {
+        $conflicts = $this->compartmentsWithOtherActiveGroups($selectedCompartmentIds);
+
+        $lines = [
+            __('Some compartments already have active access for other groups.'),
+        ];
+
+        foreach ($conflicts as $compartmentLabel => $groupNames) {
+            $lines[] = sprintf('- %s: %s', $compartmentLabel, implode(', ', $groupNames));
+        }
+
+        return implode("\n", $lines);
+    }
+
+    /**
+     * @param  array<int, int|string>|null  $selectedCompartmentIds
+     * @return array<string, array<int, string>>
+     */
+    private function compartmentsWithOtherActiveGroups(?array $selectedCompartmentIds): array
+    {
+        /** @var Group $group */
+        $group = $this->getOwnerRecord();
+
+        $compartmentIds = array_values(array_filter(
+            $selectedCompartmentIds ?? [],
+            static fn (mixed $value): bool => filled($value),
+        ));
+
+        if ($compartmentIds === []) {
+            return [];
+        }
+
+        $compartments = Compartment::query()
+            ->with('lockerBank')
+            ->whereIn('id', $compartmentIds)
+            ->get();
+
+        $conflicts = [];
+
+        foreach ($compartments as $compartment) {
+            $groupNames = $compartment->activeGroupAccesses()
+                ->where('group_id', '!=', $group->id)
+                ->with('group:id,name')
+                ->get()
+                ->pluck('group.name')
+                ->filter()
+                ->values()
+                ->all();
+
+            if ($groupNames === []) {
+                continue;
+            }
+
+            $conflicts[$this->compartmentLabel($compartment)] = $groupNames;
+        }
+
+        ksort($conflicts);
+
+        return $conflicts;
+    }
+
+    private function compartmentLabel(Compartment $compartment): string
+    {
+        $bankName = $compartment->lockerBank?->name ?? __('Unknown');
+
+        return sprintf('%s / #%d', $bankName, (int) $compartment->number);
     }
 
     private function currentUserCanManageGroups(): bool
