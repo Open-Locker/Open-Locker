@@ -11,6 +11,7 @@ export interface SerialPortLifecycle {
 export class SerialBusConnection {
   private connectionState: ConnectionState = 'disconnected';
   private readonly reconnect: ReconnectCoordinator;
+  private lastUnreachableLogCycleSpentAt: number | null = null;
 
   constructor(
     private readonly driver: SerialPortLifecycle,
@@ -92,6 +93,7 @@ export class SerialBusConnection {
     await this.driver.connect();
     this.connectionState = 'connected';
     this.reconnect.resetAttempts();
+    this.lastUnreachableLogCycleSpentAt = null;
   }
 
   private reconnectOptions(): { isReconnectable: (error: unknown) => boolean } {
@@ -104,6 +106,12 @@ export class SerialBusConnection {
     }
 
     this.connectionState = 'unreachable';
+    const cycleSpentAt = this.reconnect.getCycleSpentAt();
+    if (cycleSpentAt !== null && cycleSpentAt === this.lastUnreachableLogCycleSpentAt) {
+      return;
+    }
+    this.lastUnreachableLogCycleSpentAt = cycleSpentAt;
+
     this.log.error(`${this.busLabel} bus unreachable after reconnect attempts`, {
       attempts: this.reconnect.getAttempts(),
       connectionState: this.connectionState,
