@@ -84,6 +84,14 @@ class User extends Authenticatable implements FilamentUser, HasName, MustVerifyE
     }
 
     /**
+     * Look up a user by email regardless of how the address is cased (#371).
+     */
+    public static function findByEmail(string $email): ?self
+    {
+        return self::query()->where('email', Str::lower($email))->first();
+    }
+
+    /**
      * Get event-sourced role assignments for this user.
      *
      * @return HasMany<UserRole, User>

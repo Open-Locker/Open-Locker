@@ -31,6 +31,14 @@ class CaseInsensitiveEmailTest extends TestCase
         $this->assertDatabaseHas('users', ['id' => $user->id, 'email' => 'ada.lovelace@example.test']);
     }
 
+    public function test_find_by_email_ignores_email_casing(): void
+    {
+        $user = User::factory()->create(['email' => 'ada@example.test']);
+
+        $this->assertTrue($user->is(User::findByEmail('Ada@Example.TEST')));
+        $this->assertNull(User::findByEmail('someone@example.test'));
+    }
+
     public function test_api_login_ignores_email_casing(): void
     {
         User::factory()->create(['email' => 'ada@example.test', 'password' => bcrypt('password123')]);

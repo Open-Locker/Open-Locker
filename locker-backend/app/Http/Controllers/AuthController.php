@@ -20,7 +20,6 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Password;
-use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -174,7 +173,7 @@ class AuthController extends Controller
         if ($status == Password::PASSWORD_RESET) {
             if (! $request->expectsJson()) {
                 // Managers and admins also sign in to the admin panel, so they get its login link (#372).
-                $user = User::query()->where('email', Str::lower($validated['email']))->first();
+                $user = User::findByEmail($validated['email']);
                 $adminLoginUrl = $user?->canAccessPanel(Filament::getPanel('admin'))
                     ? Filament::getPanel('admin')->getLoginUrl()
                     : null;
