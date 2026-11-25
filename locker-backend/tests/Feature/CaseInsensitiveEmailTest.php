@@ -12,7 +12,9 @@ use Filament\Auth\Pages\Login;
 use Filament\Facades\Filament;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Notification;
+use Illuminate\Support\Facades\Password;
 use Livewire\Livewire;
 use RuntimeException;
 use Tests\TestCase;
@@ -70,6 +72,21 @@ class CaseInsensitiveEmailTest extends TestCase
         $this->postJson(route('password.email'), ['email' => 'ADA@example.test'])->assertOk();
 
         Notification::assertSentTo($user, WebResetPasswordNotification::class);
+    }
+
+    public function test_password_reset_completes_with_email_in_other_casing(): void
+    {
+        $user = User::factory()->create(['email' => 'ada@example.test']);
+        $token = Password::createToken($user);
+
+        $this->postJson(route('password.store'), [
+            'email' => 'ADA@Example.test',
+            'token' => $token,
+            'password' => 'new-password123',
+            'password_confirmation' => 'new-password123',
+        ])->assertOk();
+
+        $this->assertTrue(Hash::check('new-password123', $user->fresh()->password));
     }
 
     public function test_profile_update_rejects_another_accounts_email_in_other_casing(): void
