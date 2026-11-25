@@ -8,14 +8,18 @@ use App\Scramble\Transformers\AcceptLanguageHeaderTransformer;
 use App\Scramble\Transformers\AccessibleCompartmentsNullableTransformer;
 use App\Scramble\Transformers\NullableFieldsTransformer;
 use App\Support\Audit\AuditEventPresenter;
+use App\Support\CaseInsensitiveUserProvider;
 use Carbon\CarbonImmutable;
 use Dedoc\Scramble\Scramble;
 use Dedoc\Scramble\Support\Generator\OpenApi;
 use Dedoc\Scramble\Support\Generator\SecurityScheme;
 use Illuminate\Cache\RateLimiting\Limit;
+use Illuminate\Contracts\Foundation\Application;
+use Illuminate\Contracts\Hashing\Hasher;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\RateLimiter;
@@ -50,6 +54,8 @@ class AppServiceProvider extends ServiceProvider
                 Log::warning('Lazy loading violation', ['model' => $model::class, 'relation' => $relation]);
             });
         }
+
+        Auth::provider('case-insensitive-eloquent', fn (Application $app, array $config): CaseInsensitiveUserProvider => new CaseInsensitiveUserProvider($app->make(Hasher::class), $config['model']));
 
         RateLimiter::for('password-reset', fn (Request $request): Limit => Limit::perMinute(6)->by((string) $request->ip()));
 

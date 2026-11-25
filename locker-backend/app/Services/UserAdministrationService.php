@@ -12,6 +12,7 @@ use App\Exceptions\MissingOrganizationContextException;
 use App\Models\User;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 
 class UserAdministrationService
 {
@@ -35,7 +36,7 @@ class UserAdministrationService
         $organization = $this->organizationContext->require();
 
         return DB::transaction(function () use ($attributes, $organization, $actorUserId): User {
-            $user = User::query()->firstOrCreate(['email' => $attributes['email']], $attributes);
+            $user = User::query()->firstOrCreate(['email' => Str::lower($attributes['email'])], $attributes);
 
             $this->memberships->addMember($organization, $user, $actorUserId);
 
