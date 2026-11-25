@@ -193,4 +193,3 @@ class GroupCompartmentAccessMultipleGroupWarningTest extends TestCase
         );
     }
 }
-
