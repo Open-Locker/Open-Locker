@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted (2026-10-30). The code and configuration are on `main` since `cab9f12b` (2026-08-23). Becomes Implemented when #233 records the runtime verification of both deployment paths, as rollout step 6 requires.
+Implemented (2026-11-25). Accepted 2026-10-30; the code and configuration are on `main` since `cab9f12b` (2026-08-23). #233 records the runtime verification of the Coolify deployment path on production. The standalone Docker Compose path is documented in [Installation](../Installation.md) (allow only inbound TCP 80, 443, and 8883; never publish 1883) but has not been verified at runtime.
 
 ## Date
 
