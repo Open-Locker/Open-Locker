@@ -132,5 +132,9 @@ test('SerialBusConnection logs "bus unreachable" once per reconnect cycle', asyn
   const unreachableAfterCooldown = errors.filter((message) =>
     message.includes('bus unreachable after reconnect attempts'),
   );
-  assert.equal(unreachableAfterCooldown.length, 2, 'should log again after cooldown starts a new cycle');
+  assert.equal(
+    unreachableAfterCooldown.length,
+    2,
+    'should log again after cooldown starts a new cycle',
+  );
 });
