@@ -45,6 +45,17 @@ export class ReconnectCoordinator {
     return this.cycleSpentAt !== null;
   }
 
+  /**
+   * Monotonic timestamp for when the current reconnect cycle was spent, or null
+   * when the cycle is still active or has been reset.
+   *
+   * Exposed so callers can deduplicate their own "unreachable" logging once per
+   * spent cycle even if they reset their own connection state while retrying.
+   */
+  getCycleSpentAt(): number | null {
+    return this.cycleSpentAt;
+  }
+
   getAttempts(): number {
     return this.attempts;
   }
