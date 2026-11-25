@@ -429,7 +429,8 @@ class AuditEventPresenter
             ->get(['id', 'first_name', 'last_name']);
 
         foreach ($users as $user) {
-            $this->userCache[$user->id] = $user->fullName();
+            $this->userCache[$user->id] = $user->fullName()
+                ?: (string) __('User #:id', ['id' => $user->id]);
         }
     }
 
