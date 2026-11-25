@@ -637,7 +637,6 @@
     "Unlock pulse sent to compartment :compartment": "Entriegelungsimpuls an Fach :compartment gesendet",
     "Waveshare Modbus relay board": "Waveshare-Modbus-Relaisboard",
     "Compartment already has group access": "Fach hat bereits Gruppenzugriff",
-    "Grant access anyway": "Zugriff trotzdem gewähren",
     "This would result in multiple groups having active access to the same compartment.": "Dadurch hätten mehrere Gruppen gleichzeitig aktiven Zugriff auf dasselbe Fach.",
     "Compartment: :compartment": "Fach: :compartment",
     "Groups with access already: :groups": "Gruppen mit bestehendem Zugriff: :groups",

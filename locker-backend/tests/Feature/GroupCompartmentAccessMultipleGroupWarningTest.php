@@ -144,6 +144,7 @@ class GroupCompartmentAccessMultipleGroupWarningTest extends TestCase
             ])
             ->mountAction(TestAction::make('grantAccess')->table())
             ->fillForm(['group_ids' => [(string) $first->id, (string) $second->id]])
+            ->assertMountedActionModalSee(__('Compartment already has group access'))
             ->assertMountedActionModalSee($first->name)
             ->assertMountedActionModalSee($second->name);
 
@@ -185,6 +186,48 @@ class GroupCompartmentAccessMultipleGroupWarningTest extends TestCase
         $component->unmountAction()->assertActionNotMounted();
 
         $this->assertFalse(
+            GroupCompartmentAccess::query()
+                ->where('group_id', $new->id)
+                ->where('compartment_id', $compartment->id)
+                ->active()
+                ->exists()
+        );
+    }
+
+    public function test_group_grant_access_warns_when_compartment_has_other_group_and_can_be_confirmed(): void
+    {
+        $admin = $this->admin();
+        $compartment = Compartment::factory()->create();
+        $existing = Group::factory()->create(['name' => 'Existing group']);
+        $new = Group::factory()->create(['name' => 'New group']);
+
+        app(GroupAccessService::class)->grantCompartmentAccess(
+            group: $existing,
+            compartment: $compartment,
+            actor: $admin,
+        );
+
+        $component = Livewire::actingAs($admin)
+            ->test(CompartmentAccessesRelationManager::class, [
+                'ownerRecord' => $new,
+                'pageClass' => EditGroup::class,
+            ])
+            ->mountAction(TestAction::make('grantAccess')->table())
+            ->fillForm(['compartment_ids' => [(string) $compartment->id]])
+            ->assertMountedActionModalSee(__('Compartment already has group access'))
+            ->assertMountedActionModalSee($existing->name);
+
+        $this->assertFalse(
+            GroupCompartmentAccess::query()
+                ->where('group_id', $new->id)
+                ->where('compartment_id', $compartment->id)
+                ->active()
+                ->exists()
+        );
+
+        $component->callMountedAction()->assertActionNotMounted();
+
+        $this->assertTrue(
             GroupCompartmentAccess::query()
                 ->where('group_id', $new->id)
                 ->where('compartment_id', $compartment->id)
