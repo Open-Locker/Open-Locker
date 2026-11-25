@@ -8,6 +8,7 @@ use App\Models\Compartment;
 use App\Models\Group;
 use App\Models\LockerBank;
 use App\Models\User;
+use Closure;
 use ReflectionClass;
 use Spatie\EventSourcing\StoredEvents\Models\EloquentStoredEvent;
 
@@ -386,187 +387,8 @@ class AuditEventPresenter
     }
 
     /**
-     * @param  iterable<int|string|null>  $ids
-     */
-    public function primeUserCache(iterable $ids): void
-    {
-        $uniqueIds = [];
-
-        foreach ($ids as $id) {
-            if ($id === null) {
-                continue;
-            }
-
-            $id = (int) $id;
-            if ($id <= 0) {
-                continue;
-            }
-
-            $uniqueIds[$id] = true;
-        }
-
-        if ($uniqueIds === []) {
-            return;
-        }
-
-        $missingIds = [];
-        foreach (array_keys($uniqueIds) as $id) {
-            if (! array_key_exists($id, $this->userCache)) {
-                $missingIds[] = $id;
-            }
-        }
-
-        if ($missingIds === []) {
-            return;
-        }
-
-        foreach ($missingIds as $id) {
-            $this->userCache[$id] = (string) __('User #:id', ['id' => $id]);
-        }
-
-        $users = User::query()
-            ->whereKey($missingIds)
-            ->get(['id', 'first_name', 'last_name']);
-
-        foreach ($users as $user) {
-            $this->userCache[$user->id] = $user->fullName()
-                ?: (string) __('User #:id', ['id' => $user->id]);
-        }
-    }
-
-    /**
-     * @param  iterable<string|null>  $uuids
-     */
-    public function primeCompartmentCache(iterable $uuids): void
-    {
-        $uniqueUuids = [];
-
-        foreach ($uuids as $uuid) {
-            if (! is_string($uuid) || $uuid === '') {
-                continue;
-            }
-
-            $uniqueUuids[$uuid] = true;
-        }
-
-        if ($uniqueUuids === []) {
-            return;
-        }
-
-        $missingUuids = [];
-        foreach (array_keys($uniqueUuids) as $uuid) {
-            if (! array_key_exists($uuid, $this->compartmentCache)) {
-                $missingUuids[] = $uuid;
-            }
-        }
-
-        if ($missingUuids === []) {
-            return;
-        }
-
-        foreach ($missingUuids as $uuid) {
-            $this->compartmentCache[$uuid] = (string) __('Unknown');
-        }
-
-        $compartments = Compartment::query()
-            ->with('lockerBank')
-            ->whereKey($missingUuids)
-            ->get(['id', 'locker_bank_id', 'number']);
-
-        foreach ($compartments as $compartment) {
-            $bank = $compartment->lockerBank?->name;
-            $number = $compartment->number;
-
-            $this->compartmentCache[$compartment->id] = $number !== null
-                ? ($bank !== null ? $bank.' / #'.$number : '#'.$number)
-                : (string) __('Unknown');
-        }
-    }
-
-    /**
-     * @param  iterable<string|null>  $uuids
-     */
-    public function primeGroupCache(iterable $uuids): void
-    {
-        $uniqueUuids = [];
-
-        foreach ($uuids as $uuid) {
-            if (! is_string($uuid) || $uuid === '') {
-                continue;
-            }
-
-            $uniqueUuids[$uuid] = true;
-        }
-
-        if ($uniqueUuids === []) {
-            return;
-        }
-
-        $missingUuids = [];
-        foreach (array_keys($uniqueUuids) as $uuid) {
-            if (! array_key_exists($uuid, $this->groupCache)) {
-                $missingUuids[] = $uuid;
-            }
-        }
-
-        if ($missingUuids === []) {
-            return;
-        }
-
-        foreach ($missingUuids as $uuid) {
-            $this->groupCache[$uuid] = (string) __('Unknown');
-        }
-
-        $groups = Group::query()->whereKey($missingUuids)->get(['id', 'name']);
-
-        foreach ($groups as $group) {
-            $this->groupCache[$group->id] = $group->name ?: (string) __('Unknown');
-        }
-    }
-
-    /**
-     * @param  iterable<string|null>  $uuids
-     */
-    public function primeLockerBankCache(iterable $uuids): void
-    {
-        $uniqueUuids = [];
-
-        foreach ($uuids as $uuid) {
-            if (! is_string($uuid) || $uuid === '') {
-                continue;
-            }
-
-            $uniqueUuids[$uuid] = true;
-        }
-
-        if ($uniqueUuids === []) {
-            return;
-        }
-
-        $missingUuids = [];
-        foreach (array_keys($uniqueUuids) as $uuid) {
-            if (! array_key_exists($uuid, $this->lockerBankCache)) {
-                $missingUuids[] = $uuid;
-            }
-        }
-
-        if ($missingUuids === []) {
-            return;
-        }
-
-        foreach ($missingUuids as $uuid) {
-            $this->lockerBankCache[$uuid] = (string) __('Unknown');
-        }
-
-        $banks = LockerBank::query()->whereKey($missingUuids)->get(['id', 'name']);
-
-        foreach ($banks as $bank) {
-            $this->lockerBankCache[$bank->id] = $bank->name ?: (string) __('Unknown');
-        }
-    }
-
-    /**
-     * Prime caches used by {@see describe()} for the given events.
+     * Load the names {@see describe()} and {@see actorName()} need for a page
+     * of events with one query per model, instead of one query per row.
      *
      * @param  iterable<EloquentStoredEvent>  $events
      */
@@ -578,20 +400,73 @@ class AuditEventPresenter
         $lockerBankUuids = [];
 
         foreach ($events as $event) {
-            $userIds[] = $this->actorId($event);
-
             $p = $event->event_properties;
 
-            $userIds[] = $p['userId'] ?? null;
+            $userIds[] = $this->actorId($event);
+            $userIds[] = isset($p['userId']) ? (int) $p['userId'] : null;
             $compartmentUuids[] = $p['compartmentUuid'] ?? null;
             $groupUuids[] = $p['groupUuid'] ?? null;
             $lockerBankUuids[] = $p['lockerBankUuid'] ?? null;
         }
 
-        $this->primeUserCache($userIds);
-        $this->primeCompartmentCache($compartmentUuids);
-        $this->primeGroupCache($groupUuids);
-        $this->primeLockerBankCache($lockerBankUuids);
+        $this->prime(
+            $this->userCache,
+            $userIds,
+            fn (array $ids): array => User::query()->whereKey($ids)->get()
+                ->mapWithKeys(fn (User $user): array => [$user->id => $user->fullName()])
+                ->all(),
+            fn (int|string $id): string => (string) __('User #:id', ['id' => $id]),
+        );
+        $this->prime(
+            $this->compartmentCache,
+            $compartmentUuids,
+            fn (array $uuids): array => Compartment::query()->with('lockerBank')->whereKey($uuids)->get()
+                ->mapWithKeys(fn (Compartment $compartment): array => [$compartment->id => $this->compartmentLabel($compartment)])
+                ->all(),
+        );
+        $this->prime(
+            $this->groupCache,
+            $groupUuids,
+            fn (array $uuids): array => Group::query()->whereKey($uuids)->pluck('name', 'id')->all(),
+        );
+        $this->prime(
+            $this->lockerBankCache,
+            $lockerBankUuids,
+            fn (array $uuids): array => LockerBank::query()->whereKey($uuids)->pluck('name', 'id')->all(),
+        );
+    }
+
+    /**
+     * Cache a label for every key that is not cached yet. Keys without a row,
+     * or with an empty label, get the same fallback the per-row lookups use.
+     *
+     * @template TKey of int|string
+     *
+     * @param  array<TKey, string|null>  $cache
+     * @param  array<int, TKey|null>  $keys
+     * @param  Closure(list<TKey>): array<array-key, string|null>  $load
+     * @param  (Closure(TKey): string)|null  $fallback
+     *
+     * @param-out array<TKey, string|null>  $cache
+     */
+    private function prime(array &$cache, array $keys, Closure $load, ?Closure $fallback = null): void
+    {
+        $missing = [];
+        foreach ($keys as $key) {
+            if ($key !== null && $key !== '' && ! array_key_exists($key, $cache)) {
+                $missing[$key] = $key;
+            }
+        }
+
+        if ($missing === []) {
+            return;
+        }
+
+        $labels = $load(array_values($missing));
+
+        foreach ($missing as $key) {
+            $cache[$key] = ($labels[$key] ?? null) ?: ($fallback !== null ? $fallback($key) : (string) __('Unknown'));
+        }
     }
 
     private function user(int|string|null $id): string
@@ -614,16 +489,17 @@ class AuditEventPresenter
         return $this->compartmentCache[$uuid] ??= (function () use ($uuid): string {
             $compartment = Compartment::with('lockerBank')->find($uuid);
 
-            if ($compartment === null) {
-                return __('Unknown');
-            }
-
-            $bank = $compartment->lockerBank?->name;
-
-            return $bank !== null
-                ? $bank.' / #'.$compartment->number
-                : '#'.$compartment->number;
+            return $compartment !== null ? $this->compartmentLabel($compartment) : __('Unknown');
         })();
+    }
+
+    private function compartmentLabel(Compartment $compartment): string
+    {
+        $bank = $compartment->lockerBank?->name;
+
+        return $bank !== null
+            ? $bank.' / #'.$compartment->number
+            : '#'.$compartment->number;
     }
 
     private function group(?string $uuid): string
