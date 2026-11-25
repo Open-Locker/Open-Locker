@@ -24,6 +24,8 @@ use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
 
 class UserResource extends Resource
 {
@@ -99,6 +101,13 @@ class UserResource extends Resource
                     ->label(__('Email'))
                     ->email()
                     ->required()
+                    // Emails are stored lowercase, so the unique check must compare lowercase too (#371).
+                    // Only on edit: creating a user with an existing email reuses that account.
+                    ->mutateStateForValidationUsing(fn (?string $state): ?string => $state === null ? null : Str::lower($state))
+                    ->rule(
+                        fn (?User $record) => Rule::unique('users', 'email')->ignore($record?->id),
+                        fn (?User $record): bool => $record instanceof User,
+                    )
                     ->disabled(fn (?User $record): bool => $record instanceof User && ! self::canEdit($record)),
                 TextEntry::make('roles')
                     ->label(__('Roles'))

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use App\Filament\Resources\UserResource\Pages\CreateUser;
+use App\Filament\Resources\UserResource\Pages\EditUser;
 use App\Models\User;
 use App\Notifications\Auth\WebResetPasswordNotification;
 use Filament\Auth\Pages\Login;
@@ -97,6 +98,45 @@ class CaseInsensitiveEmailTest extends TestCase
 
         $this->assertSame(1, User::query()->where('email', 'grace@example.test')->count());
         $this->assertDatabaseHas('organization_user', ['user_id' => $existing->id]);
+    }
+
+    public function test_editing_a_user_rejects_another_accounts_email_in_other_casing(): void
+    {
+        $admin = User::factory()->create();
+        $admin->makeAdmin();
+        User::factory()->create(['email' => 'taken@example.test']);
+        $target = User::factory()->create(['email' => 'target@example.test']);
+
+        Livewire::actingAs($admin)
+            ->test(EditUser::class, ['record' => $target->getRouteKey()])
+            ->fillForm([
+                'first_name' => $target->first_name,
+                'last_name' => $target->last_name,
+                'email' => 'Taken@Example.test',
+            ])
+            ->call('save')
+            ->assertHasFormErrors(['email' => 'unique']);
+
+        $this->assertSame('target@example.test', $target->fresh()->email);
+    }
+
+    public function test_editing_a_user_accepts_their_own_email_in_other_casing(): void
+    {
+        $admin = User::factory()->create();
+        $admin->makeAdmin();
+        $target = User::factory()->create(['email' => 'target@example.test']);
+
+        Livewire::actingAs($admin)
+            ->test(EditUser::class, ['record' => $target->getRouteKey()])
+            ->fillForm([
+                'first_name' => $target->first_name,
+                'last_name' => $target->last_name,
+                'email' => 'Target@Example.test',
+            ])
+            ->call('save')
+            ->assertHasNoFormErrors();
+
+        $this->assertSame('target@example.test', $target->fresh()->email);
     }
 
     public function test_migration_lowercases_existing_emails(): void
