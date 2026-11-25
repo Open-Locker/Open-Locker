@@ -148,31 +148,35 @@ test('atomicWriteFileSync propagates a directory storage error after rename', (t
   assert.equal(fs.readFileSync(file, 'utf8'), 'new state');
 });
 
-test('atomicWriteFileSync propagates a directory close error after rename', (t) => {
-  const directory = createTemporaryDirectory(t);
-  const file = path.join(directory, 'state.json');
-  let closeCalls = 0;
-  const storageError = nodeError('simulated close failure', 'EIO');
-  const fileSystem: AtomicWriteFileSystem = {
-    ...fs,
-    closeSync(descriptor) {
-      closeCalls += 1;
-      if (closeCalls === 3) {
-        throw storageError;
-      }
-      fs.closeSync(descriptor);
-    },
-  };
+test(
+  'atomicWriteFileSync propagates a directory close error after rename',
+  { skip: !supportsUnixModes },
+  (t) => {
+    const directory = createTemporaryDirectory(t);
+    const file = path.join(directory, 'state.json');
+    let closeCalls = 0;
+    const storageError = nodeError('simulated close failure', 'EIO');
+    const fileSystem: AtomicWriteFileSystem = {
+      ...fs,
+      closeSync(descriptor) {
+        closeCalls += 1;
+        if (closeCalls === 3) {
+          throw storageError;
+        }
+        fs.closeSync(descriptor);
+      },
+    };
 
-  assert.throws(
-    () => atomicWriteFileSync(file, 'new state', { fileSystem, mode: 0o600 }),
-    (error: unknown) =>
-      error instanceof Error &&
-      error.message.includes('rename completed') &&
-      error.cause === storageError,
-  );
-  assert.equal(fs.readFileSync(file, 'utf8'), 'new state');
-});
+    assert.throws(
+      () => atomicWriteFileSync(file, 'new state', { fileSystem, mode: 0o600 }),
+      (error: unknown) =>
+        error instanceof Error &&
+        error.message.includes('rename completed') &&
+        error.cause === storageError,
+    );
+    assert.equal(fs.readFileSync(file, 'utf8'), 'new state');
+  },
+);
 
 test('atomicWriteFileSync preserves write and cleanup failures', (t) => {
   const directory = createTemporaryDirectory(t);
