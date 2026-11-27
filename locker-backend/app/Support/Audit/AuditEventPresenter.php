@@ -8,6 +8,7 @@ use App\Models\Compartment;
 use App\Models\Group;
 use App\Models\LockerBank;
 use App\Models\User;
+use Closure;
 use ReflectionClass;
 use Spatie\EventSourcing\StoredEvents\Models\EloquentStoredEvent;
 
@@ -325,11 +326,7 @@ class AuditEventPresenter
         return ['actorUserId', 'createdByUserId', 'publishedByUserId', 'activatedByUserId'];
     }
 
-    /**
-     * Display name of the user who caused the event, if any. System- and
-     * device-originated events have no actor and return null.
-     */
-    public function actorName(EloquentStoredEvent $event): ?string
+    public function actorId(EloquentStoredEvent $event): ?int
     {
         $p = $event->event_properties;
 
@@ -340,7 +337,18 @@ class AuditEventPresenter
             // UserAcceptedTermsVersion is self-acted by the user.
             ?? ($this->short($event->event_class) === 'UserAcceptedTermsVersion' ? ($p['userId'] ?? null) : null);
 
-        return $actorId !== null ? $this->user((int) $actorId) : null;
+        return $actorId !== null ? (int) $actorId : null;
+    }
+
+    /**
+     * Display name of the user who caused the event, if any. System- and
+     * device-originated events have no actor and return null.
+     */
+    public function actorName(EloquentStoredEvent $event): ?string
+    {
+        $actorId = $this->actorId($event);
+
+        return $actorId !== null ? $this->user($actorId) : null;
     }
 
     /**
@@ -378,6 +386,89 @@ class AuditEventPresenter
         return class_basename($eventClass);
     }
 
+    /**
+     * Load the names {@see describe()} and {@see actorName()} need for a page
+     * of events with one query per model, instead of one query per row.
+     *
+     * @param  iterable<EloquentStoredEvent>  $events
+     */
+    public function primeDescribeCaches(iterable $events): void
+    {
+        $userIds = [];
+        $compartmentUuids = [];
+        $groupUuids = [];
+        $lockerBankUuids = [];
+
+        foreach ($events as $event) {
+            $p = $event->event_properties;
+
+            $userIds[] = $this->actorId($event);
+            $userIds[] = isset($p['userId']) ? (int) $p['userId'] : null;
+            $compartmentUuids[] = $p['compartmentUuid'] ?? null;
+            $groupUuids[] = $p['groupUuid'] ?? null;
+            $lockerBankUuids[] = $p['lockerBankUuid'] ?? null;
+        }
+
+        $this->prime(
+            $this->userCache,
+            $userIds,
+            fn (array $ids): array => User::query()->whereKey($ids)->get()
+                ->mapWithKeys(fn (User $user): array => [$user->id => $user->fullName()])
+                ->all(),
+            fn (int|string $id): string => (string) __('User #:id', ['id' => $id]),
+        );
+        $this->prime(
+            $this->compartmentCache,
+            $compartmentUuids,
+            fn (array $uuids): array => Compartment::query()->with('lockerBank')->whereKey($uuids)->get()
+                ->mapWithKeys(fn (Compartment $compartment): array => [$compartment->id => $this->compartmentLabel($compartment)])
+                ->all(),
+        );
+        $this->prime(
+            $this->groupCache,
+            $groupUuids,
+            fn (array $uuids): array => Group::query()->whereKey($uuids)->pluck('name', 'id')->all(),
+        );
+        $this->prime(
+            $this->lockerBankCache,
+            $lockerBankUuids,
+            fn (array $uuids): array => LockerBank::query()->whereKey($uuids)->pluck('name', 'id')->all(),
+        );
+    }
+
+    /**
+     * Cache a label for every key that is not cached yet. Keys without a row,
+     * or with an empty label, get the same fallback the per-row lookups use.
+     *
+     * @template TKey of int|string
+     *
+     * @param  array<TKey, string|null>  $cache
+     * @param  array<int, TKey|null>  $keys
+     * @param  Closure(list<TKey>): array<array-key, string|null>  $load
+     * @param  (Closure(TKey): string)|null  $fallback
+     *
+     * @param-out array<TKey, string|null>  $cache
+     */
+    private function prime(array &$cache, array $keys, Closure $load, ?Closure $fallback = null): void
+    {
+        $missing = [];
+        foreach ($keys as $key) {
+            if ($key !== null && $key !== '' && ! array_key_exists($key, $cache)) {
+                $missing[$key] = $key;
+            }
+        }
+
+        if ($missing === []) {
+            return;
+        }
+
+        $labels = $load(array_values($missing));
+
+        foreach ($missing as $key) {
+            $cache[$key] = ($labels[$key] ?? null) ?: ($fallback !== null ? $fallback($key) : (string) __('Unknown'));
+        }
+    }
+
     private function user(int|string|null $id): string
     {
         if ($id === null) {
@@ -398,16 +489,17 @@ class AuditEventPresenter
         return $this->compartmentCache[$uuid] ??= (function () use ($uuid): string {
             $compartment = Compartment::with('lockerBank')->find($uuid);
 
-            if ($compartment === null) {
-                return __('Unknown');
-            }
-
-            $bank = $compartment->lockerBank?->name;
-
-            return $bank !== null
-                ? $bank.' / #'.$compartment->number
-                : '#'.$compartment->number;
+            return $compartment !== null ? $this->compartmentLabel($compartment) : __('Unknown');
         })();
+    }
+
+    private function compartmentLabel(Compartment $compartment): string
+    {
+        $bank = $compartment->lockerBank?->name;
+
+        return $bank !== null
+            ? $bank.' / #'.$compartment->number
+            : '#'.$compartment->number;
     }
 
     private function group(?string $uuid): string

@@ -182,9 +182,7 @@ class User extends Authenticatable implements FilamentUser, HasName, MustVerifyE
 
     public function currentTermsVersion(): ?int
     {
-        $document = TermsDocument::query()->with('activeVersion')->oldest('id')->first();
-
-        return $document?->activeVersion?->version;
+        return TermsDocument::currentActiveVersionNumber();
     }
 
     public function latestAcceptedTermsVersion(): ?int

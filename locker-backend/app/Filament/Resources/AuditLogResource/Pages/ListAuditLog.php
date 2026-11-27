@@ -8,11 +8,37 @@ use App\Filament\Resources\AuditLogResource;
 use App\Support\Audit\AuditEventPresenter;
 use Filament\Resources\Pages\ListRecords;
 use Filament\Schemas\Components\Tabs\Tab;
+use Illuminate\Contracts\Pagination\CursorPaginator;
+use Illuminate\Contracts\Pagination\Paginator;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Collection;
+use Spatie\EventSourcing\StoredEvents\Models\EloquentStoredEvent;
 
 class ListAuditLog extends ListRecords
 {
     protected static string $resource = AuditLogResource::class;
+
+    /**
+     * @return Collection<int|string, EloquentStoredEvent>|Paginator<int|string, EloquentStoredEvent>|CursorPaginator<int|string, EloquentStoredEvent>
+     */
+    public function getTableRecords(): Collection|Paginator|CursorPaginator
+    {
+        $records = parent::getTableRecords();
+
+        $recordsCollection = $records instanceof Collection
+            ? $records
+            : collect($records->items());
+
+        $presenter = app(AuditEventPresenter::class);
+
+        $presenter->primeDescribeCaches(
+            $recordsCollection
+                ->filter(fn (mixed $record): bool => $record instanceof EloquentStoredEvent)
+                ->all()
+        );
+
+        return $records;
+    }
 
     /**
      * Category tabs (Access / Devices / Admin / Terms) on top of the unified

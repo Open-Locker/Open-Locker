@@ -29,4 +29,11 @@ class TermsDocument extends Model
     {
         return $this->hasOne(TermsDocumentVersion::class)->where('is_active', true);
     }
+
+    public static function currentActiveVersionNumber(): ?int
+    {
+        $document = self::query()->with('activeVersion')->oldest('id')->first();
+
+        return $document?->activeVersion?->version;
+    }
 }
