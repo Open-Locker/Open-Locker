@@ -1,0 +1,6 @@
+# Automation uses consistent line endings on every platform.
+Justfile text eol=lf
+*.mjs text eol=lf
+scripts/**/*.ts text eol=lf
+*.sh text eol=lf
+*.ps1 text eol=lf
